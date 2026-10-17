@@ -408,6 +408,30 @@ struct BrowserTabTests {
         #expect(b.activeID != nil)
     }
 
+    @Test func aBookmarkIsItsOwnTab() {
+        let b = browser(2)
+        b.activate(1)
+        let key = Browser.bookmarkKey(url: "https://fav.example/", folder: "")
+        b.openBookmark("https://fav.example/", key: key)
+        let bookmarkTab = b.bookmarkTab(key)
+        #expect(bookmarkTab != nil && b.activeID == bookmarkTab?.id)
+        // The tab that was shown is untouched, and the bookmark's tab stays out of the tab list.
+        #expect(b.tab(1)?.url?.host() == "site1.example")
+        #expect(b.listedTabs.map(\.id) == [1, 2])
+        b.activate(2)
+        b.openBookmark("https://fav.example/", key: key)
+        #expect(b.activeID == bookmarkTab?.id && b.tabs.count == 3)
+        // ⌘-click: an ordinary new tab in the list.
+        b.openBookmark("https://fav.example/", key: key, inNewTab: true)
+        #expect(b.listedTabs.count == 3)
+        // Closing the bookmark's tab leaves the slot empty; deleting a bookmark moves its open tab into the list.
+        b.close(bookmarkTab!.id)
+        #expect(b.bookmarkTab(key) == nil)
+        b.openBookmark("https://fav.example/", key: key)
+        b.releaseBookmarkTabs(keeping: [])
+        #expect(b.bookmarkTab(key) == nil && b.listedTabs.count == 4)
+    }
+
     @Test func closedTabsComeBackWhereTheyWere() {
         let b = browser(3)
         b.close(2)

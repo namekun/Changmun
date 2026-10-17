@@ -40,6 +40,7 @@ final class Browser: ObservableObject {
         var title: String
         var state: Data?
         var index: Int
+        var bookmarkKey: String?
     }
 
     /// Most recently closed last.
@@ -130,7 +131,7 @@ final class Browser: ObservableObject {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         let closing = tabs.remove(at: index)
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabClosed(closing) }
-        closedTabs.append(ClosedTab(url: closing.url, title: closing.title, state: closing.sessionState, index: index))
+        closedTabs.append(ClosedTab(url: closing.url, title: closing.title, state: closing.sessionState, index: index, bookmarkKey: closing.bookmarkKey))
         if closedTabs.count > 25 { closedTabs.removeFirst() }
         closing.sleep()
         if activeID == id {
@@ -140,7 +141,8 @@ final class Browser: ObservableObject {
             } else if let back = previousActiveID, tabs.contains(where: { $0.id == back }) {
                 activate(back)
             } else {
-                activate(tabs[min(index, tabs.count - 1)].id)
+                let listed = listedTabs
+                activate(listed.isEmpty ? tabs[min(index, tabs.count - 1)].id : listed[min(listed.count - 1, max(0, listedIndex(before: index)))].id)
             }
         }
     }
@@ -149,6 +151,7 @@ final class Browser: ObservableObject {
     func reopenClosedTab() {
         guard let closed = closedTabs.popLast() else { return }
         let tab = Tab(id: takeID(), url: closed.url, title: closed.title, state: closed.state, browser: self)
+        if let key = closed.bookmarkKey, bookmarkTab(key) == nil { tab.bookmarkKey = key }
         tabs.insert(tab, at: min(closed.index, tabs.count))
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
         activate(tab.id)
@@ -205,13 +208,21 @@ final class Browser: ObservableObject {
     }
 
     func selectTab(offset: Int) {
-        guard let current = tabs.firstIndex(where: { $0.id == activeID }), !tabs.isEmpty else { return }
-        activate(tabs[(current + offset + tabs.count) % tabs.count].id)
+        let listed = listedTabs
+        guard !listed.isEmpty else { return }
+        guard let current = listed.firstIndex(where: { $0.id == activeID }) else { return activate(listed[0].id) }
+        activate(listed[(current + offset + listed.count) % listed.count].id)
     }
 
     func selectTab(number: Int) {
-        guard !tabs.isEmpty else { return }
-        activate(number >= 9 ? tabs[tabs.count - 1].id : tabs[min(number - 1, tabs.count - 1)].id)
+        let listed = listedTabs
+        guard !listed.isEmpty else { return }
+        activate(number >= 9 ? listed[listed.count - 1].id : listed[min(number - 1, listed.count - 1)].id)
+    }
+
+    /// How many listed tabs came before position `index` in `tabs` (after a tab there was removed).
+    private func listedIndex(before index: Int) -> Int {
+        tabs.prefix(index).filter { $0.bookmarkKey == nil }.count - 1 + (tabs.indices.contains(index) && tabs[index].bookmarkKey == nil ? 1 : 0)
     }
 
     func open(_ input: String, in mode: CommandBarMode) {
@@ -220,21 +231,48 @@ final class Browser: ObservableObject {
         commandBar = nil
     }
 
-    /// Shows the tab already on that page, or opens one.
-    /// Shows the tab already on that page; otherwise loads it in the current tab, like Dia,
-    /// or in a new one when asked (⌘-click) or when no tab is open.
-    func openBookmark(_ address: String, inNewTab: Bool = false) {
-        if let open = tabs.first(where: { $0.url?.absoluteString == address }) {
-            activate(open.id)
+    static func bookmarkKey(url: String, folder: String) -> String { folder + "\n" + url }
+
+    /// Tabs shown in the sidebar's tab list; bookmark tabs show in their bookmark's place instead.
+    var listedTabs: [Tab] { tabs.filter { $0.bookmarkKey == nil } }
+
+    func bookmarkTab(_ key: String) -> Tab? { tabs.first { $0.bookmarkKey == key } }
+
+    /// A bookmark is its own tab, as in Dia and Arc: the first click opens it in its place, later clicks switch back
+    /// to it (wherever it has navigated since). ⌘-click opens the page in an ordinary new tab instead.
+    func openBookmark(_ address: String, key: String?, inNewTab: Bool = false) {
+        guard let url = URL(string: address) else { return }
+        if inNewTab {
+            openTab(url: url, after: active)
             return
         }
-        guard let url = URL(string: address) else { return }
-        if inNewTab || active == nil {
-            openTab(url: url, after: active)
-        } else {
-            active?.load(url)
-            commandBar = nil
+        guard let key else {
+            if let open = tabs.first(where: { $0.url?.absoluteString == address }) { activate(open.id) } else { openTab(url: url, after: active) }
+            return
         }
+        if let open = bookmarkTab(key) {
+            activate(open.id)
+        } else {
+            let tab = Tab(id: takeID(), url: url, browser: self)
+            tab.bookmarkKey = key
+            tabs.append(tab)
+            if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
+            activate(tab.id)
+        }
+        commandBar = nil
+    }
+
+    /// A tab whose bookmark was deleted moves into the tab list rather than closing.
+    func releaseBookmarkTabs(keeping keys: Set<String>) {
+        for tab in tabs where tab.bookmarkKey.map({ !keys.contains($0) }) == true { tab.bookmarkKey = nil }
+        objectWillChange.send()
+    }
+
+    /// Turns an open tab into a bookmark's tab (pinning it).
+    func bind(_ tab: Tab, to key: String) {
+        guard bookmarkTab(key) == nil else { return }
+        tab.bookmarkKey = key
+        objectWillChange.send()
     }
 
     /// ⌘ held during the click that triggered this.
@@ -330,6 +368,7 @@ final class Browser: ObservableObject {
         var url: String?
         var title: String
         var state: Data?
+        var bookmarkKey: String?
     }
 
     private struct SavedSession: Codable {
@@ -342,7 +381,7 @@ final class Browser: ObservableObject {
 
     func saveSession() {
         let saved = SavedSession(
-            tabs: tabs.map { SavedTab(url: $0.url?.absoluteString, title: $0.title, state: $0.sessionState) },
+            tabs: tabs.map { SavedTab(url: $0.url?.absoluteString, title: $0.title, state: $0.sessionState, bookmarkKey: $0.bookmarkKey) },
             active: tabs.firstIndex { $0.id == activeID },
             previous: tabs.firstIndex { $0.id == previousActiveID }
         )
@@ -359,7 +398,9 @@ final class Browser: ObservableObject {
             return
         }
         for item in saved.tabs {
-            tabs.append(Tab(id: takeID(), url: item.url.flatMap(URL.init(string:)), title: item.title, state: item.state, browser: self))
+            let tab = Tab(id: takeID(), url: item.url.flatMap(URL.init(string:)), title: item.title, state: item.state, browser: self)
+            tab.bookmarkKey = item.bookmarkKey
+            tabs.append(tab)
         }
         activate(tabs[min(saved.active ?? 0, tabs.count - 1)].id)
         if let previous = saved.previous, tabs.indices.contains(previous) { previousActiveID = tabs[previous].id }

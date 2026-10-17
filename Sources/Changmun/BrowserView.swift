@@ -102,8 +102,11 @@ struct Sidebar: View {
                     if !library.favorites.isEmpty {
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 6) {
                             ForEach(library.favorites, id: \.url) { entry in
-                                FavoriteTile(entry: entry, isOpen: browser.active?.url?.absoluteString == entry.url) {
-                                    browser.openBookmark(entry.url, inNewTab: Browser.commandClick)
+                                let key = Browser.bookmarkKey(url: entry.url, folder: Library.favoritesFolder)
+                                FavoriteTile(entry: entry, state: BookmarkTabState(key, browser)) {
+                                    browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
+                                } closeTab: {
+                                    if let tab = browser.bookmarkTab(key) { browser.close(tab.id) }
                                 } remove: {
                                     Library.shared.removeBookmark(url: entry.url, folder: Library.favoritesFolder)
                                 }
@@ -116,7 +119,7 @@ struct Sidebar: View {
                         .padding(.bottom, 8)
                     }
                     NewTabRow { browser.commandBar = .newTab }
-                    ForEach(browser.tabs) { tab in
+                    ForEach(browser.listedTabs) { tab in
                         SidebarTabRow(tab: tab, isActive: tab.id == browser.activeID) {
                             browser.activate(tab.id)
                         } close: {
@@ -156,7 +159,12 @@ struct Sidebar: View {
                                         }
                                         if openFolders.contains(folder.key) {
                                             ForEach(folder.entries, id: \.url) { entry in
-                                                BookmarkRow(entry: entry) { browser.openBookmark(entry.url, inNewTab: Browser.commandClick) } remove: {
+                                                let key = Browser.bookmarkKey(url: entry.url, folder: folder.key)
+                                                BookmarkRow(entry: entry, state: BookmarkTabState(key, browser)) {
+                                                    browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
+                                                } closeTab: {
+                                                    if let tab = browser.bookmarkTab(key) { browser.close(tab.id) }
+                                                } remove: {
                                                     Library.shared.removeBookmark(url: entry.url, folder: folder.key)
                                                 }
                                                 .padding(.leading, 26)
@@ -246,6 +254,7 @@ enum SidebarDrag {
         if item.hasPrefix("changmun-tab:"), let id = Int(item.dropFirst("changmun-tab:".count)),
            let tab = browser.tab(id), let url = tab.url?.absoluteString {
             if !Library.shared.isFavorite(url) { _ = Library.shared.toggleBookmark(url: url, title: tab.title) }
+            browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: Library.favoritesFolder))
             Library.shared.moveFavorite(url, to: target)
             return true
         }
@@ -269,7 +278,11 @@ final class LibraryWatcher: ObservableObject {
 
     private func reload() {
         favorites = Library.shared.favorites()
-        sources = Library.groupBySource(Library.shared.folders())
+        let folders = Library.shared.folders()
+        sources = Library.groupBySource(folders)
+        var keys = Set(favorites.map { Browser.bookmarkKey(url: $0.url, folder: Library.favoritesFolder) })
+        for folder in folders { for entry in folder.entries { keys.insert(Browser.bookmarkKey(url: entry.url, folder: folder.name)) } }
+        Browser.shared.releaseBookmarkTabs(keeping: keys)
     }
 }
 
@@ -474,25 +487,42 @@ struct BookmarkStar: View {
     }
 }
 
+/// Whether a bookmark's own tab is shown, open in the background, or not open.
+enum BookmarkTabState {
+    case closed, open, shown
+
+    @MainActor
+    init(_ key: String, _ browser: Browser) {
+        guard let tab = browser.bookmarkTab(key) else { self = .closed; return }
+        self = tab.id == browser.activeID ? .shown : .open
+    }
+}
+
 struct FavoriteTile: View {
     let entry: Library.Entry
-    let isOpen: Bool
+    let state: BookmarkTabState
     let open: () -> Void
+    let closeTab: () -> Void
     let remove: () -> Void
     @State private var hover = false
 
     var body: some View {
         SiteIcon(url: entry.url, size: 18)
+            .opacity(state == .closed ? 0.75 : 1)
             .frame(maxWidth: .infinity)
             .frame(height: 42)
-            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(isOpen ? Theme.activeTab : (hover ? Theme.activeTab.opacity(0.7) : Theme.hoverTab)))
-            .shadow(color: .black.opacity(isOpen ? 0.08 : 0), radius: 1.5, y: 1)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(state == .shown ? Theme.activeTab : (hover ? Theme.activeTab.opacity(0.7) : Theme.hoverTab)))
+            .shadow(color: .black.opacity(state == .shown ? 0.08 : 0), radius: 1.5, y: 1)
+            .overlay(alignment: .bottom) {
+                if state == .open { Capsule().fill(Theme.secondary).frame(width: 10, height: 2).padding(.bottom, 4) }
+            }
             .contentShape(Rectangle())
             .onTapGesture(perform: open)
             .overlay(alignment: .topTrailing) {
                 if hover {
-                    Button(action: remove) {
-                        Image(systemName: "xmark").font(.system(size: 7, weight: .bold))
+                    Button(action: state == .closed ? remove : closeTab) {
+                        Image(systemName: state == .closed ? "xmark" : "minus").font(.system(size: 7, weight: .bold))
                             .frame(width: 14, height: 14)
                             .background(Circle().fill(Theme.card))
                             .overlay(Circle().strokeBorder(Theme.hairline, lineWidth: 0.5))
@@ -500,11 +530,14 @@ struct FavoriteTile: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(Color.primary.opacity(0.6))
                     .offset(x: 4, y: -4)
-                    .help("즐겨찾기에서 빼기")
+                    .help(state == .closed ? "즐겨찾기에서 빼기" : "이 즐겨찾기의 탭 닫기")
                 }
             }
             .onHover { hover = $0 }
-            .contextMenu { Button("즐겨찾기에서 빼기", action: remove) }
+            .contextMenu {
+                if state != .closed { Button("탭 닫기", action: closeTab) }
+                Button("즐겨찾기에서 빼기", action: remove)
+            }
             .help(entry.title.isEmpty ? entry.url : entry.title)
     }
 }
@@ -540,35 +573,43 @@ struct FolderRow: View {
 
 struct BookmarkRow: View {
     let entry: Library.Entry
+    let state: BookmarkTabState
     let open: () -> Void
+    let closeTab: () -> Void
     let remove: () -> Void
     @State private var hover = false
 
     var body: some View {
         HStack(spacing: 8) {
             SiteIcon(url: entry.url, size: 14)
-            Text(entry.title.isEmpty ? entry.url : entry.title).font(.system(size: 12.5)).lineLimit(1)
+            Text(entry.title.isEmpty ? entry.url : entry.title).font(.system(size: 12.5, weight: state == .shown ? .medium : .regular)).lineLimit(1)
             Spacer(minLength: 0)
             if hover {
-                Button(action: remove) {
-                    Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                Button(action: state == .closed ? remove : closeTab) {
+                    Image(systemName: state == .closed ? "xmark" : "minus").font(.system(size: 9, weight: .bold))
                         .frame(width: 18, height: 18)
                         .background(RoundedRectangle(cornerRadius: 5).fill(Theme.hoverTab))
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(Color.primary.opacity(0.5))
-                .help("북마크 삭제")
+                .help(state == .closed ? "북마크 삭제" : "이 북마크의 탭 닫기")
+            } else if state == .open {
+                Circle().fill(Theme.secondary).frame(width: 4, height: 4).padding(.trailing, 6)
             }
         }
-        .foregroundStyle(Color.primary.opacity(0.75))
+        .foregroundStyle(Color.primary.opacity(state == .closed ? 0.7 : 0.9))
         .padding(.horizontal, 8)
         .frame(height: 30)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(state == .shown ? Theme.activeTab : (hover ? Theme.hoverTab : .clear)))
         .contentShape(Rectangle())
         .onHover { hover = $0 }
         .onTapGesture(perform: open)
-        .contextMenu { Button("북마크 삭제", action: remove) }
+        .contextMenu {
+            if state != .closed { Button("탭 닫기", action: closeTab) }
+            Button("북마크 삭제", action: remove)
+        }
         .help(entry.url)
     }
 }
@@ -632,7 +673,10 @@ struct SidebarTabRow: View {
         .onTapGesture(perform: select)
         .contextMenu {
             Button("즐겨찾기에 고정") {
-                if let url = tab.url?.absoluteString, !Library.shared.isFavorite(url) { _ = Library.shared.toggleBookmark(url: url, title: tab.title) }
+                if let url = tab.url?.absoluteString {
+                    if !Library.shared.isFavorite(url) { _ = Library.shared.toggleBookmark(url: url, title: tab.title) }
+                    Browser.shared.bind(tab, to: Browser.bookmarkKey(url: url, folder: Library.favoritesFolder))
+                }
             }
             Button("주소 복사") {
                 NSPasteboard.general.clearContents()
