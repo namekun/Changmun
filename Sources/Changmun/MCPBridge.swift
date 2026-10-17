@@ -36,6 +36,13 @@ enum MCPBridge {
         }
     }
 
+    /// The chat panel names itself; any other client is its own caller for as long as this process runs.
+    static let caller: String = {
+        let args = CommandLine.arguments
+        if let i = args.firstIndex(of: "--caller"), i + 1 < args.count { return args[i + 1] }
+        return "mcp-\(getpid())"
+    }()
+
     private static func forward(_ name: String, _ arguments: [String: Any]) -> [String: Any] {
         guard let endpoint = ControlEndpoint.read() ?? launchApp() else {
             return ToolResult.text("Changmun is not running and could not be started.", error: true).json
@@ -43,6 +50,7 @@ enum MCPBridge {
         var request = URLRequest(url: URL(string: "http://127.0.0.1:\(endpoint.port)/call")!, timeoutInterval: 120)
         request.httpMethod = "POST"
         request.setValue("Bearer \(endpoint.token)", forHTTPHeaderField: "Authorization")
+        request.setValue(caller, forHTTPHeaderField: "X-Changmun-Caller")
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["name": name, "arguments": arguments])
         var result: [String: Any]?
         var failure = "no response"

@@ -124,7 +124,7 @@ final class ChatStore: ObservableObject {
         stop()
         items.removeAll()
         sessionID = nil
-        Approvals.forgetReads()
+        Approvals.forgetReads(caller: Self.caller)
     }
 
     // MARK: Stream events
@@ -229,8 +229,11 @@ final class ChatStore: ObservableObject {
         return "[현재 탭 #\(tab.id), 페이지가 정한 제목 \"\(title.prefix(80))\", 주소 \(tab.url?.absoluteString.prefix(300) ?? "about:blank")]"
     }
 
+    /// How the panel's tool calls are told apart from other MCP clients'.
+    static let caller = "panel"
+
     static func mcpConfig() -> String {
-        let server: [String: Any] = ["command": Bundle.main.executablePath ?? CommandLine.arguments[0], "args": ["--mcp"]]
+        let server: [String: Any] = ["command": Bundle.main.executablePath ?? CommandLine.arguments[0], "args": ["--mcp", "--caller", caller]]
         let data = try! JSONSerialization.data(withJSONObject: ["mcpServers": ["changmun": server]])
         return String(data: data, encoding: .utf8)!
     }

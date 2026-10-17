@@ -266,9 +266,13 @@ struct ApprovalRuleTests {
         Approvals.isFree(URL(string: address)!, knownURL: { urls.contains($0) }, knownHost: { hosts.contains($0) })
     }
 
-    @Test func searchesAreFree() {
+    @Test func onlyPlainSearchesAreFree() {
         #expect(free(AddressInput.searchURL("swift 동시성")!.absoluteString))
         #expect(!free("https://www.google.com/url?q=https://evil.example/?d=secret"))
+        #expect(!free("https://www.google.com/search?q=a&d=secret"))
+        #expect(!free("https://www.google.com/search?q=a#secret"))
+        #expect(!free("https://www.google.com:8443/search?q=a"))
+        #expect(!free("http://www.google.com/search?q=a"))
     }
 
     @Test func dataCarryingAddressesAreAsked() {
@@ -285,6 +289,7 @@ struct ApprovalRuleTests {
         #expect(free("https://github.com", hosts: ["github.com"]))
         #expect(!free("https://github.com/", hosts: []))
         #expect(!free("https://secret.github.com/", hosts: ["github.com"]))
+        #expect(!free("https://github.com:31337/", hosts: ["github.com"]))
     }
 }
 

@@ -76,7 +76,7 @@ final class ControlServer {
         }
         let arguments = body["arguments"] as? [String: Any] ?? [:]
         Task { @MainActor in
-            let result = await ToolCatalog.call(name, arguments)
+            let result = await ToolCatalog.call(name, arguments, caller: request.headers["x-changmun-caller"] ?? "unknown")
             self.respond(connection, status: "200 OK", body: result.json)
         }
     }
