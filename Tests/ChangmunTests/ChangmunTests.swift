@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 @testable import Changmun
@@ -290,6 +291,54 @@ struct ApprovalRuleTests {
         #expect(!free("https://github.com/", hosts: []))
         #expect(!free("https://secret.github.com/", hosts: ["github.com"]))
         #expect(!free("https://github.com:31337/", hosts: ["github.com"]))
+    }
+}
+
+struct PreferencesTests {
+    @Test func developerModePutsTheAddressBarOnTopUnlessChosen() {
+        #expect(!Preferences.onTop(.automatic, developerMode: false))
+        #expect(Preferences.onTop(.automatic, developerMode: true))
+        #expect(!Preferences.onTop(.sidebar, developerMode: true))
+        #expect(Preferences.onTop(.top, developerMode: false))
+    }
+}
+
+@MainActor
+struct ShortcutTests {
+    private func keys(_ scheme: ShortcutScheme) -> [(key: String, mods: NSEvent.ModifierFlags, action: String)] {
+        AppMenu.make(scheme: scheme).items.flatMap { $0.submenu?.items ?? [] }
+            .filter { !$0.keyEquivalent.isEmpty }
+            .map { ($0.keyEquivalent, $0.keyEquivalentModifierMask.intersection([.command, .shift, .option, .control]), $0.action.map(NSStringFromSelector) ?? "") }
+    }
+
+    private func action(_ scheme: ShortcutScheme, _ key: String, _ mods: NSEvent.ModifierFlags) -> String? {
+        keys(scheme).first { $0.key == key && $0.mods == mods }?.action
+    }
+
+    @Test func noKeyDoesTwoThings() {
+        for scheme in ShortcutScheme.allCases {
+            var seen: [String: String] = [:]
+            for item in keys(scheme) {
+                let id = "\(item.key)|\(item.mods.rawValue)"
+                if let other = seen[id], other != item.action { Issue.record("\(scheme): \(id) is both \(other) and \(item.action)") }
+                seen[id] = item.action
+            }
+        }
+    }
+
+    @Test func schemesDifferWhereTheBrowsersDo() {
+        #expect(action(.safari, "l", [.command, .shift]) == "toggleBrowserSidebar:")
+        #expect(action(.chrome, "s", [.command]) == "toggleBrowserSidebar:")
+        #expect(action(.safari, "r", [.command, .option]) == "hardReload:")
+        #expect(action(.chrome, "r", [.command, .shift]) == "hardReload:")
+        #expect(action(.safari, "c", [.command, .option]) == "showConsole:")
+        #expect(action(.chrome, "j", [.command, .option]) == "showConsole:")
+        #expect(action(.safari, "s", [.command]) == nil)
+        for scheme in ShortcutScheme.allCases {
+            #expect(action(scheme, String(Character(UnicodeScalar(NSF12FunctionKey)!)), []) == "toggleInspector:")
+            #expect(action(scheme, "i", [.command, .option]) == "toggleInspector:")
+            #expect(action(scheme, "l", [.command]) == "openLocation:")
+        }
     }
 }
 

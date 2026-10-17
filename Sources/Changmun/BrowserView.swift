@@ -21,6 +21,7 @@ enum Theme {
 struct BrowserView: View {
     @ObservedObject var browser: Browser
     @ObservedObject var chat: ChatStore
+    @ObservedObject private var prefs = Preferences.shared
 
     var body: some View {
         ZStack {
@@ -34,6 +35,11 @@ struct BrowserView: View {
                 VStack(spacing: 0) {
                     if !browser.showSidebar {
                         CompactBar(browser: browser)
+                    } else if prefs.addressBarOnTop {
+                        TopAddressBar(browser: browser)
+                            .padding(.trailing, 8)
+                            .frame(height: BrowserWindow.barHeight)
+                            .background(WindowDragArea())
                     }
                     HStack(spacing: 8) {
                         WebCard(browser: browser)
@@ -43,7 +49,7 @@ struct BrowserView: View {
                                 .transition(.move(edge: .trailing).combined(with: .opacity))
                         }
                     }
-                    .padding(.top, browser.showSidebar ? 8 : 0)
+                    .padding(.top, browser.showSidebar && !prefs.addressBarOnTop ? 8 : 0)
                     .padding([.trailing, .bottom], 8)
                     .padding(.leading, browser.showSidebar ? 0 : 8)
                 }
@@ -58,6 +64,7 @@ struct BrowserView: View {
         .ignoresSafeArea()
         .animation(.spring(duration: 0.32, bounce: 0.12), value: browser.showChat)
         .animation(.spring(duration: 0.3, bounce: 0.1), value: browser.showSidebar)
+        .animation(.spring(duration: 0.3, bounce: 0.1), value: prefs.addressBarOnTop)
         .animation(.easeOut(duration: 0.14), value: browser.commandBar)
     }
 }
@@ -66,6 +73,7 @@ struct BrowserView: View {
 
 struct Sidebar: View {
     @ObservedObject var browser: Browser
+    @ObservedObject private var prefs = Preferences.shared
     @StateObject private var library = LibraryWatcher()
     @State private var openFolders: Set<String> = []
     @AppStorage("sidebarBookmarksOpen") private var showBookmarks = false
@@ -75,16 +83,18 @@ struct Sidebar: View {
             HStack(spacing: 0) {
                 Color.clear.frame(width: 70)
                 Spacer(minLength: 0)
-                BarButton(symbol: "sidebar.left", help: "사이드바 숨기기 (⌘S)") { browser.showSidebar = false }
+                BarButton(symbol: "sidebar.left", help: "사이드바 숨기기") { browser.showSidebar = false }
                 if let tab = browser.active { NavigationButtons(tab: tab) } else { DisabledNavigationButtons() }
             }
             .frame(height: BrowserWindow.barHeight)
             .background(WindowDragArea())
 
-            if let tab = browser.active {
-                AddressPill(tab: tab) { browser.commandBar = .editCurrent }
-            } else {
-                AddressPlaceholder { browser.commandBar = .newTab }
+            if !prefs.addressBarOnTop {
+                if let tab = browser.active {
+                    AddressPill(tab: tab) { browser.commandBar = .editCurrent }
+                } else {
+                    AddressPlaceholder { browser.commandBar = .newTab }
+                }
             }
 
             ScrollView {
@@ -208,17 +218,22 @@ final class LibraryWatcher: ObservableObject {
 /// The top bar when the sidebar is hidden.
 struct CompactBar: View {
     @ObservedObject var browser: Browser
+    @ObservedObject private var prefs = Preferences.shared
 
     var body: some View {
         HStack(spacing: 2) {
             Color.clear.frame(width: 70)
-            BarButton(symbol: "sidebar.left", help: "사이드바 보기 (⌘S)") { browser.showSidebar = true }
+            BarButton(symbol: "sidebar.left", help: "사이드바 보기") { browser.showSidebar = true }
             if let tab = browser.active { NavigationButtons(tab: tab) } else { DisabledNavigationButtons() }
-            Spacer(minLength: 12)
-            if let tab = browser.active {
-                AddressPill(tab: tab) { browser.commandBar = .editCurrent }.frame(maxWidth: 460)
+            if prefs.addressBarOnTop {
+                TopAddressBar(browser: browser).padding(.horizontal, 8)
+            } else {
+                Spacer(minLength: 12)
+                if let tab = browser.active {
+                    AddressPill(tab: tab) { browser.commandBar = .editCurrent }.frame(maxWidth: 460)
+                }
+                Spacer(minLength: 12)
             }
-            Spacer(minLength: 12)
             AIButton(isOn: browser.showChat) { browser.showChat.toggle() }
         }
         .padding(.trailing, 10)
@@ -274,6 +289,66 @@ struct AddressPill: View {
         .onTapGesture(perform: edit)
         .padding(.horizontal, 10)
         .help("주소 편집 (⌘L)")
+    }
+}
+
+/// The address bar on top: the whole address, edited in place.
+struct TopAddressBar: View {
+    @ObservedObject var browser: Browser
+
+    var body: some View {
+        if let tab = browser.active {
+            AddressField(tab: tab, browser: browser).id(tab.id)
+        } else {
+            AddressPlaceholder { browser.commandBar = .newTab }.padding(.horizontal, -10)
+        }
+    }
+}
+
+struct AddressField: View {
+    @ObservedObject var tab: Tab
+    @ObservedObject var browser: Browser
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    private var current: String { tab.url?.absoluteString ?? "" }
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: tab.url?.scheme == "https" ? "lock.fill" : "globe")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Theme.secondary)
+            TextField("검색 또는 주소 입력", text: $text)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .focused($focused)
+                .onSubmit {
+                    browser.open(text, in: .editCurrent)
+                    focused = false
+                }
+                .onKeyPress(.escape) {
+                    text = current
+                    focused = false
+                    return .handled
+                }
+            LoginButton(tab: tab)
+            BookmarkStar(tab: tab)
+        }
+        .padding(.leading, 11)
+        .padding(.trailing, 4)
+        .frame(height: 32)
+        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(focused ? Theme.activeTab : Theme.hoverTab))
+        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Theme.accent.opacity(focused ? 0.6 : 0), lineWidth: 1.5))
+        .onAppear { text = current }
+        .onChange(of: tab.url) { if !focused { text = current } }
+        .onChange(of: browser.addressFocusRequest) { focused = true }
+        .onChange(of: focused) {
+            if focused {
+                DispatchQueue.main.async { NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil) }
+            } else {
+                text = current
+            }
+        }
     }
 }
 

@@ -1,13 +1,16 @@
+import Combine
 import AppKit
 import SwiftUI
+import WebKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var window: BrowserWindow!
     private let browser = Browser.shared
+    private var menuSubscription: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.mainMenu = AppMenu.make()
+        menuSubscription = Preferences.shared.$shortcuts.sink { NSApp.mainMenu = AppMenu.make(scheme: $0) }
         window = BrowserWindow()
         let host = NSHostingView(rootView: BrowserView(browser: browser, chat: ChatStore.shared))
         host.sizingOptions = []
@@ -36,12 +39,79 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: Menu actions
 
     @objc func newTab(_ sender: Any?) { browser.commandBar = .newTab }
-    @objc func openLocation(_ sender: Any?) { browser.commandBar = browser.active == nil ? .newTab : .editCurrent }
+    @objc func openLocation(_ sender: Any?) {
+        if browser.active == nil {
+            browser.commandBar = .newTab
+        } else if Preferences.shared.addressBarOnTop {
+            browser.addressFocusRequest += 1
+        } else {
+            browser.commandBar = .editCurrent
+        }
+    }
+
+    private var settingsWindow: NSWindow?
+
+    @objc func showSettings(_ sender: Any?) {
+        if settingsWindow == nil {
+            let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(prefs: Preferences.shared)))
+            window.title = "설정"
+            window.styleMask = [.titled, .closable]
+            window.isReleasedWhenClosed = false
+            window.center()
+            settingsWindow = window
+        }
+        settingsWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    /// Opens WebKit's Web Inspector on the Network tab, or closes it. WKWebView has no public API for this,
+    /// so it goes through `_inspector`, guarded so a WebKit without it just beeps.
+    @objc func toggleInspector(_ sender: Any?) {
+        guard let inspector = activeInspector() else {
+            NSSound.beep()
+            return
+        }
+        if inspector.responds(to: NSSelectorFromString("isVisible")), inspector.value(forKey: "visible") as? Bool == true {
+            inspector.perform(NSSelectorFromString("close"))
+            return
+        }
+        inspector.perform(NSSelectorFromString("show"))
+        Self.showNetworkTab(inspector, attempts: 20)
+    }
+
+    @objc func showConsole(_ sender: Any?) {
+        guard let inspector = activeInspector(), inspector.responds(to: NSSelectorFromString("showConsole")) else {
+            NSSound.beep()
+            return
+        }
+        inspector.perform(NSSelectorFromString("showConsole"))
+    }
+
+    private func activeInspector() -> NSObject? {
+        guard let webView = browser.active?.webView, webView.responds(to: NSSelectorFromString("_inspector")),
+              let inspector = webView.perform(NSSelectorFromString("_inspector"))?.takeUnretainedValue() as? NSObject,
+              inspector.responds(to: NSSelectorFromString("show")) else { return nil }
+        return inspector
+    }
+
+    /// The inspector's own page loads after `show`; keep trying until its `WI` object answers.
+    private static func showNetworkTab(_ inspector: NSObject, attempts: Int) {
+        guard attempts > 0 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            guard inspector.responds(to: NSSelectorFromString("inspectorWebView")),
+                  let frontend = inspector.perform(NSSelectorFromString("inspectorWebView"))?.takeUnretainedValue() as? WKWebView else {
+                return showNetworkTab(inspector, attempts: attempts - 1)
+            }
+            frontend.evaluateJavaScript("typeof WI !== 'undefined' && WI.showNetworkTab ? (WI.showNetworkTab(), true) : false") { result, _ in
+                if result as? Bool != true { showNetworkTab(inspector, attempts: attempts - 1) }
+            }
+        }
+    }
     @objc func closeTab(_ sender: Any?) {
         if browser.commandBar != nil { browser.commandBar = nil; return }
         if let id = browser.activeID { browser.close(id) } else { window.performClose(nil) }
     }
     @objc func reload(_ sender: Any?) { browser.active?.webView?.reload() }
+    @objc func hardReload(_ sender: Any?) { browser.active?.webView?.reloadFromOrigin() }
     @objc func goBack(_ sender: Any?) { browser.active?.webView?.goBack() }
     @objc func goForward(_ sender: Any?) { browser.active?.webView?.goForward() }
     @objc func toggleChat(_ sender: Any?) { browser.showChat.toggle() }
@@ -100,69 +170,92 @@ final class BrowserWindow: NSWindow {
 }
 
 enum AppMenu {
+    private static let f12 = String(Character(UnicodeScalar(NSF12FunctionKey)!))
+    private static let left = String(Character(UnicodeScalar(NSLeftArrowFunctionKey)!))
+    private static let right = String(Character(UnicodeScalar(NSRightArrowFunctionKey)!))
+
+    /// The menu bar with the key equivalents of the chosen scheme. Only what differs between Safari and Chrome
+    /// changes; the rest is shared.
     @MainActor
-    static func make() -> NSMenu {
+    static func make(scheme: ShortcutScheme) -> NSMenu {
+        let chrome = scheme == .chrome
         let main = NSMenu()
 
         let app = submenu(main, "Changmun")
-        app.addItem(withTitle: "Changmun 정보", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        add(app, "Changmun 정보", #selector(NSApplication.orderFrontStandardAboutPanel(_:)))
         app.addItem(.separator())
-        app.addItem(withTitle: "다른 브라우저에서 가져오기…", action: #selector(AppDelegate.importData(_:)), keyEquivalent: "")
+        add(app, "설정…", #selector(AppDelegate.showSettings(_:)), ",")
+        add(app, "다른 브라우저에서 가져오기…", #selector(AppDelegate.importData(_:)))
         app.addItem(.separator())
-        app.addItem(withTitle: "Changmun 가리기", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        app.addItem(withTitle: "Changmun 종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        add(app, "Changmun 가리기", #selector(NSApplication.hide(_:)), "h")
+        add(app, "Changmun 종료", #selector(NSApplication.terminate(_:)), "q")
 
         let file = submenu(main, "파일")
-        file.addItem(withTitle: "새 탭", action: #selector(AppDelegate.newTab(_:)), keyEquivalent: "t")
-        file.addItem(withTitle: "주소 열기", action: #selector(AppDelegate.openLocation(_:)), keyEquivalent: "l")
-        file.addItem(withTitle: "탭 닫기", action: #selector(AppDelegate.closeTab(_:)), keyEquivalent: "w")
+        add(file, "새 탭", #selector(AppDelegate.newTab(_:)), "t")
+        add(file, "주소 열기", #selector(AppDelegate.openLocation(_:)), "l")
+        add(file, "탭 닫기", #selector(AppDelegate.closeTab(_:)), "w")
 
         let edit = submenu(main, "편집")
-        edit.addItem(withTitle: "실행 취소", action: Selector(("undo:")), keyEquivalent: "z")
-        edit.addItem(withTitle: "실행 복귀", action: Selector(("redo:")), keyEquivalent: "Z")
+        add(edit, "실행 취소", Selector(("undo:")), "z")
+        add(edit, "실행 복귀", Selector(("redo:")), "z", [.command, .shift])
         edit.addItem(.separator())
-        edit.addItem(withTitle: "오려두기", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
-        edit.addItem(withTitle: "복사하기", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-        edit.addItem(withTitle: "붙여넣기", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
-        edit.addItem(withTitle: "전체 선택", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        add(edit, "오려두기", #selector(NSText.cut(_:)), "x")
+        add(edit, "복사하기", #selector(NSText.copy(_:)), "c")
+        add(edit, "붙여넣기", #selector(NSText.paste(_:)), "v")
+        add(edit, "전체 선택", #selector(NSText.selectAll(_:)), "a")
 
         let view = submenu(main, "보기")
-        view.addItem(withTitle: "새로고침", action: #selector(AppDelegate.reload(_:)), keyEquivalent: "r")
-        view.addItem(withTitle: "사이드바", action: #selector(AppDelegate.toggleBrowserSidebar(_:)), keyEquivalent: "s")
-        view.addItem(withTitle: "AI 패널", action: #selector(AppDelegate.toggleChat(_:)), keyEquivalent: "e")
-        view.addItem(withTitle: "새 AI 대화", action: #selector(AppDelegate.newChat(_:)), keyEquivalent: "E")
+        add(view, "새로고침", #selector(AppDelegate.reload(_:)), "r")
+        add(view, "강력 새로고침", #selector(AppDelegate.hardReload(_:)), "r", chrome ? [.command, .shift] : [.command, .option])
+        add(view, "사이드바", #selector(AppDelegate.toggleBrowserSidebar(_:)), chrome ? "s" : "l", chrome ? [.command] : [.command, .shift])
+        add(view, "AI 패널", #selector(AppDelegate.toggleChat(_:)), "e")
+        add(view, "새 AI 대화", #selector(AppDelegate.newChat(_:)), "e", [.command, .shift])
         view.addItem(.separator())
-        view.addItem(withTitle: "확대", action: #selector(AppDelegate.zoomIn(_:)), keyEquivalent: "+")
-        view.addItem(withTitle: "축소", action: #selector(AppDelegate.zoomOut(_:)), keyEquivalent: "-")
-        view.addItem(withTitle: "실제 크기", action: #selector(AppDelegate.actualSize(_:)), keyEquivalent: "0")
+        add(view, "확대", #selector(AppDelegate.zoomIn(_:)), "+")
+        add(view, "축소", #selector(AppDelegate.zoomOut(_:)), "-")
+        add(view, "실제 크기", #selector(AppDelegate.actualSize(_:)), "0")
         view.addItem(.separator())
-        view.addItem(withTitle: "전체 화면", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f").keyEquivalentModifierMask = [.command, .control]
+        add(view, "전체 화면", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control])
+
+        let develop = submenu(main, "개발자")
+        add(develop, "웹 인스펙터 (네트워크)", #selector(AppDelegate.toggleInspector(_:)), f12, [])
+        add(develop, "웹 인스펙터 (네트워크)", #selector(AppDelegate.toggleInspector(_:)), "i", [.command, .option], hidden: true)
+        add(develop, "콘솔", #selector(AppDelegate.showConsole(_:)), chrome ? "j" : "c", [.command, .option])
 
         let history = submenu(main, "방문 기록")
-        history.addItem(withTitle: "뒤로", action: #selector(AppDelegate.goBack(_:)), keyEquivalent: "[")
-        history.addItem(withTitle: "앞으로", action: #selector(AppDelegate.goForward(_:)), keyEquivalent: "]")
+        add(history, "뒤로", #selector(AppDelegate.goBack(_:)), "[")
+        add(history, "앞으로", #selector(AppDelegate.goForward(_:)), "]")
         history.addItem(.separator())
-        history.addItem(withTitle: "즐겨찾기 추가/제거", action: #selector(AppDelegate.toggleBookmark(_:)), keyEquivalent: "d")
+        add(history, "즐겨찾기 추가/제거", #selector(AppDelegate.toggleBookmark(_:)), "d")
 
         let window = submenu(main, "윈도우")
-        window.addItem(withTitle: "최소화", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        add(window, "최소화", #selector(NSWindow.performMiniaturize(_:)), "m")
         window.addItem(.separator())
-        window.addItem(withTitle: "다음 탭", action: #selector(AppDelegate.nextTab(_:)), keyEquivalent: "}")
-        window.addItem(withTitle: "이전 탭", action: #selector(AppDelegate.previousTab(_:)), keyEquivalent: "{")
-        let ctrlTab = window.addItem(withTitle: "다음 탭", action: #selector(AppDelegate.nextTab(_:)), keyEquivalent: "\t")
-        ctrlTab.keyEquivalentModifierMask = .control
-        ctrlTab.isHidden = true
-        ctrlTab.allowsKeyEquivalentWhenHidden = true
-        let ctrlShiftTab = window.addItem(withTitle: "이전 탭", action: #selector(AppDelegate.previousTab(_:)), keyEquivalent: "\t")
-        ctrlShiftTab.keyEquivalentModifierMask = [.control, .shift]
-        ctrlShiftTab.isHidden = true
-        ctrlShiftTab.allowsKeyEquivalentWhenHidden = true
-        for n in 1...9 {
-            let item = window.addItem(withTitle: n == 9 ? "마지막 탭" : "탭 \(n)", action: #selector(AppDelegate.selectNumberedTab(_:)), keyEquivalent: "\(n)")
-            item.tag = n
+        add(window, "다음 탭", #selector(AppDelegate.nextTab(_:)), "]", [.command, .shift])
+        add(window, "이전 탭", #selector(AppDelegate.previousTab(_:)), "[", [.command, .shift])
+        add(window, "다음 탭", #selector(AppDelegate.nextTab(_:)), "\t", [.control], hidden: true)
+        add(window, "이전 탭", #selector(AppDelegate.previousTab(_:)), "\t", [.control, .shift], hidden: true)
+        if chrome {
+            add(window, "다음 탭", #selector(AppDelegate.nextTab(_:)), right, [.command, .option], hidden: true)
+            add(window, "이전 탭", #selector(AppDelegate.previousTab(_:)), left, [.command, .option], hidden: true)
         }
-        NSApp.windowsMenu = window
+        for n in 1...9 {
+            add(window, n == 9 ? "마지막 탭" : "탭 \(n)", #selector(AppDelegate.selectNumberedTab(_:)), "\(n)").tag = n
+        }
+        NSApp?.windowsMenu = window
         return main
+    }
+
+    @discardableResult
+    private static func add(_ menu: NSMenu, _ title: String, _ action: Selector, _ key: String = "",
+                            _ modifiers: NSEvent.ModifierFlags = [.command], hidden: Bool = false) -> NSMenuItem {
+        let item = menu.addItem(withTitle: title, action: action, keyEquivalent: key)
+        item.keyEquivalentModifierMask = modifiers
+        if hidden {
+            item.isHidden = true
+            item.allowsKeyEquivalentWhenHidden = true
+        }
+        return item
     }
 
     private static func submenu(_ main: NSMenu, _ title: String) -> NSMenu {

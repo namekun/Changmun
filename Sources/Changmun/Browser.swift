@@ -19,6 +19,8 @@ final class Browser: ObservableObject {
     }
     @Published var commandBar: CommandBarMode?
     @Published var showOnboarding = false
+    /// Bumped to put the cursor in the address bar on top (⌘L).
+    @Published var addressFocusRequest = 0
     var favicons: [String: NSImage] = [:]
     private var missingIcons = Set<String>()
     private var nextID = 1
@@ -38,6 +40,10 @@ final class Browser: ObservableObject {
         config.preferences.javaScriptCanOpenWindowsAutomatically = false
         config.applicationNameForUserAgent = "Version/\(safariVersion) Safari/605.1.15"
         config.mediaTypesRequiringUserActionForPlayback = .audio
+        // Lets the Web Inspector open inside the app (F12, "Inspect Element"); private, so only when WebKit has it.
+        if config.preferences.responds(to: NSSelectorFromString("_setDeveloperExtrasEnabled:")) {
+            config.preferences.setValue(true, forKey: "developerExtrasEnabled")
+        }
         return config
     }()
 
