@@ -125,7 +125,7 @@ final class Preferences: ObservableObject {
             ?? FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
         askWhereToSave = d.bool(forKey: "askWhereToSave")
         appearance = AppAppearance(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
-        sidebarWidth = d.object(forKey: "sidebarWidth") as? Double ?? 252
+        sidebarWidth = Self.clampedSidebarWidth(d.object(forKey: "sidebarWidth") as? Double ?? Self.defaultSidebarWidth)
         defaultZoom = d.object(forKey: "defaultZoom") as? Double ?? 1
         sleepMinutes = d.object(forKey: "sleepTabsAfterMinutes") as? Int ?? 20
         neverSleepHosts = d.stringArray(forKey: "neverSleepHosts") ?? []
@@ -145,6 +145,13 @@ final class Preferences: ObservableObject {
     }
 
     var addressBarOnTop: Bool { Self.onTop(addressBar, developerMode: developerMode) }
+
+    static let defaultSidebarWidth = 252.0
+    static let sidebarWidths = 200.0...420.0
+
+    nonisolated static func clampedSidebarWidth(_ width: Double) -> Double {
+        min(max(width, 200), 420)
+    }
 
     nonisolated static func onTop(_ choice: AddressBarChoice, developerMode: Bool) -> Bool {
         choice == .top || (choice == .automatic && developerMode)

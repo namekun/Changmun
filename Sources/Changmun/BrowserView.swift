@@ -161,6 +161,7 @@ struct BrowserView: View {
                 if browser.showSidebar {
                     Sidebar(browser: browser)
                         .frame(width: prefs.sidebarWidth)
+                        .overlay(alignment: .trailing) { SidebarResizeHandle(width: $prefs.sidebarWidth) }
                         .transition(.move(edge: .leading).combined(with: .opacity))
                 }
                 VStack(spacing: 0) {
@@ -238,7 +239,8 @@ struct Sidebar: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2) {
                     if !library.favorites.isEmpty {
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 6) {
+                        // As many tiles a row as the sidebar's width holds: four at the default width, up to seven when wide.
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 46), spacing: 6)], spacing: 6) {
                             ForEach(library.favorites, id: \.url) { entry in
                                 let key = Browser.bookmarkKey(url: entry.url, folder: Library.favoritesFolder)
                                 FavoriteTile(entry: entry, state: BookmarkTabState(key, browser)) {
@@ -345,6 +347,37 @@ struct Sidebar: View {
         withAnimation(.easeOut(duration: 0.15)) {
             if openFolders.contains(key) { openFolders.remove(key) } else { openFolders.insert(key) }
         }
+    }
+}
+
+/// The sidebar's right edge: drag to resize, double-click for the default width.
+struct SidebarResizeHandle: View {
+    @Binding var width: Double
+    @State private var start: Double?
+    @State private var hover = false
+
+    var body: some View {
+        Rectangle()
+            .fill(hover || start != nil ? Theme.hairline : .clear)
+            .frame(width: 1)
+            .frame(width: 9)
+            .contentShape(Rectangle())
+            .offset(x: 4)
+            .onHover { inside in
+                hover = inside
+                if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                    .onChanged { drag in
+                        let base = start ?? width
+                        start = base
+                        width = Preferences.clampedSidebarWidth((base + drag.translation.width).rounded())
+                    }
+                    .onEnded { _ in start = nil }
+            )
+            .onTapGesture(count: 2) { width = Preferences.defaultSidebarWidth }
+            .help("끌어서 사이드바 폭 조절 · 더블클릭하면 기본 폭")
     }
 }
 

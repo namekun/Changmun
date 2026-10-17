@@ -445,6 +445,13 @@ struct BrowserTabTests {
 }
 
 struct SettingsRuleTests {
+    @Test func sidebarWidthStaysInRange() {
+        #expect(Preferences.clampedSidebarWidth(120) == 200)
+        #expect(Preferences.clampedSidebarWidth(300) == 300)
+        #expect(Preferences.clampedSidebarWidth(900) == 420)
+        #expect(Preferences.sidebarWidths.contains(Preferences.defaultSidebarWidth))
+    }
+
     @Test func neverSleepCoversSubdomains() {
         #expect(!Preferences.canSleep(host: "music.youtube.com", neverSleep: ["youtube.com"]))
         #expect(!Preferences.canSleep(host: "YouTube.com", neverSleep: ["youtube.com"]))

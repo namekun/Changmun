@@ -114,7 +114,7 @@ struct LooksSettings: View {
                 }
                 .pickerStyle(.segmented)
                 LabeledContent("사이드바 폭") {
-                    Slider(value: $prefs.sidebarWidth, in: 200...360, step: 4).frame(width: 220)
+                    Slider(value: $prefs.sidebarWidth, in: Preferences.sidebarWidths, step: 4).frame(width: 220)
                 }
                 Picker("기본 확대", selection: $prefs.defaultZoom) {
                     ForEach([0.75, 0.9, 1, 1.1, 1.25, 1.5], id: \.self) { Text("\(Int($0 * 100))%").tag($0) }
