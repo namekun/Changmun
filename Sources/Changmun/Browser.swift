@@ -27,11 +27,27 @@ final class Browser: ObservableObject {
     private var sleepTimer: Timer?
     private var memoryPressure: DispatchSourceMemoryPressure?
 
-    /// Background tabs not shown for this long give up their web process.
-    var sleepAfter: TimeInterval {
-        let minutes = UserDefaults.standard.double(forKey: "sleepTabsAfterMinutes")
-        return (minutes > 0 ? minutes : 20) * 60
+    /// Background tabs not shown for this long give up their web process; nil when that is turned off.
+    var sleepAfter: TimeInterval? {
+        let minutes = Preferences.shared.sleepMinutes
+        return minutes > 0 ? Double(minutes) * 60 : nil
     }
+
+    struct ClosedTab {
+        var url: URL?
+        var title: String
+        var state: Data?
+        var index: Int
+    }
+
+    /// Most recently closed last.
+    private(set) var closedTabs: [ClosedTab] = []
+
+    @Published var findBarVisible = false
+    @Published var findText = ""
+    @Published var findMatches: Int?
+    /// Bumped to put the cursor in the find bar (⌘F while it is open).
+    @Published var findFocusRequest = 0
 
     static let configuration: WKWebViewConfiguration = {
         let config = WKWebViewConfiguration()
@@ -81,6 +97,7 @@ final class Browser: ObservableObject {
 
     func activate(_ id: Int) {
         guard let tab = tab(id) else { return }
+        if id != activeID && findBarVisible { hideFindBar() }
         active?.lastShown = Date()
         activeID = id
         tab.lastShown = Date()
@@ -90,6 +107,8 @@ final class Browser: ObservableObject {
     func close(_ id: Int) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         let closing = tabs.remove(at: index)
+        closedTabs.append(ClosedTab(url: closing.url, title: closing.title, state: closing.sessionState, index: index))
+        if closedTabs.count > 25 { closedTabs.removeFirst() }
         closing.sleep()
         if activeID == id {
             if tabs.isEmpty {
@@ -98,6 +117,63 @@ final class Browser: ObservableObject {
             } else {
                 activate(tabs[min(index, tabs.count - 1)].id)
             }
+        }
+    }
+
+    /// Brings back the last closed tab where it was, with its back/forward history.
+    func reopenClosedTab() {
+        guard let closed = closedTabs.popLast() else { return }
+        let tab = Tab(id: takeID(), url: closed.url, title: closed.title, state: closed.state, browser: self)
+        tabs.insert(tab, at: min(closed.index, tabs.count))
+        activate(tab.id)
+        commandBar = nil
+    }
+
+    /// Moves a tab to where another one is (dropping it on that tab), or to the end.
+    func moveTab(_ id: Int, to target: Int?) {
+        guard let from = tabs.firstIndex(where: { $0.id == id }), id != target else { return }
+        let tab = tabs.remove(at: from)
+        if let target, let to = tabs.firstIndex(where: { $0.id == target }) {
+            tabs.insert(tab, at: from <= to ? to + 1 : to)
+        } else {
+            tabs.append(tab)
+        }
+    }
+
+    // MARK: Find in page
+
+    func showFindBar() {
+        guard active != nil else { return }
+        findBarVisible = true
+        findFocusRequest += 1
+    }
+
+    func hideFindBar() {
+        findBarVisible = false
+        findMatches = nil
+        active?.webView?.evaluateJavaScript("window.getSelection().removeAllRanges()")
+    }
+
+    func find(backwards: Bool = false) {
+        guard let webView = active?.webView, !findText.isEmpty else {
+            findMatches = nil
+            return
+        }
+        let config = WKFindConfiguration()
+        config.backwards = backwards
+        config.wraps = true
+        config.caseSensitive = false
+        webView.find(findText, configuration: config) { _ in }
+        let query = findText
+        webView.callAsyncJavaScript("""
+            const text = document.body ? document.body.innerText.toLowerCase() : '';
+            const needle = query.toLowerCase();
+            let count = 0, at = text.indexOf(needle);
+            while (at !== -1 && count < 9999) { count++; at = text.indexOf(needle, at + needle.length); }
+            return count;
+            """, arguments: ["query": query], in: nil, in: .defaultClient) { [weak self] result in
+            guard let self, self.findText == query else { return }
+            self.findMatches = (try? result.get()) as? Int
         }
     }
 
@@ -182,7 +258,10 @@ final class Browser: ObservableObject {
 
     func startSleepingIdleTabs() {
         sleepTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.sleepIdleTabs(olderThan: self?.sleepAfter ?? 1200) }
+            Task { @MainActor in
+                guard let self, let age = self.sleepAfter else { return }
+                self.sleepIdleTabs(olderThan: age)
+            }
         }
         let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
         source.setEventHandler { [weak self] in
@@ -194,7 +273,9 @@ final class Browser: ObservableObject {
 
     func sleepIdleTabs(olderThan age: TimeInterval) {
         let now = Date()
-        for tab in tabs where tab.id != activeID && now.timeIntervalSince(tab.lastShown) >= age {
+        let neverSleep = Preferences.shared.neverSleepHosts
+        for tab in tabs where tab.id != activeID && now.timeIntervalSince(tab.lastShown) >= age
+            && Preferences.canSleep(host: tab.url?.host(), neverSleep: neverSleep) {
             guard let webView = tab.webView, webView.cameraCaptureState == .none, webView.microphoneCaptureState == .none else { continue }
             webView.requestMediaPlaybackState { [weak self, weak tab] state in
                 Task { @MainActor in
@@ -230,7 +311,8 @@ final class Browser: ObservableObject {
 
     /// Restores the last session asleep, apart from the tab that was shown.
     func restoreSession() {
-        guard let data = try? Data(contentsOf: sessionFile),
+        guard Preferences.shared.restoreTabs,
+              let data = try? Data(contentsOf: sessionFile),
               let saved = try? JSONDecoder().decode(SavedSession.self, from: data),
               !saved.tabs.isEmpty else {
             commandBar = .newTab

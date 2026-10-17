@@ -58,6 +58,40 @@ enum Logins {
         return nil
     }
 
+    struct Saved: Identifiable, Hashable {
+        var host: String
+        var username: String
+        var id: String { host + "\n" + username }
+    }
+
+    /// Every saved sign-in, without secrets.
+    static func all() -> [Saved] {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassInternetPassword,
+            kSecAttrLabel as String: label,
+            kSecMatchLimit as String: kSecMatchLimitAll,
+            kSecReturnAttributes as String: true,
+        ]
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let items = result as? [[String: Any]] else { return [] }
+        return items.compactMap { item in
+            guard let host = item[kSecAttrServer as String] as? String else { return nil }
+            return Saved(host: host, username: item[kSecAttrAccount as String] as? String ?? "")
+        }
+        .sorted { ($0.host, $0.username) < ($1.host, $1.username) }
+    }
+
+    @discardableResult
+    static func delete(host: String, username: String) -> Bool {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassInternetPassword,
+            kSecAttrServer as String: host,
+            kSecAttrAccount as String: username,
+            kSecAttrLabel as String: label,
+        ]
+        return SecItemDelete(query as CFDictionary) == errSecSuccess
+    }
+
     static func hostVariants(_ host: String) -> [String] {
         host.hasPrefix("www.") ? [host, String(host.dropFirst(4))] : [host, "www." + host]
     }

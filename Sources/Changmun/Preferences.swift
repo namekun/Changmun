@@ -17,19 +17,114 @@ enum ShortcutScheme: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum SearchEngine: String, CaseIterable, Identifiable {
+    case google, naver, duckDuckGo, bing
+
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+        case .google: "Google"
+        case .naver: "네이버"
+        case .duckDuckGo: "DuckDuckGo"
+        case .bing: "Bing"
+        }
+    }
+
+    var template: String {
+        switch self {
+        case .google: "https://www.google.com/search?q=%s"
+        case .naver: "https://search.naver.com/search.naver?query=%s"
+        case .duckDuckGo: "https://duckduckgo.com/?q=%s"
+        case .bing: "https://www.bing.com/search?q=%s"
+        }
+    }
+}
+
+enum AppAppearance: String, CaseIterable, Identifiable {
+    case system, light, dark
+
+    var id: String { rawValue }
+
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .system: nil
+        case .light: NSAppearance(named: .aqua)
+        case .dark: NSAppearance(named: .darkAqua)
+        }
+    }
+}
+
+/// Every setting, stored in UserDefaults under the keys the rest of the app reads.
 @MainActor
 final class Preferences: ObservableObject {
     static let shared = Preferences()
+    private let defaults = UserDefaults.standard
 
-    @Published var developerMode = UserDefaults.standard.bool(forKey: "developerMode") {
-        didSet { UserDefaults.standard.set(developerMode, forKey: "developerMode") }
+    // MARK: General
+
+    @Published var searchEngine: SearchEngine {
+        didSet { defaults.set(searchEngine.template, forKey: "searchURL") }
     }
-    @Published var addressBar = AddressBarChoice(rawValue: UserDefaults.standard.string(forKey: "addressBar") ?? "") ?? .automatic {
-        didSet { UserDefaults.standard.set(addressBar.rawValue, forKey: "addressBar") }
+    @Published var restoreTabs: Bool { didSet { defaults.set(restoreTabs, forKey: "restoreTabs") } }
+    @Published var downloadFolder: URL { didSet { defaults.set(downloadFolder.path, forKey: "downloadFolder") } }
+    @Published var askWhereToSave: Bool { didSet { defaults.set(askWhereToSave, forKey: "askWhereToSave") } }
+
+    // MARK: Tabs and looks
+
+    @Published var appearance: AppAppearance {
+        didSet {
+            defaults.set(appearance.rawValue, forKey: "appearance")
+            NSApp?.appearance = appearance.nsAppearance
+        }
+    }
+    @Published var sidebarWidth: Double { didSet { defaults.set(sidebarWidth, forKey: "sidebarWidth") } }
+    @Published var defaultZoom: Double { didSet { defaults.set(defaultZoom, forKey: "defaultZoom") } }
+    /// Minutes before a background tab sleeps; 0 never.
+    @Published var sleepMinutes: Int { didSet { defaults.set(sleepMinutes, forKey: "sleepTabsAfterMinutes") } }
+    @Published var neverSleepHosts: [String] { didSet { defaults.set(neverSleepHosts, forKey: "neverSleepHosts") } }
+
+    // MARK: Privacy
+
+    @Published var blockTrackers: Bool {
+        didSet {
+            defaults.set(blockTrackers, forKey: "blockTrackers")
+            Task { await ContentBlocker.apply(blockTrackers) }
+        }
     }
 
-    @Published var shortcuts = ShortcutScheme(rawValue: UserDefaults.standard.string(forKey: "shortcuts") ?? "") ?? .safari {
-        didSet { UserDefaults.standard.set(shortcuts.rawValue, forKey: "shortcuts") }
+    // MARK: AI
+
+    @Published var aiModel: String { didSet { defaults.set(aiModel, forKey: "aiModel") } }
+    @Published var aiApprovals: Bool { didSet { defaults.set(aiApprovals, forKey: "aiApprovals") } }
+    @Published var claudePath: String { didSet { defaults.set(claudePath.isEmpty ? nil : claudePath, forKey: "claudePath") } }
+
+    // MARK: Advanced
+
+    @Published var developerMode: Bool { didSet { defaults.set(developerMode, forKey: "developerMode") } }
+    @Published var addressBar: AddressBarChoice { didSet { defaults.set(addressBar.rawValue, forKey: "addressBar") } }
+    @Published var shortcuts: ShortcutScheme { didSet { defaults.set(shortcuts.rawValue, forKey: "shortcuts") } }
+
+    private init() {
+        let d = UserDefaults.standard
+        let template = d.string(forKey: "searchURL")
+        searchEngine = SearchEngine.allCases.first { $0.template == template } ?? .google
+        restoreTabs = d.object(forKey: "restoreTabs") as? Bool ?? true
+        downloadFolder = d.string(forKey: "downloadFolder").map { URL(fileURLWithPath: $0) }
+            ?? FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
+        askWhereToSave = d.bool(forKey: "askWhereToSave")
+        appearance = AppAppearance(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
+        sidebarWidth = d.object(forKey: "sidebarWidth") as? Double ?? 252
+        defaultZoom = d.object(forKey: "defaultZoom") as? Double ?? 1
+        sleepMinutes = d.object(forKey: "sleepTabsAfterMinutes") as? Int ?? 20
+        neverSleepHosts = d.stringArray(forKey: "neverSleepHosts") ?? []
+        blockTrackers = d.object(forKey: "blockTrackers") as? Bool ?? true
+        aiModel = d.string(forKey: "aiModel") ?? "sonnet"
+        aiApprovals = d.object(forKey: "aiApprovals") as? Bool ?? true
+        claudePath = d.string(forKey: "claudePath") ?? ""
+        developerMode = d.bool(forKey: "developerMode")
+        addressBar = AddressBarChoice(rawValue: d.string(forKey: "addressBar") ?? "") ?? .automatic
+        shortcuts = ShortcutScheme(rawValue: d.string(forKey: "shortcuts") ?? "") ?? .safari
     }
 
     var addressBarOnTop: Bool { Self.onTop(addressBar, developerMode: developerMode) }
@@ -37,45 +132,10 @@ final class Preferences: ObservableObject {
     nonisolated static func onTop(_ choice: AddressBarChoice, developerMode: Bool) -> Bool {
         choice == .top || (choice == .automatic && developerMode)
     }
-}
 
-struct SettingsView: View {
-    @ObservedObject var prefs: Preferences
-
-    var body: some View {
-        Form {
-            Section {
-                Picker("주소창 위치", selection: $prefs.addressBar) {
-                    Text("개발자 모드에 맞춤 (지금: \(Preferences.onTop(.automatic, developerMode: prefs.developerMode) ? "위" : "사이드바"))").tag(AddressBarChoice.automatic)
-                    Text("왼쪽 사이드바").tag(AddressBarChoice.sidebar)
-                    Text("위").tag(AddressBarChoice.top)
-                }
-                .pickerStyle(.radioGroup)
-                Text("위에 두면 전체 주소가 보이고 그 자리에서 바로 고칠 수 있어요 (⌘L).")
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(.secondary)
-            }
-            Section {
-                Picker("단축키", selection: $prefs.shortcuts) {
-                    Text("Safari식").tag(ShortcutScheme.safari)
-                    Text("Chrome식").tag(ShortcutScheme.chrome)
-                }
-                .pickerStyle(.segmented)
-                Text(prefs.shortcuts == .safari
-                     ? "사이드바 ⌘⇧L · 강력 새로고침 ⌥⌘R · 콘솔 ⌥⌘C · 탭 이동 ⌘⇧[ ⌘⇧]"
-                     : "사이드바 ⌘S · 강력 새로고침 ⌘⇧R · 콘솔 ⌥⌘J · 탭 이동 ⌘⇧[ ⌘⇧] ⌥⌘← ⌥⌘→")
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(.secondary)
-            }
-            Section {
-                Toggle("개발자 모드", isOn: $prefs.developerMode)
-                Text("켜면 주소창이 기본으로 위에 놓여요. 웹 인스펙터는 언제든 F12(네트워크 탭)나 ⌥⌘I로 열 수 있어요.")
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .formStyle(.grouped)
-        .frame(width: 460)
-        .fixedSize(horizontal: false, vertical: true)
+    /// Whether a background tab on this host may give up its web process.
+    nonisolated static func canSleep(host: String?, neverSleep: [String]) -> Bool {
+        guard let host = host?.lowercased() else { return true }
+        return !neverSleep.contains { host == $0 || host.hasSuffix("." + $0) }
     }
 }

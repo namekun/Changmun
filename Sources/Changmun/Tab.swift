@@ -87,6 +87,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         view.allowsMagnification = true
         view.isInspectable = true
         view.underPageBackgroundColor = .clear
+        view.pageZoom = Preferences.shared.defaultZoom
         observations = [
             view.observe(\.title) { [weak self] v, _ in Task { @MainActor in if let t = v.title, !t.isEmpty { self?.title = t } } },
             view.observe(\.url) { [weak self] v, _ in Task { @MainActor in if let u = v.url { self?.url = u } } },
@@ -154,11 +155,11 @@ extension Tab: WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
-        download.delegate = Downloads.shared
+        Downloads.shared.track(download)
     }
 
     func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
-        download.delegate = Downloads.shared
+        Downloads.shared.track(download)
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
@@ -194,6 +195,11 @@ extension Tab: WKNavigationDelegate {
 extension Tab: WKUIDelegate {
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         browser?.openTab(configuration: configuration, after: self).webView
+    }
+
+    func webView(_ webView: WKWebView, decideMediaCapturePermissionsFor origin: WKSecurityOrigin, initiatedBy frame: WKFrameInfo,
+                 type: WKMediaCaptureType) async -> WKPermissionDecision {
+        SitePermissions.shared.decide(host: origin.host, type: type)
     }
 
     func webViewDidClose(_ webView: WKWebView) {
@@ -233,27 +239,5 @@ extension Tab: WKUIDelegate {
         panel.allowsMultipleSelection = parameters.allowsMultipleSelection
         panel.canChooseDirectories = parameters.allowsDirectories
         return panel.runModal() == .OK ? panel.urls : nil
-    }
-}
-
-/// Saves downloads to ~/Downloads under a name that doesn't overwrite anything.
-final class Downloads: NSObject, WKDownloadDelegate {
-    static let shared = Downloads()
-
-    func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String) async -> URL? {
-        let folder = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
-        let base = (suggestedFilename as NSString).deletingPathExtension
-        let ext = (suggestedFilename as NSString).pathExtension
-        var candidate = folder.appendingPathComponent(suggestedFilename)
-        var n = 1
-        while FileManager.default.fileExists(atPath: candidate.path) {
-            n += 1
-            candidate = folder.appendingPathComponent(ext.isEmpty ? "\(base) \(n)" : "\(base) \(n).\(ext)")
-        }
-        return candidate
-    }
-
-    func downloadDidFinish(_ download: WKDownload) {
-        NSSound(named: "Glass")?.play()
     }
 }

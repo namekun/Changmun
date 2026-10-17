@@ -15,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let host = NSHostingView(rootView: BrowserView(browser: browser, chat: ChatStore.shared))
         host.sizingOptions = []
         window.contentView = host
+        NSApp.appearance = Preferences.shared.appearance.nsAppearance
+        Task { await ContentBlocker.apply(Preferences.shared.blockTrackers) }
         browser.restoreSession()
         browser.startSleepingIdleTabs()
         ControlServer.shared.start()
@@ -49,19 +51,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private var settingsWindow: NSWindow?
-
     @objc func showSettings(_ sender: Any?) {
-        if settingsWindow == nil {
-            let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(prefs: Preferences.shared)))
-            window.title = "설정"
-            window.styleMask = [.titled, .closable]
-            window.isReleasedWhenClosed = false
-            window.center()
-            settingsWindow = window
-        }
-        settingsWindow?.makeKeyAndOrderFront(nil)
+        Panels.show("settings", title: "설정", size: NSSize(width: 580, height: 500), resizable: false) { SettingsView(prefs: Preferences.shared) }
     }
+
+    @objc func showHistory(_ sender: Any?) {
+        Panels.show("history", title: "방문 기록", size: NSSize(width: 640, height: 560)) { HistoryView() }
+    }
+
+    @objc func showDownloads(_ sender: Any?) {
+        Panels.show("downloads", title: "다운로드", size: NSSize(width: 480, height: 380)) { DownloadsView() }
+    }
+
+    @objc func showFind(_ sender: Any?) { browser.showFindBar() }
+    @objc func findNext(_ sender: Any?) {
+        if browser.findBarVisible { browser.find() } else { browser.showFindBar() }
+    }
+    @objc func findPrevious(_ sender: Any?) {
+        if browser.findBarVisible { browser.find(backwards: true) } else { browser.showFindBar() }
+    }
+    @objc func reopenClosedTab(_ sender: Any?) { browser.reopenClosedTab() }
 
     /// Opens WebKit's Web Inspector on the Network tab, or closes it. WKWebView has no public API for this,
     /// so it goes through `_inspector`, guarded so a WebKit without it just beeps.
@@ -194,6 +203,7 @@ enum AppMenu {
         add(file, "새 탭", #selector(AppDelegate.newTab(_:)), "t")
         add(file, "주소 열기", #selector(AppDelegate.openLocation(_:)), "l")
         add(file, "탭 닫기", #selector(AppDelegate.closeTab(_:)), "w")
+        add(file, "닫은 탭 다시 열기", #selector(AppDelegate.reopenClosedTab(_:)), "t", [.command, .shift])
 
         let edit = submenu(main, "편집")
         add(edit, "실행 취소", Selector(("undo:")), "z")
@@ -203,6 +213,10 @@ enum AppMenu {
         add(edit, "복사하기", #selector(NSText.copy(_:)), "c")
         add(edit, "붙여넣기", #selector(NSText.paste(_:)), "v")
         add(edit, "전체 선택", #selector(NSText.selectAll(_:)), "a")
+        edit.addItem(.separator())
+        add(edit, "찾기…", #selector(AppDelegate.showFind(_:)), "f")
+        add(edit, "다음 찾기", #selector(AppDelegate.findNext(_:)), "g")
+        add(edit, "이전 찾기", #selector(AppDelegate.findPrevious(_:)), "g", [.command, .shift])
 
         let view = submenu(main, "보기")
         add(view, "새로고침", #selector(AppDelegate.reload(_:)), "r")
@@ -227,6 +241,9 @@ enum AppMenu {
         add(history, "앞으로", #selector(AppDelegate.goForward(_:)), "]")
         history.addItem(.separator())
         add(history, "즐겨찾기 추가/제거", #selector(AppDelegate.toggleBookmark(_:)), "d")
+        history.addItem(.separator())
+        add(history, "모든 방문 기록 보기", #selector(AppDelegate.showHistory(_:)), "y")
+        add(history, "다운로드", #selector(AppDelegate.showDownloads(_:)), chrome ? "j" : "l", chrome ? [.command, .shift] : [.command, .option])
 
         let window = submenu(main, "윈도우")
         add(window, "최소화", #selector(NSWindow.performMiniaturize(_:)), "m")

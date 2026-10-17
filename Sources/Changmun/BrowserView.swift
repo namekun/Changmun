@@ -29,7 +29,7 @@ struct BrowserView: View {
             HStack(spacing: 0) {
                 if browser.showSidebar {
                     Sidebar(browser: browser)
-                        .frame(width: 252)
+                        .frame(width: prefs.sidebarWidth)
                         .transition(.move(edge: .leading).combined(with: .opacity))
                 }
                 VStack(spacing: 0) {
@@ -107,6 +107,10 @@ struct Sidebar: View {
                                 } remove: {
                                     Library.shared.removeBookmark(url: entry.url, folder: Library.favoritesFolder)
                                 }
+                                .draggable(SidebarDrag.favorite(entry.url))
+                                .dropDestination(for: String.self) { items, _ in
+                                    SidebarDrag.drop(items, onFavorite: entry.url, browser: browser)
+                                }
                             }
                         }
                         .padding(.bottom, 8)
@@ -117,6 +121,10 @@ struct Sidebar: View {
                             browser.activate(tab.id)
                         } close: {
                             browser.close(tab.id)
+                        }
+                        .draggable(SidebarDrag.tab(tab.id))
+                        .dropDestination(for: String.self) { items, _ in
+                            SidebarDrag.drop(items, onTab: tab.id, browser: browser)
                         }
                     }
                     if !library.sources.isEmpty {
@@ -192,6 +200,35 @@ struct SectionHeader: View {
         .contentShape(Rectangle())
         .onHover { hover = $0 }
         .onTapGesture { withAnimation(.easeOut(duration: 0.15)) { toggle() } }
+    }
+}
+
+/// Dragging tabs and favorites around the sidebar: the payload names what is dragged.
+@MainActor
+enum SidebarDrag {
+    static func tab(_ id: Int) -> String { "changmun-tab:\(id)" }
+    static func favorite(_ url: String) -> String { "changmun-favorite:" + url }
+
+    static func drop(_ items: [String], onTab target: Int, browser: Browser) -> Bool {
+        guard let item = items.first, item.hasPrefix("changmun-tab:"), let id = Int(item.dropFirst("changmun-tab:".count)) else { return false }
+        withAnimation(.spring(duration: 0.25, bounce: 0.1)) { browser.moveTab(id, to: target) }
+        return true
+    }
+
+    /// A favorite dropped on a favorite moves there; a tab dropped on one is pinned there.
+    static func drop(_ items: [String], onFavorite target: String, browser: Browser) -> Bool {
+        guard let item = items.first else { return false }
+        if item.hasPrefix("changmun-favorite:") {
+            Library.shared.moveFavorite(String(item.dropFirst("changmun-favorite:".count)), to: target)
+            return true
+        }
+        if item.hasPrefix("changmun-tab:"), let id = Int(item.dropFirst("changmun-tab:".count)),
+           let tab = browser.tab(id), let url = tab.url?.absoluteString {
+            if !Library.shared.isFavorite(url) { _ = Library.shared.toggleBookmark(url: url, title: tab.title) }
+            Library.shared.moveFavorite(url, to: target)
+            return true
+        }
+        return false
     }
 }
 
@@ -653,6 +690,12 @@ struct WebCard: View {
                 EmptyPage()
             }
         }
+        .overlay(alignment: .topTrailing) {
+            if browser.findBarVisible {
+                FindBar(browser: browser).transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.easeOut(duration: 0.15), value: browser.findBarVisible)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
         .shadow(color: .black.opacity(0.06), radius: 3, y: 1)

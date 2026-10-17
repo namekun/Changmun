@@ -24,7 +24,7 @@ final class ChatStore: ObservableObject {
     private var streamedMessages = Set<String>()
     private var currentMessage: String?
 
-    var model: String { UserDefaults.standard.string(forKey: "aiModel") ?? "sonnet" }
+    var model: String { Preferences.shared.aiModel }
 
     static let systemPrompt = """
     You are the AI assistant built into Changmun, a macOS web browser. Through the changmun tools you can see and \

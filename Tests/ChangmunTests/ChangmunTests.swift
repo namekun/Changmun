@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import Testing
+import WebKit
 @testable import Changmun
 
 struct AddressInputTests {
@@ -229,6 +230,24 @@ struct LibraryTests {
         #expect(!lib.knowsURL("https://news.ycombinator.com/item?id=2"))
     }
 
+    @Test func clearsHistorySinceADate() {
+        let lib = library()
+        lib.recordVisit(url: "https://old.example/", title: "Old", at: Date(timeIntervalSinceNow: -7200))
+        lib.recordVisit(url: "https://new.example/", title: "New", at: Date(timeIntervalSinceNow: -60))
+        #expect(lib.clearHistory(since: Date(timeIntervalSinceNow: -3600)) == 1)
+        #expect(lib.history().map(\.url) == ["https://old.example/"])
+        #expect(lib.history(matching: "new").isEmpty)
+    }
+
+    @Test func favoritesMoveWhereTheyAreDropped() {
+        let lib = library()
+        for name in ["a", "b", "c", "d"] { _ = lib.toggleBookmark(url: "https://\(name).com/", title: name) }
+        lib.moveFavorite("https://a.com/", to: "https://c.com/")
+        #expect(lib.favorites().map(\.title) == ["b", "c", "a", "d"])
+        lib.moveFavorite("https://d.com/", to: "https://b.com/")
+        #expect(lib.favorites().map(\.title) == ["d", "b", "c", "a"])
+    }
+
     @Test func ignoresNonWebHistory() {
         let lib = library()
         lib.recordVisit(url: "about:blank", title: "")
@@ -334,11 +353,77 @@ struct ShortcutTests {
         #expect(action(.safari, "c", [.command, .option]) == "showConsole:")
         #expect(action(.chrome, "j", [.command, .option]) == "showConsole:")
         #expect(action(.safari, "s", [.command]) == nil)
+        #expect(action(.safari, "l", [.command, .option]) == "showDownloads:")
+        #expect(action(.chrome, "j", [.command, .shift]) == "showDownloads:")
         for scheme in ShortcutScheme.allCases {
             #expect(action(scheme, String(Character(UnicodeScalar(NSF12FunctionKey)!)), []) == "toggleInspector:")
             #expect(action(scheme, "i", [.command, .option]) == "toggleInspector:")
             #expect(action(scheme, "l", [.command]) == "openLocation:")
+            #expect(action(scheme, "f", [.command]) == "showFind:")
+            #expect(action(scheme, "t", [.command, .shift]) == "reopenClosedTab:")
+            #expect(action(scheme, "y", [.command]) == "showHistory:")
         }
+    }
+}
+
+@MainActor
+struct BrowserTabTests {
+    private func browser(_ count: Int) -> Browser {
+        let browser = Browser()
+        for n in 1...count { browser.openTab(url: URL(string: "https://site\(n).example/"), activate: false) }
+        return browser
+    }
+
+    @Test func movingATabPutsItWhereItWasDropped() {
+        let b = browser(4)
+        b.moveTab(1, to: 3)
+        #expect(b.tabs.map(\.id) == [2, 3, 1, 4])
+        b.moveTab(4, to: 2)
+        #expect(b.tabs.map(\.id) == [4, 2, 3, 1])
+        b.moveTab(4, to: nil)
+        #expect(b.tabs.map(\.id) == [2, 3, 1, 4])
+    }
+
+    @Test func closedTabsComeBackWhereTheyWere() {
+        let b = browser(3)
+        b.close(2)
+        b.close(3)
+        #expect(b.tabs.map { $0.url?.host() } == ["site1.example"])
+        #expect(b.closedTabs.map(\.index) == [1, 1])
+        // Reopening activates, which creates a web view; check the bookkeeping only.
+        let last = b.closedTabs.last
+        #expect(last?.url?.host() == "site3.example")
+    }
+}
+
+struct SettingsRuleTests {
+    @Test func neverSleepCoversSubdomains() {
+        #expect(!Preferences.canSleep(host: "music.youtube.com", neverSleep: ["youtube.com"]))
+        #expect(!Preferences.canSleep(host: "YouTube.com", neverSleep: ["youtube.com"]))
+        #expect(Preferences.canSleep(host: "notyoutube.com", neverSleep: ["youtube.com"]))
+        #expect(Preferences.canSleep(host: nil, neverSleep: ["youtube.com"]))
+    }
+
+    @Test func everySearchEngineMakesPlainSearches() {
+        for engine in SearchEngine.allCases {
+            let url = URL(string: engine.template.replacingOccurrences(of: "%s", with: "swift"))!
+            #expect(url.host() != nil, "\(engine)")
+            #expect(engine.template.contains("%s"))
+        }
+    }
+
+    @MainActor @Test func webKitCompilesTheTrackerRules() async throws {
+        let store = try #require(WKContentRuleListStore(url: FileManager.default.temporaryDirectory.appendingPathComponent("rules-\(UUID().uuidString)")))
+        let list = try await store.compileContentRuleList(forIdentifier: "test", encodedContentRuleList: ContentBlocker.rules)
+        #expect(list != nil)
+    }
+
+    @Test func trackerRulesAreValidJSON() throws {
+        let rules = try #require(JSONSerialization.jsonObject(with: Data(ContentBlocker.rules.utf8)) as? [[String: Any]])
+        #expect(rules.count == ContentBlocker.hosts.count)
+        let filter = (rules[0]["trigger"] as? [String: Any])?["url-filter"] as? String
+        #expect(filter == "^[^:]+://+([^:/]+\\.)?doubleclick\\.net[/:]")
+        #expect(try NSRegularExpression(pattern: filter!).firstMatch(in: "https://ad.doubleclick.net/x", range: NSRange(location: 0, length: 27)) != nil)
     }
 }
 

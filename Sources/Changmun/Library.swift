@@ -136,6 +136,59 @@ final class Library {
         return !(rows ?? []).isEmpty
     }
 
+    struct Visit: Identifiable, Equatable {
+        var url: String
+        var title: String
+        var lastVisit: Date
+        var id: String { url }
+    }
+
+    /// Most recent first, optionally only pages whose title or address contains every word.
+    func history(matching text: String = "", limit: Int = 500) -> [Visit] {
+        let words = text.lowercased().split(separator: " ").map(String.init)
+        let clause = words.isEmpty ? "1" : words.map { _ in "(lower(title) LIKE ? OR lower(url) LIKE ?)" }.joined(separator: " AND ")
+        let values: [Any?] = words.flatMap { word -> [String] in ["%\(word)%", "%\(word)%"] }
+        let rows = (try? db?.query("SELECT url, title, last_visit FROM history WHERE \(clause) ORDER BY last_visit DESC LIMIT ?", values + [limit])) ?? []
+        return rows.compactMap { row in
+            guard let url = row[0] as? String else { return nil }
+            return Visit(url: url, title: row[1] as? String ?? "", lastVisit: Date(timeIntervalSince1970: row[2] as? Double ?? 0))
+        }
+    }
+
+    func deleteHistory(url: String) {
+        try? db?.run("DELETE FROM history WHERE url = ?", [url])
+        changed()
+    }
+
+    /// Forgets visits made since the date (all of them for `.distantPast`); returns how many pages were removed.
+    @discardableResult
+    func clearHistory(since date: Date) -> Int {
+        let before = counts.history
+        try? db?.run("DELETE FROM history WHERE last_visit >= ?", [date.timeIntervalSince1970])
+        changed()
+        return before - counts.history
+    }
+
+    /// Moves a favorite to where another one is (dropping it on that tile), or to the end.
+    func moveFavorite(_ url: String, to target: String?) {
+        let original = favorites().map(\.url)
+        guard let from = original.firstIndex(of: url), url != target else { return }
+        var order = original
+        order.remove(at: from)
+        if let target, let to = order.firstIndex(of: target), let was = original.firstIndex(of: target) {
+            order.insert(url, at: was > from ? to + 1 : to)
+        } else {
+            order.append(url)
+        }
+        guard let db else { return }
+        try? db.transaction {
+            for (position, item) in order.enumerated() {
+                try db.run("UPDATE bookmarks SET added = ? WHERE url = ? AND folder = ''", [Double(position), item])
+            }
+        }
+        changed()
+    }
+
     func bookmarks(limit: Int = 8) -> [Entry] {
         rows("SELECT url, title FROM bookmarks ORDER BY added DESC, id LIMIT ?", [limit])
     }

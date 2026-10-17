@@ -217,6 +217,7 @@ enum Approvals {
     static var timeout: TimeInterval = 90
 
     static func allowTab(_ tab: Tab) async -> Bool {
+        guard Preferences.shared.aiApprovals else { return true }
         let key = "\(tab.id)|\(tab.url?.host()?.lowercased() ?? "")"
         if tabs.contains(key) { return true }
         let allowed = await ask("AI가 지금 보고 있지 않은 탭을 쓰려고 해요",
@@ -226,6 +227,7 @@ enum Approvals {
     }
 
     static func allowNavigation(_ url: URL) async -> Bool {
+        guard Preferences.shared.aiApprovals else { return true }
         if isFree(url, knownURL: knownURL, knownHost: Library.shared.knowsHost) || urls.contains(url.absoluteString) { return true }
         let allowed = await ask("AI가 이 주소를 열려고 해요",
                                 "\(url.host() ?? "")\n\n\(url.absoluteString.prefix(300))\n\n주소에 다른 페이지나 대화의 내용이 실려 있다면 거부하세요.")
@@ -262,6 +264,7 @@ enum Approvals {
 
     /// Typing hands text to the page; after reading other sites, the user sees what would be typed and says yes.
     static func allowTyping(_ text: String, into tab: Tab, caller: String) async -> Bool {
+        guard Preferences.shared.aiApprovals else { return true }
         let host = tab.url?.host()?.lowercased() ?? ""
         let others = readHosts[caller, default: []].subtracting([host])
         if others.isEmpty { return true }
