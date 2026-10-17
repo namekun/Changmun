@@ -24,6 +24,8 @@ final class Browser: ObservableObject {
     var favicons: [String: NSImage] = [:]
     private var missingIcons = Set<String>()
     private var nextID = 1
+    /// The tab shown before the current one: closing the current tab goes back to it, as in Safari and Chrome.
+    private(set) var previousActiveID: Int?
     private var sleepTimer: Timer?
     private var memoryPressure: DispatchSourceMemoryPressure?
 
@@ -60,8 +62,22 @@ final class Browser: ObservableObject {
         if config.preferences.responds(to: NSSelectorFromString("_setDeveloperExtrasEnabled:")) {
             config.preferences.setValue(true, forKey: "developerExtrasEnabled")
         }
+        LinkHover.install(in: config.userContentController)
+        if #available(macOS 15.4, *) { config.webExtensionController = ExtensionHost.shared.controller }
         return config
     }()
+
+    /// The link under the pointer in the shown tab, for the status line at the bottom of the page.
+    @Published var hoveredLink: String?
+    /// A short message in the same place ("주소를 복사했어요").
+    @Published var statusMessage: String?
+
+    func flashStatus(_ message: String) {
+        statusMessage = message
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { [weak self] in
+            if self?.statusMessage == message { self?.statusMessage = nil }
+        }
+    }
 
     private static var safariVersion: String {
         let info = NSDictionary(contentsOfFile: "/Applications/Safari.app/Contents/Info.plist")
@@ -81,6 +97,7 @@ final class Browser: ObservableObject {
     func openTab(url: URL?, activate: Bool = true, after: Tab? = nil) -> Tab {
         let tab = Tab(id: takeID(), url: url, browser: self)
         insert(tab, after: after)
+        if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
         if activate {
             self.activate(tab.id)
             commandBar = nil
@@ -91,22 +108,28 @@ final class Browser: ObservableObject {
     func openTab(configuration: WKWebViewConfiguration, after: Tab?) -> Tab {
         let tab = Tab(id: takeID(), configuration: configuration, browser: self)
         insert(tab, after: after)
+        if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
         activate(tab.id)
         return tab
     }
 
     func activate(_ id: Int) {
         guard let tab = tab(id) else { return }
+        hoveredLink = nil
         if id != activeID && findBarVisible { hideFindBar() }
+        let previous = active
+        if let previous, previous !== tab { previousActiveID = previous.id }
         active?.lastShown = Date()
         activeID = id
         tab.lastShown = Date()
         tab.wake()
+        if #available(macOS 15.4, *), previous !== tab { ExtensionHost.shared.tabActivated(tab, previous: previous) }
     }
 
     func close(_ id: Int) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         let closing = tabs.remove(at: index)
+        if #available(macOS 15.4, *) { ExtensionHost.shared.tabClosed(closing) }
         closedTabs.append(ClosedTab(url: closing.url, title: closing.title, state: closing.sessionState, index: index))
         if closedTabs.count > 25 { closedTabs.removeFirst() }
         closing.sleep()
@@ -114,6 +137,8 @@ final class Browser: ObservableObject {
             if tabs.isEmpty {
                 activeID = nil
                 commandBar = .newTab
+            } else if let back = previousActiveID, tabs.contains(where: { $0.id == back }) {
+                activate(back)
             } else {
                 activate(tabs[min(index, tabs.count - 1)].id)
             }
@@ -125,6 +150,7 @@ final class Browser: ObservableObject {
         guard let closed = closedTabs.popLast() else { return }
         let tab = Tab(id: takeID(), url: closed.url, title: closed.title, state: closed.state, browser: self)
         tabs.insert(tab, at: min(closed.index, tabs.count))
+        if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
         activate(tab.id)
         commandBar = nil
     }
@@ -138,6 +164,7 @@ final class Browser: ObservableObject {
         } else {
             tabs.append(tab)
         }
+        if #available(macOS 15.4, *) { ExtensionHost.shared.tabMoved(tab, from: from) }
     }
 
     // MARK: Find in page
@@ -194,13 +221,24 @@ final class Browser: ObservableObject {
     }
 
     /// Shows the tab already on that page, or opens one.
-    func openBookmark(_ address: String) {
+    /// Shows the tab already on that page; otherwise loads it in the current tab, like Dia,
+    /// or in a new one when asked (⌘-click) or when no tab is open.
+    func openBookmark(_ address: String, inNewTab: Bool = false) {
         if let open = tabs.first(where: { $0.url?.absoluteString == address }) {
             activate(open.id)
-        } else if let url = URL(string: address) {
+            return
+        }
+        guard let url = URL(string: address) else { return }
+        if inNewTab || active == nil {
             openTab(url: url, after: active)
+        } else {
+            active?.load(url)
+            commandBar = nil
         }
     }
+
+    /// ⌘ held during the click that triggered this.
+    static var commandClick: Bool { NSApp.currentEvent?.modifierFlags.contains(.command) == true }
 
     // MARK: Icons
 
@@ -297,6 +335,7 @@ final class Browser: ObservableObject {
     private struct SavedSession: Codable {
         var tabs: [SavedTab]
         var active: Int?
+        var previous: Int?
     }
 
     private var sessionFile: URL { Library.folder.appendingPathComponent("session.json") }
@@ -304,7 +343,8 @@ final class Browser: ObservableObject {
     func saveSession() {
         let saved = SavedSession(
             tabs: tabs.map { SavedTab(url: $0.url?.absoluteString, title: $0.title, state: $0.sessionState) },
-            active: tabs.firstIndex { $0.id == activeID }
+            active: tabs.firstIndex { $0.id == activeID },
+            previous: tabs.firstIndex { $0.id == previousActiveID }
         )
         try? JSONEncoder().encode(saved).write(to: sessionFile, options: .atomic)
     }
@@ -322,5 +362,6 @@ final class Browser: ObservableObject {
             tabs.append(Tab(id: takeID(), url: item.url.flatMap(URL.init(string:)), title: item.title, state: item.state, browser: self))
         }
         activate(tabs[min(saved.active ?? 0, tabs.count - 1)].id)
+        if let previous = saved.previous, tabs.indices.contains(previous) { previousActiveID = tabs[previous].id }
     }
 }

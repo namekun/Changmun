@@ -1,7 +1,7 @@
 import Foundation
 import WebKit
 
-/// Blocks well-known third-party ad and tracking hosts with a WebKit content rule list.
+/// Well-known third-party ad and tracking hosts, always blocked along with the downloaded filter lists.
 enum ContentBlocker {
     static let hosts = [
         "doubleclick.net", "googlesyndication.com", "googleadservices.com", "google-analytics.com",
@@ -22,19 +22,5 @@ enum ContentBlocker {
         }
         let data = try! JSONSerialization.data(withJSONObject: list)
         return String(data: data, encoding: .utf8)!
-    }
-
-    @MainActor private static var compiled: WKContentRuleList?
-
-    /// Turns blocking on or off for every tab: they all share the app's user content controller.
-    @MainActor
-    static func apply(_ enabled: Bool) async {
-        let controller = Browser.configuration.userContentController
-        if let compiled { controller.remove(compiled) }
-        guard enabled else { return }
-        if compiled == nil {
-            compiled = try? await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "changmun-trackers-v1", encodedContentRuleList: rules)
-        }
-        if let compiled { controller.add(compiled) }
     }
 }

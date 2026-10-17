@@ -1,3 +1,4 @@
+import UniformTypeIdentifiers
 import Combine
 import AppKit
 import SwiftUI
@@ -16,10 +17,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         host.sizingOptions = []
         window.contentView = host
         NSApp.appearance = Preferences.shared.appearance.nsAppearance
-        Task { await ContentBlocker.apply(Preferences.shared.blockTrackers) }
+        Task { await AdBlocker.shared.start() }
+        if #available(macOS 15.4, *) { Task { await ExtensionHost.shared.start() } }
         browser.restoreSession()
         browser.startSleepingIdleTabs()
         ControlServer.shared.start()
+        watchMouseButtons()
         if !UserDefaults.standard.bool(forKey: "onboarded") { browser.showOnboarding = true }
         window.makeKeyAndOrderFront(nil)
         window.layoutTrafficLights()
@@ -71,6 +74,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if browser.findBarVisible { browser.find(backwards: true) } else { browser.showFindBar() }
     }
     @objc func reopenClosedTab(_ sender: Any?) { browser.reopenClosedTab() }
+
+    private var mouseMonitor: Any?
+
+    /// The side buttons on most mice (4 and 5) go back and forward in the browser window.
+    private func watchMouseButtons() {
+        mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: .otherMouseDown) { [weak self] event in
+            guard let self, event.window is BrowserWindow, event.buttonNumber == 3 || event.buttonNumber == 4 else { return event }
+            if event.buttonNumber == 3 { self.browser.active?.webView?.goBack() } else { self.browser.active?.webView?.goForward() }
+            return nil
+        }
+    }
+
+    @objc func printPage(_ sender: Any?) {
+        guard let webView = browser.active?.webView, let window else { return }
+        let info = NSPrintInfo.shared
+        info.horizontalPagination = .fit
+        info.verticalPagination = .automatic
+        let operation = webView.printOperation(with: info)
+        operation.view?.frame = webView.bounds
+        operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
+    }
+
+    @objc func openFile(_ sender: Any?) {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.allowedContentTypes = [.html, .pdf, .image, .plainText, .svg, .webArchive, .xml]
+        guard panel.runModal() == .OK else { return }
+        for url in panel.urls { browser.openTab(url: url) }
+    }
+
+    @objc func copyAddress(_ sender: Any?) {
+        guard let address = browser.active?.url?.absoluteString else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(address, forType: .string)
+        browser.flashStatus("주소를 복사했어요")
+    }
 
     /// Opens WebKit's Web Inspector on the Network tab, or closes it. WKWebView has no public API for this,
     /// so it goes through `_inspector`, guarded so a WebKit without it just beeps.
@@ -204,6 +243,10 @@ enum AppMenu {
         add(file, "주소 열기", #selector(AppDelegate.openLocation(_:)), "l")
         add(file, "탭 닫기", #selector(AppDelegate.closeTab(_:)), "w")
         add(file, "닫은 탭 다시 열기", #selector(AppDelegate.reopenClosedTab(_:)), "t", [.command, .shift])
+        add(file, "파일 열기…", #selector(AppDelegate.openFile(_:)), "o")
+        file.addItem(.separator())
+        add(file, "주소 복사", #selector(AppDelegate.copyAddress(_:)), "c", [.command, .shift])
+        add(file, "인쇄…", #selector(AppDelegate.printPage(_:)), "p")
 
         let edit = submenu(main, "편집")
         add(edit, "실행 취소", Selector(("undo:")), "z")

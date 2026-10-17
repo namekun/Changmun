@@ -11,6 +11,7 @@ struct SettingsView: View {
             GeneralSettings(prefs: prefs).tabItem { Label("일반", systemImage: "gearshape") }
             LooksSettings(prefs: prefs).tabItem { Label("탭·모양", systemImage: "macwindow") }
             PrivacySettings(prefs: prefs).tabItem { Label("개인정보", systemImage: "hand.raised") }
+            ExtensionSettings().tabItem { Label("확장", systemImage: "puzzlepiece.extension") }
             AISettings(prefs: prefs).tabItem { Label("AI", systemImage: "sparkles") }
             AdvancedSettings(prefs: prefs).tabItem { Label("고급", systemImage: "wrench.and.screwdriver") }
         }
@@ -205,10 +206,7 @@ struct PrivacySettings: View {
                                 isPresented: $confirming) {
                 Button("지우기", role: .destructive, action: clear)
             }
-            Section {
-                Toggle("광고·추적 차단", isOn: $prefs.blockTrackers)
-                Caption(text: "잘 알려진 광고·추적 서비스 \(ContentBlocker.hosts.count)곳을 다른 사이트에서 불러오지 못하게 막아요.")
-            }
+            AdBlockSection(prefs: prefs)
             Section {
                 LabeledContent("저장된 비밀번호") {
                     HStack {
@@ -317,6 +315,158 @@ struct PasswordsSheet: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(password, forType: .string)
         copied = login.id
+    }
+}
+
+struct AdBlockSection: View {
+    @ObservedObject var prefs: Preferences
+    @ObservedObject private var blocker = AdBlocker.shared
+    @State private var newList = ""
+
+    var body: some View {
+        Section("광고 차단") {
+            Toggle("광고·추적 차단", isOn: $prefs.blockTrackers)
+            if prefs.blockTrackers {
+                ForEach(blocker.lists) { list in
+                    HStack {
+                        Toggle(list.name, isOn: Binding(
+                            get: { !prefs.disabledFilterLists.contains(list.id) },
+                            set: { on in
+                                prefs.disabledFilterLists.removeAll { $0 == list.id }
+                                if !on { prefs.disabledFilterLists.append(list.id) }
+                                Task { await blocker.update() }
+                            }))
+                        .lineLimit(1)
+                        if list.id.hasPrefix("custom-") {
+                            Button { prefs.customFilterLists.removeAll { $0 == list.url }; Task { await blocker.recompile() } } label: { Image(systemName: "minus.circle") }
+                                .buttonStyle(.borderless)
+                        }
+                    }
+                }
+                HStack {
+                    TextField("필터 목록 주소 추가 (예: 한국 광고 목록)", text: $newList).onSubmit(addList)
+                    Button("추가", action: addList).disabled(URL(string: newList)?.scheme?.hasPrefix("http") != true)
+                }
+                HStack {
+                    Caption(text: [blocker.status, blocker.lastUpdated.map { "마지막 업데이트 " + $0.formatted(date: .abbreviated, time: .shortened) }]
+                        .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
+                    Spacer()
+                    if blocker.working { ProgressView().controlSize(.small) }
+                    Button("지금 업데이트") { Task { await blocker.update() } }.disabled(blocker.working)
+                }
+                if !prefs.adBlockAllowlist.isEmpty {
+                    ForEach(prefs.adBlockAllowlist, id: \.self) { host in
+                        HStack {
+                            Text(host)
+                            Spacer()
+                            Text("차단 안 함").foregroundStyle(.secondary)
+                            Button { blocker.toggleSite(host) } label: { Image(systemName: "minus.circle") }.buttonStyle(.borderless)
+                        }
+                    }
+                }
+                Caption(text: "목록은 4일마다 새로 받아요. 사이트가 깨지면 주소창의 방패 버튼으로 그 사이트만 끌 수 있어요.")
+            }
+        }
+    }
+
+    private func addList() {
+        let url = newList.trimmingCharacters(in: .whitespaces)
+        guard URL(string: url)?.scheme?.hasPrefix("http") == true, !prefs.customFilterLists.contains(url) else { return }
+        prefs.customFilterLists.append(url)
+        newList = ""
+        Task { await blocker.update() }
+    }
+}
+
+// MARK: Extensions
+
+struct ExtensionSettings: View {
+    var body: some View {
+        if #available(macOS 15.4, *) {
+            ExtensionList(host: ExtensionHost.shared)
+        } else {
+            Form { Caption(text: "확장 프로그램은 macOS 15.4 이상에서 쓸 수 있어요.") }.formStyle(.grouped)
+        }
+    }
+}
+
+@available(macOS 15.4, *)
+struct ExtensionList: View {
+    @ObservedObject var host: ExtensionHost
+
+    var body: some View {
+        Form {
+            Section {
+                if host.found.isEmpty {
+                    Caption(text: "설치된 Safari 확장이 없어요. App Store에서 Safari 확장을 받거나, 압축을 푼 크롬·파이어폭스 확장 폴더를 불러올 수 있어요.")
+                }
+                ForEach(host.found) { source in
+                    ExtensionRow(host: host, source: source)
+                }
+            }
+            Section {
+                HStack {
+                    Button("폴더에서 불러오기…", action: chooseFolder)
+                    Spacer()
+                }
+                Caption(text: "Safari 웹 확장은 자동으로 찾아요. Safari와 이어지는 기능(네이티브 앱과 주고받는 메시지)은 Changmun에서 동작하지 않을 수 있어요. 콘텐츠 차단기 형식의 Safari 확장은 규칙을 다른 앱이 읽을 수 없어서 대신 설정 › 개인정보의 광고 차단을 써요.")
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.message = "manifest.json이 들어 있는 확장 폴더를 고르세요"
+        if panel.runModal() == .OK, let url = panel.url { Task { await host.addFolder(url) } }
+    }
+}
+
+@available(macOS 15.4, *)
+struct ExtensionRow: View {
+    @ObservedObject var host: ExtensionHost
+    let source: ExtensionSource
+
+    var body: some View {
+        let item = host.loaded.first { $0.id == source.id }
+        HStack(spacing: 10) {
+            if let icon = item?.context.webExtension.icon(for: CGSize(width: 24, height: 24)) {
+                Image(nsImage: icon).resizable().frame(width: 24, height: 24)
+            } else {
+                Image(systemName: "puzzlepiece.extension").frame(width: 24, height: 24).foregroundStyle(.secondary)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item?.name ?? Self.name(source)).lineLimit(1)
+                if let failure = host.failures[source.path] {
+                    Text(failure).font(.system(size: 11)).foregroundStyle(.red).lineLimit(2)
+                } else {
+                    Text(source.kind == .safari ? "Safari 확장" : source.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
+                        .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                }
+            }
+            Spacer()
+            if let item, item.context.optionsPageURL != nil {
+                Button("설정") { host.openOptions(item) }.buttonStyle(.borderless)
+            }
+            if source.kind == .folder {
+                Button { Task { await host.removeFolder(source) } } label: { Image(systemName: "minus.circle") }.buttonStyle(.borderless)
+            }
+            Toggle("", isOn: Binding(get: { host.isLoaded(source) }, set: { on in Task { await host.setEnabled(source, on) } }))
+                .labelsHidden()
+                .toggleStyle(.switch)
+        }
+    }
+
+    /// Before loading, the extension's name is the app that carries it (or the folder).
+    static func name(_ source: ExtensionSource) -> String {
+        let url = URL(fileURLWithPath: source.path)
+        if source.kind == .safari, let bundle = Bundle(url: url) {
+            return bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+                ?? bundle.object(forInfoDictionaryKey: "CFBundleName") as? String ?? url.deletingPathExtension().lastPathComponent
+        }
+        return url.lastPathComponent
     }
 }
 

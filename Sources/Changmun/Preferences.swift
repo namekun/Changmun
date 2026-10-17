@@ -89,9 +89,18 @@ final class Preferences: ObservableObject {
     @Published var blockTrackers: Bool {
         didSet {
             defaults.set(blockTrackers, forKey: "blockTrackers")
-            Task { await ContentBlocker.apply(blockTrackers) }
+            Task { await AdBlocker.shared.apply(enabled: blockTrackers) }
         }
     }
+    @Published var customFilterLists: [String] { didSet { defaults.set(customFilterLists, forKey: "customFilterLists") } }
+    @Published var disabledFilterLists: [String] { didSet { defaults.set(disabledFilterLists, forKey: "disabledFilterLists") } }
+    /// Sites where ads aren't blocked.
+    @Published var adBlockAllowlist: [String] { didSet { defaults.set(adBlockAllowlist, forKey: "adBlockAllowlist") } }
+
+    // MARK: Extensions
+
+    @Published var extensionFolders: [String] { didSet { defaults.set(extensionFolders, forKey: "extensionFolders") } }
+    @Published var enabledExtensions: [String] { didSet { defaults.set(enabledExtensions, forKey: "enabledExtensions") } }
 
     // MARK: AI
 
@@ -119,6 +128,11 @@ final class Preferences: ObservableObject {
         sleepMinutes = d.object(forKey: "sleepTabsAfterMinutes") as? Int ?? 20
         neverSleepHosts = d.stringArray(forKey: "neverSleepHosts") ?? []
         blockTrackers = d.object(forKey: "blockTrackers") as? Bool ?? true
+        customFilterLists = d.stringArray(forKey: "customFilterLists") ?? []
+        disabledFilterLists = d.stringArray(forKey: "disabledFilterLists") ?? []
+        adBlockAllowlist = d.stringArray(forKey: "adBlockAllowlist") ?? []
+        extensionFolders = d.stringArray(forKey: "extensionFolders") ?? []
+        enabledExtensions = d.stringArray(forKey: "enabledExtensions") ?? []
         aiModel = d.string(forKey: "aiModel") ?? "sonnet"
         aiApprovals = d.object(forKey: "aiApprovals") as? Bool ?? true
         claudePath = d.string(forKey: "claudePath") ?? ""

@@ -103,7 +103,7 @@ struct Sidebar: View {
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 6) {
                             ForEach(library.favorites, id: \.url) { entry in
                                 FavoriteTile(entry: entry, isOpen: browser.active?.url?.absoluteString == entry.url) {
-                                    browser.openBookmark(entry.url)
+                                    browser.openBookmark(entry.url, inNewTab: Browser.commandClick)
                                 } remove: {
                                     Library.shared.removeBookmark(url: entry.url, folder: Library.favoritesFolder)
                                 }
@@ -135,6 +135,11 @@ struct Sidebar: View {
                                 let key = "source:" + group.source
                                 FolderRow(name: group.source, symbol: "books.vertical", count: group.folders.reduce(0) { $0 + $1.entries.count },
                                           isOpen: openFolders.contains(key)) { toggle(key) }
+                                    .contextMenu {
+                                        Button("\(group.source) 북마크 모두 삭제…") {
+                                            if confirmDelete("\(group.source)에서 가져온 북마크를 모두 지울까요?") { Library.shared.removeSource(group.source) }
+                                        }
+                                    }
                                 if openFolders.contains(key) {
                                     ForEach(group.folders, id: \.key) { folder in
                                         FolderRow(name: folder.label, symbol: "folder", count: folder.entries.count, isOpen: openFolders.contains(folder.key)) {
@@ -142,9 +147,16 @@ struct Sidebar: View {
                                         }
                                         .padding(.leading, 12)
                                         .help(folder.key)
+                                        .contextMenu {
+                                            Button("폴더 삭제…") {
+                                                if confirmDelete("'\(folder.label)' 폴더와 안의 북마크 \(folder.entries.count)개를 지울까요?") {
+                                                    Library.shared.removeFolder(folder.key)
+                                                }
+                                            }
+                                        }
                                         if openFolders.contains(folder.key) {
                                             ForEach(folder.entries, id: \.url) { entry in
-                                                BookmarkRow(entry: entry) { browser.openBookmark(entry.url) } remove: {
+                                                BookmarkRow(entry: entry) { browser.openBookmark(entry.url, inNewTab: Browser.commandClick) } remove: {
                                                     Library.shared.removeBookmark(url: entry.url, folder: folder.key)
                                                 }
                                                 .padding(.leading, 26)
@@ -165,11 +177,20 @@ struct Sidebar: View {
             HStack(spacing: 4) {
                 AIButton(isOn: browser.showChat) { browser.showChat.toggle() }
                 Spacer()
+                if #available(macOS 15.4, *) { ExtensionButtons(browser: browser) }
                 BarButton(symbol: "square.and.arrow.down", help: "다른 브라우저에서 가져오기") { browser.showOnboarding = true }
             }
             .padding(.horizontal, 10)
             .frame(height: 44)
         }
+    }
+
+    private func confirmDelete(_ message: String) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = message
+        alert.addButton(withTitle: "취소")
+        alert.addButton(withTitle: "삭제").hasDestructiveAction = true
+        return alert.runModal() == .alertSecondButtonReturn
     }
 
     private func toggle(_ key: String) {
@@ -315,6 +336,7 @@ struct AddressPill: View {
                 .foregroundStyle(Color.primary.opacity(0.8))
             Spacer(minLength: 0)
             LoginButton(tab: tab)
+            AdBlockShield(tab: tab)
             BookmarkStar(tab: tab)
         }
         .padding(.leading, 11)
@@ -369,6 +391,7 @@ struct AddressField: View {
                     return .handled
                 }
             LoginButton(tab: tab)
+            AdBlockShield(tab: tab)
             BookmarkStar(tab: tab)
         }
         .padding(.leading, 11)
@@ -408,6 +431,27 @@ struct AddressPlaceholder: View {
     }
 }
 
+/// Ad blocking for the current site: filled while blocking, slashed when turned off here.
+struct AdBlockShield: View {
+    @ObservedObject var tab: Tab
+    @ObservedObject private var prefs = Preferences.shared
+
+    var body: some View {
+        if prefs.blockTrackers, let host = tab.url?.host(), tab.url?.scheme?.hasPrefix("http") == true {
+            let off = AdBlocker.shared.isAllowed(host)
+            Button { AdBlocker.shared.toggleSite(host) } label: {
+                Image(systemName: off ? "shield.slash" : "shield.lefthalf.filled")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(off ? Theme.secondary : Theme.accent)
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(off ? "이 사이트에서 광고 차단 켜기" : "이 사이트에서 광고 차단 끄기 (사이트가 깨질 때)")
+        }
+    }
+}
+
 struct BookmarkStar: View {
     @ObservedObject var tab: Tab
 
@@ -444,8 +488,22 @@ struct FavoriteTile: View {
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(isOpen ? Theme.activeTab : (hover ? Theme.activeTab.opacity(0.7) : Theme.hoverTab)))
             .shadow(color: .black.opacity(isOpen ? 0.08 : 0), radius: 1.5, y: 1)
             .contentShape(Rectangle())
-            .onHover { hover = $0 }
             .onTapGesture(perform: open)
+            .overlay(alignment: .topTrailing) {
+                if hover {
+                    Button(action: remove) {
+                        Image(systemName: "xmark").font(.system(size: 7, weight: .bold))
+                            .frame(width: 14, height: 14)
+                            .background(Circle().fill(Theme.card))
+                            .overlay(Circle().strokeBorder(Theme.hairline, lineWidth: 0.5))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.primary.opacity(0.6))
+                    .offset(x: 4, y: -4)
+                    .help("즐겨찾기에서 빼기")
+                }
+            }
+            .onHover { hover = $0 }
             .contextMenu { Button("즐겨찾기에서 빼기", action: remove) }
             .help(entry.title.isEmpty ? entry.url : entry.title)
     }
@@ -491,6 +549,17 @@ struct BookmarkRow: View {
             SiteIcon(url: entry.url, size: 14)
             Text(entry.title.isEmpty ? entry.url : entry.title).font(.system(size: 12.5)).lineLimit(1)
             Spacer(minLength: 0)
+            if hover {
+                Button(action: remove) {
+                    Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                        .frame(width: 18, height: 18)
+                        .background(RoundedRectangle(cornerRadius: 5).fill(Theme.hoverTab))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.primary.opacity(0.5))
+                .help("북마크 삭제")
+            }
         }
         .foregroundStyle(Color.primary.opacity(0.75))
         .padding(.horizontal, 8)
@@ -695,10 +764,43 @@ struct WebCard: View {
                 FindBar(browser: browser).transition(.move(edge: .top).combined(with: .opacity))
             }
         }
+        .overlay(alignment: .bottomLeading) {
+            if let text = browser.statusMessage ?? browser.hoveredLink.map(StatusLine.display) {
+                StatusLine(text: text).transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.12), value: browser.hoveredLink)
+        .animation(.easeOut(duration: 0.12), value: browser.statusMessage)
         .animation(.easeOut(duration: 0.15), value: browser.findBarVisible)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
         .shadow(color: .black.opacity(0.06), radius: 3, y: 1)
+    }
+}
+
+/// The link under the pointer (or a short message), bottom left of the page like Safari's status bar.
+struct StatusLine: View {
+    let text: String
+
+    static func display(_ href: String) -> String {
+        guard let url = URL(string: href), let host = url.host() else { return href.removingPercentEncoding ?? href }
+        let rest = String(href.dropFirst((url.scheme?.count ?? 0) + 3 + host.count))
+        return (host.hasPrefix("www.") ? String(host.dropFirst(4)) : host) + (rest.removingPercentEncoding ?? rest)
+    }
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11.5))
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .foregroundStyle(Color.primary.opacity(0.75))
+            .padding(.horizontal, 9)
+            .frame(height: 22)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.card))
+            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
+            .frame(maxWidth: 520, alignment: .leading)
+            .padding(6)
+            .allowsHitTesting(false)
     }
 }
 

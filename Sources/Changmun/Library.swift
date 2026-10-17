@@ -100,6 +100,23 @@ final class Library {
         return true
     }
 
+    /// Removes a folder and the folders inside it.
+    func removeFolder(_ folder: String) {
+        try? db?.run("DELETE FROM bookmarks WHERE folder = ? OR folder LIKE ? ESCAPE '\\'", [folder, Self.likeEscaped(folder) + " / %"])
+        changed()
+    }
+
+    /// Removes everything imported from one browser (folders named "<source> …").
+    func removeSource(_ source: String) {
+        guard !source.isEmpty else { return }
+        try? db?.run("DELETE FROM bookmarks WHERE folder <> '' AND (folder = ? OR folder LIKE ? ESCAPE '\\')", [source, Self.likeEscaped(source) + " %"])
+        changed()
+    }
+
+    static func likeEscaped(_ text: String) -> String {
+        text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "%", with: "\\%").replacingOccurrences(of: "_", with: "\\_")
+    }
+
     func removeBookmark(url: String, folder: String) {
         try? db?.run("DELETE FROM bookmarks WHERE url = ? AND folder = ?", [url, folder])
         changed()

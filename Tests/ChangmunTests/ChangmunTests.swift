@@ -248,6 +248,20 @@ struct LibraryTests {
         #expect(lib.favorites().map(\.title) == ["d", "b", "c", "a"])
     }
 
+    @Test func foldersAndSourcesCanBeRemoved() throws {
+        let lib = library()
+        _ = try lib.importBookmarks([
+            ("https://a.com/", "A", "Arc 북마크 바"), ("https://b.com/", "B", "Arc 북마크 바 / dev"),
+            ("https://c.com/", "C", "Arc 사이드바"), ("https://d.com/", "D", "Dia 북마크 바"), ("https://e.com/", "E", "Arcade 북마크 바"),
+        ])
+        _ = lib.toggleBookmark(url: "https://fav.com/", title: "Fav")
+        lib.removeFolder("Arc 북마크 바")
+        #expect(lib.folders().map(\.name) == ["Arc 사이드바", "Dia 북마크 바", "Arcade 북마크 바"])
+        lib.removeSource("Arc")
+        #expect(lib.folders().map(\.name) == ["Dia 북마크 바", "Arcade 북마크 바"])
+        #expect(lib.favorites().count == 1)
+    }
+
     @Test func ignoresNonWebHistory() {
         let lib = library()
         lib.recordVisit(url: "about:blank", title: "")
@@ -384,6 +398,16 @@ struct BrowserTabTests {
         #expect(b.tabs.map(\.id) == [2, 3, 1, 4])
     }
 
+    @Test func closingTheShownTabGoesBackToThePreviousOne() {
+        let b = browser(4)
+        b.activate(2)
+        b.activate(4)
+        b.close(4)
+        #expect(b.activeID == 2)
+        b.close(2)
+        #expect(b.activeID != nil)
+    }
+
     @Test func closedTabsComeBackWhereTheyWere() {
         let b = browser(3)
         b.close(2)
@@ -424,6 +448,140 @@ struct SettingsRuleTests {
         let filter = (rules[0]["trigger"] as? [String: Any])?["url-filter"] as? String
         #expect(filter == "^[^:]+://+([^:/]+\\.)?doubleclick\\.net[/:]")
         #expect(try NSRegularExpression(pattern: filter!).firstMatch(in: "https://ad.doubleclick.net/x", range: NSRange(location: 0, length: 27)) != nil)
+    }
+}
+
+struct FilterConverterTests {
+    static let sample = #"""
+    [Adblock Plus 2.0]
+    ! Title: sample
+    ||doubleclick.net^
+    ||ads.example.com^$third-party
+    ||tracker.example^$script,image,domain=news.example|blog.example
+    ||cdn.example/ads/*.js$script,~third-party
+    /banner/ad_*.gif
+    |https://exact.example/start
+    &adtype=
+    ||popunder.example^$popup
+    @@||ads.example.com/allowed.js$script
+    @@||good.example^$document
+    /^https?:\/\/regex\.example/
+    ||weird.example^$redirect=noopjs
+    ||csp.example^$csp=script-src 'none'
+    ##.ad-banner
+    ##div[id^="google_ads_"]
+    ###sponsored
+    news.example,blog.example##.promo
+    example.com##.only-here
+    ~mixed.example,other.example##.skip-me
+    example.com#@#.ad-banner
+    example.com#?#.ad:has-text(Sponsored)
+    example.com##+js(abort-on-property-read, x)
+    ##.ad:-abp-contains(ad)
+    """#
+
+    @Test func patternsBecomeWebKitRegexes() {
+        #expect(FilterConverter.urlFilter("||doubleclick.net^") == "^[^:]+://+([^:/]+\\.)?doubleclick\\.net[/:?&=]")
+        #expect(FilterConverter.urlFilter("|https://a.com/x|") == "^https://a\\.com/x$")
+        #expect(FilterConverter.urlFilter("/banner/ad_*.gif") == "/banner/ad_.*\\.gif")
+        #expect(FilterConverter.urlFilter("") == ".*")
+    }
+
+    @Test func optionsMapToTriggers() throws {
+        let rule = try #require(FilterConverter.networkRule("||tracker.example^$script,image,domain=news.example|blog.example", action: "block"))
+        let trigger = try #require(rule["trigger"] as? [String: Any])
+        #expect(trigger["resource-type"] as? [String] == ["script", "image"])
+        #expect(trigger["if-domain"] as? [String] == ["*news.example", "*blog.example"])
+        let firstParty = try #require(FilterConverter.networkRule("||cdn.example/ads/*.js$script,~third-party", action: "block"))
+        #expect((firstParty["trigger"] as? [String: Any])?["load-type"] as? [String] == ["first-party"])
+    }
+
+    @Test func whatWebKitCantExpressIsSkipped() {
+        #expect(FilterConverter.networkRule("||weird.example^$redirect=noopjs", action: "block") == nil)
+        #expect(FilterConverter.networkRule("/^https?:\\/\\/regex\\.example/", action: "block") == nil)
+        #expect(FilterConverter.networkRule("||a.example^$domain=x.com|~y.com", action: "block") == nil)
+        #expect(FilterConverter.networkRule("||a.example^$~script", action: "block") == nil)
+        #expect(!FilterConverter.isSafeSelector(".ad:has-text(x)"))
+        #expect(!FilterConverter.isSafeSelector("div:-abp-contains(ad)"))
+        #expect(FilterConverter.isSafeSelector("div[id^=\"google_ads_\"]"))
+        #expect(FilterConverter.isSafeSelector(".a > .b:not(.c)"))
+    }
+
+    @Test func listConvertsWithExceptionsLast() throws {
+        let out = FilterConverter.convert(Self.sample)
+        let actions = out.network.compactMap { ($0["action"] as? [String: Any])?["type"] as? String }
+        #expect(actions.filter { $0 == "block" }.count == 8)
+        #expect(Array(actions.suffix(2)) == ["ignore-previous-rules", "ignore-previous-rules"])
+        // One generic hiding rule (three selectors) and two per-domain ones.
+        #expect(out.cosmetic.count == 3)
+        let generic = (out.cosmetic[0]["action"] as? [String: Any])?["selector"] as? String
+        #expect(generic == ".ad-banner, div[id^=\"google_ads_\"], #sponsored")
+        #expect(out.skipped >= 8)
+    }
+
+    @Test func turnedOffSitesComeLast() throws {
+        let out = FilterConverter.convert("||ads.example^", allowlist: ["news.example"])
+        let last = try #require(out.network.last)
+        #expect((last["action"] as? [String: Any])?["type"] as? String == "ignore-previous-rules")
+        #expect((last["trigger"] as? [String: Any])?["if-domain"] as? [String] == ["*news.example"])
+        #expect(out.cosmetic.count == 1)
+    }
+
+    @MainActor @Test func webKitCompilesConvertedRules() async throws {
+        let out = FilterConverter.convert(Self.sample, allowlist: ["news.example"])
+        let store = try #require(WKContentRuleListStore(url: FileManager.default.temporaryDirectory.appendingPathComponent("rules-\(UUID().uuidString)")))
+        for (name, rules) in [("network", out.network), ("cosmetic", out.cosmetic)] {
+            let json = String(data: try JSONSerialization.data(withJSONObject: rules), encoding: .utf8)!
+            let list = try await store.compileContentRuleList(forIdentifier: name, encodedContentRuleList: json)
+            #expect(list != nil, "\(name)")
+        }
+    }
+
+    @Test func customListIDsAreStable() {
+        #expect(AdBlocker.customID("https://a.example/list.txt") == AdBlocker.customID("https://a.example/list.txt"))
+        #expect(AdBlocker.customID("https://a.example/list.txt") != AdBlocker.customID("https://b.example/list.txt"))
+    }
+}
+
+struct WebExtensionTests {
+    @Test func pluginkitPathsAreParsed() {
+        guard #available(macOS 15.4, *) else { return }
+        let output = """
+             com.example.blocker.ext(1.0)
+                    Path = /Applications/Example.app/Contents/PlugIns/Ext.appex
+                    UUID = 1234
+             com.other.ext(2.0)
+                    Path = /Applications/Other App.app/Contents/PlugIns/Other.appex
+        """
+        #expect(ExtensionHost.parsePaths(output) == ["/Applications/Example.app/Contents/PlugIns/Ext.appex",
+                                                     "/Applications/Other App.app/Contents/PlugIns/Other.appex"])
+        #expect(ExtensionHost.parsePaths("  (no matches)").isEmpty)
+    }
+
+    @Test func storageIdentityIsStable() {
+        guard #available(macOS 15.4, *) else { return }
+        #expect(ExtensionHost.identifier(for: "/a/b") == ExtensionHost.identifier(for: "/a/b"))
+        #expect(ExtensionHost.identifier(for: "/a/b") != ExtensionHost.identifier(for: "/a/c"))
+    }
+
+    @MainActor @Test func webKitLoadsAnUnpackedExtension() async throws {
+        guard #available(macOS 15.4, *) else { return }
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("ext-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data(#"""
+        {"manifest_version": 3, "name": "Hello", "version": "1.0",
+         "action": {"default_popup": "popup.html", "default_title": "Hello"},
+         "permissions": ["storage"], "host_permissions": ["https://example.com/*"],
+         "content_scripts": [{"matches": ["https://example.com/*"], "js": ["content.js"]}]}
+        """#.utf8).write(to: folder.appendingPathComponent("manifest.json"))
+        try Data("<p>hi</p>".utf8).write(to: folder.appendingPathComponent("popup.html"))
+        try Data("document.title += '!'".utf8).write(to: folder.appendingPathComponent("content.js"))
+        let ext = try await WKWebExtension(resourceBaseURL: folder)
+        #expect(ext.displayName == "Hello")
+        #expect(ext.manifestVersion == 3)
+        #expect(ext.hasInjectedContent)
+        #expect(ext.requestedPermissions.contains(.storage))
+        #expect(ext.allRequestedMatchPatterns.map(\.string).contains("https://example.com/*"))
     }
 }
 

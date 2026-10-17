@@ -54,7 +54,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         if let savedState {
             view.interactionState = savedState as NSData
         } else if let url {
-            view.load(URLRequest(url: url))
+            Self.load(url, in: view)
         }
         savedState = nil
         return view
@@ -74,7 +74,16 @@ final class Tab: NSObject, ObservableObject, Identifiable {
 
     func load(_ url: URL) {
         self.url = url
-        wake().load(URLRequest(url: url))
+        Self.load(url, in: wake())
+    }
+
+    /// Local files need read access granted; everything else is an ordinary request.
+    static func load(_ url: URL, in view: WKWebView) {
+        if url.isFileURL {
+            view.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        } else {
+            view.load(URLRequest(url: url))
+        }
     }
 
     /// What gets written to disk to restore the tab at the next launch.
@@ -89,14 +98,18 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         view.underPageBackgroundColor = .clear
         view.pageZoom = Preferences.shared.defaultZoom
         observations = [
-            view.observe(\.title) { [weak self] v, _ in Task { @MainActor in if let t = v.title, !t.isEmpty { self?.title = t } } },
-            view.observe(\.url) { [weak self] v, _ in Task { @MainActor in if let u = v.url { self?.url = u } } },
-            view.observe(\.isLoading) { [weak self] v, _ in Task { @MainActor in self?.isLoading = v.isLoading } },
+            view.observe(\.title) { [weak self] v, _ in Task { @MainActor in if let t = v.title, !t.isEmpty { self?.title = t; self?.extensionsSeeChange() } } },
+            view.observe(\.url) { [weak self] v, _ in Task { @MainActor in if let u = v.url { self?.url = u; self?.extensionsSeeChange() } } },
+            view.observe(\.isLoading) { [weak self] v, _ in Task { @MainActor in self?.isLoading = v.isLoading; self?.extensionsSeeChange() } },
             view.observe(\.estimatedProgress) { [weak self] v, _ in Task { @MainActor in self?.progress = v.estimatedProgress } },
             view.observe(\.canGoBack) { [weak self] v, _ in Task { @MainActor in self?.canGoBack = v.canGoBack } },
             view.observe(\.canGoForward) { [weak self] v, _ in Task { @MainActor in self?.canGoForward = v.canGoForward } },
         ]
         webView = view
+    }
+
+    private func extensionsSeeChange() {
+        if #available(macOS 15.4, *) { ExtensionHost.shared.tabChanged(self) }
     }
 
     private func loadFavicon() {
@@ -128,7 +141,7 @@ extension Tab: WKNavigationDelegate {
             if action.navigationType == .linkActivated { openExternally(url, scheme: scheme, from: webView.url) }
             return (.cancel, preferences)
         }
-        if action.navigationType == .linkActivated, action.modifierFlags.contains(.command), let url = action.request.url {
+        if action.navigationType == .linkActivated, action.modifierFlags.contains(.command) || action.buttonNumber == 2, let url = action.request.url {
             browser?.openTab(url: url, activate: action.modifierFlags.contains(.shift), after: self)
             return (.cancel, preferences)
         }
@@ -185,6 +198,30 @@ extension Tab: WKNavigationDelegate {
         </body>
         """, baseURL: nil)
         if let failing { url = failing }
+    }
+
+    /// Sites behind HTTP authentication ask for a user name and password.
+    func webView(_ webView: WKWebView, respondTo challenge: URLAuthenticationChallenge) async -> (URLSession.AuthChallengeDisposition, URLCredential?) {
+        let method = challenge.protectionSpace.authenticationMethod
+        guard method == NSURLAuthenticationMethodHTTPBasic || method == NSURLAuthenticationMethodHTTPDigest else { return (.performDefaultHandling, nil) }
+        guard challenge.previousFailureCount < 3 else { return (.cancelAuthenticationChallenge, nil) }
+        let alert = NSAlert()
+        alert.messageText = "\(challenge.protectionSpace.host)에 로그인"
+        alert.informativeText = challenge.previousFailureCount > 0 ? "아이디나 비밀번호가 맞지 않아요." : (challenge.protectionSpace.realm ?? "")
+        let user = NSTextField(frame: NSRect(x: 0, y: 30, width: 260, height: 24))
+        user.placeholderString = "아이디"
+        user.stringValue = challenge.proposedCredential?.user ?? ""
+        let password = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        password.placeholderString = "비밀번호"
+        let fields = NSView(frame: NSRect(x: 0, y: 0, width: 260, height: 54))
+        fields.addSubview(user)
+        fields.addSubview(password)
+        alert.accessoryView = fields
+        alert.window.initialFirstResponder = user
+        alert.addButton(withTitle: "로그인")
+        alert.addButton(withTitle: "취소")
+        guard alert.runModal() == .alertFirstButtonReturn else { return (.cancelAuthenticationChallenge, nil) }
+        return (.useCredential, URLCredential(user: user.stringValue, password: password.stringValue, persistence: .forSession))
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
