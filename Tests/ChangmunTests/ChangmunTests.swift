@@ -213,6 +213,19 @@ struct LibraryTests {
         #expect(groups[0].folders.map(\.key) == ["Arc 북마크 바 / Safari에서 가져옴 / 개발", "Arc 사이드바", "Arc 북마크 바"])
     }
 
+    @Test func knowsHostsFromHistoryAndBookmarksOnly() throws {
+        let lib = library()
+        lib.recordVisit(url: "https://news.ycombinator.com/item?id=1", title: "HN")
+        _ = try lib.importBookmarks([("http://localhost:3000/app", "Dev", "Arc 북마크 바")])
+        #expect(lib.knowsHost("news.ycombinator.com"))
+        #expect(lib.knowsHost("localhost"))
+        #expect(!lib.knowsHost("ycombinator.com"))
+        #expect(!lib.knowsHost("evil.example"))
+        // LIKE wildcards in a host match literally.
+        #expect(!lib.knowsHost("news_ycombinator.com"))
+        #expect(!lib.knowsHost("%"))
+    }
+
     @Test func ignoresNonWebHistory() {
         let lib = library()
         lib.recordVisit(url: "about:blank", title: "")

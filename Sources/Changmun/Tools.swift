@@ -46,6 +46,7 @@ enum ToolCatalog {
         if name == "list_tabs" { return listTabs(browser) }
         if name == "open_tab" {
             guard let url = webURL(args["url"]) else { return .text("Give an http(s) URL, a domain, or search words.", error: true) }
+            guard await Approvals.allowSite(url) else { return declined }
             let tab = browser.openTab(url: url)
             await waitForLoad(tab)
             return .text("Opened tab #\(tab.id): \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")")
@@ -53,6 +54,9 @@ enum ToolCatalog {
         if args["tab_id"] != nil && int(args["tab_id"]) == nil { return .text("tab_id must be a number.", error: true) }
         guard let tab = browser.tab(int(args["tab_id"])) else {
             return .text(args["tab_id"] == nil ? "No tab is open. Use open_tab first." : "No tab with that id.", error: true)
+        }
+        if tab.id != browser.activeID && name != "close_tab" {
+            guard await Approvals.allowTab(tab) else { return declined }
         }
         let webView = tab.wake()
         switch name {
@@ -64,6 +68,7 @@ enum ToolCatalog {
             return .text("Closed tab #\(tab.id).")
         case "navigate":
             guard let url = webURL(args["url"]) else { return .text("Give an http(s) URL, a domain, or search words.", error: true) }
+            guard await Approvals.allowSite(url) else { return declined }
             tab.load(url)
             await waitForLoad(tab)
             return .text("Now at: \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")")
@@ -95,6 +100,8 @@ enum ToolCatalog {
             return .text("Unknown tool \(name).", error: true)
         }
     }
+
+    private static let declined = ToolResult.text("The user declined this in Changmun. Don't retry it; tell the user what you wanted to do.", error: true)
 
     /// The AI only ever opens web pages: never file:, data: or other schemes a page could talk it into.
     static func webURL(_ value: Any?) -> URL? {
@@ -181,6 +188,70 @@ enum ToolCatalog {
         let deadline = Date().addingTimeInterval(10)
         while tab.isLoading && Date() < deadline {
             try? await Task.sleep(for: .milliseconds(100))
+        }
+    }
+}
+
+/// What the AI may do without asking: act on the tab the user is looking at, and open sites the user already knows.
+/// A page that injects instructions could otherwise have the AI read another tab (mail, a bank) and carry it to
+/// a site of the attacker's choosing; both steps now need the user's yes, asked in the app for every caller.
+@MainActor
+enum Approvals {
+    private static var tabs = Set<Int>()
+    private static var hosts = Set<String>()
+    static var timeout: TimeInterval = 90
+
+    static func allowTab(_ tab: Tab) async -> Bool {
+        if tabs.contains(tab.id) { return true }
+        let allowed = await ask("AI가 지금 보고 있지 않은 탭을 쓰려고 해요",
+                                "#\(tab.id) \(tab.displayTitle.prefix(80))\n\(tab.url?.host() ?? "")\n\n허용하면 앱을 끌 때까지 이 탭은 다시 묻지 않아요.")
+        if allowed { tabs.insert(tab.id) }
+        return allowed
+    }
+
+    static func allowSite(_ url: URL) async -> Bool {
+        guard let host = url.host()?.lowercased() else { return false }
+        if isFamiliar(host) { return true }
+        let allowed = await ask("AI가 처음 가는 사이트를 열려고 해요",
+                                "\(host)\n\n\(url.absoluteString.prefix(300))\n\n주소에 다른 페이지의 내용이 실려 있다면 거부하세요. 허용하면 앱을 끌 때까지 이 사이트는 다시 묻지 않아요.")
+        if allowed { hosts.insert(host) }
+        return allowed
+    }
+
+    /// The search engine, open tabs, history and bookmarks, and sites allowed before.
+    static func isFamiliar(_ host: String) -> Bool {
+        hosts.contains(host)
+            || AddressInput.searchURL("x")?.host()?.lowercased() == host
+            || Browser.shared.tabs.contains { $0.url?.host()?.lowercased() == host }
+            || Library.shared.knowsHost(host)
+    }
+
+    private final class Once {
+        var done = false
+    }
+
+    /// Asks on the browser window; no answer within `timeout` counts as no, so a late yes never runs a stale request.
+    private static func ask(_ message: String, _ detail: String) async -> Bool {
+        guard let window = NSApp.windows.first(where: { $0 is BrowserWindow }) else { return false }
+        let alert = NSAlert()
+        alert.messageText = message
+        alert.informativeText = detail
+        alert.addButton(withTitle: "거부")
+        alert.addButton(withTitle: "허용")
+        NSApp.requestUserAttention(.informationalRequest)
+        return await withCheckedContinuation { continuation in
+            let once = Once()
+            let finish = { (allowed: Bool) in
+                guard !once.done else { return }
+                once.done = true
+                continuation.resume(returning: allowed)
+            }
+            alert.beginSheetModal(for: window) { finish($0 == .alertSecondButtonReturn) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+                guard !once.done else { return }
+                finish(false)
+                window.endSheet(alert.window)
+            }
         }
     }
 }

@@ -123,6 +123,15 @@ final class Library {
         return order.map { ($0, groups[$0] ?? []) }
     }
 
+    /// Whether the user has been to, or bookmarked, a page on this host.
+    func knowsHost(_ host: String) -> Bool {
+        let escaped = host.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "%", with: "\\%").replacingOccurrences(of: "_", with: "\\_")
+        let patterns = ["http://\(escaped)/%", "https://\(escaped)/%", "http://\(escaped):%", "https://\(escaped):%"]
+        let clause = Array(repeating: "url LIKE ? ESCAPE '\\'", count: 4).joined(separator: " OR ")
+        let rows = try? db?.query("SELECT 1 FROM history WHERE \(clause) UNION ALL SELECT 1 FROM bookmarks WHERE \(clause) LIMIT 1", patterns + patterns)
+        return !(rows ?? []).isEmpty
+    }
+
     func bookmarks(limit: Int = 8) -> [Entry] {
         rows("SELECT url, title FROM bookmarks ORDER BY added DESC, id LIMIT ?", [limit])
     }

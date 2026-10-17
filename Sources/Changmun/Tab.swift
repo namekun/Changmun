@@ -124,8 +124,7 @@ extension Tab: WKNavigationDelegate {
         if action.shouldPerformDownload { return (.download, preferences) }
         if let url = action.request.url, let scheme = url.scheme?.lowercased(),
            !["http", "https", "about", "data", "blob", "file", "javascript"].contains(scheme) {
-            // mailto:, zoommtg: and the like go to their apps, but only when the user clicked.
-            if action.navigationType == .linkActivated { NSWorkspace.shared.open(url) }
+            if action.navigationType == .linkActivated { openExternally(url, scheme: scheme, from: webView.url) }
             return (.cancel, preferences)
         }
         if action.navigationType == .linkActivated, action.modifierFlags.contains(.command), let url = action.request.url {
@@ -133,6 +132,21 @@ extension Tab: WKNavigationDelegate {
             return (.cancel, preferences)
         }
         return (.allow, preferences)
+    }
+
+    /// Schemes that mount servers, run commands or change settings: a page never gets to launch these.
+    static let blockedSchemes: Set<String> = ["smb", "afp", "nfs", "ftp", "ftps", "vnc", "ssh", "telnet", "x-apple.systempreferences",
+                                              "x-man-page", "applescript", "itms-services", "facetime", "facetime-audio", "tel"]
+
+    /// mailto:, zoommtg: and the like open their app after the user says which app and agrees.
+    private func openExternally(_ url: URL, scheme: String, from page: URL?) {
+        guard !Self.blockedSchemes.contains(scheme), let app = NSWorkspace.shared.urlForApplication(toOpen: url) else { return }
+        let alert = NSAlert()
+        alert.messageText = "\(page?.host() ?? "이 페이지")에서 \(FileManager.default.displayName(atPath: app.path))을(를) 열려고 해요"
+        alert.informativeText = String(url.absoluteString.prefix(200))
+        alert.addButton(withTitle: "취소")
+        alert.addButton(withTitle: "열기")
+        if alert.runModal() == .alertSecondButtonReturn { NSWorkspace.shared.open(url) }
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse) async -> WKNavigationResponsePolicy {
