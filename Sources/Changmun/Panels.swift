@@ -179,7 +179,8 @@ struct FindBar: View {
             Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
             TextField("페이지에서 찾기", text: $browser.findText)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Theme.primary)
                 .frame(width: 180)
                 .focused($focused)
                 .onKeyPress(.return, phases: .down) { press in
@@ -192,8 +193,8 @@ struct FindBar: View {
                 }
             if let matches = browser.findMatches, !browser.findText.isEmpty {
                 Text(matches == 0 ? "없음" : "\(matches)개")
-                    .font(.system(size: 11.5).monospacedDigit())
-                    .foregroundStyle(matches == 0 ? Color.red : Theme.secondary)
+                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(matches == 0 ? Theme.waiting : Theme.secondary)
             }
             BarButton(symbol: "chevron.up", help: "이전 (⌘⇧G)") { browser.find(backwards: true) }.disabled(browser.findText.isEmpty)
             BarButton(symbol: "chevron.down", help: "다음 (⌘G)") { browser.find() }.disabled(browser.findText.isEmpty)
@@ -202,8 +203,8 @@ struct FindBar: View {
         .padding(.leading, 10)
         .padding(.trailing, 2)
         .frame(height: 36)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.card).shadow(color: .black.opacity(0.18), radius: 10, y: 3))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.background))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
         .padding(10)
         .onAppear { focused = true }
         .onChange(of: browser.findFocusRequest) { focused = true }

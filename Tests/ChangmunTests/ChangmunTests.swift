@@ -707,7 +707,8 @@ struct ChatStreamTests {
         chat.handle(["type": "stream_event", "event": ["type": "message_start", "message": ["id": "m2"]]])
         chat.handle(["type": "stream_event", "event": ["type": "content_block_delta", "delta": ["type": "text_delta", "text": "요약입니다."]]])
         #expect(chat.items.map(\.kind) == [.assistant, .tool, .assistant])
-        #expect(chat.items.map(\.text) == ["페이지를 읽을게요.", "페이지 읽는 중", "요약입니다."])
+        #expect(chat.items.map(\.text) == ["페이지를 읽을게요.", "페이지 읽기", "요약입니다."])
+        #expect(chat.items[1].symbol == "doc.text")
     }
 
     @Test func showsFullTextWhenNothingStreamed() {

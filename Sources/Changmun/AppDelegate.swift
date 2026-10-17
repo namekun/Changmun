@@ -191,6 +191,7 @@ final class BrowserWindow: NSWindow {
         )
         titlebarAppearsTransparent = true
         titleVisibility = .hidden
+        backgroundColor = Theme.nsBackground
         title = "Changmun"
         minSize = NSSize(width: 640, height: 420)
         isReleasedWhenClosed = false

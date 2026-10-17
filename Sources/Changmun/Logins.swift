@@ -150,7 +150,7 @@ struct LoginButton: View {
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
-            .foregroundStyle(Theme.accent)
+            .foregroundStyle(Theme.primary)
             .help("저장된 로그인 정보 채우기")
         }
     }

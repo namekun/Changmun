@@ -2,19 +2,150 @@ import AppKit
 import SwiftUI
 import WebKit
 
+/// Nunsseop's look: a black (or, in light mode, near-white) ground, ink at a few fixed opacities, hairlines instead of cards,
+/// and colour only where it means something: orange when something needs you, green while work is going on.
 enum Theme {
-    static let background = dynamic(light: NSColor(red: 0.925, green: 0.93, blue: 0.945, alpha: 1), dark: NSColor(white: 0.095, alpha: 1))
-    static let card = dynamic(light: .white, dark: NSColor(white: 0.14, alpha: 1))
-    static let activeTab = dynamic(light: .white, dark: NSColor(white: 0.22, alpha: 1))
-    static let hoverTab = dynamic(light: NSColor(white: 0, alpha: 0.05), dark: NSColor(white: 1, alpha: 0.06))
-    static let hairline = dynamic(light: NSColor(white: 0, alpha: 0.08), dark: NSColor(white: 1, alpha: 0.08))
-    static let secondary = dynamic(light: NSColor(white: 0, alpha: 0.5), dark: NSColor(white: 1, alpha: 0.5))
-    static let userBubble = dynamic(light: NSColor(red: 0.91, green: 0.92, blue: 0.95, alpha: 1), dark: NSColor(white: 0.22, alpha: 1))
-    static let accent = Color(red: 0.42, green: 0.36, blue: 0.95)
-    static let accentGradient = LinearGradient(colors: [Color(red: 0.55, green: 0.35, blue: 0.98), Color(red: 0.25, green: 0.55, blue: 0.98)], startPoint: .topLeading, endPoint: .bottomTrailing)
+    static let background = dynamic(light: NSColor(red: 0.957, green: 0.957, blue: 0.961, alpha: 1), dark: .black)
+    static let page = Color.white
+
+    /// White on black, black on white.
+    static func ink(_ opacity: Double) -> Color {
+        dynamic(light: NSColor(white: 0, alpha: opacity), dark: NSColor(white: 1, alpha: opacity))
+    }
+
+    static let primary = ink(1)
+    static let body = ink(0.9)
+    static let secondary = ink(0.6)
+    static let dim = ink(0.55)
+    static let faint = ink(0.45)
+    static let hairline = ink(0.24)
+    static let pill = ink(0.16)
+    static let field = ink(0.1)
+    static let selected = ink(0.08)
+    static let hoverTab = ink(0.07)
+    static let track = ink(0.15)
+    static let meter = ink(0.75)
+    static let waiting = Color(red: 1.0, green: 0.62, blue: 0.2)
+    static let working = Color(red: 0.31, green: 0.82, blue: 0.47)
 
     private static func dynamic(light: NSColor, dark: NSColor) -> Color {
         Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light })
+    }
+
+    static var nsBackground: NSColor {
+        NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .black : NSColor(red: 0.957, green: 0.957, blue: 0.961, alpha: 1) }
+    }
+}
+
+/// One device pixel thick.
+struct Hairline: View {
+    var vertical = false
+    @Environment(\.displayScale) private var scale
+
+    var body: some View {
+        let thickness = 1 / max(1, scale)
+        Rectangle().fill(Theme.hairline)
+            .frame(width: vertical ? thickness : nil, height: vertical ? nil : thickness)
+            .accessibilityHidden(true)
+    }
+}
+
+/// A selected row or tile: a faint fill inside a hairline, as in Nunsseop's lists.
+struct SelectedBackground: View {
+    var radius: CGFloat = 8
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
+            .fill(Theme.selected)
+            .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
+    }
+}
+
+/// A key as a keycap, quiet next to what it opens.
+struct Keycap: View {
+    let key: String
+    init(_ key: String) { self.key = key }
+
+    var body: some View {
+        Text(verbatim: key).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.ink(0.7))
+            .padding(.horizontal, 5).frame(minWidth: 20, minHeight: 17)
+            .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(Theme.field))
+            .fixedSize()
+            .accessibilityHidden(true)
+    }
+}
+
+/// A quiet section label, sentence case, with an optional count on the right.
+struct SectionCaption: View {
+    let text: String
+    var trailing: String?
+
+    var body: some View {
+        HStack {
+            Text(text).font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
+            Spacer()
+            if let trailing { Text(trailing).font(.system(size: 11, weight: .medium).monospacedDigit()).foregroundStyle(Theme.faint) }
+        }
+        .frame(height: 16)
+        .padding(.horizontal, 8)
+    }
+}
+
+/// The 3 pt bar, white on a faint track.
+struct Meter: View {
+    let fraction: Double
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Theme.track)
+                Capsule().fill(Theme.meter).frame(width: max(3, geo.size.width * min(1, max(0.05, fraction))))
+            }
+        }
+        .frame(height: 3)
+        .animation(.easeOut(duration: 0.2), value: fraction)
+    }
+}
+
+/// A site icon in its own colours; on black, a mostly dark one (GitHub, Threads) sits on a small white plate.
+struct IconImage: View {
+    let image: NSImage
+    let size: CGFloat
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let plate = scheme == .dark && image.isMostlyDark
+        Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
+            .padding(plate ? size * 0.1 : 0)
+            .background { if plate { RoundedRectangle(cornerRadius: size * 0.22, style: .continuous).fill(.white) } }
+            .frame(width: size, height: size)
+    }
+}
+
+@MainActor private var darkIcons: [ObjectIdentifier: Bool] = [:]
+
+extension NSImage {
+    /// Whether the icon's visible pixels are dark on average (it would vanish on black).
+    @MainActor var isMostlyDark: Bool {
+        if let known = darkIcons[ObjectIdentifier(self)] { return known }
+        let side = 16
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side, bitsPerSample: 8, samplesPerPixel: 4,
+                                         hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return false }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        draw(in: NSRect(x: 0, y: 0, width: side, height: side))
+        NSGraphicsContext.restoreGraphicsState()
+        var total = 0.0, weight = 0.0
+        for x in 0..<side {
+            for y in 0..<side {
+                guard let c = rep.colorAt(x: x, y: y), c.alphaComponent > 0.3 else { continue }
+                total += (0.299 * c.redComponent + 0.587 * c.greenComponent + 0.114 * c.blueComponent) * c.alphaComponent
+                weight += c.alphaComponent
+            }
+        }
+        let dark = weight > 0 && total / weight < 0.28
+        darkIcons[ObjectIdentifier(self)] = dark
+        return dark
     }
 }
 
@@ -41,12 +172,15 @@ struct BrowserView: View {
                             .frame(height: BrowserWindow.barHeight)
                             .background(WindowDragArea())
                     }
-                    HStack(spacing: 8) {
+                    HStack(spacing: 0) {
                         WebCard(browser: browser)
                         if browser.showChat {
-                            ChatPanel(chat: chat, browser: browser)
-                                .frame(minWidth: 300, maxWidth: 372)
-                                .transition(.move(edge: .trailing).combined(with: .opacity))
+                            HStack(spacing: 0) {
+                                Hairline(vertical: true).padding(.horizontal, 8)
+                                ChatPanel(chat: chat, browser: browser)
+                            }
+                            .frame(minWidth: 300, maxWidth: 360)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
                         }
                     }
                     .padding(.top, browser.showSidebar && !prefs.addressBarOnTop ? 8 : 0)
@@ -62,9 +196,9 @@ struct BrowserView: View {
             }
         }
         .ignoresSafeArea()
-        .animation(.spring(duration: 0.32, bounce: 0.12), value: browser.showChat)
-        .animation(.spring(duration: 0.3, bounce: 0.1), value: browser.showSidebar)
-        .animation(.spring(duration: 0.3, bounce: 0.1), value: prefs.addressBarOnTop)
+        .animation(.easeOut(duration: 0.22), value: browser.showChat)
+        .animation(.easeOut(duration: 0.22), value: browser.showSidebar)
+        .animation(.easeOut(duration: 0.22), value: prefs.addressBarOnTop)
         .animation(.easeOut(duration: 0.14), value: browser.commandBar)
     }
 }
@@ -86,15 +220,19 @@ struct Sidebar: View {
                 BarButton(symbol: "sidebar.left", help: "사이드바 숨기기") { browser.showSidebar = false }
                 if let tab = browser.active { NavigationButtons(tab: tab) } else { DisabledNavigationButtons() }
             }
+            .padding(.trailing, 8)
             .frame(height: BrowserWindow.barHeight)
             .background(WindowDragArea())
 
             if !prefs.addressBarOnTop {
-                if let tab = browser.active {
-                    AddressPill(tab: tab) { browser.commandBar = .editCurrent }
-                } else {
-                    AddressPlaceholder { browser.commandBar = .newTab }
+                Group {
+                    if let tab = browser.active {
+                        AddressPill(tab: tab) { browser.commandBar = .editCurrent }
+                    } else {
+                        AddressPlaceholder { browser.commandBar = .newTab }
+                    }
                 }
+                .padding(.horizontal, 12)
             }
 
             ScrollView {
@@ -116,8 +254,9 @@ struct Sidebar: View {
                                 }
                             }
                         }
-                        .padding(.bottom, 8)
+                        .padding(.bottom, 14)
                     }
+                    SectionCaption(text: "탭", trailing: "\(browser.listedTabs.count)").padding(.bottom, 4)
                     NewTabRow { browser.commandBar = .newTab }
                     ForEach(browser.listedTabs) { tab in
                         SidebarTabRow(tab: tab, isActive: tab.id == browser.activeID) {
@@ -131,8 +270,9 @@ struct Sidebar: View {
                         }
                     }
                     if !library.sources.isEmpty {
-                        Divider().opacity(0.6).padding(.vertical, 8).padding(.horizontal, 6)
                         SectionHeader(title: "북마크", isOpen: showBookmarks) { showBookmarks.toggle() }
+                            .padding(.top, 14)
+                            .padding(.bottom, 2)
                         if showBookmarks {
                             ForEach(library.sources, id: \.source) { group in
                                 let key = "source:" + group.source
@@ -176,10 +316,10 @@ struct Sidebar: View {
                         }
                     }
                 }
-                .padding(.horizontal, 10)
-                .padding(.top, 10)
+                .padding(.horizontal, 12)
+                .padding(.top, 14)
                 .padding(.bottom, 8)
-                .animation(.spring(duration: 0.25, bounce: 0.1), value: browser.tabs.map(\.id))
+                .animation(.easeOut(duration: 0.18), value: browser.tabs.map(\.id))
             }
 
             HStack(spacing: 4) {
@@ -188,8 +328,8 @@ struct Sidebar: View {
                 if #available(macOS 15.4, *) { ExtensionButtons(browser: browser) }
                 BarButton(symbol: "square.and.arrow.down", help: "다른 브라우저에서 가져오기") { browser.showOnboarding = true }
             }
-            .padding(.horizontal, 10)
-            .frame(height: 44)
+            .padding(.horizontal, 12)
+            .frame(height: 48)
         }
     }
 
@@ -215,17 +355,17 @@ struct SectionHeader: View {
     @State private var hover = false
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 5) {
             Text(title).font(.system(size: 11, weight: .semibold))
             Image(systemName: "chevron.right")
                 .font(.system(size: 8, weight: .bold))
                 .rotationEffect(.degrees(isOpen ? 90 : 0))
-                .opacity(hover ? 1 : 0.6)
+                .opacity(hover ? 1 : 0.7)
             Spacer()
         }
         .foregroundStyle(Theme.secondary)
         .padding(.horizontal, 8)
-        .frame(height: 26)
+        .frame(height: 22)
         .contentShape(Rectangle())
         .onHover { hover = $0 }
         .onTapGesture { withAnimation(.easeOut(duration: 0.15)) { toggle() } }
@@ -240,7 +380,7 @@ enum SidebarDrag {
 
     static func drop(_ items: [String], onTab target: Int, browser: Browser) -> Bool {
         guard let item = items.first, item.hasPrefix("changmun-tab:"), let id = Int(item.dropFirst("changmun-tab:".count)) else { return false }
-        withAnimation(.spring(duration: 0.25, bounce: 0.1)) { browser.moveTab(id, to: target) }
+        withAnimation(.easeOut(duration: 0.18)) { browser.moveTab(id, to: target) }
         return true
     }
 
@@ -333,33 +473,47 @@ struct DisabledNavigationButtons: View {
     }
 }
 
+/// Nunsseop's search field: a softly filled rounded box; loading shows as its 3 pt bar along the bottom.
+struct FieldBackground: View {
+    @ObservedObject var tab: Tab
+    var focused = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(Theme.field)
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.hairline, lineWidth: focused ? 0.5 : 0))
+            .overlay(alignment: .bottom) {
+                if tab.isLoading { Meter(fraction: tab.progress).padding(.horizontal, 10).padding(.bottom, 3).transition(.opacity) }
+            }
+            .animation(.easeOut(duration: 0.2), value: tab.isLoading)
+    }
+}
+
 struct AddressPill: View {
     @ObservedObject var tab: Tab
     let edit: () -> Void
-    @State private var hover = false
 
     var body: some View {
-        HStack(spacing: 7) {
+        HStack(spacing: 8) {
             Image(systemName: tab.url?.scheme == "https" ? "lock.fill" : "globe")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(Theme.secondary)
             Text(tab.url?.host().map { $0.hasPrefix("www.") ? String($0.dropFirst(4)) : $0 } ?? "주소 입력")
-                .font(.system(size: 12.5, weight: .medium))
+                .font(.system(size: 13, weight: .semibold))
                 .lineLimit(1)
-                .foregroundStyle(Color.primary.opacity(0.8))
+                .foregroundStyle(Theme.primary)
             Spacer(minLength: 0)
             LoginButton(tab: tab)
             AdBlockShield(tab: tab)
             BookmarkStar(tab: tab)
+            Keycap("⌘L")
         }
         .padding(.leading, 11)
-        .padding(.trailing, 4)
-        .frame(height: 32)
-        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(hover ? Theme.activeTab : Theme.hoverTab))
+        .padding(.trailing, 7)
+        .frame(height: 34)
+        .background(FieldBackground(tab: tab))
         .contentShape(Rectangle())
-        .onHover { hover = $0 }
         .onTapGesture(perform: edit)
-        .padding(.horizontal, 10)
         .help("주소 편집 (⌘L)")
     }
 }
@@ -372,7 +526,7 @@ struct TopAddressBar: View {
         if let tab = browser.active {
             AddressField(tab: tab, browser: browser).id(tab.id)
         } else {
-            AddressPlaceholder { browser.commandBar = .newTab }.padding(.horizontal, -10)
+            AddressPlaceholder { browser.commandBar = .newTab }
         }
     }
 }
@@ -386,13 +540,14 @@ struct AddressField: View {
     private var current: String { tab.url?.absoluteString ?? "" }
 
     var body: some View {
-        HStack(spacing: 7) {
+        HStack(spacing: 8) {
             Image(systemName: tab.url?.scheme == "https" ? "lock.fill" : "globe")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(Theme.secondary)
             TextField("검색 또는 주소 입력", text: $text)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Theme.primary)
                 .focused($focused)
                 .onSubmit {
                     browser.open(text, in: .editCurrent)
@@ -406,12 +561,12 @@ struct AddressField: View {
             LoginButton(tab: tab)
             AdBlockShield(tab: tab)
             BookmarkStar(tab: tab)
+            Keycap(focused ? "↵" : "⌘L")
         }
         .padding(.leading, 11)
-        .padding(.trailing, 4)
-        .frame(height: 32)
-        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(focused ? Theme.activeTab : Theme.hoverTab))
-        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Theme.accent.opacity(focused ? 0.6 : 0), lineWidth: 1.5))
+        .padding(.trailing, 7)
+        .frame(height: 34)
+        .background(FieldBackground(tab: tab, focused: focused))
         .onAppear { text = current }
         .onChange(of: tab.url) { if !focused { text = current } }
         .onChange(of: browser.addressFocusRequest) { focused = true }
@@ -429,18 +584,19 @@ struct AddressPlaceholder: View {
     let open: () -> Void
 
     var body: some View {
-        HStack(spacing: 7) {
+        HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .semibold))
-            Text("검색 또는 주소 입력").font(.system(size: 12.5))
+            Text("검색 또는 주소 입력").font(.system(size: 13, weight: .medium))
             Spacer()
+            Keycap("⌘T")
         }
-        .foregroundStyle(Theme.secondary)
-        .padding(.horizontal, 11)
-        .frame(height: 32)
-        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.hoverTab))
+        .foregroundStyle(Theme.faint)
+        .padding(.leading, 11)
+        .padding(.trailing, 7)
+        .frame(height: 34)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
         .contentShape(Rectangle())
         .onTapGesture(perform: open)
-        .padding(.horizontal, 10)
     }
 }
 
@@ -453,10 +609,10 @@ struct AdBlockShield: View {
         if prefs.blockTrackers, let host = tab.url?.host(), tab.url?.scheme?.hasPrefix("http") == true {
             let off = AdBlocker.shared.isAllowed(host)
             Button { AdBlocker.shared.toggleSite(host) } label: {
-                Image(systemName: off ? "shield.slash" : "shield.lefthalf.filled")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(off ? Theme.secondary : Theme.accent)
-                    .frame(width: 24, height: 24)
+                Image(systemName: off ? "shield.slash" : "shield.fill")
+                    .font(.system(size: 10.5, weight: .medium))
+                    .foregroundStyle(off ? Theme.waiting : Theme.dim)
+                    .frame(width: 20, height: 22)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -477,9 +633,9 @@ struct BookmarkStar: View {
             tab.objectWillChange.send()
         } label: {
             Image(systemName: marked ? "star.fill" : "star")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(marked ? Color.yellow : Theme.secondary)
-                .frame(width: 24, height: 24)
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(marked ? Theme.primary : Theme.dim)
+                .frame(width: 20, height: 22)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -498,6 +654,25 @@ enum BookmarkTabState {
     }
 }
 
+/// The little button that appears on hover: "–" closes a bookmark's tab, "✕" deletes.
+struct HoverAction: View {
+    let symbol: String
+    let help: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 8.5, weight: .bold))
+                .frame(width: 18, height: 18)
+                .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Theme.field))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Theme.secondary)
+        .help(help)
+    }
+}
+
 struct FavoriteTile: View {
     let entry: Library.Entry
     let state: BookmarkTabState
@@ -507,30 +682,28 @@ struct FavoriteTile: View {
     @State private var hover = false
 
     var body: some View {
-        SiteIcon(url: entry.url, size: 18)
-            .opacity(state == .closed ? 0.75 : 1)
+        SiteIcon(url: entry.url, size: 20)
             .frame(maxWidth: .infinity)
             .frame(height: 42)
-            .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(state == .shown ? Theme.activeTab : (hover ? Theme.activeTab.opacity(0.7) : Theme.hoverTab)))
-            .shadow(color: .black.opacity(state == .shown ? 0.08 : 0), radius: 1.5, y: 1)
+            .background {
+                if state == .shown {
+                    SelectedBackground(radius: 10)
+                } else {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous).fill(hover ? Theme.field : Theme.hoverTab)
+                }
+            }
             .overlay(alignment: .bottom) {
-                if state == .open { Capsule().fill(Theme.secondary).frame(width: 10, height: 2).padding(.bottom, 4) }
+                if state == .open { Circle().fill(Theme.dim).frame(width: 4, height: 4).padding(.bottom, 4) }
             }
             .contentShape(Rectangle())
             .onTapGesture(perform: open)
             .overlay(alignment: .topTrailing) {
                 if hover {
-                    Button(action: state == .closed ? remove : closeTab) {
-                        Image(systemName: state == .closed ? "xmark" : "minus").font(.system(size: 7, weight: .bold))
-                            .frame(width: 14, height: 14)
-                            .background(Circle().fill(Theme.card))
-                            .overlay(Circle().strokeBorder(Theme.hairline, lineWidth: 0.5))
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Color.primary.opacity(0.6))
-                    .offset(x: 4, y: -4)
-                    .help(state == .closed ? "즐겨찾기에서 빼기" : "이 즐겨찾기의 탭 닫기")
+                    HoverAction(symbol: state == .closed ? "xmark" : "minus",
+                                help: state == .closed ? "즐겨찾기에서 빼기" : "이 즐겨찾기의 탭 닫기",
+                                action: state == .closed ? remove : closeTab)
+                        .scaleEffect(0.8)
+                        .offset(x: 5, y: -5)
                 }
             }
             .onHover { hover = $0 }
@@ -551,17 +724,16 @@ struct FolderRow: View {
     @State private var hover = false
 
     var body: some View {
-        HStack(spacing: 7) {
+        HStack(spacing: 8) {
+            Image(systemName: symbol).font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.secondary).frame(width: 16)
+            Text(name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
             Image(systemName: "chevron.right")
-                .font(.system(size: 8.5, weight: .bold))
+                .font(.system(size: 7.5, weight: .bold))
+                .foregroundStyle(Theme.faint)
                 .rotationEffect(.degrees(isOpen ? 90 : 0))
-                .frame(width: 10)
-            Image(systemName: symbol).font(.system(size: 11.5)).frame(width: 15)
-            Text(name).font(.system(size: 12.5)).lineLimit(1)
             Spacer(minLength: 0)
-            Text("\(count)").font(.system(size: 11)).foregroundStyle(Theme.secondary)
+            Text("\(count)").font(.system(size: 11, weight: .medium).monospacedDigit()).foregroundStyle(Theme.faint)
         }
-        .foregroundStyle(Color.primary.opacity(0.72))
         .padding(.horizontal, 8)
         .frame(height: 30)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
@@ -580,29 +752,26 @@ struct BookmarkRow: View {
     @State private var hover = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            SiteIcon(url: entry.url, size: 14)
-            Text(entry.title.isEmpty ? entry.url : entry.title).font(.system(size: 12.5, weight: state == .shown ? .medium : .regular)).lineLimit(1)
+        HStack(spacing: 9) {
+            SiteIcon(url: entry.url, size: 16)
+            Text(entry.title.isEmpty ? entry.url : entry.title)
+                .font(.system(size: 12.5, weight: .semibold))
+                .foregroundStyle(state == .closed ? Theme.dim : Theme.primary)
+                .lineLimit(1)
             Spacer(minLength: 0)
             if hover {
-                Button(action: state == .closed ? remove : closeTab) {
-                    Image(systemName: state == .closed ? "xmark" : "minus").font(.system(size: 9, weight: .bold))
-                        .frame(width: 18, height: 18)
-                        .background(RoundedRectangle(cornerRadius: 5).fill(Theme.hoverTab))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(Color.primary.opacity(0.5))
-                .help(state == .closed ? "북마크 삭제" : "이 북마크의 탭 닫기")
+                HoverAction(symbol: state == .closed ? "xmark" : "minus",
+                            help: state == .closed ? "북마크 삭제" : "이 북마크의 탭 닫기",
+                            action: state == .closed ? remove : closeTab)
             } else if state == .open {
-                Circle().fill(Theme.secondary).frame(width: 4, height: 4).padding(.trailing, 6)
+                Circle().fill(Theme.dim).frame(width: 4, height: 4).padding(.trailing, 6)
             }
         }
-        .foregroundStyle(Color.primary.opacity(state == .closed ? 0.7 : 0.9))
         .padding(.horizontal, 8)
         .frame(height: 30)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .fill(state == .shown ? Theme.activeTab : (hover ? Theme.hoverTab : .clear)))
+        .background {
+            if state == .shown { SelectedBackground() } else { RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.hoverTab : .clear) }
+        }
         .contentShape(Rectangle())
         .onHover { hover = $0 }
         .onTapGesture(perform: open)
@@ -619,14 +788,15 @@ struct NewTabRow: View {
     @State private var hover = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "plus").font(.system(size: 12, weight: .medium)).frame(width: 16)
-            Text("새 탭").font(.system(size: 12.5))
+        HStack(spacing: 9) {
+            Image(systemName: "plus").font(.system(size: 12, weight: .semibold)).frame(width: 16)
+            Text("새 탭").font(.system(size: 12.5, weight: .medium))
             Spacer()
+            if hover { Keycap("⌘T") }
         }
-        .foregroundStyle(Theme.secondary)
+        .foregroundStyle(Theme.dim)
         .padding(.horizontal, 8)
-        .frame(height: 32)
+        .frame(height: 30)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
         .contentShape(Rectangle())
         .onHover { hover = $0 }
@@ -643,30 +813,21 @@ struct SidebarTabRow: View {
     @State private var hover = false
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 9) {
             Favicon(tab: tab)
             Text(tab.displayTitle)
-                .font(.system(size: 12.5, weight: isActive ? .medium : .regular))
+                .font(.system(size: 12.5, weight: .semibold))
                 .lineLimit(1)
-                .foregroundStyle(Color.primary.opacity(isActive ? 0.9 : (tab.isAsleep ? 0.5 : 0.7)))
+                .foregroundStyle(isActive || !tab.isAsleep ? Theme.primary : Theme.dim)
             Spacer(minLength: 0)
             if hover {
-                Button(action: close) {
-                    Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
-                        .frame(width: 18, height: 18)
-                        .background(RoundedRectangle(cornerRadius: 5).fill(Theme.hoverTab))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(Color.primary.opacity(0.5))
+                HoverAction(symbol: "xmark", help: "탭 닫기 (⌘W)", action: close)
             }
         }
         .padding(.horizontal, 8)
-        .frame(height: 34)
+        .frame(height: 30)
         .background {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(isActive ? Theme.activeTab : (hover ? Theme.hoverTab : .clear))
-                .shadow(color: .black.opacity(isActive ? 0.08 : 0), radius: 1.5, y: 1)
+            if isActive { SelectedBackground() } else { RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.hoverTab : .clear) }
         }
         .contentShape(Rectangle())
         .onHover { hover = $0 }
@@ -698,9 +859,9 @@ struct SiteIcon: View {
     var body: some View {
         Group {
             if let image {
-                Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
+                IconImage(image: image, size: size)
             } else {
-                Image(systemName: "globe").font(.system(size: size * 0.75)).foregroundStyle(Theme.secondary)
+                Image(systemName: "globe").font(.system(size: size * 0.7)).foregroundStyle(Theme.faint)
             }
         }
         .frame(width: size, height: size)
@@ -718,18 +879,19 @@ struct BarButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 13, weight: .semibold))
                 .frame(width: 28, height: 28)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(hover && enabled ? Theme.hoverTab : .clear))
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(hover && enabled ? Theme.field : .clear))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(enabled ? Color.primary.opacity(0.75) : Color.primary.opacity(0.25))
+        .foregroundStyle(enabled ? (hover ? Theme.primary : Theme.dim) : Theme.ink(0.22))
         .onHover { hover = $0 }
         .help(help)
     }
 }
 
+/// Like Nunsseop's selected tab: a capsule with a symbol and a word, brighter while the panel is open.
 struct AIButton: View {
     let isOn: Bool
     let action: () -> Void
@@ -737,20 +899,16 @@ struct AIButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 5) {
-                Image(systemName: "sparkles").font(.system(size: 12, weight: .semibold))
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles").font(.system(size: 11, weight: .semibold))
                 Text("AI").font(.system(size: 12, weight: .semibold))
+                Keycap("⌘E")
             }
-            .padding(.horizontal, 10)
-            .frame(height: 28)
-            .foregroundStyle(isOn ? Color.white : Color.primary.opacity(0.8))
-            .background {
-                if isOn {
-                    Capsule().fill(Theme.accentGradient)
-                } else {
-                    Capsule().fill(hover ? Theme.hoverTab : Theme.hairline)
-                }
-            }
+            .padding(.leading, 11)
+            .padding(.trailing, 6)
+            .frame(height: 30)
+            .foregroundStyle(Theme.primary)
+            .background(Capsule().fill(isOn ? Theme.pill : (hover ? Theme.field : Theme.hoverTab)))
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -767,17 +925,20 @@ struct Favicon: View {
             if tab.isLoading && tab.favicon == nil {
                 ProgressView().controlSize(.mini)
             } else if let image = tab.favicon {
-                Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
+                IconImage(image: image, size: 16)
+            } else if let url = tab.url?.absoluteString {
+                // A sleeping tab has no page to ask; the site's saved icon stands in.
+                SiteIcon(url: url, size: 16)
             } else {
-                Image(systemName: "globe").font(.system(size: 11)).foregroundStyle(Theme.secondary)
+                Image(systemName: "globe").font(.system(size: 12)).foregroundStyle(Theme.faint)
             }
         }
         .frame(width: 16, height: 16)
-        .opacity(tab.isAsleep ? 0.5 : 1)
+        .opacity(tab.isAsleep ? 0.6 : 1)
     }
 }
 
-/// Empty parts of the tab strip move the window, and a double click zooms it.
+/// Empty parts of the bar move the window, and a double click zooms it.
 struct WindowDragArea: NSViewRepresentable {
     final class DragView: NSView {
         override func mouseDown(with event: NSEvent) {
@@ -792,20 +953,21 @@ struct WindowDragArea: NSViewRepresentable {
 
 struct WebCard: View {
     @ObservedObject var browser: Browser
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         ZStack(alignment: .top) {
-            Theme.card
             if let tab = browser.active {
+                Theme.page
                 WebViewHost(tab: tab, browser: browser)
-                LoadingBar(tab: tab)
             } else {
+                Theme.background
                 EmptyPage()
             }
         }
         .overlay(alignment: .topTrailing) {
             if browser.findBarVisible {
-                FindBar(browser: browser).transition(.move(edge: .top).combined(with: .opacity))
+                FindBar(browser: browser).transition(.opacity)
             }
         }
         .overlay(alignment: .bottomLeading) {
@@ -816,9 +978,9 @@ struct WebCard: View {
         .animation(.easeOut(duration: 0.12), value: browser.hoveredLink)
         .animation(.easeOut(duration: 0.12), value: browser.statusMessage)
         .animation(.easeOut(duration: 0.15), value: browser.findBarVisible)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.06), radius: 3, y: 1)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .strokeBorder(browser.active == nil || scheme == .light ? Theme.ink(0.14) : .clear, lineWidth: 0.5))
     }
 }
 
@@ -834,16 +996,15 @@ struct StatusLine: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 11.5))
+            .font(.system(size: 11, weight: .medium))
             .lineLimit(1)
             .truncationMode(.middle)
-            .foregroundStyle(Color.primary.opacity(0.75))
-            .padding(.horizontal, 9)
+            .foregroundStyle(.white.opacity(0.92))
+            .padding(.horizontal, 10)
             .frame(height: 22)
-            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.card))
-            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
+            .background(Capsule().fill(.black.opacity(0.8)))
             .frame(maxWidth: 520, alignment: .leading)
-            .padding(6)
+            .padding(8)
             .allowsHitTesting(false)
     }
 }
@@ -856,7 +1017,7 @@ struct WebViewHost: NSViewRepresentable {
         override init(frame: NSRect) {
             super.init(frame: frame)
             wantsLayer = true
-            layer?.cornerRadius = 10
+            layer?.cornerRadius = 12
             layer?.cornerCurve = .continuous
             layer?.masksToBounds = true
         }
@@ -881,28 +1042,16 @@ struct WebViewHost: NSViewRepresentable {
     }
 }
 
-struct LoadingBar: View {
-    @ObservedObject var tab: Tab
-
-    var body: some View {
-        GeometryReader { geo in
-            Capsule()
-                .fill(Theme.accentGradient)
-                .frame(width: geo.size.width * max(tab.progress, 0.05), height: 2.5)
-                .opacity(tab.isLoading ? 1 : 0)
-                .animation(.easeOut(duration: 0.2), value: tab.progress)
-                .animation(.easeOut(duration: 0.3), value: tab.isLoading)
-        }
-        .frame(height: 2.5)
-        .allowsHitTesting(false)
-    }
-}
-
 struct EmptyPage: View {
     var body: some View {
         VStack(spacing: 10) {
-            Image(systemName: "sparkles").font(.system(size: 28, weight: .light)).foregroundStyle(Theme.accentGradient)
-            Text("⌘T로 새 탭을 열거나 AI에게 물어보세요").font(.system(size: 13)).foregroundStyle(Theme.secondary)
+            Image(systemName: "sparkles").font(.system(size: 22, weight: .medium)).foregroundStyle(Theme.ink(0.3))
+            HStack(spacing: 6) {
+                Text("새 탭").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.faint)
+                Keycap("⌘T")
+                Text("AI").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.faint).padding(.leading, 8)
+                Keycap("⌘E")
+            }
         }
     }
 }
@@ -937,25 +1086,28 @@ struct CommandBar: View {
     var body: some View {
         let items = suggestions
         ZStack(alignment: .top) {
-            Color.black.opacity(0.14)
+            Color.black.opacity(0.35)
                 .contentShape(Rectangle())
                 .onTapGesture { dismiss() }
-            VStack(spacing: 0) {
+            VStack(spacing: 8) {
                 HStack(spacing: 10) {
                     Image(systemName: mode == .editCurrent ? "link" : "magnifyingglass")
-                        .font(.system(size: 15, weight: .medium))
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Theme.secondary)
                     TextField("검색하거나 주소를 입력하거나, AI에게 물어보세요", text: $text)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 17))
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Theme.primary)
                         .focused($focused)
                         .onSubmit { run(items.indices.contains(selection) ? items[selection] : nil) }
                         .onChange(of: text) { selection = 0 }
+                    Keycap("esc")
                 }
-                .padding(.horizontal, 16)
-                .frame(height: 54)
+                .padding(.leading, 14)
+                .padding(.trailing, 10)
+                .frame(height: 46)
+                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
                 if !items.isEmpty {
-                    Divider().opacity(0.5)
                     VStack(spacing: 2) {
                         ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                             SuggestionRow(item: item, selected: index == selection)
@@ -963,13 +1115,12 @@ struct CommandBar: View {
                                 .onHover { if $0 { selection = index } }
                         }
                     }
-                    .padding(6)
                 }
             }
-            .frame(width: 640)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.card))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.22), radius: 40, y: 16)
+            .padding(10)
+            .frame(width: 620)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.background))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
             .padding(.top, 96)
             .onKeyPress(.downArrow) { selection = min(selection + 1, items.count - 1); return .handled }
             .onKeyPress(.upArrow) { selection = max(selection - 1, 0); return .handled }
@@ -1009,38 +1160,39 @@ struct SuggestionRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            icon.frame(width: 22)
+            icon.frame(width: 20)
             label
             Spacer(minLength: 0)
+            if selected { Keycap("↵") }
         }
         .padding(.horizontal, 10)
-        .frame(height: 36)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(selected ? Theme.hoverTab : .clear))
+        .frame(height: 34)
+        .background { if selected { SelectedBackground() } }
         .contentShape(Rectangle())
     }
 
     @ViewBuilder private var icon: some View {
         switch item {
-        case .open: Image(systemName: "arrow.up.right.circle").foregroundStyle(Theme.secondary)
-        case .search: Image(systemName: "magnifyingglass").foregroundStyle(Theme.secondary)
-        case .ask: Image(systemName: "sparkles").foregroundStyle(Theme.accentGradient)
-        case .page: Image(systemName: "clock.arrow.circlepath").foregroundStyle(Theme.secondary)
+        case .open: Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary)
+        case .search: Image(systemName: "magnifyingglass").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary)
+        case .ask: Image(systemName: "sparkles").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.primary)
+        case .page(let url, _): SiteIcon(url: url, size: 16)
         }
     }
 
     @ViewBuilder private var label: some View {
         switch item {
         case .open(let text):
-            Text(text).font(.system(size: 13.5)).lineLimit(1)
+            Text(text).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
         case .search(let text):
-            Text(text).font(.system(size: 13.5)).lineLimit(1)
-            Text("— 검색").font(.system(size: 12.5)).foregroundStyle(Theme.secondary)
+            Text(text).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
+            Text("검색").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint)
         case .ask(let text):
-            Text("AI에게 묻기:").font(.system(size: 13.5, weight: .medium)).foregroundStyle(Theme.accent)
-            Text(text).font(.system(size: 13.5)).lineLimit(1)
+            Text("AI에게 묻기").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.secondary)
+            Text(text).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
         case .page(let url, let title):
-            Text(title.isEmpty ? url : title).font(.system(size: 13.5)).lineLimit(1)
-            Text(URL(string: url)?.host() ?? url).font(.system(size: 12)).foregroundStyle(Theme.secondary).lineLimit(1)
+            Text(title.isEmpty ? url : title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
+            Text(URL(string: url)?.host() ?? url).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
         }
     }
 }

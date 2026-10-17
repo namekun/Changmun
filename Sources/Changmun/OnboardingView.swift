@@ -46,7 +46,7 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.28).contentShape(Rectangle())
+            Color.black.opacity(0.45).contentShape(Rectangle())
             VStack(alignment: .leading, spacing: 0) {
                 switch model.step {
                 case .welcome: welcome
@@ -56,18 +56,17 @@ struct OnboardingView: View {
                 }
             }
             .frame(width: 540)
-            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Theme.card))
+            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Theme.background))
             .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.25), radius: 50, y: 20)
-            .animation(.spring(duration: 0.3, bounce: 0.1), value: model.step)
+            .animation(.easeOut(duration: 0.22), value: model.step)
         }
     }
 
     private var welcome: some View {
         VStack(alignment: .leading, spacing: 14) {
             Image(systemName: "sparkles")
-                .font(.system(size: 30, weight: .light))
-                .foregroundStyle(Theme.accentGradient)
+                .font(.system(size: 26, weight: .medium))
+                .foregroundStyle(Theme.primary)
             Text("Changmun에 오신 걸 환영해요")
                 .font(.system(size: 22, weight: .semibold))
             Text("Safari와 같은 WebKit 엔진이라 가볍고, 오른쪽 AI 패널(⌘E)에 말하면 AI가 페이지를 읽고 대신 클릭하고 입력해요.\n쓰던 브라우저의 북마크, 방문 기록, 비밀번호, 로그인 상태를 가져올까요?")
@@ -189,10 +188,10 @@ struct SourceRow: View {
         HStack(spacing: 10) {
             Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
                 .font(.system(size: 16))
-                .foregroundStyle(isOn ? AnyShapeStyle(Theme.accentGradient) : AnyShapeStyle(Theme.secondary))
+                .foregroundStyle(isOn ? Theme.primary : Theme.faint)
             AppIcon(browser: source.browser)
             VStack(alignment: .leading, spacing: 1) {
-                Text(source.title).font(.system(size: 13, weight: .medium))
+                Text(source.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary)
                 Text(source.supportsSecrets ? "북마크 · 기록 · 비밀번호 · 쿠키" : "북마크 · 기록 (전체 디스크 접근 권한 필요)")
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.secondary)
@@ -201,7 +200,7 @@ struct SourceRow: View {
         }
         .padding(.horizontal, 10)
         .frame(height: 46)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(isOn ? Theme.hoverTab : .clear))
+        .background { if isOn { SelectedBackground(radius: 10) } }
         .contentShape(Rectangle())
         .onTapGesture(perform: toggle)
     }
@@ -228,10 +227,10 @@ struct PrimaryButton: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(Theme.background)
             .padding(.horizontal, 18)
-            .frame(height: 34)
-            .background(Capsule().fill(Theme.accentGradient))
+            .frame(height: 32)
+            .background(Capsule().fill(Theme.primary))
             .opacity(enabled ? (configuration.isPressed ? 0.85 : 1) : 0.4)
     }
 }
@@ -239,11 +238,11 @@ struct PrimaryButton: ButtonStyle {
 struct SecondaryButton: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .medium))
-            .foregroundStyle(Color.primary.opacity(0.75))
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(Theme.primary)
             .padding(.horizontal, 16)
-            .frame(height: 34)
-            .background(Capsule().fill(Theme.hoverTab))
+            .frame(height: 32)
+            .background(Capsule().fill(Theme.field))
             .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }

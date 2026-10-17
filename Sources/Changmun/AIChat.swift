@@ -6,6 +6,8 @@ struct ChatItem: Identifiable, Equatable {
     let id = UUID()
     var kind: Kind
     var text: String
+    /// For a tool step, the SF Symbol shown in its chip.
+    var symbol: String? = nil
 }
 
 /// One conversation with Claude. Each message runs `claude -p`, resuming the same session, with only
@@ -168,7 +170,7 @@ final class ChatStore: ObservableObject {
                 case "tool_use":
                     streamingIndex = nil
                     let name = (block["name"] as? String ?? "").replacingOccurrences(of: "mcp__changmun__", with: "")
-                    items.append(ChatItem(kind: .tool, text: Self.describe(tool: name, input: block["input"] as? [String: Any] ?? [:])))
+                    items.append(ChatItem(kind: .tool, text: Self.describe(tool: name, input: block["input"] as? [String: Any] ?? [:]), symbol: Self.symbol(tool: name)))
                 default:
                     break
                 }
@@ -200,10 +202,27 @@ final class ChatStore: ObservableObject {
         isRunning = false
     }
 
+    static func symbol(tool: String) -> String {
+        switch tool {
+        case "read_page": "doc.text"
+        case "list_tabs", "switch_tab": "square.on.square"
+        case "open_tab", "navigate": "arrow.up.right"
+        case "close_tab": "xmark"
+        case "click": "cursorarrow.click"
+        case "type_text": "keyboard"
+        case "scroll": "arrow.down"
+        case "screenshot": "camera.viewfinder"
+        case "go_back": "chevron.left"
+        case "go_forward": "chevron.right"
+        case "reload": "arrow.clockwise"
+        default: "wrench.and.screwdriver"
+        }
+    }
+
     static func describe(tool: String, input: [String: Any]) -> String {
         let element = (input["element_id"] as? Int).map { " [\($0)]" } ?? ""
         switch tool {
-        case "read_page": return "페이지 읽는 중"
+        case "read_page": return "페이지 읽기"
         case "list_tabs": return "탭 목록 확인"
         case "open_tab": return "새 탭 열기 · \(input["url"] as? String ?? "")"
         case "navigate": return "이동 · \(input["url"] as? String ?? "")"
@@ -270,37 +289,40 @@ struct ChatPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Image(systemName: "sparkles").foregroundStyle(Theme.accentGradient)
-                Text("AI").font(.system(size: 13, weight: .semibold))
+            HStack(spacing: 4) {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles").font(.system(size: 11, weight: .semibold))
+                    Text("AI").font(.system(size: 12, weight: .semibold))
+                }
+                .foregroundStyle(Theme.primary)
+                .padding(.horizontal, 12)
+                .frame(height: 28)
+                .background(Capsule().fill(Theme.pill))
                 Spacer()
                 BarButton(symbol: "square.and.pencil", help: "새 대화 (⌘⇧E)") { chat.reset() }
-                BarButton(symbol: "sidebar.right", help: "닫기 (⌘E)") { browser.showChat = false }
+                BarButton(symbol: "xmark", help: "닫기 (⌘E)") { browser.showChat = false }
             }
-            .padding(.leading, 14)
-            .padding(.trailing, 6)
-            .frame(height: 42)
-            Divider().opacity(0.5)
+            .frame(height: 38)
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 10) {
+                    LazyVStack(alignment: .leading, spacing: 12) {
                         if chat.items.isEmpty { ChatWelcome { send($0) } }
                         ForEach(chat.items) { item in
                             ChatRow(item: item).id(item.id)
                         }
-                        if chat.isRunning { TypingDots().id("typing") }
+                        if chat.isRunning { Working().id("typing") }
                     }
-                    .padding(14)
+                    .padding(.vertical, 12)
                 }
+                .scrollIndicators(.never)
                 .onChange(of: chat.items) {
-                    withAnimation(.easeOut(duration: 0.15)) { if chat.isRunning { proxy.scrollTo("typing", anchor: .bottom) } else if let last = chat.items.last { proxy.scrollTo(last.id, anchor: .bottom) } }
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        if chat.isRunning { proxy.scrollTo("typing", anchor: .bottom) } else if let last = chat.items.last { proxy.scrollTo(last.id, anchor: .bottom) }
+                    }
                 }
             }
             composer
         }
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.card))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.06), radius: 3, y: 1)
         .onAppear { focused = true }
     }
 
@@ -308,31 +330,38 @@ struct ChatPanel: View {
         HStack(alignment: .bottom, spacing: 8) {
             TextField("이 페이지에 대해 묻거나, 할 일을 시켜 보세요", text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Theme.primary)
                 .lineLimit(1...6)
                 .focused($focused)
+                .padding(.vertical, 3)
                 .onKeyPress(.return, phases: .down) { press in
                     if press.modifiers.contains(.shift) { return .ignored }
                     send(draft)
                     return .handled
                 }
-            Button {
-                if chat.isRunning { chat.stop() } else { send(draft) }
-            } label: {
-                Image(systemName: chat.isRunning ? "stop.fill" : "arrow.up")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 26, height: 26)
-                    .background(Circle().fill(chat.isRunning || !draft.isEmpty ? AnyShapeStyle(Theme.accentGradient) : AnyShapeStyle(Color.gray.opacity(0.35))))
+            if chat.isRunning {
+                Button { chat.stop() } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "stop.fill").font(.system(size: 8, weight: .bold))
+                        Text("정지").font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundStyle(Theme.primary)
+                    .padding(.horizontal, 8)
+                    .frame(height: 22)
+                    .background(Capsule().fill(Theme.pill))
+                }
+                .buttonStyle(.plain)
+                .help("멈추기")
+            } else {
+                Keycap("↵").opacity(draft.isEmpty ? 0.5 : 1).padding(.bottom, 2)
             }
-            .buttonStyle(.plain)
         }
         .padding(.leading, 12)
-        .padding(.trailing, 7)
-        .padding(.vertical, 7)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.background.opacity(0.7)))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
-        .padding(10)
+        .padding(.trailing, 8)
+        .padding(.vertical, 8)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
+        .padding(.bottom, 4)
     }
 
     private func send(_ text: String) {
@@ -347,20 +376,39 @@ struct ChatWelcome: View {
     private let prompts = ["이 페이지 세 줄로 요약해 줘", "이 페이지에서 중요한 링크만 골라 줘", "열린 탭들 정리해서 알려 줘"]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("무엇을 도와드릴까요?").font(.system(size: 15, weight: .semibold))
+        VStack(alignment: .leading, spacing: 10) {
+            Text("무엇을 도와드릴까요?").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.primary)
             Text("보고 있는 페이지를 읽고, 클릭하고, 입력하고, 탭을 열 수 있어요.")
-                .font(.system(size: 12)).foregroundStyle(Theme.secondary)
-            ForEach(prompts, id: \.self) { prompt in
-                Button { send(prompt) } label: {
-                    Text(prompt).font(.system(size: 12.5))
-                        .padding(.horizontal, 10).padding(.vertical, 7)
-                        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.hoverTab))
+                .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(prompts, id: \.self) { prompt in
+                    PromptChip(text: prompt) { send(prompt) }
                 }
-                .buttonStyle(.plain)
             }
+            .padding(.top, 4)
         }
-        .padding(.top, 6)
+        .padding(.top, 4)
+    }
+}
+
+struct PromptChip: View {
+    let text: String
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.up.right").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.faint)
+                Text(text).font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.primary)
+            }
+            .padding(.horizontal, 11)
+            .frame(height: 28)
+            .background(Capsule().fill(hover ? Theme.field : Theme.hoverTab))
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
     }
 }
 
@@ -373,15 +421,17 @@ struct ChatRow: View {
             HStack {
                 Spacer(minLength: 40)
                 Text(item.text)
-                    .font(.system(size: 13))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.primary)
                     .textSelection(.enabled)
-                    .padding(.horizontal, 11).padding(.vertical, 8)
-                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.userBubble))
+                    .padding(.horizontal, 12).padding(.vertical, 7)
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.field))
             }
         case .assistant:
             Text(Self.markdown(item.text))
-                .font(.system(size: 13))
-                .lineSpacing(2.5)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Theme.body)
+                .lineSpacing(3)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .environment(\.openURL, OpenURLAction { url in
@@ -391,18 +441,21 @@ struct ChatRow: View {
                 })
         case .tool:
             HStack(spacing: 5) {
-                Image(systemName: "cursorarrow.rays").font(.system(size: 10))
+                Image(systemName: item.symbol ?? "cursorarrow.rays").font(.system(size: 9.5, weight: .semibold))
                 Text(item.text).lineLimit(1).truncationMode(.middle)
             }
-            .font(.system(size: 11))
+            .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(Theme.secondary)
-            .padding(.horizontal, 8).padding(.vertical, 4)
-            .background(Capsule().fill(Theme.hoverTab))
+            .padding(.horizontal, 9)
+            .frame(height: 22)
+            .background(Capsule().fill(Theme.selected))
         case .error:
-            Text(item.text)
-                .font(.system(size: 12))
-                .foregroundStyle(.red)
-                .textSelection(.enabled)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "exclamationmark.circle.fill").font(.system(size: 11))
+                Text(item.text).textSelection(.enabled)
+            }
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(Theme.waiting)
         }
     }
 
@@ -411,16 +464,15 @@ struct ChatRow: View {
     }
 }
 
-struct TypingDots: View {
-    @State private var phase = 0.0
+/// Nunsseop's "working" state: a green dot and a word.
+struct Working: View {
+    @State private var on = false
 
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<3) { i in
-                Circle().fill(Theme.secondary).frame(width: 5, height: 5)
-                    .opacity(0.3 + 0.7 * max(0, sin(phase - Double(i) * 0.8)))
-            }
+        HStack(spacing: 6) {
+            Circle().fill(Theme.working).frame(width: 6, height: 6).opacity(on ? 1 : 0.35)
+            Text("작업 중").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
         }
-        .onAppear { withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { phase = .pi * 2 } }
+        .onAppear { withAnimation(.easeInOut(duration: 0.8).repeatForever()) { on = true } }
     }
 }

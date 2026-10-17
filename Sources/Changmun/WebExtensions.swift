@@ -420,14 +420,16 @@ struct ExtensionButton: View {
                 }
                 .frame(width: 16, height: 16)
                 .frame(width: 28, height: 28)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(hover ? Theme.field : .clear))
                 if let badge = action?.badgeText, !badge.isEmpty {
+                    // Nunsseop's badge: a white disc with a black count.
                     Text(badge)
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 3)
-                        .background(Capsule().fill(Color.red))
-                        .offset(x: 2, y: -1)
+                        .font(.system(size: 8, weight: .bold).monospacedDigit())
+                        .foregroundStyle(Theme.background)
+                        .padding(.horizontal, 3.5)
+                        .frame(minWidth: 13, minHeight: 13)
+                        .background(Capsule().fill(Theme.primary))
+                        .offset(x: 3, y: -2)
                 }
             }
             .opacity(action?.isEnabled == false ? 0.4 : 1)
