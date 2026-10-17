@@ -585,6 +585,19 @@ struct WebExtensionTests {
     }
 }
 
+struct FileLoadTests {
+    @Test func onlyTheOpenedFileAndItsFolderLoad() {
+        let opened = URL(fileURLWithPath: "/Users/me/site/index.html")
+        #expect(Tab.fileLoadAllowed(opened, userOpened: opened))
+        #expect(Tab.fileLoadAllowed(URL(fileURLWithPath: "/Users/me/site/about.html"), userOpened: opened))
+        #expect(Tab.fileLoadAllowed(URL(fileURLWithPath: "/Users/me/site/docs/a.html"), userOpened: opened))
+        #expect(!Tab.fileLoadAllowed(URL(fileURLWithPath: "/Users/me/site/../.ssh/id_rsa"), userOpened: opened))
+        #expect(!Tab.fileLoadAllowed(URL(fileURLWithPath: "/Users/me/sitex/a.html"), userOpened: opened))
+        #expect(!Tab.fileLoadAllowed(URL(fileURLWithPath: "/etc/hosts"), userOpened: opened))
+        #expect(!Tab.fileLoadAllowed(URL(fileURLWithPath: "/etc/hosts"), userOpened: nil))
+    }
+}
+
 struct MCPBridgeTests {
     @Test func initializeEchoesVersion() {
         let reply = MCPBridge.handle(["jsonrpc": "2.0", "id": 1, "method": "initialize", "params": ["protocolVersion": "2025-03-26"]]) { _, _ in [:] }

@@ -73,8 +73,16 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         progress = 0
     }
 
-    /// The local file the user asked for (Open File, the address bar, a bookmark); only it may load from file:.
+    /// The local file the user asked for (Open File, the address bar, a bookmark); only it and its folder may load from file:.
     private var userFileLoad: URL?
+
+    nonisolated static func fileLoadAllowed(_ url: URL, userOpened: URL?) -> Bool {
+        guard let userOpened else { return false }
+        if url.standardizedFileURL == userOpened.standardizedFileURL { return true }
+        let folder = userOpened.deletingLastPathComponent().standardizedFileURL.path
+        let path = url.standardizedFileURL.resolvingSymlinksInPath().path
+        return path.hasPrefix(folder.hasSuffix("/") ? folder : folder + "/")
+    }
 
     func load(_ url: URL) {
         self.url = url
@@ -146,9 +154,11 @@ extension Tab: WKNavigationDelegate {
             if action.navigationType == .linkActivated { openExternally(url, scheme: scheme, from: webView.url) }
             return (.cancel, preferences)
         }
-        // A web page never gets to open local files, not even through ⌘-click or a middle click.
-        if action.request.url?.isFileURL == true, webView.url?.isFileURL != true, action.request.url != userFileLoad {
-            return (.cancel, preferences)
+        // Local files load only as the user opened them: that file, or files in its folder (which it may read anyway).
+        if let url = action.request.url, url.isFileURL {
+            guard Self.fileLoadAllowed(url, userOpened: userFileLoad) else { return (.cancel, preferences) }
+            // Never handed to a new tab, which would treat it as opened by the user.
+            return (.allow, preferences)
         }
         if action.navigationType == .linkActivated, action.modifierFlags.contains(.command) || action.buttonNumber == 2, let url = action.request.url {
             browser?.openTab(url: url, activate: action.modifierFlags.contains(.shift), after: self)
@@ -185,6 +195,7 @@ extension Tab: WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        if webView.url?.isFileURL != true { userFileLoad = nil }
         if let host = webView.url?.host(), let cached = browser?.favicons[host] { favicon = cached }
     }
 
