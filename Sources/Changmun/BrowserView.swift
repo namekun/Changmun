@@ -702,8 +702,8 @@ struct FavoriteTile: View {
                     HoverAction(symbol: state == .closed ? "xmark" : "minus",
                                 help: state == .closed ? "즐겨찾기에서 빼기" : "이 즐겨찾기의 탭 닫기",
                                 action: state == .closed ? remove : closeTab)
-                        .scaleEffect(0.8)
-                        .offset(x: 5, y: -5)
+                        .scaleEffect(0.78)
+                        .padding(1)
                 }
             }
             .onHover { hover = $0 }
