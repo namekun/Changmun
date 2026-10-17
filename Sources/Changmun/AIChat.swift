@@ -124,6 +124,7 @@ final class ChatStore: ObservableObject {
         stop()
         items.removeAll()
         sessionID = nil
+        Approvals.forgetReads()
     }
 
     // MARK: Stream events

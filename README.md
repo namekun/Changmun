@@ -25,7 +25,10 @@ swift scripts/make-icon.swift        # Resources/AppIcon.icns (기본 시안 c, 
 
 - 내장 패널은 설치된 `claude` CLI(Claude Code 구독)를 쓴다. 모델은 `defaults write io.github.namekun.Changmun aiModel opus`로 바꿀 수 있다(기본 sonnet).
 - AI가 쓰는 도구: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `click`, `type_text`, `scroll`, `screenshot`. 비밀번호 칸은 읽지도 입력하지도 못한다.
-- AI는 지금 보고 있는 탭과 이미 아는 사이트(방문 기록·북마크·열린 탭·검색 엔진)에서는 바로 움직인다. 보고 있지 않은 탭을 쓰거나 처음 보는 사이트를 열 때는 앱이 확인 창으로 묻는다(탭·사이트마다 한 번, 90초 동안 답이 없으면 거부). 페이지에 숨은 지시로 다른 탭의 내용을 외부로 빼돌리는 것을 막기 위해서다.
+- 페이지에 숨은 지시로 AI가 다른 곳에서 읽은 내용을 빼돌리지 못하게, 앱이 확인 창으로 묻는 경우가 있다(90초 동안 답이 없으면 거부).
+  - 보고 있지 않은 탭을 쓸 때: 탭과 그 사이트마다 한 번.
+  - 주소를 열 때: 검색 엔진 검색, 이미 열렸거나 방문·북마크한 주소 그대로, 아는 사이트의 첫 화면이 아니면 주소마다.
+  - 입력할 때: 이 대화에서 다른 사이트를 읽은 뒤라면 입력할 내용을 보여 주고 매번. 새 대화(⌘⇧E)에서 초기화.
 - 다른 에이전트(Claude Code 등)에서도 같은 도구를 쓸 수 있고, 같은 확인을 거친다.
 
 ```bash

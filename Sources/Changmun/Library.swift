@@ -123,6 +123,10 @@ final class Library {
         return order.map { ($0, groups[$0] ?? []) }
     }
 
+    func knowsURL(_ url: String) -> Bool {
+        !((try? db?.query("SELECT 1 FROM history WHERE url = ? UNION ALL SELECT 1 FROM bookmarks WHERE url = ? LIMIT 1", [url, url])) ?? []).isEmpty
+    }
+
     /// Whether the user has been to, or bookmarked, a page on this host.
     func knowsHost(_ host: String) -> Bool {
         let escaped = host.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "%", with: "\\%").replacingOccurrences(of: "_", with: "\\_")

@@ -46,7 +46,7 @@ enum ToolCatalog {
         if name == "list_tabs" { return listTabs(browser) }
         if name == "open_tab" {
             guard let url = webURL(args["url"]) else { return .text("Give an http(s) URL, a domain, or search words.", error: true) }
-            guard await Approvals.allowSite(url) else { return declined }
+            guard await Approvals.allowNavigation(url) else { return declined }
             let tab = browser.openTab(url: url)
             await waitForLoad(tab)
             return .text("Opened tab #\(tab.id): \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")")
@@ -68,7 +68,7 @@ enum ToolCatalog {
             return .text("Closed tab #\(tab.id).")
         case "navigate":
             guard let url = webURL(args["url"]) else { return .text("Give an http(s) URL, a domain, or search words.", error: true) }
-            guard await Approvals.allowSite(url) else { return declined }
+            guard await Approvals.allowNavigation(url) else { return declined }
             tab.load(url)
             await waitForLoad(tab)
             return .text("Now at: \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")")
@@ -77,6 +77,7 @@ enum ToolCatalog {
             await waitForLoad(tab)
             return .text("Now at: \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")")
         case "read_page":
+            Approvals.noteRead(tab)
             return await run(PageScripts.read, ["maxChars": int(args["max_chars"]) ?? 12000], in: webView)
         case "click":
             guard let id = int(args["element_id"]) else { return .text("element_id is required.", error: true) }
@@ -87,6 +88,7 @@ enum ToolCatalog {
             return .text("Clicked [\(id)]. Now at: \(tab.displayTitle) — \(tab.url?.absoluteString ?? ""). Element numbers may have changed; read the page again before using them.")
         case "type_text":
             guard let id = int(args["element_id"]), let text = args["text"] as? String else { return .text("element_id and text are required.", error: true) }
+            guard await Approvals.allowTyping(text, into: tab) else { return declined }
             let before = webView.url
             let result = await run(PageScripts.type, ["id": id, "text": text, "submit": args["submit"] as? Bool ?? false], in: webView)
             if result.isError || args["submit"] as? Bool != true { return result }
@@ -95,6 +97,7 @@ enum ToolCatalog {
         case "scroll":
             return await run(PageScripts.scroll, ["direction": args["direction"] as? String ?? "down"], in: webView)
         case "screenshot":
+            Approvals.noteRead(tab)
             return await screenshot(webView)
         default:
             return .text("Unknown tool \(name).", error: true)
@@ -192,38 +195,67 @@ enum ToolCatalog {
     }
 }
 
-/// What the AI may do without asking: act on the tab the user is looking at, and open sites the user already knows.
-/// A page that injects instructions could otherwise have the AI read another tab (mail, a bank) and carry it to
-/// a site of the attacker's choosing; both steps now need the user's yes, asked in the app for every caller.
+/// What the AI may do without asking. A page that injects instructions could otherwise have the AI carry what it
+/// read elsewhere (another tab, an earlier page in the chat) to the attacker: in a URL it opens, or typed into the
+/// attacker's own page. So the AI acts freely only on the tab the user is looking at, opens only addresses that carry
+/// nothing new, and types freely only where it has read nothing from another site. The rest is asked in the app,
+/// for every caller (the chat panel and MCP clients alike).
 @MainActor
 enum Approvals {
-    private static var tabs = Set<Int>()
-    private static var hosts = Set<String>()
+    /// Tabs the user let the AI use, each together with the site it was on then.
+    private static var tabs = Set<String>()
+    private static var urls = Set<String>()
+    /// Sites whose content the AI has read since the chat started.
+    private(set) static var readHosts = Set<String>()
     static var timeout: TimeInterval = 90
 
     static func allowTab(_ tab: Tab) async -> Bool {
-        if tabs.contains(tab.id) { return true }
+        let key = "\(tab.id)|\(tab.url?.host()?.lowercased() ?? "")"
+        if tabs.contains(key) { return true }
         let allowed = await ask("AI가 지금 보고 있지 않은 탭을 쓰려고 해요",
-                                "#\(tab.id) \(tab.displayTitle.prefix(80))\n\(tab.url?.host() ?? "")\n\n허용하면 앱을 끌 때까지 이 탭은 다시 묻지 않아요.")
-        if allowed { tabs.insert(tab.id) }
+                                "#\(tab.id) \(tab.displayTitle.prefix(80))\n\(tab.url?.host() ?? "")\n\n허용하면 이 탭이 이 사이트에 있는 동안은 다시 묻지 않아요.")
+        if allowed { tabs.insert(key) }
         return allowed
     }
 
-    static func allowSite(_ url: URL) async -> Bool {
-        guard let host = url.host()?.lowercased() else { return false }
-        if isFamiliar(host) { return true }
-        let allowed = await ask("AI가 처음 가는 사이트를 열려고 해요",
-                                "\(host)\n\n\(url.absoluteString.prefix(300))\n\n주소에 다른 페이지의 내용이 실려 있다면 거부하세요. 허용하면 앱을 끌 때까지 이 사이트는 다시 묻지 않아요.")
-        if allowed { hosts.insert(host) }
+    static func allowNavigation(_ url: URL) async -> Bool {
+        if isFree(url, knownURL: knownURL, knownHost: Library.shared.knowsHost) || urls.contains(url.absoluteString) { return true }
+        let allowed = await ask("AI가 이 주소를 열려고 해요",
+                                "\(url.host() ?? "")\n\n\(url.absoluteString.prefix(300))\n\n주소에 다른 페이지나 대화의 내용이 실려 있다면 거부하세요.")
+        if allowed { urls.insert(url.absoluteString) }
         return allowed
     }
 
-    /// The search engine, open tabs, history and bookmarks, and sites allowed before.
-    static func isFamiliar(_ host: String) -> Bool {
-        hosts.contains(host)
-            || AddressInput.searchURL("x")?.host()?.lowercased() == host
-            || Browser.shared.tabs.contains { $0.url?.host()?.lowercased() == host }
-            || Library.shared.knowsHost(host)
+    /// Addresses that can't carry anything the AI chose: a search on the search engine, an address already open,
+    /// visited or bookmarked, and the front page of a site the user knows.
+    nonisolated static func isFree(_ url: URL, knownURL: (String) -> Bool, knownHost: (String) -> Bool) -> Bool {
+        guard let host = url.host()?.lowercased(), url.user == nil, url.password == nil else { return false }
+        if let search = AddressInput.searchURL("x"), search.host()?.lowercased() == host, search.path == url.path { return true }
+        if knownURL(url.absoluteString) { return true }
+        let frontPage = (url.path.isEmpty || url.path == "/") && url.query == nil && url.fragment == nil
+        return frontPage && knownHost(host)
+    }
+
+    private static func knownURL(_ address: String) -> Bool {
+        Browser.shared.tabs.contains { $0.url?.absoluteString == address } || Library.shared.knowsURL(address)
+    }
+
+    static func noteRead(_ tab: Tab) {
+        if let host = tab.url?.host()?.lowercased() { readHosts.insert(host) }
+    }
+
+    /// Typing hands text to the page; after reading other sites, the user sees what would be typed and says yes.
+    static func allowTyping(_ text: String, into tab: Tab) async -> Bool {
+        let host = tab.url?.host()?.lowercased() ?? ""
+        let others = readHosts.subtracting([host])
+        if others.isEmpty { return true }
+        return await ask("AI가 \(host.isEmpty ? "이 페이지" : host)에 입력하려고 해요",
+                         "입력할 내용:\n\(text.prefix(300))\n\n이 대화에서 앞서 읽은 사이트: \(others.sorted().prefix(5).joined(separator: ", "))\n그곳의 내용이 섞여 있다면 거부하세요.")
+    }
+
+    /// A new chat starts without anything read.
+    static func forgetReads() {
+        readHosts.removeAll()
     }
 
     private final class Once {

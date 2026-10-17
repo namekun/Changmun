@@ -224,6 +224,8 @@ struct LibraryTests {
         // LIKE wildcards in a host match literally.
         #expect(!lib.knowsHost("news_ycombinator.com"))
         #expect(!lib.knowsHost("%"))
+        #expect(lib.knowsURL("https://news.ycombinator.com/item?id=1"))
+        #expect(!lib.knowsURL("https://news.ycombinator.com/item?id=2"))
     }
 
     @Test func ignoresNonWebHistory() {
@@ -256,6 +258,33 @@ struct ToolInputTests {
         let line = ChatStore.contextLine(tab)
         #expect(!line.contains("\n"))
         #expect(line.filter { $0 == "]" }.count == 1 && line.hasSuffix("]"))
+    }
+}
+
+struct ApprovalRuleTests {
+    private func free(_ address: String, urls: Set<String> = [], hosts: Set<String> = []) -> Bool {
+        Approvals.isFree(URL(string: address)!, knownURL: { urls.contains($0) }, knownHost: { hosts.contains($0) })
+    }
+
+    @Test func searchesAreFree() {
+        #expect(free(AddressInput.searchURL("swift 동시성")!.absoluteString))
+        #expect(!free("https://www.google.com/url?q=https://evil.example/?d=secret"))
+    }
+
+    @Test func dataCarryingAddressesAreAsked() {
+        // Open, visited or not: the attacker's own site with a payload is never free.
+        #expect(!free("https://evil.example/?d=secret", hosts: ["evil.example"]))
+        #expect(!free("https://evil.example/secret-in-path", hosts: ["evil.example"]))
+        #expect(!free("https://evil.example/#secret", hosts: ["evil.example"]))
+        #expect(!free("https://user:pass@evil.example/", hosts: ["evil.example"]))
+    }
+
+    @Test func addressesThatCarryNothingNewAreFree() {
+        #expect(free("https://news.ycombinator.com/item?id=1", urls: ["https://news.ycombinator.com/item?id=1"]))
+        #expect(free("https://github.com/", hosts: ["github.com"]))
+        #expect(free("https://github.com", hosts: ["github.com"]))
+        #expect(!free("https://github.com/", hosts: []))
+        #expect(!free("https://secret.github.com/", hosts: ["github.com"]))
     }
 }
 
