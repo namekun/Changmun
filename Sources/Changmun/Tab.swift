@@ -54,6 +54,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         if let savedState {
             view.interactionState = savedState as NSData
         } else if let url {
+            if url.isFileURL { userFileLoad = url }
             Self.load(url, in: view)
         }
         savedState = nil
@@ -72,12 +73,16 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         progress = 0
     }
 
+    /// The local file the user asked for (Open File, the address bar, a bookmark); only it may load from file:.
+    private var userFileLoad: URL?
+
     func load(_ url: URL) {
         self.url = url
+        if url.isFileURL { userFileLoad = url }
         Self.load(url, in: wake())
     }
 
-    /// Local files need read access granted; everything else is an ordinary request.
+    /// Local files the user opened may read their folder (for the page's own images and styles).
     static func load(_ url: URL, in view: WKWebView) {
         if url.isFileURL {
             view.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
@@ -139,6 +144,10 @@ extension Tab: WKNavigationDelegate {
         if let url = action.request.url, let scheme = url.scheme?.lowercased(),
            !["http", "https", "about", "data", "blob", "file", "javascript"].contains(scheme) {
             if action.navigationType == .linkActivated { openExternally(url, scheme: scheme, from: webView.url) }
+            return (.cancel, preferences)
+        }
+        // A web page never gets to open local files, not even through ⌘-click or a middle click.
+        if action.request.url?.isFileURL == true, webView.url?.isFileURL != true, action.request.url != userFileLoad {
             return (.cancel, preferences)
         }
         if action.navigationType == .linkActivated, action.modifierFlags.contains(.command) || action.buttonNumber == 2, let url = action.request.url {

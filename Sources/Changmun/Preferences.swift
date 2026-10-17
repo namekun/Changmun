@@ -101,6 +101,8 @@ final class Preferences: ObservableObject {
 
     @Published var extensionFolders: [String] { didSet { defaults.set(extensionFolders, forKey: "extensionFolders") } }
     @Published var enabledExtensions: [String] { didSet { defaults.set(enabledExtensions, forKey: "enabledExtensions") } }
+    /// Per extension path, the permissions and match patterns the user approved.
+    @Published var extensionGrants: [String: [String]] { didSet { defaults.set(extensionGrants, forKey: "extensionGrants") } }
 
     // MARK: AI
 
@@ -133,6 +135,7 @@ final class Preferences: ObservableObject {
         adBlockAllowlist = d.stringArray(forKey: "adBlockAllowlist") ?? []
         extensionFolders = d.stringArray(forKey: "extensionFolders") ?? []
         enabledExtensions = d.stringArray(forKey: "enabledExtensions") ?? []
+        extensionGrants = d.dictionary(forKey: "extensionGrants") as? [String: [String]] ?? [:]
         aiModel = d.string(forKey: "aiModel") ?? "sonnet"
         aiApprovals = d.object(forKey: "aiApprovals") as? Bool ?? true
         claudePath = d.string(forKey: "claudePath") ?? ""

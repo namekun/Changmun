@@ -100,9 +100,25 @@ final class ExtensionHost: NSObject, ObservableObject {
             // A stable identity keeps the extension's storage across launches.
             context.uniqueIdentifier = Self.identifier(for: source.path)
             context.isInspectable = true
-            if askForPermissions, !confirmPermissions(for: webExtension) { return }
-            for permission in webExtension.requestedPermissions { context.setPermissionStatus(.grantedExplicitly, for: permission) }
-            for pattern in webExtension.allRequestedMatchPatterns { context.setPermissionStatus(.grantedExplicitly, for: pattern) }
+            // Grant what the user approved before; anything an update added is asked about first.
+            let requested = Self.permissionNames(webExtension)
+            let approved = Set(Preferences.shared.extensionGrants[source.path] ?? [])
+            let added = requested.subtracting(approved)
+            var granted = approved
+            if askForPermissions || !added.isEmpty {
+                if confirmPermissions(for: webExtension, only: askForPermissions ? nil : added) {
+                    granted = requested
+                    Preferences.shared.extensionGrants[source.path] = granted.sorted()
+                } else if askForPermissions {
+                    return
+                }
+            }
+            for permission in webExtension.requestedPermissions where granted.contains(permission.rawValue) {
+                context.setPermissionStatus(.grantedExplicitly, for: permission)
+            }
+            for pattern in webExtension.allRequestedMatchPatterns where granted.contains(pattern.string) {
+                context.setPermissionStatus(.grantedExplicitly, for: pattern)
+            }
             try controller.load(context)
             try? await context.loadBackgroundContent()
             loaded.append(Loaded(source: source, context: context, name: webExtension.displayName ?? url.lastPathComponent))
@@ -121,22 +137,27 @@ final class ExtensionHost: NSObject, ObservableObject {
         return "changmun-" + String(hash, radix: 16)
     }
 
-    /// What the extension asks for, in words, before it gets it.
-    private func confirmPermissions(for webExtension: WKWebExtension) -> Bool {
-        let hosts = webExtension.allRequestedMatchPatterns.map(\.string).sorted()
+    static func permissionNames(_ webExtension: WKWebExtension) -> Set<String> {
+        Set(webExtension.requestedPermissions.map(\.rawValue)).union(webExtension.allRequestedMatchPatterns.map(\.string))
+    }
+
+    /// What the extension asks for (or, after an update, what it newly asks for), in words, before it gets it.
+    private func confirmPermissions(for webExtension: WKWebExtension, only added: Set<String>? = nil) -> Bool {
+        let hosts = webExtension.allRequestedMatchPatterns.map(\.string).filter { added?.contains($0) ?? true }.sorted()
         let alert = NSAlert()
-        alert.messageText = "'\(webExtension.displayName ?? "확장")'을(를) 켤까요?"
+        alert.messageText = added == nil ? "'\(webExtension.displayName ?? "확장")'을(를) 켤까요?"
+            : "'\(webExtension.displayName ?? "확장")'이(가) 업데이트되며 권한을 더 요청해요"
         var lines: [String] = []
         if hosts.contains(where: { $0 == "<all_urls>" || $0.hasPrefix("*://*/") }) {
             lines.append("모든 웹사이트의 내용을 읽고 바꿀 수 있어요.")
         } else if !hosts.isEmpty {
             lines.append("이 사이트들의 내용을 읽고 바꿀 수 있어요: " + hosts.prefix(6).joined(separator: ", ") + (hosts.count > 6 ? " 외 \(hosts.count - 6)곳" : ""))
         }
-        let permissions = webExtension.requestedPermissions.map(\.rawValue).sorted()
+        let permissions = webExtension.requestedPermissions.map(\.rawValue).filter { added?.contains($0) ?? true }.sorted()
         if !permissions.isEmpty { lines.append("권한: " + permissions.joined(separator: ", ")) }
         alert.informativeText = lines.joined(separator: "\n")
-        alert.addButton(withTitle: "켜기")
-        alert.addButton(withTitle: "취소")
+        alert.addButton(withTitle: added == nil ? "켜기" : "허용")
+        alert.addButton(withTitle: added == nil ? "취소" : "이전 권한만 쓰기")
         return alert.runModal() == .alertFirstButtonReturn
     }
 
@@ -208,14 +229,16 @@ extension ExtensionHost: WKWebExtensionControllerDelegate {
 
     func webExtensionController(_ controller: WKWebExtensionController, openNewTabUsing configuration: WKWebExtension.TabConfiguration,
                                 for extensionContext: WKWebExtensionContext, completionHandler: @escaping ((any WKWebExtensionTab)?, (any Error)?) -> Void) {
-        let tab = Browser.shared.openTab(url: configuration.url, activate: configuration.shouldBeActive)
+        // Extensions open web pages, not local files.
+        let url = configuration.url.flatMap { $0.isFileURL ? nil : $0 }
+        let tab = Browser.shared.openTab(url: url, activate: configuration.shouldBeActive)
         completionHandler(tab, nil)
     }
 
     func webExtensionController(_ controller: WKWebExtensionController, openNewWindowUsing configuration: WKWebExtension.WindowConfiguration,
                                 for extensionContext: WKWebExtensionContext, completionHandler: @escaping ((any WKWebExtensionWindow)?, (any Error)?) -> Void) {
         // One window: its tabs open here.
-        for url in configuration.tabURLs { Browser.shared.openTab(url: url) }
+        for url in configuration.tabURLs where !url.isFileURL { Browser.shared.openTab(url: url) }
         completionHandler(ExtensionWindow.shared, nil)
     }
 
@@ -327,6 +350,7 @@ extension Tab: WKWebExtensionTab {
     }
 
     func loadURL(_ url: URL, for context: WKWebExtensionContext, completionHandler: @escaping ((any Error)?) -> Void) {
+        guard !url.isFileURL else { return completionHandler(CocoaError(.fileReadNoPermission)) }
         load(url)
         completionHandler(nil)
     }
