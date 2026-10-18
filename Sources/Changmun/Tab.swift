@@ -219,8 +219,14 @@ extension Tab: WKNavigationDelegate {
             browser?.openPeek(url)
             return (.cancel, preferences)
         }
-        return (.allow, preferences)
+        return (Self.allowHere, preferences)
     }
+
+    /// Allows the load here, without first offering the address to an app that claims it (a Safari web app made with
+    /// Add to Dock, a universal link). WebKit's plain allow tries that first, and a page opened in a new window then
+    /// never loads: YouTube's link to YouTube Music left two blank tabs. The value is WebKit's own
+    /// `_WKNavigationActionPolicyAllowWithoutTryingAppLink`, the one after `.download`.
+    static let allowHere = WKNavigationActionPolicy(rawValue: WKNavigationActionPolicy.download.rawValue + 1) ?? .allow
 
     /// WebKit reports the mouse button as a mask: left 1, right 2, middle 4.
     static let middleButton = 4

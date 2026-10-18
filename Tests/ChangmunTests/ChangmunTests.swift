@@ -935,3 +935,12 @@ struct LoginOfferTests {
         #expect(LoginCapture.worthOffering(offer, neverHosts: ["other.com"], saved: { nil }))
     }
 }
+
+struct NavigationPolicyTests {
+    @Test func pagesLoadHereWithoutTryingAppLinks() {
+        // WebKit's _WKNavigationActionPolicyAllowWithoutTryingAppLink: plain .allow hands addresses claimed by a web app
+        // (YouTube Music added to the Dock) to that app, and the new window stays blank.
+        #expect(Tab.allowHere.rawValue == 3)
+        #expect(Tab.middleButton == 4)
+    }
+}
