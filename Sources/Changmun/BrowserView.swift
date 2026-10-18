@@ -177,6 +177,9 @@ struct BrowserView: View {
             if let peek = browser.peek {
                 PeekCard(tab: peek, browser: browser).transition(.opacity)
             }
+            if let switcher = browser.tabSwitcher {
+                TabSwitcherView(browser: browser, switcher: switcher)
+            }
             if let mode = browser.commandBar, !browser.showOnboarding {
                 CommandBar(browser: browser, chat: chat, mode: mode)
             }
@@ -574,6 +577,7 @@ struct AddressPill: View {
                     .foregroundStyle(Theme.faint)
             }
             Spacer(minLength: 0)
+            TranslateButton(tab: tab)
             LoginButton(tab: tab)
             PictureInPictureButton(tab: tab)
             AdBlockShield(tab: tab)
@@ -618,6 +622,7 @@ struct AddressField: View {
                     focused = false
                     return .handled
                 }
+            TranslateButton(tab: tab)
             LoginButton(tab: tab)
             PictureInPictureButton(tab: tab)
             AdBlockShield(tab: tab)
@@ -658,6 +663,30 @@ struct AddressPlaceholder: View {
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
         .contentShape(Rectangle())
         .onTapGesture(perform: open)
+    }
+}
+
+/// On a page in another language: translates it on this Mac, and brings the original back.
+struct TranslateButton: View {
+    @ObservedObject var tab: Tab
+
+    var body: some View {
+        if tab.foreignLanguage != nil || tab.translation != .original {
+            Button { tab.toggleTranslation() } label: {
+                Group {
+                    if tab.translation == .translating {
+                        ProgressView().controlSize(.mini)
+                    } else {
+                        Image(systemName: "translate").font(.system(size: 10.5, weight: .semibold))
+                    }
+                }
+                .frame(width: 20, height: 22)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(tab.translation == .translated ? Theme.primary : Theme.dim)
+            .help(tab.translation == .translated ? "원문 보기 (⌥⌘T)" : "번역 (⌥⌘T)")
+        }
     }
 }
 
@@ -1164,6 +1193,7 @@ struct WebCard: View {
                 if let tab = browser.active {
                     VStack(spacing: 0) {
                         LoginOfferBar(tab: tab)
+                        PopupBar(tab: tab)
                         if #available(macOS 15.4, *), !browser.isPrivate { WebStoreBar(tab: tab, host: ExtensionHost.shared) }
                     }
                 }
@@ -1244,6 +1274,39 @@ struct LoginOfferBar: View {
                 .foregroundStyle(Theme.secondary)
                 .padding(.horizontal, 4)
                 BarButton(symbol: "xmark", help: "닫기") { tab.loginOffer = nil }
+            }
+            .padding(.leading, 12)
+            .padding(.trailing, 4)
+            .frame(height: 40)
+            .frame(maxWidth: 620)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.background))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
+            .padding(10)
+            .transition(.opacity)
+        }
+    }
+}
+
+/// "A popup was blocked" over the top of the page, with the way to open it, once or always for this site.
+struct PopupBar: View {
+    @ObservedObject var tab: Tab
+
+    var body: some View {
+        if let popup = tab.blockedPopup {
+            HStack(spacing: 8) {
+                Image(systemName: "macwindow.badge.plus").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
+                Text("팝업을 막았어요").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary)
+                Text(popup.host() ?? popup.absoluteString).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
+                Spacer(minLength: 8)
+                PeekAction(title: "열기") { tab.openBlockedPopup(always: false) }
+                if !tab.isPrivate {
+                    Button("이 사이트는 항상 허용") { tab.openBlockedPopup(always: true) }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.secondary)
+                        .padding(.horizontal, 4)
+                }
+                BarButton(symbol: "xmark", help: "닫기") { tab.blockedPopup = nil }
             }
             .padding(.leading, 12)
             .padding(.trailing, 4)
@@ -1375,6 +1438,46 @@ struct PeekCard: View {
             .padding(.bottom, 32)
         }
         .animation(.easeOut(duration: 0.2), value: tab.isLoading)
+    }
+}
+
+/// ⌃Tab: the tabs most recently shown first; let go of ⌃ to go to the picked one. It shows only if ⌃ is held a moment.
+struct TabSwitcherView: View {
+    @ObservedObject var browser: Browser
+    let switcher: Browser.TabSwitcher
+    @State private var shown = false
+
+    var body: some View {
+        let picked = switcher.order[switcher.index]
+        let tabs = switcher.order.compactMap { browser.tab($0) }
+        let index = tabs.firstIndex { $0.id == picked } ?? 0
+        // Ten rows at most, scrolled to keep the pick in view.
+        let first = max(0, min(index - 4, tabs.count - 10))
+        VStack(spacing: 2) {
+            ForEach(tabs.dropFirst(first).prefix(10)) { tab in
+                HStack(spacing: 9) {
+                    Favicon(tab: tab)
+                    Text(tab.displayTitle).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text(tab.url?.host().map { $0.hasPrefix("www.") ? String($0.dropFirst(4)) : $0 } ?? "")
+                        .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
+                }
+                .padding(.horizontal, 10)
+                .frame(height: 34)
+                .background { if tab.id == picked { SelectedBackground() } }
+                .contentShape(Rectangle())
+                .onTapGesture { browser.finishSwitching(to: tab.id) }
+            }
+        }
+        .padding(8)
+        .frame(width: 460)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.background))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
+        .opacity(shown ? 1 : 0)
+        .task {
+            try? await Task.sleep(for: .milliseconds(120))
+            shown = true
+        }
     }
 }
 

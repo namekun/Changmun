@@ -14,25 +14,25 @@ enum Headless {
 }
 
 /// A picture of a whole window, sidebar included, drawn by the app itself: it works off screen and needs no
-/// screen recording permission. Pages draw in WebKit's own process, so each is pasted in from a snapshot.
+/// screen recording permission. Pages draw in WebKit's own process, so each is laid in from a snapshot, under
+/// whatever floats over it (bars, the find field).
 @MainActor
 enum WindowImage {
     static func png(of window: NSWindow) async -> Data? {
         guard let view = window.contentView else { return nil }
         view.layoutSubtreeIfNeeded()
-        guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return nil }
-        view.cacheDisplay(in: view.bounds, to: rep)
+        var stand: [NSView] = []
         for webView in webViews(in: view) where !webView.isHiddenOrHasHiddenAncestor {
             guard let snapshot = try? await webView.takeSnapshot(configuration: nil) else { continue }
-            var frame = webView.convert(webView.bounds, to: view)
-            if view.isFlipped { frame.origin.y = view.bounds.height - frame.maxY }
-            NSGraphicsContext.saveGraphicsState()
-            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-            // Pages round only their bottom corners, under the card's bar.
-            NSBezierPath(roundedRect: NSRect(x: frame.minX, y: frame.minY, width: frame.width, height: frame.height + 12), xRadius: 12, yRadius: 12).addClip()
-            snapshot.draw(in: frame)
-            NSGraphicsContext.restoreGraphicsState()
+            let image = NSImageView(frame: webView.bounds)
+            image.image = snapshot
+            image.imageScaling = .scaleAxesIndependently
+            webView.addSubview(image)
+            stand.append(image)
         }
+        defer { stand.forEach { $0.removeFromSuperview() } }
+        guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return nil }
+        view.cacheDisplay(in: view.bounds, to: rep)
         return rep.representation(using: .png, properties: [:])
     }
 

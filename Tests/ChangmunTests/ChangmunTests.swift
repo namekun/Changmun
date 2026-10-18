@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 import SwiftUI
 import Testing
+import Translation
 import WebKit
 @testable import Changmun
 
@@ -1401,4 +1402,167 @@ struct TabGroupTests {
         b.focusMode = false
         #expect(window.standardWindowButton(.closeButton)?.isHidden == false)
     }
+}
+
+@MainActor
+struct RecentTabTests {
+    @Test func ctrlTabGoesToTheTabShownBeforeAndOnBackInTime() {
+        let b = Browser()
+        let tabs = (1...4).map { b.openTab(url: URL(string: "https://site\($0).example/"), activate: false) }
+        for (n, tab) in tabs.enumerated() { tab.lastShown = Date(timeIntervalSince1970: Double(n)) }
+        b.activate(tabs[0].id)
+        #expect(b.recentTabs.map(\.id) == [tabs[0], tabs[3], tabs[2], tabs[1]].map(\.id))
+        b.cycleRecentTabs()
+        #expect(b.tabSwitcher?.index == 1)
+        b.cycleRecentTabs()
+        b.cycleRecentTabs(backwards: true)
+        b.finishSwitching()
+        #expect(b.activeID == tabs[3].id)
+        #expect(b.tabSwitcher == nil)
+        b.cycleRecentTabs()
+        b.finishSwitching()
+        #expect(b.activeID == tabs[0].id)
+    }
+
+    @Test func goingBackwardsStartsAtTheOldestAndEscPutsItAway() {
+        let b = Browser()
+        let tabs = (1...3).map { b.openTab(url: URL(string: "https://site\($0).example/"), activate: false) }
+        b.activate(tabs[1].id)
+        b.cycleRecentTabs(backwards: true)
+        #expect(b.tabSwitcher?.index == 2)
+        b.cancelSwitching()
+        #expect(b.tabSwitcher == nil && b.activeID == tabs[1].id)
+    }
+
+    @Test func aPickedTabThatClosedMeanwhileGivesWayToTheNext() {
+        let b = Browser()
+        let tabs = (1...3).map { b.openTab(url: URL(string: "https://site\($0).example/"), activate: false) }
+        for (n, tab) in tabs.enumerated() { tab.lastShown = Date(timeIntervalSince1970: Double(n)) }
+        b.activate(tabs[0].id)
+        b.cycleRecentTabs()
+        b.close(tabs[2].id)
+        b.finishSwitching()
+        #expect(b.activeID == tabs[1].id)
+    }
+
+    @Test func ctrlTabWaitsWhileTheCommandBarIsOpen() {
+        let b = Browser()
+        (1...2).forEach { b.openTab(url: URL(string: "https://site\($0).example/"), activate: $0 == 1) }
+        b.commandBar = .newTab
+        b.cycleRecentTabs()
+        #expect(b.tabSwitcher == nil)
+    }
+
+    @Test func oneTabHasNothingToSwitchTo() {
+        let b = Browser()
+        b.openTab(url: URL(string: "https://one.example/"))
+        b.cycleRecentTabs()
+        #expect(b.tabSwitcher == nil)
+    }
+}
+
+@MainActor
+struct PopupTests {
+    @Test func sitesAllowedForPopupsCoverTheirSubdomains() {
+        #expect(Preferences.matches("pay.example.com", ["example.com"]))
+        #expect(Preferences.matches("EXAMPLE.com", ["example.com"]))
+        #expect(!Preferences.matches("badexample.com", ["example.com"]))
+        #expect(!Preferences.matches(nil, ["example.com"]))
+    }
+
+    @Test func allowedSitesOpenOnePopupASecondAndOnlyTakeTheEyeWhenShown() throws {
+        let prefs = Preferences.shared
+        let saved = prefs.popupHosts
+        defer { prefs.popupHosts = saved }
+        prefs.allowPopups(from: "www.allowed.test")
+        #expect(prefs.allowsPopups(from: "pay.allowed.test"))
+        let b = Browser()
+        let shown = b.openTab(url: URL(string: "https://allowed.test/"))
+        let background = b.openTab(url: URL(string: "https://allowed.test/other"), activate: false)
+        background.popupBlocked(try #require(URL(string: "https://allowed.test/one")))
+        #expect(b.tabs.count == 3 && b.activeID == shown.id)
+        shown.popupBlocked(try #require(URL(string: "https://allowed.test/two")))
+        #expect(b.tabs.count == 3)
+        #expect(background.blockedPopup == nil)
+    }
+
+    @Test func aPopupOpenedWithoutAClickIsOfferedInABar() async throws {
+        let b = Browser()
+        b.focused()
+        defer { b.windowClosed() }
+        let tab = b.openTab(url: nil)
+        let view = tab.wake()
+        let window = OffscreenWindow(view)
+        defer { window.close() }
+        view.loadHTMLString("<script>setTimeout(() => window.open('/next'), 50)</script>", baseURL: URL(string: "https://popup.test/page"))
+        for _ in 0..<60 where tab.blockedPopup == nil { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(tab.blockedPopup?.absoluteString == "https://popup.test/next")
+    }
+}
+
+@MainActor
+struct TranslationTests {
+    @Test func theLanguageOfAPageIsRecognized() {
+        #expect(PageTranslator.dominantLanguage("The bicycle was invented in the nineteenth century and became popular.")?.languageCode == "en")
+        #expect(PageTranslator.dominantLanguage("자전거는 19세기에 발명되어 널리 쓰이게 되었다.")?.languageCode == "ko")
+    }
+
+    @Test(.enabled(if: Self.modelInstalled)) func aPageIsTranslatedInPlaceAndComesBack() async throws {
+        let view = WKWebView()
+        let window = OffscreenWindow(view)
+        defer { window.close() }
+        view.loadHTMLString("""
+            <p id=a>The bicycle was invented in the nineteenth century.</p><pre id=b>do not translate</pre><a id=c href=#>Read more</a>
+            """, baseURL: nil)
+        for _ in 0..<60 where view.isLoading || view.url == nil { try await Task.sleep(for: .milliseconds(50)) }
+        try await Task.sleep(for: .milliseconds(200))
+        let outcome = await PageTranslator.translate(view, from: Locale.Language(identifier: "en"), to: Locale.Language(identifier: "ko"))
+        #expect(outcome == .translated)
+        let text = { (id: String) async throws -> String in
+            try await view.callAsyncJavaScript("return document.getElementById(id).textContent", arguments: ["id": id], contentWorld: .page) as? String ?? ""
+        }
+        #expect(try await text("a").contains("자전거"))
+        #expect(try await text("b") == "do not translate")
+        #expect(try await view.callAsyncJavaScript("return document.getElementById('c').tagName", contentWorld: .page) as? String == "A")
+        await PageTranslator.showOriginal(view)
+        #expect(try await text("a") == "The bicycle was invented in the nineteenth century.")
+    }
+
+    @Test(.enabled(if: Self.modelInstalled)) func aTranslationStopsWhenThePageIsNoLongerTheSame() async throws {
+        let view = WKWebView()
+        let window = OffscreenWindow(view)
+        defer { window.close() }
+        view.loadHTMLString("<p id=a>The bicycle was invented in the nineteenth century.</p>", baseURL: nil)
+        for _ in 0..<60 where view.isLoading || view.url == nil { try await Task.sleep(for: .milliseconds(50)) }
+        try await Task.sleep(for: .milliseconds(200))
+        let outcome = await PageTranslator.translate(view, from: Locale.Language(identifier: "en"), to: Locale.Language(identifier: "ko"), while: { false })
+        #expect(outcome == .failed)
+        let text = try await view.callAsyncJavaScript("return document.getElementById('a').textContent", contentWorld: .page) as? String
+        #expect(text == "The bicycle was invented in the nineteenth century.")
+    }
+
+    nonisolated static var modelInstalled: Bool {
+        guard #available(macOS 26.0, *) else { return false }
+        let done = DispatchSemaphore(value: 0)
+        nonisolated(unsafe) var installed = false
+        Task.detached {
+            installed = await LanguageAvailability().status(from: Locale.Language(identifier: "en"), to: Locale.Language(identifier: "ko")) == .installed
+            done.signal()
+        }
+        done.wait()
+        return installed
+    }
+}
+
+/// Holds a web view in a window off every screen, so WebKit treats the page as shown (timers run, scripts answer).
+@MainActor
+func OffscreenWindow(_ view: WKWebView) -> NSWindow {
+    let window = NSWindow(contentRect: NSRect(origin: Headless.origin, size: NSSize(width: 800, height: 600)),
+                          styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    view.frame = window.contentView!.bounds
+    window.contentView!.addSubview(view)
+    if view.responds(to: NSSelectorFromString("_setWindowOcclusionDetectionEnabled:")) { view.setValue(false, forKey: "windowOcclusionDetectionEnabled") }
+    window.orderBack(nil)
+    return window
 }

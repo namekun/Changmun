@@ -32,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         watchMouseButtons()
         watchPeekKeys()
+        watchSwitcherKeys()
         guard !Headless.isOn else { return }
         if !UserDefaults.standard.bool(forKey: "onboarded") { browser.showOnboarding = true }
         NSApp.activate()
@@ -100,6 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var focusMonitor: Any?
     private var keyMonitor: Any?
+    private var switcherMonitor: Any?
 
     /// The side buttons on most mice (4 and 5) go back and forward in the browser window. A click in the other half of
     /// a split makes that tab the active one.
@@ -115,6 +117,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                   let hit = event.window?.contentView?.hitTest(event.locationInWindow) else { return event }
             for id in [split.left, split.right] where id != browser.activeID {
                 if let webView = browser.tab(id)?.webView, hit.isDescendant(of: webView) { browser.activate(id) }
+            }
+            return event
+        }
+    }
+
+    /// ⌃Tab's switcher goes to the picked tab when ⌃ comes up; esc puts it away.
+    private func watchSwitcherKeys() {
+        switcherMonitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged, .keyDown]) { event in
+            guard let browser = (event.window as? BrowserWindow)?.browser, browser.tabSwitcher != nil else { return event }
+            if event.type == .flagsChanged && !event.modifierFlags.contains(.control) { browser.finishSwitching() }
+            if event.type == .keyDown && event.keyCode == 53 {
+                browser.cancelSwitching()
+                return nil
             }
             return event
         }
@@ -225,6 +240,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func toggleBrowserSidebar(_ sender: Any?) { browser.showSidebar = browser.focusMode || !browser.showSidebar }
     @objc func toggleFocusMode(_ sender: Any?) { browser.focusMode.toggle() }
     @objc func nextTab(_ sender: Any?) { browser.selectTab(offset: 1) }
+    @objc func recentTab(_ sender: Any?) { switchRecent(backwards: false) }
+    @objc func olderRecentTab(_ sender: Any?) { switchRecent(backwards: true) }
+    private func switchRecent(backwards: Bool) {
+        browser.cycleRecentTabs(backwards: backwards)
+        // ⌃ already let go (a quick tap): switch at once.
+        if !NSEvent.modifierFlags.contains(.control) { browser.finishSwitching() }
+    }
+    @objc func translatePage(_ sender: Any?) { browser.active?.toggleTranslation() }
+    @objc func seekBack(_ sender: Any?) { PictureInPictureKeys.target?.seekVideo(by: -PictureInPictureKeys.step) }
+    @objc func seekForward(_ sender: Any?) { PictureInPictureKeys.target?.seekVideo(by: PictureInPictureKeys.step) }
     @objc func previousTab(_ sender: Any?) { browser.selectTab(offset: -1) }
     @objc func selectNumberedTab(_ sender: NSMenuItem) { browser.selectTab(number: sender.tag) }
     @objc func zoomIn(_ sender: Any?) { browser.active.map { $0.setZoom(($0.webView?.pageZoom ?? 1) + 0.1) } }
@@ -324,6 +349,8 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
         return next
     }
 
+    func windowDidResignKey(_ notification: Notification) { browser.cancelSwitching() }
+
     func windowDidBecomeKey(_ notification: Notification) {
         browser.focused()
         if #available(macOS 15.4, *) { ExtensionHost.shared.windowFocused(browser) }
@@ -419,6 +446,9 @@ enum AppMenu {
         add(view, "실제 크기", #selector(AppDelegate.actualSize(_:)), "0")
         add(view, "탭 음소거", #selector(AppDelegate.toggleMute(_:)), "m", [.command, .control])
         add(view, "화면 속 화면(PiP)", #selector(AppDelegate.togglePictureInPicture(_:)), "p", [.command, .control])
+        add(view, "영상 5초 뒤로", #selector(AppDelegate.seekBack(_:)), left, [.command, .control])
+        add(view, "영상 5초 앞으로", #selector(AppDelegate.seekForward(_:)), right, [.command, .control])
+        add(view, "페이지 번역", #selector(AppDelegate.translatePage(_:)), "t", [.command, .option])
         view.addItem(.separator())
         add(view, "전체 화면", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control])
 
@@ -441,8 +471,8 @@ enum AppMenu {
         window.addItem(.separator())
         add(window, "다음 탭", #selector(AppDelegate.nextTab(_:)), "]", [.command, .shift])
         add(window, "이전 탭", #selector(AppDelegate.previousTab(_:)), "[", [.command, .shift])
-        add(window, "다음 탭", #selector(AppDelegate.nextTab(_:)), "\t", [.control], hidden: true)
-        add(window, "이전 탭", #selector(AppDelegate.previousTab(_:)), "\t", [.control, .shift], hidden: true)
+        add(window, "최근 탭", #selector(AppDelegate.recentTab(_:)), "\t", [.control], hidden: true)
+        add(window, "최근 탭", #selector(AppDelegate.olderRecentTab(_:)), "\t", [.control, .shift], hidden: true)
         if chrome {
             add(window, "다음 탭", #selector(AppDelegate.nextTab(_:)), right, [.command, .option], hidden: true)
             add(window, "이전 탭", #selector(AppDelegate.previousTab(_:)), left, [.command, .option], hidden: true)

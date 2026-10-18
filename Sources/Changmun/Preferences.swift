@@ -90,6 +90,21 @@ final class Preferences: ObservableObject {
     @Published var siteZoom: [String: Double] { didSet { defaults.set(siteZoom, forKey: "siteZoom") } }
     /// Sites never to offer saving a password for.
     @Published var neverSaveLoginHosts: [String] { didSet { defaults.set(neverSaveLoginHosts, forKey: "neverSaveLoginHosts") } }
+    /// Sites whose own popups open as tabs instead of being blocked.
+    @Published var popupHosts: [String] { didSet { defaults.set(popupHosts, forKey: "popupHosts") } }
+
+    func allowsPopups(from host: String?) -> Bool { Self.matches(host, popupHosts) }
+
+    func allowPopups(from host: String) {
+        let site = (host.hasPrefix("www.") ? String(host.dropFirst(4)) : host).lowercased()
+        if !popupHosts.contains(site) { popupHosts.append(site) }
+    }
+
+    /// The host is one of the sites, or under one of them.
+    nonisolated static func matches(_ host: String?, _ sites: [String]) -> Bool {
+        guard let host = host?.lowercased() else { return false }
+        return sites.contains { host == $0 || host.hasSuffix("." + $0) }
+    }
 
     func zoom(for host: String?) -> Double {
         host.flatMap { siteZoom[$0.lowercased()] } ?? defaultZoom
@@ -151,6 +166,7 @@ final class Preferences: ObservableObject {
         autoPictureInPicture = d.object(forKey: "autoPictureInPicture") as? Bool ?? true
         siteZoom = d.dictionary(forKey: "siteZoom") as? [String: Double] ?? [:]
         neverSaveLoginHosts = d.stringArray(forKey: "neverSaveLoginHosts") ?? []
+        popupHosts = d.stringArray(forKey: "popupHosts") ?? []
         sleepMinutes = d.object(forKey: "sleepTabsAfterMinutes") as? Int ?? 20
         neverSleepHosts = d.stringArray(forKey: "neverSleepHosts") ?? []
         blockTrackers = d.object(forKey: "blockTrackers") as? Bool ?? true

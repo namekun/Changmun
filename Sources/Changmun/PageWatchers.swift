@@ -76,8 +76,7 @@ final class LoginCapture: NSObject, WKScriptMessageHandler {
         let username = body["username"] as? String ?? ""
         MainActor.assumeIsolated {
             guard let webView = message.webView, let url = webView.url, url.scheme == "https", let host = url.host(),
-                  let tab = Browser.all.lazy.compactMap({ browser in (browser.tabs + [browser.peek].compactMap { $0 }).first { $0.webView === webView } }).first,
-                  !tab.isPrivate else { return }
+                  let tab = Browser.tab(showing: webView), !tab.isPrivate else { return }
             let offer = LoginOffer(host: host, username: username, password: password)
             // The saved secret is read only when that account is already saved here.
             guard Self.worthOffering(offer, neverHosts: Preferences.shared.neverSaveLoginHosts, saved: {
@@ -92,5 +91,75 @@ final class LoginCapture: NSObject, WKScriptMessageHandler {
         let host = offer.host.lowercased()
         if neverHosts.contains(where: { host == $0 || host.hasSuffix("." + $0) }) { return false }
         return saved() != offer.password
+    }
+}
+
+/// Notices a page opening a window on its own (not from a click), which WebKit blocks, so the browser can offer it.
+/// `window.open` belongs to the page, so this runs in the page's world and the page could post to it too: a message
+/// only ever shows the bar, or opens a tab for a site the user allowed to open popups.
+final class PopupWatcher: NSObject, WKScriptMessageHandler {
+    static let name = "changmunPopup"
+
+    static let script = """
+    (() => {
+      const open = window.open, handler = window.webkit.messageHandlers.\(name);
+      window.open = function (url, target, features, ...rest) {
+        // Blocked means: no click behind it. A click's window that returns null was opened with noopener, or shown as a peek.
+        const clicked = navigator.userActivation ? navigator.userActivation.isActive : true;
+        const opened = open.call(this, url, target, features, ...rest);
+        if (!opened && !clicked && !/noopener|noreferrer/i.test(String(features || ''))) {
+          try { handler.postMessage(new URL(url || '', location.href).href); } catch (e) {}
+        }
+        return opened;
+      };
+    })();
+    """
+
+    static func install(in controller: WKUserContentController) {
+        controller.addUserScript(WKUserScript(source: script, injectionTime: .atDocumentStart, forMainFrameOnly: true, in: .page))
+        controller.add(PopupWatcher(), contentWorld: .page, name: name)
+    }
+
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        // Only the page itself: an ad's frame posting here must not borrow the site's permission.
+        guard message.frameInfo.isMainFrame, let address = message.body as? String, let url = URL(string: address),
+              ["http", "https"].contains(url.scheme) else { return }
+        MainActor.assumeIsolated {
+            guard let webView = message.webView, let tab = Browser.tab(showing: webView) else { return }
+            tab.popupBlocked(url)
+        }
+    }
+}
+
+/// Tells the app when a page's video goes into picture in picture or comes back, so ⌃⌘← and ⌃⌘→ can move it 5 seconds
+/// from any app while it floats. Runs in an isolated world.
+final class PictureInPictureWatcher: NSObject, WKScriptMessageHandler {
+    static let name = "changmunPictureInPicture"
+
+    static let script = """
+    (() => {
+      const report = () => {
+        const floating = !!document.pictureInPictureElement
+          || [...document.querySelectorAll('video')].some(v => v.webkitPresentationMode === 'picture-in-picture');
+        window.webkit.messageHandlers.\(name).postMessage(floating);
+      };
+      for (const type of ['enterpictureinpicture', 'leavepictureinpicture', 'webkitpresentationmodechanged']) {
+        document.addEventListener(type, () => setTimeout(report, 0), true);
+      }
+    })();
+    """
+
+    static func install(in controller: WKUserContentController) {
+        // The main frame only, where seeking reaches: a video embedded from another site can't be moved from here.
+        controller.addUserScript(WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: .defaultClient))
+        controller.add(PictureInPictureWatcher(), contentWorld: .defaultClient, name: name)
+    }
+
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        let floating = message.body as? Bool ?? false
+        MainActor.assumeIsolated {
+            guard let webView = message.webView, let tab = Browser.tab(showing: webView) else { return }
+            tab.isInPictureInPicture = floating
+        }
     }
 }

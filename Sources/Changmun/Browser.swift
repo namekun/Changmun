@@ -164,6 +164,8 @@ final class Browser: ObservableObject {
             config.preferences.setValue(true, forKey: "allowsPictureInPictureMediaPlayback")
         }
         LinkHover.install(in: config.userContentController)
+        PopupWatcher.install(in: config.userContentController)
+        PictureInPictureWatcher.install(in: config.userContentController)
         if !Headless.isOn { LoginCapture.install(in: config.userContentController) }
         AdBlocker.shared.attach(config.userContentController)
         if extensions, #available(macOS 15.4, *) { config.webExtensionController = ExtensionHost.shared.controller }
@@ -201,6 +203,14 @@ final class Browser: ObservableObject {
     func tab(_ id: Int?) -> Tab? {
         guard let id else { return active }
         return tabs.first { $0.id == id }
+    }
+
+    /// The tabs and the peeked page.
+    var openTabs: [Tab] { tabs + [peek].compactMap { $0 } }
+
+    /// The tab (or peeked page) a web view belongs to, in any window.
+    static func tab(showing webView: WKWebView) -> Tab? {
+        all.lazy.compactMap { browser in browser.openTabs.first { $0.webView === webView } }.first
     }
 
     // MARK: Tabs
@@ -464,6 +474,50 @@ final class Browser: ObservableObject {
         pruneGroups()
         objectWillChange.send()
     }
+
+    // MARK: Recent tabs
+
+    /// ⌃Tab's switcher: the tabs, most recently shown first, and the one picked so far.
+    struct TabSwitcher: Equatable {
+        var order: [Int]
+        var index: Int
+    }
+
+    @Published private(set) var tabSwitcher: TabSwitcher?
+    /// When a site allowed to open popups last had one opened as a tab, in this window.
+    var lastAllowedPopup = Date.distantPast
+
+    /// The shown tab first, then the others by when they were last shown.
+    var recentTabs: [Tab] {
+        tabs.enumerated().sorted { a, b in
+            if (a.element.id == activeID) != (b.element.id == activeID) { return a.element.id == activeID }
+            if a.element.lastShown != b.element.lastShown { return a.element.lastShown > b.element.lastShown }
+            return a.offset < b.offset
+        }.map(\.element)
+    }
+
+    /// Opens the switcher on the tab shown before this one, or moves along it.
+    func cycleRecentTabs(backwards: Bool = false) {
+        guard commandBar == nil else { return }
+        if var switcher = tabSwitcher {
+            switcher.index = (switcher.index + (backwards ? -1 : 1) + switcher.order.count) % switcher.order.count
+            tabSwitcher = switcher
+            return
+        }
+        let order = recentTabs.map(\.id)
+        guard order.count > 1 else { return }
+        tabSwitcher = TabSwitcher(order: order, index: backwards ? order.count - 1 : 1)
+    }
+
+    /// Goes to the picked tab, or to the next one still open after it if it closed meanwhile.
+    func finishSwitching(to id: Int? = nil) {
+        guard let switcher = tabSwitcher else { return }
+        tabSwitcher = nil
+        let open = (switcher.order[switcher.index...] + switcher.order[..<switcher.index]).first { tab($0) != nil }
+        if let pick = id ?? open { activate(pick) }
+    }
+
+    func cancelSwitching() { tabSwitcher = nil }
 
     // MARK: Tab groups
 

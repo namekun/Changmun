@@ -228,6 +228,18 @@ struct PrivacySettings: View {
                     }
                 }
             }
+            Section("팝업") {
+                Caption(text: "사이트가 클릭 없이 여는 팝업은 막고 페이지 위에 알려 줘요. '이 사이트는 항상 허용'을 고른 사이트는 여기에 남아요.")
+                ForEach(prefs.popupHosts, id: \.self) { host in
+                    HStack {
+                        Text(host).lineLimit(1)
+                        Spacer()
+                        Caption(text: "팝업 허용")
+                        Button { prefs.popupHosts.removeAll { $0 == host } } label: { Image(systemName: "minus.circle") }
+                            .buttonStyle(.borderless)
+                    }
+                }
+            }
             Section("카메라·마이크") {
                 if permissions.stored.isEmpty {
                     Caption(text: "사이트가 처음 요청할 때 묻고, '기억하기'를 고르면 여기에 남아요.")

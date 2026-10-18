@@ -20,6 +20,21 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     @Published var savedLogins: [String] = []
     /// A sign-in just submitted on this page, waiting for the user to save it or not.
     @Published var loginOffer: LoginOffer?
+    /// A window the page tried to open on its own, which WebKit blocked.
+    @Published var blockedPopup: URL?
+    @Published var isInPictureInPicture = false {
+        didSet { if isInPictureInPicture != oldValue { PictureInPictureKeys.update() } }
+    }
+    /// The page's language when it isn't the user's: the address bar offers to translate it.
+    @Published var foreignLanguage: Locale.Language?
+    @Published private(set) var translation = Translation.original
+    private var translating: Task<Void, Never>?
+    /// Counts the pages shown, so work begun for one page doesn't land on the next.
+    private var page = 0
+
+    enum Translation {
+        case original, translating, translated
+    }
     @Published private(set) var isPlayingAudio = false
     @Published private(set) var isMuted = false
     private var audioWatcher: AudioWatcher?
@@ -82,6 +97,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         audioWatcher = nil
         isPlayingAudio = false
         loginOffer = nil
+        forgetPage()
         self.webView = nil
         isLoading = false
         progress = 0
@@ -178,6 +194,17 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         guard let webView else { return }
         webView.callAsyncJavaScript(Self.pictureInPictureScript, arguments: ["mode": mode.rawValue], in: nil, in: .defaultClient) { _ in }
     }
+
+    /// Moves the floating video (else the one playing) by `seconds`.
+    func seekVideo(by seconds: Double) {
+        webView?.callAsyncJavaScript(Self.seekScript, arguments: ["by": seconds], in: nil, in: .defaultClient) { _ in }
+    }
+
+    static let seekScript = """
+    const videos = [...document.querySelectorAll('video')];
+    const video = document.pictureInPictureElement || videos.find(v => v.webkitPresentationMode === 'picture-in-picture') || videos.find(v => !v.paused);
+    if (video) video.currentTime = Math.max(0, Math.min(isFinite(video.duration) ? video.duration : Infinity, video.currentTime + by));
+    """
 
     static let pictureInPictureScript = """
     const videos = [...document.querySelectorAll('video')];
@@ -308,6 +335,7 @@ extension Tab: WKNavigationDelegate {
         }
         // Sign-ins often land on another host of the same site (login.example.com → www.example.com).
         if let offer = loginOffer, !Self.sameSite(offer.host, host) { loginOffer = nil }
+        forgetPage()
         if let host = webView.url?.host(), let cached = Browser.favicons[host] { favicon = cached }
     }
 
@@ -315,6 +343,77 @@ extension Tab: WKNavigationDelegate {
         loadFavicon()
         if !isPrivate, let url = webView.url?.absoluteString { Library.shared.recordVisit(url: url, title: webView.title ?? "") }
         checkForLogins()
+        let page = page
+        Task {
+            let language = await PageTranslator.foreignLanguage(of: webView)
+            if self.page == page && translation == .original { foreignLanguage = language }
+        }
+    }
+
+    /// What belonged to the page that was shown: a new page, or a sleeping tab, starts without it.
+    private func forgetPage() {
+        page += 1
+        translating?.cancel()
+        translating = nil
+        blockedPopup = nil
+        isInPictureInPicture = false
+        foreignLanguage = nil
+        translation = .original
+    }
+
+    // MARK: Popups
+
+    /// A popup the page opened on its own: offered in a bar, or opened as a tab on a site the user allows popups from.
+    func popupBlocked(_ popup: URL) {
+        guard !isPrivate, Preferences.shared.allowsPopups(from: url?.host()), let browser else {
+            if blockedPopup != popup { blockedPopup = popup }
+            return
+        }
+        // The page could post this itself: at most one tab a second in the window, and only a shown tab takes the eye.
+        guard Date().timeIntervalSince(browser.lastAllowedPopup) > 1 else { return }
+        browser.lastAllowedPopup = Date()
+        browser.openTab(url: popup, activate: browser.isShown(self), after: self)
+    }
+
+    func openBlockedPopup(always: Bool) {
+        guard let popup = blockedPopup else { return }
+        blockedPopup = nil
+        if always, !isPrivate, let host = url?.host() { Preferences.shared.allowPopups(from: host) }
+        browser?.openTab(url: popup, after: self)
+    }
+
+    // MARK: Translation
+
+    /// Translates the page into the user's language, or puts the original back (also stopping a translation under way).
+    func toggleTranslation() {
+        guard let webView else { return }
+        if translation != .original {
+            translating?.cancel()
+            translating = nil
+            translation = .original
+            Task { await PageTranslator.showOriginal(webView) }
+            return
+        }
+        translation = .translating
+        let page = page
+        let current = { [weak self] in self?.page == page && self?.webView === webView && !Task.isCancelled }
+        translating = Task {
+            var outcome = PageTranslator.Outcome.failed
+            if let source = await PageTranslator.foreignLanguage(of: webView) {
+                foreignLanguage = source
+                outcome = await PageTranslator.translate(webView, from: source, while: current)
+            } else {
+                browser?.flashStatus("번역할 다른 언어의 글이 없어요")
+            }
+            guard current() else { return }
+            translating = nil
+            translation = outcome == .translated ? .translated : .original
+            switch outcome {
+            case .needsDownload: browser?.flashStatus("시스템 설정 › 일반 › 언어 및 지역 › 번역 언어에서 이 언어를 내려받아 주세요")
+            case .unsupported: browser?.flashStatus("이 언어는 번역할 수 없어요")
+            case .translated, .failed: break
+            }
+        }
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
