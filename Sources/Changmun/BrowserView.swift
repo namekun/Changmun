@@ -511,11 +511,16 @@ struct AddressPill: View {
     let edit: () -> Void
 
     /// The page names itself, so its title sits behind a dot and may not start like the rest of an address ("/login", ".bank.com").
-    /// Invisible characters (zero-width spaces, direction overrides) are taken out first so none can hide a leading "/".
+    /// Invisible characters (zero-width spaces, direction overrides, Hangul fillers) are taken out first, and stray
+    /// marks are trimmed with the punctuation, so nothing can hide a leading "/".
     static func shownTitle(_ title: String, host: String?) -> String? {
+        let hidden: Set<Unicode.GeneralCategory> = [.control, .format, .privateUse, .unassigned, .surrogate, .lineSeparator, .paragraphSeparator]
         var visible = String.UnicodeScalarView()
-        visible.append(contentsOf: title.unicodeScalars.filter { ![.format, .control].contains($0.properties.generalCategory) })
-        let trimmed = String(visible).drop { $0.isWhitespace || $0.isPunctuation || $0.isSymbol }
+        visible.append(contentsOf: title.unicodeScalars.filter { !$0.properties.isDefaultIgnorableCodePoint && !hidden.contains($0.properties.generalCategory) })
+        let marks: Set<Unicode.GeneralCategory> = [.nonspacingMark, .spacingMark, .enclosingMark]
+        let trimmed = String(visible).drop {
+            $0.isWhitespace || $0.isPunctuation || $0.isSymbol || $0.unicodeScalars.first.map { marks.contains($0.properties.generalCategory) } == true
+        }
         guard !trimmed.isEmpty, String(trimmed) != host else { return nil }
         return String(trimmed)
     }

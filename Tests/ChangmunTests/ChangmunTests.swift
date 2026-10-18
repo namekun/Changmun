@@ -1224,6 +1224,10 @@ struct AddressTitleTests {
         #expect(AddressPill.shownTitle("\u{200B}/login.bank.com", host: "evil.example") == "login.bank.com")
         #expect(AddressPill.shownTitle("\u{202E}moc.knab\u{202C}", host: "evil.example") == "moc.knab")
         #expect(AddressPill.shownTitle("\u{2060}example.com", host: "example.com") == nil)
+        #expect(AddressPill.shownTitle("\u{3164}/login", host: "evil.example") == "login")
+        #expect(AddressPill.shownTitle("\u{034F}\u{FE0F}/login", host: "evil.example") == "login")
+        #expect(AddressPill.shownTitle("\u{0301}/login", host: "evil.example") == "login")
+        #expect(AddressPill.shownTitle("한국어 제목", host: "example.kr") == "한국어 제목")
     }
 
     @Test func emptyOrRepeatedTitlesAreLeftOut() {
