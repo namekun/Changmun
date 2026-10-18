@@ -69,6 +69,7 @@ final class Browser: ObservableObject {
         didSet { if commandBar != nil { closePeek() } }
     }
     @Published var showOnboarding = false
+    @Published var showDownloads = false
     /// Bumped to put the cursor in the address bar on top (⌘L).
     @Published var addressFocusRequest = 0
     static var favicons: [String: NSImage] = [:]

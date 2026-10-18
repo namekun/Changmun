@@ -75,7 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showDownloads(_ sender: Any?) {
-        Panels.show("downloads", title: "다운로드", size: NSSize(width: 480, height: 380)) { DownloadsView() }
+        browser.showDownloads.toggle()
     }
 
     @objc func showFind(_ sender: Any?) { browser.showFindBar() }

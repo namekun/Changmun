@@ -1091,3 +1091,49 @@ struct ExtensionStoreTests {
     }
 }
 
+
+@MainActor
+struct DownloadTests {
+    private func item(_ name: String, isPrivate: Bool = false) -> DownloadItem {
+        DownloadItem(filename: name, progress: Progress(totalUnitCount: 100), isPrivate: isPrivate)
+    }
+
+    @Test func privateWindowsSeeOnlyTheirOwnDownloads() {
+        let downloads = Downloads()
+        downloads.add(item("a.zip"))
+        downloads.add(item("secret.pdf", isPrivate: true))
+        #expect(downloads.items(isPrivate: false).map(\.filename) == ["a.zip"])
+        #expect(downloads.items(isPrivate: true).map(\.filename) == ["secret.pdf"])
+        #expect(downloads.shelf(isPrivate: true).map(\.filename) == ["secret.pdf"])
+    }
+
+    @Test func progressAveragesOnlyRunningDownloads() {
+        let a = item("a"), b = item("b"), c = item("c")
+        a.progress = 0.2
+        b.progress = 0.6
+        c.state = .finished
+        #expect(Downloads.progress(of: [a, b, c]) == 0.4)
+        #expect(Downloads.progress(of: [c]) == nil)
+    }
+
+    @Test func clearingKeepsRunningDownloadsOnTheShelf() {
+        let downloads = Downloads()
+        let running = item("running"), done = item("done")
+        downloads.add(done)
+        downloads.add(running)
+        done.state = .finished
+        downloads.clearFinished()
+        #expect(downloads.items.map(\.filename) == ["running"])
+        #expect(downloads.shelf.map(\.filename) == ["running"])
+    }
+
+    @Test func openingTheListMarksFinishedDownloadsSeen() {
+        let downloads = Downloads()
+        let done = item("done"), running = item("running"), hidden = item("hidden", isPrivate: true)
+        [done, running, hidden].forEach(downloads.add)
+        done.state = .finished
+        hidden.state = .finished
+        downloads.markSeen(isPrivate: false)
+        #expect(done.seen && !running.seen && !hidden.seen)
+    }
+}

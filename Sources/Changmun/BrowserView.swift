@@ -332,6 +332,8 @@ struct Sidebar: View {
                 .animation(.easeOut(duration: 0.18), value: browser.tabs.map(\.id))
             }
 
+            DownloadShelf(browser: browser)
+
             HStack(spacing: 4) {
                 if browser.isPrivate {
                     PrivateBadge()
@@ -340,10 +342,8 @@ struct Sidebar: View {
                     AIButton(isOn: browser.showChat) { browser.showChat.toggle() }
                     Spacer()
                     if #available(macOS 15.4, *) { ExtensionButtons(browser: browser) }
-                    BarButton(symbol: "arrow.down.circle", help: "다운로드") {
-                        NSApp.sendAction(#selector(AppDelegate.showDownloads(_:)), to: nil, from: nil)
-                    }
                 }
+                DownloadButton(browser: browser, arrowEdge: .top)
             }
             .padding(.horizontal, 12)
             .frame(height: 48)
@@ -503,6 +503,7 @@ struct CompactBar: View {
                 }
                 Spacer(minLength: 12)
             }
+            DownloadButton(browser: browser, arrowEdge: .bottom)
             if browser.isPrivate {
                 PrivateBadge()
             } else {
