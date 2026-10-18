@@ -1566,3 +1566,19 @@ func OffscreenWindow(_ view: WKWebView) -> NSWindow {
     window.orderBack(nil)
     return window
 }
+
+@MainActor
+struct PictureInPictureTests {
+    @Test func backToTabShowsTheTabAndClosingDoesNot() {
+        let b = Browser()
+        let shown = b.openTab(url: URL(string: "https://one.example/"))
+        let video = b.openTab(url: URL(string: "https://video.example/"), activate: false)
+        video.pictureInPictureChanged(floating: true, playing: true)
+        video.pictureInPictureChanged(floating: false, playing: false)
+        #expect(b.activeID == shown.id)
+        video.pictureInPictureChanged(floating: true, playing: true)
+        video.pictureInPictureChanged(floating: false, playing: true)
+        #expect(b.activeID == video.id)
+        #expect(!video.isInPictureInPicture)
+    }
+}

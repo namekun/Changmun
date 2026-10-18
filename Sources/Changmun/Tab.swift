@@ -195,6 +195,18 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         webView.callAsyncJavaScript(Self.pictureInPictureScript, arguments: ["mode": mode.rawValue], in: nil, in: .defaultClient) { _ in }
     }
 
+    /// A video that comes back from picture in picture still playing came back with its "back to tab" button: its tab
+    /// and window come to the front, as in Safari. (Closing the floating window pauses it, and stays put.)
+    func pictureInPictureChanged(floating: Bool, playing: Bool) {
+        let returned = isInPictureInPicture && !floating && playing
+        isInPictureInPicture = floating
+        guard returned, let browser, browser.peek !== self, !browser.isShown(self) || !NSApp.isActive else { return }
+        browser.activate(id)
+        guard let window = browser.window else { return }
+        window.makeKeyAndOrderFront(nil)
+        if !Headless.isOn { NSApp.activate() }
+    }
+
     /// Moves the floating video (else the one playing) by `seconds`.
     func seekVideo(by seconds: Double) {
         webView?.callAsyncJavaScript(Self.seekScript, arguments: ["by": seconds], in: nil, in: .defaultClient) { _ in }
