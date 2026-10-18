@@ -28,7 +28,8 @@ enum WindowImage {
             if view.isFlipped { frame.origin.y = view.bounds.height - frame.maxY }
             NSGraphicsContext.saveGraphicsState()
             NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-            NSBezierPath(roundedRect: frame, xRadius: 12, yRadius: 12).addClip()
+            // Pages round only their bottom corners, under the card's bar.
+            NSBezierPath(roundedRect: NSRect(x: frame.minX, y: frame.minY, width: frame.width, height: frame.height + 12), xRadius: 12, yRadius: 12).addClip()
             snapshot.draw(in: frame)
             NSGraphicsContext.restoreGraphicsState()
         }

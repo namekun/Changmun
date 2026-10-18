@@ -2,9 +2,11 @@ import AppKit
 import SwiftUI
 
 enum AddressBarChoice: String, CaseIterable, Identifiable {
-    /// On top in developer mode, in the sidebar otherwise.
+    /// The whole address in developer mode, the site and the page's title otherwise.
     case automatic
+    /// The site and the page's title; ⌘L edits it in the command bar. (Named for where it used to sit.)
     case sidebar
+    /// The whole address, edited in place.
     case top
 
     var id: String { rawValue }

@@ -74,7 +74,7 @@ final class Browser: ObservableObject {
     }
     @Published var showOnboarding = false
     @Published var showDownloads = false
-    /// Bumped to put the cursor in the address bar on top (⌘L).
+    /// Bumped to put the cursor in the full address field (⌘L).
     @Published var addressFocusRequest = 0
     static var favicons: [String: NSImage] = [:]
     /// For a private window's requests: no disk cache, no shared cookies.

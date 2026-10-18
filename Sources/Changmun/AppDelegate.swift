@@ -244,9 +244,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// A window whose title bar is the tab strip: the traffic lights sit centered in the strip.
+/// A window without a visible title bar: the traffic lights sit at the top of the sidebar, level with the page card's bar.
 final class BrowserWindow: NSWindow, NSWindowDelegate {
-    static let barHeight: CGFloat = 44
+    /// The gap above the page card, and the card's own bar: the traffic lights sit level with the bar.
+    static let cardInset: CGFloat = 8
+    static let pageBarHeight: CGFloat = 40
+    static let barHeight = cardInset + pageBarHeight
     private static var windows: [BrowserWindow] = []
 
     let browser: Browser
@@ -347,7 +350,7 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
         close.superview?.frame = container.bounds
         for (index, kind) in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].enumerated() {
             guard let button = standardWindowButton(kind) else { continue }
-            button.setFrameOrigin(NSPoint(x: 16 + CGFloat(index) * 20, y: (height - button.frame.height) / 2))
+            button.setFrameOrigin(NSPoint(x: 16 + CGFloat(index) * 20, y: height - Self.cardInset - Self.pageBarHeight / 2 - button.frame.height / 2))
         }
     }
 }

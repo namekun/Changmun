@@ -2,10 +2,15 @@ import AppKit
 import SwiftUI
 import WebKit
 
-/// Nunsseop's look: a black (or, in light mode, near-white) ground, ink at a few fixed opacities, hairlines instead of cards,
+/// Nunsseop's look: a dark gray (or, in light mode, light gray) ground, ink at a few fixed opacities, hairlines,
 /// and colour only where it means something: orange when something needs you, green while work is going on.
+/// The page sits on a lighter card with its bar, so a dark site never runs into the sidebar.
 enum Theme {
-    static let background = dynamic(light: NSColor(red: 0.957, green: 0.957, blue: 0.961, alpha: 1), dark: .black)
+    private static let lightGround = NSColor(red: 0.925, green: 0.925, blue: 0.93, alpha: 1)
+    private static let darkGround = NSColor(white: 0.13, alpha: 1)
+    static let background = dynamic(light: lightGround, dark: darkGround)
+    static let card = dynamic(light: .white, dark: NSColor(white: 0.2, alpha: 1))
+    static let cardEdge = dynamic(light: NSColor(white: 0, alpha: 0.12), dark: NSColor(white: 1, alpha: 0.07))
     static let page = Color.white
 
     /// White on black, black on white.
@@ -33,7 +38,7 @@ enum Theme {
     }
 
     static var nsBackground: NSColor {
-        NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .black : NSColor(red: 0.957, green: 0.957, blue: 0.961, alpha: 1) }
+        NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? darkGround : lightGround }
     }
 }
 
@@ -72,22 +77,6 @@ struct Keycap: View {
             .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(Theme.field))
             .fixedSize()
             .accessibilityHidden(true)
-    }
-}
-
-/// A quiet section label, sentence case, with an optional count on the right.
-struct SectionCaption: View {
-    let text: String
-    var trailing: String?
-
-    var body: some View {
-        HStack {
-            Text(text).font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
-            Spacer()
-            if let trailing { Text(trailing).font(.system(size: 11, weight: .medium).monospacedDigit()).foregroundStyle(Theme.faint) }
-        }
-        .frame(height: 16)
-        .padding(.horizontal, 8)
     }
 }
 
@@ -164,30 +153,24 @@ struct BrowserView: View {
                         .overlay(alignment: .trailing) { SidebarResizeHandle(width: $prefs.sidebarWidth) }
                         .transition(.move(edge: .leading).combined(with: .opacity))
                 }
-                VStack(spacing: 0) {
-                    if !browser.showSidebar {
-                        CompactBar(browser: browser)
-                    } else if prefs.addressBarOnTop {
-                        TopAddressBar(browser: browser)
-                            .padding(.trailing, 8)
-                            .frame(height: BrowserWindow.barHeight)
-                            .background(WindowDragArea())
-                    }
-                    HStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    VStack(spacing: 0) {
+                        PageBar(browser: browser)
                         WebCard(browser: browser)
-                        if browser.showChat {
-                            HStack(spacing: 0) {
-                                Hairline(vertical: true).padding(.horizontal, 8)
-                                ChatPanel(chat: chat, browser: browser)
-                            }
+                    }
+                    .background(Theme.card)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5))
+                    if browser.showChat {
+                        ChatPanel(chat: chat, browser: browser)
+                            .padding(.leading, 8)
                             .frame(minWidth: 300, maxWidth: 360)
                             .transition(.move(edge: .trailing).combined(with: .opacity))
-                        }
                     }
-                    .padding(.top, browser.showSidebar && !prefs.addressBarOnTop ? 8 : 0)
-                    .padding([.trailing, .bottom], 8)
-                    .padding(.leading, browser.showSidebar ? 0 : 8)
                 }
+                .padding(.top, BrowserWindow.cardInset)
+                .padding([.trailing, .bottom], 8)
+                .padding(.leading, browser.showSidebar ? 0 : 8)
             }
             if let peek = browser.peek {
                 PeekCard(tab: peek, browser: browser).transition(.opacity)
@@ -212,33 +195,13 @@ struct BrowserView: View {
 
 struct Sidebar: View {
     @ObservedObject var browser: Browser
-    @ObservedObject private var prefs = Preferences.shared
     @StateObject private var library = LibraryWatcher()
     @State private var openFolders: Set<String> = []
     @AppStorage("sidebarBookmarksOpen") private var showBookmarks = false
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                Color.clear.frame(width: 70)
-                Spacer(minLength: 0)
-                BarButton(symbol: "sidebar.left", help: "사이드바 숨기기") { browser.showSidebar = false }
-                if let tab = browser.active { NavigationButtons(tab: tab) } else { DisabledNavigationButtons() }
-            }
-            .padding(.trailing, 8)
-            .frame(height: BrowserWindow.barHeight)
-            .background(WindowDragArea())
-
-            if !prefs.addressBarOnTop {
-                Group {
-                    if let tab = browser.active {
-                        AddressPill(tab: tab) { browser.commandBar = .editCurrent }
-                    } else {
-                        AddressPlaceholder { browser.commandBar = .newTab }
-                    }
-                }
-                .padding(.horizontal, 12)
-            }
+            WindowDragArea().frame(height: BrowserWindow.barHeight)
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2) {
@@ -264,7 +227,6 @@ struct Sidebar: View {
                         }
                         .padding(.bottom, 14)
                     }
-                    SectionCaption(text: "탭", trailing: "\(browser.listedTabs.count)").padding(.bottom, 4)
                     NewTabRow { browser.commandBar = .newTab }
                     ForEach(browser.listedTabs) { tab in
                         SidebarTabRow(tab: tab, browser: browser, isActive: tab.id == browser.activeID) {
@@ -327,26 +289,12 @@ struct Sidebar: View {
                     }
                 }
                 .padding(.horizontal, 12)
-                .padding(.top, 14)
+                .padding(.top, 4)
                 .padding(.bottom, 8)
                 .animation(.easeOut(duration: 0.18), value: browser.tabs.map(\.id))
             }
 
-            DownloadShelf(browser: browser)
-
-            HStack(spacing: 4) {
-                if browser.isPrivate {
-                    PrivateBadge()
-                    Spacer()
-                } else {
-                    AIButton(isOn: browser.showChat) { browser.showChat.toggle() }
-                    Spacer()
-                    if #available(macOS 15.4, *) { ExtensionButtons(browser: browser) }
-                }
-                DownloadButton(browser: browser, arrowEdge: .top)
-            }
-            .padding(.horizontal, 12)
-            .frame(height: 48)
+            DownloadShelf(browser: browser).padding(.bottom, 8)
         }
     }
 
@@ -484,25 +432,30 @@ final class LibraryWatcher: ObservableObject {
     }
 }
 
-/// The top bar when the sidebar is hidden.
-struct CompactBar: View {
+/// The bar on top of the page card, as in Dia: the sidebar switch and moving around, the address with the page's title,
+/// then what acts on the whole window.
+struct PageBar: View {
     @ObservedObject var browser: Browser
     @ObservedObject private var prefs = Preferences.shared
 
     var body: some View {
         HStack(spacing: 2) {
-            Color.clear.frame(width: 70)
-            BarButton(symbol: "sidebar.left", help: "사이드바 보기") { browser.showSidebar = true }
+            if !browser.showSidebar { Color.clear.frame(width: 62) }
+            BarButton(symbol: "sidebar.left", help: browser.showSidebar ? "사이드바 숨기기" : "사이드바 보기") { browser.showSidebar.toggle() }
             if let tab = browser.active { NavigationButtons(tab: tab) } else { DisabledNavigationButtons() }
-            if prefs.addressBarOnTop {
-                TopAddressBar(browser: browser).padding(.horizontal, 8)
-            } else {
-                Spacer(minLength: 12)
+            Group {
                 if let tab = browser.active {
-                    AddressPill(tab: tab) { browser.commandBar = .editCurrent }.frame(maxWidth: 460)
+                    if prefs.addressBarOnTop {
+                        AddressField(tab: tab, browser: browser).id(tab.id)
+                    } else {
+                        AddressPill(tab: tab) { browser.commandBar = .editCurrent }
+                    }
+                } else {
+                    AddressPlaceholder { browser.commandBar = .newTab }
                 }
-                Spacer(minLength: 12)
             }
+            .padding(.horizontal, 6)
+            if #available(macOS 15.4, *), !browser.isPrivate { ExtensionButtons(browser: browser) }
             DownloadButton(browser: browser, arrowEdge: .bottom)
             if browser.isPrivate {
                 PrivateBadge()
@@ -510,9 +463,10 @@ struct CompactBar: View {
                 AIButton(isOn: browser.showChat) { browser.showChat.toggle() }
             }
         }
-        .padding(.trailing, 10)
-        .frame(height: BrowserWindow.barHeight)
+        .padding(.horizontal, 6)
+        .frame(height: BrowserWindow.pageBarHeight)
         .background(WindowDragArea())
+        .overlay(alignment: .bottom) { Rectangle().fill(Theme.cardEdge).frame(height: 1) }
     }
 }
 
@@ -561,10 +515,18 @@ struct AddressPill: View {
             Image(systemName: tab.url?.scheme == "https" ? "lock.fill" : "globe")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(Theme.secondary)
-            Text(tab.url?.host().map { $0.hasPrefix("www.") ? String($0.dropFirst(4)) : $0 } ?? "주소 입력")
+            let host = tab.url?.host().map { $0.hasPrefix("www.") ? String($0.dropFirst(4)) : $0 }
+            Text(host ?? "주소 입력")
                 .font(.system(size: 13, weight: .semibold))
                 .lineLimit(1)
                 .foregroundStyle(Theme.primary)
+                .layoutPriority(1)
+            if !tab.title.isEmpty && tab.title != host {
+                Text(tab.title)
+                    .font(.system(size: 13, weight: .medium))
+                    .lineLimit(1)
+                    .foregroundStyle(Theme.faint)
+            }
             Spacer(minLength: 0)
             LoginButton(tab: tab)
             PictureInPictureButton(tab: tab)
@@ -573,8 +535,8 @@ struct AddressPill: View {
             Keycap("⌘L")
         }
         .padding(.leading, 11)
-        .padding(.trailing, 7)
-        .frame(height: 34)
+        .padding(.trailing, 5)
+        .frame(height: 30)
         .background(FieldBackground(tab: tab))
         .contentShape(Rectangle())
         .onTapGesture(perform: edit)
@@ -582,19 +544,7 @@ struct AddressPill: View {
     }
 }
 
-/// The address bar on top: the whole address, edited in place.
-struct TopAddressBar: View {
-    @ObservedObject var browser: Browser
-
-    var body: some View {
-        if let tab = browser.active {
-            AddressField(tab: tab, browser: browser).id(tab.id)
-        } else {
-            AddressPlaceholder { browser.commandBar = .newTab }
-        }
-    }
-}
-
+/// The whole address, edited in place.
 struct AddressField: View {
     @ObservedObject var tab: Tab
     @ObservedObject var browser: Browser
@@ -629,8 +579,8 @@ struct AddressField: View {
             Keycap(focused ? "↵" : "⌘L")
         }
         .padding(.leading, 11)
-        .padding(.trailing, 7)
-        .frame(height: 34)
+        .padding(.trailing, 5)
+        .frame(height: 30)
         .background(FieldBackground(tab: tab, focused: focused))
         .onAppear { text = current }
         .onChange(of: tab.url) { if !focused { text = current } }
@@ -657,8 +607,8 @@ struct AddressPlaceholder: View {
         }
         .foregroundStyle(Theme.faint)
         .padding(.leading, 11)
-        .padding(.trailing, 7)
-        .frame(height: 34)
+        .padding(.trailing, 5)
+        .frame(height: 30)
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
         .contentShape(Rectangle())
         .onTapGesture(perform: open)
@@ -1074,7 +1024,6 @@ struct WindowDragArea: NSViewRepresentable {
 struct WebCard: View {
     @ObservedObject var browser: Browser
     @ObservedObject private var overlay: PageOverlay
-    @Environment(\.colorScheme) private var scheme
 
     init(browser: Browser) {
         self.browser = browser
@@ -1124,18 +1073,18 @@ struct WebCard: View {
     private func pane(_ tab: Tab?) -> some View {
         // In a split, the pane with the active tab (what the address bar and keys act on) wears the hairline.
         let focused = browser.shownSplit != nil && tab?.id == browser.activeID
+        let shape = UnevenRoundedRectangle(bottomLeadingRadius: 12, bottomTrailingRadius: 12, style: .continuous)
         return ZStack {
             if let tab {
                 Theme.page
                 WebViewHost(tab: tab, browser: browser)
             } else {
-                Theme.background
+                Theme.card
                 EmptyPage()
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .strokeBorder(focused ? Theme.secondary : (tab == nil || scheme == .light ? Theme.ink(0.14) : .clear), lineWidth: focused ? 1 : 0.5))
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(focused ? Theme.secondary : .clear, lineWidth: 1))
     }
 }
 
