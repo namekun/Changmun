@@ -165,6 +165,8 @@ final class AdBlocker: ObservableObject {
     static let builtIn = [
         List(id: "easylist", name: "EasyList (광고)", url: "https://easylist.to/easylist/easylist.txt"),
         List(id: "easyprivacy", name: "EasyPrivacy (추적)", url: "https://easylist.to/easylist/easyprivacy.txt"),
+        // Korean sites run their own ad slots and anti-adblock fallbacks that the English lists don't cover.
+        List(id: "youslist", name: "YousList (한국 광고)", url: "https://raw.githubusercontent.com/yous/YousList/master/youslist.txt"),
     ]
 
     @Published private(set) var status = ""
@@ -195,8 +197,9 @@ final class AdBlocker: ObservableObject {
         // The fixed tracker list of earlier versions now lives inside these rules.
         try? await WKContentRuleListStore.default()?.removeContentRuleList(forIdentifier: "changmun-trackers-v1")
         guard Preferences.shared.blockTrackers else { return await apply(enabled: false) }
+        let missing = enabledLists.contains { !FileManager.default.fileExists(atPath: Self.folder.appendingPathComponent($0.id + ".txt").path) }
         if await loadCompiled() {
-            if (lastUpdated ?? .distantPast) < Date().addingTimeInterval(-4 * 86_400) { await update() }
+            if missing || (lastUpdated ?? .distantPast) < Date().addingTimeInterval(-4 * 86_400) { await update() }
         } else {
             await update()
         }

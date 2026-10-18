@@ -568,6 +568,21 @@ struct FilterConverterTests {
         }
     }
 
+    @Test func koreanSiteRulesConvert() throws {
+        // Lines as YousList writes them for fmkorea's anti-adblock fallback.
+        let out = FilterConverter.convert("""
+        ||loader.fmkorea.com/_loader/loader.php^$domain=fmkorea.com|m.fmkorea.com
+        fmkorea.com##div#banner3
+        fmkorea.com##iframe[src*="//loader.fmkorea.com/_loader/loader.php"]
+        """)
+        let block = try #require(out.network.first?["trigger"] as? [String: Any])
+        #expect(block["if-domain"] as? [String] == ["*fmkorea.com", "*m.fmkorea.com"])
+        #expect(block["url-filter"] as? String == "^[^:]+://+([^:/]+\\.)?loader\\.fmkorea\\.com/_loader/loader\\.php[/:?&=]")
+        let hide = try #require(out.cosmetic.first)
+        #expect((hide["trigger"] as? [String: Any])?["if-domain"] as? [String] == ["*fmkorea.com"])
+        #expect((hide["action"] as? [String: Any])?["selector"] as? String == "div#banner3, iframe[src*=\"//loader.fmkorea.com/_loader/loader.php\"]")
+    }
+
     @Test func customListIDsAreStable() {
         #expect(AdBlocker.customID("https://a.example/list.txt") == AdBlocker.customID("https://a.example/list.txt"))
         #expect(AdBlocker.customID("https://a.example/list.txt") != AdBlocker.customID("https://b.example/list.txt"))
