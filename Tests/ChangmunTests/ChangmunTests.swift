@@ -1220,6 +1220,12 @@ struct AddressTitleTests {
         #expect(AddressPill.shownTitle("Hacker News", host: "news.ycombinator.com") == "Hacker News")
     }
 
+    @Test func invisibleCharactersCannotHideALeadingSlash() {
+        #expect(AddressPill.shownTitle("\u{200B}/login.bank.com", host: "evil.example") == "login.bank.com")
+        #expect(AddressPill.shownTitle("\u{202E}moc.knab\u{202C}", host: "evil.example") == "moc.knab")
+        #expect(AddressPill.shownTitle("\u{2060}example.com", host: "example.com") == nil)
+    }
+
     @Test func emptyOrRepeatedTitlesAreLeftOut() {
         #expect(AddressPill.shownTitle("", host: "example.com") == nil)
         #expect(AddressPill.shownTitle("/ .", host: "example.com") == nil)

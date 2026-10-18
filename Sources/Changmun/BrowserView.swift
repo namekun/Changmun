@@ -511,9 +511,12 @@ struct AddressPill: View {
     let edit: () -> Void
 
     /// The page names itself, so its title sits behind a dot and may not start like the rest of an address ("/login", ".bank.com").
+    /// Invisible characters (zero-width spaces, direction overrides) are taken out first so none can hide a leading "/".
     static func shownTitle(_ title: String, host: String?) -> String? {
-        let trimmed = title.drop { $0.isWhitespace || $0.isPunctuation || $0.isSymbol }
-        guard !trimmed.isEmpty, title != host else { return nil }
+        var visible = String.UnicodeScalarView()
+        visible.append(contentsOf: title.unicodeScalars.filter { ![.format, .control].contains($0.properties.generalCategory) })
+        let trimmed = String(visible).drop { $0.isWhitespace || $0.isPunctuation || $0.isSymbol }
+        guard !trimmed.isEmpty, String(trimmed) != host else { return nil }
         return String(trimmed)
     }
 
@@ -529,7 +532,8 @@ struct AddressPill: View {
                 .foregroundStyle(Theme.primary)
                 .layoutPriority(1)
             if let title = Self.shownTitle(tab.title, host: host) {
-                Text(verbatim: "· " + title)
+                Text(verbatim: "·").font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.faint)
+                Text(verbatim: title)
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
                     .foregroundStyle(Theme.faint)
