@@ -4,6 +4,14 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Changmun</string>
+	<key>CFBundleExecutable</key>
+	<string>Changmun</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.namekun.Changmun</string>
 	<key>CFBundleLocalizations</key>
 	<array>
 		<string>en</string>
@@ -14,10 +22,12 @@
 		<string>de</string>
 		<string>fr</string>
 	</array>
-	<key>CFBundleExecutable</key>
+	<key>CFBundleName</key>
 	<string>Changmun</string>
-	<key>CFBundleIconFile</key>
-	<string>AppIcon</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -30,24 +40,10 @@
 			</array>
 		</dict>
 	</array>
-	<key>CFBundleIdentifier</key>
-	<string>io.github.namekun.Changmun</string>
-	<key>CFBundleName</key>
-	<string>Changmun</string>
-	<key>CFBundleDisplayName</key>
-	<string>Changmun</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>0.1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
-	<key>NSHighResolutionCapable</key>
-	<true/>
-	<key>NSPrincipalClass</key>
-	<string>NSApplication</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoadsInWebContent</key>
@@ -55,9 +51,13 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Used when a website asks for your camera.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Used when a website asks for your microphone.</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
 	<key>NSLocationUsageDescription</key>
 	<string>Used when a website asks for your location.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Used when a website asks for your microphone.</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
 </dict>
 </plist>
