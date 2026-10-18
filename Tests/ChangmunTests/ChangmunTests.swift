@@ -1010,13 +1010,31 @@ struct ExtensionStoreTests {
         zip.currentDirectoryURL = source
         try zip.run()
         zip.waitUntilExit()
-        #expect(ChromeWebStore.listsSymlink(try ChromeWebStore.run("/usr/bin/zipinfo", ["-s", zipFile.path])))
+        #expect(throws: ChromeWebStore.Failure.self) { try ChromeWebStore.checkArchive(try Data(contentsOf: zipFile)) }
         #expect(throws: ChromeWebStore.Failure.self) {
             try ChromeWebStore.unpack(try Data(contentsOf: zipFile), id: "abc", into: root)
         }
         #expect(!fm.fileExists(atPath: root.appendingPathComponent("abc").path))
-        #expect(!ChromeWebStore.listsSymlink("-rw-r--r--  3.0 unx  12 tx defN 25-Oct-18 13:00 manifest.json"))
         #expect(!ChromeWebStore.isSafeEntry("js\\..\\..\\x"))
+    }
+
+    /// One stored entry, as a zip writer lays it out: local header, data, central directory, end record.
+    private func zip(name: [UInt8], mode: Int = 0o100644, count: Int = 1) -> Data {
+        func u16(_ n: Int) -> [UInt8] { [UInt8(n & 0xff), UInt8(n >> 8 & 0xff)] }
+        let local = le(0x0403_4B50) + u16(20) + u16(0) + u16(0) + u16(0) + u16(0) + le(0) + le(0) + le(0) + u16(name.count) + u16(0) + name
+        let central = le(0x0201_4B50) + u16(0x0314) + u16(20) + u16(0) + u16(0) + u16(0) + u16(0) + le(0) + le(0) + le(0)
+            + u16(name.count) + u16(0) + u16(0) + u16(0) + u16(0) + le(mode << 16) + le(0) + name
+        let end = le(0x0605_4B50) + u16(0) + u16(0) + u16(count) + u16(count) + le(central.count) + le(local.count) + u16(0)
+        return Data(local + central + end)
+    }
+
+    @Test func theCentralDirectoryIsCheckedFailingClosed() throws {
+        try ChromeWebStore.checkArchive(zip(name: Array("manifest.json".utf8)))
+        #expect(throws: ChromeWebStore.Failure.self) { try ChromeWebStore.checkArchive(zip(name: Array("escape".utf8), mode: 0o120777)) }
+        #expect(throws: ChromeWebStore.Failure.self) { try ChromeWebStore.checkArchive(zip(name: [0x66, 0xFF, 0xFE])) }
+        #expect(throws: ChromeWebStore.Failure.self) { try ChromeWebStore.checkArchive(zip(name: Array("../x".utf8))) }
+        #expect(throws: ChromeWebStore.Failure.self) { try ChromeWebStore.checkArchive(zip(name: Array("a".utf8), count: 2)) }
+        #expect(throws: ChromeWebStore.Failure.self) { try ChromeWebStore.checkArchive(Data("PK not really".utf8)) }
     }
 
     @Test func pluginkitRecordsParse() {

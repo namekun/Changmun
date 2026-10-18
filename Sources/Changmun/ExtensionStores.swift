@@ -58,12 +58,30 @@ enum ChromeWebStore {
         !name.hasPrefix("/") && !name.contains("\\") && !name.split(separator: "/").contains("..")
     }
 
-    /// Whether `zipinfo -s` lists a symbolic link: its mode column starts with "l". A link entry followed by entries
-    /// under it would make the unpacker write through the link, outside the folder, so such archives are refused.
-    static func listsSymlink(_ zipinfoListing: String) -> Bool {
-        zipinfoListing.split(whereSeparator: \.isNewline).contains { line in
-            line.first == "l" && line.dropFirst().prefix(9).allSatisfy { "rwxsStT-".contains($0) }
+    /// Checks every entry in the archive's central directory before anything is unpacked, failing closed: a name that
+    /// isn't UTF-8, a name that leaves the folder, a symbolic link (whatever system made the archive; a link entry
+    /// followed by entries under it makes the unpacker write through it), ZIP64, or a count that doesn't add up.
+    static func checkArchive(_ zip: Data) throws {
+        let bytes = [UInt8](zip)
+        func u16(_ at: Int) -> Int { Int(bytes[at]) | Int(bytes[at + 1]) << 8 }
+        func u32(_ at: Int) -> Int { u16(at) | u16(at + 2) << 16 }
+        guard bytes.count >= 22 else { throw Failure.unsafeArchive }
+        // The end-of-central-directory record: within the last 22 bytes plus the longest comment.
+        var end = bytes.count - 22
+        while end >= max(0, bytes.count - 22 - 0xFFFF), u32(end) != 0x0605_4B50 { end -= 1 }
+        guard end >= 0, u32(end) == 0x0605_4B50 else { throw Failure.unsafeArchive }
+        let count = u16(end + 10), size = u32(end + 12), start = u32(end + 16)
+        guard count > 0, count != 0xFFFF, start != 0xFFFF_FFFF, start + size <= end else { throw Failure.unsafeArchive }
+        var at = start
+        for _ in 0..<count {
+            guard at + 46 <= end, u32(at) == 0x0201_4B50 else { throw Failure.unsafeArchive }
+            let nameLength = u16(at + 28), extraLength = u16(at + 30), commentLength = u16(at + 32)
+            let mode = u32(at + 38) >> 16
+            guard at + 46 + nameLength <= end, let name = String(bytes: bytes[(at + 46)..<(at + 46 + nameLength)], encoding: .utf8),
+                  !name.isEmpty, isSafeEntry(name), mode & 0o170000 != 0o120000 else { throw Failure.unsafeArchive }
+            at += 46 + nameLength + extraLength + commentLength
         }
+        guard at == start + size else { throw Failure.unsafeArchive }
     }
 
     /// Downloads and unpacks the extension, replacing an older copy; returns its folder.
@@ -80,8 +98,7 @@ enum ChromeWebStore {
         let archive = fm.temporaryDirectory.appendingPathComponent("changmun-\(id).zip")
         try zip.write(to: archive)
         defer { try? fm.removeItem(at: archive) }
-        let names = try run("/usr/bin/zipinfo", ["-1", archive.path]).split(whereSeparator: \.isNewline).map(String.init)
-        guard names.allSatisfy(isSafeEntry), !listsSymlink(try run("/usr/bin/zipinfo", ["-s", archive.path])) else { throw Failure.unsafeArchive }
+        try checkArchive(zip)
         let destination = parent.appendingPathComponent(id, isDirectory: true)
         let staging = parent.appendingPathComponent(".\(id)-new", isDirectory: true)
         try? fm.removeItem(at: staging)
@@ -117,9 +134,9 @@ enum ChromeWebStore {
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
         try process.run()
-        let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
-        guard process.terminationStatus == 0 else { throw CocoaError(.fileReadCorruptFile) }
+        guard process.terminationStatus == 0, let output = String(data: data, encoding: .utf8) else { throw CocoaError(.fileReadCorruptFile) }
         return output
     }
 }
