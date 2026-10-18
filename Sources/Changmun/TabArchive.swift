@@ -1,6 +1,6 @@
 import Foundation
 
-/// Tabs closed for going unlooked-at a while (설정 › 탭·모양), newest first, to open again from 방문 기록 › 보관한 탭.
+/// Tabs closed for going unlooked-at a while (Settings › Tabs & Appearance), newest first, to open again from History › Archived Tabs.
 @MainActor
 final class TabArchive: ObservableObject {
     static let shared = TabArchive(file: Library.folder.appendingPathComponent("archive.json"))

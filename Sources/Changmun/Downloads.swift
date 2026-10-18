@@ -29,7 +29,7 @@ final class DownloadItem: ObservableObject, Identifiable {
     private var observation: NSKeyValueObservation?
 
     convenience init(_ download: WKDownload, owner: Browser?) {
-        self.init(filename: download.originalRequest?.url?.lastPathComponent ?? "다운로드", progress: download.progress, isPrivate: owner?.isPrivate == true)
+        self.init(filename: download.originalRequest?.url?.lastPathComponent ?? String(localized: "Download"), progress: download.progress, isPrivate: owner?.isPrivate == true)
         self.download = download
         if isPrivate { self.owner = owner }
     }

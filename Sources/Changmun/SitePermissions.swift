@@ -9,7 +9,7 @@ final class SitePermissions: ObservableObject {
     enum Device: String, CaseIterable {
         case camera, microphone
 
-        var name: String { self == .camera ? "카메라" : "마이크" }
+        var name: String { self == .camera ? String(localized: "Camera") : String(localized: "Microphone") }
     }
 
     enum Decision: String, CaseIterable {
@@ -17,9 +17,9 @@ final class SitePermissions: ObservableObject {
 
         var name: String {
             switch self {
-            case .ask: "묻기"
-            case .allow: "허용"
-            case .deny: "차단"
+            case .ask: String(localized: "Ask")
+            case .allow: String(localized: "Allow")
+            case .deny: String(localized: "Block")
             }
         }
     }
@@ -60,11 +60,15 @@ final class SitePermissions: ObservableObject {
         if Headless.isOn { return .deny }
 
         let alert = NSAlert()
-        alert.messageText = "\(host)에서 \(devices.map(\.name).joined(separator: "와 "))를 쓰려고 해요"
-        alert.addButton(withTitle: "차단")
-        alert.addButton(withTitle: "허용")
+        alert.messageText = switch type {
+        case .camera: String(localized: "\(host) wants to use the camera")
+        case .microphone: String(localized: "\(host) wants to use the microphone")
+        default: String(localized: "\(host) wants to use the camera and microphone")
+        }
+        alert.addButton(withTitle: String(localized: "Block"))
+        alert.addButton(withTitle: String(localized: "Allow"))
         alert.showsSuppressionButton = remember
-        alert.suppressionButton?.title = "이 사이트에서는 기억하기"
+        alert.suppressionButton?.title = String(localized: "Remember for this site")
         let allowed = alert.runModal() == .alertSecondButtonReturn
         if alert.suppressionButton?.state == .on {
             for device in devices { set(allowed ? .allow : .deny, host: host, device: device) }

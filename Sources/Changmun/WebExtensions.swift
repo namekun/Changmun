@@ -151,19 +151,22 @@ final class ExtensionHost: NSObject, ObservableObject {
     private func confirmPermissions(for webExtension: WKWebExtension, only added: Set<String>? = nil) -> Bool {
         let hosts = webExtension.allRequestedMatchPatterns.map(\.string).filter { added?.contains($0) ?? true }.sorted()
         let alert = NSAlert()
-        alert.messageText = added == nil ? "'\(webExtension.displayName ?? "확장")'을(를) 켤까요?"
-            : "'\(webExtension.displayName ?? "확장")'이(가) 업데이트되며 권한을 더 요청해요"
+        let name = webExtension.displayName ?? String(localized: "Extension")
+        alert.messageText = added == nil ? String(localized: "Turn on '\(name)'?")
+            : String(localized: "'\(name)' is updating and asks for more permissions")
         var lines: [String] = []
         if hosts.contains(where: { $0 == "<all_urls>" || $0.hasPrefix("*://*/") }) {
-            lines.append("모든 웹사이트의 내용을 읽고 바꿀 수 있어요.")
+            lines.append(String(localized: "It can read and change the content of all websites."))
         } else if !hosts.isEmpty {
-            lines.append("이 사이트들의 내용을 읽고 바꿀 수 있어요: " + hosts.prefix(6).joined(separator: ", ") + (hosts.count > 6 ? " 외 \(hosts.count - 6)곳" : ""))
+            let list = hosts.prefix(6).joined(separator: ", ")
+            lines.append(hosts.count > 6 ? String(localized: "It can read and change the content of these sites: \(list) and \(hosts.count - 6) more")
+                         : String(localized: "It can read and change the content of these sites: \(list)"))
         }
         let permissions = webExtension.requestedPermissions.map(\.rawValue).filter { added?.contains($0) ?? true }.sorted()
-        if !permissions.isEmpty { lines.append("권한: " + permissions.joined(separator: ", ")) }
+        if !permissions.isEmpty { lines.append(String(localized: "Permissions: \(permissions.joined(separator: ", "))")) }
         alert.informativeText = lines.joined(separator: "\n")
-        alert.addButton(withTitle: added == nil ? "켜기" : "허용")
-        alert.addButton(withTitle: added == nil ? "취소" : "이전 권한만 쓰기")
+        alert.addButton(withTitle: added == nil ? String(localized: "Turn On") : String(localized: "Allow"))
+        alert.addButton(withTitle: added == nil ? String(localized: "Cancel") : String(localized: "Use Previous Permissions Only"))
         return alert.runModal() == .alertFirstButtonReturn
     }
 
@@ -181,7 +184,7 @@ final class ExtensionHost: NSObject, ObservableObject {
     func addFolder(_ url: URL) async -> Bool {
         let path = url.path
         guard FileManager.default.fileExists(atPath: url.appendingPathComponent("manifest.json").path) else {
-            failures[path] = "manifest.json이 없는 폴더예요"
+            failures[path] = String(localized: "This folder has no manifest.json")
             return false
         }
         if !Preferences.shared.extensionFolders.contains(path) { Preferences.shared.extensionFolders.append(path) }
@@ -209,7 +212,7 @@ final class ExtensionHost: NSObject, ObservableObject {
     /// Installs (or updates) an extension from a Chrome Web Store address or id; the usual permission question follows.
     func installFromChromeWebStore(_ input: String) async {
         guard let id = ChromeWebStore.extensionID(from: input) else {
-            storeErrors[input] = "Chrome 웹 스토어 주소나 확장 ID가 아니에요"
+            storeErrors[input] = String(localized: "Not a Chrome Web Store address or extension ID")
             return
         }
         guard !installing.contains(id) else { return }
@@ -227,7 +230,7 @@ final class ExtensionHost: NSObject, ObservableObject {
             if await addFolder(folder) {
                 if let backup { try? FileManager.default.removeItem(at: backup) }
             } else {
-                storeErrors[id] = failures[folder.path] ?? "설치를 취소했어요"
+                storeErrors[id] = failures[folder.path] ?? String(localized: "Installation was cancelled")
                 try ChromeWebStore.restore(backup, id: id)
                 if backup == nil {
                     Preferences.shared.extensionFolders.removeAll { $0 == folder.path }
@@ -333,7 +336,8 @@ extension ExtensionHost: WKWebExtensionControllerDelegate {
     func webExtensionController(_ controller: WKWebExtensionController, promptForPermissions permissions: Set<WKWebExtension.Permission>,
                                 in tab: (any WKWebExtensionTab)?, for extensionContext: WKWebExtensionContext,
                                 completionHandler: @escaping (Set<WKWebExtension.Permission>, Date?) -> Void) {
-        let allowed = ask("'\(extensionContext.webExtension.displayName ?? "확장")'이(가) 권한을 더 요청해요",
+        let name = extensionContext.webExtension.displayName ?? String(localized: "Extension")
+        let allowed = ask(String(localized: "'\(name)' asks for more permissions"),
                           permissions.map(\.rawValue).sorted().joined(separator: ", "))
         completionHandler(allowed ? permissions : [], nil)
     }
@@ -341,7 +345,8 @@ extension ExtensionHost: WKWebExtensionControllerDelegate {
     func webExtensionController(_ controller: WKWebExtensionController, promptForPermissionMatchPatterns matchPatterns: Set<WKWebExtension.MatchPattern>,
                                 in tab: (any WKWebExtensionTab)?, for extensionContext: WKWebExtensionContext,
                                 completionHandler: @escaping (Set<WKWebExtension.MatchPattern>, Date?) -> Void) {
-        let allowed = ask("'\(extensionContext.webExtension.displayName ?? "확장")'이(가) 이 사이트에 접근하려고 해요",
+        let name = extensionContext.webExtension.displayName ?? String(localized: "Extension")
+        let allowed = ask(String(localized: "'\(name)' wants to access this site"),
                           matchPatterns.map(\.string).sorted().joined(separator: "\n"))
         completionHandler(allowed ? matchPatterns : [], nil)
     }
@@ -349,7 +354,8 @@ extension ExtensionHost: WKWebExtensionControllerDelegate {
     func webExtensionController(_ controller: WKWebExtensionController, promptForPermissionToAccess urls: Set<URL>,
                                 in tab: (any WKWebExtensionTab)?, for extensionContext: WKWebExtensionContext,
                                 completionHandler: @escaping (Set<URL>, Date?) -> Void) {
-        let allowed = ask("'\(extensionContext.webExtension.displayName ?? "확장")'이(가) 이 사이트에 접근하려고 해요",
+        let name = extensionContext.webExtension.displayName ?? String(localized: "Extension")
+        let allowed = ask(String(localized: "'\(name)' wants to access this site"),
                           urls.compactMap { $0.host() }.sorted().joined(separator: "\n"))
         completionHandler(allowed ? urls : [], nil)
     }
@@ -379,8 +385,8 @@ extension ExtensionHost: WKWebExtensionControllerDelegate {
         let alert = NSAlert()
         alert.messageText = message
         alert.informativeText = detail
-        alert.addButton(withTitle: "허용")
-        alert.addButton(withTitle: "거부")
+        alert.addButton(withTitle: String(localized: "Allow"))
+        alert.addButton(withTitle: String(localized: "Deny"))
         return alert.runModal() == .alertFirstButtonReturn
     }
 }
@@ -542,8 +548,8 @@ struct ExtensionButton: View {
             ExtensionHost.shared.anchors[item.id, default: .weakObjects()].add(view)
         })
         .contextMenu {
-            if item.context.optionsPageURL != nil { Button("확장 설정") { ExtensionHost.shared.openOptions(item) } }
-            Button("끄기") { Task { await ExtensionHost.shared.setEnabled(item.source, false) } }
+            if item.context.optionsPageURL != nil { Button("Extension Settings") { ExtensionHost.shared.openOptions(item) } }
+            Button("Turn Off") { Task { await ExtensionHost.shared.setEnabled(item.source, false) } }
         }
     }
 }

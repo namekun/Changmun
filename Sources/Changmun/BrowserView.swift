@@ -255,7 +255,7 @@ struct Sidebar: View {
                         }
                     }
                     if !library.sources.isEmpty {
-                        SectionHeader(title: "북마크", isOpen: showBookmarks) { showBookmarks.toggle() }
+                        SectionHeader(title: String(localized: "Bookmarks"), isOpen: showBookmarks) { showBookmarks.toggle() }
                             .padding(.top, 14)
                             .padding(.bottom, 2)
                         if showBookmarks {
@@ -264,8 +264,8 @@ struct Sidebar: View {
                                 FolderRow(name: group.source, symbol: "books.vertical", count: group.folders.reduce(0) { $0 + $1.entries.count },
                                           isOpen: openFolders.contains(key)) { toggle(key) }
                                     .contextMenu {
-                                        Button("\(group.source) 북마크 모두 삭제…") {
-                                            if confirmDelete("\(group.source)에서 가져온 북마크를 모두 지울까요?") { Library.shared.removeSource(group.source) }
+                                        Button("Delete All \(group.source) Bookmarks…") {
+                                            if confirmDelete(String(localized: "Delete all bookmarks imported from \(group.source)?")) { Library.shared.removeSource(group.source) }
                                         }
                                     }
                                 if openFolders.contains(key) {
@@ -276,8 +276,11 @@ struct Sidebar: View {
                                         .padding(.leading, 12)
                                         .help(folder.key)
                                         .contextMenu {
-                                            Button("폴더 삭제…") {
-                                                if confirmDelete("'\(folder.label)' 폴더와 안의 북마크 \(folder.entries.count)개를 지울까요?") {
+                                            Button("Delete Folder…") {
+                                                let count = folder.entries.count
+                                                let question = count == 1 ? String(localized: "Delete the folder “\(folder.label)” and its \(count) bookmark?")
+                                                                          : String(localized: "Delete the folder “\(folder.label)” and its \(count) bookmarks?")
+                                                if confirmDelete(question) {
                                                     Library.shared.removeFolder(folder.key)
                                                 }
                                             }
@@ -332,17 +335,17 @@ struct Sidebar: View {
     @ViewBuilder private func splitItem(url: String, key: String) -> some View {
         let tab = browser.bookmarkTab(key)
         if let tab, browser.split?.contains(tab.id) == true {
-            Button("분할 보기 끝내기") { browser.unsplit() }
+            Button("End Split View") { browser.unsplit() }
         } else if browser.activeID != nil && tab?.id != browser.activeID {
-            Button("지금 탭 옆에 나란히 보기") { browser.split(withBookmark: url, key: key) }
+            Button("Show Side by Side with Current Tab") { browser.split(withBookmark: url, key: key) }
         }
     }
 
     private func confirmDelete(_ message: String) -> Bool {
         let alert = NSAlert()
         alert.messageText = message
-        alert.addButton(withTitle: "취소")
-        alert.addButton(withTitle: "삭제").hasDestructiveAction = true
+        alert.addButton(withTitle: String(localized: "Cancel"))
+        alert.addButton(withTitle: String(localized: "Delete")).hasDestructiveAction = true
         return alert.runModal() == .alertSecondButtonReturn
     }
 
@@ -380,7 +383,7 @@ struct SidebarResizeHandle: View {
                     .onEnded { _ in start = nil }
             )
             .onTapGesture(count: 2) { width = Preferences.defaultSidebarWidth }
-            .help("끌어서 사이드바 폭 조절 · 더블클릭하면 기본 폭")
+            .help("Drag to resize the sidebar · double-click for default width")
     }
 }
 
@@ -481,7 +484,7 @@ struct PageBar: View {
     var body: some View {
         HStack(spacing: 2) {
             if !browser.showSidebar { Color.clear.frame(width: 62) }
-            BarButton(symbol: "sidebar.left", help: browser.showSidebar ? "사이드바 숨기기" : "사이드바 보기") { browser.showSidebar.toggle() }
+            BarButton(symbol: "sidebar.left", help: browser.showSidebar ? String(localized: "Hide Sidebar") : String(localized: "Show Sidebar")) { browser.showSidebar.toggle() }
             if let tab = browser.active { NavigationButtons(tab: tab) } else { DisabledNavigationButtons() }
             Group {
                 if let tab = browser.active {
@@ -514,9 +517,9 @@ struct NavigationButtons: View {
     @ObservedObject var tab: Tab
 
     var body: some View {
-        BarButton(symbol: "chevron.left", help: "뒤로 (⌘[)") { tab.webView?.goBack() }.disabled(!tab.canGoBack)
-        BarButton(symbol: "chevron.right", help: "앞으로 (⌘])") { tab.webView?.goForward() }.disabled(!tab.canGoForward)
-        BarButton(symbol: tab.isLoading ? "xmark" : "arrow.clockwise", help: "새로고침 (⌘R)") {
+        BarButton(symbol: "chevron.left", help: String(localized: "Back (⌘[)")) { tab.webView?.goBack() }.disabled(!tab.canGoBack)
+        BarButton(symbol: "chevron.right", help: String(localized: "Forward (⌘])")) { tab.webView?.goForward() }.disabled(!tab.canGoForward)
+        BarButton(symbol: tab.isLoading ? "xmark" : "arrow.clockwise", help: String(localized: "Reload (⌘R)")) {
             if tab.isLoading { tab.webView?.stopLoading() } else { tab.webView?.reload() }
         }
     }
@@ -524,9 +527,9 @@ struct NavigationButtons: View {
 
 struct DisabledNavigationButtons: View {
     var body: some View {
-        BarButton(symbol: "chevron.left", help: "뒤로") {}.disabled(true)
-        BarButton(symbol: "chevron.right", help: "앞으로") {}.disabled(true)
-        BarButton(symbol: "arrow.clockwise", help: "새로고침") {}.disabled(true)
+        BarButton(symbol: "chevron.left", help: String(localized: "Back")) {}.disabled(true)
+        BarButton(symbol: "chevron.right", help: String(localized: "Forward")) {}.disabled(true)
+        BarButton(symbol: "arrow.clockwise", help: String(localized: "Reload")) {}.disabled(true)
     }
 }
 
@@ -571,7 +574,7 @@ struct AddressPill: View {
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(Theme.secondary)
             let host = tab.url?.host().map { $0.hasPrefix("www.") ? String($0.dropFirst(4)) : $0 }
-            Text(host ?? "주소 입력")
+            Text(host ?? String(localized: "Enter Address"))
                 .font(.system(size: 13, weight: .semibold))
                 .lineLimit(1)
                 .foregroundStyle(Theme.primary)
@@ -597,7 +600,7 @@ struct AddressPill: View {
         .background(FieldBackground(tab: tab))
         .contentShape(Rectangle())
         .onTapGesture(perform: edit)
-        .help("주소 편집 (⌘L)")
+        .help("Edit Address (⌘L)")
     }
 }
 
@@ -615,7 +618,7 @@ struct AddressField: View {
             Image(systemName: tab.url?.scheme == "https" ? "lock.fill" : "globe")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(Theme.secondary)
-            TextField("검색 또는 주소 입력", text: $text)
+            TextField("Search or enter address", text: $text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Theme.primary)
@@ -659,7 +662,7 @@ struct AddressPlaceholder: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .semibold))
-            Text("검색 또는 주소 입력").font(.system(size: 13, weight: .medium))
+            Text("Search or enter address").font(.system(size: 13, weight: .medium))
             Spacer()
             Keycap("⌘T")
         }
@@ -692,7 +695,7 @@ struct TranslateButton: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(tab.translation == .translated ? Theme.primary : Theme.dim)
-            .help(tab.translation == .translated ? "원문 보기 (⌥⌘T)" : "번역 (⌥⌘T)")
+            .help(tab.translation == .translated ? String(localized: "Show Original (⌥⌘T)") : String(localized: "Translate (⌥⌘T)"))
         }
     }
 }
@@ -709,7 +712,7 @@ struct PictureInPictureButton: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(Theme.secondary)
-            .help("화면 속 화면 (⌃⌘P)")
+            .help("Picture in Picture (⌃⌘P)")
         }
     }
 }
@@ -729,7 +732,7 @@ struct AdBlockShield: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(off ? "이 사이트에서 광고 차단 켜기" : "이 사이트에서 광고 차단 끄기 (사이트가 깨질 때)")
+            .help(off ? String(localized: "Turn on ad blocking for this site") : String(localized: "Turn off ad blocking for this site (if it breaks)"))
         }
     }
 }
@@ -752,7 +755,7 @@ struct BookmarkStar: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(marked ? "즐겨찾기에서 빼기 (⌘D)" : "즐겨찾기에 추가 (⌘D)")
+        .help(marked ? String(localized: "Remove from Favorites (⌘D)") : String(localized: "Add to Favorites (⌘D)"))
     }
 }
 
@@ -814,7 +817,7 @@ struct FavoriteTile<SplitItem: View>: View {
             .overlay(alignment: .topTrailing) {
                 if hover {
                     HoverAction(symbol: state == .closed ? "xmark" : "minus",
-                                help: state == .closed ? "즐겨찾기에서 빼기" : "이 즐겨찾기의 탭 닫기",
+                                help: state == .closed ? String(localized: "Remove from Favorites") : String(localized: "Close this favorite’s tab"),
                                 action: state == .closed ? remove : closeTab)
                         .scaleEffect(0.78)
                         .padding(1)
@@ -822,10 +825,10 @@ struct FavoriteTile<SplitItem: View>: View {
             }
             .onHover { hover = $0 }
             .contextMenu {
-                if state != .closed { Button("탭 닫기", action: closeTab) }
+                if state != .closed { Button("Close Tab", action: closeTab) }
                 split()
                 Divider()
-                Button("즐겨찾기에서 빼기", action: remove)
+                Button("Remove from Favorites", action: remove)
             }
             .help(entry.title.isEmpty ? entry.url : entry.title)
     }
@@ -878,7 +881,7 @@ struct BookmarkRow<SplitItem: View>: View {
             Spacer(minLength: 0)
             if hover {
                 HoverAction(symbol: state == .closed ? "xmark" : "minus",
-                            help: state == .closed ? "북마크 삭제" : "이 북마크의 탭 닫기",
+                            help: state == .closed ? String(localized: "Delete Bookmark") : String(localized: "Close this bookmark’s tab"),
                             action: state == .closed ? remove : closeTab)
             } else if state == .open {
                 Circle().fill(Theme.dim).frame(width: 4, height: 4).padding(.trailing, 6)
@@ -893,10 +896,10 @@ struct BookmarkRow<SplitItem: View>: View {
         .onHover { hover = $0 }
         .onTapGesture(perform: open)
         .contextMenu {
-            if state != .closed { Button("탭 닫기", action: closeTab) }
+            if state != .closed { Button("Close Tab", action: closeTab) }
             split()
             Divider()
-            Button("북마크 삭제", action: remove)
+            Button("Delete Bookmark", action: remove)
         }
         .help(entry.url)
     }
@@ -919,7 +922,7 @@ struct TabGroupHeader: View {
                 .rotationEffect(.degrees(group.isOpen ? 90 : 0))
                 .frame(width: 16)
             if browser.renamingGroup == group.id {
-                TextField("그룹 이름", text: $name)
+                TextField("Group name", text: $name)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12.5, weight: .semibold))
                     .foregroundStyle(Theme.primary)
@@ -951,12 +954,12 @@ struct TabGroupHeader: View {
             withAnimation(.easeOut(duration: 0.15)) { browser.toggleGroup(group.id) }
         }
         .contextMenu {
-            Button("이름 바꾸기") { browser.renamingGroup = group.id }
-            Button("그룹 풀기") { browser.ungroup(group.id) }
+            Button("Rename") { browser.renamingGroup = group.id }
+            Button("Ungroup") { browser.ungroup(group.id) }
             Divider()
-            Button("그룹의 탭 모두 닫기") { browser.closeGroup(group.id) }
+            Button("Close All Tabs in Group") { browser.closeGroup(group.id) }
         }
-        .help(group.isOpen ? "접기" : "펼치기")
+        .help(group.isOpen ? String(localized: "Collapse") : String(localized: "Expand"))
     }
 
     private func commit() {
@@ -988,7 +991,7 @@ struct TidyButton: View {
         .foregroundStyle(hover ? Theme.primary : Theme.dim)
         .disabled(browser.tidying)
         .onHover { hover = $0 }
-        .help("탭 정리: 그룹에 없는 탭을 비슷한 것끼리 묶기")
+        .help("Tidy Tabs: group tabs that are not in a group by similarity")
     }
 }
 
@@ -997,14 +1000,22 @@ struct TidyNotice: View {
     let tidy: Browser.Tidy
     let undo: () -> Void
 
+    private var message: String {
+        let count = tidy.tabs
+        if tidy.made.isEmpty {
+            return count == 1 ? String(localized: "Added \(count) tab to a group") : String(localized: "Added \(count) tabs to groups")
+        }
+        return count == 1 ? String(localized: "Tidied \(count) tab") : String(localized: "Tidied \(count) tabs")
+    }
+
     var body: some View {
         HStack(spacing: 6) {
-            Text(tidy.made.isEmpty ? "탭 \(tidy.tabs)개를 그룹에 넣었어요" : "탭 \(tidy.tabs)개를 정리했어요")
+            Text(message)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Theme.secondary)
                 .lineLimit(1)
             Spacer(minLength: 0)
-            Button("되돌리기", action: undo)
+            Button("Undo", action: undo)
                 .buttonStyle(.plain)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Theme.primary)
@@ -1021,7 +1032,7 @@ struct NewTabRow: View {
     var body: some View {
         HStack(spacing: 9) {
             Image(systemName: "plus").font(.system(size: 12, weight: .semibold)).frame(width: 16)
-            Text("새 탭").font(.system(size: 12.5, weight: .medium))
+            Text("New Tab").font(.system(size: 12.5, weight: .medium))
             Spacer()
             if hover { Keycap("⌘T") }
         }
@@ -1032,7 +1043,7 @@ struct NewTabRow: View {
         .contentShape(Rectangle())
         .onHover { hover = $0 }
         .onTapGesture(perform: action)
-        .help("새 탭 (⌘T)")
+        .help("New Tab (⌘T)")
     }
 }
 
@@ -1054,15 +1065,15 @@ struct SidebarTabRow: View {
             Spacer(minLength: 0)
             if tab.isPlayingAudio || tab.isMuted {
                 HoverAction(symbol: tab.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                            help: tab.isMuted ? "소리 켜기 (⌃⌘M)" : "음소거 (⌃⌘M)") { tab.toggleMute() }
+                            help: tab.isMuted ? String(localized: "Unmute (⌃⌘M)") : String(localized: "Mute (⌃⌘M)")) { tab.toggleMute() }
             }
             if hover {
-                HoverAction(symbol: "xmark", help: "탭 닫기 (⌘W)", action: close)
+                HoverAction(symbol: "xmark", help: String(localized: "Close Tab (⌘W)"), action: close)
             } else if browser.split?.contains(tab.id) == true {
                 Image(systemName: "rectangle.split.2x1")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(Theme.faint)
-                    .help("분할 보기")
+                    .help("Split View")
             }
         }
         .padding(.horizontal, 8)
@@ -1074,37 +1085,37 @@ struct SidebarTabRow: View {
         .onHover { hover = $0 }
         .onTapGesture(perform: select)
         .contextMenu {
-            Button("즐겨찾기에 고정") {
+            Button("Pin to Favorites") {
                 if let url = tab.url?.absoluteString {
                     if !Library.shared.isFavorite(url) { _ = Library.shared.toggleBookmark(url: url, title: tab.title) }
                     browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: Library.favoritesFolder))
                 }
             }
             if tab.groupID == nil {
-                Button("새 그룹으로 묶기") { browser.group([tab.id]) }
+                Button("Add to New Group") { browser.group([tab.id]) }
             } else {
-                Button("그룹에서 빼기") { browser.removeFromGroup(tab.id) }
+                Button("Remove from Group") { browser.removeFromGroup(tab.id) }
             }
             let otherGroups = browser.groups.filter { $0.id != tab.groupID }
             if !otherGroups.isEmpty {
-                Menu("그룹으로 옮기기") {
+                Menu("Move to Group") {
                     ForEach(otherGroups) { group in
                         Button(group.name) { browser.addTab(tab.id, to: group.id) }
                     }
                 }
             }
             if browser.split?.contains(tab.id) == true {
-                Button("분할 보기 끝내기") { browser.unsplit() }
+                Button("End Split View") { browser.unsplit() }
             } else if !isActive && browser.activeID != nil {
-                Button("지금 탭 옆에 나란히 보기") { browser.split(with: tab.id) }
+                Button("Show Side by Side with Current Tab") { browser.split(with: tab.id) }
             }
-            Button("주소 복사") {
+            Button("Copy Address") {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(tab.url?.absoluteString ?? "", forType: .string)
             }
-            if !tab.isAsleep { Button(tab.isMuted ? "소리 켜기" : "탭 음소거") { tab.toggleMute() } }
+            if !tab.isAsleep { Button(tab.isMuted ? String(localized: "Unmute") : String(localized: "Mute Tab")) { tab.toggleMute() } }
             Divider()
-            Button("탭 닫기", action: close)
+            Button("Close Tab", action: close)
         }
         .help(tab.url?.absoluteString ?? "")
     }
@@ -1175,7 +1186,7 @@ struct AIButton: View {
         }
         .buttonStyle(.plain)
         .onHover { hover = $0 }
-        .help("AI 패널 (⌘E)")
+        .help("AI Panel (⌘E)")
     }
 }
 
@@ -1184,13 +1195,13 @@ struct PrivateBadge: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "eye.slash").font(.system(size: 11, weight: .semibold))
-            Text("개인 창").font(.system(size: 12, weight: .semibold))
+            Text("Private Window").font(.system(size: 12, weight: .semibold))
         }
         .padding(.horizontal, 11)
         .frame(height: 30)
         .foregroundStyle(Theme.primary)
         .background(Capsule().strokeBorder(Theme.hairline, lineWidth: 0.5))
-        .help("기록·쿠키·사이트 데이터를 남기지 않아요. AI와 확장은 이 창을 보지 못해요.")
+        .help("Leaves no history, cookies or site data. AI and extensions can’t see this window.")
     }
 }
 
@@ -1302,9 +1313,10 @@ struct LoginOfferBar: View {
 
     var body: some View {
         if let offer = tab.loginOffer {
+            let site = offer.host.hasPrefix("www.") ? String(offer.host.dropFirst(4)) : offer.host
             HStack(spacing: 8) {
                 Image(systemName: "key.fill").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
-                Text("\(offer.host.hasPrefix("www.") ? String(offer.host.dropFirst(4)) : offer.host)의 로그인 정보를 저장할까요?")
+                Text("Save login info for \(site)?")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
@@ -1312,15 +1324,14 @@ struct LoginOfferBar: View {
                     Text(offer.username).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
                 }
                 Spacer(minLength: 8)
-                PeekAction(title: "저장") {
+                PeekAction(title: String(localized: "Save")) {
                     if Logins.save(host: offer.host, username: offer.username, password: offer.password) {
-                        tab.browser?.flashStatus("로그인 정보를 저장했어요")
+                        tab.browser?.flashStatus(String(localized: "Login info saved"))
                     }
                     tab.loginOffer = nil
                     tab.checkForLogins()
                 }
-                Button("이 사이트는 안 함") {
-                    let site = offer.host.hasPrefix("www.") ? String(offer.host.dropFirst(4)) : offer.host
+                Button("Never for This Site") {
                     Preferences.shared.neverSaveLoginHosts.append(site.lowercased())
                     tab.loginOffer = nil
                 }
@@ -1328,7 +1339,7 @@ struct LoginOfferBar: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Theme.secondary)
                 .padding(.horizontal, 4)
-                BarButton(symbol: "xmark", help: "닫기") { tab.loginOffer = nil }
+                BarButton(symbol: "xmark", help: String(localized: "Close")) { tab.loginOffer = nil }
             }
             .padding(.leading, 12)
             .padding(.trailing, 4)
@@ -1350,18 +1361,18 @@ struct PopupBar: View {
         if let popup = tab.blockedPopup {
             HStack(spacing: 8) {
                 Image(systemName: "macwindow.badge.plus").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
-                Text("팝업을 막았어요").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary)
+                Text("Pop-up blocked").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary)
                 Text(popup.host() ?? popup.absoluteString).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
                 Spacer(minLength: 8)
-                PeekAction(title: "열기") { tab.openBlockedPopup(always: false) }
+                PeekAction(title: String(localized: "Open")) { tab.openBlockedPopup(always: false) }
                 if !tab.isPrivate {
-                    Button("이 사이트는 항상 허용") { tab.openBlockedPopup(always: true) }
+                    Button("Always Allow for This Site") { tab.openBlockedPopup(always: true) }
                         .buttonStyle(.plain)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Theme.secondary)
                         .padding(.horizontal, 4)
                 }
-                BarButton(symbol: "xmark", help: "닫기") { tab.blockedPopup = nil }
+                BarButton(symbol: "xmark", help: String(localized: "Close")) { tab.blockedPopup = nil }
             }
             .padding(.leading, 12)
             .padding(.trailing, 4)
@@ -1385,7 +1396,7 @@ struct WebStoreBar: View {
         if let url = tab.url, let id = ChromeWebStore.extensionID(from: url.absoluteString) {
             HStack(spacing: 8) {
                 Image(systemName: "puzzlepiece.extension").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
-                Text(host.isInstalled(chromeWebStoreID: id) ? "Changmun에 설치된 확장이에요" : "이 확장을 Changmun에서 쓸 수 있어요")
+                Text(host.isInstalled(chromeWebStoreID: id) ? String(localized: "This extension is installed in Changmun") : String(localized: "You can use this extension in Changmun"))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
@@ -1396,7 +1407,7 @@ struct WebStoreBar: View {
                 if host.installing.contains(id) {
                     ProgressView().controlSize(.small).padding(.horizontal, 8)
                 } else {
-                    PeekAction(title: host.isInstalled(chromeWebStoreID: id) ? "업데이트" : "Changmun에 추가") {
+                    PeekAction(title: host.isInstalled(chromeWebStoreID: id) ? String(localized: "Update") : String(localized: "Add to Changmun")) {
                         Task { await host.installFromChromeWebStore(id) }
                     }
                 }
@@ -1442,7 +1453,7 @@ struct SplitDivider: View {
                     .onEnded { _ in start = nil }
             )
             .onTapGesture(count: 2) { fraction = 0.5 }
-            .help("끌어서 폭 나누기 · 더블클릭하면 반반")
+            .help("Drag to resize · double-click to split evenly")
     }
 }
 
@@ -1469,8 +1480,8 @@ struct PeekCard: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                     Spacer(minLength: 8)
-                    PeekAction(title: "탭으로 열기", key: "⌘↩") { browser.keepPeek() }
-                    PeekAction(title: "닫기", key: "esc") { browser.closePeek() }
+                    PeekAction(title: String(localized: "Open as Tab"), key: "⌘↩") { browser.keepPeek() }
+                    PeekAction(title: String(localized: "Close"), key: "esc") { browser.closePeek() }
                 }
                 .padding(.leading, 6)
                 .frame(height: 30)
@@ -1625,7 +1636,7 @@ struct EmptyPage: View {
         VStack(spacing: 10) {
             Image(systemName: "sparkles").font(.system(size: 22, weight: .medium)).foregroundStyle(Theme.ink(0.3))
             HStack(spacing: 6) {
-                Text("새 탭").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.faint)
+                Text("New Tab").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.faint)
                 Keycap("⌘T")
                 Text("AI").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.faint).padding(.leading, 8)
                 Keycap("⌘E")
@@ -1693,7 +1704,7 @@ struct CommandBar: View {
                     Image(systemName: mode == .editCurrent ? "link" : "magnifyingglass")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Theme.secondary)
-                    TextField(browser.isPrivate ? "검색하거나 주소를 입력하세요" : "검색하거나 주소를 입력하거나, AI에게 물어보세요", text: $text)
+                    TextField(browser.isPrivate ? String(localized: "Search or enter an address") : String(localized: "Search, enter an address or ask AI"), text: $text)
                         .textFieldStyle(.plain)
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(Theme.primary)
@@ -1813,15 +1824,15 @@ struct SuggestionRow: View {
             Text(text).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
         case .search(let text):
             Text(text).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
-            Text("검색").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint)
+            Text("Search").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint)
         case .suggested(let text):
             Text(text).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
         case .tab(_, let url, let title):
             Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
-            Text("탭으로 전환").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint)
+            Text("Switch to Tab").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint)
             Text(URL(string: url)?.host() ?? "").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
         case .ask(let text):
-            Text("AI에게 묻기").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.secondary)
+            Text("Ask AI").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.secondary)
             Text(text).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
         case .page(let url, let title):
             Text(title.isEmpty ? url : title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)

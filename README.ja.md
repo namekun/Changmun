@@ -1,0 +1,158 @@
+<p align="center"><img src="docs/images/icon.png" width="120" alt="Changmunのアイコン"></p>
+
+<h1 align="center">Changmun</h1>
+
+<p align="center">
+  <b>サイドバーと、それを操作できるAIを備えた、軽量なMac用ブラウザ。</b><br>
+  SafariのWebKitエンジン、縦型タブ、左側のお気に入りとブックマークフォルダ、そしてページを読み、クリックや入力まで代行するClaudeパネル。
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/macOS-14%2B-black?logo=apple" alt="macOS 14以降">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-555555" alt="MITライセンス"></a>
+  <img src="https://img.shields.io/badge/Swift-native-orange?logo=swift&logoColor=white" alt="ネイティブSwift">
+</p>
+
+<p align="center">
+  <a href="README.md">English</a> · <a href="README.ko.md">한국어</a> · <b>日本語</b> · <a href="README.zh-Hans.md">简体中文</a> · <a href="README.es.md">Español</a> · <a href="README.de.md">Deutsch</a> · <a href="README.fr.md">Français</a>
+</p>
+
+<p align="center">
+  <img src="docs/images/window.png" width="760" alt="サイドバーに縦型タブが並び、ページがカードのように表示されたChangmunのウインドウ">
+</p>
+
+*Changmun* (창문) は韓国語で「窓」を意味します。無料のオープンソースで、アカウントもトラッキングもありません。アプリは英語、韓国語、日本語、簡体字中国語、スペイン語、ドイツ語、フランス語に対応しています。
+
+## ビルドと実行
+
+まだダウンロード版はありません。ソースからビルドしてください。macOS 14以降と、XcodeまたはCommand Line Toolsが必要です。
+
+```sh
+git clone https://github.com/namekun/Changmun.git
+cd Changmun
+scripts/bundle.sh release   # makes build/Changmun.app
+open build/Changmun.app
+```
+
+Command Line Toolsだけがインストールされている場合、スクリプトはmacOS 26 SDKでビルドします (macOS 27 SDKのSwiftUIマクロプラグインはXcodeにしか含まれていません)。ビルド成果物はiCloudのデスクトップ同期の影響を受けないよう、`~/Library/Caches/Changmun/build`に出力されます。
+
+初回起動時に、いま使っているブラウザからブックマーク、履歴、パスワード、ログイン状態を読み込むかどうかを確認します。
+
+## 主な機能
+
+- **サイドバー。** タイル状のお気に入り、ブックマークフォルダ、縦型タブ。タブはドラッグして並べ替えられ、お気に入りへドラッグすると固定できます。お気に入りとブックマークは、DiaやArcと同様にそれぞれ専用のタブを持ちます。クリックすると、読んでいるタブを置き換えずにそのタブへ移動します (⌘クリックで新規タブに開きます)。
+- **タブグループ。** タブを右クリック › 新規グループに追加で名前を付けて、折りたたみもできます。グループのタブから開いたタブはそのグループに入り、開き直したタブ (⌘⇧T) は元のグループに戻ります。
+- **タブの整理。** 「新規タブ」の横にある魔法の杖 (ウインドウ › タブを整理) で、グループに入っていないタブをまとめます。Apple Intelligenceがオン (macOS 26) なら、Mac上のモデルがトピックごとにグループ化して名前も付けます。タブの情報がMacの外に出ることはありません。オフの場合は、互いに開いたタブと同じサイトのタブをまとめます。「取り消す」を押すと、数秒間は元に戻せます。アドレスバーから開いた新しいタブは、合うグループに自動で入ります (設定 › タブと外観でオフにできます)。
+- **古いタブのアーカイブ** (デフォルトではオフ)。設定した時間 (12時間～30日、Changmunの起動中だけを数えます) 見ていないタブは、履歴 › アーカイブしたタブに閉じられ、元のグループへ開き直せます。表示中のタブ、再生中のタブ、ピクチャインピクチャ中のタブ、カメラやマイクを使用中のタブ、お気に入りのタブ、プライベートタブは、アーカイブされません。
+- **スプリットビュー** (⌥⌘\\) で2つのタブを並べて表示します。**集中モード** (⌘⇧F) はページ以外をすべて隠します。**リンクのプレビュー**: リンクを⇧クリックすると浮かぶカードに開き、⌘↩ でタブとして残せます。
+- **プライベートウインドウ**ではCookieとサイトデータをメモリ上だけに保持し、閉じると消去します。履歴にもセッションにもAIにも渡りません。
+- **コマンドバー** (⌘T): 検索、アドレスの入力、開いているタブ・ブックマーク・履歴への切り替え、AIへの質問ができます。
+- **ページの翻訳**は、macOSのオンデバイス翻訳でその場で行います (⌥⌘T、macOS 26以降)。リンクやレイアウトはそのままで、テキストがMacの外に出ることはありません。
+- **ピクチャインピクチャ** (⌃⌘P) は、動画を再生中のタブから移動すると自動でオンになります。⌃⌘← / ⌃⌘→ なら、ほかのAppを使っているときでも5秒戻る・進むができ、「タブに戻る」でそのタブが前面に表示されます。
+- **パスワード**はサインイン後にキーチェーンへ保存され (httpsのみ)、アドレスバーのキーのボタンから入力します。コピーするにはTouch IDまたはMacのパスワードが必要です。
+- クリックなしで開かれた**ポップアップ**はブロックされ、ページのすぐ上に「開く」と「このサイトでは常に許可」が表示されます。
+- **ダウンロード**の進行状況はサイドバーの下部に表示されます。Safariと同じ隔離フラグが付くので、初めて開くときにGatekeeperが確認します。Appやスクリプト、インストーラは実行せず、Finderで表示します。
+- **スリープするタブ。** バックグラウンドで20分間見ていないタブと、メモリが逼迫したときのすべてのバックグラウンドのタブは、Webプロセスを手放します。戻ると履歴とともに復帰します。
+- ページの拡大率はサイトごとに記憶され、開いているタブは15秒ごとに保存されるので、クラッシュしてもほとんど何も失われません。
+
+## ショートカット
+
+設定 (⌘,) でSafari方式かChrome方式かを選べます。切り替わるのは、2つのブラウザで異なるキーだけです。
+
+| キー | 操作 |
+| --- | --- |
+| ⌘T / ⌘L | コマンドバー / 現在のアドレスを編集 |
+| ⌘E / ⌘⇧E | AIパネル / 新規AIチャット |
+| ⌘D | お気に入りに追加または削除 |
+| ⌘N / ⌘⇧N / ⌘⇧W | 新規ウインドウ / 新規プライベートウインドウ / ウインドウを閉じる |
+| ⌘W、⌘1–9、⌘⇧[ ⌘⇧] | タブを閉じる、サイドバーの順でタブに移動 |
+| ⌃Tab / ⌃⇧Tab | 最後に見た順にタブを切り替え (⌃を押したままTabを押し、離す。escで取りやめ) |
+| ⌥⌘\\ | スプリットビューのオン/オフ |
+| ⇧クリック | リンクのプレビュー: escで閉じる、⌘↩ でタブとして開く |
+| ⌘⇧T | 最後に閉じたタブを開く (タブが残っていないときは、最後に閉じたウインドウ) |
+| ⌃⌘M | タブをミュート/ミュート解除 |
+| ⌃⌘P | ピクチャインピクチャのオン/オフ |
+| ⌃⌘← / ⌃⌘→ | 動画を5秒戻す / 進める |
+| ⌥⌘T | ページを翻訳 / 原文を表示 |
+| ⌘F、⌘G、⌘⇧G | ページ内を検索、次を検索、前を検索 |
+| ⌘Y | 履歴 |
+| ⌘O、⌘P、⌘⇧C | ファイルを開く、プリント、アドレスをコピー |
+| F12 または ⌥⌘I | Webインスペクタ |
+| ⌘⇧F | 集中モード |
+
+| 操作 | Safari方式 | Chrome方式 |
+| --- | --- | --- |
+| サイドバー | ⌘⇧L | ⌘S |
+| 強制再読み込み | ⌥⌘R | ⌘⇧R |
+| コンソール | ⌥⌘C | ⌥⌘J |
+| ダウンロード | ⌥⌘L | ⌘⇧J |
+| 前のタブ / 次のタブ | | ⌥⌘← ⌥⌘→ |
+
+## AI
+
+右側のパネル (⌘E) は、すでにお使いの`claude` CLIを利用するので、Claude Codeのサブスクリプションで動作します。デフォルトのモデルはSonnetで、`defaults write io.github.namekun.Changmun aiModel opus`で切り替えられます。
+
+AIは次のツールでブラウザを操作します: `list_tabs`、`open_tab`、`switch_tab`、`close_tab`、`navigate`、`go_back`、`go_forward`、`reload`、`read_page`、`click`、`type_text`、`scroll`、`screenshot`。パスワード欄は読み取れず、入力もできません。
+
+ページに仕込まれた指示によって、読み取った内容がほかの場所へ持ち出されることがないよう、Changmunは次の場合にまず確認します (90秒間応答がなければ拒否として扱います)。
+
+- 表示していないタブを使うとき (タブとサイトごとに1回)。
+- アドレスを開くとき。ただし、検索、すでに開いているアドレス、訪問済みまたはブックマーク済みのアドレス、既知のサイトのトップページは除きます。
+- チャットがほかのサイトを読み取った後の入力のたび。入力する内容も表示されます。新規チャット (⌘⇧E) では最初からやり直しになります。
+
+Claude Codeなどのほかのエージェントも、MCP経由で同じツールを同じ確認つきで使えます。
+
+```sh
+claude mcp add changmun -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp
+```
+
+`--mcp`を付けると、Changmunが起動していない場合は起動します。制御サーバは127.0.0.1だけで待ち受け、起動のたびに変わるトークンが必要です。
+
+## 広告ブロック
+
+ChangmunはEasyList (広告) とEasyPrivacy (トラッカー) をWebKitのコンテンツブロックルールに変換し、4日ごとに更新します。設定 › プライバシーでは、リストをオフにしたり、アドレスで別のリストを追加したりできます (韓国の広告リストはワンクリックで追加できます)。サイトが正しく表示されないときは、アドレスバーのシールドボタンでそのサイトだけブロックをオフにできます。WebKitで表現できないルール (正規表現、`$redirect`、スクリプトレット、`:has-text`などの拡張セレクタ) は、推測で扱わずにスキップします。
+
+## 機能拡張
+
+設定 › 機能拡張で管理します (Web機能拡張にはmacOS 15.4以降が必要です)。
+
+- **App StoreのSafari機能拡張**は、インストールすると一覧に表示され、オンにするときに必要な許可を求めます。
+- **Chrome ウェブストアの機能拡張**: 機能拡張のストアページを開くと、ページの上に「Changmunに追加」が表示されます (または設定にアドレスかIDを貼り付けます)。Changmunは`~/Library/Application Support/Changmun/Extensions`に展開し、WebKit機能拡張として読み込みます。もう一度追加すると更新されます。
+- **Safariコンテンツブロッカ** (UnicornやAdGuardなど): macOSではブロッカにルールを問い合わせられるのがSafariだけなので、Changmunはブロッカが保存したルールファイルを読み込みます。ほかのアプリケーションのデータの読み込みを許可するか、macOSが一度だけ確認します。
+- 展開済みの機能拡張フォルダ (`manifest.json`を含むもの) も読み込めます。ネイティブAppとの通信など、一部の機能は動作しない場合があります。
+
+## ほかのブラウザから読み込む
+
+初回起動時またはメニューから、Safariと、Chrome、Arc (サイドバーを含む)、Dia、Aside、Whale、Brave、Edge、VivaldiといったChromium系ブラウザのブックマークと履歴を読み込めます。Chromium系ブラウザからはパスワードとCookieも読み込むので、ログインしたままの状態を保てます。
+
+- パスワードとCookieは各ブラウザのキーチェーン項目 (`<name> Safe Storage`) で復号するため、macOSが許可を求めます。読み込んだパスワードは、`Changmun`というラベルでログインキーチェーンに保存されます。
+- Safariの読み込みにはフルディスクアクセスが必要です。macOSは、Safariのパスワードをほかのアプリケーションに渡しません。
+
+## プライバシー
+
+- 閲覧データはMacの外に出ません。Changmunにはアカウントも、サーバも、アナリティクスもありません。
+- 検索候補を表示すると、コマンドバーに入力した文字が検索エンジンに送信されます (設定でオフにできます。プライベートウインドウからは送信されません)。
+- AIパネルは、メッセージと、AIが読み取ったページの内容を、`claude` CLIを通じてAnthropicに送信します。タブの整理とページの翻訳はMac上で実行されます。
+
+## 開発者向け
+
+```sh
+scripts/test.sh            # unit tests (Swift Testing)
+scripts/check-strings.sh   # every string the code uses is translated in every language
+swift scripts/make-icon.swift
+```
+
+UIのテキストはコード内では英語で、`Resources/<language>.lproj/Localizable.strings`で翻訳されます。新しい文字列は6つの表すべてに追加してください。
+
+`scripts/headless.sh`は、テストやエージェント向けにヘッドレスのChangmunを実行します。画面の外で動作し、フォーカスを奪わず、音も鳴らさず、`~/Library/Application Support/Changmun Headless`に専用のプロファイルを持ちます。キーチェーンには触れず、AIの確認、サイトの権限、JavaScriptのダイアログには自動で応答します (権限は拒否されます)。
+
+```sh
+scripts/headless.sh start                                   # copy build/Changmun.app as the headless app and start it
+scripts/headless.sh call open_tab '{"url": "example.com"}'  # the AI's tools: list_tabs, navigate, read_page, click…
+scripts/headless.sh shot window.png                         # the whole window, sidebar included
+scripts/headless.sh stop
+```
+
+## ライセンス
+
+[MIT](LICENSE)

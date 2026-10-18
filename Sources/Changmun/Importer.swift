@@ -39,11 +39,11 @@ struct ImportReport {
 
     var summary: String {
         var parts: [String] = []
-        if bookmarks > 0 { parts.append("북마크 \(bookmarks.formatted())") }
-        if history > 0 { parts.append("기록 \(history.formatted())") }
-        if passwords > 0 { parts.append("비밀번호 \(passwords.formatted())") }
-        if cookies > 0 { parts.append("쿠키 \(cookies.formatted())") }
-        return parts.isEmpty ? "가져온 항목 없음" : parts.joined(separator: " · ")
+        if bookmarks > 0 { parts.append(String(localized: "Bookmarks \(bookmarks.formatted())")) }
+        if history > 0 { parts.append(String(localized: "History \(history.formatted())")) }
+        if passwords > 0 { parts.append(String(localized: "Passwords \(passwords.formatted())")) }
+        if cookies > 0 { parts.append(String(localized: "Cookies \(cookies.formatted())")) }
+        return parts.isEmpty ? String(localized: "No items imported") : parts.joined(separator: " · ")
     }
 }
 
@@ -213,7 +213,7 @@ struct ChromiumImporter {
         let file = source.directory.appendingPathComponent("Bookmarks")
         if let data = try? Data(contentsOf: file),
            let roots = (try JSONSerialization.jsonObject(with: data) as? [String: Any])?["roots"] as? [String: Any] {
-            for (key, label) in [("bookmark_bar", "북마크 바"), ("other", "기타 북마크"), ("synced", "모바일 북마크")] {
+            for (key, label) in [("bookmark_bar", String(localized: "Bookmarks Bar")), ("other", String(localized: "Other Bookmarks")), ("synced", String(localized: "Mobile Bookmarks"))] {
                 guard let node = roots[key] as? [String: Any] else { continue }
                 walk(node, path: [source.browser + " " + label], into: &entries)
             }
@@ -227,7 +227,7 @@ struct ChromiumImporter {
             if child["type"] as? String == "url", let url = child["url"] as? String {
                 entries.append((url, child["name"] as? String ?? "", path.joined(separator: " / ")))
             } else if child["type"] as? String == "folder" {
-                walk(child, path: path + [child["name"] as? String ?? "폴더"], into: &entries)
+                walk(child, path: path + [child["name"] as? String ?? String(localized: "Folder")], into: &entries)
             }
         }
     }
@@ -241,7 +241,7 @@ struct ChromiumImporter {
         func visit(_ value: Any) {
             if let dict = value as? [String: Any] {
                 if let tab = (dict["data"] as? [String: Any])?["tab"] as? [String: Any], let url = tab["savedURL"] as? String, seen.insert(url).inserted {
-                    entries.append((url, dict["title"] as? String ?? tab["savedTitle"] as? String ?? "", "Arc 사이드바"))
+                    entries.append((url, dict["title"] as? String ?? tab["savedTitle"] as? String ?? "", "Arc " + String(localized: "Sidebar")))
                 }
                 dict.values.forEach(visit)
             } else if let array = value as? [Any] {
@@ -338,9 +338,9 @@ enum SafariImporter {
                 if child["WebBookmarkType"] as? String == "WebBookmarkTypeLeaf", let url = child["URLString"] as? String {
                     entries.append((url, (child["URIDictionary"] as? [String: Any])?["title"] as? String ?? "", path.joined(separator: " / ")))
                 } else if child["WebBookmarkType"] as? String == "WebBookmarkTypeList" {
-                    let title = child["Title"] as? String ?? "폴더"
+                    let title = child["Title"] as? String ?? String(localized: "Folder")
                     if title == "com.apple.ReadingList" { continue }
-                    let label = ["BookmarksBar": "즐겨찾기", "BookmarksMenu": "북마크 메뉴"][title] ?? title
+                    let label = ["BookmarksBar": String(localized: "Favorites"), "BookmarksMenu": String(localized: "Bookmarks Menu")][title] ?? title
                     walk(child, path: path + [label])
                 }
             }
@@ -369,46 +369,46 @@ enum ImportRunner {
         switch source.kind {
         case .safari:
             if options.bookmarks {
-                progress("Safari 북마크")
+                progress(String(localized: "Safari bookmarks"))
                 do { report.bookmarks = try library.importBookmarks(SafariImporter.bookmarks(folder: source.directory)) }
                 catch { report.problems.append(safariProblem(error)) }
             }
             if options.history {
-                progress("Safari 방문 기록")
+                progress(String(localized: "Safari history"))
                 do { report.history = try library.importHistory(SafariImporter.history(folder: source.directory)) }
                 catch { report.problems.append(safariProblem(error)) }
             }
         case .chromium(let safeStorage):
             let importer = ChromiumImporter(source: source, safeStorage: safeStorage)
             if options.bookmarks {
-                progress("\(source.title) 북마크")
-                do { report.bookmarks = try library.importBookmarks(importer.bookmarks()) } catch { report.problems.append("북마크: \(error.localizedDescription)") }
+                progress(String(localized: "\(source.title) bookmarks"))
+                do { report.bookmarks = try library.importBookmarks(importer.bookmarks()) } catch { report.problems.append(String(localized: "Bookmarks: \(error.localizedDescription)")) }
             }
             if options.history {
-                progress("\(source.title) 방문 기록")
-                do { report.history = try library.importHistory(importer.history()) } catch { report.problems.append("방문 기록: \(error.localizedDescription)") }
+                progress(String(localized: "\(source.title) history"))
+                do { report.history = try library.importHistory(importer.history()) } catch { report.problems.append(String(localized: "History: \(error.localizedDescription)")) }
             }
             if options.passwords || options.cookies {
-                progress("\(source.browser) 키체인 허용을 기다리는 중…")
+                progress(String(localized: "Waiting for \(source.browser) Keychain access…"))
                 guard let secret = ChromiumCrypto.secret(service: safeStorage) else {
-                    report.problems.append("키체인의 '\(safeStorage)'를 읽지 못해서 비밀번호와 쿠키는 건너뛰었어요. 허용 창에서 '허용'을 눌러야 가져올 수 있어요.")
+                    report.problems.append(String(localized: "Couldn't read '\(safeStorage)' from the Keychain, so passwords and cookies were skipped. Click 'Allow' in the permission dialog to import them."))
                     return report
                 }
                 let key = ChromiumCrypto.key(fromSecret: secret)
                 if options.passwords {
-                    progress("\(source.title) 비밀번호")
+                    progress(String(localized: "\(source.title) passwords"))
                     do {
                         for login in try importer.passwords(key: key) where Logins.save(host: login.host, username: login.username, password: login.password) {
                             report.passwords += 1
                         }
-                    } catch { report.problems.append("비밀번호: \(error.localizedDescription)") }
+                    } catch { report.problems.append(String(localized: "Passwords: \(error.localizedDescription)")) }
                 }
                 if options.cookies {
-                    progress("\(source.title) 쿠키")
+                    progress(String(localized: "\(source.title) cookies"))
                     do {
                         let cookies = try importer.cookies(key: key).compactMap(\.httpCookie)
                         report.cookies = await store(cookies)
-                    } catch { report.problems.append("쿠키: \(error.localizedDescription)") }
+                    } catch { report.problems.append(String(localized: "Cookies: \(error.localizedDescription)")) }
                 }
             }
         }
@@ -422,10 +422,14 @@ enum ImportRunner {
         return cookies.count
     }
 
+    static var fullDiskAccessProblem: String {
+        String(localized: "Safari data can only be read once Changmun is turned on in System Settings › Privacy & Security › Full Disk Access.")
+    }
+
     private static func safariProblem(_ error: Error) -> String {
         let nsError = error as NSError
         if nsError.domain == NSCocoaErrorDomain && (nsError.code == NSFileReadNoPermissionError || nsError.code == 257) || "\(error)".contains("authorization") || "\(error)".contains("unable to open") {
-            return "Safari 데이터는 시스템 설정 › 개인정보 보호 및 보안 › 전체 디스크 접근 권한에서 Changmun을 켜야 읽을 수 있어요."
+            return fullDiskAccessProblem
         }
         return error.localizedDescription
     }

@@ -1,0 +1,3 @@
+"NSCameraUsageDescription" = "Se usa cuando un sitio web solicita la cámara.";
+"NSMicrophoneUsageDescription" = "Se usa cuando un sitio web solicita el micrófono.";
+"NSLocationUsageDescription" = "Se usa cuando un sitio web solicita tu ubicación.";

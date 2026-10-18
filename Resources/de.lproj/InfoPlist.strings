@@ -1,0 +1,3 @@
+"NSCameraUsageDescription" = "Wird verwendet, wenn eine Website auf die Kamera zugreifen möchte.";
+"NSMicrophoneUsageDescription" = "Wird verwendet, wenn eine Website auf das Mikrofon zugreifen möchte.";
+"NSLocationUsageDescription" = "Wird verwendet, wenn eine Website deinen Standort abfragen möchte.";

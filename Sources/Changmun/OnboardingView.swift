@@ -67,17 +67,17 @@ struct OnboardingView: View {
             Image(systemName: "sparkles")
                 .font(.system(size: 26, weight: .medium))
                 .foregroundStyle(Theme.primary)
-            Text("Changmun에 오신 걸 환영해요")
+            Text("Welcome to Changmun")
                 .font(.system(size: 22, weight: .semibold))
-            Text("Safari와 같은 WebKit 엔진이라 가볍고, 오른쪽 AI 패널(⌘E)에 말하면 AI가 페이지를 읽고 대신 클릭하고 입력해요.\n쓰던 브라우저의 북마크, 방문 기록, 비밀번호, 로그인 상태를 가져올까요?")
+            Text("It runs on the same WebKit engine as Safari, so it's light, and when you talk to the AI panel on the right (⌘E), the AI reads the page and clicks and types for you.\nWould you like to bring over the bookmarks, history, passwords and login state from the browser you used before?")
                 .font(.system(size: 13.5))
                 .lineSpacing(3)
                 .foregroundStyle(Color.primary.opacity(0.7))
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
-                Button("나중에") { finish() }.buttonStyle(SecondaryButton())
+                Button("Later") { finish() }.buttonStyle(SecondaryButton())
                 Spacer()
-                Button("가져오기") { model.step = .choose }.buttonStyle(PrimaryButton())
+                Button("Import") { model.step = .choose }.buttonStyle(PrimaryButton())
             }
             .padding(.top, 10)
         }
@@ -86,7 +86,7 @@ struct OnboardingView: View {
 
     private var choose: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("어디서 가져올까요?").font(.system(size: 18, weight: .semibold))
+            Text("Where would you like to import from?").font(.system(size: 18, weight: .semibold))
             ScrollView {
                 VStack(spacing: 4) {
                     ForEach(model.sources) { source in
@@ -99,23 +99,23 @@ struct OnboardingView: View {
             .frame(maxHeight: 230)
             Divider().opacity(0.5)
             HStack(spacing: 16) {
-                Toggle("북마크", isOn: $model.options.bookmarks)
-                Toggle("방문 기록", isOn: $model.options.history)
-                Toggle("비밀번호", isOn: $model.options.passwords)
-                Toggle("로그인 상태(쿠키)", isOn: $model.options.cookies)
+                Toggle("Bookmarks", isOn: $model.options.bookmarks)
+                Toggle("History", isOn: $model.options.history)
+                Toggle("Passwords", isOn: $model.options.passwords)
+                Toggle("Login state (cookies)", isOn: $model.options.cookies)
             }
             .toggleStyle(.checkbox)
             .font(.system(size: 12.5))
             if model.needsSecrets {
-                Label("비밀번호와 로그인 상태는 각 브라우저가 키체인에 잠가 둬서, macOS가 접근 허용을 물어봐요. 로그인 암호를 넣고 '허용'을 눌러 주세요. 가져온 비밀번호는 이 Mac의 키체인에만 저장돼요.", systemImage: "key")
+                Label("Each browser locks passwords and login state in the Keychain, so macOS will ask for permission. Enter your login password and click 'Allow'. Imported passwords are stored only in this Mac's Keychain.", systemImage: "key")
                     .font(.system(size: 11.5))
                     .foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             HStack {
-                Button("뒤로") { model.step = .welcome }.buttonStyle(SecondaryButton())
+                Button("Back") { model.step = .welcome }.buttonStyle(SecondaryButton())
                 Spacer()
-                Button("가져오기 시작") { model.start() }
+                Button("Start Import") { model.start() }
                     .buttonStyle(PrimaryButton())
                     .disabled(model.selected.isEmpty || model.options == ImportOptions(bookmarks: false, history: false, passwords: false, cookies: false))
             }
@@ -127,7 +127,7 @@ struct OnboardingView: View {
     private var importing: some View {
         VStack(spacing: 16) {
             ProgressView().controlSize(.large)
-            Text(model.status.isEmpty ? "준비 중…" : model.status)
+            Text(model.status.isEmpty ? String(localized: "Preparing…") : model.status)
                 .font(.system(size: 13))
                 .foregroundStyle(Theme.secondary)
         }
@@ -137,7 +137,7 @@ struct OnboardingView: View {
 
     private var done: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("다 가져왔어요").font(.system(size: 18, weight: .semibold))
+            Text("All done").font(.system(size: 18, weight: .semibold))
             ForEach(Array(model.reports.enumerated()), id: \.offset) { _, report in
                 VStack(alignment: .leading, spacing: 4) {
                     Text(report.source).font(.system(size: 13, weight: .medium))
@@ -153,19 +153,19 @@ struct OnboardingView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.hoverTab))
             }
-            Text("가져온 북마크는 왼쪽 사이드바의 폴더에 있어요. 로그인 칸에서는 주소 옆 열쇠 버튼으로 비밀번호를 채울 수 있어요.")
+            Text("Imported bookmarks are in folders in the left sidebar. On login forms, use the key button next to the address to fill in a password.")
                 .font(.system(size: 12))
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
-                if model.reports.contains(where: { $0.problems.contains { $0.contains("전체 디스크") } }) {
-                    Button("전체 디스크 접근 설정 열기") {
+                if model.reports.contains(where: { $0.problems.contains(ImportRunner.fullDiskAccessProblem) }) {
+                    Button("Open Full Disk Access Settings") {
                         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!)
                     }
                     .buttonStyle(SecondaryButton())
                 }
                 Spacer()
-                Button("시작하기") { finish() }.buttonStyle(PrimaryButton())
+                Button("Get Started") { finish() }.buttonStyle(PrimaryButton())
             }
             .padding(.top, 6)
         }
@@ -192,7 +192,7 @@ struct SourceRow: View {
             AppIcon(browser: source.browser)
             VStack(alignment: .leading, spacing: 1) {
                 Text(source.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary)
-                Text(source.supportsSecrets ? "북마크 · 기록 · 비밀번호 · 쿠키" : "북마크 · 기록 (전체 디스크 접근 권한 필요)")
+                Text(source.supportsSecrets ? String(localized: "Bookmarks · History · Passwords · Cookies") : String(localized: "Bookmarks · History (Full Disk Access required)"))
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.secondary)
             }

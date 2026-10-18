@@ -17,7 +17,7 @@ enum TabSorter {
         var ids: [Int]
     }
 
-    static let noTopic = "없음"
+    static let noTopic = "None"
 
     /// Groups for the tabs, in the order of their first tabs. A group named like one in `existing` means that group.
     static func plan(_ items: [Item], existing: [String]) async -> [Group] {
@@ -120,18 +120,24 @@ private enum Model {
     /// The model keeps a short context: more tabs than this are left out.
     static let most = 50
 
+    /// The person's language, in English, for the model to answer in.
+    static var language: String {
+        Locale(identifier: "en").localizedString(forIdentifier: Bundle.main.preferredLocalizations.first ?? "en") ?? "English"
+    }
+
     static func topics(for items: [TabSorter.Item], existing: [String]) async -> [Int: String]? {
         guard SystemLanguageModel.default.isAvailable else { return nil }
         let items = Array(items.prefix(most))
         let list = items.enumerated().map { "\($0.offset + 1). \(TabSorter.line($0.element))" }.joined(separator: "\n")
         return await withTimeout {
-            let kept = existing.isEmpty ? "" : "\n이미 있는 그룹: \(existing.joined(separator: ", ")). 이 그룹에 맞는 탭이 있으면 그 이름을 그대로 쓴다."
+            let kept = existing.isEmpty ? "" : "\nExisting groups: \(existing.joined(separator: ", ")). If a tab fits one of these groups, use its name exactly."
             let first = LanguageModelSession(instructions: """
-                사용자가 연 브라우저 탭 목록을 보고, 탭을 나눌 큰 주제 몇 개를 정한다. 주제는 사이트 이름이 아니라 사용자가 하던 일이다(예: "제주 여행", "Swift 개발", "쇼핑", "영상").
-                주제마다 탭이 2개 이상 들어가야 한다. 비슷한 일은 하나로 합친다.\(kept)
+                Look at the list of browser tabs the user has open and decide on a few broad topics to sort them into. A topic is what the user was doing, not a site name (for example "Trip to Jeju", "Swift development", "Shopping", "Videos").
+                Each topic needs at least 2 tabs. Merge similar activities into one.\(kept)
+                Write the topic names in \(language).
                 """)
             let topicsSchema = try GenerationSchema(root: DynamicGenerationSchema(name: "Topics", properties: [
-                .init(name: "topics", description: "탭들을 나눌 주제 2~6개. 각각 짧은 한국어 이름(1~3단어)",
+                .init(name: "topics", description: "2 to 6 topics to sort the tabs into, each a short name (1-3 words) in \(language)",
                       schema: .init(arrayOf: .init(type: String.self))),
             ]), dependencies: [])
             let found = try await first.respond(to: list, schema: topicsSchema, options: GenerationOptions(sampling: .greedy))
@@ -141,7 +147,7 @@ private enum Model {
                 names.append(name)
             }
             guard !names.isEmpty else { return [:] }
-            let second = LanguageModelSession(instructions: "탭마다 가장 맞는 주제를 하나 고른다. 어느 주제에도 맞지 않으면 \"\(TabSorter.noTopic)\". 모든 탭을 빠짐없이 다룬다.")
+            let second = LanguageModelSession(instructions: "For each tab, pick the topic that fits best. If none of the topics fit, pick \"\(TabSorter.noTopic)\". Cover every tab.")
             let plan = try GenerationSchema(root: DynamicGenerationSchema(name: "Plan", properties: [
                 .init(name: "tabs", schema: .init(arrayOf: .init(referenceTo: "Tab"))),
             ]), dependencies: [
@@ -151,7 +157,7 @@ private enum Model {
                 ]),
                 DynamicGenerationSchema(name: "Topic", anyOf: names + [TabSorter.noTopic]),
             ])
-            let picked = try await second.respond(to: "주제: \(names.joined(separator: ", "))\n\n탭:\n\(list)", schema: plan,
+            let picked = try await second.respond(to: "Topics: \(names.joined(separator: ", "))\n\nTabs:\n\(list)", schema: plan,
                                                   options: GenerationOptions(sampling: .greedy))
             var topics: [Int: String] = [:]
             for entry in try picked.content.value([GeneratedContent].self, forProperty: "tabs") {
@@ -173,12 +179,12 @@ private enum Model {
         }.joined(separator: "\n")
         let name = await withTimeout {
             let session = LanguageModelSession(instructions: """
-                새로 연 브라우저 탭이 들어갈 그룹을 고른다. 그룹 안의 탭들과 분명히 같은 일일 때만 고르고, 아니면 "\(TabSorter.noTopic)".
+                Pick the group a newly opened browser tab belongs in. Pick a group only if the tab is clearly the same activity as the tabs in it; otherwise pick "\(TabSorter.noTopic)".
                 """)
             let schema = try GenerationSchema(root: DynamicGenerationSchema(name: "Pick", properties: [
                 .init(name: "group", schema: .init(referenceTo: "Group")),
             ]), dependencies: [DynamicGenerationSchema(name: "Group", anyOf: choices + [TabSorter.noTopic])])
-            let answer = try await session.respond(to: "그룹:\n\(described)\n\n새 탭: \(TabSorter.line(item))", schema: schema,
+            let answer = try await session.respond(to: "Groups:\n\(described)\n\nNew tab: \(TabSorter.line(item))", schema: schema,
                                                    options: GenerationOptions(sampling: .greedy))
             return try answer.content.value(String.self, forProperty: "group")
         }

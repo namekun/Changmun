@@ -250,7 +250,7 @@ final class Library: @unchecked Sendable {
         var groups: [String: [Folder]] = [:]
         for folder in folders {
             let parts = folder.name.split(separator: " ", maxSplits: 1).map(String.init)
-            let source = parts.count == 2 ? parts[0] : "기타"
+            let source = parts.count == 2 ? parts[0] : String(localized: "Other")
             let path = parts.count == 2 ? parts[1] : folder.name
             let label = path.components(separatedBy: " / ").last ?? path
             if groups[source] == nil { order.append(source) }

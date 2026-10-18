@@ -37,7 +37,7 @@ struct HistoryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TextField("방문 기록 검색", text: $search)
+            TextField("Search History", text: $search)
                 .textFieldStyle(.roundedBorder)
                 .padding(12)
             List {
@@ -46,13 +46,13 @@ struct HistoryView: View {
                         ForEach(day.visits) { visit in
                             HistoryRow(visit: visit)
                                 .contextMenu {
-                                    Button("새 탭에서 열기") { open(visit) }
-                                    Button("주소 복사") {
+                                    Button("Open in New Tab") { open(visit) }
+                                    Button("Copy Address") {
                                         NSPasteboard.general.clearContents()
                                         NSPasteboard.general.setString(visit.url, forType: .string)
                                     }
                                     Divider()
-                                    Button("기록에서 지우기") {
+                                    Button("Remove from History") {
                                         Library.shared.deleteHistory(url: visit.url)
                                         reload()
                                     }
@@ -62,9 +62,9 @@ struct HistoryView: View {
                     }
                 }
             }
-            .overlay { if visits.isEmpty { Text(search.isEmpty ? "방문 기록이 없어요" : "찾는 기록이 없어요").foregroundStyle(.secondary) } }
+            .overlay { if visits.isEmpty { Text(search.isEmpty ? String(localized: "No history") : String(localized: "No matching history")).foregroundStyle(.secondary) } }
             HStack {
-                Text("두 번 클릭하면 새 탭에서 열려요. 기간별로 지우기는 설정 › 개인정보에서 할 수 있어요.")
+                Text("Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy.")
                     .font(.system(size: 11.5)).foregroundStyle(.secondary)
                 Spacer()
             }
@@ -96,30 +96,30 @@ struct ArchiveView: View {
     var body: some View {
         let entries = archive.matching(search)
         VStack(spacing: 0) {
-            TextField("보관한 탭 검색", text: $search)
+            TextField("Search Archived Tabs", text: $search)
                 .textFieldStyle(.roundedBorder)
                 .padding(12)
             List(entries) { entry in
                 ArchiveRow(entry: entry)
                     .contextMenu {
-                        Button("다시 열기") { open(entry) }
-                        Button("주소 복사") {
+                        Button("Reopen") { open(entry) }
+                        Button("Copy Address") {
                             NSPasteboard.general.clearContents()
                             NSPasteboard.general.setString(entry.url, forType: .string)
                         }
                         Divider()
-                        Button("보관함에서 지우기") { archive.remove(entry.id) }
+                        Button("Remove from Archive") { archive.remove(entry.id) }
                     }
                     .onTapGesture(count: 2) { open(entry) }
             }
             .overlay {
-                if entries.isEmpty { Text(search.isEmpty ? "보관한 탭이 없어요" : "찾는 탭이 없어요").foregroundStyle(.secondary) }
+                if entries.isEmpty { Text(search.isEmpty ? String(localized: "No archived tabs") : String(localized: "No matching tabs")).foregroundStyle(.secondary) }
             }
             HStack {
-                Text("두 번 클릭하면 다시 열려요. 보관할 때까지의 시간은 설정 › 탭·모양에서 정해요.")
+                Text("Double-click to reopen. Set how long until tabs are archived in Settings › Tabs & Appearance.")
                     .font(.system(size: 11.5)).foregroundStyle(.secondary)
                 Spacer()
-                Button("모두 지우기") { archive.removeAll() }.disabled(archive.entries.isEmpty)
+                Button("Clear All") { archive.removeAll() }.disabled(archive.entries.isEmpty)
             }
             .padding(10)
         }
@@ -210,7 +210,7 @@ struct DownloadButton: View {
         .buttonStyle(.plain)
         .foregroundStyle(hover || progress != nil ? Theme.primary : Theme.dim)
         .onHover { hover = $0 }
-        .help("다운로드")
+        .help("Downloads")
         .popover(isPresented: $browser.showDownloads, arrowEdge: arrowEdge) {
             DownloadList(browser: browser)
         }
@@ -226,15 +226,15 @@ struct DownloadList: View {
         let items = downloads.items(for: browser)
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("다운로드").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary)
+                Text("Downloads").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary)
                 Spacer()
-                BarButton(symbol: "folder", help: "다운로드 폴더 열기") { NSWorkspace.shared.open(Preferences.shared.downloadFolder) }
+                BarButton(symbol: "folder", help: String(localized: "Open Downloads Folder")) { NSWorkspace.shared.open(Preferences.shared.downloadFolder) }
             }
             .padding(.leading, 14)
             .padding(.trailing, 8)
             .frame(height: 40)
             if items.isEmpty {
-                Text("이번에 받은 파일이 없어요")
+                Text("No downloads this session")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(Theme.secondary)
                     .frame(maxWidth: .infinity)
@@ -250,7 +250,7 @@ struct DownloadList: View {
                 }
                 if items.contains(where: \.isDone) {
                     Hairline()
-                    Button("끝난 항목 지우기") { downloads.clearFinished(for: browser) }
+                    Button("Clear Finished") { downloads.clearFinished(for: browser) }
                         .buttonStyle(.plain)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Theme.secondary)
@@ -319,9 +319,9 @@ struct DownloadRow: View {
             }
             Spacer(minLength: 0)
             if item.state == .running {
-                HoverAction(symbol: "xmark", help: "취소") { item.cancel() }
+                HoverAction(symbol: "xmark", help: String(localized: "Cancel")) { item.cancel() }
             } else if hover, let file {
-                HoverAction(symbol: "magnifyingglass", help: "Finder에서 보기") { NSWorkspace.shared.activateFileViewerSelecting([file]) }
+                HoverAction(symbol: "magnifyingglass", help: String(localized: "Show in Finder")) { NSWorkspace.shared.activateFileViewerSelecting([file]) }
             }
         }
         .padding(.horizontal, 8)
@@ -336,27 +336,27 @@ struct DownloadRow: View {
         .modifier(FileDrag(file: file))
         .contextMenu {
             if let file {
-                Button("열기") {
+                Button("Open") {
                     item.seen = true
                     NSWorkspace.shared.open(file)
                 }
-                Button("Finder에서 보기") { NSWorkspace.shared.activateFileViewerSelecting([file]) }
-                Button("경로 복사") {
+                Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([file]) }
+                Button("Copy Path") {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(file.path, forType: .string)
                 }
             }
             if item.state == .running {
-                Button("취소") { item.cancel() }
+                Button("Cancel") { item.cancel() }
             }
         }
-        .help(file.map { "\($0.path)\n" + (Downloads.opensOnClick($0) ? "누르면 열려요." : "누르면 Finder에서 보여 줘요.") + " 끌어서 다른 앱에 넣을 수 있어요." } ?? item.filename)
+        .help(file.map { "\($0.path)\n" + (Downloads.opensOnClick($0) ? String(localized: "Click to open it. You can drag it into another app.") : String(localized: "Click to show it in Finder. You can drag it into another app.")) } ?? item.filename)
     }
 
     @ViewBuilder private var detail: some View {
         switch item.state {
         case .running where !item.sizeKnown:
-            Text("받는 중 · " + ByteCountFormatter.string(fromByteCount: item.bytes ?? 0, countStyle: .file))
+            Text(String(localized: "Downloading · \(ByteCountFormatter.string(fromByteCount: item.bytes ?? 0, countStyle: .file))"))
                 .font(.system(size: 11, weight: .medium).monospacedDigit()).foregroundStyle(Theme.secondary)
         case .running:
             HStack(spacing: 6) {
@@ -366,12 +366,12 @@ struct DownloadRow: View {
                     .foregroundStyle(Theme.secondary)
             }
         case .finished:
-            Text(item.bytes.map { "완료 · " + ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "완료")
+            Text(item.bytes.map { String(localized: "Done · \(ByteCountFormatter.string(fromByteCount: $0, countStyle: .file))") } ?? String(localized: "Done"))
                 .font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondary)
         case .cancelled:
-            Text("취소됨").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.faint)
+            Text("Cancelled").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.faint)
         case .failed(let reason):
-            Text("실패: \(reason)").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waiting).lineLimit(1)
+            Text("Failed: \(reason)").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waiting).lineLimit(1)
         }
     }
 
@@ -411,7 +411,7 @@ struct FindBar: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
-            TextField("페이지에서 찾기", text: $overlay.findText)
+            TextField("Find on Page", text: $overlay.findText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Theme.primary)
@@ -426,13 +426,13 @@ struct FindBar: View {
                     return .handled
                 }
             if let matches = overlay.findMatches, !overlay.findText.isEmpty {
-                Text(matches == 0 ? "없음" : "\(matches)개")
+                Text(matches == 0 ? String(localized: "None") : matches == 1 ? String(localized: "\(matches) match") : String(localized: "\(matches) matches"))
                     .font(.system(size: 11, weight: .semibold).monospacedDigit())
                     .foregroundStyle(matches == 0 ? Theme.waiting : Theme.secondary)
             }
-            BarButton(symbol: "chevron.up", help: "이전 (⌘⇧G)") { browser.find(backwards: true) }.disabled(overlay.findText.isEmpty)
-            BarButton(symbol: "chevron.down", help: "다음 (⌘G)") { browser.find() }.disabled(overlay.findText.isEmpty)
-            BarButton(symbol: "xmark", help: "닫기 (esc)") { browser.hideFindBar() }
+            BarButton(symbol: "chevron.up", help: String(localized: "Previous (⌘⇧G)")) { browser.find(backwards: true) }.disabled(overlay.findText.isEmpty)
+            BarButton(symbol: "chevron.down", help: String(localized: "Next (⌘G)")) { browser.find() }.disabled(overlay.findText.isEmpty)
+            BarButton(symbol: "xmark", help: String(localized: "Close (esc)")) { browser.hideFindBar() }
         }
         .padding(.leading, 10)
         .padding(.trailing, 2)

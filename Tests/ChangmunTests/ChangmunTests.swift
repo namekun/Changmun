@@ -136,7 +136,7 @@ struct ChromiumImporterTests {
         let fake = try FakeChromium()
         let entries = try ChromiumImporter(source: fake.source, safeStorage: "").bookmarks()
         #expect(entries.map(\.url) == ["https://apple.com/", "https://swift.org/"])
-        #expect(entries.map(\.folder) == ["Dia 북마크 바", "Dia 북마크 바 / dev"])
+        #expect(entries.map(\.folder) == ["Dia Bookmarks Bar", "Dia Bookmarks Bar / dev"])
     }
 
     @Test func readsVisibleHistory() throws {
@@ -857,7 +857,7 @@ struct ChatStreamTests {
         chat.handle(["type": "stream_event", "event": ["type": "message_start", "message": ["id": "m2"]]])
         chat.handle(["type": "stream_event", "event": ["type": "content_block_delta", "delta": ["type": "text_delta", "text": "요약입니다."]]])
         #expect(chat.items.map(\.kind) == [.assistant, .tool, .assistant])
-        #expect(chat.items.map(\.text) == ["페이지를 읽을게요.", "페이지 읽기", "요약입니다."])
+        #expect(chat.items.map(\.text) == ["페이지를 읽을게요.", "Read page", "요약입니다."])
         #expect(chat.items[1].symbol == "doc.text")
     }
 
@@ -1283,7 +1283,7 @@ struct TabGroupTests {
         let group = try #require(b.group([one, two]))
         b.removeFromGroup(one)
         #expect(b.groups.map(\.id) == [group])
-        #expect(shown(b).first == "새 그룹[\(two)]")
+        #expect(shown(b).first == "New Group[\(two)]")
         b.close(two)
         #expect(b.groups.isEmpty)
         #expect(b.renamingGroup == nil)
@@ -1699,5 +1699,37 @@ struct TabSortingTests {
         right.lastShown = .distantPast
         b.activate(other.id)
         #expect(Date().timeIntervalSince(right.lastShown) < 5)
+    }
+}
+
+struct LocalizationTests {
+    let resources = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../Resources").standardized
+    static let languages = ["ko", "ja", "zh-Hans", "es", "de", "fr"]
+
+    func table(_ language: String, _ name: String = "Localizable") throws -> [String: String] {
+        let path = resources.appendingPathComponent("\(language).lproj/\(name).strings").path
+        return try #require(NSDictionary(contentsOfFile: path) as? [String: String], Comment(rawValue: path))
+    }
+
+    /// The placeholders a string fills in, whatever order a translation puts them in.
+    static func placeholders(_ text: String) -> [String] {
+        text.matches(of: #/%(?:\d+\$)?(lld|@)/#).map { String($0.output.1) }.sorted()
+    }
+
+    /// Which strings the code uses is checked by scripts/check-strings.sh; here every language must have the same ones.
+    @Test(arguments: languages) func everyLanguageHasEveryString(_ language: String) throws {
+        let korean = try table("ko"), strings = try table(language)
+        #expect(Set(strings.keys) == Set(korean.keys))
+        for (key, text) in strings {
+            #expect(!text.trimmingCharacters(in: .whitespaces).isEmpty, Comment(rawValue: "\(language): \(key)"))
+            #expect(Self.placeholders(text) == Self.placeholders(key), Comment(rawValue: "\(language): \(key) = \(text)"))
+        }
+    }
+
+    @Test(arguments: languages + ["en"]) func permissionPromptsAreTranslated(_ language: String) throws {
+        let info = try #require(NSDictionary(contentsOf: resources.appendingPathComponent("Info.plist")) as? [String: Any])
+        let prompts = Set(info.keys.filter { $0.hasSuffix("UsageDescription") })
+        #expect(Set(try table(language, "InfoPlist").keys) == prompts)
+        #expect((info["CFBundleLocalizations"] as? [String]).map(Set.init) == Set(Self.languages + ["en"]))
     }
 }

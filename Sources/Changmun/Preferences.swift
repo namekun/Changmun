@@ -27,7 +27,7 @@ enum SearchEngine: String, CaseIterable, Identifiable {
     var name: String {
         switch self {
         case .google: "Google"
-        case .naver: "네이버"
+        case .naver: String(localized: "Naver")
         case .duckDuckGo: "DuckDuckGo"
         case .bing: "Bing"
         }

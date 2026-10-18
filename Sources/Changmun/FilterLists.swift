@@ -163,10 +163,10 @@ final class AdBlocker: ObservableObject {
     }
 
     static let builtIn = [
-        List(id: "easylist", name: "EasyList (광고)", url: "https://easylist.to/easylist/easylist.txt"),
-        List(id: "easyprivacy", name: "EasyPrivacy (추적)", url: "https://easylist.to/easylist/easyprivacy.txt"),
+        List(id: "easylist", name: String(localized: "EasyList (ads)"), url: "https://easylist.to/easylist/easylist.txt"),
+        List(id: "easyprivacy", name: String(localized: "EasyPrivacy (tracking)"), url: "https://easylist.to/easylist/easyprivacy.txt"),
         // Korean sites run their own ad slots and anti-adblock fallbacks that the English lists don't cover.
-        List(id: "youslist", name: "YousList (한국 광고)", url: "https://raw.githubusercontent.com/yous/YousList/master/youslist.txt"),
+        List(id: "youslist", name: String(localized: "YousList (Korean ads)"), url: "https://raw.githubusercontent.com/yous/YousList/master/youslist.txt"),
     ]
 
     @Published private(set) var status = ""
@@ -241,7 +241,7 @@ final class AdBlocker: ObservableObject {
         } else {
             remove()
             setExternalApplied(false)
-            status = "꺼져 있어요"
+            status = String(localized: "Turned off")
         }
     }
 
@@ -249,7 +249,7 @@ final class AdBlocker: ObservableObject {
     func update() async {
         guard !working else { return }
         working = true
-        status = "필터 목록을 받는 중…"
+        status = String(localized: "Downloading filter lists…")
         var failed: [String] = []
         for list in enabledLists {
             guard let url = URL(string: list.url) else { continue }
@@ -265,13 +265,13 @@ final class AdBlocker: ObservableObject {
         UserDefaults.standard.set(lastUpdated, forKey: "filtersUpdated")
         working = false
         await recompile()
-        if !failed.isEmpty { status = "받지 못한 목록: " + failed.joined(separator: ", ") + " (이전 것을 써요)" }
+        if !failed.isEmpty { status = String(localized: "Lists that failed to download: \(failed.joined(separator: ", ")) (using the previous ones)") }
     }
 
     /// Rebuilds the rule lists from the saved filter files, the built-in tracker list and the per-site exceptions.
     func recompile() async {
         working = true
-        status = "규칙을 만드는 중…"
+        status = String(localized: "Building rules…")
         let files = enabledLists.map { Self.folder.appendingPathComponent($0.id + ".txt") }
         let allowlist = Preferences.shared.adBlockAllowlist
         let converted = await Task.detached(priority: .userInitiated) { () -> (String, String, Int) in
@@ -291,13 +291,13 @@ final class AdBlocker: ObservableObject {
             do {
                 if let list = try await store.compileContentRuleList(forIdentifier: identifier, encodedContentRuleList: json) { lists.append(list) }
             } catch {
-                errors.append(identifier.hasSuffix("cosmetic") ? "요소 숨김" : "네트워크")
+                errors.append(identifier.hasSuffix("cosmetic") ? String(localized: "Element hiding") : String(localized: "Network"))
             }
         }
         working = false
         ruleCount = converted.2
         if Preferences.shared.blockTrackers { install(lists) }
-        status = errors.isEmpty ? "규칙 \(ruleCount.formatted())개 적용 중" : "[ERROR] \(errors.joined(separator: ", ")) 규칙을 만들지 못했어요"
+        status = errors.isEmpty ? String(localized: "\(ruleCount.formatted()) rules active") : "[ERROR] " + String(localized: "Couldn't build the \(errors.joined(separator: ", ")) rules")
     }
 
     private func loadCompiled() async -> Bool {
@@ -308,7 +308,7 @@ final class AdBlocker: ObservableObject {
         }
         guard !lists.isEmpty else { return false }
         install(lists)
-        status = "적용 중"
+        status = String(localized: "Active")
         return true
     }
 

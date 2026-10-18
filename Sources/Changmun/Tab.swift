@@ -76,7 +76,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
 
     var displayTitle: String {
         if !title.isEmpty { return title }
-        return url?.host() ?? "새 탭"
+        return url?.host() ?? String(localized: "New Tab")
     }
 
     @discardableResult
@@ -313,10 +313,11 @@ extension Tab: WKNavigationDelegate {
     private func openExternally(_ url: URL, scheme: String, from page: URL?) {
         guard !Headless.isOn, !Self.blockedSchemes.contains(scheme), let app = NSWorkspace.shared.urlForApplication(toOpen: url) else { return }
         let alert = NSAlert()
-        alert.messageText = "\(page?.host() ?? "이 페이지")에서 \(FileManager.default.displayName(atPath: app.path))을(를) 열려고 해요"
+        let site = page?.host() ?? String(localized: "This page")
+        alert.messageText = String(localized: "\(site) wants to open \(FileManager.default.displayName(atPath: app.path))")
         alert.informativeText = String(url.absoluteString.prefix(200))
-        alert.addButton(withTitle: "취소")
-        alert.addButton(withTitle: "열기")
+        alert.addButton(withTitle: String(localized: "Cancel"))
+        alert.addButton(withTitle: String(localized: "Open"))
         if alert.runModal() == .alertSecondButtonReturn { NSWorkspace.shared.open(url) }
     }
 
@@ -415,14 +416,14 @@ extension Tab: WKNavigationDelegate {
                 foreignLanguage = source
                 outcome = await PageTranslator.translate(webView, from: source, while: current)
             } else {
-                browser?.flashStatus("번역할 다른 언어의 글이 없어요")
+                browser?.flashStatus(String(localized: "No text in another language to translate"))
             }
             guard current() else { return }
             translating = nil
             translation = outcome == .translated ? .translated : .original
             switch outcome {
-            case .needsDownload: browser?.flashStatus("시스템 설정 › 일반 › 언어 및 지역 › 번역 언어에서 이 언어를 내려받아 주세요")
-            case .unsupported: browser?.flashStatus("이 언어는 번역할 수 없어요")
+            case .needsDownload: browser?.flashStatus(String(localized: "Download this language in System Settings › General › Language & Region › Translation Languages"))
+            case .unsupported: browser?.flashStatus(String(localized: "This language can’t be translated"))
             case .translated, .failed: break
             }
         }
@@ -434,10 +435,11 @@ extension Tab: WKNavigationDelegate {
         let failing = (nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL) ?? url
         let message = nsError.localizedDescription.replacingOccurrences(of: "<", with: "&lt;")
         let address = (failing?.absoluteString ?? "").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: "\"", with: "&quot;")
+        let heading = String(localized: "Can’t open the page").replacingOccurrences(of: "<", with: "&lt;")
         webView.loadHTMLString("""
-        <meta name="color-scheme" content="light dark"><title>페이지를 열 수 없어요</title>
+        <meta name="color-scheme" content="light dark"><title>\(heading)</title>
         <body style="font: 15px -apple-system; display: grid; place-content: center; height: 90vh; text-align: center; color: #888">
-        <h2 style="color: CanvasText; font-weight: 600">페이지를 열 수 없어요</h2><p>\(message)</p><p style="font-size: 12px">\(address)</p>
+        <h2 style="color: CanvasText; font-weight: 600">\(heading)</h2><p>\(message)</p><p style="font-size: 12px">\(address)</p>
         </body>
         """, baseURL: nil)
         if let failing { url = failing }
@@ -449,20 +451,20 @@ extension Tab: WKNavigationDelegate {
         guard method == NSURLAuthenticationMethodHTTPBasic || method == NSURLAuthenticationMethodHTTPDigest else { return (.performDefaultHandling, nil) }
         guard challenge.previousFailureCount < 3, !Headless.isOn else { return (.cancelAuthenticationChallenge, nil) }
         let alert = NSAlert()
-        alert.messageText = "\(challenge.protectionSpace.host)에 로그인"
-        alert.informativeText = challenge.previousFailureCount > 0 ? "아이디나 비밀번호가 맞지 않아요." : (challenge.protectionSpace.realm ?? "")
+        alert.messageText = String(localized: "Sign in to \(challenge.protectionSpace.host)")
+        alert.informativeText = challenge.previousFailureCount > 0 ? String(localized: "The user name or password is incorrect.") : (challenge.protectionSpace.realm ?? "")
         let user = NSTextField(frame: NSRect(x: 0, y: 30, width: 260, height: 24))
-        user.placeholderString = "아이디"
+        user.placeholderString = String(localized: "User Name")
         user.stringValue = challenge.proposedCredential?.user ?? ""
         let password = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
-        password.placeholderString = "비밀번호"
+        password.placeholderString = String(localized: "Password")
         let fields = NSView(frame: NSRect(x: 0, y: 0, width: 260, height: 54))
         fields.addSubview(user)
         fields.addSubview(password)
         alert.accessoryView = fields
         alert.window.initialFirstResponder = user
-        alert.addButton(withTitle: "로그인")
-        alert.addButton(withTitle: "취소")
+        alert.addButton(withTitle: String(localized: "Sign In"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
         guard alert.runModal() == .alertFirstButtonReturn else { return (.cancelAuthenticationChallenge, nil) }
         return (.useCredential, URLCredential(user: user.stringValue, password: password.stringValue, persistence: .forSession))
     }
@@ -519,8 +521,8 @@ extension Tab: WKUIDelegate {
         let alert = NSAlert()
         alert.messageText = frame.securityOrigin.host
         alert.informativeText = message
-        alert.addButton(withTitle: "확인")
-        alert.addButton(withTitle: "취소")
+        alert.addButton(withTitle: String(localized: "OK"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
         return alert.runModal() == .alertFirstButtonReturn
     }
 
@@ -532,8 +534,8 @@ extension Tab: WKUIDelegate {
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
         field.stringValue = defaultText ?? ""
         alert.accessoryView = field
-        alert.addButton(withTitle: "확인")
-        alert.addButton(withTitle: "취소")
+        alert.addButton(withTitle: String(localized: "OK"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
         return alert.runModal() == .alertFirstButtonReturn ? field.stringValue : nil
     }
 

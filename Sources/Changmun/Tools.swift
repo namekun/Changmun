@@ -224,8 +224,8 @@ enum Approvals {
         guard Preferences.shared.aiApprovals else { return true }
         let key = "\(tab.id)|\(tab.url?.host()?.lowercased() ?? "")"
         if tabs.contains(key) { return true }
-        let allowed = await ask("AI가 지금 보고 있지 않은 탭을 쓰려고 해요",
-                                "#\(tab.id) \(tab.displayTitle.prefix(80))\n\(tab.url?.host() ?? "")\n\n허용하면 이 탭이 이 사이트에 있는 동안은 다시 묻지 않아요.")
+        let allowed = await ask(String(localized: "The AI wants to use a tab you aren't looking at"),
+                                "#\(tab.id) \(tab.displayTitle.prefix(80))\n\(tab.url?.host() ?? "")\n\n" + String(localized: "If you allow it, you won't be asked again while this tab stays on this site."))
         if allowed { tabs.insert(key) }
         return allowed
     }
@@ -233,8 +233,8 @@ enum Approvals {
     static func allowNavigation(_ url: URL) async -> Bool {
         guard Preferences.shared.aiApprovals else { return true }
         if isFree(url, knownURL: knownURL, knownHost: Library.shared.knowsHost) || urls.contains(url.absoluteString) { return true }
-        let allowed = await ask("AI가 이 주소를 열려고 해요",
-                                "\(url.host() ?? "")\n\n\(url.absoluteString.prefix(300))\n\n주소에 다른 페이지나 대화의 내용이 실려 있다면 거부하세요.")
+        let allowed = await ask(String(localized: "The AI wants to open this address"),
+                                "\(url.host() ?? "")\n\n\(url.absoluteString.prefix(300))\n\n" + String(localized: "Deny if the address carries content from another page or from the conversation."))
         if allowed { urls.insert(url.absoluteString) }
         return allowed
     }
@@ -272,8 +272,11 @@ enum Approvals {
         let host = tab.url?.host()?.lowercased() ?? ""
         let others = readHosts[caller, default: []].subtracting([host])
         if others.isEmpty { return true }
-        return await ask("AI가 \(host.isEmpty ? "이 페이지" : host)에 입력하려고 해요",
-                         "입력할 내용:\n\(text.prefix(300))\n\n이 대화에서 앞서 읽은 사이트: \(others.sorted().prefix(5).joined(separator: ", "))\n그곳의 내용이 섞여 있다면 거부하세요.")
+        let target = host.isEmpty ? String(localized: "this page") : host
+        let typed = String(text.prefix(300))
+        let sites = others.sorted().prefix(5).joined(separator: ", ")
+        return await ask(String(localized: "The AI wants to type into \(target)"),
+                         String(localized: "Text to type:\n\(typed)\n\nSites read earlier in this conversation: \(sites)\nDeny if content from there is mixed in."))
     }
 
     /// A new chat starts without anything read; other callers keep theirs.
@@ -293,8 +296,8 @@ enum Approvals {
         let alert = NSAlert()
         alert.messageText = message
         alert.informativeText = detail
-        alert.addButton(withTitle: "거부")
-        alert.addButton(withTitle: "허용")
+        alert.addButton(withTitle: String(localized: "Deny"))
+        alert.addButton(withTitle: String(localized: "Allow"))
         NSApp.requestUserAttention(.informationalRequest)
         return await withCheckedContinuation { continuation in
             let once = Once()

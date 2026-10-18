@@ -15,7 +15,7 @@ APP="$WORK/Changmun.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/Changmun" "$APP/Contents/MacOS/Changmun"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
-cp Resources/AppIcon.icns "$APP/Contents/Resources/"
+cp -R Resources/*.lproj Resources/AppIcon.icns "$APP/Contents/Resources/"
 xattr -cr "$APP"
 codesign --force --sign - "$APP" >/dev/null
 rm -rf build/Changmun.app

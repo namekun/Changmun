@@ -48,7 +48,7 @@ final class ChatStore: ObservableObject {
         guard !message.isEmpty, !isRunning else { return }
         items.append(ChatItem(kind: .user, text: message))
         guard let claude = Self.claudePath() else {
-            items.append(ChatItem(kind: .error, text: "`claude` CLI를 찾지 못했어요. Claude Code를 설치한 뒤 다시 시도해 주세요."))
+            items.append(ChatItem(kind: .error, text: String(localized: "Couldn't find the `claude` CLI. Install Claude Code and try again.")))
             return
         }
         var arguments = [
@@ -82,7 +82,7 @@ final class ChatStore: ObservableObject {
         do {
             try process.run()
         } catch {
-            fail("claude를 실행하지 못했어요: \(error.localizedDescription)")
+            fail(String(localized: "Couldn't run claude: \(error.localizedDescription)"))
             return
         }
 
@@ -109,7 +109,7 @@ final class ChatStore: ObservableObject {
         guard runID == run else { return }
         if !sawResult {
             let tail = errorText.split(separator: "\n").suffix(4).joined(separator: "\n")
-            fail("AI 응답이 끝나지 않았어요 (종료 코드 \(status)).\n\(tail)")
+            fail(String(localized: "The AI response didn't finish (exit code \(Int(status))).\n\(tail)"))
         }
         isRunning = false
         process = nil
@@ -180,7 +180,7 @@ final class ChatStore: ObservableObject {
             if event["is_error"] as? Bool == true {
                 // A session that failed may not resume; the next message starts a fresh one.
                 sessionID = nil
-                fail(event["result"] as? String ?? "AI 요청이 실패했어요.")
+                fail(event["result"] as? String ?? String(localized: "The AI request failed."))
             }
             streamingIndex = nil
         default:
@@ -222,19 +222,19 @@ final class ChatStore: ObservableObject {
     static func describe(tool: String, input: [String: Any]) -> String {
         let element = (input["element_id"] as? Int).map { " [\($0)]" } ?? ""
         switch tool {
-        case "read_page": return "페이지 읽기"
-        case "list_tabs": return "탭 목록 확인"
-        case "open_tab": return "새 탭 열기 · \(input["url"] as? String ?? "")"
-        case "navigate": return "이동 · \(input["url"] as? String ?? "")"
-        case "switch_tab": return "탭 전환"
-        case "close_tab": return "탭 닫기"
-        case "click": return "클릭\(element)"
-        case "type_text": return "입력\(element) · \(input["text"] as? String ?? "")"
-        case "scroll": return "스크롤 · \(input["direction"] as? String ?? "")"
-        case "screenshot": return "화면 보기"
-        case "go_back": return "뒤로"
-        case "go_forward": return "앞으로"
-        case "reload": return "새로고침"
+        case "read_page": return String(localized: "Read page")
+        case "list_tabs": return String(localized: "Check tab list")
+        case "open_tab": return String(localized: "Open new tab · \(input["url"] as? String ?? "")")
+        case "navigate": return String(localized: "Go to · \(input["url"] as? String ?? "")")
+        case "switch_tab": return String(localized: "Switch tab")
+        case "close_tab": return String(localized: "Close tab")
+        case "click": return String(localized: "Click") + element
+        case "type_text": return String(localized: "Type") + element + " · " + (input["text"] as? String ?? "")
+        case "scroll": return String(localized: "Scroll · \(input["direction"] as? String ?? "")")
+        case "screenshot": return String(localized: "View screen")
+        case "go_back": return String(localized: "Back")
+        case "go_forward": return String(localized: "Forward")
+        case "reload": return String(localized: "Reload")
         default: return tool
         }
     }
@@ -242,10 +242,10 @@ final class ChatStore: ObservableObject {
     // MARK: Process setup
 
     static func contextLine(_ tab: Tab?) -> String {
-        guard let tab else { return "[열린 탭 없음]" }
+        guard let tab else { return "[No open tab]" }
         let title = tab.displayTitle.components(separatedBy: .newlines).joined(separator: " ")
             .replacingOccurrences(of: "\"", with: "'").replacingOccurrences(of: "]", with: ")")
-        return "[현재 탭 #\(tab.id), 페이지가 정한 제목 \"\(title.prefix(80))\", 주소 \(tab.url?.absoluteString.prefix(300) ?? "about:blank")]"
+        return "[Current tab #\(tab.id), title set by the page \"\(title.prefix(80))\", address \(tab.url?.absoluteString.prefix(300) ?? "about:blank")]"
     }
 
     /// How the panel's tool calls are told apart from other MCP clients'.
@@ -299,8 +299,8 @@ struct ChatPanel: View {
                 .frame(height: 28)
                 .background(Capsule().fill(Theme.pill))
                 Spacer()
-                BarButton(symbol: "square.and.pencil", help: "새 대화 (⌘⇧E)") { chat.reset() }
-                BarButton(symbol: "xmark", help: "닫기 (⌘E)") { browser.showChat = false }
+                BarButton(symbol: "square.and.pencil", help: String(localized: "New Chat (⌘⇧E)")) { chat.reset() }
+                BarButton(symbol: "xmark", help: String(localized: "Close (⌘E)")) { browser.showChat = false }
             }
             .frame(height: 38)
             ScrollViewReader { proxy in
@@ -328,7 +328,7 @@ struct ChatPanel: View {
 
     private var composer: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            TextField("이 페이지에 대해 묻거나, 할 일을 시켜 보세요", text: $draft, axis: .vertical)
+            TextField("Ask about this page, or give it a task", text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Theme.primary)
@@ -344,7 +344,7 @@ struct ChatPanel: View {
                 Button { chat.stop() } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "stop.fill").font(.system(size: 8, weight: .bold))
-                        Text("정지").font(.system(size: 11, weight: .semibold))
+                        Text("Stop").font(.system(size: 11, weight: .semibold))
                     }
                     .foregroundStyle(Theme.primary)
                     .padding(.horizontal, 8)
@@ -352,7 +352,7 @@ struct ChatPanel: View {
                     .background(Capsule().fill(Theme.pill))
                 }
                 .buttonStyle(.plain)
-                .help("멈추기")
+                .help("Stop generating")
             } else {
                 Keycap("↵").opacity(draft.isEmpty ? 0.5 : 1).padding(.bottom, 2)
             }
@@ -373,12 +373,12 @@ struct ChatPanel: View {
 
 struct ChatWelcome: View {
     let send: (String) -> Void
-    private let prompts = ["이 페이지 세 줄로 요약해 줘", "이 페이지에서 중요한 링크만 골라 줘", "열린 탭들 정리해서 알려 줘"]
+    private let prompts = [String(localized: "Summarize this page in three lines"), String(localized: "Pick out only the important links on this page"), String(localized: "Sort out my open tabs and tell me about them")]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("무엇을 도와드릴까요?").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.primary)
-            Text("보고 있는 페이지를 읽고, 클릭하고, 입력하고, 탭을 열 수 있어요.")
+            Text("How can I help?").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.primary)
+            Text("I can read the page you're viewing, click, type and open tabs.")
                 .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             VStack(alignment: .leading, spacing: 6) {
@@ -472,7 +472,7 @@ struct Working: View {
     var body: some View {
         HStack(spacing: 6) {
             Circle().fill(Theme.working).frame(width: 6, height: 6).opacity(on ? 1 : 0.35)
-            Text("작업 중").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
+            Text("Working").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
         }
         .onAppear { withAnimation(.easeInOut(duration: 0.8).repeatForever()) { on = true } }
     }

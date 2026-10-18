@@ -1,0 +1,3 @@
+"NSCameraUsageDescription" = "Web サイトがカメラを要求したときに使用します。";
+"NSMicrophoneUsageDescription" = "Web サイトがマイクを要求したときに使用します。";
+"NSLocationUsageDescription" = "Web サイトが位置情報を要求したときに使用します。";

@@ -1,138 +1,158 @@
-# Changmun
+<p align="center"><img src="docs/images/icon.png" width="120" alt="Changmun icon"></p>
 
-Safari와 같은 WebKit 엔진으로 만든 가벼운 macOS 브라우저. 왼쪽 사이드바(즐겨찾기 타일, 북마크 폴더, 세로 탭), Dia처럼 페이지 카드 위에 붙은 막대(이동 버튼, 사이트와 페이지 제목, 확장·다운로드·AI 버튼), 오른쪽 AI 패널이 있고, AI가 페이지를 읽고 클릭·입력·탭 조작을 할 수 있다.
+<h1 align="center">Changmun</h1>
 
-## 빌드와 실행
+<p align="center">
+  <b>A light Mac browser with a sidebar and an AI that can use it.</b><br>
+  Safari's WebKit engine, vertical tabs, favorites and bookmark folders on the left, and a Claude panel that reads pages, clicks and types for you.
+</p>
 
-```bash
-scripts/bundle.sh release   # build/Changmun.app
+<p align="center">
+  <img src="https://img.shields.io/badge/macOS-14%2B-black?logo=apple" alt="macOS 14 or later">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-555555" alt="MIT license"></a>
+  <img src="https://img.shields.io/badge/Swift-native-orange?logo=swift&logoColor=white" alt="Native Swift">
+</p>
+
+<p align="center">
+  <b>English</b> · <a href="README.ko.md">한국어</a> · <a href="README.ja.md">日本語</a> · <a href="README.zh-Hans.md">简体中文</a> · <a href="README.es.md">Español</a> · <a href="README.de.md">Deutsch</a> · <a href="README.fr.md">Français</a>
+</p>
+
+<p align="center">
+  <img src="docs/images/window.png" width="760" alt="Changmun window with vertical tabs in the sidebar and a page card">
+</p>
+
+*Changmun* (창문) is Korean for *window*. It's free, open source, and has no account or tracking. The app speaks English, Korean, Japanese, Simplified Chinese, Spanish, German and French.
+
+## Build and run
+
+There's no download yet; build it from source. You need macOS 14 or later and Xcode or the Command Line Tools.
+
+```sh
+git clone https://github.com/namekun/Changmun.git
+cd Changmun
+scripts/bundle.sh release   # makes build/Changmun.app
 open build/Changmun.app
-scripts/test.sh             # 테스트
-swift scripts/make-icon.swift        # Resources/AppIcon.icns (기본 시안 c, a·b도 있음)
 ```
 
-Command Line Tools만 깔려 있으면 스크립트가 macOS 26 SDK로 빌드하고(27 SDK의 SwiftUI 매크로 플러그인은 Xcode에만 있다), 빌드 결과물은 iCloud 동기화를 피해 `~/Library/Caches/Changmun/build`에 둔다.
+With only the Command Line Tools installed, the scripts build against the macOS 26 SDK (the macOS 27 SDK's SwiftUI macro plugin ships only with Xcode). Build products go to `~/Library/Caches/Changmun/build`, out of reach of iCloud Desktop syncing.
 
-### 헤드리스
+On first launch Changmun offers to bring over bookmarks, history, passwords and sign-ins from the browser you use now.
 
-테스트나 에이전트가 쓰는 화면 없는 Changmun. 창을 화면 밖에 두고, 포커스를 가져가거나 소리를 내지 않으며, 사용하는 Changmun과 따로 프로필(설정·쿠키·기록·`~/Library/Application Support/Changmun Headless`)을 쓴다. 키체인의 비밀번호는 읽지도 저장하지도 않고, AI 도구 확인 창·사이트 권한·JavaScript 대화상자는 묻지 않고 처리한다(권한은 거부).
+## What it does
 
-```bash
-scripts/headless.sh start                                  # build/Changmun.app을 헤드리스로 복사해 실행
-scripts/headless.sh call open_tab '{"url": "example.com"}' # AI 도구 그대로: list_tabs, navigate, read_page, click, screenshot…
-scripts/headless.sh shot window.png                        # 사이드바까지 포함한 창 전체 이미지
-scripts/headless.sh stop
-```
+- **Sidebar.** Favorites as tiles, bookmark folders, vertical tabs. Drag tabs to reorder them, or onto the favorites to pin them. Favorites and bookmarks each keep their own tab, like Dia and Arc: clicking one goes to its tab instead of replacing the one you're reading (⌘-click opens a new tab).
+- **Tab groups.** Right-click a tab › Add to New Group, name it, fold it. Tabs opened from a group's tab join the group; a reopened tab (⌘⇧T) goes back to its group.
+- **Tidy tabs.** The wand next to "New Tab" (Window › Tidy Tabs) groups the loose tabs. With Apple Intelligence on (macOS 26), the model on your Mac groups them by topic and names the groups; nothing about your tabs leaves the Mac. Without it, tabs opened from one another and tabs of one site go together. "Undo" puts things back for a few seconds. New tabs you open from the address bar join a matching group on their own (turn it off in Settings › Tabs & Appearance).
+- **Archive old tabs** (off by default). Tabs you haven't looked at for a set time (12 hours to 30 days, counted only while Changmun runs) close into History › Archived Tabs, ready to reopen into their group. Visible, playing, picture-in-picture, camera/mic, favorite and private tabs are never archived.
+- **Split view** (⌥⌘\\) shows two tabs side by side. **Focus mode** (⌘⇧F) hides everything but the page. **Link preview**: ⇧-click a link to open it in a floating card, ⌘↩ to keep it as a tab.
+- **Private windows** keep their cookies and site data in memory and forget them when closed; nothing goes to history, the session or the AI.
+- **Command bar** (⌘T): search, addresses, switching to open tabs, bookmarks and history, and asking the AI.
+- **Translate pages** in place with macOS's on-device translation (⌥⌘T, macOS 26+). Links and layout stay; the text never leaves the Mac.
+- **Picture in picture** (⌃⌘P) turns on by itself when you leave a tab with a playing video. ⌃⌘← / ⌃⌘→ skip 5 seconds even while you're in another app, and "Back to tab" brings the tab forward.
+- **Passwords** are saved to the Keychain after you sign in (https only) and filled from the key in the address bar. Copying one asks for Touch ID or your Mac password.
+- **Pop-ups** opened without a click are blocked, with "Open" and "Always Allow for This Site" right above the page.
+- **Downloads** show their progress at the bottom of the sidebar and get Safari's quarantine flag, so Gatekeeper checks them on first open. Apps, scripts and installers are shown in Finder instead of run.
+- **Sleeping tabs.** Background tabs you haven't seen in 20 minutes, and all background tabs under memory pressure, give back their web process and come back with their history when you return.
+- Page zoom is remembered per site, and open tabs are saved every 15 seconds, so a crash costs almost nothing.
 
-## 단축키
+## Shortcuts
 
-설정(⌘,)에서 Safari식과 Chrome식 중에 고른다. 두 브라우저가 다른 것만 다르다.
+Pick Safari-style or Chrome-style in Settings (⌘,). Only the keys the two browsers disagree on change.
 
-| 키 | 동작 |
+| Keys | Action |
 | --- | --- |
-| ⌘T / ⌘L | 명령 막대(검색·주소·열린 탭으로 전환·AI에게 묻기) / 현재 주소 편집 |
-| ⌘E / ⌘⇧E | AI 패널 / 새 AI 대화 |
-| ⌘D | 즐겨찾기 추가·제거 |
-| ⌘N / ⌘⇧N / ⌘⇧W | 새 창 / 새 개인 창 / 창 닫기 |
-| ⌘W, ⌘1–9, ⌘⇧[ ⌘⇧] | 탭 닫기, 사이드바 순서로 탭 이동 |
-| ⌃Tab / ⌃⇧Tab | 최근에 본 순서로 탭 전환(⌃를 누른 채 Tab으로 고르고 떼면 이동, esc로 취소) |
-| ⌥⌘\\ | 분할 보기(지금 탭과 직전에 보던 탭을 나란히) 켜기·끄기 |
-| ⇧-클릭 | 링크 미리보기: esc로 닫기, ⌘↩로 탭으로 열기 |
-| ⌘⇧T | 닫은 탭 다시 열기(다시 열 탭이 없으면 닫은 창) |
-| ⌃⌘M | 탭 음소거·소리 켜기 |
-| ⌃⌘P | 화면 속 화면(PiP) 켜기·끄기 |
-| ⌃⌘← / ⌃⌘→ | 영상 5초 뒤로·앞으로(화면 속 화면으로 떠 있는 동안은 다른 앱에서도) |
-| ⌥⌘T | 페이지 번역·원문 보기 |
-| ⌘F, ⌘G, ⌘⇧G | 페이지에서 찾기, 다음·이전 |
-| ⌘Y | 방문 기록 |
-| ⌘, | 설정 |
-| ⌘O, ⌘P, ⌘⇧C | 파일 열기, 인쇄, 주소 복사 |
-| 마우스 뒤로·앞으로 버튼 | 뒤로·앞으로 |
-| F12 또는 ⌥⌘I | 웹 인스펙터(네트워크 탭) 열기·닫기 |
-| ⌘⇧F | 집중 모드 켜기·끄기 |
+| ⌘T / ⌘L | Command bar / edit the current address |
+| ⌘E / ⌘⇧E | AI panel / new AI chat |
+| ⌘D | Add or remove a favorite |
+| ⌘N / ⌘⇧N / ⌘⇧W | New window / new private window / close window |
+| ⌘W, ⌘1–9, ⌘⇧[ ⌘⇧] | Close tab, go to a tab in sidebar order |
+| ⌃Tab / ⌃⇧Tab | Switch tabs in the order you last saw them (hold ⌃, press Tab, let go; esc cancels) |
+| ⌥⌘\\ | Split view on or off |
+| ⇧-click | Link preview: esc closes, ⌘↩ opens it as a tab |
+| ⌘⇧T | Reopen closed tab (or the closed window when no tab is left) |
+| ⌃⌘M | Mute or unmute the tab |
+| ⌃⌘P | Picture in picture on or off |
+| ⌃⌘← / ⌃⌘→ | Video back or forward 5 seconds |
+| ⌥⌘T | Translate the page / show the original |
+| ⌘F, ⌘G, ⌘⇧G | Find on page, next, previous |
+| ⌘Y | History |
+| ⌘O, ⌘P, ⌘⇧C | Open file, print, copy the address |
+| F12 or ⌥⌘I | Web Inspector |
+| ⌘⇧F | Focus mode |
 
-| 동작 | Safari식 | Chrome식 |
+| Action | Safari-style | Chrome-style |
 | --- | --- | --- |
-| 사이드바 | ⌘⇧L | ⌘S |
-| 강력 새로고침 | ⌥⌘R | ⌘⇧R |
-| 콘솔 | ⌥⌘C | ⌥⌘J |
-| 다운로드 | ⌥⌘L | ⌘⇧J |
-| 탭 이동(추가) | | ⌥⌘← ⌥⌘→ |
-
-F12는 키보드 설정에 따라 fn을 같이 눌러야 할 수 있다.
-
-## 설정
-
-- 일반: 검색 엔진(Google·네이버·DuckDuckGo·Bing), 시작할 때 지난 탭 복원, 다운로드 폴더와 매번 묻기, 기본 브라우저 지정, 다른 브라우저에서 가져오기.
-- 탭·모양: 테마, 사이드바 폭, 기본 확대, 안 보는 탭 재우기(끄기·10분·20분·1시간)와 재우지 않을 사이트.
-- 개인정보: 기간별 방문 기록·사이트 데이터 지우기, 광고·추적 차단, 저장된 비밀번호 관리(복사는 Touch ID나 Mac 암호 확인 후), 팝업을 허용한 사이트, 사이트별 카메라·마이크 권한.
-- AI: 모델, 확인 창 켜고 끄기, claude CLI 상태와 경로, 대화 지우기.
-- 고급: 주소창(개발자 모드에 맞춤·사이트와 제목·전체 주소), 단축키 방식, 개발자 모드.
-
-사이드바의 탭은 끌어서 순서를 바꾸고, 즐겨찾기 타일 위로 끌면 그 자리에 고정된다. 즐겨찾기와 북마크는 Dia·Arc처럼 저마다 자기 탭이 있어서 누르면 그 탭으로 간다(⌘-클릭은 새 탭). 마우스를 올리면 나오는 ✕로 지운다. 폴더나 가져온 브라우저 묶음은 우클릭으로 통째로 지운다. 보던 탭을 닫으면 직전에 보던 탭으로 돌아간다.
-
-탭 그룹은 탭 우클릭의 "새 그룹으로 묶기"로 만든다. 만들자마자 이름을 입력하고, 그룹 머리를 누르면 접히거나 펼쳐진다(접어도 보고 있는 탭은 남는다). 탭을 그룹 머리나 그룹 안 탭 위로 끌어 넣고, 우클릭의 "그룹으로 옮기기"·"그룹에서 빼기"로 옮긴다. 그룹 머리 우클릭으로 이름 바꾸기, 그룹 풀기, 그룹의 탭 모두 닫기를 한다. 그룹의 탭에서 새로 연 탭은 같은 그룹에 들어가고(접혀 있으면 펼쳐진다), 닫았다 다시 연 탭(⌘⇧T)은 원래 그룹으로 돌아간다. 그룹은 세션과 함께 저장된다. 접힌 그룹의 탭은 ⌃Tab·⌘1~9로 건너뛴다.
-
-"새 탭" 줄 오른쪽의 정리 버튼(윈도우 › 탭 정리)은 그룹에 없는 탭을 비슷한 것끼리 묶는다. Apple Intelligence가 켜져 있으면 이 Mac 안의 모델이 탭 제목과 사이트를 보고 주제별로 묶고 이름을 붙인다(탭 정보는 Mac 밖으로 나가지 않는다). 이미 있는 그룹에 맞는 탭은 그 그룹에 넣는다. 모델을 쓸 수 없으면 한 탭에서 링크로 열어 간 탭끼리, 같은 사이트 탭끼리 묶는다. 정리한 뒤 잠시 뜨는 "되돌리기"로 원래대로 돌린다(그사이 직접 옮긴 탭은 그대로 둔다). 주소를 쳐서 새로 연 탭은 첫 페이지가 열리면 맞는 그룹에 저절로 들어간다(링크로 열린 탭은 연 탭 옆에 남는다)(같은 사이트 그룹, 아니면 모델이 같은 일이라고 본 그룹). 설정 › 탭·모양에서 끈다.
-
-오래 안 본 탭 보관(설정 › 탭·모양, 기본은 끔)을 켜면 Changmun이 켜져 있는 동안 정한 시간(12시간~30일) 넘게 보지 않은 탭이 닫히고 방문 기록 › 보관한 탭에 모인다. 두 번 클릭하면 다시 열리고, 원래 그룹이 아직 있으면 그 그룹으로 돌아간다. 화면에 보이는 탭, 즐겨찾기·북마크 탭, 소리 나는 탭, 화면 속 화면 탭, 카메라·마이크를 쓰는 탭, 비공개 창은 보관하지 않는다.
-
-## 창, 개인 창, 분할 보기, 미리보기
-
-- 창마다 탭이 따로다. 메뉴 명령은 앞에 있는 창에, AI와 확장은 가장 최근에 쓴 일반 창에 작동한다. 끌 때 열려 있던 일반 창들이 다음 실행에 그대로 돌아온다.
-- 개인 창은 창마다 따로인 임시 저장소를 써서 닫으면 쿠키·사이트 데이터가 사라진다. 방문 기록·세션·사이트 아이콘을 디스크에 남기지 않고, AI와 확장은 개인 창의 탭을 보지 못한다.
-- 분할 보기는 탭·즐겨찾기·북마크 우클릭의 "지금 탭 옆에 나란히 보기"나 ⌥⌘\\로 켠다. 가운데 손잡이를 끌어 폭을 나누고(더블클릭하면 반반), 누른 쪽이 주소창과 단축키의 대상이 된다. 다른 탭으로 가면 숨었다가 둘 중 하나로 돌아오면 다시 보이고, 둘 중 하나를 닫으면 끝난다.
-- 집중 모드(⌘⇧F)는 Dia처럼 사이드바·페이지 위 막대·AI 패널·창 버튼을 숨기고 페이지만 남긴다. 같은 키로 돌아오고, AI 패널·사이드바·다운로드를 열면(단축키나 명령 바의 AI 질문 포함) 집중 모드가 끝난다. 주소는 ⌘L(검색 창)로 고친다.
-- ⇧-클릭한 링크는 탭을 만들지 않고 떠 있는 카드로 열린다. 바깥을 누르거나 esc로 닫고, "탭으로 열기"(⌘↩)를 누르면 본 상태 그대로 탭이 된다.
-
-## 편의 기능
-
-- 명령 막대는 입력하는 대로 열린 탭(탭으로 전환), 검색 엔진의 추천 검색어, 북마크·방문 기록을 보여 준다. 기록 검색은 메인 스레드 밖에서 돈다. 추천 검색어는 설정에서 끌 수 있고 개인 창에서는 보내지 않는다.
-- 로그인 폼을 보내면 페이지 위에 저장할지 묻는 줄이 뜬다(https만, 개인 창 제외). 저장하면 키체인에 들어가고 다음부터 주소창의 열쇠로 채운다. "이 사이트는 안 함"은 설정 › 개인정보에서 되돌린다.
-- 소리 나는 탭은 탭 목록에 스피커가 뜨고, 누르면 음소거된다. 주소창의 PiP 버튼이나 ⌃⌘P로 영상을 화면 속 화면으로 띄우고, 영상이 재생 중인 탭에서 다른 탭으로 가면 저절로 화면 속 화면이 된다(설정 › 탭·모양에서 끔).
-- 다운로드는 창을 따로 띄우지 않는다. 받는 동안 사이드바 아래에 파일과 진행률이 보이고, 끝나면 몇 초 뒤 들어간다(눌러서 열거나 끌어서 다른 앱에 넣기). 받은 파일에는 Safari처럼 격리 표시를 붙여 처음 열 때 Gatekeeper가 검사하고, 앱·스크립트·설치 패키지는 눌러도 바로 실행하지 않고 Finder에서 보여 준다. 페이지 위 막대의 다운로드 버튼(⌥⌘L)은 받는 동안 진행 링을, 끝난 뒤 안 본 파일이 있으면 점을 달고, 누르면 이번에 받은 목록이 팝오버로 뜬다. 개인 창의 다운로드는 그 창에서만 보이고, 창을 닫으면 목록에서 사라진다(파일은 남는다).
-- 다른 언어로 된 페이지에서는 주소창에 번역 버튼이 뜬다(⌥⌘T). macOS의 번역 모델로 이 Mac 안에서 번역해서 글이 밖으로 나가지 않고, 링크와 배치는 그대로 둔 채 글만 바꾼다(코드·입력칸은 그대로). 다시 누르면 원문으로 돌아온다. 번역 대상 언어는 시스템 설정의 첫 번째 언어이고, 모델이 없는 언어는 시스템 설정 › 일반 › 언어 및 지역 › 번역 언어에서 내려받는다(macOS 26 이상). 번역은 페이지 본문(다른 사이트에서 끼워 넣은 프레임 제외)의 앞쪽 4000개 글 조각까지이고, 번역한 뒤에 새로 불러온 글(무한 스크롤 등)은 원문 보기로 돌렸다가 다시 번역하면 함께 바뀐다. 번역 중에 버튼을 다시 누르면 멈추고 원문으로 돌아온다.
-- 사이트가 클릭 없이 여는 팝업은 막고, 페이지 위에 "팝업을 막았어요 · 열기 · 이 사이트는 항상 허용"을 띄운다. 허용한 사이트의 팝업은 새 탭으로 열리고(그 사이트를 보고 있을 때만 그 탭으로 넘어가고, 창마다 1초에 하나까지), 설정 › 개인정보에서 지운다. 사이트 안의 광고 프레임은 이 허용을 쓰지 못한다.
-- 화면 속 화면으로 띄운 영상은 ⌃⌘←·⌃⌘→로 5초씩 옮긴다. 영상이 떠 있는 동안만 이 키를 시스템 전체에서 받아서 다른 앱을 쓰는 중에도 되고, 화면 속 화면이 끝나면 키를 돌려준다. 다른 사이트에서 끼워 넣은 영상(퍼 온 YouTube 등)은 옮기지 못한다. 떠 있는 창의 "탭으로 돌아가기"를 누르면 영상이 있던 탭과 창이 앞으로 나오고 영상이 탭으로 돌아간다. 닫기 ✕나 페이지가 스스로 화면 속 화면을 끝낸 경우에는 화면을 그대로 둔다.
-- ⌘+ ⌘- ⌘0으로 바꾼 확대 비율은 사이트별로 기억한다(개인 창 제외, 방문 기록을 전체 지우면 함께 지워짐).
-- 열린 탭은 바뀔 때마다 15초 안에 저장해서, 앱이 비정상 종료돼도 거의 그대로 돌아온다.
-
-## 광고 차단
-
-EasyList(광고)와 EasyPrivacy(추적)를 받아 WebKit 콘텐츠 차단 규칙으로 바꿔 쓴다. 4일마다 새로 받고, 설정 › 개인정보에서 목록을 끄거나 다른 목록 주소(예: 한국 광고 목록)를 더할 수 있다. 사이트가 깨지면 주소창의 방패 버튼으로 그 사이트만 끈다. WebKit이 표현할 수 없는 규칙(정규식, `$redirect`, 스크립틀릿, `:has-text` 같은 확장 선택자)은 잘못 막지 않도록 건너뛴다.
-
-## 확장 프로그램
-
-설정 › 확장에서 관리한다(웹 확장은 macOS 15.4 이상).
-
-- App Store의 Safari 확장: 설치하면 목록에 저절로 나타나고, 켤 때 권한을 묻는다. "App Store에서 Safari 확장 찾기"는 App Store의 Safari 확장 모음을 연다.
-- Chrome 웹 스토어 확장: 스토어의 확장 페이지를 열면 페이지 위에 "Changmun에 추가"가 뜬다(설정에 주소나 ID를 넣어도 된다). 받은 확장은 `~/Library/Application Support/Changmun/Extensions`에 풀어 두고 WebKit 확장으로 불러온다. 다시 누르면 업데이트된다.
-- Safari 콘텐츠 차단기(Unicorn, AdGuard 등): macOS가 Safari 말고는 차단기에 규칙을 직접 요청하지 못하게 해서, 차단기 앱이 저장해 둔 규칙 파일을 읽어 적용한다. 처음 켤 때 macOS가 다른 앱의 데이터 접근을 묻는다.
-- 압축을 푼 확장 폴더(manifest.json)를 불러올 수도 있다. 네이티브 앱과 주고받는 기능 등 일부는 동작하지 않을 수 있다.
+| Sidebar | ⌘⇧L | ⌘S |
+| Hard reload | ⌥⌘R | ⌘⇧R |
+| Console | ⌥⌘C | ⌥⌘J |
+| Downloads | ⌥⌘L | ⌘⇧J |
+| Previous Tab / Next Tab | | ⌥⌘← ⌥⌘→ |
 
 ## AI
 
-- 내장 패널은 설치된 `claude` CLI(Claude Code 구독)를 쓴다. 모델은 `defaults write io.github.namekun.Changmun aiModel opus`로 바꿀 수 있다(기본 sonnet).
-- AI가 쓰는 도구: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `click`, `type_text`, `scroll`, `screenshot`. 비밀번호 칸은 읽지도 입력하지도 못한다.
-- 페이지에 숨은 지시로 AI가 다른 곳에서 읽은 내용을 빼돌리지 못하게, 앱이 확인 창으로 묻는 경우가 있다(90초 동안 답이 없으면 거부).
-  - 보고 있지 않은 탭을 쓸 때: 탭과 그 사이트마다 한 번.
-  - 주소를 열 때: 검색 엔진 검색, 이미 열렸거나 방문·북마크한 주소 그대로, 아는 사이트의 첫 화면이 아니면 주소마다.
-  - 입력할 때: 이 대화에서 다른 사이트를 읽은 뒤라면 입력할 내용을 보여 주고 매번. 새 대화(⌘⇧E)에서 초기화.
-- 다른 에이전트(Claude Code 등)에서도 같은 도구를 쓸 수 있고, 같은 확인을 거친다.
+The panel on the right (⌘E) uses the `claude` CLI you already have, so it runs on your Claude Code subscription. The default model is Sonnet; switch with `defaults write io.github.namekun.Changmun aiModel opus`.
 
-```bash
+The AI works the browser through these tools: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `click`, `type_text`, `scroll`, `screenshot`. It can't read or fill password fields.
+
+So that instructions hidden in a page can't make it carry what it read somewhere else, Changmun asks you first (and says no after 90 seconds without an answer):
+
+- before it uses a tab you aren't looking at, once per tab and site;
+- before it opens an address, unless it's a search, an address already open, visited or bookmarked, or a known site's front page;
+- before every bit of typing once the chat has read another site, showing what it will type. A new chat (⌘⇧E) starts over.
+
+Other agents, like Claude Code, can use the same tools through MCP, with the same questions:
+
+```sh
 claude mcp add changmun -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp
 ```
 
-앱이 꺼져 있으면 `--mcp`가 앱을 먼저 띄운다. 제어 서버는 127.0.0.1에서만 열리고, 실행할 때마다 바뀌는 토큰이 필요하다.
+`--mcp` starts Changmun if it isn't running. The control server listens only on 127.0.0.1 and needs a token that changes every launch.
 
-## 메모리
+## Ad blocking
 
-- 오래 안 본 백그라운드 탭(기본 20분, `sleepTabsAfterMinutes`)과 메모리 압박 때의 백그라운드 탭은 웹 프로세스를 내려놓고, 다시 볼 때 방문 기록과 함께 복원한다.
+Changmun turns EasyList (ads) and EasyPrivacy (trackers) into WebKit content-blocking rules and refreshes them every 4 days. In Settings › Privacy you can turn lists off or add others by address (a Korean ad list is one click away). If a site breaks, the shield in the address bar turns blocking off for that site. Rules WebKit can't express (regular expressions, `$redirect`, scriptlets, `:has-text` and other extended selectors) are skipped rather than guessed.
 
-## 다른 브라우저에서 가져오기
+## Extensions
 
-첫 실행 때(또는 메뉴 › 다른 브라우저에서 가져오기) Chrome, Arc(사이드바 고정 탭 포함), Dia, Aside, Whale, Brave, Edge, Vivaldi 같은 크로미움 계열과 Safari에서 북마크·방문 기록을 가져온다. 크로미움 계열에서는 비밀번호와 쿠키(로그인 상태)도 가져온다.
+Managed in Settings › Extensions (web extensions need macOS 15.4 or later).
 
-- 비밀번호·쿠키는 각 브라우저의 키체인 항목(`<이름> Safe Storage`)으로 복호화하므로 macOS 허용 창이 뜬다. 가져온 비밀번호는 로그인 키체인에 `Changmun` 이름표로 저장되고, 로그인 칸이 있는 페이지에서 주소 옆 열쇠 버튼으로 채운다.
-- Safari는 전체 디스크 접근 권한이 있어야 읽을 수 있다. Safari 비밀번호는 macOS가 다른 앱에 내주지 않는다.
+- **Safari extensions from the App Store** show up once installed and ask for their permissions when you turn them on.
+- **Chrome Web Store extensions**: open an extension's store page and "Add to Changmun" appears above it (or paste its address or ID in Settings). Changmun unpacks it into `~/Library/Application Support/Changmun/Extensions` and loads it as a WebKit extension; adding it again updates it.
+- **Safari content blockers** (Unicorn, AdGuard and others): macOS only lets Safari ask a blocker for its rules, so Changmun reads the rule file the blocker saved. macOS asks once to let it read another app's data.
+- An unpacked extension folder (with `manifest.json`) loads too. Some features, like talking to a native app, may not work.
+
+## Importing from other browsers
+
+On first launch, or from the menu, Changmun imports bookmarks and history from Safari and from Chromium browsers: Chrome, Arc (with its sidebar), Dia, Aside, Whale, Brave, Edge, Vivaldi. From Chromium browsers it also brings passwords and cookies, so you stay signed in.
+
+- Passwords and cookies are decrypted with each browser's Keychain item (`<name> Safe Storage`), so macOS asks you to allow it. Imported passwords go to your login Keychain labeled `Changmun`.
+- Reading Safari needs Full Disk Access. macOS doesn't hand Safari's passwords to other apps.
+
+## Privacy
+
+- Your browsing stays on your Mac. Changmun has no account, server or analytics.
+- Search suggestions send what you type in the command bar to your search engine (turn them off in Settings; never sent from private windows).
+- The AI panel sends your messages, and the page content the AI reads, to Anthropic through the `claude` CLI. Tidy tabs and page translation run on your Mac.
+
+## For developers
+
+```sh
+scripts/test.sh            # unit tests (Swift Testing)
+scripts/check-strings.sh   # every string the code uses is translated in every language
+swift scripts/make-icon.swift
+```
+
+UI text is English in the code and translated in `Resources/<language>.lproj/Localizable.strings`; add every new string to all six tables.
+
+`scripts/headless.sh` runs a headless Changmun for tests and agents: off screen, never takes focus or plays sound, with its own profile in `~/Library/Application Support/Changmun Headless`. It doesn't touch the Keychain, and answers AI confirmations, site permissions and JavaScript dialogs by itself (permissions are denied).
+
+```sh
+scripts/headless.sh start                                   # copy build/Changmun.app as the headless app and start it
+scripts/headless.sh call open_tab '{"url": "example.com"}'  # the AI's tools: list_tabs, navigate, read_page, click…
+scripts/headless.sh shot window.png                         # the whole window, sidebar included
+scripts/headless.sh stop
+```
+
+## License
+
+[MIT](LICENSE)

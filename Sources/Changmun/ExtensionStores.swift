@@ -30,11 +30,11 @@ enum ChromeWebStore {
 
         var errorDescription: String? {
             switch self {
-            case .notCRX: "확장 파일 형식이 아니에요"
-            case .download(let status): "받지 못했어요 (HTTP \(status))"
-            case .unsafeArchive: "압축 파일 안에 확장 폴더 밖을 가리키는 항목이 있어요"
-            case .noManifest: "manifest.json이 없는 확장이에요"
-            case .tooLarge: "확장 파일이 너무 커요"
+            case .notCRX: String(localized: "Not an extension file")
+            case .download(let status): String(localized: "Couldn't download (HTTP \(status))")
+            case .unsafeArchive: String(localized: "The archive contains an item that points outside the extension folder")
+            case .noManifest: String(localized: "This extension has no manifest.json")
+            case .tooLarge: String(localized: "The extension file is too large")
             }
         }
     }
@@ -306,7 +306,7 @@ final class ContentBlockerHost: ObservableObject {
     static let shared = ContentBlockerHost()
 
     @Published private(set) var blockers: [ContentBlockerExtension] = []
-    /// "규칙 1,234개 적용 중" or what went wrong, by bundle id.
+    /// "1,234 rules active" or what went wrong, by bundle id.
     @Published private(set) var status: [String: String] = [:]
     /// Bumped by every apply and switch-off, so a slower, older apply can't put back rules that were turned off or changed.
     private var generation: [String: Int] = [:]
@@ -349,7 +349,7 @@ final class ContentBlockerHost: ObservableObject {
         let id = blocker.bundleID
         generation[id, default: 0] += 1
         let mine = generation[id]
-        status[id] = "규칙을 읽는 중…"
+        status[id] = String(localized: "Reading rules…")
         let allowlist = Preferences.shared.adBlockAllowlist.filter { !$0.isEmpty }.map { host -> [String: Any] in
             ["trigger": ["url-filter": ".*", "if-domain": ["*" + host.lowercased()]], "action": ["type": "ignore-previous-rules"]]
         }
@@ -365,7 +365,7 @@ final class ContentBlockerHost: ObservableObject {
         groups[id] = read.groups
         guard generation[id] == mine, isEnabled(blocker) else { return }
         guard !read.parts.isEmpty else {
-            status[id] = "[ERROR] 규칙을 찾지 못했어요. 시스템 설정 › 개인정보 보호 및 보안에서 Changmun이 다른 앱의 데이터에 접근하도록 허용했는지 확인하세요."
+            status[id] = "[ERROR] " + String(localized: "Couldn't find the rules. In System Settings › Privacy & Security, check that Changmun is allowed to access data from other apps.")
             AdBlocker.shared.setExternal(id, [])
             return
         }
@@ -378,15 +378,15 @@ final class ContentBlockerHost: ObservableObject {
             }
             guard generation[id] == mine, isEnabled(blocker) else { return }
             AdBlocker.shared.setExternal(id, lists)
-            status[id] = "규칙 \(read.count.formatted())개 적용 중"
+            status[id] = String(localized: "\(read.count.formatted()) rules active")
         } catch {
             guard generation[id] == mine else { return }
-            status[id] = "[ERROR] WebKit이 규칙을 받아들이지 않았어요: \(error.localizedDescription)"
+            status[id] = "[ERROR] " + String(localized: "WebKit didn't accept the rules: \(error.localizedDescription)")
         }
     }
 }
 
 enum SafariExtensionGallery {
-    /// The App Store's "Safari 확장 프로그램" page.
+    /// The App Store's "Safari Extensions" page.
     static let url = URL(string: "macappstore://apps.apple.com/story/id1377753262")!
 }

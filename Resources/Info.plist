@@ -3,7 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>ko</string>
+	<string>en</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>ko</string>
+		<string>ja</string>
+		<string>zh-Hans</string>
+		<string>es</string>
+		<string>de</string>
+		<string>fr</string>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>Changmun</string>
 	<key>CFBundleIconFile</key>
@@ -44,10 +54,10 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>웹사이트가 카메라를 요청할 때 사용합니다.</string>
+	<string>Used when a website asks for your camera.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>웹사이트가 마이크를 요청할 때 사용합니다.</string>
+	<string>Used when a website asks for your microphone.</string>
 	<key>NSLocationUsageDescription</key>
-	<string>웹사이트가 위치를 요청할 때 사용합니다.</string>
+	<string>Used when a website asks for your location.</string>
 </dict>
 </plist>

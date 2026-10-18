@@ -159,7 +159,7 @@ struct LoginButton: View {
         if !tab.savedLogins.isEmpty {
             Menu {
                 ForEach(tab.savedLogins, id: \.self) { name in
-                    Button(name.isEmpty ? "(아이디 없음)" : name) { tab.fillLogin(username: name) }
+                    Button(name.isEmpty ? String(localized: "(No username)") : name) { tab.fillLogin(username: name) }
                 }
             } label: {
                 Image(systemName: "key.fill").font(.system(size: 10.5))
@@ -168,7 +168,7 @@ struct LoginButton: View {
             .menuIndicator(.hidden)
             .fixedSize()
             .foregroundStyle(Theme.primary)
-            .help("저장된 로그인 정보 채우기")
+            .help("Fill in saved login")
         }
     }
 }

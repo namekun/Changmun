@@ -11,7 +11,7 @@ enum CommandBarMode: Equatable {
 final class PageOverlay: ObservableObject {
     /// The link under the pointer in a shown tab, for the status line at the bottom of the page.
     @Published var hoveredLink: String?
-    /// A short message in the same place ("주소를 복사했어요").
+    /// A short message in the same place ("Address copied").
     @Published var statusMessage: String?
     @Published var findText = ""
     @Published var findMatches: Int?
@@ -92,7 +92,7 @@ final class Browser: ObservableObject {
             guard focusMode else { return }
             showDownloads = false
             renamingGroup = nil
-            flashStatus("집중 모드 · ⇧⌘F로 돌아가기")
+            flashStatus(String(localized: "Focus mode · ⇧⌘F to exit"))
         }
     }
     static var favicons: [String: NSImage] = [:]
@@ -583,7 +583,7 @@ final class Browser: ObservableObject {
 
     /// Puts the tabs in a new group, gathered after the first of them, and starts naming it.
     @discardableResult
-    func group(_ ids: [Int], name: String = "새 그룹") -> UUID? {
+    func group(_ ids: [Int], name: String = String(localized: "New Group")) -> UUID? {
         let members = tabs.filter { ids.contains($0.id) && $0.bookmarkKey == nil }
         guard !members.isEmpty else { return nil }
         let group = TabGroup(name: name)
@@ -688,7 +688,7 @@ final class Browser: ObservableObject {
     func tidyTabs() {
         guard !tidying else { return }
         let loose = looseTabs
-        guard loose.count > 1 else { return flashStatus("정리할 탭이 없어요") }
+        guard loose.count > 1 else { return flashStatus(String(localized: "No tabs to tidy")) }
         tidying = true
         let items = loose.map(\.sortItem), names = groups.map(\.name)
         Task {
@@ -720,7 +720,7 @@ final class Browser: ObservableObject {
         pruneGroups()
         guard tidy.tabs > 0 else {
             lastTidy = nil
-            return flashStatus("묶을 만한 탭이 없어요")
+            return flashStatus(String(localized: "No tabs to group"))
         }
         lastTidy = tidy
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
@@ -747,7 +747,7 @@ final class Browser: ObservableObject {
             guard let index = await TabSorter.fit(item, groups: candidates), self.tab(tab.id) === tab, tab.groupID == nil,
                   let group = groups.first(where: { $0.id == ids[index] }) else { return }
             addTab(tab.id, to: group.id)
-            if isShown(tab) { flashStatus("'\(group.name)' 그룹에 넣었어요") }
+            if isShown(tab) { flashStatus(String(localized: "Added to “\(group.name)”")) }
         }
     }
 
