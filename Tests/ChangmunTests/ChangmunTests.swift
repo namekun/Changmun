@@ -993,6 +993,32 @@ struct ExtensionStoreTests {
         #expect(!fm.fileExists(atPath: folder.appendingPathComponent("_metadata").path))
     }
 
+    @Test func archivesWithLinksAreRefused() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("changmun-link-\(UUID().uuidString)")
+        defer { try? fm.removeItem(at: root) }
+        let source = root.appendingPathComponent("src")
+        let outside = root.appendingPathComponent("outside")
+        try fm.createDirectory(at: source, withIntermediateDirectories: true)
+        try fm.createDirectory(at: outside, withIntermediateDirectories: true)
+        try "{}".write(to: source.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+        try fm.createSymbolicLink(at: source.appendingPathComponent("escape"), withDestinationURL: outside)
+        let zipFile = root.appendingPathComponent("t.zip")
+        let zip = Process()
+        zip.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
+        zip.arguments = ["-q", "-y", "-r", zipFile.path, "manifest.json", "escape"]
+        zip.currentDirectoryURL = source
+        try zip.run()
+        zip.waitUntilExit()
+        #expect(ChromeWebStore.listsSymlink(try ChromeWebStore.run("/usr/bin/zipinfo", ["-s", zipFile.path])))
+        #expect(throws: ChromeWebStore.Failure.self) {
+            try ChromeWebStore.unpack(try Data(contentsOf: zipFile), id: "abc", into: root)
+        }
+        #expect(!fm.fileExists(atPath: root.appendingPathComponent("abc").path))
+        #expect(!ChromeWebStore.listsSymlink("-rw-r--r--  3.0 unx  12 tx defN 25-Oct-18 13:00 manifest.json"))
+        #expect(!ChromeWebStore.isSafeEntry("js\\..\\..\\x"))
+    }
+
     @Test func pluginkitRecordsParse() {
         let output = """
              kr.co.lylstudio.unicorn-mac-safari.blocker(1.12.2)

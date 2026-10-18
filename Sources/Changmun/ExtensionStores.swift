@@ -55,7 +55,15 @@ enum ChromeWebStore {
 
     /// Entries that would land outside the folder (absolute paths, `..`) make the whole archive unsafe.
     static func isSafeEntry(_ name: String) -> Bool {
-        !name.hasPrefix("/") && !name.split(separator: "/").contains("..")
+        !name.hasPrefix("/") && !name.contains("\\") && !name.split(separator: "/").contains("..")
+    }
+
+    /// Whether `zipinfo -s` lists a symbolic link: its mode column starts with "l". A link entry followed by entries
+    /// under it would make the unpacker write through the link, outside the folder, so such archives are refused.
+    static func listsSymlink(_ zipinfoListing: String) -> Bool {
+        zipinfoListing.split(whereSeparator: \.isNewline).contains { line in
+            line.first == "l" && line.dropFirst().prefix(9).allSatisfy { "rwxsStT-".contains($0) }
+        }
     }
 
     /// Downloads and unpacks the extension, replacing an older copy; returns its folder.
@@ -73,15 +81,20 @@ enum ChromeWebStore {
         try zip.write(to: archive)
         defer { try? fm.removeItem(at: archive) }
         let names = try run("/usr/bin/zipinfo", ["-1", archive.path]).split(whereSeparator: \.isNewline).map(String.init)
-        guard names.allSatisfy(isSafeEntry) else { throw Failure.unsafeArchive }
+        guard names.allSatisfy(isSafeEntry), !listsSymlink(try run("/usr/bin/zipinfo", ["-s", archive.path])) else { throw Failure.unsafeArchive }
         let destination = parent.appendingPathComponent(id, isDirectory: true)
         let staging = parent.appendingPathComponent(".\(id)-new", isDirectory: true)
         try? fm.removeItem(at: staging)
         _ = try run("/usr/bin/ditto", ["-x", "-k", archive.path, staging.path])
-        // Links could point anywhere on disk; an extension has no need for them.
+        // Belt and braces after refusing link entries: nothing unpacked may be a link or resolve outside the folder.
+        let root = staging.resolvingSymlinksInPath().path + "/"
         if let items = fm.enumerator(at: staging, includingPropertiesForKeys: [.isSymbolicLinkKey]) {
-            for case let item as URL in items where (try? item.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink == true {
-                try fm.removeItem(at: item)
+            for case let item as URL in items {
+                let isLink = (try? item.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink == true
+                guard !isLink, item.resolvingSymlinksInPath().path.hasPrefix(root) else {
+                    try? fm.removeItem(at: staging)
+                    throw Failure.unsafeArchive
+                }
             }
         }
         // Chrome's own signature files; WebKit reserves names starting with "_".
