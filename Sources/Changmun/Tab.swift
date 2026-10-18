@@ -210,7 +210,8 @@ extension Tab: WKNavigationDelegate {
             // Never handed to a new tab, which would treat it as opened by the user.
             return (.allow, preferences)
         }
-        if action.navigationType == .linkActivated, action.modifierFlags.contains(.command) || action.buttonNumber == 2, let url = action.request.url {
+        if action.navigationType == .linkActivated, action.modifierFlags.contains(.command) || action.buttonNumber == Self.middleButton,
+           let url = action.request.url {
             browser?.openTab(url: url, activate: action.modifierFlags.contains(.shift), after: self)
             return (.cancel, preferences)
         }
@@ -221,9 +222,12 @@ extension Tab: WKNavigationDelegate {
         return (.allow, preferences)
     }
 
+    /// WebKit reports the mouse button as a mask: left 1, right 2, middle 4.
+    static let middleButton = 4
+
     /// ⇧-click on a link (without ⌘) opens it in the peek.
     static func isPeekClick(_ action: WKNavigationAction) -> Bool {
-        action.navigationType == .linkActivated && action.buttonNumber != 2
+        action.navigationType == .linkActivated && action.buttonNumber != middleButton
             && ["http", "https"].contains(action.request.url?.scheme?.lowercased() ?? "")
             && action.modifierFlags.contains(.shift) && !action.modifierFlags.contains(.command)
     }

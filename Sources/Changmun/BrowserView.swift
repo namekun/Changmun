@@ -340,7 +340,9 @@ struct Sidebar: View {
                     AIButton(isOn: browser.showChat) { browser.showChat.toggle() }
                     Spacer()
                     if #available(macOS 15.4, *) { ExtensionButtons(browser: browser) }
-                    BarButton(symbol: "square.and.arrow.down", help: "다른 브라우저에서 가져오기") { browser.showOnboarding = true }
+                    BarButton(symbol: "arrow.down.circle", help: "다운로드") {
+                        NSApp.sendAction(#selector(AppDelegate.showDownloads(_:)), to: nil, from: nil)
+                    }
                 }
             }
             .padding(.horizontal, 12)
