@@ -359,16 +359,24 @@ final class Browser: ObservableObject {
             if let open = tabs.first(where: { $0.url?.absoluteString == address }) { activate(open.id) } else { openTab(url: url, after: active) }
             return
         }
-        if let open = bookmarkTab(key) {
-            activate(open.id)
-        } else {
-            let tab = Tab(id: Self.takeID(), url: url, browser: self)
-            tab.bookmarkKey = key
-            tabs.append(tab)
-            if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
-            activate(tab.id)
-        }
+        activate(bookmarkTab(opening: url, key: key).id)
         commandBar = nil
+    }
+
+    /// The bookmark's tab, opened in its place (and not shown) if it isn't open yet.
+    private func bookmarkTab(opening url: URL, key: String) -> Tab {
+        if let open = bookmarkTab(key) { return open }
+        let tab = Tab(id: Self.takeID(), url: url, browser: self)
+        tab.bookmarkKey = key
+        tabs.append(tab)
+        if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
+        return tab
+    }
+
+    /// Shows a bookmark's tab to the right of the active tab, opening it first if needed.
+    func split(withBookmark address: String, key: String) {
+        guard activeID != nil, let url = URL(string: address) else { return }
+        split(with: bookmarkTab(opening: url, key: key).id)
     }
 
     /// A tab whose bookmark was deleted moves into the tab list rather than closing.

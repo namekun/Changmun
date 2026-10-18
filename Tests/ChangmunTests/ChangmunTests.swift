@@ -499,6 +499,24 @@ struct BrowserTabTests {
         #expect(b.peek == nil && b.tabs.count == 2)
     }
 
+    @Test func aBookmarkCanJoinASplit() {
+        let b = browser(1)
+        let one = b.tabs[0].id
+        b.activate(one)
+        let key = Browser.bookmarkKey(url: "https://fav.example/", folder: "")
+        // Not open yet: its tab opens in its place, beside the active tab, still out of the tab list.
+        b.split(withBookmark: "https://fav.example/", key: key)
+        let tab = b.bookmarkTab(key)
+        #expect(tab != nil && b.shownSplit == Browser.Split(left: one, right: tab!.id))
+        #expect(b.activeID == one && b.listedTabs.map(\.id) == [one])
+        #expect(BookmarkTabState(key, b) == .shown)
+        // Its own tab can't sit beside itself.
+        b.activate(tab!.id)
+        b.unsplit()
+        b.split(withBookmark: "https://fav.example/", key: key)
+        #expect(b.split == nil)
+    }
+
     @Test func splitFractionStaysUsable() {
         #expect(Browser.clampedSplitFraction(0.05) == 0.2)
         #expect(Browser.clampedSplitFraction(0.5) == 0.5)

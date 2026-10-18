@@ -253,6 +253,8 @@ struct Sidebar: View {
                                     if let tab = browser.bookmarkTab(key) { browser.close(tab.id) }
                                 } remove: {
                                     Library.shared.removeBookmark(url: entry.url, folder: Library.favoritesFolder)
+                                } split: {
+                                    splitItem(url: entry.url, key: key)
                                 }
                                 .draggable(SidebarDrag.favorite(entry.url))
                                 .dropDestination(for: String.self) { items, _ in
@@ -312,6 +314,8 @@ struct Sidebar: View {
                                                     if let tab = browser.bookmarkTab(key) { browser.close(tab.id) }
                                                 } remove: {
                                                     Library.shared.removeBookmark(url: entry.url, folder: folder.key)
+                                                } split: {
+                                                    splitItem(url: entry.url, key: key)
                                                 }
                                                 .padding(.leading, 26)
                                             }
@@ -341,6 +345,16 @@ struct Sidebar: View {
             }
             .padding(.horizontal, 12)
             .frame(height: 48)
+        }
+    }
+
+    /// The split item in a bookmark's menu: end the split it is in, or show it next to the active tab.
+    @ViewBuilder private func splitItem(url: String, key: String) -> some View {
+        let tab = browser.bookmarkTab(key)
+        if let tab, browser.split?.contains(tab.id) == true {
+            Button("분할 보기 끝내기") { browser.unsplit() }
+        } else if browser.activeID != nil && tab?.id != browser.activeID {
+            Button("지금 탭 옆에 나란히 보기") { browser.split(withBookmark: url, key: key) }
         }
     }
 
@@ -696,7 +710,7 @@ enum BookmarkTabState {
     @MainActor
     init(_ key: String, _ browser: Browser) {
         guard let tab = browser.bookmarkTab(key) else { self = .closed; return }
-        self = tab.id == browser.activeID ? .shown : .open
+        self = browser.isShown(tab) ? .shown : .open
     }
 }
 
@@ -719,12 +733,13 @@ struct HoverAction: View {
     }
 }
 
-struct FavoriteTile: View {
+struct FavoriteTile<SplitItem: View>: View {
     let entry: Library.Entry
     let state: BookmarkTabState
     let open: () -> Void
     let closeTab: () -> Void
     let remove: () -> Void
+    @ViewBuilder let split: () -> SplitItem
     @State private var hover = false
 
     var body: some View {
@@ -755,6 +770,8 @@ struct FavoriteTile: View {
             .onHover { hover = $0 }
             .contextMenu {
                 if state != .closed { Button("탭 닫기", action: closeTab) }
+                split()
+                Divider()
                 Button("즐겨찾기에서 빼기", action: remove)
             }
             .help(entry.title.isEmpty ? entry.url : entry.title)
@@ -789,12 +806,13 @@ struct FolderRow: View {
     }
 }
 
-struct BookmarkRow: View {
+struct BookmarkRow<SplitItem: View>: View {
     let entry: Library.Entry
     let state: BookmarkTabState
     let open: () -> Void
     let closeTab: () -> Void
     let remove: () -> Void
+    @ViewBuilder let split: () -> SplitItem
     @State private var hover = false
 
     var body: some View {
@@ -823,6 +841,8 @@ struct BookmarkRow: View {
         .onTapGesture(perform: open)
         .contextMenu {
             if state != .closed { Button("탭 닫기", action: closeTab) }
+            split()
+            Divider()
             Button("북마크 삭제", action: remove)
         }
         .help(entry.url)
