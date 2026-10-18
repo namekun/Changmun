@@ -15,7 +15,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         menuSubscription = Preferences.shared.$shortcuts.sink { NSApp.mainMenu = AppMenu.make(scheme: $0) }
         NSApp.appearance = Preferences.shared.appearance.nsAppearance
-        Task { await AdBlocker.shared.start() }
+        Task {
+            await AdBlocker.shared.start()
+            await ContentBlockerHost.shared.start()
+        }
         if #available(macOS 15.4, *) { Task { await ExtensionHost.shared.start() } }
         let saved = Browser.savedWindows()
         if saved.isEmpty {

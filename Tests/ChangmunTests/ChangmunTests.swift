@@ -944,3 +944,75 @@ struct NavigationPolicyTests {
         #expect(Tab.middleButton == 4)
     }
 }
+
+struct ExtensionStoreTests {
+    @Test func storeAddressesGiveTheID() {
+        let id = "eimadpbcbfnmbkopoojfekhnkhdbieeh"
+        #expect(ChromeWebStore.extensionID(from: id) == id)
+        #expect(ChromeWebStore.extensionID(from: "https://chromewebstore.google.com/detail/dark-reader/\(id)?hl=ko") == id)
+        #expect(ChromeWebStore.extensionID(from: "https://chrome.google.com/webstore/detail/dark-reader/\(id)") == id)
+        #expect(ChromeWebStore.extensionID(from: "https://evil.example/detail/x/\(id)") == nil)
+        #expect(ChromeWebStore.extensionID(from: "eimadpbcbfnmbkopoojfekhnkhdbiee") == nil)
+        #expect(ChromeWebStore.extensionID(from: "EIMADPBCBFNMBKOPOOJFEKHNKHDBIEEH") == nil)
+    }
+
+    private func le(_ n: Int) -> [UInt8] { [UInt8(n & 0xff), UInt8(n >> 8 & 0xff), UInt8(n >> 16 & 0xff), UInt8(n >> 24 & 0xff)] }
+
+    @Test func crxHeadersAreStripped() throws {
+        let zip: [UInt8] = [0x50, 0x4B, 3, 4, 9, 9]
+        let v3 = Array("Cr24".utf8) + le(3) + le(5) + [1, 2, 3, 4, 5] + zip
+        #expect(try [UInt8](ChromeWebStore.zipData(fromCRX: Data(v3))) == zip)
+        let v2 = Array("Cr24".utf8) + le(2) + le(2) + le(3) + [1, 2, 7, 7, 7] + zip
+        #expect(try [UInt8](ChromeWebStore.zipData(fromCRX: Data(v2))) == zip)
+        #expect(try [UInt8](ChromeWebStore.zipData(fromCRX: Data(zip))) == zip)
+        #expect(throws: ChromeWebStore.Failure.self) { try ChromeWebStore.zipData(fromCRX: Data("<html>not a crx".utf8)) }
+    }
+
+    @Test func archivesCantReachOutsideTheirFolder() {
+        #expect(ChromeWebStore.isSafeEntry("manifest.json"))
+        #expect(ChromeWebStore.isSafeEntry("js/background.js"))
+        #expect(!ChromeWebStore.isSafeEntry("../../.zshrc"))
+        #expect(!ChromeWebStore.isSafeEntry("js/../../x"))
+        #expect(!ChromeWebStore.isSafeEntry("/etc/hosts"))
+    }
+
+    @Test func aCRXUnpacksIntoItsOwnFolder() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("changmun-store-\(UUID().uuidString)")
+        defer { try? fm.removeItem(at: root) }
+        let source = root.appendingPathComponent("src")
+        try fm.createDirectory(at: source.appendingPathComponent("_metadata"), withIntermediateDirectories: true)
+        try #"{"manifest_version": 3, "name": "T", "version": "1"}"#.write(to: source.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+        try "{}".write(to: source.appendingPathComponent("_metadata/verified_contents.json"), atomically: true, encoding: .utf8)
+        let zipFile = root.appendingPathComponent("t.zip")
+        try ChromeWebStore.run("/usr/bin/ditto", ["-c", "-k", source.path, zipFile.path])
+        let crx = Data(Array("Cr24".utf8) + le(3) + le(0)) + (try Data(contentsOf: zipFile))
+        let folder = try ChromeWebStore.unpack(try ChromeWebStore.zipData(fromCRX: crx), id: "abc", into: root)
+        #expect(folder.lastPathComponent == "abc")
+        #expect(fm.fileExists(atPath: folder.appendingPathComponent("manifest.json").path))
+        #expect(!fm.fileExists(atPath: folder.appendingPathComponent("_metadata").path))
+    }
+
+    @Test func pluginkitRecordsParse() {
+        let output = """
+             kr.co.lylstudio.unicorn-mac-safari.blocker(1.12.2)
+        \t            Path = /Applications/UnicornMac.app/Contents/PlugIns/blocker.appex
+        \t            UUID = 76C92ABE-ED6B-4683-A0E6-72F5E3DA1660
+        \t    Display Name = Unicorn Blocker
+        +    com.example.other(2.0)
+        \t            Path = /Applications/Other.app/Contents/PlugIns/b.appex
+        """
+        let found = ContentBlockerExtension.parse(output)
+        #expect(found.map(\.bundleID) == ["kr.co.lylstudio.unicorn-mac-safari.blocker", "com.example.other"])
+        #expect(found.first?.name == "Unicorn Blocker" && found.last?.name == "com.example.other")
+        #expect(found.first?.path == "/Applications/UnicornMac.app/Contents/PlugIns/blocker.appex")
+    }
+
+    @Test func onlyRuleListsCount() {
+        #expect(ContentBlockerExtension.ruleList(Data(#"[{"trigger":{"url-filter":"ads"},"action":{"type":"block"}}]"#.utf8))?.count == 1)
+        #expect(ContentBlockerExtension.ruleList(Data(#"{"settings": true}"#.utf8)) == nil)
+        #expect(ContentBlockerExtension.ruleList(Data(#"[{"name": "x"}]"#.utf8)) == nil)
+        #expect(ContentBlockerExtension.ruleList(Data("[]".utf8)) == nil)
+    }
+}
+

@@ -116,6 +116,8 @@ final class Preferences: ObservableObject {
     // MARK: Extensions
 
     @Published var extensionFolders: [String] { didSet { defaults.set(extensionFolders, forKey: "extensionFolders") } }
+    /// Safari content blockers whose rules Changmun applies, by bundle id.
+    @Published var enabledContentBlockers: [String] { didSet { defaults.set(enabledContentBlockers, forKey: "enabledContentBlockers") } }
     @Published var enabledExtensions: [String] { didSet { defaults.set(enabledExtensions, forKey: "enabledExtensions") } }
     /// Per extension path, the permissions and match patterns the user approved.
     @Published var extensionGrants: [String: [String]] { didSet { defaults.set(extensionGrants, forKey: "extensionGrants") } }
@@ -154,6 +156,7 @@ final class Preferences: ObservableObject {
         disabledFilterLists = d.stringArray(forKey: "disabledFilterLists") ?? []
         adBlockAllowlist = d.stringArray(forKey: "adBlockAllowlist") ?? []
         extensionFolders = d.stringArray(forKey: "extensionFolders") ?? []
+        enabledContentBlockers = d.stringArray(forKey: "enabledContentBlockers") ?? []
         enabledExtensions = d.stringArray(forKey: "enabledExtensions") ?? []
         extensionGrants = d.dictionary(forKey: "extensionGrants") as? [String: [String]] ?? [:]
         aiModel = d.string(forKey: "aiModel") ?? "sonnet"

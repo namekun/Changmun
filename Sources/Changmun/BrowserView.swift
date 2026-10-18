@@ -1088,7 +1088,12 @@ struct WebCard: View {
                 }
             }
             .overlay(alignment: .top) {
-                if let tab = browser.active { LoginOfferBar(tab: tab) }
+                if let tab = browser.active {
+                    VStack(spacing: 0) {
+                        LoginOfferBar(tab: tab)
+                        if #available(macOS 15.4, *), !browser.isPrivate { WebStoreBar(tab: tab, host: ExtensionHost.shared) }
+                    }
+                }
             }
             .overlay(alignment: .bottomLeading) {
                 if let text = overlay.statusMessage ?? overlay.hoveredLink.map(StatusLine.display) {
@@ -1175,6 +1180,43 @@ struct LoginOfferBar: View {
             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
             .padding(10)
             .transition(.opacity)
+        }
+    }
+}
+
+/// On a Chrome Web Store extension page: install it into Changmun (the store's own button only works in Chrome).
+@available(macOS 15.4, *)
+struct WebStoreBar: View {
+    @ObservedObject var tab: Tab
+    @ObservedObject var host: ExtensionHost
+
+    var body: some View {
+        if let url = tab.url, let id = ChromeWebStore.extensionID(from: url.absoluteString) {
+            HStack(spacing: 8) {
+                Image(systemName: "puzzlepiece.extension").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
+                Text(host.isInstalled(chromeWebStoreID: id) ? "Changmun에 설치된 확장이에요" : "이 확장을 Changmun에서 쓸 수 있어요")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.primary)
+                    .lineLimit(1)
+                if let error = host.storeErrors[id] {
+                    Text(error).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.waiting).lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                if host.installing.contains(id) {
+                    ProgressView().controlSize(.small).padding(.horizontal, 8)
+                } else {
+                    PeekAction(title: host.isInstalled(chromeWebStoreID: id) ? "업데이트" : "Changmun에 추가") {
+                        Task { await host.installFromChromeWebStore(id) }
+                    }
+                }
+            }
+            .padding(.leading, 12)
+            .padding(.trailing, 4)
+            .frame(height: 40)
+            .frame(maxWidth: 620)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.background))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
+            .padding(10)
         }
     }
 }

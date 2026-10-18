@@ -190,6 +190,48 @@ final class ExtensionHost: NSObject, ObservableObject {
         await setEnabled(source, false)
         Preferences.shared.extensionFolders.removeAll { $0 == source.path }
         found.removeAll { $0 == source }
+        // A copy downloaded from the Chrome Web Store is Changmun's own; a folder the user picked is left alone.
+        if Self.isFromChromeWebStore(source) { try? FileManager.default.removeItem(atPath: source.path) }
+    }
+
+    nonisolated static func isFromChromeWebStore(_ source: ExtensionSource) -> Bool {
+        source.kind == .folder && URL(fileURLWithPath: source.path).deletingLastPathComponent().standardizedFileURL == ChromeWebStore.folder.standardizedFileURL
+    }
+
+    /// Chrome Web Store ids being downloaded, and the last thing that went wrong per id.
+    @Published private(set) var installing: Set<String> = []
+    @Published private(set) var storeErrors: [String: String] = [:]
+
+    /// Installs (or updates) an extension from a Chrome Web Store address or id; the usual permission question follows.
+    func installFromChromeWebStore(_ input: String) async {
+        guard let id = ChromeWebStore.extensionID(from: input) else {
+            storeErrors[input] = "Chrome 웹 스토어 주소나 확장 ID가 아니에요"
+            return
+        }
+        installing.insert(id)
+        storeErrors[id] = nil
+        defer { installing.remove(id) }
+        do {
+            let folder = try await ChromeWebStore.download(id: id)
+            let source = ExtensionSource(kind: .folder, path: folder.path)
+            if isLoaded(source) { await setEnabled(source, false) }
+            await addFolder(folder)
+        } catch {
+            storeErrors[id] = error.localizedDescription
+        }
+    }
+
+    func isInstalled(chromeWebStoreID id: String) -> Bool {
+        loaded.contains { $0.source.path == ChromeWebStore.folder.appendingPathComponent(id).path }
+    }
+
+    /// Safari extensions installed since launch (from the App Store) show up without restarting.
+    func rescan() {
+        Task {
+            let safari = await Task.detached { Self.installedSafariExtensions() }.value
+            let folders = found.filter { $0.kind == .folder }
+            found = safari.map { ExtensionSource(kind: .safari, path: $0) } + folders
+        }
     }
 
     func openOptions(_ item: Loaded) {

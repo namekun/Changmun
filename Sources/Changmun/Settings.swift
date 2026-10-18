@@ -401,9 +401,42 @@ struct AdBlockSection: View {
 struct ExtensionSettings: View {
     var body: some View {
         if #available(macOS 15.4, *) {
-            ExtensionList(host: ExtensionHost.shared)
+            ExtensionList(host: ExtensionHost.shared, blockers: ContentBlockerHost.shared)
         } else {
-            Form { Caption(text: "확장 프로그램은 macOS 15.4 이상에서 쓸 수 있어요.") }.formStyle(.grouped)
+            Form {
+                Caption(text: "웹 확장은 macOS 15.4 이상에서 쓸 수 있어요.")
+                ContentBlockerSection(host: ContentBlockerHost.shared)
+            }
+            .formStyle(.grouped)
+        }
+    }
+}
+
+/// Safari content blockers (Unicorn, AdGuard…): their rules, applied alongside the built-in ad blocking.
+struct ContentBlockerSection: View {
+    @ObservedObject var host: ContentBlockerHost
+
+    var body: some View {
+        Section("Safari 콘텐츠 차단기") {
+            if host.blockers.isEmpty {
+                Caption(text: "설치된 콘텐츠 차단기가 없어요.")
+            }
+            ForEach(host.blockers) { blocker in
+                HStack(spacing: 10) {
+                    Image(systemName: "shield.lefthalf.filled").frame(width: 24, height: 24).foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(blocker.name).lineLimit(1)
+                        if let status = host.status[blocker.bundleID] {
+                            Text(status).font(.system(size: 11)).foregroundStyle(status.hasPrefix("[ERROR]") ? .red : .secondary).lineLimit(3)
+                        }
+                    }
+                    Spacer()
+                    Toggle("", isOn: Binding(get: { host.isEnabled(blocker) }, set: { on in Task { await host.setEnabled(blocker, on) } }))
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+            }
+            Caption(text: "차단기 앱이 저장해 둔 규칙을 읽어 와요. 처음 켤 때 macOS가 다른 앱의 데이터에 접근해도 되는지 물어요. 차단기 앱에서 규칙을 바꾸면 Changmun을 다시 켤 때 반영돼요.")
         }
     }
 }
@@ -411,26 +444,53 @@ struct ExtensionSettings: View {
 @available(macOS 15.4, *)
 struct ExtensionList: View {
     @ObservedObject var host: ExtensionHost
+    let blockers: ContentBlockerHost
+    @State private var storeAddress = ""
 
     var body: some View {
         Form {
             Section {
                 if host.found.isEmpty {
-                    Caption(text: "설치된 Safari 확장이 없어요. App Store에서 Safari 확장을 받거나, 압축을 푼 크롬·파이어폭스 확장 폴더를 불러올 수 있어요.")
+                    Caption(text: "아직 확장이 없어요. App Store의 Safari 확장이나 Chrome 웹 스토어의 확장을 설치할 수 있어요.")
                 }
                 ForEach(host.found) { source in
                     ExtensionRow(host: host, source: source)
                 }
             }
-            Section {
+            Section("설치") {
                 HStack {
-                    Button("폴더에서 불러오기…", action: chooseFolder)
+                    Button("App Store에서 Safari 확장 찾기…") { NSWorkspace.shared.open(SafariExtensionGallery.url) }
                     Spacer()
+                    Button("폴더에서 불러오기…", action: chooseFolder)
                 }
-                Caption(text: "Safari 웹 확장은 자동으로 찾아요. Safari와 이어지는 기능(네이티브 앱과 주고받는 메시지)은 Changmun에서 동작하지 않을 수 있어요. 콘텐츠 차단기 형식의 Safari 확장은 규칙을 다른 앱이 읽을 수 없어서 대신 설정 › 개인정보의 광고 차단을 써요.")
+                HStack {
+                    TextField("Chrome 웹 스토어 주소 또는 확장 ID", text: $storeAddress)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit(installFromStore)
+                    if let id = ChromeWebStore.extensionID(from: storeAddress), host.installing.contains(id) {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Button("설치", action: installFromStore).disabled(ChromeWebStore.extensionID(from: storeAddress) == nil)
+                    }
+                }
+                if let error = host.storeErrors[ChromeWebStore.extensionID(from: storeAddress) ?? storeAddress] {
+                    Text(error).font(.system(size: 11)).foregroundStyle(.red)
+                }
+                Caption(text: "App Store에서 받은 Safari 확장은 여기에 저절로 나타나요. Chrome 웹 스토어 페이지를 열면 페이지 위에 'Changmun에 추가'가 떠요. 네이티브 앱과 주고받는 기능 등 일부는 동작하지 않을 수 있어요.")
             }
+            ContentBlockerSection(host: blockers)
         }
         .formStyle(.grouped)
+        .onAppear {
+            host.rescan()
+            blockers.rescan()
+        }
+    }
+
+    private func installFromStore() {
+        guard ChromeWebStore.extensionID(from: storeAddress) != nil else { return }
+        let input = storeAddress
+        Task { await host.installFromChromeWebStore(input) }
     }
 
     private func chooseFolder() {
@@ -460,7 +520,9 @@ struct ExtensionRow: View {
                 if let failure = host.failures[source.path] {
                     Text(failure).font(.system(size: 11)).foregroundStyle(.red).lineLimit(2)
                 } else {
-                    Text(source.kind == .safari ? "Safari 확장" : source.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
+                    Text(source.kind == .safari ? "Safari 확장"
+                         : ExtensionHost.isFromChromeWebStore(source) ? "Chrome 웹 스토어"
+                         : source.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
                         .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                 }
             }

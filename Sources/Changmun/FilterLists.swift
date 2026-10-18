@@ -178,10 +178,21 @@ final class AdBlocker: ObservableObject {
     /// The ordinary configuration's and each private window's; a private window's goes when the window does.
     private let controllers = NSHashTable<WKUserContentController>.weakObjects()
 
+    /// Lists compiled from Safari content blockers, by the blocker's bundle id.
+    private var external: [String: WKContentRuleList] = [:]
+
     /// Rules apply to every page loaded with this controller, now and after each rebuild.
     func attach(_ controller: WKUserContentController) {
         controllers.add(controller)
-        for list in applied { controller.add(list) }
+        for list in applied + external.values { controller.add(list) }
+    }
+
+    func setExternal(_ id: String, _ list: WKContentRuleList?) {
+        for controller in controllers.allObjects {
+            if let old = external[id] { controller.remove(old) }
+            if let list { controller.add(list) }
+        }
+        external[id] = list
     }
 
     static var folder: URL {
@@ -308,7 +319,10 @@ final class AdBlocker: ObservableObject {
         var allowlist = Preferences.shared.adBlockAllowlist
         if let index = allowlist.firstIndex(of: site) { allowlist.remove(at: index) } else { allowlist.append(site) }
         Preferences.shared.adBlockAllowlist = allowlist
-        Task { await recompile() }
+        Task {
+            await recompile()
+            await ContentBlockerHost.shared.reload()
+        }
     }
 
     func isAllowed(_ host: String?) -> Bool {
