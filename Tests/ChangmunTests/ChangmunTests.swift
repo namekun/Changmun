@@ -989,7 +989,7 @@ struct ExtensionStoreTests {
         let crx = Data(Array("Cr24".utf8) + le(3) + le(0)) + (try Data(contentsOf: zipFile))
         let folder = try ChromeWebStore.unpack(try ChromeWebStore.zipData(fromCRX: crx), id: "abc", into: root)
         #expect(folder.lastPathComponent == "abc")
-        #expect(fm.fileExists(atPath: folder.appendingPathComponent("manifest.json").path))
+        #expect(try String(contentsOf: folder.appendingPathComponent("manifest.json"), encoding: .utf8).contains(#""name": "T""#))
         #expect(!fm.fileExists(atPath: folder.appendingPathComponent("_metadata").path))
     }
 
@@ -1035,6 +1035,8 @@ struct ExtensionStoreTests {
         #expect(throws: ChromeWebStore.Failure.self) { try ChromeWebStore.checkArchive(zip(name: Array("../x".utf8))) }
         #expect(throws: ChromeWebStore.Failure.self) { try ChromeWebStore.checkArchive(zip(name: Array("a".utf8), count: 2)) }
         #expect(throws: ChromeWebStore.Failure.self) { try ChromeWebStore.checkArchive(Data("PK not really".utf8)) }
+        // Bytes after the end record (a second archive glued on) aren't accounted for.
+        #expect(throws: ChromeWebStore.Failure.self) { try ChromeWebStore.checkArchive(zip(name: Array("a".utf8)) + Data([0, 0, 0])) }
     }
 
     @Test func pluginkitRecordsParse() {

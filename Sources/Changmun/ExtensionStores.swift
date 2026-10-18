@@ -1,4 +1,5 @@
 import AppKit
+import Compression
 import WebKit
 
 /// Extensions from the Chrome Web Store: downloaded as a CRX, unpacked under Application Support and loaded like an
@@ -58,10 +59,22 @@ enum ChromeWebStore {
         !name.hasPrefix("/") && !name.contains("\\") && !name.split(separator: "/").contains("..")
     }
 
-    /// Checks every entry in the archive's central directory before anything is unpacked, failing closed: a name that
-    /// isn't UTF-8, a name that leaves the folder, a symbolic link (whatever system made the archive; a link entry
-    /// followed by entries under it makes the unpacker write through it), ZIP64, or a count that doesn't add up.
-    static func checkArchive(_ zip: Data) throws {
+    struct Entry {
+        var name: String
+        var method: Int
+        var compressedSize: Int
+        var size: Int
+        var dataOffset: Int
+    }
+
+    /// Unpacked size an extension may reach; a larger archive is refused (a zip bomb, most likely).
+    static let maximumSize = 256 << 20
+
+    /// Reads the archive's central directory, failing closed: a name that isn't UTF-8 or leaves the folder, a symbolic
+    /// link (by its mode bits, whatever system made it), encryption, ZIP64, a method other than stored or deflate, a
+    /// local header that disagrees with its directory entry, or counts that don't add up. Unpacking uses exactly these
+    /// entries, so what is checked is what gets written.
+    static func entries(of zip: Data) throws -> [Entry] {
         let bytes = [UInt8](zip)
         func u16(_ at: Int) -> Int { Int(bytes[at]) | Int(bytes[at + 1]) << 8 }
         func u32(_ at: Int) -> Int { u16(at) | u16(at + 2) << 16 }
@@ -69,19 +82,55 @@ enum ChromeWebStore {
         // The end-of-central-directory record: within the last 22 bytes plus the longest comment.
         var end = bytes.count - 22
         while end >= max(0, bytes.count - 22 - 0xFFFF), u32(end) != 0x0605_4B50 { end -= 1 }
-        guard end >= 0, u32(end) == 0x0605_4B50 else { throw Failure.unsafeArchive }
+        guard end >= 0, u32(end) == 0x0605_4B50, end + 22 + u16(end + 20) == bytes.count else { throw Failure.unsafeArchive }
         let count = u16(end + 10), size = u32(end + 12), start = u32(end + 16)
         guard count > 0, count != 0xFFFF, start != 0xFFFF_FFFF, start + size <= end else { throw Failure.unsafeArchive }
+        var entries: [Entry] = []
+        var total = 0
         var at = start
         for _ in 0..<count {
             guard at + 46 <= end, u32(at) == 0x0201_4B50 else { throw Failure.unsafeArchive }
+            let flags = u16(at + 8), method = u16(at + 10)
+            let compressedSize = u32(at + 20), uncompressedSize = u32(at + 24)
             let nameLength = u16(at + 28), extraLength = u16(at + 30), commentLength = u16(at + 32)
-            let mode = u32(at + 38) >> 16
-            guard at + 46 + nameLength <= end, let name = String(bytes: bytes[(at + 46)..<(at + 46 + nameLength)], encoding: .utf8),
-                  !name.isEmpty, isSafeEntry(name), mode & 0o170000 != 0o120000 else { throw Failure.unsafeArchive }
+            let mode = u32(at + 38) >> 16, local = u32(at + 42)
+            guard at + 46 + nameLength <= end else { throw Failure.unsafeArchive }
+            let nameBytes = Array(bytes[(at + 46)..<(at + 46 + nameLength)])
+            guard let name = String(bytes: nameBytes, encoding: .utf8), !name.isEmpty, isSafeEntry(name),
+                  mode & 0o170000 != 0o120000, flags & 1 == 0, method == 0 || method == 8,
+                  compressedSize != 0xFFFF_FFFF, uncompressedSize != 0xFFFF_FFFF,
+                  local + 30 <= start, u32(local) == 0x0403_4B50, u16(local + 26) == nameLength else { throw Failure.unsafeArchive }
+            let localNameEnd = local + 30 + nameLength
+            let dataOffset = localNameEnd + u16(local + 28)
+            guard localNameEnd <= start, Array(bytes[(local + 30)..<localNameEnd]) == nameBytes,
+                  dataOffset + compressedSize <= start else { throw Failure.unsafeArchive }
+            total += uncompressedSize
+            guard total <= maximumSize else { throw Failure.unsafeArchive }
+            entries.append(Entry(name: name, method: method, compressedSize: compressedSize, size: uncompressedSize, dataOffset: dataOffset))
             at += 46 + nameLength + extraLength + commentLength
         }
         guard at == start + size else { throw Failure.unsafeArchive }
+        return entries
+    }
+
+    static func checkArchive(_ zip: Data) throws { _ = try entries(of: zip) }
+
+    private static func contents(of entry: Entry, in bytes: [UInt8]) throws -> Data {
+        let compressed = bytes[entry.dataOffset..<(entry.dataOffset + entry.compressedSize)]
+        if entry.method == 0 {
+            guard entry.compressedSize == entry.size else { throw Failure.unsafeArchive }
+            return Data(compressed)
+        }
+        guard entry.size > 0 else { return Data() }
+        var output = [UInt8](repeating: 0, count: entry.size)
+        // COMPRESSION_ZLIB is raw deflate, which is what zip stores.
+        let written = compressed.withUnsafeBufferPointer { source in
+            output.withUnsafeMutableBufferPointer { destination in
+                compression_decode_buffer(destination.baseAddress!, entry.size, source.baseAddress!, source.count, nil, COMPRESSION_ZLIB)
+            }
+        }
+        guard written == entry.size else { throw Failure.unsafeArchive }
+        return Data(output)
     }
 
     /// Downloads and unpacks the extension, replacing an older copy; returns its folder.
@@ -95,30 +144,29 @@ enum ChromeWebStore {
 
     static func unpack(_ zip: Data, id: String, into parent: URL = folder) throws -> URL {
         let fm = FileManager.default
-        let archive = fm.temporaryDirectory.appendingPathComponent("changmun-\(id).zip")
-        try zip.write(to: archive)
-        defer { try? fm.removeItem(at: archive) }
-        try checkArchive(zip)
+        let entries = try entries(of: zip)
+        let bytes = [UInt8](zip)
         let destination = parent.appendingPathComponent(id, isDirectory: true)
         let staging = parent.appendingPathComponent(".\(id)-new", isDirectory: true)
         try? fm.removeItem(at: staging)
-        _ = try run("/usr/bin/ditto", ["-x", "-k", archive.path, staging.path])
-        // Belt and braces after refusing link entries: nothing unpacked may be a link or resolve outside the folder.
-        let root = staging.resolvingSymlinksInPath().path + "/"
-        if let items = fm.enumerator(at: staging, includingPropertiesForKeys: [.isSymbolicLinkKey]) {
-            for case let item as URL in items {
-                let isLink = (try? item.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink == true
-                guard !isLink, item.resolvingSymlinksInPath().path.hasPrefix(root) else {
-                    try? fm.removeItem(at: staging)
-                    throw Failure.unsafeArchive
+        try fm.createDirectory(at: staging, withIntermediateDirectories: true)
+        do {
+            // Only regular files and folders are written, under names checked above, into a folder made just now.
+            for entry in entries {
+                let target = staging.appendingPathComponent(entry.name)
+                if entry.name.hasSuffix("/") {
+                    try fm.createDirectory(at: target, withIntermediateDirectories: true)
+                } else {
+                    try fm.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try contents(of: entry, in: bytes).write(to: target)
                 }
             }
-        }
-        // Chrome's own signature files; WebKit reserves names starting with "_".
-        try? fm.removeItem(at: staging.appendingPathComponent("_metadata"))
-        guard fm.fileExists(atPath: staging.appendingPathComponent("manifest.json").path) else {
+            // Chrome's own signature files; WebKit reserves names starting with "_".
+            try? fm.removeItem(at: staging.appendingPathComponent("_metadata"))
+            guard fm.fileExists(atPath: staging.appendingPathComponent("manifest.json").path) else { throw Failure.noManifest }
+        } catch {
             try? fm.removeItem(at: staging)
-            throw Failure.noManifest
+            throw error
         }
         try? fm.removeItem(at: destination)
         try fm.moveItem(at: staging, to: destination)
