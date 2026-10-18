@@ -122,6 +122,7 @@ struct LooksSettings: View {
                 Picker("기본 확대", selection: $prefs.defaultZoom) {
                     ForEach([0.75, 0.9, 1, 1.1, 1.25, 1.5], id: \.self) { Text("\(Int($0 * 100))%").tag($0) }
                 }
+                Toggle("다른 탭으로 가면 재생 중인 영상을 화면 속 화면으로", isOn: $prefs.autoPictureInPicture)
             }
             Section {
                 Picker("안 보는 탭 재우기", selection: $prefs.sleepMinutes) {

@@ -82,6 +82,8 @@ final class Preferences: ObservableObject {
     }
     @Published var sidebarWidth: Double { didSet { defaults.set(sidebarWidth, forKey: "sidebarWidth") } }
     @Published var defaultZoom: Double { didSet { defaults.set(defaultZoom, forKey: "defaultZoom") } }
+    /// Leaving a tab whose video is playing floats the video in picture in picture.
+    @Published var autoPictureInPicture: Bool { didSet { defaults.set(autoPictureInPicture, forKey: "autoPictureInPicture") } }
     /// Sites zoomed to something other than the default, by host.
     @Published var siteZoom: [String: Double] { didSet { defaults.set(siteZoom, forKey: "siteZoom") } }
     /// Sites never to offer saving a password for.
@@ -142,6 +144,7 @@ final class Preferences: ObservableObject {
         appearance = AppAppearance(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
         sidebarWidth = Self.clampedSidebarWidth(d.object(forKey: "sidebarWidth") as? Double ?? Self.defaultSidebarWidth)
         defaultZoom = d.object(forKey: "defaultZoom") as? Double ?? 1
+        autoPictureInPicture = d.object(forKey: "autoPictureInPicture") as? Bool ?? true
         siteZoom = d.dictionary(forKey: "siteZoom") as? [String: Double] ?? [:]
         neverSaveLoginHosts = d.stringArray(forKey: "neverSaveLoginHosts") ?? []
         sleepMinutes = d.object(forKey: "sleepTabsAfterMinutes") as? Int ?? 20

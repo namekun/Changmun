@@ -566,6 +566,7 @@ struct AddressPill: View {
                 .foregroundStyle(Theme.primary)
             Spacer(minLength: 0)
             LoginButton(tab: tab)
+            PictureInPictureButton(tab: tab)
             AdBlockShield(tab: tab)
             BookmarkStar(tab: tab)
             Keycap("⌘L")
@@ -621,6 +622,7 @@ struct AddressField: View {
                     return .handled
                 }
             LoginButton(tab: tab)
+            PictureInPictureButton(tab: tab)
             AdBlockShield(tab: tab)
             BookmarkStar(tab: tab)
             Keycap(focused ? "↵" : "⌘L")
@@ -663,6 +665,22 @@ struct AddressPlaceholder: View {
 }
 
 /// Ad blocking for the current site: filled while blocking, slashed when turned off here.
+/// Shows while the tab plays sound (a video, most likely): floats it in picture in picture.
+struct PictureInPictureButton: View {
+    @ObservedObject var tab: Tab
+
+    var body: some View {
+        if tab.isPlayingAudio {
+            Button { tab.pictureInPicture(.toggle) } label: {
+                Image(systemName: "pip.enter").font(.system(size: 10.5, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Theme.secondary)
+            .help("화면 속 화면 (⌃⌘P)")
+        }
+    }
+}
+
 struct AdBlockShield: View {
     @ObservedObject var tab: Tab
     @ObservedObject private var prefs = Preferences.shared

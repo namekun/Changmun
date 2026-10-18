@@ -163,6 +163,32 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         return true
     }
 
+    enum PictureInPicture: String {
+        case toggle, enter, exit
+    }
+
+    /// Puts the page's video in picture in picture (the playing one, else the largest), or brings it back.
+    func pictureInPicture(_ mode: PictureInPicture) {
+        guard let webView else { return }
+        webView.callAsyncJavaScript(Self.pictureInPictureScript, arguments: ["mode": mode.rawValue], in: nil, in: .defaultClient) { _ in }
+    }
+
+    static let pictureInPictureScript = """
+    const videos = [...document.querySelectorAll('video')];
+    const floating = document.pictureInPictureElement || videos.find(v => v.webkitPresentationMode === 'picture-in-picture');
+    const set = (video, on) => video.webkitSetPresentationMode
+      ? video.webkitSetPresentationMode(on ? 'picture-in-picture' : 'inline')
+      : (on ? video.requestPictureInPicture() : document.exitPictureInPicture());
+    if (floating && mode !== 'enter') { set(floating, false); return 'exited'; }
+    if (floating || mode === 'exit') return 'unchanged';
+    const area = v => { const r = v.getBoundingClientRect(); return r.width * r.height; };
+    const playing = videos.filter(v => !v.paused && v.readyState > 1).sort((a, b) => area(b) - area(a));
+    const video = playing[0] || (mode === 'toggle' ? videos.sort((a, b) => area(b) - area(a))[0] : null);
+    if (!video) return 'none';
+    set(video, true);
+    return 'entered';
+    """
+
     /// Zooms the page; the size is remembered for the site (except in a private window).
     func setZoom(_ zoom: Double) {
         guard let webView else { return }

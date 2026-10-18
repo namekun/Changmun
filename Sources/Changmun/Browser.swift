@@ -134,6 +134,10 @@ final class Browser: ObservableObject {
         if config.preferences.responds(to: NSSelectorFromString("_setDeveloperExtrasEnabled:")) {
             config.preferences.setValue(true, forKey: "developerExtrasEnabled")
         }
+        // Picture in picture is off in WKWebView unless this private preference is on.
+        if config.preferences.responds(to: NSSelectorFromString("_setAllowsPictureInPictureMediaPlayback:")) {
+            config.preferences.setValue(true, forKey: "allowsPictureInPictureMediaPlayback")
+        }
         LinkHover.install(in: config.userContentController)
         LoginCapture.install(in: config.userContentController)
         AdBlocker.shared.attach(config.userContentController)
@@ -201,7 +205,14 @@ final class Browser: ObservableObject {
         hoveredLink = nil
         if id != activeID && findBarVisible { hideFindBar() }
         let previous = active
-        if let previous, previous !== tab { previousActiveID = previous.id }
+        if let previous, previous !== tab {
+            previousActiveID = previous.id
+            // Like Arc: a video playing in the tab being left keeps playing in picture in picture, until it is shown again.
+            if Preferences.shared.autoPictureInPicture && previous.isPlayingAudio && shownSplit?.contains(previous.id) != true {
+                previous.pictureInPicture(.enter)
+            }
+            tab.pictureInPicture(.exit)
+        }
         active?.lastShown = Date()
         activeID = id
         closePeek()

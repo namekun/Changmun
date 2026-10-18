@@ -225,6 +225,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func zoomOut(_ sender: Any?) { browser.active.map { $0.setZoom(($0.webView?.pageZoom ?? 1) - 0.1) } }
     @objc func actualSize(_ sender: Any?) { browser.active?.setZoom(Preferences.shared.defaultZoom) }
     @objc func toggleMute(_ sender: Any?) { browser.active?.toggleMute() }
+    @objc func togglePictureInPicture(_ sender: Any?) { (Browser.current?.peek ?? Browser.current?.active)?.pictureInPicture(.toggle) }
     @objc func toggleBookmark(_ sender: Any?) {
         guard let tab = browser.active, let url = tab.url?.absoluteString else { return }
         _ = Library.shared.toggleBookmark(url: url, title: tab.title)
@@ -400,6 +401,7 @@ enum AppMenu {
         add(view, "축소", #selector(AppDelegate.zoomOut(_:)), "-")
         add(view, "실제 크기", #selector(AppDelegate.actualSize(_:)), "0")
         add(view, "탭 음소거", #selector(AppDelegate.toggleMute(_:)), "m", [.command, .control])
+        add(view, "화면 속 화면(PiP)", #selector(AppDelegate.togglePictureInPicture(_:)), "p", [.command, .control])
         view.addItem(.separator())
         add(view, "전체 화면", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control])
 
