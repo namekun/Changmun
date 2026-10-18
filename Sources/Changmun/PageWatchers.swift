@@ -132,21 +132,16 @@ final class PopupWatcher: NSObject, WKScriptMessageHandler {
 }
 
 /// Tells the app when a page's video goes into picture in picture or comes back, so ⌃⌘← and ⌃⌘→ can move it 5 seconds
-/// from any app while it floats, and its "back to tab" button brings the tab forward. Runs in an isolated world.
+/// from any app while it floats. Runs in an isolated world.
 final class PictureInPictureWatcher: NSObject, WKScriptMessageHandler {
     static let name = "changmunPictureInPicture"
 
     static let script = """
     (() => {
-      const report = video => {
-        const floating = !!document.pictureInPictureElement
-          || [...document.querySelectorAll('video')].some(v => v.webkitPresentationMode === 'picture-in-picture');
-        // Closing the floating window pauses the video; "back to tab" leaves it playing.
-        const playing = video instanceof HTMLVideoElement && !video.paused;
-        window.webkit.messageHandlers.\(name).postMessage({floating, playing});
-      };
+      const report = () => window.webkit.messageHandlers.\(name).postMessage(!!document.pictureInPictureElement
+        || [...document.querySelectorAll('video')].some(v => v.webkitPresentationMode === 'picture-in-picture'));
       for (const type of ['enterpictureinpicture', 'leavepictureinpicture', 'webkitpresentationmodechanged']) {
-        document.addEventListener(type, e => setTimeout(() => report(e.target), 0), true);
+        document.addEventListener(type, () => setTimeout(report, 0), true);
       }
     })();
     """
@@ -158,11 +153,10 @@ final class PictureInPictureWatcher: NSObject, WKScriptMessageHandler {
     }
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
-        let body = message.body as? [String: Any]
-        let floating = body?["floating"] as? Bool ?? false, playing = body?["playing"] as? Bool ?? false
+        let floating = message.body as? Bool ?? false
         MainActor.assumeIsolated {
             guard let webView = message.webView, let tab = Browser.tab(showing: webView) else { return }
-            tab.pictureInPictureChanged(floating: floating, playing: playing)
+            tab.isInPictureInPicture = floating
         }
     }
 }

@@ -195,19 +195,6 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         webView.callAsyncJavaScript(Self.pictureInPictureScript, arguments: ["mode": mode.rawValue], in: nil, in: .defaultClient) { _ in }
     }
 
-    /// A video that comes back from picture in picture still playing, just after a click, came back with its "back to
-    /// tab" button: its tab and window come to the front, as in Safari. Closing the floating window pauses it and stays
-    /// put; a page ending picture in picture by itself has no click behind it and moves nothing.
-    func pictureInPictureChanged(floating: Bool, playing: Bool) {
-        let returned = isInPictureInPicture && !floating && playing && PictureInPictureKeys.clickedJustNow
-        isInPictureInPicture = floating
-        guard returned, let browser, browser.peek !== self, !browser.isShown(self) || !NSApp.isActive else { return }
-        browser.activate(id)
-        guard let window = browser.window else { return }
-        window.makeKeyAndOrderFront(nil)
-        if !Headless.isOn { NSApp.activate() }
-    }
-
     /// Moves the floating video (else the one playing) by `seconds`.
     func seekVideo(by seconds: Double) {
         webView?.callAsyncJavaScript(Self.seekScript, arguments: ["by": seconds], in: nil, in: .defaultClient) { _ in }
@@ -485,6 +472,20 @@ extension Tab: WKUIDelegate {
     func webView(_ webView: WKWebView, decideMediaCapturePermissionsFor origin: WKSecurityOrigin, initiatedBy frame: WKFrameInfo,
                  type: WKMediaCaptureType) async -> WKPermissionDecision {
         SitePermissions.shared.decide(host: origin.host, type: type, remember: !isPrivate)
+    }
+
+    /// "Back to tab" on the floating video, the only thing WebKit asks this for: its tab and window come to the front, as
+    /// in Safari. WebKit holds the video until its page is on screen; if it still floats a moment later, it is let go.
+    @objc(_webViewFullscreenMayReturnToInline:)
+    func webViewFullscreenMayReturnToInline(_ webView: WKWebView) {
+        guard let browser else { return }
+        if browser.peek !== self && !browser.isShown(self) { browser.activate(id) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            if self?.isInPictureInPicture == true { self?.pictureInPicture(.exit) }
+        }
+        guard let window = browser.window else { return }
+        window.makeKeyAndOrderFront(nil)
+        if !Headless.isOn { NSApp.activate() }
     }
 
     func webViewDidClose(_ webView: WKWebView) {
