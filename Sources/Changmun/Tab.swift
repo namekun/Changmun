@@ -182,7 +182,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     if (floating && mode !== 'enter') { set(floating, false); return 'exited'; }
     if (floating || mode === 'exit') return 'unchanged';
     const area = v => { const r = v.getBoundingClientRect(); return r.width * r.height; };
-    const playing = videos.filter(v => !v.paused && v.readyState > 1).sort((a, b) => area(b) - area(a));
+    const playing = videos.filter(v => !v.paused && v.readyState > 1).sort((a, b) => (a.muted - b.muted) || (area(b) - area(a)));
     const video = playing[0] || (mode === 'toggle' ? videos.sort((a, b) => area(b) - area(a))[0] : null);
     if (!video) return 'none';
     set(video, true);

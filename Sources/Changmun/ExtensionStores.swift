@@ -5,16 +5,16 @@ import WebKit
 /// Extensions from the Chrome Web Store: downloaded as a CRX, unpacked under Application Support and loaded like an
 /// unpacked folder, so WebKit's extension support runs them as it runs Safari's.
 enum ChromeWebStore {
-    static var folder: URL {
+    static let folder: URL = {
         let url = Library.folder.appendingPathComponent("Extensions", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
-    }
+    }()
 
     /// The 32-letter id (a–p) in a store address (`chromewebstore.google.com/detail/name/<id>`), or the id itself.
     static func extensionID(from input: String) -> String? {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        func isID(_ part: String) -> Bool { part.count == 32 && part.allSatisfy { ("a"..."p").contains($0) } }
+        func isID(_ part: String) -> Bool { part.unicodeScalars.count == 32 && part.unicodeScalars.allSatisfy { (0x61...0x70).contains($0.value) } }
         if isID(text) { return text }
         guard let url = URL(string: text), let host = url.host()?.lowercased(),
               host == "chromewebstore.google.com" || host == "chrome.google.com" else { return nil }
@@ -26,7 +26,7 @@ enum ChromeWebStore {
     }
 
     enum Failure: LocalizedError {
-        case notCRX, download(Int), unsafeArchive, noManifest
+        case notCRX, download(Int), unsafeArchive, noManifest, tooLarge
 
         var errorDescription: String? {
             switch self {
@@ -34,6 +34,7 @@ enum ChromeWebStore {
             case .download(let status): "받지 못했어요 (HTTP \(status))"
             case .unsafeArchive: "압축 파일 안에 확장 폴더 밖을 가리키는 항목이 있어요"
             case .noManifest: "manifest.json이 없는 확장이에요"
+            case .tooLarge: "확장 파일이 너무 커요"
             }
         }
     }
@@ -133,20 +134,52 @@ enum ChromeWebStore {
         return Data(output)
     }
 
-    /// Downloads and unpacks the extension, replacing an older copy; returns its folder.
+    /// Downloads the extension and unpacks it into a staging folder beside its place; `swapIn` puts it there.
     static func download(id: String) async throws -> URL {
         let (data, response) = try await URLSession.shared.data(from: downloadURL(for: id))
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard status == 200 else { throw Failure.download(status) }
+        guard data.count <= maximumSize else { throw Failure.tooLarge }
         let zip = try zipData(fromCRX: data)
-        return try await Task.detached { try unpack(zip, id: id) }.value
+        return try await Task.detached { try stage(zip, id: id) }.value
     }
 
+    /// Unpacks into `<parent>/.<id>-new` and puts that in place of `<parent>/<id>`.
     static func unpack(_ zip: Data, id: String, into parent: URL = folder) throws -> URL {
+        let backup = try swapIn(try stage(zip, id: id, into: parent), id: id, into: parent)
+        if let backup { try? FileManager.default.removeItem(at: backup) }
+        return parent.appendingPathComponent(id, isDirectory: true)
+    }
+
+    /// Puts a staged copy in place; the copy it replaces is kept aside (returned) until the new one is known to load.
+    static func swapIn(_ staging: URL, id: String, into parent: URL = folder) throws -> URL? {
+        let fm = FileManager.default
+        let destination = parent.appendingPathComponent(id, isDirectory: true)
+        let backup = parent.appendingPathComponent(".\(id)-old", isDirectory: true)
+        try? fm.removeItem(at: backup)
+        let hadOld = fm.fileExists(atPath: destination.path)
+        if hadOld { try fm.moveItem(at: destination, to: backup) }
+        do {
+            try fm.moveItem(at: staging, to: destination)
+        } catch {
+            if hadOld { try? fm.moveItem(at: backup, to: destination) }
+            throw error
+        }
+        return hadOld ? backup : nil
+    }
+
+    /// Undoes `swapIn`: the old copy goes back, or with none the new one is removed.
+    static func restore(_ backup: URL?, id: String, into parent: URL = folder) throws {
+        let fm = FileManager.default
+        let destination = parent.appendingPathComponent(id, isDirectory: true)
+        try? fm.removeItem(at: destination)
+        if let backup { try fm.moveItem(at: backup, to: destination) }
+    }
+
+    static func stage(_ zip: Data, id: String, into parent: URL = folder) throws -> URL {
         let fm = FileManager.default
         let entries = try entries(of: zip)
         let bytes = [UInt8](zip)
-        let destination = parent.appendingPathComponent(id, isDirectory: true)
         let staging = parent.appendingPathComponent(".\(id)-new", isDirectory: true)
         try? fm.removeItem(at: staging)
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
@@ -168,9 +201,7 @@ enum ChromeWebStore {
             try? fm.removeItem(at: staging)
             throw error
         }
-        try? fm.removeItem(at: destination)
-        try fm.moveItem(at: staging, to: destination)
-        return destination
+        return staging
     }
 
     @discardableResult
@@ -233,27 +264,40 @@ struct ContentBlockerExtension: Identifiable, Hashable {
         return plist["com.apple.security.application-groups"] as? [String] ?? []
     }
 
-    /// Every rule list the blocker has: JSON arrays of `{trigger, action}` in its bundle and its group folders.
-    func rules() -> [[String: Any]] {
+    /// Every rule list the blocker has: JSON arrays of `{trigger, action}` in its bundle and its group folders, in path
+    /// order so rules that depend on order (`ignore-previous-rules`) come out the same each time.
+    func rules(groups: [String]) -> [[String: Any]] {
         let fm = FileManager.default
         var folders = [URL(fileURLWithPath: path).appendingPathComponent("Contents/Resources")]
-        let groups = fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Group Containers")
-        folders += appGroups.map { groups.appendingPathComponent($0) }
+        let containers = fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Group Containers")
+        folders += groups.map { containers.appendingPathComponent($0) }
         var rules: [[String: Any]] = []
         for folder in folders {
             guard let items = fm.enumerator(at: folder, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) else { continue }
-            for case let file as URL in items where file.pathExtension.lowercased() == "json" {
-                guard let data = try? Data(contentsOf: file), let list = Self.ruleList(data) else { continue }
+            let files = items.compactMap { $0 as? URL }.filter { $0.pathExtension.lowercased() == "json" }.sorted { $0.path < $1.path }
+            for file in files {
+                guard ((try? file.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0) <= 64 << 20,
+                      let data = try? Data(contentsOf: file), let list = Self.ruleList(data) else { continue }
                 rules += list
             }
         }
         return rules
     }
 
+    /// The actions WebKit understands; a rule with another kind would make WebKit refuse the whole list.
+    static let actions: Set<String> = ["block", "block-cookies", "css-display-none", "ignore-previous-rules", "make-https"]
+
     static func ruleList(_ data: Data) -> [[String: Any]]? {
         guard let list = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]], !list.isEmpty,
               list.allSatisfy({ $0["trigger"] is [String: Any] && $0["action"] is [String: Any] }) else { return nil }
-        return list
+        let usable = list.filter { (($0["action"] as? [String: Any])?["type"] as? String).map(actions.contains) == true }
+        return usable.isEmpty ? nil : usable
+    }
+
+    /// WebKit compiles at most 150,000 rules a list; longer ones are split, each part ending with the allowlist
+    /// (`ignore-previous-rules` only covers rules before it in the same list).
+    static func chunks(_ rules: [[String: Any]], allowlist: [[String: Any]], size: Int = 140_000) -> [[[String: Any]]] {
+        stride(from: 0, to: rules.count, by: size).map { Array(rules[$0..<min($0 + size, rules.count)]) + allowlist }
     }
 }
 
@@ -264,6 +308,9 @@ final class ContentBlockerHost: ObservableObject {
     @Published private(set) var blockers: [ContentBlockerExtension] = []
     /// "규칙 1,234개 적용 중" or what went wrong, by bundle id.
     @Published private(set) var status: [String: String] = [:]
+    /// Bumped by every apply and switch-off, so a slower, older apply can't put back rules that were turned off or changed.
+    private var generation: [String: Int] = [:]
+    private var groups: [String: [String]] = [:]
 
     func start() async {
         blockers = await Task.detached { ContentBlockerExtension.installed() }.value
@@ -286,7 +333,8 @@ final class ContentBlockerHost: ObservableObject {
             Preferences.shared.enabledContentBlockers.append(blocker.bundleID)
             await apply(blocker)
         } else {
-            AdBlocker.shared.setExternal(blocker.bundleID, nil)
+            generation[blocker.bundleID, default: 0] += 1
+            AdBlocker.shared.setExternal(blocker.bundleID, [])
             status[blocker.bundleID] = nil
         }
         objectWillChange.send()
@@ -298,29 +346,42 @@ final class ContentBlockerHost: ObservableObject {
     }
 
     private func apply(_ blocker: ContentBlockerExtension) async {
-        status[blocker.bundleID] = "규칙을 읽는 중…"
-        let allowlist = Preferences.shared.adBlockAllowlist
-        let json = await Task.detached { () -> (String, Int)? in
-            var rules = blocker.rules()
-            guard !rules.isEmpty else { return nil }
-            let count = rules.count
-            for host in allowlist where !host.isEmpty {
-                rules.append(["trigger": ["url-filter": ".*", "if-domain": ["*" + host.lowercased()]], "action": ["type": "ignore-previous-rules"]])
+        let id = blocker.bundleID
+        generation[id, default: 0] += 1
+        let mine = generation[id]
+        status[id] = "규칙을 읽는 중…"
+        let allowlist = Preferences.shared.adBlockAllowlist.filter { !$0.isEmpty }.map { host -> [String: Any] in
+            ["trigger": ["url-filter": ".*", "if-domain": ["*" + host.lowercased()]], "action": ["type": "ignore-previous-rules"]]
+        }
+        let knownGroups = groups[id]
+        let read = await Task.detached { () -> (parts: [String], count: Int, groups: [String]) in
+            let groups = knownGroups ?? blocker.appGroups
+            let rules = blocker.rules(groups: groups)
+            let parts = ContentBlockerExtension.chunks(rules, allowlist: allowlist).compactMap { part in
+                (try? JSONSerialization.data(withJSONObject: part)).map { String(decoding: $0, as: UTF8.self) }
             }
-            guard let data = try? JSONSerialization.data(withJSONObject: rules) else { return nil }
-            return (String(decoding: data, as: UTF8.self), count)
+            return (parts, rules.count, groups)
         }.value
-        guard let (rules, count) = json else {
-            status[blocker.bundleID] = "[ERROR] 규칙을 찾지 못했어요. 시스템 설정 › 개인정보 보호 및 보안에서 Changmun이 다른 앱의 데이터에 접근하도록 허용했는지 확인하세요."
-            AdBlocker.shared.setExternal(blocker.bundleID, nil)
+        groups[id] = read.groups
+        guard generation[id] == mine, isEnabled(blocker) else { return }
+        guard !read.parts.isEmpty else {
+            status[id] = "[ERROR] 규칙을 찾지 못했어요. 시스템 설정 › 개인정보 보호 및 보안에서 Changmun이 다른 앱의 데이터에 접근하도록 허용했는지 확인하세요."
+            AdBlocker.shared.setExternal(id, [])
             return
         }
         do {
-            let list = try await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "changmun-cb-" + blocker.bundleID, encodedContentRuleList: rules)
-            AdBlocker.shared.setExternal(blocker.bundleID, list)
-            status[blocker.bundleID] = "규칙 \(count.formatted())개 적용 중"
+            var lists: [WKContentRuleList] = []
+            for (index, part) in read.parts.enumerated() {
+                if let list = try await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "changmun-cb-\(id)-\(index)", encodedContentRuleList: part) {
+                    lists.append(list)
+                }
+            }
+            guard generation[id] == mine, isEnabled(blocker) else { return }
+            AdBlocker.shared.setExternal(id, lists)
+            status[id] = "규칙 \(read.count.formatted())개 적용 중"
         } catch {
-            status[blocker.bundleID] = "[ERROR] WebKit이 규칙을 받아들이지 않았어요: \(error.localizedDescription)"
+            guard generation[id] == mine else { return }
+            status[id] = "[ERROR] WebKit이 규칙을 받아들이지 않았어요: \(error.localizedDescription)"
         }
     }
 }

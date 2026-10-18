@@ -178,21 +178,31 @@ final class AdBlocker: ObservableObject {
     /// The ordinary configuration's and each private window's; a private window's goes when the window does.
     private let controllers = NSHashTable<WKUserContentController>.weakObjects()
 
-    /// Lists compiled from Safari content blockers, by the blocker's bundle id.
-    private var external: [String: WKContentRuleList] = [:]
+    /// Lists compiled from Safari content blockers, by the blocker's bundle id. They follow the ad blocking switch too.
+    private var external: [String: [WKContentRuleList]] = [:]
+    private var externalOn: Bool { Preferences.shared.blockTrackers }
 
     /// Rules apply to every page loaded with this controller, now and after each rebuild.
     func attach(_ controller: WKUserContentController) {
         controllers.add(controller)
-        for list in applied + external.values { controller.add(list) }
+        for list in applied { controller.add(list) }
+        if externalOn { for list in external.values.joined() { controller.add(list) } }
     }
 
-    func setExternal(_ id: String, _ list: WKContentRuleList?) {
-        for controller in controllers.allObjects {
-            if let old = external[id] { controller.remove(old) }
-            if let list { controller.add(list) }
+    func setExternal(_ id: String, _ lists: [WKContentRuleList]) {
+        if externalOn {
+            for controller in controllers.allObjects {
+                for old in external[id] ?? [] { controller.remove(old) }
+                for list in lists { controller.add(list) }
+            }
         }
-        external[id] = list
+        external[id] = lists.isEmpty ? nil : lists
+    }
+
+    private func setExternalApplied(_ on: Bool) {
+        for controller in controllers.allObjects {
+            for list in external.values.joined() { if on { controller.add(list) } else { controller.remove(list) } }
+        }
     }
 
     static var folder: URL {
@@ -225,8 +235,12 @@ final class AdBlocker: ObservableObject {
     }
 
     func apply(enabled: Bool) async {
-        if enabled { await start() } else {
+        if enabled {
+            setExternalApplied(true)
+            await start()
+        } else {
             remove()
+            setExternalApplied(false)
             status = "꺼져 있어요"
         }
     }

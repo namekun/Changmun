@@ -954,6 +954,7 @@ struct ExtensionStoreTests {
         #expect(ChromeWebStore.extensionID(from: "https://evil.example/detail/x/\(id)") == nil)
         #expect(ChromeWebStore.extensionID(from: "eimadpbcbfnmbkopoojfekhnkhdbiee") == nil)
         #expect(ChromeWebStore.extensionID(from: "EIMADPBCBFNMBKOPOOJFEKHNKHDBIEEH") == nil)
+        #expect(ChromeWebStore.extensionID(from: String(repeating: "a", count: 31) + "a\u{0338}") == nil)
     }
 
     private func le(_ n: Int) -> [UInt8] { [UInt8(n & 0xff), UInt8(n >> 8 & 0xff), UInt8(n >> 16 & 0xff), UInt8(n >> 24 & 0xff)] }
@@ -1039,6 +1040,26 @@ struct ExtensionStoreTests {
         #expect(throws: ChromeWebStore.Failure.self) { try ChromeWebStore.checkArchive(zip(name: Array("a".utf8)) + Data([0, 0, 0])) }
     }
 
+    @Test func anUpdateThatFailsPutsTheOldCopyBack() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("changmun-swap-\(UUID().uuidString)")
+        defer { try? fm.removeItem(at: root) }
+        let current = root.appendingPathComponent("abc")
+        let staged = root.appendingPathComponent(".abc-new")
+        try fm.createDirectory(at: current, withIntermediateDirectories: true)
+        try fm.createDirectory(at: staged, withIntermediateDirectories: true)
+        try "old".write(to: current.appendingPathComponent("v"), atomically: true, encoding: .utf8)
+        try "new".write(to: staged.appendingPathComponent("v"), atomically: true, encoding: .utf8)
+        let backup = try ChromeWebStore.swapIn(staged, id: "abc", into: root)
+        #expect(try String(contentsOf: current.appendingPathComponent("v"), encoding: .utf8) == "new")
+        try ChromeWebStore.restore(backup, id: "abc", into: root)
+        #expect(try String(contentsOf: current.appendingPathComponent("v"), encoding: .utf8) == "old")
+        // A first install that fails leaves nothing behind.
+        try fm.createDirectory(at: staged, withIntermediateDirectories: true)
+        try ChromeWebStore.restore(try ChromeWebStore.swapIn(staged, id: "xyz", into: root), id: "xyz", into: root)
+        #expect(!fm.fileExists(atPath: root.appendingPathComponent("xyz").path))
+    }
+
     @Test func pluginkitRecordsParse() {
         let output = """
              kr.co.lylstudio.unicorn-mac-safari.blocker(1.12.2)
@@ -1059,6 +1080,14 @@ struct ExtensionStoreTests {
         #expect(ContentBlockerExtension.ruleList(Data(#"{"settings": true}"#.utf8)) == nil)
         #expect(ContentBlockerExtension.ruleList(Data(#"[{"name": "x"}]"#.utf8)) == nil)
         #expect(ContentBlockerExtension.ruleList(Data("[]".utf8)) == nil)
+        // Kinds WebKit doesn't know are left out rather than failing the whole list.
+        let mixed = #"[{"trigger":{"url-filter":"a"},"action":{"type":"block"}},{"trigger":{"url-filter":"b"},"action":{"type":"scriptlet"}}]"#
+        #expect(ContentBlockerExtension.ruleList(Data(mixed.utf8))?.count == 1)
+        let allow: [[String: Any]] = [["trigger": ["url-filter": ".*"], "action": ["type": "ignore-previous-rules"]]]
+        let rules = (0..<5).map { n -> [String: Any] in ["trigger": ["url-filter": "\(n)"], "action": ["type": "block"]] }
+        let parts = ContentBlockerExtension.chunks(rules, allowlist: allow, size: 2)
+        #expect(parts.map(\.count) == [3, 3, 2])
+        #expect(parts.allSatisfy { ($0.last?["action"] as? [String: String])?["type"] == "ignore-previous-rules" })
     }
 }
 

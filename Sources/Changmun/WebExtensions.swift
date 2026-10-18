@@ -85,8 +85,9 @@ final class ExtensionHost: NSObject, ObservableObject {
 
     func isLoaded(_ source: ExtensionSource) -> Bool { loaded.contains { $0.id == source.id } }
 
-    private func load(_ source: ExtensionSource, askForPermissions: Bool) async {
-        guard !isLoaded(source) else { return }
+    @discardableResult
+    private func load(_ source: ExtensionSource, askForPermissions: Bool) async -> Bool {
+        guard !isLoaded(source) else { return true }
         do {
             let url = URL(fileURLWithPath: source.path)
             let webExtension: WKWebExtension
@@ -111,7 +112,7 @@ final class ExtensionHost: NSObject, ObservableObject {
                     granted = requested
                     Preferences.shared.extensionGrants[source.path] = granted.sorted()
                 } else if askForPermissions {
-                    return
+                    return false
                 }
             }
             for permission in webExtension.requestedPermissions where granted.contains(permission.rawValue) {
@@ -129,8 +130,10 @@ final class ExtensionHost: NSObject, ObservableObject {
                 for tab in browser.tabs { controller.didOpenTab(tab) }
                 if let active = browser.active { controller.didActivateTab(active) }
             }
+            return true
         } catch {
             failures[source.path] = error.localizedDescription
+            return false
         }
     }
 
@@ -174,16 +177,17 @@ final class ExtensionHost: NSObject, ObservableObject {
         item.context.performAction(for: browser.active)
     }
 
-    func addFolder(_ url: URL) async {
+    @discardableResult
+    func addFolder(_ url: URL) async -> Bool {
         let path = url.path
         guard FileManager.default.fileExists(atPath: url.appendingPathComponent("manifest.json").path) else {
             failures[path] = "manifest.json이 없는 폴더예요"
-            return
+            return false
         }
         if !Preferences.shared.extensionFolders.contains(path) { Preferences.shared.extensionFolders.append(path) }
         let source = ExtensionSource(kind: .folder, path: path)
         if !found.contains(source) { found.append(source) }
-        await load(source, askForPermissions: true)
+        return await load(source, askForPermissions: true)
     }
 
     func removeFolder(_ source: ExtensionSource) async {
@@ -208,14 +212,30 @@ final class ExtensionHost: NSObject, ObservableObject {
             storeErrors[input] = "Chrome 웹 스토어 주소나 확장 ID가 아니에요"
             return
         }
+        guard !installing.contains(id) else { return }
         installing.insert(id)
         storeErrors[id] = nil
         defer { installing.remove(id) }
         do {
-            let folder = try await ChromeWebStore.download(id: id)
+            // The new copy is unpacked beside the old one; the old one comes back if the new one is turned down or fails.
+            let staged = try await ChromeWebStore.download(id: id)
+            let folder = ChromeWebStore.folder.appendingPathComponent(id, isDirectory: true)
             let source = ExtensionSource(kind: .folder, path: folder.path)
-            if isLoaded(source) { await setEnabled(source, false) }
-            await addFolder(folder)
+            let wasLoaded = isLoaded(source)
+            if wasLoaded { await setEnabled(source, false) }
+            let backup = try ChromeWebStore.swapIn(staged, id: id)
+            if await addFolder(folder) {
+                if let backup { try? FileManager.default.removeItem(at: backup) }
+            } else {
+                storeErrors[id] = failures[folder.path] ?? "설치를 취소했어요"
+                try ChromeWebStore.restore(backup, id: id)
+                if backup == nil {
+                    Preferences.shared.extensionFolders.removeAll { $0 == folder.path }
+                    found.removeAll { $0 == source }
+                } else if wasLoaded {
+                    await load(source, askForPermissions: false)
+                }
+            }
         } catch {
             storeErrors[id] = error.localizedDescription
         }
