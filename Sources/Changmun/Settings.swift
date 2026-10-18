@@ -133,6 +133,17 @@ struct LooksSettings: View {
                 }
                 Caption(text: "재운 탭은 메모리를 비우고, 다시 볼 때 방문 기록과 함께 다시 불러와요. 메모리가 부족해지면 이 설정과 상관없이 재워요.")
             }
+            Section("탭 정리") {
+                Toggle("새 탭을 맞는 그룹에 자동으로 넣기", isOn: $prefs.groupNewTabs)
+                Picker("오래 안 본 탭 보관", selection: $prefs.archiveHours) {
+                    Text("끄기").tag(0)
+                    Text("12시간 뒤").tag(12)
+                    Text("하루 뒤").tag(24)
+                    Text("일주일 뒤").tag(168)
+                    Text("30일 뒤").tag(720)
+                }
+                Caption(text: "사이드바의 정리 버튼은 그룹에 없는 탭을 묶어요. Apple Intelligence가 켜져 있으면 이 Mac 안에서 주제별로 묶고, 아니면 같은 사이트와 한 탭에서 열어 간 탭끼리 묶어요. 보관한 탭은 방문 기록 › 보관한 탭에서 다시 열 수 있어요.")
+            }
             Section("재우지 않을 사이트") {
                 ForEach(prefs.neverSleepHosts, id: \.self) { host in
                     HStack {

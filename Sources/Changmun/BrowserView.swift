@@ -233,7 +233,13 @@ struct Sidebar: View {
                         }
                         .padding(.bottom, 14)
                     }
-                    NewTabRow { browser.commandBar = .newTab }
+                    HStack(spacing: 2) {
+                        NewTabRow { browser.commandBar = .newTab }
+                        if browser.tidying || browser.looseTabs.count > 1 { TidyButton(browser: browser) }
+                    }
+                    if let tidy = browser.lastTidy {
+                        TidyNotice(tidy: tidy) { browser.undoTidy() }.transition(.opacity)
+                    }
                     ForEach(browser.listing) { item in
                         switch item {
                         case .tab(let tab):
@@ -303,6 +309,7 @@ struct Sidebar: View {
                 .animation(.easeOut(duration: 0.18), value: browser.tabs.map(\.id))
                 .animation(.easeOut(duration: 0.15), value: browser.groups)
                 .animation(.easeOut(duration: 0.15), value: browser.tabs.map(\.groupID))
+                .animation(.easeOut(duration: 0.15), value: browser.lastTidy)
             }
 
             DownloadShelf(browser: browser).padding(.bottom, 8)
@@ -956,6 +963,54 @@ struct TabGroupHeader: View {
         guard browser.renamingGroup == group.id else { return }
         browser.rename(group.id, to: name)
         browser.renamingGroup = nil
+    }
+}
+
+/// Sorts the tabs in no group into groups; a spinner while the model thinks.
+struct TidyButton: View {
+    @ObservedObject var browser: Browser
+    @State private var hover = false
+
+    var body: some View {
+        Button { browser.tidyTabs() } label: {
+            Group {
+                if browser.tidying {
+                    ProgressView().controlSize(.small).scaleEffect(0.7)
+                } else {
+                    Image(systemName: "wand.and.stars").font(.system(size: 12, weight: .semibold))
+                }
+            }
+            .frame(width: 30, height: 30)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(hover ? Theme.primary : Theme.dim)
+        .disabled(browser.tidying)
+        .onHover { hover = $0 }
+        .help("탭 정리: 그룹에 없는 탭을 비슷한 것끼리 묶기")
+    }
+}
+
+/// Under the new tab row for a few seconds after a tidy, to take it back.
+struct TidyNotice: View {
+    let tidy: Browser.Tidy
+    let undo: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(tidy.made.isEmpty ? "탭 \(tidy.tabs)개를 그룹에 넣었어요" : "탭 \(tidy.tabs)개를 정리했어요")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Theme.secondary)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+            Button("되돌리기", action: undo)
+                .buttonStyle(.plain)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Theme.primary)
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 26)
     }
 }
 

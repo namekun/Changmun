@@ -87,6 +87,72 @@ struct HistoryView: View {
     }
 }
 
+// MARK: Archive
+
+struct ArchiveView: View {
+    @ObservedObject private var archive = TabArchive.shared
+    @State private var search = ""
+
+    var body: some View {
+        let entries = archive.matching(search)
+        VStack(spacing: 0) {
+            TextField("보관한 탭 검색", text: $search)
+                .textFieldStyle(.roundedBorder)
+                .padding(12)
+            List(entries) { entry in
+                ArchiveRow(entry: entry)
+                    .contextMenu {
+                        Button("다시 열기") { open(entry) }
+                        Button("주소 복사") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(entry.url, forType: .string)
+                        }
+                        Divider()
+                        Button("보관함에서 지우기") { archive.remove(entry.id) }
+                    }
+                    .onTapGesture(count: 2) { open(entry) }
+            }
+            .overlay {
+                if entries.isEmpty { Text(search.isEmpty ? "보관한 탭이 없어요" : "찾는 탭이 없어요").foregroundStyle(.secondary) }
+            }
+            HStack {
+                Text("두 번 클릭하면 다시 열려요. 보관할 때까지의 시간은 설정 › 탭·모양에서 정해요.")
+                    .font(.system(size: 11.5)).foregroundStyle(.secondary)
+                Spacer()
+                Button("모두 지우기") { archive.removeAll() }.disabled(archive.entries.isEmpty)
+            }
+            .padding(10)
+        }
+        .frame(minWidth: 460, minHeight: 320)
+    }
+
+    private func open(_ entry: TabArchive.Entry) {
+        let browser = Browser.recent ?? BrowserWindow.open()
+        browser.reopen(entry)
+        browser.window?.makeKeyAndOrderFront(nil)
+    }
+}
+
+struct ArchiveRow: View {
+    let entry: TabArchive.Entry
+
+    var body: some View {
+        HStack(spacing: 10) {
+            SiteIcon(url: entry.url, size: 16)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(entry.title.isEmpty ? entry.url : entry.title).lineLimit(1)
+                Text([URL(string: entry.url)?.host(), entry.group].compactMap { $0 }.joined(separator: " · "))
+                    .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            Text(entry.archived.formatted(.relative(presentation: .named)))
+                .font(.system(size: 11.5)).foregroundStyle(.secondary)
+        }
+        .contentShape(Rectangle())
+        .help(entry.url)
+    }
+}
+
 struct HistoryRow: View {
     let visit: Library.Visit
 

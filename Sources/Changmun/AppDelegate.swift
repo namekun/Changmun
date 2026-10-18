@@ -78,6 +78,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Panels.show("history", title: "방문 기록", size: NSSize(width: 640, height: 560)) { HistoryView() }
     }
 
+    @objc func showArchive(_ sender: Any?) {
+        Panels.show("archive", title: "보관한 탭", size: NSSize(width: 560, height: 520)) { ArchiveView() }
+    }
+
+    @objc func tidyTabs(_ sender: Any?) { browser.tidyTabs() }
+
     @objc func showDownloads(_ sender: Any?) {
         browser.showDownloads.toggle()
     }
@@ -464,6 +470,7 @@ enum AppMenu {
         add(history, "즐겨찾기 추가/제거", #selector(AppDelegate.toggleBookmark(_:)), "d")
         history.addItem(.separator())
         add(history, "모든 방문 기록 보기", #selector(AppDelegate.showHistory(_:)), "y")
+        add(history, "보관한 탭", #selector(AppDelegate.showArchive(_:)))
         add(history, "다운로드", #selector(AppDelegate.showDownloads(_:)), chrome ? "j" : "l", chrome ? [.command, .shift] : [.command, .option])
 
         let window = submenu(main, "윈도우")
@@ -471,6 +478,7 @@ enum AppMenu {
         window.addItem(.separator())
         add(window, "다음 탭", #selector(AppDelegate.nextTab(_:)), "]", [.command, .shift])
         add(window, "이전 탭", #selector(AppDelegate.previousTab(_:)), "[", [.command, .shift])
+        add(window, "탭 정리", #selector(AppDelegate.tidyTabs(_:)))
         add(window, "최근 탭", #selector(AppDelegate.recentTab(_:)), "\t", [.control], hidden: true)
         add(window, "최근 탭", #selector(AppDelegate.olderRecentTab(_:)), "\t", [.control, .shift], hidden: true)
         if chrome {

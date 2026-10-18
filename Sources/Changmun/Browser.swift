@@ -180,7 +180,10 @@ final class Browser: ObservableObject {
         func contains(_ id: Int?) -> Bool { id == left || id == right }
     }
 
-    @Published private(set) var split: Split?
+    /// The halves of a split that ends were on screen until now.
+    @Published private(set) var split: Split? {
+        didSet { for id in [oldValue?.left, oldValue?.right].compactMap({ $0 }) where split?.contains(id) != true { tab(id)?.lastShown = Date() } }
+    }
     var shownSplit: Split? { split?.contains(activeID) == true ? split : nil }
 
     /// A link opened with ⇧-click, floating over the page until it is closed or kept as a tab (Arc's Peek).
@@ -219,6 +222,7 @@ final class Browser: ObservableObject {
     func openTab(url: URL?, activate: Bool = true, after: Tab? = nil) -> Tab {
         let tab = Tab(id: Self.takeID(), url: url, browser: self)
         insert(tab, after: after)
+        tab.sortsIntoGroup = tab.groupID == nil
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
         if activate {
             self.activate(tab.id)
@@ -230,6 +234,7 @@ final class Browser: ObservableObject {
     func openTab(configuration: WKWebViewConfiguration, after: Tab?) -> Tab {
         let tab = Tab(id: Self.takeID(), configuration: configuration, browser: self)
         insert(tab, after: after)
+        tab.sortsIntoGroup = tab.groupID == nil
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
         activate(tab.id)
         return tab
@@ -251,7 +256,7 @@ final class Browser: ObservableObject {
         }
         // Also after closing a tab, when there is no previous tab left to compare with.
         if previous !== tab { tab.pictureInPicture(.exit) }
-        active?.lastShown = Date()
+        for shown in tabs where isShown(shown) { shown.lastShown = Date() }
         activeID = id
         closePeek()
         tab.lastShown = Date()
@@ -309,14 +314,17 @@ final class Browser: ObservableObject {
         activate(tab.id)
     }
 
-    func close(_ id: Int) {
+    /// `remember` false (an archived tab) leaves it out of the tabs ⌘⇧T brings back.
+    func close(_ id: Int, remember: Bool = true) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         let closing = tabs.remove(at: index)
         if split?.contains(id) == true { split = nil }
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabClosed(closing) }
-        closedTabs.append(ClosedTab(url: closing.url, title: closing.title, state: closing.sessionState, index: index, bookmarkKey: closing.bookmarkKey,
-                                    group: groups.first { $0.id == closing.groupID }))
-        if closedTabs.count > 25 { closedTabs.removeFirst() }
+        if remember {
+            closedTabs.append(ClosedTab(url: closing.url, title: closing.title, state: closing.sessionState, index: index, bookmarkKey: closing.bookmarkKey,
+                                        group: groups.first { $0.id == closing.groupID }))
+            if closedTabs.count > 25 { closedTabs.removeFirst() }
+        }
         closing.sleep()
         pruneGroups()
         if activeID == id {
@@ -660,6 +668,89 @@ final class Browser: ObservableObject {
         if let renaming = renamingGroup, !used.contains(renaming) { renamingGroup = nil }
     }
 
+    // MARK: Tidying
+
+    /// What the last tidy did, so it can be taken back: the groups it made and the tabs it put into groups already there.
+    struct Tidy: Equatable {
+        var id = UUID()
+        var made: [UUID]
+        /// Each tab it put in a group, and the group.
+        var placed: [Int: UUID]
+        var tabs: Int { placed.count }
+    }
+
+    @Published private(set) var tidying = false
+    @Published private(set) var lastTidy: Tidy?
+
+    /// The tabs a tidy sorts: those in no group (favorites and bookmarks live in their own places).
+    var looseTabs: [Tab] { tabs.filter { $0.groupID == nil && $0.bookmarkKey == nil } }
+
+    func tidyTabs() {
+        guard !tidying else { return }
+        let loose = looseTabs
+        guard loose.count > 1 else { return flashStatus("정리할 탭이 없어요") }
+        tidying = true
+        let items = loose.map(\.sortItem), names = groups.map(\.name)
+        Task {
+            let plan = await TabSorter.plan(items, existing: names)
+            tidying = false
+            apply(plan)
+        }
+    }
+
+    /// Puts the planned tabs (those still loose) into their groups: one with the same name if the window has it, else a new one.
+    func apply(_ plan: [TabSorter.Group]) {
+        var tidy = Tidy(made: [], placed: [:])
+        for entry in plan {
+            let members = entry.ids.compactMap { tab($0) }.filter { $0.groupID == nil && $0.bookmarkKey == nil }
+            let group: UUID
+            if let existing = groups.first(where: { $0.name == entry.name }) {
+                group = existing.id
+            } else {
+                guard members.count > 1 else { continue }
+                group = TabGroup(name: entry.name).id
+                groups.append(TabGroup(id: group, name: entry.name))
+                tidy.made.append(group)
+            }
+            for tab in members {
+                join(tab, group)
+                tidy.placed[tab.id] = group
+            }
+        }
+        pruneGroups()
+        guard tidy.tabs > 0 else {
+            lastTidy = nil
+            return flashStatus("묶을 만한 탭이 없어요")
+        }
+        lastTidy = tidy
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+            if self?.lastTidy == tidy { self?.lastTidy = nil }
+        }
+    }
+
+    /// Takes the tidied tabs out of their groups again, those still where the tidy put them; a group it made goes
+    /// away with its last tab, unless the user has put others in it since.
+    func undoTidy() {
+        guard let tidy = lastTidy else { return }
+        lastTidy = nil
+        for (id, group) in tidy.placed where tab(id)?.groupID == group { removeFromGroup(id) }
+    }
+
+    /// A new tab whose first page has loaded joins the group it plainly belongs in, if there is one.
+    func sortIntoGroup(_ tab: Tab) {
+        // A tab opened from another (a link, a sign-in popup) stays by it.
+        guard Preferences.shared.groupNewTabs, tab.groupID == nil, tab.bookmarkKey == nil, tab.openerID == nil, !groups.isEmpty else { return }
+        let ids = groups.map(\.id)
+        let candidates = groups.map { group in (name: group.name, members: tabs.filter { $0.groupID == group.id }.map(\.sortItem)) }
+        let item = tab.sortItem
+        Task {
+            guard let index = await TabSorter.fit(item, groups: candidates), self.tab(tab.id) === tab, tab.groupID == nil,
+                  let group = groups.first(where: { $0.id == ids[index] }) else { return }
+            addTab(tab.id, to: group.id)
+            if isShown(tab) { flashStatus("'\(group.name)' 그룹에 넣었어요") }
+        }
+    }
+
     /// ⌘ held during the click that triggered this.
     static var commandClick: Bool { NSApp.currentEvent?.modifierFlags.contains(.command) == true }
 
@@ -724,8 +815,9 @@ final class Browser: ObservableObject {
     func startSleepingIdleTabs() {
         sleepTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                guard let self, let age = self.sleepAfter else { return }
-                self.sleepIdleTabs(olderThan: age)
+                guard let self else { return }
+                if let age = self.archiveAfter { self.archiveIdleTabs(olderThan: age) }
+                if let age = self.sleepAfter { self.sleepIdleTabs(olderThan: age) }
             }
         }
         let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
@@ -751,6 +843,39 @@ final class Browser: ObservableObject {
         }
     }
 
+    /// Tabs not shown for this long are archived; nil when that is turned off.
+    var archiveAfter: TimeInterval? {
+        let hours = Preferences.shared.archiveHours
+        return hours > 0 ? Double(hours) * 3600 : nil
+    }
+
+    /// Closes the tabs not looked at for `age` into the archive, but not those on screen, favorites and bookmarks, or
+    /// ones playing, floating, or using the camera or microphone. A private window keeps nothing.
+    func archiveIdleTabs(olderThan age: TimeInterval, to archive: TabArchive? = nil) {
+        guard !isPrivate else { return }
+        let archive = archive ?? .shared
+        let now = Date()
+        let idle = tabs.filter { tab in
+            !isShown(tab) && tab.bookmarkKey == nil && tab.url != nil && now.timeIntervalSince(tab.lastShown) >= age
+                && !tab.isLoading && !tab.isPlayingAudio && !tab.isInPictureInPicture
+                && tab.webView.map { $0.cameraCaptureState == .none && $0.microphoneCaptureState == .none } != false
+        }
+        guard !idle.isEmpty else { return }
+        archive.add(idle.map { tab in
+            TabArchive.Entry(url: tab.url?.absoluteString ?? "", title: tab.displayTitle, archived: now, group: groups.first { $0.id == tab.groupID }?.name)
+        })
+        for tab in idle { close(tab.id, remember: false) }
+    }
+
+    /// Opens an archived tab again, back in its group if this window has one by that name.
+    func reopen(_ entry: TabArchive.Entry, from archive: TabArchive? = nil) {
+        guard let url = URL(string: entry.url) else { return }
+        let archive = archive ?? .shared
+        let tab = openTab(url: url)
+        if let name = entry.group, let group = groups.first(where: { $0.name == name }) { addTab(tab.id, to: group.id) }
+        archive.remove(entry.id)
+    }
+
     // MARK: Session
 
     struct SavedTab: Codable {
@@ -759,6 +884,8 @@ final class Browser: ObservableObject {
         var state: Data?
         var bookmarkKey: String?
         var group: UUID?
+        /// When it was last shown, for archiving tabs not looked at in a while.
+        var shown: Date?
     }
 
     struct SavedSession: Codable {
@@ -766,6 +893,8 @@ final class Browser: ObservableObject {
         var active: Int?
         var previous: Int?
         var groups: [TabGroup]?
+        /// When it was written: time with the app closed doesn't count toward archiving a tab.
+        var saved: Date?
     }
 
     /// The open windows, the one in front last. Older versions saved one window as a bare `SavedSession`.
@@ -783,10 +912,12 @@ final class Browser: ObservableObject {
 
     var savedSession: SavedSession {
         SavedSession(
-            tabs: tabs.map { SavedTab(url: $0.url?.absoluteString, title: $0.title, state: $0.sessionState, bookmarkKey: $0.bookmarkKey, group: $0.groupID) },
+            tabs: tabs.map { SavedTab(url: $0.url?.absoluteString, title: $0.title, state: $0.sessionState, bookmarkKey: $0.bookmarkKey, group: $0.groupID,
+                                  shown: $0.lastShown) },
             active: tabs.firstIndex { $0.id == activeID },
             previous: tabs.firstIndex { $0.id == previousActiveID },
-            groups: groups
+            groups: groups,
+            saved: Date()
         )
     }
 
@@ -836,6 +967,7 @@ final class Browser: ObservableObject {
             let tab = Tab(id: Self.takeID(), url: item.url.flatMap(URL.init(string:)), title: item.title, state: item.state, browser: self)
             tab.bookmarkKey = item.bookmarkKey
             tab.groupID = item.group
+            if let shown = item.shown { tab.lastShown = Date(timeIntervalSinceNow: -max(0, (saved.saved ?? shown).timeIntervalSince(shown))) }
             tabs.append(tab)
         }
         groups = saved.groups ?? []

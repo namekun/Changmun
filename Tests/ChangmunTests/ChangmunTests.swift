@@ -1578,3 +1578,126 @@ struct PictureInPictureTests {
         #expect(b.activeID == video.id)
     }
 }
+
+@MainActor
+struct TabSortingTests {
+    typealias Item = TabSorter.Item
+
+    @Test func tabsOpenedFromOneAnotherOrOnOneSiteGoTogether() {
+        let items = [
+            Item(id: 1, title: "제주 여행 - Google 검색", host: "www.google.com", opener: nil),
+            Item(id: 2, title: "제주 숙소", host: "airbnb.co.kr", opener: 1),
+            Item(id: 3, title: "Swift", host: "github.com", opener: nil),
+            Item(id: 4, title: "WebKit", host: "github.com", opener: nil),
+            Item(id: 5, title: "메일", host: "mail.google.com", opener: nil),
+            Item(id: 6, title: "제주 항공권", host: "m.skyscanner.co.kr", opener: 2),
+        ]
+        #expect(TabSorter.clusters(items) == [
+            TabSorter.Group(name: "제주 여행", ids: [1, 2, 6]),
+            TabSorter.Group(name: "github.com", ids: [3, 4]),
+        ])
+    }
+
+    @Test func topicsComeFirstAndATabWithoutOneFollowsItsOpener() {
+        let items = [
+            Item(id: 1, title: "제주 블로그", host: "blog.naver.com", opener: nil),
+            Item(id: 2, title: "항공권", host: "skyscanner.co.kr", opener: nil),
+            Item(id: 3, title: "숙소", host: "airbnb.co.kr", opener: 2),
+            Item(id: 4, title: "러닝화", host: "coupang.com", opener: nil),
+            Item(id: 5, title: "Swift", host: "github.com", opener: nil),
+            Item(id: 6, title: "WebKit", host: "github.com", opener: nil),
+            Item(id: 7, title: "메일", host: "mail.google.com", opener: nil),
+        ]
+        let topics = [1: "제주 여행", 2: "제주 여행", 4: "쇼핑", 5: "개발", 7: TabSorter.noTopic, 99: "쇼핑"]
+        #expect(TabSorter.plan(items, topics: topics, existing: ["쇼핑"]) == [
+            TabSorter.Group(name: "제주 여행", ids: [1, 2, 3]),
+            TabSorter.Group(name: "쇼핑", ids: [4]),
+            TabSorter.Group(name: "github.com", ids: [5, 6]),
+        ], "one tab joins a group that is there; a topic of one tab gives way to its site; tabs the model doesn't know are left out")
+    }
+
+    @Test func aNewTabJoinsAGroupAllOnItsSite() async {
+        let group = [Item(id: 1, title: "a", host: "github.com", opener: nil), Item(id: 2, title: "b", host: "www.github.com", opener: nil)]
+        let index = await TabSorter.fit(Item(id: 3, title: "c", host: "github.com", opener: nil), groups: [("여행", []), ("개발", group)])
+        #expect(index == 1)
+    }
+
+    @Test func aTidyMakesAndFillsGroupsAndCanBeTakenBack() {
+        let b = Browser()
+        let a = b.openTab(url: URL(string: "https://a.example/"))
+        let c = b.openTab(url: URL(string: "https://c.example/"))
+        let d = b.openTab(url: URL(string: "https://d.example/"))
+        let e = b.openTab(url: URL(string: "https://e.example/"))
+        let shopping = b.group([e.id], name: "쇼핑")!
+        b.apply([TabSorter.Group(name: "개발", ids: [a.id, c.id]), TabSorter.Group(name: "쇼핑", ids: [d.id]), TabSorter.Group(name: "혼자", ids: [999])])
+        let made = b.groups.first { $0.name == "개발" }
+        #expect(made != nil && a.groupID == made?.id && c.groupID == made?.id)
+        #expect(d.groupID == shopping)
+        #expect(b.lastTidy?.tabs == 3)
+        let f = b.openTab(url: URL(string: "https://f.example/"))
+        let other = b.group([f.id], name: "다른 그룹")!
+        b.addTab(c.id, to: other)
+        b.undoTidy()
+        #expect(a.groupID == nil && d.groupID == nil)
+        #expect(c.groupID == other, "moved by the user since: left alone")
+        b.ungroup(other)
+        #expect(e.groupID == shopping, "the group that was there stays")
+        #expect(b.groups.map(\.name) == ["쇼핑"])
+    }
+
+    @Test func tabsNotLookedAtAreArchivedAndComeBackIntoTheirGroup() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("archive-\(UUID()).json")
+        defer { try? FileManager.default.removeItem(at: file) }
+        let archive = TabArchive(file: file)
+        let b = Browser()
+        let shown = b.openTab(url: URL(string: "https://shown.example/"))
+        let old = b.openTab(url: URL(string: "https://old.example/"), activate: false)
+        let favorite = b.openTab(url: URL(string: "https://favorite.example/"), activate: false)
+        let recent = b.openTab(url: URL(string: "https://recent.example/"), activate: false)
+        favorite.bookmarkKey = "favorite"
+        b.group([old.id], name: "읽을거리")
+        for tab in [shown, old, favorite] { tab.lastShown = Date(timeIntervalSinceNow: -3 * 86400) }
+        b.archiveIdleTabs(olderThan: 86400, to: archive)
+        #expect(b.tabs.map(\.id) == [shown.id, favorite.id, recent.id])
+        #expect(archive.entries.map(\.url) == ["https://old.example/"])
+        #expect(archive.entries.first?.group == "읽을거리")
+        #expect(b.closedTabs.isEmpty, "⌘⇧T doesn't bring archived tabs back")
+        #expect(TabArchive(file: file).entries.count == 1, "kept on disk")
+
+        b.group([recent.id], name: "읽을거리")
+        b.reopen(try #require(archive.entries.first), from: archive)
+        #expect(b.active?.url?.absoluteString == "https://old.example/")
+        #expect(b.active?.groupID == recent.groupID)
+        #expect(archive.entries.isEmpty)
+    }
+
+    @Test func whenATabWasLastShownIsKept() {
+        let b = Browser()
+        b.openTab(url: URL(string: "https://one.example/"))
+        let tab = b.openTab(url: URL(string: "https://two.example/"), activate: false)
+        let shown = Date(timeIntervalSince1970: 1_700_000_000)
+        tab.lastShown = shown
+        let restored = Browser()
+        var session = b.savedSession
+        restored.restore(session)
+        #expect(abs(restored.tabs.last!.lastShown.timeIntervalSince(shown)) < 5, "the tab shown on restoring counts as just looked at")
+        session.saved = Date(timeIntervalSinceNow: -2 * 86400)
+        tab.lastShown = Date(timeIntervalSinceNow: -3 * 86400)
+        session.tabs[1].shown = tab.lastShown
+        let later = Browser()
+        later.restore(session)
+        #expect(abs(Date().timeIntervalSince(later.tabs.last!.lastShown) - 86400) < 5, "the two days the app was closed don't count")
+    }
+
+    @Test func theOtherHalfOfASplitWasLookedAtUntilItGoesOffScreen() {
+        let b = Browser()
+        let left = b.openTab(url: URL(string: "https://left.example/"))
+        let right = b.openTab(url: URL(string: "https://right.example/"), activate: false)
+        let other = b.openTab(url: URL(string: "https://other.example/"), activate: false)
+        b.activate(left.id)
+        b.split(with: right.id)
+        right.lastShown = .distantPast
+        b.activate(other.id)
+        #expect(Date().timeIntervalSince(right.lastShown) < 5)
+    }
+}

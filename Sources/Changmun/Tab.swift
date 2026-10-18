@@ -10,6 +10,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var bookmarkKey: String?
     /// The tab group it is in, in the sidebar's tab list.
     var groupID: UUID?
+    /// The tab it was opened from (a link, a popup): tidying keeps the two together.
+    var openerID: Int?
+    /// Opened outside any group: once its first page loads, it may join the group it belongs in.
+    var sortsIntoGroup = false
     @Published var title: String
     @Published var url: URL?
     @Published var isLoading = false
@@ -64,6 +68,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         self.browser = browser
         super.init()
         attach(WKWebView(frame: .zero, configuration: configuration))
+    }
+
+    var sortItem: TabSorter.Item {
+        TabSorter.Item(id: id, title: displayTitle, host: url?.host(), opener: openerID)
     }
 
     var displayTitle: String {
@@ -271,7 +279,7 @@ extension Tab: WKNavigationDelegate {
         }
         if action.navigationType == .linkActivated, action.modifierFlags.contains(.command) || action.buttonNumber == Self.middleButton,
            let url = action.request.url {
-            browser?.openTab(url: url, activate: action.modifierFlags.contains(.shift), after: self)
+            browser?.openTab(url: url, activate: action.modifierFlags.contains(.shift), after: self).openerID = id
             return (.cancel, preferences)
         }
         if Self.isPeekClick(action), let url = action.request.url {
@@ -341,6 +349,10 @@ extension Tab: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         loadFavicon()
+        if sortsIntoGroup, webView.url?.scheme?.hasPrefix("http") == true, webView.title?.isEmpty == false {
+            sortsIntoGroup = false
+            browser?.sortIntoGroup(self)
+        }
         if !isPrivate, let url = webView.url?.absoluteString { Library.shared.recordVisit(url: url, title: webView.title ?? "") }
         checkForLogins()
         let page = page
@@ -372,14 +384,14 @@ extension Tab: WKNavigationDelegate {
         // The page could post this itself: at most one tab a second in the window, and only a shown tab takes the eye.
         guard Date().timeIntervalSince(browser.lastAllowedPopup) > 1 else { return }
         browser.lastAllowedPopup = Date()
-        browser.openTab(url: popup, activate: browser.isShown(self), after: self)
+        browser.openTab(url: popup, activate: browser.isShown(self), after: self).openerID = id
     }
 
     func openBlockedPopup(always: Bool) {
         guard let popup = blockedPopup else { return }
         blockedPopup = nil
         if always, !isPrivate, let host = url?.host() { Preferences.shared.allowPopups(from: host) }
-        browser?.openTab(url: popup, after: self)
+        browser?.openTab(url: popup, after: self).openerID = id
     }
 
     // MARK: Translation
@@ -466,7 +478,9 @@ extension Tab: WKUIDelegate {
             browser?.openPeek(url)
             return nil
         }
-        return browser?.openTab(configuration: configuration, after: self).webView
+        let tab = browser?.openTab(configuration: configuration, after: self)
+        tab?.openerID = id
+        return tab?.webView
     }
 
     func webView(_ webView: WKWebView, decideMediaCapturePermissionsFor origin: WKSecurityOrigin, initiatedBy frame: WKFrameInfo,

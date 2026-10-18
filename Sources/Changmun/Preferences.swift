@@ -116,6 +116,10 @@ final class Preferences: ObservableObject {
     /// Minutes before a background tab sleeps; 0 never.
     @Published var sleepMinutes: Int { didSet { defaults.set(sleepMinutes, forKey: "sleepTabsAfterMinutes") } }
     @Published var neverSleepHosts: [String] { didSet { defaults.set(neverSleepHosts, forKey: "neverSleepHosts") } }
+    /// Hours before a tab not looked at is archived; 0 never.
+    @Published var archiveHours: Int { didSet { defaults.set(archiveHours, forKey: "archiveTabsAfterHours") } }
+    /// A newly opened tab joins the group it belongs in.
+    @Published var groupNewTabs: Bool { didSet { defaults.set(groupNewTabs, forKey: "groupNewTabs") } }
 
     // MARK: Privacy
 
@@ -169,6 +173,8 @@ final class Preferences: ObservableObject {
         popupHosts = d.stringArray(forKey: "popupHosts") ?? []
         sleepMinutes = d.object(forKey: "sleepTabsAfterMinutes") as? Int ?? 20
         neverSleepHosts = d.stringArray(forKey: "neverSleepHosts") ?? []
+        archiveHours = d.object(forKey: "archiveTabsAfterHours") as? Int ?? 0
+        groupNewTabs = d.object(forKey: "groupNewTabs") as? Bool ?? true
         blockTrackers = d.object(forKey: "blockTrackers") as? Bool ?? true
         customFilterLists = d.stringArray(forKey: "customFilterLists") ?? []
         disabledFilterLists = d.stringArray(forKey: "disabledFilterLists") ?? []
