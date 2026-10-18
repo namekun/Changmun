@@ -48,18 +48,20 @@ final class LoginCapture: NSObject, WKScriptMessageHandler {
         const fields = [...(pw.form || scope).querySelectorAll('input')]
           .filter(e => /^(text|email|tel|)$/.test(e.type) && visible(e) && e.value);
         const user = fields.filter(e => e.compareDocumentPosition(pw) & Node.DOCUMENT_POSITION_FOLLOWING).pop() || null;
+        pw.setAttribute('data-cm-secret', '');
         const key = (user ? user.value : '') + '\\n' + pw.value;
         if (key === last) return;
         last = key;
         window.webkit.messageHandlers.\(name).postMessage({username: user ? user.value : '', password: pw.value});
       };
-      document.addEventListener('submit', e => capture(e.target), true);
+      // Only what the user did: a page's own synthetic events, and buttons that don't submit (show password), don't count.
+      document.addEventListener('submit', e => { if (e.isTrusted) capture(e.target); }, true);
       document.addEventListener('click', e => {
         const button = e.target instanceof Element ? e.target.closest('button, input[type=submit]') : null;
-        if (button && button.form) capture(button.form);
+        if (e.isTrusted && button && button.form && button.type === 'submit') capture(button.form);
       }, true);
       document.addEventListener('keydown', e => {
-        if (e.key === 'Enter' && e.target instanceof HTMLInputElement && e.target.form) capture(e.target.form);
+        if (e.isTrusted && e.key === 'Enter' && e.target instanceof HTMLInputElement && e.target.form) capture(e.target.form);
       }, true);
     })();
     """
@@ -77,8 +79,10 @@ final class LoginCapture: NSObject, WKScriptMessageHandler {
                   let tab = Browser.all.lazy.compactMap({ browser in (browser.tabs + [browser.peek].compactMap { $0 }).first { $0.webView === webView } }).first,
                   !tab.isPrivate else { return }
             let offer = LoginOffer(host: host, username: username, password: password)
-            guard Self.worthOffering(offer, neverHosts: Preferences.shared.neverSaveLoginHosts,
-                                     saved: { Logins.password(host: host, username: username) }) else { return }
+            // The saved secret is read only when that account is already saved here.
+            guard Self.worthOffering(offer, neverHosts: Preferences.shared.neverSaveLoginHosts, saved: {
+                Logins.accounts(for: host).contains(username) ? Logins.password(host: host, username: username) : nil
+            }) else { return }
             tab.loginOffer = offer
         }
     }

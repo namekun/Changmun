@@ -548,8 +548,15 @@ final class Browser: ObservableObject {
         guard !normal.isEmpty else { return }
         let saved = SavedWindows(windows: normal.reversed().map(\.savedSession).filter { !$0.tabs.isEmpty })
         let file = sessionFile
-        let write = { try? JSONEncoder().encode(saved).write(to: file, options: .atomic) }
-        if inBackground { sessionQueue.async { _ = write() } } else { sessionQueue.sync { _ = write() } }
+        let write = { (try? JSONEncoder().encode(saved).write(to: file, options: .atomic)) != nil }
+        if inBackground {
+            sessionQueue.async {
+                // A write that failed (a full disk) is tried again at the next tick.
+                if !write() { DispatchQueue.main.async { savedSignature = [] } }
+            }
+        } else {
+            sessionQueue.sync { _ = write() }
+        }
     }
 
     private static let sessionQueue = DispatchQueue(label: "Changmun.session", qos: .utility)

@@ -21,6 +21,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     @Published private(set) var isPlayingAudio = false
     @Published private(set) var isMuted = false
     private var audioWatcher: AudioWatcher?
+    private var zoomHost: String?
     @Published private(set) var webView: WKWebView?
     var lastShown = Date()
     private var savedState: Data?
@@ -130,14 +131,27 @@ final class Tab: NSObject, ObservableObject, Identifiable {
             view.observe(\.canGoForward) { [weak self] v, _ in Task { @MainActor in self?.canGoForward = v.canGoForward } },
         ]
         webView = view
-        audioWatcher = AudioWatcher(view) { [weak self] playing in self?.isPlayingAudio = playing }
+        audioWatcher = AudioWatcher(view) { [weak self] playing in
+            if self?.webView != nil { self?.isPlayingAudio = playing }
+        }
         if isMuted { Self.setMuted(true, in: view) }
     }
 
     /// Silences the tab (or lets it play again). WebKit's switch for this is private, so a WebKit without it does nothing.
     func toggleMute() {
-        guard let webView, Self.setMuted(!isMuted, in: webView) else { return }
+        if let webView, !Self.setMuted(!isMuted, in: webView) { return }
         isMuted.toggle()
+    }
+
+    /// Hosts under the same registrable name, roughly: the last two labels, or three for names like example.co.kr.
+    nonisolated static func sameSite(_ a: String?, _ b: String?) -> Bool {
+        guard let a = a?.lowercased(), let b = b?.lowercased() else { return false }
+        func site(_ host: String) -> String {
+            let labels = host.split(separator: ".")
+            let keep = labels.count >= 3 && labels[labels.count - 2].count <= 3 && labels.last!.count == 2 ? 3 : 2
+            return labels.suffix(keep).joined(separator: ".")
+        }
+        return site(a) == site(b)
     }
 
     @discardableResult
@@ -243,9 +257,15 @@ extension Tab: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         if webView.url?.isFileURL != true { userFileLoad = nil }
-        let zoom = Preferences.shared.zoom(for: webView.url?.host())
-        if webView.pageZoom != zoom { webView.pageZoom = zoom }
-        if let offer = loginOffer, offer.host != webView.url?.host() { loginOffer = nil }
+        // A new site gets its own zoom; staying on the same one keeps what the user set (a private tab never saves it).
+        let host = webView.url?.host()
+        if host != zoomHost {
+            zoomHost = host
+            let zoom = Preferences.shared.zoom(for: host)
+            if webView.pageZoom != zoom { webView.pageZoom = zoom }
+        }
+        // Sign-ins often land on another host of the same site (login.example.com → www.example.com).
+        if let offer = loginOffer, !Self.sameSite(offer.host, host) { loginOffer = nil }
         if let host = webView.url?.host(), let cached = Browser.favicons[host] { favicon = cached }
     }
 

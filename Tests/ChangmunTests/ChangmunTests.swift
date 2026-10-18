@@ -881,6 +881,14 @@ struct SuggestionTests {
         #expect(SearchSuggestions.parse(Data("<html>".utf8)).isEmpty)
     }
 
+    @Test func onlyShortSearchesAskTheEngine() {
+        #expect(SearchSuggestions.mayAsk("날씨 서울"))
+        #expect(!SearchSuggestions.mayAsk("이 페이지 내용을 세 줄로 요약하고 중요한 부분을 알려줘"))
+        #expect(!SearchSuggestions.mayAsk(String(repeating: "x", count: 61)))
+        #expect(!SearchSuggestions.mayAsk("token\nsecret"))
+        #expect(SearchSuggestions.url(for: .google, query: "c++")?.absoluteString.contains("q=c%2B%2B") == true)
+    }
+
     @Test func queriesAreEncoded() {
         for engine in SearchEngine.allCases {
             let url = SearchSuggestions.url(for: engine, query: "a&b 날씨")
@@ -909,6 +917,15 @@ struct SuggestionTests {
 }
 
 struct LoginOfferTests {
+    @Test func signInsMayLandOnAnotherHostOfTheSameSite() {
+        #expect(Tab.sameSite("login.example.com", "www.example.com"))
+        #expect(Tab.sameSite("nid.naver.com", "www.naver.com"))
+        #expect(Tab.sameSite("login.shop.co.kr", "shop.co.kr"))
+        #expect(!Tab.sameSite("a.co.kr", "b.co.kr"))
+        #expect(!Tab.sameSite("example.com", "evil.com"))
+        #expect(!Tab.sameSite("example.com", nil))
+    }
+
     @Test func offersOnlyNewSignInsOnAllowedSites() {
         let offer = LoginOffer(host: "accounts.example.com", username: "me", password: "new")
         #expect(LoginCapture.worthOffering(offer, neverHosts: [], saved: { nil }))

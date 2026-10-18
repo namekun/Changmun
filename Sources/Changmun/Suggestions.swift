@@ -18,7 +18,16 @@ enum SearchSuggestions {
             components = URLComponents(string: "https://ac.search.naver.com/nx/ac?q_enc=UTF-8&st=100&r_format=json&r_enc=UTF-8")
             components?.queryItems?.append(URLQueryItem(name: "q", value: query))
         }
+        // URLComponents leaves "+" alone, which servers read as a space ("c++" would ask about "c").
+        let encoded = components?.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+        components?.percentEncodedQuery = encoded
         return components?.url
+    }
+
+    /// Short searches only: a long sentence is more likely a question for the AI or something pasted, which shouldn't
+    /// leave for the search engine while it's typed.
+    static func mayAsk(_ query: String) -> Bool {
+        query.count <= 60 && query.split(separator: " ").count <= 6 && !query.contains("\n")
     }
 
     /// `["query", ["suggestion", …]]` (Google, DuckDuckGo, Bing) or Naver's `{"items": [[["suggestion"], …]]}`.
@@ -73,7 +82,7 @@ final class SuggestionSource: ObservableObject {
             let found = await Library.shared.inBackground { $0.search(query) }
             if !Task.isCancelled { pages = found }
         }
-        guard remote, !AddressInput.isAddress(query) else {
+        guard remote, SearchSuggestions.mayAsk(query), !AddressInput.isAddress(query) else {
             searches = []
             return
         }

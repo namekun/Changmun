@@ -7,11 +7,13 @@ import WebKit
 enum Logins {
     static let label = "Changmun"
 
+    /// Updates the account where it is already saved (`example.com` or its `www.` twin), so filling never finds an old one.
     static func save(host: String, username: String, password: String) -> Bool {
         guard !host.isEmpty, !password.isEmpty, let secret = password.data(using: .utf8) else { return false }
+        let server = hostVariants(host).first { exists(server: $0, username: username) } ?? host
         let query: [String: Any] = [
             kSecClass as String: kSecClassInternetPassword,
-            kSecAttrServer as String: host,
+            kSecAttrServer as String: server,
             kSecAttrAccount as String: username,
             kSecAttrLabel as String: label,
         ]
@@ -20,6 +22,17 @@ enum Logins {
             return SecItemUpdate(query as CFDictionary, [kSecValueData as String: secret] as CFDictionary) == errSecSuccess
         }
         return status == errSecSuccess
+    }
+
+    private static func exists(server: String, username: String) -> Bool {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassInternetPassword,
+            kSecAttrServer as String: server,
+            kSecAttrAccount as String: username,
+            kSecAttrLabel as String: label,
+            kSecReturnAttributes as String: true,
+        ]
+        return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
     }
 
     /// Usernames saved for a host (or its www/non-www twin). Reads no secrets, so it never prompts.

@@ -257,8 +257,9 @@ struct PrivacySettings: View {
         var done: [String] = []
         if clearHistory {
             done.append("방문 기록 \(Library.shared.clearHistory(since: since))개")
-            // Remembered zoom sizes name the sites too.
+            // Remembered zoom sizes and closed windows name the sites too.
             if range == .all { prefs.siteZoom = [:] }
+            Browser.closedWindows = []
         }
         if clearSiteData {
             WKWebsiteDataStore.default().removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: since) {}

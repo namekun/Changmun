@@ -1221,9 +1221,10 @@ struct PeekCard: View {
                 }
                 .padding(.leading, 6)
                 .frame(height: 30)
-                ZStack {
+                ZStack(alignment: .top) {
                     Theme.page
                     WebViewHost(tab: tab, browser: browser)
+                    LoginOfferBar(tab: tab)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(alignment: .top) {
@@ -1407,7 +1408,7 @@ struct CommandBar: View {
                         .onSubmit { run(items.indices.contains(selection) ? items[selection] : nil) }
                         .onChange(of: text) {
                             selection = 0
-                            source.update(text, remote: prefs.searchSuggestions && !browser.isPrivate)
+                            refresh()
                         }
                     Keycap("esc")
                 }
@@ -1430,15 +1431,35 @@ struct CommandBar: View {
             .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.background))
             .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
             .padding(.top, 96)
-            .onKeyPress(.downArrow) { selection = min(selection + 1, items.count - 1); return .handled }
+            .onKeyPress(.downArrow) { selection = max(0, min(selection + 1, items.count - 1)); return .handled }
             .onKeyPress(.upArrow) { selection = max(selection - 1, 0); return .handled }
             .onKeyPress(.escape) { dismiss(); return .handled }
         }
+        .onChange(of: items) { old, new in keepSelection(old, new) }
         .onAppear {
             text = mode == .editCurrent ? (browser.active?.url?.absoluteString ?? "") : ""
-            source.update("", remote: false)
+            refresh()
             NSApp.keyWindow?.makeFirstResponder(nil)
             DispatchQueue.main.async { focused = true }
+        }
+    }
+
+    /// Bookmarks for an empty field (or the current address, untouched); otherwise a search as the user types.
+    private func refresh() {
+        let query = text.trimmingCharacters(in: .whitespaces)
+        if query.isEmpty || (mode == .editCurrent && query == browser.active?.url?.absoluteString) {
+            source.update("", remote: false)
+        } else {
+            source.update(text, remote: prefs.searchSuggestions && !browser.isPrivate)
+        }
+    }
+
+    /// Results arrive while the user moves through them: the highlight stays on the same row, wherever it went.
+    private func keepSelection(_ old: [Suggestion], _ new: [Suggestion]) {
+        if old.indices.contains(selection), let index = new.firstIndex(of: old[selection]) {
+            selection = index
+        } else {
+            selection = 0
         }
     }
 
