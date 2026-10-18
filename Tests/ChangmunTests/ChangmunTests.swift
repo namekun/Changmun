@@ -1211,3 +1211,18 @@ struct HeadlessTests {
         #expect(center.redComponent > 0.8 && center.greenComponent < 0.5 && center.blueComponent < 0.5)
     }
 }
+
+@MainActor
+struct AddressTitleTests {
+    @Test func titlesCannotStartLikeAPartOfTheAddress() {
+        #expect(AddressPill.shownTitle("/login.bank.com", host: "evil.example") == "login.bank.com")
+        #expect(AddressPill.shownTitle(" .bank.com", host: "evil.example") == "bank.com")
+        #expect(AddressPill.shownTitle("Hacker News", host: "news.ycombinator.com") == "Hacker News")
+    }
+
+    @Test func emptyOrRepeatedTitlesAreLeftOut() {
+        #expect(AddressPill.shownTitle("", host: "example.com") == nil)
+        #expect(AddressPill.shownTitle("/ .", host: "example.com") == nil)
+        #expect(AddressPill.shownTitle("example.com", host: "example.com") == nil)
+    }
+}

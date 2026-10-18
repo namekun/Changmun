@@ -510,6 +510,13 @@ struct AddressPill: View {
     @ObservedObject var tab: Tab
     let edit: () -> Void
 
+    /// The page names itself, so its title sits behind a dot and may not start like the rest of an address ("/login", ".bank.com").
+    static func shownTitle(_ title: String, host: String?) -> String? {
+        let trimmed = title.drop { $0.isWhitespace || $0.isPunctuation || $0.isSymbol }
+        guard !trimmed.isEmpty, title != host else { return nil }
+        return String(trimmed)
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: tab.url?.scheme == "https" ? "lock.fill" : "globe")
@@ -521,8 +528,8 @@ struct AddressPill: View {
                 .lineLimit(1)
                 .foregroundStyle(Theme.primary)
                 .layoutPriority(1)
-            if !tab.title.isEmpty && tab.title != host {
-                Text(tab.title)
+            if let title = Self.shownTitle(tab.title, host: host) {
+                Text(verbatim: "· " + title)
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
                     .foregroundStyle(Theme.faint)
