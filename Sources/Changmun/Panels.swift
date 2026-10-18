@@ -172,13 +172,14 @@ struct DownloadRow: View {
 // MARK: Find in page
 
 struct FindBar: View {
-    @ObservedObject var browser: Browser
+    let browser: Browser
+    @ObservedObject var overlay: PageOverlay
     @FocusState private var focused: Bool
 
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
-            TextField("페이지에서 찾기", text: $browser.findText)
+            TextField("페이지에서 찾기", text: $overlay.findText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Theme.primary)
@@ -192,13 +193,13 @@ struct FindBar: View {
                     browser.hideFindBar()
                     return .handled
                 }
-            if let matches = browser.findMatches, !browser.findText.isEmpty {
+            if let matches = overlay.findMatches, !overlay.findText.isEmpty {
                 Text(matches == 0 ? "없음" : "\(matches)개")
                     .font(.system(size: 11, weight: .semibold).monospacedDigit())
                     .foregroundStyle(matches == 0 ? Theme.waiting : Theme.secondary)
             }
-            BarButton(symbol: "chevron.up", help: "이전 (⌘⇧G)") { browser.find(backwards: true) }.disabled(browser.findText.isEmpty)
-            BarButton(symbol: "chevron.down", help: "다음 (⌘G)") { browser.find() }.disabled(browser.findText.isEmpty)
+            BarButton(symbol: "chevron.up", help: "이전 (⌘⇧G)") { browser.find(backwards: true) }.disabled(overlay.findText.isEmpty)
+            BarButton(symbol: "chevron.down", help: "다음 (⌘G)") { browser.find() }.disabled(overlay.findText.isEmpty)
             BarButton(symbol: "xmark", help: "닫기 (esc)") { browser.hideFindBar() }
         }
         .padding(.leading, 10)
@@ -208,7 +209,7 @@ struct FindBar: View {
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
         .padding(10)
         .onAppear { focused = true }
-        .onChange(of: browser.findFocusRequest) { focused = true }
-        .onChange(of: browser.findText) { browser.find() }
+        .onChange(of: overlay.findFocusRequest) { focused = true }
+        .onChange(of: overlay.findText) { browser.find() }
     }
 }

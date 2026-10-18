@@ -6,6 +6,21 @@ enum CommandBarMode: Equatable {
     case editCurrent
 }
 
+/// The find bar's text, the link under the pointer and the split's proportions.
+@MainActor
+final class PageOverlay: ObservableObject {
+    /// The link under the pointer in a shown tab, for the status line at the bottom of the page.
+    @Published var hoveredLink: String?
+    /// A short message in the same place ("주소를 복사했어요").
+    @Published var statusMessage: String?
+    @Published var findText = ""
+    @Published var findMatches: Int?
+    /// Bumped to put the cursor in the find bar (⌘F while it is open).
+    @Published var findFocusRequest = 0
+    /// The left pane's share of the width.
+    @Published var splitFraction = 0.5
+}
+
 /// One window's tabs, which one is shown, and the panels around it.
 @MainActor
 final class Browser: ObservableObject {
@@ -85,10 +100,26 @@ final class Browser: ObservableObject {
     private(set) var closedTabs: [ClosedTab] = []
 
     @Published var findBarVisible = false
-    @Published var findText = ""
-    @Published var findMatches: Int?
-    /// Bumped to put the cursor in the find bar (⌘F while it is open).
-    @Published var findFocusRequest = 0
+
+    /// What changes many times a second: kept apart so only the page area redraws, not the sidebar with it.
+    let overlay = PageOverlay()
+
+    var findText: String {
+        get { overlay.findText }
+        set { overlay.findText = newValue }
+    }
+    var findMatches: Int? {
+        get { overlay.findMatches }
+        set { overlay.findMatches = newValue }
+    }
+    var splitFraction: Double {
+        get { overlay.splitFraction }
+        set { overlay.splitFraction = newValue }
+    }
+    var hoveredLink: String? {
+        get { overlay.hoveredLink }
+        set { if overlay.hoveredLink != newValue { overlay.hoveredLink = newValue } }
+    }
 
     static let configuration = makeConfiguration(store: .default(), extensions: true)
 
@@ -104,6 +135,7 @@ final class Browser: ObservableObject {
             config.preferences.setValue(true, forKey: "developerExtrasEnabled")
         }
         LinkHover.install(in: config.userContentController)
+        LoginCapture.install(in: config.userContentController)
         AdBlocker.shared.attach(config.userContentController)
         if extensions, #available(macOS 15.4, *) { config.webExtensionController = ExtensionHost.shared.controller }
         return config
@@ -118,22 +150,15 @@ final class Browser: ObservableObject {
     }
 
     @Published private(set) var split: Split?
-    /// The left pane's share of the width.
-    @Published var splitFraction = 0.5
     var shownSplit: Split? { split?.contains(activeID) == true ? split : nil }
 
     /// A link opened with ⇧-click, floating over the page until it is closed or kept as a tab (Arc's Peek).
     @Published private(set) var peek: Tab?
 
-    /// The link under the pointer in the shown tab, for the status line at the bottom of the page.
-    @Published var hoveredLink: String?
-    /// A short message in the same place ("주소를 복사했어요").
-    @Published var statusMessage: String?
-
     func flashStatus(_ message: String) {
-        statusMessage = message
+        overlay.statusMessage = message
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { [weak self] in
-            if self?.statusMessage == message { self?.statusMessage = nil }
+            if self?.overlay.statusMessage == message { self?.overlay.statusMessage = nil }
         }
     }
 
@@ -284,7 +309,7 @@ final class Browser: ObservableObject {
     func showFindBar() {
         guard active != nil else { return }
         findBarVisible = true
-        findFocusRequest += 1
+        overlay.findFocusRequest += 1
     }
 
     func hideFindBar() {
@@ -517,12 +542,31 @@ final class Browser: ObservableObject {
     }
 
     /// Writes the ordinary windows; with none open (the last one just closed and saved itself) it leaves the file alone.
-    static func saveSession(_ browsers: [Browser]? = nil) {
+    /// `inBackground` encodes and writes off the main thread (the periodic save); quitting writes before returning.
+    static func saveSession(_ browsers: [Browser]? = nil, inBackground: Bool = false) {
         let normal = (browsers ?? all).filter { !$0.isPrivate }
         guard !normal.isEmpty else { return }
-        let windows = normal.reversed().map(\.savedSession).filter { !$0.tabs.isEmpty }
-        try? JSONEncoder().encode(SavedWindows(windows: windows)).write(to: sessionFile, options: .atomic)
+        let saved = SavedWindows(windows: normal.reversed().map(\.savedSession).filter { !$0.tabs.isEmpty })
+        let file = sessionFile
+        let write = { try? JSONEncoder().encode(saved).write(to: file, options: .atomic) }
+        if inBackground { sessionQueue.async { _ = write() } } else { sessionQueue.sync { _ = write() } }
     }
+
+    private static let sessionQueue = DispatchQueue(label: "Changmun.session", qos: .utility)
+    private static var savedSignature: [String] = []
+
+    /// Saves whenever the ordinary windows' tabs or addresses changed, so a crash or a forced quit loses little.
+    static func saveSessionIfChanged() {
+        let signature = all.filter { !$0.isPrivate }.map { browser in
+            browser.tabs.map { "\($0.id) \($0.url?.absoluteString ?? "")" }.joined(separator: "|") + " #\(browser.activeID ?? 0)"
+        }
+        guard signature != savedSignature else { return }
+        savedSignature = signature
+        saveSession(inBackground: true)
+    }
+
+    /// Ordinary windows closed while others stayed open, most recent last; ⌘⇧T brings them back once no tab is left to reopen.
+    static var closedWindows: [SavedSession] = []
 
     static func savedWindows() -> [SavedSession] {
         guard Preferences.shared.restoreTabs, let data = try? Data(contentsOf: sessionFile) else { return [] }

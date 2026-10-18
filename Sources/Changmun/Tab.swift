@@ -16,6 +16,11 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     @Published var canGoBack = false
     @Published var canGoForward = false
     @Published var savedLogins: [String] = []
+    /// A sign-in just submitted on this page, waiting for the user to save it or not.
+    @Published var loginOffer: LoginOffer?
+    @Published private(set) var isPlayingAudio = false
+    @Published private(set) var isMuted = false
+    private var audioWatcher: AudioWatcher?
     @Published private(set) var webView: WKWebView?
     var lastShown = Date()
     private var savedState: Data?
@@ -71,6 +76,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         webView.stopLoading()
         webView.removeFromSuperview()
         observations.removeAll()
+        audioWatcher = nil
+        isPlayingAudio = false
+        loginOffer = nil
         self.webView = nil
         isLoading = false
         progress = 0
@@ -112,7 +120,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         view.allowsMagnification = true
         view.isInspectable = true
         view.underPageBackgroundColor = .clear
-        view.pageZoom = Preferences.shared.defaultZoom
+        view.pageZoom = Preferences.shared.zoom(for: url?.host())
         observations = [
             view.observe(\.title) { [weak self] v, _ in Task { @MainActor in if let t = v.title, !t.isEmpty { self?.title = t; self?.extensionsSeeChange() } } },
             view.observe(\.url) { [weak self] v, _ in Task { @MainActor in if let u = v.url { self?.url = u; self?.extensionsSeeChange() } } },
@@ -122,6 +130,31 @@ final class Tab: NSObject, ObservableObject, Identifiable {
             view.observe(\.canGoForward) { [weak self] v, _ in Task { @MainActor in self?.canGoForward = v.canGoForward } },
         ]
         webView = view
+        audioWatcher = AudioWatcher(view) { [weak self] playing in self?.isPlayingAudio = playing }
+        if isMuted { Self.setMuted(true, in: view) }
+    }
+
+    /// Silences the tab (or lets it play again). WebKit's switch for this is private, so a WebKit without it does nothing.
+    func toggleMute() {
+        guard let webView, Self.setMuted(!isMuted, in: webView) else { return }
+        isMuted.toggle()
+    }
+
+    @discardableResult
+    private static func setMuted(_ muted: Bool, in view: WKWebView) -> Bool {
+        typealias SetMuted = @convention(c) (AnyObject, Selector, UInt) -> Void
+        let selector = NSSelectorFromString("_setPageMuted:")
+        guard let method = class_getInstanceMethod(WKWebView.self, selector) else { return false }
+        unsafeBitCast(method_getImplementation(method), to: SetMuted.self)(view, selector, muted ? 1 : 0)
+        return true
+    }
+
+    /// Zooms the page; the size is remembered for the site (except in a private window).
+    func setZoom(_ zoom: Double) {
+        guard let webView else { return }
+        let zoom = min(max(zoom, 0.3), 3)
+        webView.pageZoom = zoom
+        if !isPrivate, let host = webView.url?.host() { Preferences.shared.setZoom(zoom, for: host) }
     }
 
     private func extensionsSeeChange() {
@@ -210,6 +243,9 @@ extension Tab: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         if webView.url?.isFileURL != true { userFileLoad = nil }
+        let zoom = Preferences.shared.zoom(for: webView.url?.host())
+        if webView.pageZoom != zoom { webView.pageZoom = zoom }
+        if let offer = loginOffer, offer.host != webView.url?.host() { loginOffer = nil }
         if let host = webView.url?.host(), let cached = Browser.favicons[host] { favicon = cached }
     }
 

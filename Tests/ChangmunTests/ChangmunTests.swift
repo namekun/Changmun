@@ -871,3 +871,50 @@ struct ChatStreamTests {
         #expect(chat.items.last?.kind == .error)
     }
 }
+
+struct SuggestionTests {
+    @Test func everyEngineFormatParses() {
+        let list = Data(#"["날씨",["날씨","날씨 서울"],[],{"google:suggestsubtypes":[]}]"#.utf8)
+        #expect(SearchSuggestions.parse(list) == ["날씨", "날씨 서울"])
+        let naver = Data(#"{"query":["날씨"],"items":[[["날씨"],["오늘날씨"]]]}"#.utf8)
+        #expect(SearchSuggestions.parse(naver) == ["날씨", "오늘날씨"])
+        #expect(SearchSuggestions.parse(Data("<html>".utf8)).isEmpty)
+    }
+
+    @Test func queriesAreEncoded() {
+        for engine in SearchEngine.allCases {
+            let url = SearchSuggestions.url(for: engine, query: "a&b 날씨")
+            #expect(url?.scheme == "https")
+            #expect(url?.absoluteString.contains("a%26b") == true, "\(engine)")
+        }
+    }
+
+    @Test func searchRunsOffTheMainThreadOnItsOwnConnection() async throws {
+        let path = FileManager.default.temporaryDirectory.appendingPathComponent("changmun-\(UUID().uuidString).sqlite").path
+        defer { try? FileManager.default.removeItem(atPath: path) }
+        let library = Library(path: path)
+        library.recordVisit(url: "https://weather.example/seoul", title: "서울 날씨")
+        let found = await library.inBackground { reader -> ([Library.Entry], Bool) in (reader.search("날씨"), Thread.isMainThread) }
+        #expect(found.0.map(\.url) == ["https://weather.example/seoul"])
+        #expect(!found.1)
+    }
+
+    @MainActor @Test func openTabsMatchEveryWord() {
+        let b = Browser()
+        b.openTab(url: URL(string: "https://github.com/namekun/changmun"), activate: false).title = "Changmun repo"
+        b.openTab(url: URL(string: "https://news.example/"), activate: false).title = "News"
+        #expect(CommandBar.matchingTabs(b.tabs, "github CHANG").map(\.title) == ["Changmun repo"])
+        #expect(CommandBar.matchingTabs(b.tabs, "github news").isEmpty)
+    }
+}
+
+struct LoginOfferTests {
+    @Test func offersOnlyNewSignInsOnAllowedSites() {
+        let offer = LoginOffer(host: "accounts.example.com", username: "me", password: "new")
+        #expect(LoginCapture.worthOffering(offer, neverHosts: [], saved: { nil }))
+        #expect(LoginCapture.worthOffering(offer, neverHosts: [], saved: { "old" }))
+        #expect(!LoginCapture.worthOffering(offer, neverHosts: [], saved: { "new" }))
+        #expect(!LoginCapture.worthOffering(offer, neverHosts: ["example.com"], saved: { nil }))
+        #expect(LoginCapture.worthOffering(offer, neverHosts: ["other.com"], saved: { nil }))
+    }
+}

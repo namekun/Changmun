@@ -887,6 +887,10 @@ struct SidebarTabRow: View {
                 .lineLimit(1)
                 .foregroundStyle(isActive || !tab.isAsleep ? Theme.primary : Theme.dim)
             Spacer(minLength: 0)
+            if tab.isPlayingAudio || tab.isMuted {
+                HoverAction(symbol: tab.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                            help: tab.isMuted ? "소리 켜기 (⌃⌘M)" : "음소거 (⌃⌘M)") { tab.toggleMute() }
+            }
             if hover {
                 HoverAction(symbol: "xmark", help: "탭 닫기 (⌘W)", action: close)
             } else if browser.split?.contains(tab.id) == true {
@@ -920,6 +924,7 @@ struct SidebarTabRow: View {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(tab.url?.absoluteString ?? "", forType: .string)
             }
+            if !tab.isAsleep { Button(tab.isMuted ? "소리 켜기" : "탭 음소거") { tab.toggleMute() } }
             Divider()
             Button("탭 닫기", action: close)
         }
@@ -1047,22 +1052,31 @@ struct WindowDragArea: NSViewRepresentable {
 
 struct WebCard: View {
     @ObservedObject var browser: Browser
+    @ObservedObject private var overlay: PageOverlay
     @Environment(\.colorScheme) private var scheme
+
+    init(browser: Browser) {
+        self.browser = browser
+        overlay = browser.overlay
+    }
 
     var body: some View {
         content
             .overlay(alignment: .topTrailing) {
                 if browser.findBarVisible {
-                    FindBar(browser: browser).transition(.opacity)
+                    FindBar(browser: browser, overlay: overlay).transition(.opacity)
                 }
             }
+            .overlay(alignment: .top) {
+                if let tab = browser.active { LoginOfferBar(tab: tab) }
+            }
             .overlay(alignment: .bottomLeading) {
-                if let text = browser.statusMessage ?? browser.hoveredLink.map(StatusLine.display) {
+                if let text = overlay.statusMessage ?? overlay.hoveredLink.map(StatusLine.display) {
                     StatusLine(text: text).transition(.opacity)
                 }
             }
-            .animation(.easeOut(duration: 0.12), value: browser.hoveredLink)
-            .animation(.easeOut(duration: 0.12), value: browser.statusMessage)
+            .animation(.easeOut(duration: 0.12), value: overlay.hoveredLink)
+            .animation(.easeOut(duration: 0.12), value: overlay.statusMessage)
             .animation(.easeOut(duration: 0.15), value: browser.findBarVisible)
     }
 
@@ -1071,8 +1085,8 @@ struct WebCard: View {
             GeometryReader { geo in
                 let width = max(1, geo.size.width - SplitDivider.width)
                 HStack(spacing: 0) {
-                    pane(left).frame(width: (width * browser.splitFraction).rounded())
-                    SplitDivider(fraction: $browser.splitFraction, total: width)
+                    pane(left).frame(width: (width * overlay.splitFraction).rounded())
+                    SplitDivider(fraction: $overlay.splitFraction, total: width)
                     pane(right)
                 }
             }
@@ -1096,6 +1110,52 @@ struct WebCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
             .strokeBorder(focused ? Theme.secondary : (tab == nil || scheme == .light ? Theme.ink(0.14) : .clear), lineWidth: focused ? 1 : 0.5))
+    }
+}
+
+/// "Save this sign-in?" over the top of the page, after a password was submitted.
+struct LoginOfferBar: View {
+    @ObservedObject var tab: Tab
+
+    var body: some View {
+        if let offer = tab.loginOffer {
+            HStack(spacing: 8) {
+                Image(systemName: "key.fill").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
+                Text("\(offer.host.hasPrefix("www.") ? String(offer.host.dropFirst(4)) : offer.host)의 로그인 정보를 저장할까요?")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.primary)
+                    .lineLimit(1)
+                if !offer.username.isEmpty {
+                    Text(offer.username).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                PeekAction(title: "저장") {
+                    if Logins.save(host: offer.host, username: offer.username, password: offer.password) {
+                        tab.browser?.flashStatus("로그인 정보를 저장했어요")
+                    }
+                    tab.loginOffer = nil
+                    tab.checkForLogins()
+                }
+                Button("이 사이트는 안 함") {
+                    let site = offer.host.hasPrefix("www.") ? String(offer.host.dropFirst(4)) : offer.host
+                    Preferences.shared.neverSaveLoginHosts.append(site.lowercased())
+                    tab.loginOffer = nil
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Theme.secondary)
+                .padding(.horizontal, 4)
+                BarButton(symbol: "xmark", help: "닫기") { tab.loginOffer = nil }
+            }
+            .padding(.leading, 12)
+            .padding(.trailing, 4)
+            .frame(height: 40)
+            .frame(maxWidth: 620)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.background))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
+            .padding(10)
+            .transition(.opacity)
+        }
     }
 }
 
@@ -1184,7 +1244,7 @@ struct PeekCard: View {
 
 struct PeekAction: View {
     let title: String
-    let key: String
+    var key: String?
     let action: () -> Void
     @State private var hover = false
 
@@ -1192,10 +1252,10 @@ struct PeekAction: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Text(title).font(.system(size: 12, weight: .semibold))
-                Keycap(key)
+                if let key { Keycap(key) }
             }
             .padding(.leading, 9)
-            .padding(.trailing, 5)
+            .padding(.trailing, key == nil ? 9 : 5)
             .frame(height: 26)
             .foregroundStyle(Theme.primary)
             .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(hover ? Theme.field : .clear))
@@ -1285,27 +1345,47 @@ struct EmptyPage: View {
 struct CommandBar: View {
     @ObservedObject var browser: Browser
     @ObservedObject var chat: ChatStore
+    @ObservedObject private var prefs = Preferences.shared
     let mode: CommandBarMode
     @State private var text = ""
     @State private var selection = 0
+    @StateObject private var source = SuggestionSource()
     @FocusState private var focused: Bool
 
     enum Suggestion: Hashable {
         case open(String)
         case search(String)
+        case suggested(String)
         case ask(String)
+        case tab(id: Int, url: String, title: String)
         case page(url: String, title: String)
     }
 
+    /// Typing an address or words: open or search it, ask the AI, switch to a matching open tab, the engine's
+    /// suggestions, then bookmarks and history. The local and remote parts arrive from `source` as they're ready.
     private var suggestions: [Suggestion] {
         let query = text.trimmingCharacters(in: .whitespaces)
         if query.isEmpty || (mode == .editCurrent && query == browser.active?.url?.absoluteString) {
-            return Library.shared.bookmarks().map { .page(url: $0.url, title: $0.title) }
+            return source.pages.map { .page(url: $0.url, title: $0.title) }
         }
         var list: [Suggestion] = [AddressInput.isAddress(query) ? .open(query) : .search(query)]
         if !browser.isPrivate { list.append(.ask(query)) }
-        list += Library.shared.search(query, limit: 6).map { .page(url: $0.url, title: $0.title) }
+        let tabs = Self.matchingTabs(browser.tabs.filter { $0.id != browser.activeID }, query)
+        list += tabs.prefix(3).map { .tab(id: $0.id, url: $0.url?.absoluteString ?? "", title: $0.displayTitle) }
+        list += source.searches.prefix(4).map { .suggested($0) }
+        let open = Set(tabs.compactMap { $0.url?.absoluteString })
+        list += source.pages.filter { !open.contains($0.url) }.prefix(6).map { .page(url: $0.url, title: $0.title) }
         return list
+    }
+
+    /// Open tabs whose title or address holds every word.
+    static func matchingTabs(_ tabs: [Tab], _ query: String) -> [Tab] {
+        let words = query.lowercased().split(separator: " ")
+        guard !words.isEmpty else { return [] }
+        return tabs.filter { tab in
+            let haystack = (tab.title + " " + (tab.url?.absoluteString ?? "")).lowercased()
+            return words.allSatisfy { haystack.contains($0) }
+        }
     }
 
     var body: some View {
@@ -1325,7 +1405,10 @@ struct CommandBar: View {
                         .foregroundStyle(Theme.primary)
                         .focused($focused)
                         .onSubmit { run(items.indices.contains(selection) ? items[selection] : nil) }
-                        .onChange(of: text) { selection = 0 }
+                        .onChange(of: text) {
+                            selection = 0
+                            source.update(text, remote: prefs.searchSuggestions && !browser.isPrivate)
+                        }
                     Keycap("esc")
                 }
                 .padding(.leading, 14)
@@ -1353,6 +1436,7 @@ struct CommandBar: View {
         }
         .onAppear {
             text = mode == .editCurrent ? (browser.active?.url?.absoluteString ?? "") : ""
+            source.update("", remote: false)
             NSApp.keyWindow?.makeFirstResponder(nil)
             DispatchQueue.main.async { focused = true }
         }
@@ -1365,8 +1449,11 @@ struct CommandBar: View {
 
     private func run(_ item: Suggestion?) {
         switch item {
-        case .open(let input), .search(let input):
+        case .open(let input), .search(let input), .suggested(let input):
             browser.open(input, in: mode)
+        case .tab(let id, _, _):
+            browser.activate(id)
+            browser.commandBar = nil
         case .ask(let question):
             browser.commandBar = nil
             browser.showChat = true
@@ -1399,7 +1486,8 @@ struct SuggestionRow: View {
     @ViewBuilder private var icon: some View {
         switch item {
         case .open: Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary)
-        case .search: Image(systemName: "magnifyingglass").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary)
+        case .search, .suggested: Image(systemName: "magnifyingglass").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary)
+        case .tab(_, let url, _): SiteIcon(url: url, size: 16)
         case .ask: Image(systemName: "sparkles").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.primary)
         case .page(let url, _): SiteIcon(url: url, size: 16)
         }
@@ -1412,6 +1500,12 @@ struct SuggestionRow: View {
         case .search(let text):
             Text(text).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
             Text("검색").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint)
+        case .suggested(let text):
+            Text(text).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
+        case .tab(_, let url, let title):
+            Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
+            Text("탭으로 전환").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint)
+            Text(URL(string: url)?.host() ?? "").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
         case .ask(let text):
             Text("AI에게 묻기").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.secondary)
             Text(text).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)

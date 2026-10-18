@@ -66,6 +66,8 @@ final class Preferences: ObservableObject {
     @Published var searchEngine: SearchEngine {
         didSet { defaults.set(searchEngine.template, forKey: "searchURL") }
     }
+    /// Sends what is typed in the command bar to the search engine for suggestions (never from a private window).
+    @Published var searchSuggestions: Bool { didSet { defaults.set(searchSuggestions, forKey: "searchSuggestions") } }
     @Published var restoreTabs: Bool { didSet { defaults.set(restoreTabs, forKey: "restoreTabs") } }
     @Published var downloadFolder: URL { didSet { defaults.set(downloadFolder.path, forKey: "downloadFolder") } }
     @Published var askWhereToSave: Bool { didSet { defaults.set(askWhereToSave, forKey: "askWhereToSave") } }
@@ -80,6 +82,18 @@ final class Preferences: ObservableObject {
     }
     @Published var sidebarWidth: Double { didSet { defaults.set(sidebarWidth, forKey: "sidebarWidth") } }
     @Published var defaultZoom: Double { didSet { defaults.set(defaultZoom, forKey: "defaultZoom") } }
+    /// Sites zoomed to something other than the default, by host.
+    @Published var siteZoom: [String: Double] { didSet { defaults.set(siteZoom, forKey: "siteZoom") } }
+    /// Sites never to offer saving a password for.
+    @Published var neverSaveLoginHosts: [String] { didSet { defaults.set(neverSaveLoginHosts, forKey: "neverSaveLoginHosts") } }
+
+    func zoom(for host: String?) -> Double {
+        host.flatMap { siteZoom[$0.lowercased()] } ?? defaultZoom
+    }
+
+    func setZoom(_ zoom: Double, for host: String) {
+        siteZoom[host.lowercased()] = abs(zoom - defaultZoom) < 0.01 ? nil : zoom
+    }
     /// Minutes before a background tab sleeps; 0 never.
     @Published var sleepMinutes: Int { didSet { defaults.set(sleepMinutes, forKey: "sleepTabsAfterMinutes") } }
     @Published var neverSleepHosts: [String] { didSet { defaults.set(neverSleepHosts, forKey: "neverSleepHosts") } }
@@ -120,6 +134,7 @@ final class Preferences: ObservableObject {
         let d = UserDefaults.standard
         let template = d.string(forKey: "searchURL")
         searchEngine = SearchEngine.allCases.first { $0.template == template } ?? .google
+        searchSuggestions = d.object(forKey: "searchSuggestions") as? Bool ?? true
         restoreTabs = d.object(forKey: "restoreTabs") as? Bool ?? true
         downloadFolder = d.string(forKey: "downloadFolder").map { URL(fileURLWithPath: $0) }
             ?? FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
@@ -127,6 +142,8 @@ final class Preferences: ObservableObject {
         appearance = AppAppearance(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
         sidebarWidth = Self.clampedSidebarWidth(d.object(forKey: "sidebarWidth") as? Double ?? Self.defaultSidebarWidth)
         defaultZoom = d.object(forKey: "defaultZoom") as? Double ?? 1
+        siteZoom = d.dictionary(forKey: "siteZoom") as? [String: Double] ?? [:]
+        neverSaveLoginHosts = d.stringArray(forKey: "neverSaveLoginHosts") ?? []
         sleepMinutes = d.object(forKey: "sleepTabsAfterMinutes") as? Int ?? 20
         neverSleepHosts = d.stringArray(forKey: "neverSleepHosts") ?? []
         blockTrackers = d.object(forKey: "blockTrackers") as? Bool ?? true

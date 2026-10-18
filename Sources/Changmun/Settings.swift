@@ -40,6 +40,8 @@ struct GeneralSettings: View {
                 Picker("검색 엔진", selection: $prefs.searchEngine) {
                     ForEach(SearchEngine.allCases) { Text($0.name).tag($0) }
                 }
+                Toggle("입력하는 동안 검색어 추천 받기", isOn: $prefs.searchSuggestions)
+                    .help("명령 막대에 입력한 글자를 검색 엔진에 보내 추천을 받아요. 개인 창에서는 보내지 않아요.")
                 Picker("시작할 때", selection: $prefs.restoreTabs) {
                     Text("지난 탭 다시 열기").tag(true)
                     Text("새 탭으로 시작").tag(false)
@@ -215,6 +217,15 @@ struct PrivacySettings: View {
                         Button("관리…") { showPasswords = true }
                     }
                 }
+                ForEach(prefs.neverSaveLoginHosts, id: \.self) { host in
+                    HStack {
+                        Text(host).lineLimit(1)
+                        Spacer()
+                        Caption(text: "저장 묻지 않음")
+                        Button { prefs.neverSaveLoginHosts.removeAll { $0 == host } } label: { Image(systemName: "minus.circle") }
+                            .buttonStyle(.borderless)
+                    }
+                }
             }
             Section("카메라·마이크") {
                 if permissions.stored.isEmpty {
@@ -244,7 +255,11 @@ struct PrivacySettings: View {
     private func clear() {
         let since = range.since
         var done: [String] = []
-        if clearHistory { done.append("방문 기록 \(Library.shared.clearHistory(since: since))개") }
+        if clearHistory {
+            done.append("방문 기록 \(Library.shared.clearHistory(since: since))개")
+            // Remembered zoom sizes name the sites too.
+            if range == .all { prefs.siteZoom = [:] }
+        }
         if clearSiteData {
             WKWebsiteDataStore.default().removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: since) {}
             done.append("사이트 데이터")

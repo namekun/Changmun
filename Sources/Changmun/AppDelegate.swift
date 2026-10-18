@@ -7,6 +7,7 @@ import WebKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuSubscription: AnyCancellable?
+    private var sessionTimer: Timer?
 
     /// The window in front; commands that need a window open one when none is.
     private var browser: Browser { Browser.current ?? BrowserWindow.open() }
@@ -23,6 +24,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             for session in saved { BrowserWindow.open(restoring: session) }
         }
         ControlServer.shared.start()
+        sessionTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { _ in
+            MainActor.assumeIsolated { Browser.saveSessionIfChanged() }
+        }
         watchMouseButtons()
         watchPeekKeys()
         if !UserDefaults.standard.bool(forKey: "onboarded") { browser.showOnboarding = true }
@@ -80,7 +84,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func findPrevious(_ sender: Any?) {
         if browser.findBarVisible { browser.find(backwards: true) } else { browser.showFindBar() }
     }
-    @objc func reopenClosedTab(_ sender: Any?) { browser.reopenClosedTab() }
+    @objc func reopenClosedTab(_ sender: Any?) {
+        if Browser.current?.closedTabs.isEmpty != false, let window = Browser.closedWindows.popLast() {
+            BrowserWindow.open(restoring: window)
+        } else {
+            browser.reopenClosedTab()
+        }
+    }
 
     private var mouseMonitor: Any?
 
@@ -211,9 +221,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func nextTab(_ sender: Any?) { browser.selectTab(offset: 1) }
     @objc func previousTab(_ sender: Any?) { browser.selectTab(offset: -1) }
     @objc func selectNumberedTab(_ sender: NSMenuItem) { browser.selectTab(number: sender.tag) }
-    @objc func zoomIn(_ sender: Any?) { browser.active?.webView.map { $0.pageZoom = min($0.pageZoom + 0.1, 3) } }
-    @objc func zoomOut(_ sender: Any?) { browser.active?.webView.map { $0.pageZoom = max($0.pageZoom - 0.1, 0.3) } }
-    @objc func actualSize(_ sender: Any?) { browser.active?.webView?.pageZoom = 1 }
+    @objc func zoomIn(_ sender: Any?) { browser.active.map { $0.setZoom(($0.webView?.pageZoom ?? 1) + 0.1) } }
+    @objc func zoomOut(_ sender: Any?) { browser.active.map { $0.setZoom(($0.webView?.pageZoom ?? 1) - 0.1) } }
+    @objc func actualSize(_ sender: Any?) { browser.active?.setZoom(Preferences.shared.defaultZoom) }
+    @objc func toggleMute(_ sender: Any?) { browser.active?.toggleMute() }
     @objc func toggleBookmark(_ sender: Any?) {
         guard let tab = browser.active, let url = tab.url?.absoluteString else { return }
         _ = Library.shared.toggleBookmark(url: url, title: tab.title)
@@ -303,8 +314,14 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        // The last ordinary window to close is the one the next launch restores.
-        if !browser.isPrivate && !Browser.all.contains(where: { $0 !== browser && !$0.isPrivate }) { Browser.saveSession([browser]) }
+        // The last ordinary window to close is the one the next launch restores; others can come back with ⌘⇧T.
+        if !browser.isPrivate {
+            if Browser.all.contains(where: { $0 !== browser && !$0.isPrivate }) {
+                if !browser.tabs.isEmpty { Browser.closedWindows = Array((Browser.closedWindows + [browser.savedSession]).suffix(5)) }
+            } else {
+                Browser.saveSession([browser])
+            }
+        }
         browser.windowClosed()
         observers.forEach(NotificationCenter.default.removeObserver)
         Self.windows.removeAll { $0 === self }
@@ -382,6 +399,7 @@ enum AppMenu {
         add(view, "확대", #selector(AppDelegate.zoomIn(_:)), "+")
         add(view, "축소", #selector(AppDelegate.zoomOut(_:)), "-")
         add(view, "실제 크기", #selector(AppDelegate.actualSize(_:)), "0")
+        add(view, "탭 음소거", #selector(AppDelegate.toggleMute(_:)), "m", [.command, .control])
         view.addItem(.separator())
         add(view, "전체 화면", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control])
 

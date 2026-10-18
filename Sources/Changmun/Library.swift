@@ -1,7 +1,8 @@
 import Foundation
 
-/// Bookmarks and history, in one SQLite file under Application Support.
-final class Library {
+/// Bookmarks and history, in one SQLite file under Application Support. The main connection is used on the main
+/// thread; imports and background reads each open their own.
+final class Library: @unchecked Sendable {
     static let didChange = Notification.Name("ChangmunLibraryDidChange")
     static let favoritesFolder = ""
     static let shared = Library(path: Library.folder.appendingPathComponent("library.sqlite").path)
@@ -204,6 +205,17 @@ final class Library {
             }
         }
         changed()
+    }
+
+    /// Reads on a queue of their own, away from the main thread.
+    private static let readQueue = DispatchQueue(label: "Changmun.library.read", qos: .userInitiated)
+    private lazy var reader = Library(path: path)
+
+    /// Runs a read on its own connection off the main thread (the command bar's search, as the user types).
+    func inBackground<T>(_ read: @escaping (Library) -> T) async -> T {
+        await withCheckedContinuation { continuation in
+            Self.readQueue.async { continuation.resume(returning: read(self.reader)) }
+        }
     }
 
     func bookmarks(limit: Int = 8) -> [Entry] {
