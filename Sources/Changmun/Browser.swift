@@ -62,20 +62,39 @@ final class Browser: ObservableObject {
 
     @Published private(set) var tabs: [Tab] = []
     @Published private(set) var activeID: Int?
-    @Published var showChat = false
+    /// Opening the AI panel, the sidebar or the downloads ends focus mode, whichever way it is opened.
+    @Published var showChat = false {
+        didSet { if showChat { focusMode = false } }
+    }
     @Published var showSidebar = UserDefaults.standard.object(forKey: "showSidebar") as? Bool ?? true {
         didSet {
             UserDefaults.standard.set(showSidebar, forKey: "showSidebar")
             showDownloads = false
+            if showSidebar { focusMode = false } else { renamingGroup = nil }
         }
     }
     @Published var commandBar: CommandBarMode? {
         didSet { if commandBar != nil { closePeek() } }
     }
     @Published var showOnboarding = false
-    @Published var showDownloads = false
+    @Published var showDownloads = false {
+        didSet { if showDownloads { focusMode = false } }
+    }
     /// Bumped to put the cursor in the full address field (⌘L).
     @Published var addressFocusRequest = 0
+    /// Only the page, as in Dia: no sidebar, bar, AI panel or window buttons. Not kept across launches.
+    @Published var focusMode = false {
+        didSet {
+            guard focusMode != oldValue else { return }
+            for kind in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+                window?.standardWindowButton(kind)?.isHidden = focusMode
+            }
+            guard focusMode else { return }
+            showDownloads = false
+            renamingGroup = nil
+            flashStatus("집중 모드 · ⇧⌘F로 돌아가기")
+        }
+    }
     static var favicons: [String: NSImage] = [:]
     /// For a private window's requests: no disk cache, no shared cookies.
     static let ephemeral = URLSession(configuration: .ephemeral)
@@ -99,6 +118,7 @@ final class Browser: ObservableObject {
         var state: Data?
         var index: Int
         var bookmarkKey: String?
+        var group: TabGroup?
     }
 
     /// Most recently closed last.
@@ -284,9 +304,11 @@ final class Browser: ObservableObject {
         let closing = tabs.remove(at: index)
         if split?.contains(id) == true { split = nil }
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabClosed(closing) }
-        closedTabs.append(ClosedTab(url: closing.url, title: closing.title, state: closing.sessionState, index: index, bookmarkKey: closing.bookmarkKey))
+        closedTabs.append(ClosedTab(url: closing.url, title: closing.title, state: closing.sessionState, index: index, bookmarkKey: closing.bookmarkKey,
+                                    group: groups.first { $0.id == closing.groupID }))
         if closedTabs.count > 25 { closedTabs.removeFirst() }
         closing.sleep()
+        pruneGroups()
         if activeID == id {
             if tabs.isEmpty {
                 activeID = nil
@@ -306,6 +328,11 @@ final class Browser: ObservableObject {
         let tab = Tab(id: Self.takeID(), url: closed.url, title: closed.title, state: closed.state, browser: self)
         if let key = closed.bookmarkKey, bookmarkTab(key) == nil { tab.bookmarkKey = key }
         tabs.insert(tab, at: min(closed.index, tabs.count))
+        // Back into its group, made again if it went away with its last tab.
+        if let group = closed.group, tab.bookmarkKey == nil {
+            if !groups.contains(where: { $0.id == group.id }) { groups.append(group) }
+            join(tab, group.id)
+        }
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
         activate(tab.id)
         commandBar = nil
@@ -361,14 +388,14 @@ final class Browser: ObservableObject {
     }
 
     func selectTab(offset: Int) {
-        let listed = listedTabs
+        let listed = visibleTabs
         guard !listed.isEmpty else { return }
         guard let current = listed.firstIndex(where: { $0.id == activeID }) else { return activate(listed[0].id) }
         activate(listed[(current + offset + listed.count) % listed.count].id)
     }
 
     func selectTab(number: Int) {
-        let listed = listedTabs
+        let listed = visibleTabs
         guard !listed.isEmpty else { return }
         activate(number >= 9 ? listed[listed.count - 1].id : listed[min(number - 1, listed.count - 1)].id)
     }
@@ -433,7 +460,150 @@ final class Browser: ObservableObject {
     func bind(_ tab: Tab, to key: String) {
         guard bookmarkTab(key) == nil else { return }
         tab.bookmarkKey = key
+        tab.groupID = nil
+        pruneGroups()
         objectWillChange.send()
+    }
+
+    // MARK: Tab groups
+
+    struct TabGroup: Identifiable, Codable, Equatable {
+        var id = UUID()
+        var name: String
+        var isOpen = true
+    }
+
+    @Published private(set) var groups: [TabGroup] = []
+    /// The group whose name is being typed in the sidebar; a new group starts that way.
+    @Published var renamingGroup: UUID?
+
+    enum ListedItem: Identifiable {
+        case tab(Tab)
+        case group(TabGroup, [Tab])
+
+        var id: String {
+            switch self {
+            case .tab(let tab): "tab \(tab.id)"
+            case .group(let group, _): "group \(group.id)"
+            }
+        }
+    }
+
+    /// The tab list as the sidebar shows it: each group in the place of its first tab, holding all of its tabs.
+    var listing: [ListedItem] {
+        let listed = listedTabs
+        var items: [ListedItem] = []
+        var placed = Set<UUID>()
+        for tab in listed {
+            guard let id = tab.groupID, let group = groups.first(where: { $0.id == id }) else {
+                items.append(.tab(tab))
+                continue
+            }
+            if placed.insert(id).inserted { items.append(.group(group, listed.filter { $0.groupID == id })) }
+        }
+        return items
+    }
+
+    /// The listed tabs in the order shown, less those folded away in a closed group (the shown tab stays out).
+    var visibleTabs: [Tab] {
+        listing.flatMap { item -> [Tab] in
+            switch item {
+            case .tab(let tab): [tab]
+            case .group(let group, let tabs): shown(tabs, in: group)
+            }
+        }
+    }
+
+    /// A group's tabs on show: all of them while it is open, only the shown tab while it is folded.
+    func shown(_ tabs: [Tab], in group: TabGroup) -> [Tab] {
+        group.isOpen ? tabs : tabs.filter { $0.id == activeID }
+    }
+
+    /// Puts the tabs in a new group, gathered after the first of them, and starts naming it.
+    @discardableResult
+    func group(_ ids: [Int], name: String = "새 그룹") -> UUID? {
+        let members = tabs.filter { ids.contains($0.id) && $0.bookmarkKey == nil }
+        guard !members.isEmpty else { return nil }
+        let group = TabGroup(name: name)
+        groups.append(group)
+        for tab in members { join(tab, group.id) }
+        pruneGroups()
+        renamingGroup = group.id
+        return group.id
+    }
+
+    func addTab(_ id: Int, to group: UUID) {
+        guard let tab = tab(id), tab.bookmarkKey == nil, groups.contains(where: { $0.id == group }) else { return }
+        join(tab, group)
+        pruneGroups()
+    }
+
+    /// Takes a tab out of its group; it goes right after the group.
+    func removeFromGroup(_ id: Int) {
+        guard let tab = tab(id), let group = tab.groupID else { return }
+        if let last = tabs.last(where: { $0.groupID == group }), last !== tab { place(tab, after: last) }
+        tab.groupID = nil
+        pruneGroups()
+        objectWillChange.send()
+    }
+
+    /// A tab dropped on another moves there and joins that tab's group, or leaves its own.
+    func dropTab(_ id: Int, on target: Int) {
+        moveTab(id, to: target)
+        guard let tab = tab(id), let other = self.tab(target) else { return }
+        tab.groupID = other.groupID
+        pruneGroups()
+        objectWillChange.send()
+    }
+
+    func toggleGroup(_ id: UUID) {
+        guard let index = groups.firstIndex(where: { $0.id == id }) else { return }
+        groups[index].isOpen.toggle()
+    }
+
+    func rename(_ id: UUID, to name: String) {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, let index = groups.firstIndex(where: { $0.id == id }) else { return }
+        groups[index].name = name
+    }
+
+    /// Ends the group; its tabs stay where they are.
+    func ungroup(_ id: UUID) {
+        for tab in tabs where tab.groupID == id { tab.groupID = nil }
+        pruneGroups()
+    }
+
+    /// Closes the group's tabs, first moving off them so none is woken just to be closed.
+    func closeGroup(_ id: UUID) {
+        if active?.groupID == id,
+           let outside = tabs.first(where: { $0.id == previousActiveID && $0.groupID != id }) ?? listedTabs.first(where: { $0.groupID != id }) {
+            activate(outside.id)
+        }
+        for tab in tabs where tab.groupID == id { close(tab.id) }
+    }
+
+    /// Joins a tab to a group after the group's last tab, so a group's tabs stay together.
+    private func join(_ tab: Tab, _ group: UUID) {
+        if let last = tabs.last(where: { $0.groupID == group && $0 !== tab }) { place(tab, after: last) }
+        tab.groupID = group
+        objectWillChange.send()
+    }
+
+    private func place(_ tab: Tab, after other: Tab) {
+        guard let from = tabs.firstIndex(where: { $0 === tab }) else { return }
+        tabs.remove(at: from)
+        guard let to = tabs.firstIndex(where: { $0 === other }) else { return tabs.insert(tab, at: from) }
+        tabs.insert(tab, at: to + 1)
+        if to + 1 != from, #available(macOS 15.4, *) { ExtensionHost.shared.tabMoved(tab, from: from) }
+    }
+
+    /// Groups left without tabs go away, and tabs forget groups that are gone.
+    private func pruneGroups() {
+        let known = Set(groups.map(\.id))
+        for tab in tabs where tab.groupID.map({ !known.contains($0) }) == true { tab.groupID = nil }
+        let used = Set(tabs.compactMap { $0.bookmarkKey == nil ? $0.groupID : nil })
+        if groups.contains(where: { !used.contains($0.id) }) { groups.removeAll { !used.contains($0.id) } }
+        if let renaming = renamingGroup, !used.contains(renaming) { renamingGroup = nil }
     }
 
     /// ⌘ held during the click that triggered this.
@@ -487,6 +657,9 @@ final class Browser: ObservableObject {
     private func insert(_ tab: Tab, after: Tab?) {
         if let after, let index = tabs.firstIndex(where: { $0 === after }) {
             tabs.insert(tab, at: index + 1)
+            tab.groupID = after.groupID
+            // A tab opened into a folded group would be out of sight.
+            if let group = groups.firstIndex(where: { $0.id == after.groupID }), !groups[group].isOpen { groups[group].isOpen = true }
         } else {
             tabs.append(tab)
         }
@@ -531,12 +704,14 @@ final class Browser: ObservableObject {
         var title: String
         var state: Data?
         var bookmarkKey: String?
+        var group: UUID?
     }
 
     struct SavedSession: Codable {
         var tabs: [SavedTab]
         var active: Int?
         var previous: Int?
+        var groups: [TabGroup]?
     }
 
     /// The open windows, the one in front last. Older versions saved one window as a bare `SavedSession`.
@@ -554,9 +729,10 @@ final class Browser: ObservableObject {
 
     var savedSession: SavedSession {
         SavedSession(
-            tabs: tabs.map { SavedTab(url: $0.url?.absoluteString, title: $0.title, state: $0.sessionState, bookmarkKey: $0.bookmarkKey) },
+            tabs: tabs.map { SavedTab(url: $0.url?.absoluteString, title: $0.title, state: $0.sessionState, bookmarkKey: $0.bookmarkKey, group: $0.groupID) },
             active: tabs.firstIndex { $0.id == activeID },
-            previous: tabs.firstIndex { $0.id == previousActiveID }
+            previous: tabs.firstIndex { $0.id == previousActiveID },
+            groups: groups
         )
     }
 
@@ -584,7 +760,8 @@ final class Browser: ObservableObject {
     /// Saves whenever the ordinary windows' tabs or addresses changed, so a crash or a forced quit loses little.
     static func saveSessionIfChanged() {
         let signature = all.filter { !$0.isPrivate }.map { browser in
-            browser.tabs.map { "\($0.id) \($0.url?.absoluteString ?? "")" }.joined(separator: "|") + " #\(browser.activeID ?? 0)"
+            browser.tabs.map { "\($0.id) \($0.groupID?.uuidString ?? "") \($0.url?.absoluteString ?? "")" }.joined(separator: "|")
+                + " #\(browser.activeID ?? 0) " + browser.groups.map { "\($0.id) \($0.isOpen) \($0.name)" }.joined(separator: "|")
         }
         guard signature != savedSignature else { return }
         savedSignature = signature
@@ -604,8 +781,11 @@ final class Browser: ObservableObject {
         for item in saved.tabs {
             let tab = Tab(id: Self.takeID(), url: item.url.flatMap(URL.init(string:)), title: item.title, state: item.state, browser: self)
             tab.bookmarkKey = item.bookmarkKey
+            tab.groupID = item.group
             tabs.append(tab)
         }
+        groups = saved.groups ?? []
+        pruneGroups()
         guard !tabs.isEmpty else { return }
         activate(tabs[min(saved.active ?? 0, tabs.count - 1)].id)
         if let previous = saved.previous, tabs.indices.contains(previous) { previousActiveID = tabs[previous].id }

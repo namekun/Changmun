@@ -8,6 +8,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     let id: Int
     /// Set when this tab belongs to a bookmark or favorite: it lives in that bookmark's place, not in the tab list.
     var bookmarkKey: String?
+    /// The tab group it is in, in the sidebar's tab list.
+    var groupID: UUID?
     @Published var title: String
     @Published var url: URL?
     @Published var isLoading = false

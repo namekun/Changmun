@@ -62,7 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func openLocation(_ sender: Any?) {
         if browser.active == nil {
             browser.commandBar = .newTab
-        } else if Preferences.shared.addressBarOnTop {
+        } else if Preferences.shared.addressBarOnTop && !browser.focusMode {
             browser.addressFocusRequest += 1
         } else {
             browser.commandBar = .editCurrent
@@ -219,9 +219,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func goForward(_ sender: Any?) { frontPage?.goForward() }
     @objc func toggleChat(_ sender: Any?) {
         if browser.isPrivate { return NSSound.beep() }
-        browser.showChat.toggle()
+        // In focus mode the panel is hidden whatever its setting: the key opens it, which ends focus mode.
+        browser.showChat = browser.focusMode || !browser.showChat
     }
-    @objc func toggleBrowserSidebar(_ sender: Any?) { browser.showSidebar.toggle() }
+    @objc func toggleBrowserSidebar(_ sender: Any?) { browser.showSidebar = browser.focusMode || !browser.showSidebar }
+    @objc func toggleFocusMode(_ sender: Any?) { browser.focusMode.toggle() }
     @objc func nextTab(_ sender: Any?) { browser.selectTab(offset: 1) }
     @objc func previousTab(_ sender: Any?) { browser.selectTab(offset: -1) }
     @objc func selectNumberedTab(_ sender: NSMenuItem) { browser.selectTab(number: sender.tag) }
@@ -350,6 +352,7 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
         close.superview?.frame = container.bounds
         for (index, kind) in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].enumerated() {
             guard let button = standardWindowButton(kind) else { continue }
+            button.isHidden = browser.focusMode
             button.setFrameOrigin(NSPoint(x: 16 + CGFloat(index) * 20, y: height - Self.cardInset - Self.pageBarHeight / 2 - button.frame.height / 2))
         }
     }
@@ -406,6 +409,7 @@ enum AppMenu {
         add(view, "새로고침", #selector(AppDelegate.reload(_:)), "r")
         add(view, "강력 새로고침", #selector(AppDelegate.hardReload(_:)), "r", chrome ? [.command, .shift] : [.command, .option])
         add(view, "사이드바", #selector(AppDelegate.toggleBrowserSidebar(_:)), chrome ? "s" : "l", chrome ? [.command] : [.command, .shift])
+        add(view, "집중 모드", #selector(AppDelegate.toggleFocusMode(_:)), "f", [.command, .shift])
         add(view, "AI 패널", #selector(AppDelegate.toggleChat(_:)), "e")
         add(view, "새 AI 대화", #selector(AppDelegate.newChat(_:)), "e", [.command, .shift])
         add(view, "분할 보기", #selector(AppDelegate.toggleSplit(_:)), "\\", [.command, .option])

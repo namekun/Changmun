@@ -1236,3 +1236,169 @@ struct AddressTitleTests {
         #expect(AddressPill.shownTitle("example.com", host: "example.com") == nil)
     }
 }
+
+@MainActor
+struct TabGroupTests {
+    private func browser(_ count: Int) -> Browser {
+        let browser = Browser()
+        for n in 1...count { browser.openTab(url: URL(string: "https://site\(n).example/"), activate: false) }
+        return browser
+    }
+
+    private func shown(_ b: Browser) -> [String] {
+        b.listing.map { item in
+            switch item {
+            case .tab(let tab): "\(tab.id)"
+            case .group(let group, let tabs): group.name + "[" + tabs.map { "\($0.id)" }.joined(separator: " ") + "]"
+            }
+        }
+    }
+
+    @Test func aGroupGathersItsTabsWhereTheFirstOneWas() throws {
+        let b = browser(4)
+        let (one, two, three, four) = (b.tabs[0].id, b.tabs[1].id, b.tabs[2].id, b.tabs[3].id)
+        let group = try #require(b.group([two, four], name: "일"))
+        #expect(b.renamingGroup == group)
+        #expect(b.tabs.map(\.id) == [one, two, four, three])
+        #expect(shown(b) == ["\(one)", "일[\(two) \(four)]", "\(three)"])
+        b.addTab(one, to: group)
+        #expect(shown(b) == ["일[\(two) \(four) \(one)]", "\(three)"])
+    }
+
+    @Test func droppingATabOnAnotherTakesThatTabsGroup() throws {
+        let b = browser(4)
+        let (one, two, three, four) = (b.tabs[0].id, b.tabs[1].id, b.tabs[2].id, b.tabs[3].id)
+        let group = try #require(b.group([one, two], name: "G"))
+        b.dropTab(four, on: one)
+        #expect(b.tab(four)?.groupID == group)
+        b.dropTab(one, on: three)
+        #expect(b.tab(one)?.groupID == nil)
+        #expect(shown(b) == ["G[\(four) \(two)]", "\(three)", "\(one)"])
+    }
+
+    @Test func emptyGroupsGoAway() throws {
+        let b = browser(3)
+        let (one, two) = (b.tabs[0].id, b.tabs[1].id)
+        let group = try #require(b.group([one, two]))
+        b.removeFromGroup(one)
+        #expect(b.groups.map(\.id) == [group])
+        #expect(shown(b).first == "새 그룹[\(two)]")
+        b.close(two)
+        #expect(b.groups.isEmpty)
+        #expect(b.renamingGroup == nil)
+    }
+
+    @Test func closedGroupsHideTheirTabsFromTabSwitching() throws {
+        let b = browser(3)
+        let (one, two, three) = (b.tabs[0].id, b.tabs[1].id, b.tabs[2].id)
+        let group = try #require(b.group([two, three]))
+        b.activate(one)
+        b.toggleGroup(group)
+        #expect(b.visibleTabs.map(\.id) == [one])
+        b.activate(three)
+        #expect(b.visibleTabs.map(\.id) == [one, three])
+        b.ungroup(group)
+        #expect(b.groups.isEmpty && b.visibleTabs.count == 3)
+    }
+
+    @Test func groupsComeBackWithTheSession() throws {
+        let b = browser(3)
+        let group = try #require(b.group([b.tabs[1].id, b.tabs[2].id], name: "읽을거리"))
+        b.toggleGroup(group)
+        let data = try JSONEncoder().encode(Browser.SavedWindows(windows: [b.savedSession]))
+        let restored = Browser()
+        restored.restore(try #require(Browser.SavedWindows.decode(data).first))
+        #expect(restored.groups == b.groups)
+        #expect(restored.tabs.map(\.groupID) == b.tabs.map(\.groupID))
+    }
+
+    @Test func sessionsFromBeforeGroupsStillLoad() throws {
+        let old = #"{"windows":[{"tabs":[{"url":"https://a.example/","title":"A"}],"active":0}]}"#
+        let saved = try #require(Browser.SavedWindows.decode(Data(old.utf8)).first)
+        let b = Browser()
+        b.restore(saved)
+        #expect(b.tabs.count == 1 && b.groups.isEmpty)
+    }
+
+    @Test func renamingKeepsANameAndIgnoresABlankOne() throws {
+        let b = browser(1)
+        let group = try #require(b.group([b.tabs[0].id]))
+        b.rename(group, to: "  뉴스 ")
+        b.rename(group, to: "   ")
+        #expect(b.groups.first?.name == "뉴스")
+    }
+
+    @Test func aReopenedTabGoesBackIntoItsGroupEvenAfterTheGroupWentAway() throws {
+        let b = browser(3)
+        let (two, three) = (b.tabs[1].id, b.tabs[2].id)
+        let group = try #require(b.group([two, three], name: "G"))
+        b.close(two)
+        b.reopenClosedTab()
+        #expect(b.groups.map(\.id) == [group])
+        #expect(b.listing.count == 2)
+        b.closeGroup(group)
+        #expect(b.groups.isEmpty)
+        b.reopenClosedTab()
+        #expect(b.groups.map(\.name) == ["G"])
+        #expect(b.active?.groupID == group)
+    }
+
+    @Test func tabsOpenedFromAGroupedTabJoinItAndUnfoldIt() throws {
+        let b = browser(2)
+        let two = b.tabs[1].id
+        let group = try #require(b.group([two]))
+        b.toggleGroup(group)
+        let opened = b.openTab(url: URL(string: "https://new.example/"), activate: false, after: b.tab(two))
+        #expect(opened.groupID == group)
+        #expect(b.groups.first?.isOpen == true)
+    }
+
+    @Test func pinningATabTakesItOutOfItsGroup() throws {
+        let b = browser(2)
+        let one = b.tabs[0].id
+        _ = try #require(b.group([one]))
+        b.bind(try #require(b.tab(one)), to: Browser.bookmarkKey(url: "https://site1.example/", folder: "test"))
+        #expect(b.tab(one)?.groupID == nil)
+        #expect(b.groups.isEmpty)
+    }
+
+    @Test func closingAGroupMovesOffItFirst() throws {
+        let b = browser(3)
+        let (one, two, three) = (b.tabs[0].id, b.tabs[1].id, b.tabs[2].id)
+        let group = try #require(b.group([two, three]))
+        b.activate(one)
+        b.activate(two)
+        b.closeGroup(group)
+        #expect(b.tabs.map(\.id) == [one])
+        #expect(b.activeID == one)
+    }
+
+    @Test func tabsForgetGroupsThatAreNotInTheSession() {
+        let saved = Browser.SavedSession(tabs: [Browser.SavedTab(url: "https://a.example/", title: "A", group: UUID())], active: 0, previous: nil, groups: [])
+        let b = Browser()
+        b.restore(saved)
+        #expect(b.tabs.first?.groupID == nil)
+    }
+
+    @Test func openingThePanelsOrDownloadsEndsFocusMode() {
+        let b = browser(1)
+        for open in [{ b.showChat = true }, { b.showSidebar = true }, { b.showDownloads = true }] {
+            b.focusMode = true
+            open()
+            #expect(!b.focusMode)
+        }
+        b.showDownloads = false
+        b.showChat = false
+    }
+
+    @Test func focusModeHidesTheWindowButtonsAndComesBack() {
+        let window = NSWindow(contentRect: NSRect(origin: Headless.origin, size: NSSize(width: 400, height: 300)),
+                              styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: true)
+        let b = Browser()
+        b.window = window
+        b.focusMode = true
+        #expect(window.standardWindowButton(.closeButton)?.isHidden == true)
+        b.focusMode = false
+        #expect(window.standardWindowButton(.closeButton)?.isHidden == false)
+    }
+}

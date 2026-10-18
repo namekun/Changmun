@@ -144,10 +144,12 @@ struct BrowserView: View {
     @ObservedObject private var prefs = Preferences.shared
 
     var body: some View {
+        let sidebar = browser.showSidebar && !browser.focusMode
         ZStack {
             Theme.background
+            if browser.focusMode { WindowDragArea() }
             HStack(spacing: 0) {
-                if browser.showSidebar {
+                if sidebar {
                     Sidebar(browser: browser)
                         .frame(width: prefs.sidebarWidth)
                         .overlay(alignment: .trailing) { SidebarResizeHandle(width: $prefs.sidebarWidth) }
@@ -155,13 +157,13 @@ struct BrowserView: View {
                 }
                 HStack(spacing: 0) {
                     VStack(spacing: 0) {
-                        PageBar(browser: browser)
+                        if !browser.focusMode { PageBar(browser: browser) }
                         WebCard(browser: browser)
                     }
                     .background(Theme.card)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5))
-                    if browser.showChat {
+                    if browser.showChat && !browser.focusMode {
                         ChatPanel(chat: chat, browser: browser)
                             .padding(.leading, 8)
                             .frame(minWidth: 300, maxWidth: 360)
@@ -170,7 +172,7 @@ struct BrowserView: View {
                 }
                 .padding(.top, BrowserWindow.cardInset)
                 .padding([.trailing, .bottom], 8)
-                .padding(.leading, browser.showSidebar ? 0 : 8)
+                .padding(.leading, sidebar ? 0 : 8)
             }
             if let peek = browser.peek {
                 PeekCard(tab: peek, browser: browser).transition(.opacity)
@@ -185,6 +187,7 @@ struct BrowserView: View {
         .ignoresSafeArea()
         .animation(.easeOut(duration: 0.22), value: browser.showChat)
         .animation(.easeOut(duration: 0.22), value: browser.showSidebar)
+        .animation(.easeOut(duration: 0.22), value: browser.focusMode)
         .animation(.easeOut(duration: 0.22), value: prefs.addressBarOnTop)
         .animation(.easeOut(duration: 0.14), value: browser.commandBar)
         .animation(.easeOut(duration: 0.16), value: browser.peek?.id)
@@ -228,15 +231,18 @@ struct Sidebar: View {
                         .padding(.bottom, 14)
                     }
                     NewTabRow { browser.commandBar = .newTab }
-                    ForEach(browser.listedTabs) { tab in
-                        SidebarTabRow(tab: tab, browser: browser, isActive: tab.id == browser.activeID) {
-                            browser.activate(tab.id)
-                        } close: {
-                            browser.close(tab.id)
-                        }
-                        .draggable(SidebarDrag.tab(tab.id))
-                        .dropDestination(for: String.self) { items, _ in
-                            SidebarDrag.drop(items, onTab: tab.id, browser: browser)
+                    ForEach(browser.listing) { item in
+                        switch item {
+                        case .tab(let tab):
+                            tabRow(tab)
+                        case .group(let group, let tabs):
+                            TabGroupHeader(group: group, count: tabs.count, browser: browser)
+                                .dropDestination(for: String.self) { items, _ in
+                                    SidebarDrag.drop(items, onGroup: group.id, browser: browser)
+                                }
+                            ForEach(browser.shown(tabs, in: group)) { tab in
+                                tabRow(tab).padding(.leading, 12)
+                            }
                         }
                     }
                     if !library.sources.isEmpty {
@@ -292,9 +298,23 @@ struct Sidebar: View {
                 .padding(.top, 4)
                 .padding(.bottom, 8)
                 .animation(.easeOut(duration: 0.18), value: browser.tabs.map(\.id))
+                .animation(.easeOut(duration: 0.15), value: browser.groups)
+                .animation(.easeOut(duration: 0.15), value: browser.tabs.map(\.groupID))
             }
 
             DownloadShelf(browser: browser).padding(.bottom, 8)
+        }
+    }
+
+    private func tabRow(_ tab: Tab) -> some View {
+        SidebarTabRow(tab: tab, browser: browser, isActive: tab.id == browser.activeID) {
+            browser.activate(tab.id)
+        } close: {
+            browser.close(tab.id)
+        }
+        .draggable(SidebarDrag.tab(tab.id))
+        .dropDestination(for: String.self) { items, _ in
+            SidebarDrag.drop(items, onTab: tab.id, browser: browser)
         }
     }
 
@@ -385,9 +405,20 @@ enum SidebarDrag {
     static func favorite(_ url: String) -> String { "changmun-favorite:" + url }
 
     static func drop(_ items: [String], onTab target: Int, browser: Browser) -> Bool {
-        guard let item = items.first, item.hasPrefix("changmun-tab:"), let id = Int(item.dropFirst("changmun-tab:".count)) else { return false }
-        withAnimation(.easeOut(duration: 0.18)) { browser.moveTab(id, to: target) }
+        guard let id = tabID(items) else { return false }
+        withAnimation(.easeOut(duration: 0.18)) { browser.dropTab(id, on: target) }
         return true
+    }
+
+    static func drop(_ items: [String], onGroup group: UUID, browser: Browser) -> Bool {
+        guard let id = tabID(items) else { return false }
+        withAnimation(.easeOut(duration: 0.18)) { browser.addTab(id, to: group) }
+        return true
+    }
+
+    private static func tabID(_ items: [String]) -> Int? {
+        guard let item = items.first, item.hasPrefix("changmun-tab:") else { return nil }
+        return Int(item.dropFirst("changmun-tab:".count))
     }
 
     /// A favorite dropped on a favorite moves there; a tab dropped on one is pinned there.
@@ -397,8 +428,7 @@ enum SidebarDrag {
             Library.shared.moveFavorite(String(item.dropFirst("changmun-favorite:".count)), to: target)
             return true
         }
-        if item.hasPrefix("changmun-tab:"), let id = Int(item.dropFirst("changmun-tab:".count)),
-           let tab = browser.tab(id), let url = tab.url?.absoluteString {
+        if let id = tabID(items), let tab = browser.tab(id), let url = tab.url?.absoluteString {
             if !Library.shared.isFavorite(url) { _ = Library.shared.toggleBookmark(url: url, title: tab.title) }
             browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: Library.favoritesFolder))
             Library.shared.moveFavorite(url, to: target)
@@ -836,6 +866,70 @@ struct BookmarkRow<SplitItem: View>: View {
     }
 }
 
+/// A tab group in the tab list: click to fold it, right-click to rename, ungroup or close it. A tab dropped on it joins.
+struct TabGroupHeader: View {
+    let group: Browser.TabGroup
+    let count: Int
+    @ObservedObject var browser: Browser
+    @State private var hover = false
+    @State private var name = ""
+    @FocusState private var editing: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "chevron.right")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(Theme.faint)
+                .rotationEffect(.degrees(group.isOpen ? 90 : 0))
+                .frame(width: 16)
+            if browser.renamingGroup == group.id {
+                TextField("그룹 이름", text: $name)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(Theme.primary)
+                    .focused($editing)
+                    .onAppear {
+                        name = group.name
+                        // Focus taken in the same pass as the field appears is sometimes dropped.
+                        DispatchQueue.main.async { editing = true }
+                    }
+                    .onSubmit(commit)
+                    .onChange(of: editing) { if !editing { commit() } }
+                    .onKeyPress(.escape) {
+                        browser.renamingGroup = nil
+                        return .handled
+                    }
+            } else {
+                Text(group.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            Text("\(count)").font(.system(size: 11, weight: .medium).monospacedDigit()).foregroundStyle(Theme.faint)
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 30)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
+        .contentShape(Rectangle())
+        .onHover { hover = $0 }
+        .onTapGesture {
+            guard browser.renamingGroup != group.id else { return }
+            withAnimation(.easeOut(duration: 0.15)) { browser.toggleGroup(group.id) }
+        }
+        .contextMenu {
+            Button("이름 바꾸기") { browser.renamingGroup = group.id }
+            Button("그룹 풀기") { browser.ungroup(group.id) }
+            Divider()
+            Button("그룹의 탭 모두 닫기") { browser.closeGroup(group.id) }
+        }
+        .help(group.isOpen ? "접기" : "펼치기")
+    }
+
+    private func commit() {
+        guard browser.renamingGroup == group.id else { return }
+        browser.rename(group.id, to: name)
+        browser.renamingGroup = nil
+    }
+}
+
 struct NewTabRow: View {
     let action: () -> Void
     @State private var hover = false
@@ -900,6 +994,19 @@ struct SidebarTabRow: View {
                 if let url = tab.url?.absoluteString {
                     if !Library.shared.isFavorite(url) { _ = Library.shared.toggleBookmark(url: url, title: tab.title) }
                     browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: Library.favoritesFolder))
+                }
+            }
+            if tab.groupID == nil {
+                Button("새 그룹으로 묶기") { browser.group([tab.id]) }
+            } else {
+                Button("그룹에서 빼기") { browser.removeFromGroup(tab.id) }
+            }
+            let otherGroups = browser.groups.filter { $0.id != tab.groupID }
+            if !otherGroups.isEmpty {
+                Menu("그룹으로 옮기기") {
+                    ForEach(otherGroups) { group in
+                        Button(group.name) { browser.addTab(tab.id, to: group.id) }
+                    }
                 }
             }
             if browser.split?.contains(tab.id) == true {
