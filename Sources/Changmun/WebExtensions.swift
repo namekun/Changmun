@@ -32,7 +32,8 @@ final class ExtensionHost: NSObject, ObservableObject {
     /// Bumped when an extension's button changes (icon, badge, enabled).
     @Published private(set) var actionsChanged = 0
     /// The views extension buttons are drawn in, so popups can point at them.
-    var anchors: [String: NSView] = [:]
+    /// Each extension's button in every window, so its popup opens in the window it was clicked in.
+    var anchors: [String: NSHashTable<NSView>] = [:]
     private var optionsWindows: [String: NSWindow] = [:]
 
     private override init() {
@@ -124,8 +125,10 @@ final class ExtensionHost: NSObject, ObservableObject {
             loaded.append(Loaded(source: source, context: context, name: webExtension.displayName ?? url.lastPathComponent))
             failures[source.path] = nil
             if !Preferences.shared.enabledExtensions.contains(source.path) { Preferences.shared.enabledExtensions.append(source.path) }
-            for tab in Browser.shared.tabs { controller.didOpenTab(tab) }
-            if let active = Browser.shared.active { controller.didActivateTab(active) }
+            for browser in Browser.all where !browser.isPrivate {
+                for tab in browser.tabs { controller.didOpenTab(tab) }
+                if let active = browser.active { controller.didActivateTab(active) }
+            }
         } catch {
             failures[source.path] = error.localizedDescription
         }
@@ -163,12 +166,12 @@ final class ExtensionHost: NSObject, ObservableObject {
 
     // MARK: Buttons
 
-    func action(for item: Loaded) -> WKWebExtension.Action? {
-        item.context.action(for: Browser.shared.active)
+    func action(for item: Loaded, in browser: Browser) -> WKWebExtension.Action? {
+        item.context.action(for: browser.active)
     }
 
-    func performAction(_ item: Loaded) {
-        item.context.performAction(for: Browser.shared.active)
+    func performAction(_ item: Loaded, in browser: Browser) {
+        item.context.performAction(for: browser.active)
     }
 
     func addFolder(_ url: URL) async {
@@ -208,11 +211,27 @@ final class ExtensionHost: NSObject, ObservableObject {
 
     // MARK: Telling extensions about tabs
 
-    func tabOpened(_ tab: Tab) { if !loaded.isEmpty { controller.didOpenTab(tab) } }
-    func tabClosed(_ tab: Tab) { if !loaded.isEmpty { controller.didCloseTab(tab) } }
-    func tabActivated(_ tab: Tab, previous: Tab?) { if !loaded.isEmpty { controller.didActivateTab(tab, previousActiveTab: previous) } }
-    func tabMoved(_ tab: Tab, from index: Int) { if !loaded.isEmpty { controller.didMoveTab(tab, from: index, in: ExtensionWindow.shared) } }
-    func tabChanged(_ tab: Tab) { if !loaded.isEmpty { controller.didChangeTabProperties([.URL, .title, .loading], for: tab) } }
+    // Private windows' tabs are never shown to extensions.
+    func tabOpened(_ tab: Tab) { if !loaded.isEmpty && !tab.isPrivate { controller.didOpenTab(tab) } }
+    func tabClosed(_ tab: Tab) { if !loaded.isEmpty && !tab.isPrivate { controller.didCloseTab(tab) } }
+    func tabActivated(_ tab: Tab, previous: Tab?) {
+        if !loaded.isEmpty && !tab.isPrivate { controller.didActivateTab(tab, previousActiveTab: previous) }
+    }
+    func tabMoved(_ tab: Tab, from index: Int) {
+        if !loaded.isEmpty, let browser = tab.browser, !browser.isPrivate { controller.didMoveTab(tab, from: index, in: ExtensionWindow.of(browser)) }
+    }
+    func tabChanged(_ tab: Tab) {
+        if !loaded.isEmpty && !tab.isPrivate && tab.browser?.tabs.contains(tab) == true {
+            controller.didChangeTabProperties([.URL, .title, .loading], for: tab)
+        }
+    }
+    func windowOpened(_ browser: Browser) { if !loaded.isEmpty && !browser.isPrivate { controller.didOpenWindow(ExtensionWindow.of(browser)) } }
+    func windowFocused(_ browser: Browser) { if !loaded.isEmpty && !browser.isPrivate { controller.didFocusWindow(ExtensionWindow.of(browser)) } }
+    func windowClosed(_ browser: Browser) {
+        guard !browser.isPrivate else { return }
+        if !loaded.isEmpty { controller.didCloseWindow(ExtensionWindow.of(browser)) }
+        ExtensionWindow.forget(browser)
+    }
 }
 
 // MARK: Delegate
@@ -220,26 +239,27 @@ final class ExtensionHost: NSObject, ObservableObject {
 @available(macOS 15.4, *)
 extension ExtensionHost: WKWebExtensionControllerDelegate {
     func webExtensionController(_ controller: WKWebExtensionController, openWindowsFor extensionContext: WKWebExtensionContext) -> [any WKWebExtensionWindow] {
-        [ExtensionWindow.shared]
+        Browser.all.filter { !$0.isPrivate }.map(ExtensionWindow.of)
     }
 
     func webExtensionController(_ controller: WKWebExtensionController, focusedWindowFor extensionContext: WKWebExtensionContext) -> (any WKWebExtensionWindow)? {
-        ExtensionWindow.shared
+        Browser.recent.map(ExtensionWindow.of)
     }
 
     func webExtensionController(_ controller: WKWebExtensionController, openNewTabUsing configuration: WKWebExtension.TabConfiguration,
                                 for extensionContext: WKWebExtensionContext, completionHandler: @escaping ((any WKWebExtensionTab)?, (any Error)?) -> Void) {
         // Extensions open web pages, not local files.
         let url = configuration.url.flatMap { $0.isFileURL ? nil : $0 }
-        let tab = Browser.shared.openTab(url: url, activate: configuration.shouldBeActive)
+        let browser = (configuration.window as? ExtensionWindow)?.browser ?? Browser.recent ?? BrowserWindow.open()
+        let tab = browser.openTab(url: url, activate: configuration.shouldBeActive)
         completionHandler(tab, nil)
     }
 
     func webExtensionController(_ controller: WKWebExtensionController, openNewWindowUsing configuration: WKWebExtension.WindowConfiguration,
                                 for extensionContext: WKWebExtensionContext, completionHandler: @escaping ((any WKWebExtensionWindow)?, (any Error)?) -> Void) {
-        // One window: its tabs open here.
-        for url in configuration.tabURLs where !url.isFileURL { Browser.shared.openTab(url: url) }
-        completionHandler(ExtensionWindow.shared, nil)
+        let browser = BrowserWindow.open()
+        for url in configuration.tabURLs where !url.isFileURL { browser.openTab(url: url) }
+        completionHandler(ExtensionWindow.of(browser), nil)
     }
 
     func webExtensionController(_ controller: WKWebExtensionController, openOptionsPageFor extensionContext: WKWebExtensionContext,
@@ -284,9 +304,10 @@ extension ExtensionHost: WKWebExtensionControllerDelegate {
             return
         }
         let id = loaded.first { $0.context === context }?.id
-        if let anchor = id.flatMap({ anchors[$0] }), anchor.window != nil {
+        let window = Browser.current?.window
+        if let anchor = id.flatMap({ anchors[$0] })?.allObjects.first(where: { $0.window === window }) {
             popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .maxY)
-        } else if let content = NSApp.windows.first(where: { $0 is BrowserWindow })?.contentView {
+        } else if let content = Browser.recent?.window?.contentView {
             popover.show(relativeTo: NSRect(x: 20, y: 20, width: 1, height: 1), of: content, preferredEdge: .maxY)
         }
         completionHandler(nil)
@@ -307,12 +328,28 @@ extension ExtensionHost: WKWebExtensionControllerDelegate {
 @available(macOS 15.4, *)
 @MainActor
 final class ExtensionWindow: NSObject, WKWebExtensionWindow {
-    static let shared = ExtensionWindow()
+    private static var windows: [ObjectIdentifier: ExtensionWindow] = [:]
 
-    private var window: NSWindow? { NSApp.windows.first { $0 is BrowserWindow } }
+    /// The same object for a browser window for as long as it is open, as extensions expect.
+    static func of(_ browser: Browser) -> ExtensionWindow {
+        if let window = windows[ObjectIdentifier(browser)] { return window }
+        let window = ExtensionWindow(browser: browser)
+        windows[ObjectIdentifier(browser)] = window
+        return window
+    }
 
-    func tabs(for context: WKWebExtensionContext) -> [any WKWebExtensionTab] { Browser.shared.tabs }
-    func activeTab(for context: WKWebExtensionContext) -> (any WKWebExtensionTab)? { Browser.shared.active }
+    static func forget(_ browser: Browser) { windows[ObjectIdentifier(browser)] = nil }
+
+    private(set) weak var browser: Browser?
+
+    private init(browser: Browser) {
+        self.browser = browser
+    }
+
+    private var window: NSWindow? { browser?.window }
+
+    func tabs(for context: WKWebExtensionContext) -> [any WKWebExtensionTab] { browser?.tabs ?? [] }
+    func activeTab(for context: WKWebExtensionContext) -> (any WKWebExtensionTab)? { browser?.active }
     func windowType(for context: WKWebExtensionContext) -> WKWebExtension.WindowType { .normal }
     func windowState(for context: WKWebExtensionContext) -> WKWebExtension.WindowState {
         guard let window else { return .normal }
@@ -330,22 +367,23 @@ final class ExtensionWindow: NSObject, WKWebExtensionWindow {
 
 @available(macOS 15.4, *)
 extension Tab: WKWebExtensionTab {
-    func window(for context: WKWebExtensionContext) -> (any WKWebExtensionWindow)? { ExtensionWindow.shared }
-    func indexInWindow(for context: WKWebExtensionContext) -> Int { Browser.shared.tabs.firstIndex { $0 === self } ?? NSNotFound }
+    func window(for context: WKWebExtensionContext) -> (any WKWebExtensionWindow)? { browser.map(ExtensionWindow.of) }
+    func indexInWindow(for context: WKWebExtensionContext) -> Int { browser?.tabs.firstIndex { $0 === self } ?? NSNotFound }
     func webView(for context: WKWebExtensionContext) -> WKWebView? { webView }
     func title(for context: WKWebExtensionContext) -> String? { title }
     func url(for context: WKWebExtensionContext) -> URL? { url }
-    func isSelected(for context: WKWebExtensionContext) -> Bool { Browser.shared.activeID == id }
+    func isSelected(for context: WKWebExtensionContext) -> Bool { browser?.activeID == id }
     func isLoadingComplete(for context: WKWebExtensionContext) -> Bool { !isLoading }
     func zoomFactor(for context: WKWebExtensionContext) -> Double { Double(webView?.pageZoom ?? 1) }
 
     func activate(for context: WKWebExtensionContext, completionHandler: @escaping ((any Error)?) -> Void) {
-        Browser.shared.activate(id)
+        browser?.activate(id)
+        browser?.window?.makeKeyAndOrderFront(nil)
         completionHandler(nil)
     }
 
     func close(for context: WKWebExtensionContext, completionHandler: @escaping ((any Error)?) -> Void) {
-        Browser.shared.close(id)
+        browser?.close(id)
         completionHandler(nil)
     }
 
@@ -394,7 +432,7 @@ struct ExtensionButtons: View {
     var body: some View {
         HStack(spacing: 2) {
             ForEach(host.loaded) { item in
-                ExtensionButton(item: item, action: host.action(for: item), changes: host.actionsChanged)
+                ExtensionButton(item: item, browser: browser, action: host.action(for: item, in: browser), changes: host.actionsChanged)
             }
         }
         .id(browser.activeID)
@@ -404,12 +442,13 @@ struct ExtensionButtons: View {
 @available(macOS 15.4, *)
 struct ExtensionButton: View {
     let item: ExtensionHost.Loaded
+    let browser: Browser
     let action: WKWebExtension.Action?
     let changes: Int
     @State private var hover = false
 
     var body: some View {
-        Button { ExtensionHost.shared.performAction(item) } label: {
+        Button { ExtensionHost.shared.performAction(item, in: browser) } label: {
             ZStack(alignment: .topTrailing) {
                 Group {
                     if let icon = action?.icon(for: CGSize(width: 16, height: 16)) ?? item.context.webExtension.icon(for: CGSize(width: 16, height: 16)) {
@@ -437,7 +476,9 @@ struct ExtensionButton: View {
         .buttonStyle(.plain)
         .onHover { hover = $0 }
         .help(action?.label.isEmpty == false ? action!.label : item.name)
-        .background(PopoverAnchor { ExtensionHost.shared.anchors[item.id] = $0 })
+        .background(PopoverAnchor { view in
+            ExtensionHost.shared.anchors[item.id, default: .weakObjects()].add(view)
+        })
         .contextMenu {
             if item.context.optionsPageURL != nil { Button("확장 설정") { ExtensionHost.shared.openOptions(item) } }
             Button("끄기") { Task { await ExtensionHost.shared.setEnabled(item.source, false) } }

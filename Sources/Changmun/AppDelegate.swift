@@ -6,31 +6,31 @@ import WebKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var window: BrowserWindow!
-    private let browser = Browser.shared
     private var menuSubscription: AnyCancellable?
+
+    /// The window in front; commands that need a window open one when none is.
+    private var browser: Browser { Browser.current ?? BrowserWindow.open() }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         menuSubscription = Preferences.shared.$shortcuts.sink { NSApp.mainMenu = AppMenu.make(scheme: $0) }
-        window = BrowserWindow()
-        let host = NSHostingView(rootView: BrowserView(browser: browser, chat: ChatStore.shared))
-        host.sizingOptions = []
-        window.contentView = host
         NSApp.appearance = Preferences.shared.appearance.nsAppearance
         Task { await AdBlocker.shared.start() }
         if #available(macOS 15.4, *) { Task { await ExtensionHost.shared.start() } }
-        browser.restoreSession()
-        browser.startSleepingIdleTabs()
+        let saved = Browser.savedWindows()
+        if saved.isEmpty {
+            BrowserWindow.open().commandBar = .newTab
+        } else {
+            for session in saved { BrowserWindow.open(restoring: session) }
+        }
         ControlServer.shared.start()
         watchMouseButtons()
+        watchPeekKeys()
         if !UserDefaults.standard.bool(forKey: "onboarded") { browser.showOnboarding = true }
-        window.makeKeyAndOrderFront(nil)
-        window.layoutTrafficLights()
         NSApp.activate()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        browser.saveSession()
+        Browser.saveSession()
         ChatStore.shared.stop()
         ControlServer.shared.stop()
     }
@@ -38,10 +38,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
     func application(_ application: NSApplication, open urls: [URL]) {
+        let browser = Browser.recent ?? BrowserWindow.open()
         for url in urls { browser.openTab(url: url) }
+        browser.window?.makeKeyAndOrderFront(nil)
     }
 
     // MARK: Menu actions
+
+    @objc func newWindow(_ sender: Any?) { BrowserWindow.open().commandBar = .newTab }
+    @objc func newPrivateWindow(_ sender: Any?) { BrowserWindow.open(private: true).commandBar = .newTab }
+    @objc func closeWindow(_ sender: Any?) { Browser.current?.window?.performClose(nil) }
+    @objc func toggleSplit(_ sender: Any?) { Browser.current?.toggleSplit() }
 
     @objc func newTab(_ sender: Any?) { browser.commandBar = .newTab }
     @objc func openLocation(_ sender: Any?) {
@@ -77,17 +84,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var mouseMonitor: Any?
 
-    /// The side buttons on most mice (4 and 5) go back and forward in the browser window.
+    private var focusMonitor: Any?
+    private var keyMonitor: Any?
+
+    /// The side buttons on most mice (4 and 5) go back and forward in the browser window. A click in the other half of
+    /// a split makes that tab the active one.
     private func watchMouseButtons() {
-        mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: .otherMouseDown) { [weak self] event in
-            guard let self, event.window is BrowserWindow, event.buttonNumber == 3 || event.buttonNumber == 4 else { return event }
-            if event.buttonNumber == 3 { self.browser.active?.webView?.goBack() } else { self.browser.active?.webView?.goForward() }
+        mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: .otherMouseDown) { event in
+            guard let browser = (event.window as? BrowserWindow)?.browser, event.buttonNumber == 3 || event.buttonNumber == 4 else { return event }
+            let webView = browser.peek?.webView ?? browser.active?.webView
+            if event.buttonNumber == 3 { webView?.goBack() } else { webView?.goForward() }
             return nil
+        }
+        focusMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
+            guard let browser = (event.window as? BrowserWindow)?.browser, browser.peek == nil, let split = browser.shownSplit,
+                  let hit = event.window?.contentView?.hitTest(event.locationInWindow) else { return event }
+            for id in [split.left, split.right] where id != browser.activeID {
+                if let webView = browser.tab(id)?.webView, hit.isDescendant(of: webView) { browser.activate(id) }
+            }
+            return event
+        }
+    }
+
+    /// While a link is peeked, esc closes it and ⌘↩ keeps it as a tab.
+    private func watchPeekKeys() {
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard let browser = (event.window as? BrowserWindow)?.browser, browser.peek != nil, browser.commandBar == nil else { return event }
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            if event.keyCode == 53 && modifiers.isEmpty {
+                browser.closePeek()
+                return nil
+            }
+            if event.keyCode == 36 && modifiers == .command {
+                browser.keepPeek()
+                return nil
+            }
+            return event
         }
     }
 
     @objc func printPage(_ sender: Any?) {
-        guard let webView = browser.active?.webView, let window else { return }
+        guard let webView = browser.active?.webView, let window = browser.window else { return }
         let info = NSPrintInfo.shared
         info.horizontalPagination = .fit
         info.verticalPagination = .automatic
@@ -155,14 +192,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     @objc func closeTab(_ sender: Any?) {
+        guard let browser = Browser.current else { return }
+        if browser.peek != nil { return browser.closePeek() }
         if browser.commandBar != nil { browser.commandBar = nil; return }
-        if let id = browser.activeID { browser.close(id) } else { window.performClose(nil) }
+        if let id = browser.activeID { browser.close(id) } else { browser.window?.performClose(nil) }
     }
-    @objc func reload(_ sender: Any?) { browser.active?.webView?.reload() }
-    @objc func hardReload(_ sender: Any?) { browser.active?.webView?.reloadFromOrigin() }
-    @objc func goBack(_ sender: Any?) { browser.active?.webView?.goBack() }
-    @objc func goForward(_ sender: Any?) { browser.active?.webView?.goForward() }
-    @objc func toggleChat(_ sender: Any?) { browser.showChat.toggle() }
+    /// The page in front: the peek while one is open, otherwise the active tab.
+    private var frontPage: WKWebView? { Browser.current.flatMap { $0.peek?.webView ?? $0.active?.webView } }
+    @objc func reload(_ sender: Any?) { frontPage?.reload() }
+    @objc func hardReload(_ sender: Any?) { frontPage?.reloadFromOrigin() }
+    @objc func goBack(_ sender: Any?) { frontPage?.goBack() }
+    @objc func goForward(_ sender: Any?) { frontPage?.goForward() }
+    @objc func toggleChat(_ sender: Any?) {
+        if browser.isPrivate { return NSSound.beep() }
+        browser.showChat.toggle()
+    }
     @objc func toggleBrowserSidebar(_ sender: Any?) { browser.showSidebar.toggle() }
     @objc func nextTab(_ sender: Any?) { browser.selectTab(offset: 1) }
     @objc func previousTab(_ sender: Any?) { browser.selectTab(offset: -1) }
@@ -176,14 +220,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tab.objectWillChange.send()
     }
     @objc func importData(_ sender: Any?) { browser.showOnboarding = true }
-    @objc func newChat(_ sender: Any?) { ChatStore.shared.reset(); browser.showChat = true }
+    @objc func newChat(_ sender: Any?) {
+        let browser = Browser.recent ?? BrowserWindow.open()
+        ChatStore.shared.reset()
+        browser.showChat = true
+        browser.window?.makeKeyAndOrderFront(nil)
+    }
 }
 
 /// A window whose title bar is the tab strip: the traffic lights sit centered in the strip.
-final class BrowserWindow: NSWindow {
+final class BrowserWindow: NSWindow, NSWindowDelegate {
     static let barHeight: CGFloat = 44
+    private static var windows: [BrowserWindow] = []
 
-    init() {
+    let browser: Browser
+    private var observers: [NSObjectProtocol] = []
+
+    /// A new window in front, with its own tabs (and, private, its own throwaway cookies and site data).
+    @discardableResult
+    static func open(private isPrivate: Bool = false, restoring session: Browser.SavedSession? = nil) -> Browser {
+        let browser = Browser(isPrivate: isPrivate)
+        let window = BrowserWindow(browser: browser, cascadingFrom: windows.last)
+        windows.append(window)
+        browser.focused()
+        if let session { browser.restore(session) }
+        browser.startSleepingIdleTabs()
+        if #available(macOS 15.4, *) { ExtensionHost.shared.windowOpened(browser) }
+        window.makeKeyAndOrderFront(nil)
+        window.layoutTrafficLights()
+        return browser
+    }
+
+    private init(browser: Browser, cascadingFrom previous: BrowserWindow?) {
+        self.browser = browser
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 820),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -192,16 +261,53 @@ final class BrowserWindow: NSWindow {
         titlebarAppearsTransparent = true
         titleVisibility = .hidden
         backgroundColor = Theme.nsBackground
-        title = "Changmun"
+        title = browser.isPrivate ? "Changmun 개인 창" : "Changmun"
         minSize = NSSize(width: 640, height: 420)
         isReleasedWhenClosed = false
-        if !setFrameUsingName("ChangmunMain") { center() }
-        setFrameAutosaveName("ChangmunMain")
-        for name in [NSWindow.didResizeNotification, NSWindow.didExitFullScreenNotification, NSWindow.didBecomeKeyNotification] {
-            NotificationCenter.default.addObserver(forName: name, object: self, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.layoutTrafficLights() }
-            }
+        delegate = self
+        browser.window = self
+        let host = NSHostingView(rootView: BrowserView(browser: browser, chat: ChatStore.shared))
+        host.sizingOptions = []
+        contentView = host
+        // The first window keeps its place across launches; others step down from the one before.
+        if let previous {
+            setFrame(Self.cascaded(from: previous.frame, in: previous.screen?.visibleFrame), display: false)
+        } else {
+            if !setFrameUsingName("ChangmunMain") { center() }
+            setFrameAutosaveName("ChangmunMain")
         }
+        for name in [NSWindow.didResizeNotification, NSWindow.didExitFullScreenNotification, NSWindow.didBecomeKeyNotification] {
+            observers.append(NotificationCenter.default.addObserver(forName: name, object: self, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.layoutTrafficLights() }
+            })
+        }
+    }
+
+    /// One step down and right of the window before; a window that fills the screen leaves room for the step,
+    /// so the new one never lands exactly on top of it.
+    nonisolated static func cascaded(from frame: NSRect, in screen: NSRect?, step: CGFloat = 28) -> NSRect {
+        var next = frame.offsetBy(dx: step, dy: -step)
+        guard let screen else { return next }
+        if next.maxX > screen.maxX { next.size.width = max(640, screen.maxX - next.minX) }
+        if next.minY < screen.minY {
+            next.size.height = max(420, next.maxY - screen.minY)
+            next.origin.y = next.maxY - next.size.height
+            next.origin.y = max(next.origin.y, screen.minY)
+        }
+        return next
+    }
+
+    func windowDidBecomeKey(_ notification: Notification) {
+        browser.focused()
+        if #available(macOS 15.4, *) { ExtensionHost.shared.windowFocused(browser) }
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        // The last ordinary window to close is the one the next launch restores.
+        if !browser.isPrivate && !Browser.all.contains(where: { $0 !== browser && !$0.isPrivate }) { Browser.saveSession([browser]) }
+        browser.windowClosed()
+        observers.forEach(NotificationCenter.default.removeObserver)
+        Self.windows.removeAll { $0 === self }
     }
 
     func layoutTrafficLights() {
@@ -241,8 +347,11 @@ enum AppMenu {
 
         let file = submenu(main, "파일")
         add(file, "새 탭", #selector(AppDelegate.newTab(_:)), "t")
+        add(file, "새 창", #selector(AppDelegate.newWindow(_:)), "n")
+        add(file, "새 개인 창", #selector(AppDelegate.newPrivateWindow(_:)), "n", [.command, .shift])
         add(file, "주소 열기", #selector(AppDelegate.openLocation(_:)), "l")
         add(file, "탭 닫기", #selector(AppDelegate.closeTab(_:)), "w")
+        add(file, "창 닫기", #selector(AppDelegate.closeWindow(_:)), "w", [.command, .shift])
         add(file, "닫은 탭 다시 열기", #selector(AppDelegate.reopenClosedTab(_:)), "t", [.command, .shift])
         add(file, "파일 열기…", #selector(AppDelegate.openFile(_:)), "o")
         file.addItem(.separator())
@@ -268,6 +377,7 @@ enum AppMenu {
         add(view, "사이드바", #selector(AppDelegate.toggleBrowserSidebar(_:)), chrome ? "s" : "l", chrome ? [.command] : [.command, .shift])
         add(view, "AI 패널", #selector(AppDelegate.toggleChat(_:)), "e")
         add(view, "새 AI 대화", #selector(AppDelegate.newChat(_:)), "e", [.command, .shift])
+        add(view, "분할 보기", #selector(AppDelegate.toggleSplit(_:)), "\\", [.command, .option])
         view.addItem(.separator())
         add(view, "확대", #selector(AppDelegate.zoomIn(_:)), "+")
         add(view, "축소", #selector(AppDelegate.zoomOut(_:)), "-")

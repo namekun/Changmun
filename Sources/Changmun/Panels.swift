@@ -81,8 +81,9 @@ struct HistoryView: View {
     }
 
     private func open(_ visit: Library.Visit) {
-        Browser.shared.openBookmark(visit.url, key: nil)
-        NSApp.windows.first { $0 is BrowserWindow }?.makeKeyAndOrderFront(nil)
+        let browser = Browser.recent ?? BrowserWindow.open()
+        browser.openBookmark(visit.url, key: nil)
+        browser.window?.makeKeyAndOrderFront(nil)
     }
 }
 

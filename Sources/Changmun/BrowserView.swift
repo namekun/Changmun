@@ -189,6 +189,9 @@ struct BrowserView: View {
                     .padding(.leading, browser.showSidebar ? 0 : 8)
                 }
             }
+            if let peek = browser.peek {
+                PeekCard(tab: peek, browser: browser).transition(.opacity)
+            }
             if let mode = browser.commandBar, !browser.showOnboarding {
                 CommandBar(browser: browser, chat: chat, mode: mode)
             }
@@ -201,6 +204,7 @@ struct BrowserView: View {
         .animation(.easeOut(duration: 0.22), value: browser.showSidebar)
         .animation(.easeOut(duration: 0.22), value: prefs.addressBarOnTop)
         .animation(.easeOut(duration: 0.14), value: browser.commandBar)
+        .animation(.easeOut(duration: 0.16), value: browser.peek?.id)
     }
 }
 
@@ -261,7 +265,7 @@ struct Sidebar: View {
                     SectionCaption(text: "탭", trailing: "\(browser.listedTabs.count)").padding(.bottom, 4)
                     NewTabRow { browser.commandBar = .newTab }
                     ForEach(browser.listedTabs) { tab in
-                        SidebarTabRow(tab: tab, isActive: tab.id == browser.activeID) {
+                        SidebarTabRow(tab: tab, browser: browser, isActive: tab.id == browser.activeID) {
                             browser.activate(tab.id)
                         } close: {
                             browser.close(tab.id)
@@ -325,10 +329,15 @@ struct Sidebar: View {
             }
 
             HStack(spacing: 4) {
-                AIButton(isOn: browser.showChat) { browser.showChat.toggle() }
-                Spacer()
-                if #available(macOS 15.4, *) { ExtensionButtons(browser: browser) }
-                BarButton(symbol: "square.and.arrow.down", help: "다른 브라우저에서 가져오기") { browser.showOnboarding = true }
+                if browser.isPrivate {
+                    PrivateBadge()
+                    Spacer()
+                } else {
+                    AIButton(isOn: browser.showChat) { browser.showChat.toggle() }
+                    Spacer()
+                    if #available(macOS 15.4, *) { ExtensionButtons(browser: browser) }
+                    BarButton(symbol: "square.and.arrow.down", help: "다른 브라우저에서 가져오기") { browser.showOnboarding = true }
+                }
             }
             .padding(.horizontal, 12)
             .frame(height: 48)
@@ -455,7 +464,7 @@ final class LibraryWatcher: ObservableObject {
         sources = Library.groupBySource(folders)
         var keys = Set(favorites.map { Browser.bookmarkKey(url: $0.url, folder: Library.favoritesFolder) })
         for folder in folders { for entry in folder.entries { keys.insert(Browser.bookmarkKey(url: entry.url, folder: folder.name)) } }
-        Browser.shared.releaseBookmarkTabs(keeping: keys)
+        for browser in Browser.all { browser.releaseBookmarkTabs(keeping: keys) }
     }
 }
 
@@ -478,7 +487,11 @@ struct CompactBar: View {
                 }
                 Spacer(minLength: 12)
             }
-            AIButton(isOn: browser.showChat) { browser.showChat.toggle() }
+            if browser.isPrivate {
+                PrivateBadge()
+            } else {
+                AIButton(isOn: browser.showChat) { browser.showChat.toggle() }
+            }
         }
         .padding(.trailing, 10)
         .frame(height: BrowserWindow.barHeight)
@@ -840,6 +853,7 @@ struct NewTabRow: View {
 
 struct SidebarTabRow: View {
     @ObservedObject var tab: Tab
+    let browser: Browser
     let isActive: Bool
     let select: () -> Void
     let close: () -> Void
@@ -855,6 +869,11 @@ struct SidebarTabRow: View {
             Spacer(minLength: 0)
             if hover {
                 HoverAction(symbol: "xmark", help: "탭 닫기 (⌘W)", action: close)
+            } else if browser.split?.contains(tab.id) == true {
+                Image(systemName: "rectangle.split.2x1")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Theme.faint)
+                    .help("분할 보기")
             }
         }
         .padding(.horizontal, 8)
@@ -869,8 +888,13 @@ struct SidebarTabRow: View {
             Button("즐겨찾기에 고정") {
                 if let url = tab.url?.absoluteString {
                     if !Library.shared.isFavorite(url) { _ = Library.shared.toggleBookmark(url: url, title: tab.title) }
-                    Browser.shared.bind(tab, to: Browser.bookmarkKey(url: url, folder: Library.favoritesFolder))
+                    browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: Library.favoritesFolder))
                 }
+            }
+            if browser.split?.contains(tab.id) == true {
+                Button("분할 보기 끝내기") { browser.unsplit() }
+            } else if !isActive && browser.activeID != nil {
+                Button("지금 탭 옆에 나란히 보기") { browser.split(with: tab.id) }
             }
             Button("주소 복사") {
                 NSPasteboard.general.clearContents()
@@ -887,6 +911,8 @@ struct SidebarTabRow: View {
 struct SiteIcon: View {
     let url: String
     let size: CGFloat
+    /// False for a private window's page: the icon isn't saved to disk.
+    var keep = true
     @State private var image: NSImage?
 
     var body: some View {
@@ -898,7 +924,7 @@ struct SiteIcon: View {
             }
         }
         .frame(width: size, height: size)
-        .task(id: url) { image = await Browser.shared.icon(for: url) }
+        .task(id: url) { image = await Browser.icon(for: url, keep: keep) }
     }
 }
 
@@ -950,6 +976,21 @@ struct AIButton: View {
     }
 }
 
+/// Where the AI button would be, in a private window.
+struct PrivateBadge: View {
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "eye.slash").font(.system(size: 11, weight: .semibold))
+            Text("개인 창").font(.system(size: 12, weight: .semibold))
+        }
+        .padding(.horizontal, 11)
+        .frame(height: 30)
+        .foregroundStyle(Theme.primary)
+        .background(Capsule().strokeBorder(Theme.hairline, lineWidth: 0.5))
+        .help("기록·쿠키·사이트 데이터를 남기지 않아요. AI와 확장은 이 창을 보지 못해요.")
+    }
+}
+
 struct Favicon: View {
     @ObservedObject var tab: Tab
 
@@ -961,7 +1002,7 @@ struct Favicon: View {
                 IconImage(image: image, size: 16)
             } else if let url = tab.url?.absoluteString {
                 // A sleeping tab has no page to ask; the site's saved icon stands in.
-                SiteIcon(url: url, size: 16)
+                SiteIcon(url: url, size: 16, keep: !tab.isPrivate)
             } else {
                 Image(systemName: "globe").font(.system(size: 12)).foregroundStyle(Theme.faint)
             }
@@ -989,8 +1030,42 @@ struct WebCard: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        ZStack(alignment: .top) {
-            if let tab = browser.active {
+        content
+            .overlay(alignment: .topTrailing) {
+                if browser.findBarVisible {
+                    FindBar(browser: browser).transition(.opacity)
+                }
+            }
+            .overlay(alignment: .bottomLeading) {
+                if let text = browser.statusMessage ?? browser.hoveredLink.map(StatusLine.display) {
+                    StatusLine(text: text).transition(.opacity)
+                }
+            }
+            .animation(.easeOut(duration: 0.12), value: browser.hoveredLink)
+            .animation(.easeOut(duration: 0.12), value: browser.statusMessage)
+            .animation(.easeOut(duration: 0.15), value: browser.findBarVisible)
+    }
+
+    @ViewBuilder private var content: some View {
+        if let split = browser.shownSplit, let left = browser.tab(split.left), let right = browser.tab(split.right) {
+            GeometryReader { geo in
+                let width = max(1, geo.size.width - SplitDivider.width)
+                HStack(spacing: 0) {
+                    pane(left).frame(width: (width * browser.splitFraction).rounded())
+                    SplitDivider(fraction: $browser.splitFraction, total: width)
+                    pane(right)
+                }
+            }
+        } else {
+            pane(browser.active)
+        }
+    }
+
+    private func pane(_ tab: Tab?) -> some View {
+        // In a split, the pane with the active tab (what the address bar and keys act on) wears the hairline.
+        let focused = browser.shownSplit != nil && tab?.id == browser.activeID
+        return ZStack {
+            if let tab {
                 Theme.page
                 WebViewHost(tab: tab, browser: browser)
             } else {
@@ -998,22 +1073,116 @@ struct WebCard: View {
                 EmptyPage()
             }
         }
-        .overlay(alignment: .topTrailing) {
-            if browser.findBarVisible {
-                FindBar(browser: browser).transition(.opacity)
-            }
-        }
-        .overlay(alignment: .bottomLeading) {
-            if let text = browser.statusMessage ?? browser.hoveredLink.map(StatusLine.display) {
-                StatusLine(text: text).transition(.opacity)
-            }
-        }
-        .animation(.easeOut(duration: 0.12), value: browser.hoveredLink)
-        .animation(.easeOut(duration: 0.12), value: browser.statusMessage)
-        .animation(.easeOut(duration: 0.15), value: browser.findBarVisible)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .strokeBorder(browser.active == nil || scheme == .light ? Theme.ink(0.14) : .clear, lineWidth: 0.5))
+            .strokeBorder(focused ? Theme.secondary : (tab == nil || scheme == .light ? Theme.ink(0.14) : .clear), lineWidth: focused ? 1 : 0.5))
+    }
+}
+
+/// Between the halves of a split: drag to share the width, double-click to halve it.
+struct SplitDivider: View {
+    static let width: CGFloat = 8
+    @Binding var fraction: Double
+    let total: CGFloat
+    @State private var start: Double?
+    @State private var hover = false
+
+    var body: some View {
+        Capsule()
+            .fill(hover || start != nil ? Theme.secondary : Theme.hairline)
+            .frame(width: 3, height: 32)
+            .frame(width: Self.width)
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .onHover { inside in
+                hover = inside
+                if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+            }
+            .onDisappear { if hover { NSCursor.pop() } }
+            .gesture(
+                DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                    .onChanged { drag in
+                        let base = start ?? fraction
+                        start = base
+                        fraction = Browser.clampedSplitFraction(base + drag.translation.width / total)
+                    }
+                    .onEnded { _ in start = nil }
+            )
+            .onTapGesture(count: 2) { fraction = 0.5 }
+            .help("끌어서 폭 나누기 · 더블클릭하면 반반")
+    }
+}
+
+/// A ⇧-clicked link floating over the window: esc or a click outside closes it, ⌘↩ keeps it as a tab.
+struct PeekCard: View {
+    @ObservedObject var tab: Tab
+    @ObservedObject var browser: Browser
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.35)
+                .contentShape(Rectangle())
+                .onTapGesture { browser.closePeek() }
+            VStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    Favicon(tab: tab)
+                    Text(tab.url?.host().map { $0.hasPrefix("www.") ? String($0.dropFirst(4)) : $0 } ?? "")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.primary)
+                        .lineLimit(1)
+                    Text(tab.title)
+                        .font(.system(size: 12.5, weight: .medium))
+                        .foregroundStyle(Theme.faint)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer(minLength: 8)
+                    PeekAction(title: "탭으로 열기", key: "⌘↩") { browser.keepPeek() }
+                    PeekAction(title: "닫기", key: "esc") { browser.closePeek() }
+                }
+                .padding(.leading, 6)
+                .frame(height: 30)
+                ZStack {
+                    Theme.page
+                    WebViewHost(tab: tab, browser: browser)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(alignment: .top) {
+                    if tab.isLoading { Meter(fraction: tab.progress).padding(.horizontal, 12).padding(.top, 4).transition(.opacity) }
+                }
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.background))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
+            .frame(maxWidth: 1180)
+            .padding(.horizontal, 64)
+            .padding(.top, BrowserWindow.barHeight)
+            .padding(.bottom, 32)
+        }
+        .animation(.easeOut(duration: 0.2), value: tab.isLoading)
+    }
+}
+
+struct PeekAction: View {
+    let title: String
+    let key: String
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(title).font(.system(size: 12, weight: .semibold))
+                Keycap(key)
+            }
+            .padding(.leading, 9)
+            .padding(.trailing, 5)
+            .frame(height: 26)
+            .foregroundStyle(Theme.primary)
+            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(hover ? Theme.field : .clear))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
     }
 }
 
@@ -1064,13 +1233,15 @@ struct WebViewHost: NSViewRepresentable {
             container.subviews.forEach { $0.removeFromSuperview() }
             return
         }
-        guard webView.superview !== container else { return }
+        // A host fading out (a closed peek, a split that ended) must not take the page back from the one showing it.
+        guard webView.superview !== container, browser.isShown(tab) || browser.peek === tab else { return }
         container.subviews.forEach { $0.removeFromSuperview() }
         webView.frame = container.bounds
         webView.autoresizingMask = [.width, .height]
         container.addSubview(webView)
         DispatchQueue.main.async {
-            if browser.commandBar == nil, browser.showOnboarding == false { container.window?.makeFirstResponder(webView) }
+            let shown = tab.id == browser.activeID || browser.peek === tab
+            if shown, browser.commandBar == nil, browser.showOnboarding == false { container.window?.makeFirstResponder(webView) }
         }
     }
 }
@@ -1111,7 +1282,8 @@ struct CommandBar: View {
         if query.isEmpty || (mode == .editCurrent && query == browser.active?.url?.absoluteString) {
             return Library.shared.bookmarks().map { .page(url: $0.url, title: $0.title) }
         }
-        var list: [Suggestion] = [AddressInput.isAddress(query) ? .open(query) : .search(query), .ask(query)]
+        var list: [Suggestion] = [AddressInput.isAddress(query) ? .open(query) : .search(query)]
+        if !browser.isPrivate { list.append(.ask(query)) }
         list += Library.shared.search(query, limit: 6).map { .page(url: $0.url, title: $0.title) }
         return list
     }
@@ -1127,7 +1299,7 @@ struct CommandBar: View {
                     Image(systemName: mode == .editCurrent ? "link" : "magnifyingglass")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Theme.secondary)
-                    TextField("검색하거나 주소를 입력하거나, AI에게 물어보세요", text: $text)
+                    TextField(browser.isPrivate ? "검색하거나 주소를 입력하세요" : "검색하거나 주소를 입력하거나, AI에게 물어보세요", text: $text)
                         .textFieldStyle(.plain)
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(Theme.primary)

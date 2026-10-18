@@ -52,7 +52,7 @@ final class ChatStore: ObservableObject {
             return
         }
         var arguments = [
-            "-p", Self.contextLine(Browser.shared.active) + "\n\n" + message,
+            "-p", Self.contextLine(Browser.recent?.active) + "\n\n" + message,
             "--output-format", "stream-json", "--verbose", "--include-partial-messages",
             "--model", model,
             "--setting-sources", "",
@@ -436,7 +436,8 @@ struct ChatRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .environment(\.openURL, OpenURLAction { url in
                     guard url.scheme == "http" || url.scheme == "https" else { return .discarded }
-                    Browser.shared.openTab(url: url, after: Browser.shared.active)
+                    let browser = Browser.recent ?? BrowserWindow.open()
+                    browser.openTab(url: url, after: browser.active)
                     return .handled
                 })
         case .tool:

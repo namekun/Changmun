@@ -43,24 +43,28 @@ enum ToolCatalog {
     @MainActor
     /// `caller` tells apart the chat panel and each MCP connection: what one has read doesn't count for another.
     static func call(_ name: String, _ args: [String: Any], caller: String) async -> ToolResult {
-        let browser = Browser.shared
         if name == "list_tabs" {
+            guard let browser = Browser.recent else { return .text("No tabs are open.") }
             for tab in browser.tabs { Approvals.noteRead(tab, caller: caller) }
             return listTabs(browser)
         }
         if name == "open_tab" {
             guard let url = webURL(args["url"]) else { return .text("Give an http(s) URL, a domain, or search words.", error: true) }
             guard await Approvals.allowNavigation(url) else { return declined }
-            let tab = browser.openTab(url: url)
+            let tab = (Browser.recent ?? BrowserWindow.open()).openTab(url: url)
             defer { Approvals.noteRead(tab, caller: caller) }
             await waitForLoad(tab)
             return .text("Opened tab #\(tab.id): \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")")
         }
         if args["tab_id"] != nil && int(args["tab_id"]) == nil { return .text("tab_id must be a number.", error: true) }
-        guard let tab = browser.tab(int(args["tab_id"])) else {
+        // Tab ids are unique across windows: one listed earlier is found even after another window came to the front.
+        let tab = int(args["tab_id"]).map { id in Browser.all.lazy.filter { !$0.isPrivate }.compactMap { $0.tabs.first { $0.id == id } }.first }
+            ?? Browser.recent?.active
+        guard let tab, let browser = tab.browser else {
             return .text(args["tab_id"] == nil ? "No tab is open. Use open_tab first." : "No tab with that id.", error: true)
         }
-        if tab.id != browser.activeID && name != "close_tab" {
+        // Only the tab in front of the user goes without asking.
+        if (tab.id != browser.activeID || browser !== Browser.recent) && name != "close_tab" {
             guard await Approvals.allowTab(tab) else { return declined }
         }
         // Every answer below carries the tab's title, address or content.
@@ -255,7 +259,7 @@ enum Approvals {
     }
 
     private static func knownURL(_ address: String) -> Bool {
-        Browser.shared.tabs.contains { $0.url?.absoluteString == address } || Library.shared.knowsURL(address)
+        Browser.all.contains { !$0.isPrivate && $0.tabs.contains { $0.url?.absoluteString == address } } || Library.shared.knowsURL(address)
     }
 
     static func noteRead(_ tab: Tab, caller: String) {
@@ -283,7 +287,7 @@ enum Approvals {
 
     /// Asks on the browser window; no answer within `timeout` counts as no, so a late yes never runs a stale request.
     private static func ask(_ message: String, _ detail: String) async -> Bool {
-        guard let window = NSApp.windows.first(where: { $0 is BrowserWindow }) else { return false }
+        guard let window = Browser.recent?.window else { return false }
         let alert = NSAlert()
         alert.messageText = message
         alert.informativeText = detail

@@ -47,7 +47,8 @@ final class SitePermissions: ObservableObject {
         UserDefaults.standard.set(stored, forKey: "sitePermissions")
     }
 
-    func decide(host: String, type: WKMediaCaptureType) -> WKPermissionDecision {
+    /// `remember` false (a private window) never offers to keep the answer, which would record the site.
+    func decide(host: String, type: WKMediaCaptureType, remember: Bool = true) -> WKPermissionDecision {
         let devices: [Device] = switch type {
         case .camera: [.camera]
         case .microphone: [.microphone]
@@ -61,7 +62,7 @@ final class SitePermissions: ObservableObject {
         alert.messageText = "\(host)에서 \(devices.map(\.name).joined(separator: "와 "))를 쓰려고 해요"
         alert.addButton(withTitle: "차단")
         alert.addButton(withTitle: "허용")
-        alert.showsSuppressionButton = true
+        alert.showsSuppressionButton = remember
         alert.suppressionButton?.title = "이 사이트에서는 기억하기"
         let allowed = alert.runModal() == .alertSecondButtonReturn
         if alert.suppressionButton?.state == .on {

@@ -25,8 +25,8 @@ final class LinkHover: NSObject, WKScriptMessageHandler {
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         let href = message.body as? String ?? ""
         MainActor.assumeIsolated {
-            let browser = Browser.shared
-            guard message.webView === browser.active?.webView else { return }
+            guard let browser = Browser.all.first(where: { browser in browser.tabs.contains { $0.webView === message.webView && browser.isShown($0) } })
+            else { return }
             browser.hoveredLink = href.isEmpty || href.hasPrefix("javascript:") ? nil : href
         }
     }

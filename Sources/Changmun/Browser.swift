@@ -6,10 +6,43 @@ enum CommandBarMode: Equatable {
     case editCurrent
 }
 
-/// The window's tabs, which one is shown, and the panels around it.
+/// One window's tabs, which one is shown, and the panels around it.
 @MainActor
 final class Browser: ObservableObject {
-    static let shared = Browser()
+    /// Every open window's browser, the one focused last first.
+    private(set) static var all: [Browser] = []
+    /// The window in front, which menu commands act on.
+    static var current: Browser? { all.first }
+    /// The window the AI and extensions work in: never a private one.
+    static var recent: Browser? { all.first { !$0.isPrivate } }
+
+    /// A private window keeps no history, session, cookies or site data once it closes, and the AI and extensions can't see it.
+    let isPrivate: Bool
+    let configuration: WKWebViewConfiguration
+    weak var window: NSWindow?
+
+    init(isPrivate: Bool = false) {
+        self.isPrivate = isPrivate
+        configuration = isPrivate ? Self.makeConfiguration(store: .nonPersistent(), extensions: false) : Self.configuration
+    }
+
+    func focused() {
+        Self.all.removeAll { $0 === self }
+        Self.all.insert(self, at: 0)
+    }
+
+    /// The window closed: its tabs give up their pages and the browser stops being one of `all`.
+    func windowClosed() {
+        Self.all.removeAll { $0 === self }
+        sleepTimer?.invalidate()
+        memoryPressure?.cancel()
+        closePeek()
+        for tab in tabs {
+            if #available(macOS 15.4, *) { ExtensionHost.shared.tabClosed(tab) }
+            tab.sleep()
+        }
+        if #available(macOS 15.4, *) { ExtensionHost.shared.windowClosed(self) }
+    }
 
     @Published private(set) var tabs: [Tab] = []
     @Published private(set) var activeID: Int?
@@ -17,13 +50,18 @@ final class Browser: ObservableObject {
     @Published var showSidebar = UserDefaults.standard.object(forKey: "showSidebar") as? Bool ?? true {
         didSet { UserDefaults.standard.set(showSidebar, forKey: "showSidebar") }
     }
-    @Published var commandBar: CommandBarMode?
+    @Published var commandBar: CommandBarMode? {
+        didSet { if commandBar != nil { closePeek() } }
+    }
     @Published var showOnboarding = false
     /// Bumped to put the cursor in the address bar on top (⌘L).
     @Published var addressFocusRequest = 0
-    var favicons: [String: NSImage] = [:]
-    private var missingIcons = Set<String>()
-    private var nextID = 1
+    static var favicons: [String: NSImage] = [:]
+    /// For a private window's requests: no disk cache, no shared cookies.
+    static let ephemeral = URLSession(configuration: .ephemeral)
+    private static var missingIcons = Set<String>()
+    /// Tab ids are unique across windows: the AI's approvals remember tabs by id.
+    private static var nextID = 1
     /// The tab shown before the current one: closing the current tab goes back to it, as in Safari and Chrome.
     private(set) var previousActiveID: Int?
     private var sleepTimer: Timer?
@@ -52,9 +90,11 @@ final class Browser: ObservableObject {
     /// Bumped to put the cursor in the find bar (⌘F while it is open).
     @Published var findFocusRequest = 0
 
-    static let configuration: WKWebViewConfiguration = {
+    static let configuration = makeConfiguration(store: .default(), extensions: true)
+
+    private static func makeConfiguration(store: WKWebsiteDataStore, extensions: Bool) -> WKWebViewConfiguration {
         let config = WKWebViewConfiguration()
-        config.websiteDataStore = .default()
+        config.websiteDataStore = store
         config.preferences.isElementFullscreenEnabled = true
         config.preferences.javaScriptCanOpenWindowsAutomatically = false
         config.applicationNameForUserAgent = "Version/\(safariVersion) Safari/605.1.15"
@@ -64,9 +104,26 @@ final class Browser: ObservableObject {
             config.preferences.setValue(true, forKey: "developerExtrasEnabled")
         }
         LinkHover.install(in: config.userContentController)
-        if #available(macOS 15.4, *) { config.webExtensionController = ExtensionHost.shared.controller }
+        AdBlocker.shared.attach(config.userContentController)
+        if extensions, #available(macOS 15.4, *) { config.webExtensionController = ExtensionHost.shared.controller }
         return config
-    }()
+    }
+
+    /// Two tabs side by side. It shows while either of them is the active tab; showing another tab hides it, and
+    /// closing either one ends it.
+    struct Split: Equatable {
+        var left: Int
+        var right: Int
+        func contains(_ id: Int?) -> Bool { id == left || id == right }
+    }
+
+    @Published private(set) var split: Split?
+    /// The left pane's share of the width.
+    @Published var splitFraction = 0.5
+    var shownSplit: Split? { split?.contains(activeID) == true ? split : nil }
+
+    /// A link opened with ⇧-click, floating over the page until it is closed or kept as a tab (Arc's Peek).
+    @Published private(set) var peek: Tab?
 
     /// The link under the pointer in the shown tab, for the status line at the bottom of the page.
     @Published var hoveredLink: String?
@@ -96,7 +153,7 @@ final class Browser: ObservableObject {
 
     @discardableResult
     func openTab(url: URL?, activate: Bool = true, after: Tab? = nil) -> Tab {
-        let tab = Tab(id: takeID(), url: url, browser: self)
+        let tab = Tab(id: Self.takeID(), url: url, browser: self)
         insert(tab, after: after)
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
         if activate {
@@ -107,7 +164,7 @@ final class Browser: ObservableObject {
     }
 
     func openTab(configuration: WKWebViewConfiguration, after: Tab?) -> Tab {
-        let tab = Tab(id: takeID(), configuration: configuration, browser: self)
+        let tab = Tab(id: Self.takeID(), configuration: configuration, browser: self)
         insert(tab, after: after)
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
         activate(tab.id)
@@ -122,14 +179,66 @@ final class Browser: ObservableObject {
         if let previous, previous !== tab { previousActiveID = previous.id }
         active?.lastShown = Date()
         activeID = id
+        closePeek()
         tab.lastShown = Date()
         tab.wake()
+        if let split = shownSplit {
+            for half in [split.left, split.right] { self.tab(half)?.wake() }
+        }
         if #available(macOS 15.4, *), previous !== tab { ExtensionHost.shared.tabActivated(tab, previous: previous) }
+    }
+
+    /// Whether the tab is on screen: the active one, or the other half of the split.
+    func isShown(_ tab: Tab) -> Bool { tab.id == activeID || shownSplit?.contains(tab.id) == true }
+
+    // MARK: Split view
+
+    /// Shows `id` to the right of the active tab.
+    func split(with id: Int) {
+        guard let activeID, id != activeID, tab(id) != nil else { return }
+        split = Split(left: activeID, right: id)
+        splitFraction = 0.5
+        tab(id)?.wake()
+    }
+
+    func unsplit() { split = nil }
+
+    nonisolated static func clampedSplitFraction(_ fraction: Double) -> Double { min(max(fraction, 0.2), 0.8) }
+
+    /// The split for the menu command: the active tab and the one shown before it.
+    func toggleSplit() {
+        if shownSplit != nil { return unsplit() }
+        guard let back = previousActiveID, tab(back) != nil else { return NSSound.beep() }
+        split(with: back)
+    }
+
+    // MARK: Peek
+
+    func openPeek(_ url: URL) {
+        peek?.sleep()
+        let tab = Tab(id: Self.takeID(), url: url, browser: self)
+        peek = tab
+        tab.wake()
+    }
+
+    func closePeek() {
+        peek?.sleep()
+        peek = nil
+    }
+
+    /// Keeps the peeked page as a tab after the shown one, as it is now (not loaded again).
+    func keepPeek() {
+        guard let tab = peek else { return }
+        peek = nil
+        insert(tab, after: active)
+        if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
+        activate(tab.id)
     }
 
     func close(_ id: Int) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         let closing = tabs.remove(at: index)
+        if split?.contains(id) == true { split = nil }
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabClosed(closing) }
         closedTabs.append(ClosedTab(url: closing.url, title: closing.title, state: closing.sessionState, index: index, bookmarkKey: closing.bookmarkKey))
         if closedTabs.count > 25 { closedTabs.removeFirst() }
@@ -150,7 +259,7 @@ final class Browser: ObservableObject {
     /// Brings back the last closed tab where it was, with its back/forward history.
     func reopenClosedTab() {
         guard let closed = closedTabs.popLast() else { return }
-        let tab = Tab(id: takeID(), url: closed.url, title: closed.title, state: closed.state, browser: self)
+        let tab = Tab(id: Self.takeID(), url: closed.url, title: closed.title, state: closed.state, browser: self)
         if let key = closed.bookmarkKey, bookmarkTab(key) == nil { tab.bookmarkKey = key }
         tabs.insert(tab, at: min(closed.index, tabs.count))
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
@@ -253,7 +362,7 @@ final class Browser: ObservableObject {
         if let open = bookmarkTab(key) {
             activate(open.id)
         } else {
-            let tab = Tab(id: takeID(), url: url, browser: self)
+            let tab = Tab(id: Self.takeID(), url: url, browser: self)
             tab.bookmarkKey = key
             tabs.append(tab)
             if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
@@ -280,14 +389,15 @@ final class Browser: ObservableObject {
 
     // MARK: Icons
 
-    private var iconFolder: URL {
+    private static var iconFolder: URL {
         let url = Library.folder.appendingPathComponent("icons", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }
 
     /// A site's icon for a page that may not be open, cached on disk by host.
-    func icon(for address: String) async -> NSImage? {
+    /// `keep` false (a private window's page) leaves no trace on disk.
+    static func icon(for address: String, keep: Bool = true) async -> NSImage? {
         guard let url = URL(string: address), let host = url.host(), let scheme = url.scheme, scheme.hasPrefix("http") else { return nil }
         if let cached = favicons[host] { return cached }
         if missingIcons.contains(host) { return nil }
@@ -303,21 +413,21 @@ final class Browser: ObservableObject {
         components.path = "/favicon.ico"
         missingIcons.insert(host)
         guard let iconURL = components.url,
-              let (data, response) = try? await URLSession.shared.data(from: iconURL),
+              let (data, response) = try? await (keep ? URLSession.shared : ephemeral).data(from: iconURL),
               (response as? HTTPURLResponse)?.statusCode == 200,
               let image = NSImage(data: data), image.isValid else { return nil }
         missingIcons.remove(host)
         favicons[host] = image
-        storeIcon(image, host: host)
+        if keep { storeIcon(image, host: host) }
         return image
     }
 
-    func storeIcon(_ image: NSImage, host: String) {
+    static func storeIcon(_ image: NSImage, host: String) {
         guard let tiff = image.tiffRepresentation, let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: iconFolder.appendingPathComponent(host + ".png"))
     }
 
-    private func takeID() -> Int {
+    private static func takeID() -> Int {
         defer { nextID += 1 }
         return nextID
     }
@@ -350,12 +460,12 @@ final class Browser: ObservableObject {
     func sleepIdleTabs(olderThan age: TimeInterval) {
         let now = Date()
         let neverSleep = Preferences.shared.neverSleepHosts
-        for tab in tabs where tab.id != activeID && now.timeIntervalSince(tab.lastShown) >= age
+        for tab in tabs where !isShown(tab) && now.timeIntervalSince(tab.lastShown) >= age
             && Preferences.canSleep(host: tab.url?.host(), neverSleep: neverSleep) {
             guard let webView = tab.webView, webView.cameraCaptureState == .none, webView.microphoneCaptureState == .none else { continue }
             webView.requestMediaPlaybackState { [weak self, weak tab] state in
                 Task { @MainActor in
-                    guard let self, let tab, tab.id != self.activeID, state != .playing else { return }
+                    guard let self, let tab, !self.isShown(tab), state != .playing else { return }
                     tab.sleep()
                 }
             }
@@ -364,44 +474,61 @@ final class Browser: ObservableObject {
 
     // MARK: Session
 
-    private struct SavedTab: Codable {
+    struct SavedTab: Codable {
         var url: String?
         var title: String
         var state: Data?
         var bookmarkKey: String?
     }
 
-    private struct SavedSession: Codable {
+    struct SavedSession: Codable {
         var tabs: [SavedTab]
         var active: Int?
         var previous: Int?
     }
 
-    private var sessionFile: URL { Library.folder.appendingPathComponent("session.json") }
+    /// The open windows, the one in front last. Older versions saved one window as a bare `SavedSession`.
+    struct SavedWindows: Codable {
+        var windows: [SavedSession]
 
-    func saveSession() {
-        let saved = SavedSession(
+        static func decode(_ data: Data) -> [SavedSession] {
+            if let saved = try? JSONDecoder().decode(SavedWindows.self, from: data) { return saved.windows }
+            if let single = try? JSONDecoder().decode(SavedSession.self, from: data) { return [single] }
+            return []
+        }
+    }
+
+    private static var sessionFile: URL { Library.folder.appendingPathComponent("session.json") }
+
+    var savedSession: SavedSession {
+        SavedSession(
             tabs: tabs.map { SavedTab(url: $0.url?.absoluteString, title: $0.title, state: $0.sessionState, bookmarkKey: $0.bookmarkKey) },
             active: tabs.firstIndex { $0.id == activeID },
             previous: tabs.firstIndex { $0.id == previousActiveID }
         )
-        try? JSONEncoder().encode(saved).write(to: sessionFile, options: .atomic)
     }
 
-    /// Restores the last session asleep, apart from the tab that was shown.
-    func restoreSession() {
-        guard Preferences.shared.restoreTabs,
-              let data = try? Data(contentsOf: sessionFile),
-              let saved = try? JSONDecoder().decode(SavedSession.self, from: data),
-              !saved.tabs.isEmpty else {
-            commandBar = .newTab
-            return
-        }
+    /// Writes the ordinary windows; with none open (the last one just closed and saved itself) it leaves the file alone.
+    static func saveSession(_ browsers: [Browser]? = nil) {
+        let normal = (browsers ?? all).filter { !$0.isPrivate }
+        guard !normal.isEmpty else { return }
+        let windows = normal.reversed().map(\.savedSession).filter { !$0.tabs.isEmpty }
+        try? JSONEncoder().encode(SavedWindows(windows: windows)).write(to: sessionFile, options: .atomic)
+    }
+
+    static func savedWindows() -> [SavedSession] {
+        guard Preferences.shared.restoreTabs, let data = try? Data(contentsOf: sessionFile) else { return [] }
+        return SavedWindows.decode(data).filter { !$0.tabs.isEmpty }
+    }
+
+    /// Restores a saved window asleep, apart from the tab that was shown.
+    func restore(_ saved: SavedSession) {
         for item in saved.tabs {
-            let tab = Tab(id: takeID(), url: item.url.flatMap(URL.init(string:)), title: item.title, state: item.state, browser: self)
+            let tab = Tab(id: Self.takeID(), url: item.url.flatMap(URL.init(string:)), title: item.title, state: item.state, browser: self)
             tab.bookmarkKey = item.bookmarkKey
             tabs.append(tab)
         }
+        guard !tabs.isEmpty else { return }
         activate(tabs[min(saved.active ?? 0, tabs.count - 1)].id)
         if let previous = saved.previous, tabs.indices.contains(previous) { previousActiveID = tabs[previous].id }
     }

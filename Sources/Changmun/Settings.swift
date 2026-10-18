@@ -65,8 +65,9 @@ struct GeneralSettings: View {
                 }
                 LabeledContent("다른 브라우저") {
                     Button("북마크·기록·비밀번호 가져오기…") {
-                        Browser.shared.showOnboarding = true
-                        NSApp.windows.first { $0 is BrowserWindow }?.makeKeyAndOrderFront(nil)
+                        let browser = Browser.recent ?? BrowserWindow.open()
+                        browser.showOnboarding = true
+                        browser.window?.makeKeyAndOrderFront(nil)
                     }
                 }
             }
@@ -142,7 +143,7 @@ struct LooksSettings: View {
                     TextField("예: music.youtube.com", text: $newHost)
                         .onSubmit(addHost)
                     Button("추가", action: addHost).disabled(newHost.trimmingCharacters(in: .whitespaces).isEmpty)
-                    if let current = Browser.shared.active?.url?.host(), !prefs.neverSleepHosts.contains(current) {
+                    if let current = Browser.recent?.active?.url?.host(), !prefs.neverSleepHosts.contains(current) {
                         Button("지금 사이트") { prefs.neverSleepHosts.append(current) }
                     }
                 }

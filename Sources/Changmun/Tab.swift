@@ -20,9 +20,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var lastShown = Date()
     private var savedState: Data?
     private var observations: [NSKeyValueObservation] = []
-    private weak var browser: Browser?
+    private(set) weak var browser: Browser?
 
     var isAsleep: Bool { webView == nil }
+    var isPrivate: Bool { browser?.isPrivate == true }
 
     init(id: Int, url: URL?, title: String = "", state: Data? = nil, browser: Browser) {
         self.id = id
@@ -51,7 +52,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     func wake() -> WKWebView {
         lastShown = Date()
         if let webView { return webView }
-        let view = WKWebView(frame: .zero, configuration: Browser.configuration)
+        let view = WKWebView(frame: .zero, configuration: browser?.configuration ?? Browser.configuration)
         attach(view)
         if let savedState {
             view.interactionState = savedState as NSData
@@ -129,18 +130,18 @@ final class Tab: NSObject, ObservableObject, Identifiable {
 
     private func loadFavicon() {
         guard let webView, let host = webView.url?.host() else { return }
-        if let cached = browser?.favicons[host] { favicon = cached; return }
+        if let cached = Browser.favicons[host] { favicon = cached; return }
         let script = """
         (() => { const l = document.querySelector('link[rel~="icon"][sizes="32x32"], link[rel~="icon"], link[rel="apple-touch-icon"]');
           return l ? l.href : location.origin + '/favicon.ico'; })()
         """
         webView.evaluateJavaScript(script) { [weak self] value, _ in
             guard let href = value as? String, let iconURL = URL(string: href), ["http", "https"].contains(iconURL.scheme ?? "") else { return }
-            URLSession.shared.dataTask(with: iconURL) { data, _, _ in
+            (self?.isPrivate == true ? Browser.ephemeral : URLSession.shared).dataTask(with: iconURL) { data, _, _ in
                 guard let data, let image = NSImage(data: data), image.isValid else { return }
                 Task { @MainActor in
-                    self?.browser?.favicons[host] = image
-                    self?.browser?.storeIcon(image, host: host)
+                    Browser.favicons[host] = image
+                    if self?.isPrivate == false { Browser.storeIcon(image, host: host) }
                     if self?.url?.host() == host { self?.favicon = image }
                 }
             }.resume()
@@ -166,7 +167,18 @@ extension Tab: WKNavigationDelegate {
             browser?.openTab(url: url, activate: action.modifierFlags.contains(.shift), after: self)
             return (.cancel, preferences)
         }
+        if Self.isPeekClick(action), let url = action.request.url {
+            browser?.openPeek(url)
+            return (.cancel, preferences)
+        }
         return (.allow, preferences)
+    }
+
+    /// ⇧-click on a link (without ⌘) opens it in the peek.
+    static func isPeekClick(_ action: WKNavigationAction) -> Bool {
+        action.navigationType == .linkActivated && action.buttonNumber != 2
+            && ["http", "https"].contains(action.request.url?.scheme?.lowercased() ?? "")
+            && action.modifierFlags.contains(.shift) && !action.modifierFlags.contains(.command)
     }
 
     /// Schemes that mount servers, run commands or change settings: a page never gets to launch these.
@@ -198,12 +210,12 @@ extension Tab: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         if webView.url?.isFileURL != true { userFileLoad = nil }
-        if let host = webView.url?.host(), let cached = browser?.favicons[host] { favicon = cached }
+        if let host = webView.url?.host(), let cached = Browser.favicons[host] { favicon = cached }
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         loadFavicon()
-        if let url = webView.url?.absoluteString { Library.shared.recordVisit(url: url, title: webView.title ?? "") }
+        if !isPrivate, let url = webView.url?.absoluteString { Library.shared.recordVisit(url: url, title: webView.title ?? "") }
         checkForLogins()
     }
 
@@ -253,16 +265,20 @@ extension Tab: WKNavigationDelegate {
 
 extension Tab: WKUIDelegate {
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        browser?.openTab(configuration: configuration, after: self).webView
+        if Self.isPeekClick(action), let url = action.request.url {
+            browser?.openPeek(url)
+            return nil
+        }
+        return browser?.openTab(configuration: configuration, after: self).webView
     }
 
     func webView(_ webView: WKWebView, decideMediaCapturePermissionsFor origin: WKSecurityOrigin, initiatedBy frame: WKFrameInfo,
                  type: WKMediaCaptureType) async -> WKPermissionDecision {
-        SitePermissions.shared.decide(host: origin.host, type: type)
+        SitePermissions.shared.decide(host: origin.host, type: type, remember: !isPrivate)
     }
 
     func webViewDidClose(_ webView: WKWebView) {
-        browser?.close(id)
+        if browser?.peek === self { browser?.closePeek() } else { browser?.close(id) }
     }
 
     func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo) async {

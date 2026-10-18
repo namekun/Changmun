@@ -175,6 +175,14 @@ final class AdBlocker: ObservableObject {
     @Published private(set) var lastUpdated: Date? = UserDefaults.standard.object(forKey: "filtersUpdated") as? Date
 
     private var applied: [WKContentRuleList] = []
+    /// The ordinary configuration's and each private window's; a private window's goes when the window does.
+    private let controllers = NSHashTable<WKUserContentController>.weakObjects()
+
+    /// Rules apply to every page loaded with this controller, now and after each rebuild.
+    func attach(_ controller: WKUserContentController) {
+        controllers.add(controller)
+        for list in applied { controller.add(list) }
+    }
 
     static var folder: URL {
         let url = Library.folder.appendingPathComponent("filters", isDirectory: true)
@@ -281,14 +289,16 @@ final class AdBlocker: ObservableObject {
 
     private func install(_ lists: [WKContentRuleList]) {
         remove()
-        let controller = Browser.configuration.userContentController
-        for list in lists { controller.add(list) }
+        for controller in controllers.allObjects {
+            for list in lists { controller.add(list) }
+        }
         applied = lists
     }
 
     private func remove() {
-        let controller = Browser.configuration.userContentController
-        for list in applied { controller.remove(list) }
+        for controller in controllers.allObjects {
+            for list in applied { controller.remove(list) }
+        }
         applied = []
     }
 
