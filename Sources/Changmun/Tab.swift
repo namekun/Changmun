@@ -195,10 +195,11 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         webView.callAsyncJavaScript(Self.pictureInPictureScript, arguments: ["mode": mode.rawValue], in: nil, in: .defaultClient) { _ in }
     }
 
-    /// A video that comes back from picture in picture still playing came back with its "back to tab" button: its tab
-    /// and window come to the front, as in Safari. (Closing the floating window pauses it, and stays put.)
+    /// A video that comes back from picture in picture still playing, just after a click, came back with its "back to
+    /// tab" button: its tab and window come to the front, as in Safari. Closing the floating window pauses it and stays
+    /// put; a page ending picture in picture by itself has no click behind it and moves nothing.
     func pictureInPictureChanged(floating: Bool, playing: Bool) {
-        let returned = isInPictureInPicture && !floating && playing
+        let returned = isInPictureInPicture && !floating && playing && PictureInPictureKeys.clickedJustNow
         isInPictureInPicture = floating
         guard returned, let browser, browser.peek !== self, !browser.isShown(self) || !NSApp.isActive else { return }
         browser.activate(id)
