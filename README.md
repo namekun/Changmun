@@ -23,9 +23,19 @@
 
 *Changmun* (창문) is Korean for *window*. It's free, open source, and has no account or tracking. The app speaks English, Korean, Japanese, Simplified Chinese, Spanish, German and French.
 
-## Build and run
+## Install
 
-There's no download yet; build it from source. You need macOS 14 or later and Xcode or the Command Line Tools.
+```sh
+brew install --cask namekun/tap/changmun
+```
+
+Needs [Homebrew](https://brew.sh), macOS 14 Sonoma or later and an Apple silicon Mac. Homebrew clears the quarantine flag, so the app opens right away. To update, run `brew update && brew upgrade --cask changmun`.
+
+On first launch Changmun offers to bring over bookmarks, history, passwords and sign-ins from the browser you use now.
+
+### Build from source
+
+You need macOS 14 or later and Xcode or the Command Line Tools.
 
 ```sh
 git clone https://github.com/namekun/Changmun.git
@@ -35,8 +45,6 @@ open build/Changmun.app
 ```
 
 With only the Command Line Tools installed, the scripts build against the macOS 26 SDK (the macOS 27 SDK's SwiftUI macro plugin ships only with Xcode). Build products go to `~/Library/Caches/Changmun/build`, out of reach of iCloud Desktop syncing.
-
-On first launch Changmun offers to bring over bookmarks, history, passwords and sign-ins from the browser you use now.
 
 ## What it does
 
@@ -140,6 +148,7 @@ On first launch, or from the menu, Changmun imports bookmarks and history from S
 scripts/test.sh            # unit tests (Swift Testing)
 scripts/check-strings.sh   # every string the code uses is translated in every language
 swift scripts/make-icon.swift
+scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
 ```
 
 UI text is English in the code and translated in `Resources/<language>.lproj/Localizable.strings`; add every new string to all six tables.

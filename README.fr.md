@@ -23,9 +23,19 @@
 
 *Changmun* (창문) signifie *fenêtre* en coréen. Le navigateur est gratuit et open source, sans compte ni suivi. L’app est disponible en anglais, coréen, japonais, chinois simplifié, espagnol, allemand et français.
 
-## Compiler et lancer
+## Installer
 
-Il n’y a pas encore de téléchargement : compilez l’app à partir des sources. Il vous faut macOS 14 ou ultérieur, ainsi que Xcode ou les Command Line Tools.
+```sh
+brew install --cask namekun/tap/changmun
+```
+
+Il vous faut [Homebrew](https://brew.sh), macOS 14 Sonoma ou ultérieur et un Mac avec puce Apple. Homebrew retire l’attribut de quarantaine, l’app s’ouvre donc directement. Pour mettre à jour, lancez `brew update && brew upgrade --cask changmun`.
+
+Au premier lancement, Changmun propose d’importer les signets, l’historique, les mots de passe et les sessions ouvertes du navigateur que vous utilisez actuellement.
+
+### Compiler à partir des sources
+
+Il vous faut macOS 14 ou ultérieur, ainsi que Xcode ou les Command Line Tools.
 
 ```sh
 git clone https://github.com/namekun/Changmun.git
@@ -35,8 +45,6 @@ open build/Changmun.app
 ```
 
 Si seuls les Command Line Tools sont installés, les scripts compilent avec le SDK de macOS 26 (le plugin de macros SwiftUI du SDK de macOS 27 n’est fourni qu’avec Xcode). Les produits de compilation vont dans `~/Library/Caches/Changmun/build`, à l’abri de la synchronisation du Bureau par iCloud.
-
-Au premier lancement, Changmun propose d’importer les signets, l’historique, les mots de passe et les sessions ouvertes du navigateur que vous utilisez actuellement.
 
 ## Fonctionnalités
 
@@ -140,6 +148,7 @@ Au premier lancement, ou depuis le menu, Changmun importe les signets et l’his
 scripts/test.sh            # unit tests (Swift Testing)
 scripts/check-strings.sh   # every string the code uses is translated in every language
 swift scripts/make-icon.swift
+scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
 ```
 
 Le texte de l’interface est en anglais dans le code et traduit dans `Resources/<language>.lproj/Localizable.strings` ; ajoutez chaque nouvelle chaîne aux six tables.

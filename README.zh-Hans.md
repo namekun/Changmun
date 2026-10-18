@@ -23,9 +23,19 @@
 
 *Changmun*（창문）在韩语中是“窗户”的意思。它免费、开源，无需账号，也不做任何追踪。App 支持英语、韩语、日语、简体中文、西班牙语、德语和法语。
 
-## 构建与运行
+## 安装
 
-目前还没有下载包，需要从源码构建。你需要 macOS 14 或更高版本，以及 Xcode 或命令行工具。
+```sh
+brew install --cask namekun/tap/changmun
+```
+
+需要 [Homebrew](https://brew.sh)、macOS 14 Sonoma 或更高版本，以及搭载 Apple 芯片的 Mac。Homebrew 会清除隔离标记，所以 App 可以直接打开。更新时运行 `brew update && brew upgrade --cask changmun`。
+
+首次启动时，Changmun 会询问是否从你现在使用的浏览器导入书签、历史记录、密码和登录状态。
+
+### 从源码构建
+
+你需要 macOS 14 或更高版本，以及 Xcode 或命令行工具。
 
 ```sh
 git clone https://github.com/namekun/Changmun.git
@@ -35,8 +45,6 @@ open build/Changmun.app
 ```
 
 如果只安装了命令行工具，脚本会使用 macOS 26 SDK 进行构建（macOS 27 SDK 的 SwiftUI 宏插件只随 Xcode 提供）。构建产物会放在 `~/Library/Caches/Changmun/build`，避开 iCloud 桌面同步。
-
-首次启动时，Changmun 会询问是否从你现在使用的浏览器导入书签、历史记录、密码和登录状态。
 
 ## 功能一览
 
@@ -140,6 +148,7 @@ Changmun 会把 EasyList（广告）和 EasyPrivacy（跟踪器）转换为 WebK
 scripts/test.sh            # unit tests (Swift Testing)
 scripts/check-strings.sh   # every string the code uses is translated in every language
 swift scripts/make-icon.swift
+scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
 ```
 
 界面文本在代码中是英文，翻译放在 `Resources/<language>.lproj/Localizable.strings` 中；新增的每条字符串都要加进全部六个表。

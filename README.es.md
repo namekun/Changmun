@@ -23,9 +23,19 @@
 
 *Changmun* (창문) significa *ventana* en coreano. Es gratuito, de código abierto y no tiene cuentas ni rastreo. La app está disponible en inglés, coreano, japonés, chino simplificado, español, alemán y francés.
 
-## Compilar y ejecutar
+## Instalar
 
-Todavía no hay descarga; compílalo desde el código fuente. Necesitas macOS 14 o posterior y Xcode o las Command Line Tools.
+```sh
+brew install --cask namekun/tap/changmun
+```
+
+Necesitas [Homebrew](https://brew.sh), macOS 14 Sonoma o posterior y un Mac con Apple silicon. Homebrew quita la marca de cuarentena, así que la app se abre directamente. Para actualizar, ejecuta `brew update && brew upgrade --cask changmun`.
+
+En el primer arranque, Changmun te ofrece traer los marcadores, el historial, las contraseñas y los inicios de sesión del navegador que usas ahora.
+
+### Compilar desde el código fuente
+
+Necesitas macOS 14 o posterior y Xcode o las Command Line Tools.
 
 ```sh
 git clone https://github.com/namekun/Changmun.git
@@ -35,8 +45,6 @@ open build/Changmun.app
 ```
 
 Si solo tienes instaladas las Command Line Tools, los scripts compilan con el SDK de macOS 26 (el plugin de macros de SwiftUI del SDK de macOS 27 solo viene con Xcode). Los productos de la compilación van a `~/Library/Caches/Changmun/build`, fuera del alcance de la sincronización del Escritorio con iCloud.
-
-En el primer arranque, Changmun te ofrece traer los marcadores, el historial, las contraseñas y los inicios de sesión del navegador que usas ahora.
 
 ## Qué hace
 
@@ -140,6 +148,7 @@ En el primer arranque, o desde el menú, Changmun importa marcadores e historial
 scripts/test.sh            # unit tests (Swift Testing)
 scripts/check-strings.sh   # every string the code uses is translated in every language
 swift scripts/make-icon.swift
+scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
 ```
 
 El texto de la interfaz está en inglés en el código y traducido en `Resources/<language>.lproj/Localizable.strings`; añade cada cadena nueva a las seis tablas.

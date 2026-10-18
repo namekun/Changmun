@@ -23,9 +23,19 @@
 
 *Changmun* (창문) ist Koreanisch für *Fenster*. Der Browser ist kostenlos und Open Source, braucht kein Konto und trackt nichts. Die App spricht Englisch, Koreanisch, Japanisch, vereinfachtes Chinesisch, Spanisch, Deutsch und Französisch.
 
-## Bauen und starten
+## Installieren
 
-Es gibt noch keinen Download; du baust den Browser aus dem Quellcode. Du brauchst macOS 14 oder neuer sowie Xcode oder die Command Line Tools.
+```sh
+brew install --cask namekun/tap/changmun
+```
+
+Du brauchst [Homebrew](https://brew.sh), macOS 14 Sonoma oder neuer und einen Mac mit Apple Chip. Homebrew entfernt die Quarantäne-Markierung, sodass sich die App sofort öffnet. Aktualisieren mit `brew update && brew upgrade --cask changmun`.
+
+Beim ersten Start bietet Changmun an, Lesezeichen, Verlauf, Passwörter und Anmeldungen aus deinem bisherigen Browser zu übernehmen.
+
+### Aus dem Quellcode bauen
+
+Du brauchst macOS 14 oder neuer sowie Xcode oder die Command Line Tools.
 
 ```sh
 git clone https://github.com/namekun/Changmun.git
@@ -35,8 +45,6 @@ open build/Changmun.app
 ```
 
 Sind nur die Command Line Tools installiert, bauen die Skripte gegen das macOS-26-SDK (das SwiftUI-Makro-Plug-in des macOS-27-SDK gibt es nur mit Xcode). Die Build-Produkte landen in `~/Library/Caches/Changmun/build`, außerhalb der Reichweite der iCloud-Synchronisierung des Schreibtischs.
-
-Beim ersten Start bietet Changmun an, Lesezeichen, Verlauf, Passwörter und Anmeldungen aus deinem bisherigen Browser zu übernehmen.
 
 ## Was er kann
 
@@ -140,6 +148,7 @@ Beim ersten Start oder über das Menü importiert Changmun Lesezeichen und Verla
 scripts/test.sh            # unit tests (Swift Testing)
 scripts/check-strings.sh   # every string the code uses is translated in every language
 swift scripts/make-icon.swift
+scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
 ```
 
 Der Text der Oberfläche steht im Code auf Englisch und wird in `Resources/<Sprache>.lproj/Localizable.strings` übersetzt; trage jeden neuen String in alle sechs Tabellen ein.

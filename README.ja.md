@@ -23,9 +23,19 @@
 
 *Changmun* (창문) は韓国語で「窓」を意味します。無料のオープンソースで、アカウントもトラッキングもありません。アプリは英語、韓国語、日本語、簡体字中国語、スペイン語、ドイツ語、フランス語に対応しています。
 
-## ビルドと実行
+## インストール
 
-まだダウンロード版はありません。ソースからビルドしてください。macOS 14以降と、XcodeまたはCommand Line Toolsが必要です。
+```sh
+brew install --cask namekun/tap/changmun
+```
+
+[Homebrew](https://brew.sh)、macOS 14 Sonoma以降、Appleシリコン搭載のMacが必要です。Homebrewが検疫フラグを外すので、アプリはすぐに開きます。アップデートは`brew update && brew upgrade --cask changmun`で行います。
+
+初回起動時に、いま使っているブラウザからブックマーク、履歴、パスワード、ログイン状態を読み込むかどうかを確認します。
+
+### ソースからビルド
+
+macOS 14以降と、XcodeまたはCommand Line Toolsが必要です。
 
 ```sh
 git clone https://github.com/namekun/Changmun.git
@@ -35,8 +45,6 @@ open build/Changmun.app
 ```
 
 Command Line Toolsだけがインストールされている場合、スクリプトはmacOS 26 SDKでビルドします (macOS 27 SDKのSwiftUIマクロプラグインはXcodeにしか含まれていません)。ビルド成果物はiCloudのデスクトップ同期の影響を受けないよう、`~/Library/Caches/Changmun/build`に出力されます。
-
-初回起動時に、いま使っているブラウザからブックマーク、履歴、パスワード、ログイン状態を読み込むかどうかを確認します。
 
 ## 主な機能
 
@@ -140,6 +148,7 @@ ChangmunはEasyList (広告) とEasyPrivacy (トラッカー) をWebKitのコン
 scripts/test.sh            # unit tests (Swift Testing)
 scripts/check-strings.sh   # every string the code uses is translated in every language
 swift scripts/make-icon.swift
+scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
 ```
 
 UIのテキストはコード内では英語で、`Resources/<language>.lproj/Localizable.strings`で翻訳されます。新しい文字列は6つの表すべてに追加してください。

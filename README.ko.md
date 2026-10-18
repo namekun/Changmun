@@ -23,9 +23,19 @@
 
 *Changmun*(창문)은 *window*를 뜻하는 우리말이다. 무료 오픈 소스이고, 계정도 추적도 없다. 앱은 영어, 한국어, 일본어, 중국어 간체, 스페인어, 독일어, 프랑스어로 쓸 수 있다.
 
-## 빌드와 실행
+## 설치
 
-아직 내려받을 파일은 없고 소스에서 빌드해야 한다. macOS 14 이상과 Xcode 또는 Command Line Tools가 필요하다.
+```sh
+brew install --cask namekun/tap/changmun
+```
+
+[Homebrew](https://brew.sh)가 필요하고, macOS 14 Sonoma 이상의 Apple 실리콘 Mac에서 돌아간다. Homebrew가 격리 표시를 지워 주므로 앱이 바로 열린다. 업데이트는 `brew update && brew upgrade --cask changmun`.
+
+처음 실행하면 지금 쓰는 브라우저의 북마크, 방문 기록, 비밀번호, 로그인 상태를 가져올지 묻는다.
+
+### 소스에서 빌드
+
+macOS 14 이상과 Xcode 또는 Command Line Tools가 필요하다.
 
 ```sh
 git clone https://github.com/namekun/Changmun.git
@@ -35,8 +45,6 @@ open build/Changmun.app
 ```
 
 Command Line Tools만 깔려 있으면 스크립트가 macOS 26 SDK로 빌드한다(macOS 27 SDK의 SwiftUI 매크로 플러그인은 Xcode에만 있다). 빌드 결과물은 iCloud 데스크탑 동기화를 피해 `~/Library/Caches/Changmun/build`에 둔다.
-
-처음 실행하면 지금 쓰는 브라우저의 북마크, 방문 기록, 비밀번호, 로그인 상태를 가져올지 묻는다.
 
 ## 하는 일
 
@@ -140,6 +148,7 @@ EasyList(광고)와 EasyPrivacy(추적)를 WebKit 콘텐츠 차단 규칙으로 
 scripts/test.sh            # unit tests (Swift Testing)
 scripts/check-strings.sh   # every string the code uses is translated in every language
 swift scripts/make-icon.swift
+scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
 ```
 
 UI 문구는 코드에서 영어이고 `Resources/<language>.lproj/Localizable.strings`에서 번역한다. 새 문구는 여섯 개 표 모두에 추가한다.
