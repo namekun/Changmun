@@ -1094,17 +1094,32 @@ struct ExtensionStoreTests {
 
 @MainActor
 struct DownloadTests {
-    private func item(_ name: String, isPrivate: Bool = false) -> DownloadItem {
-        DownloadItem(filename: name, progress: Progress(totalUnitCount: 100), isPrivate: isPrivate)
+    private func item(_ name: String, from window: Browser? = nil) -> DownloadItem {
+        let item = DownloadItem(filename: name, progress: Progress(totalUnitCount: 100), isPrivate: window?.isPrivate == true)
+        item.owner = window
+        return item
     }
 
-    @Test func privateWindowsSeeOnlyTheirOwnDownloads() {
+    @Test func eachPrivateWindowSeesOnlyItsOwnDownloads() {
         let downloads = Downloads()
+        let normal = Browser(isPrivate: false), first = Browser(isPrivate: true), second = Browser(isPrivate: true)
         downloads.add(item("a.zip"))
-        downloads.add(item("secret.pdf", isPrivate: true))
-        #expect(downloads.items(isPrivate: false).map(\.filename) == ["a.zip"])
-        #expect(downloads.items(isPrivate: true).map(\.filename) == ["secret.pdf"])
-        #expect(downloads.shelf(isPrivate: true).map(\.filename) == ["secret.pdf"])
+        downloads.add(item("secret.pdf", from: first))
+        #expect(downloads.items(for: normal).map(\.filename) == ["a.zip"])
+        #expect(downloads.items(for: first).map(\.filename) == ["secret.pdf"])
+        #expect(downloads.items(for: second).isEmpty)
+        #expect(downloads.shelf(for: first).map(\.filename) == ["secret.pdf"])
+    }
+
+    @Test func closingAPrivateWindowForgetsItsDownloads() {
+        let downloads = Downloads()
+        let first = Browser(isPrivate: true), second = Browser(isPrivate: true)
+        downloads.add(item("a.zip"))
+        downloads.add(item("first.pdf", from: first))
+        downloads.add(item("second.pdf", from: second))
+        downloads.forget(first)
+        #expect(downloads.items.map(\.filename) == ["second.pdf", "a.zip"])
+        #expect(downloads.shelf.map(\.filename) == ["second.pdf", "a.zip"])
     }
 
     @Test func progressAveragesOnlyRunningDownloads() {
@@ -1116,24 +1131,63 @@ struct DownloadTests {
         #expect(Downloads.progress(of: [c]) == nil)
     }
 
-    @Test func clearingKeepsRunningDownloadsOnTheShelf() {
+    @Test func progressFollowsItDownAndCountsBytesWhenTheSizeIsUnknown() {
+        let a = item("a")
+        a.update(fraction: 0.5, bytes: 50, sizeKnown: true)
+        a.update(fraction: 0.505, bytes: 51, sizeKnown: true)
+        #expect(a.progress == 0.5)
+        a.update(fraction: 0.2, bytes: 20, sizeKnown: true)
+        #expect(a.progress == 0.2)
+        a.update(fraction: 0, bytes: 1 << 20, sizeKnown: false)
+        #expect(!a.sizeKnown && a.bytes == 1 << 20)
+    }
+
+    @Test func clearingTouchesOnlyThisWindowsFinishedDownloads() {
         let downloads = Downloads()
-        let running = item("running"), done = item("done")
-        downloads.add(done)
-        downloads.add(running)
+        let normal = Browser(isPrivate: false), hidden = Browser(isPrivate: true)
+        let running = item("running"), done = item("done"), privateDone = item("private", from: hidden)
+        [privateDone, done, running].forEach(downloads.add)
         done.state = .finished
-        downloads.clearFinished()
-        #expect(downloads.items.map(\.filename) == ["running"])
-        #expect(downloads.shelf.map(\.filename) == ["running"])
+        privateDone.state = .finished
+        downloads.clearFinished(for: normal)
+        #expect(downloads.items.map(\.filename) == ["running", "private"])
+        #expect(downloads.shelf.map(\.filename) == ["running", "private"])
     }
 
     @Test func openingTheListMarksFinishedDownloadsSeen() {
         let downloads = Downloads()
-        let done = item("done"), running = item("running"), hidden = item("hidden", isPrivate: true)
+        let normal = Browser(isPrivate: false)
+        let done = item("done"), running = item("running"), hidden = item("hidden", from: Browser(isPrivate: true))
         [done, running, hidden].forEach(downloads.add)
         done.state = .finished
         hidden.state = .finished
-        downloads.markSeen(isPrivate: false)
+        downloads.markSeen(for: normal)
         #expect(done.seen && !running.seen && !hidden.seen)
+    }
+
+    @Test func downloadedFilesAreQuarantined() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("changmun-\(UUID()).zip")
+        try Data("x".utf8).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+        Downloads.quarantine(file, from: URL(string: "https://example.com/a.zip"), page: URL(string: "https://example.com/"))
+        let properties = try #require(try file.resourceValues(forKeys: [.quarantinePropertiesKey]).quarantineProperties)
+        #expect(properties[kLSQuarantineAgentNameKey as String] as? String == "Changmun")
+        #expect(properties[kLSQuarantineTypeKey as String] as? String == kLSQuarantineTypeWebDownload as String)
+    }
+
+    @Test func appsAndScriptsAreShownInsteadOfOpened() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("changmun-\(UUID())")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let tool = folder.appendingPathComponent("tool")
+        try Data("#!/bin/sh".utf8).write(to: tool)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tool.path)
+        #expect(!Downloads.opensOnClick(tool))
+        for name in ["setup.command", "run.sh", "Installer.pkg", "Thing.app", "Do.workflow", "Shell.terminal", "tool.jar"] {
+            #expect(!Downloads.opensOnClick(folder.appendingPathComponent(name)), "\(name)")
+        }
+        for name in ["report.pdf", "photo.jpg", "notes.txt", "archive.zip", "Xcode.dmg"] {
+            #expect(Downloads.opensOnClick(folder.appendingPathComponent(name)), "\(name)")
+        }
     }
 }

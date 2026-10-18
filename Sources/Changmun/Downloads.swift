@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import UniformTypeIdentifiers
 import WebKit
 
 @MainActor
@@ -10,36 +11,59 @@ final class DownloadItem: ObservableObject, Identifiable {
 
     let id = UUID()
     let started = Date()
-    /// From a private window: only private windows list it.
     let isPrivate: Bool
+    /// The private window it came from: only that window lists it, and closing the window forgets it.
+    weak var owner: Browser?
     @Published var filename: String
     @Published var destination: URL?
     @Published var progress: Double = 0
     @Published var state: State = .running
     /// Finished while nobody was looking: the download button wears a dot until the list is opened.
     @Published var seen = false
+    /// Bytes so far while running (shown when the size isn't known), the file size once finished.
     @Published var bytes: Int64?
+    @Published var sizeKnown = true
+    /// Under the pointer on the shelf: it stays there until the pointer leaves.
+    var isHovered = false
     weak var download: WKDownload?
     private var observation: NSKeyValueObservation?
 
-    convenience init(_ download: WKDownload, isPrivate: Bool) {
-        self.init(filename: download.originalRequest?.url?.lastPathComponent ?? "다운로드", progress: download.progress, isPrivate: isPrivate)
+    convenience init(_ download: WKDownload, owner: Browser?) {
+        self.init(filename: download.originalRequest?.url?.lastPathComponent ?? "다운로드", progress: download.progress, isPrivate: owner?.isPrivate == true)
         self.download = download
+        if isPrivate { self.owner = owner }
     }
 
     init(filename: String, progress: Progress, isPrivate: Bool) {
         self.isPrivate = isPrivate
         self.filename = filename
-        observation = progress.observe(\.fractionCompleted) { [weak self] progress, _ in
-            let value = progress.fractionCompleted
-            Task { @MainActor in
-                guard let self, value - self.progress >= 0.01 || value >= 1 else { return }
-                self.progress = value
-            }
+        observation = progress.observe(\.completedUnitCount) { [weak self] progress, _ in
+            let fraction = progress.fractionCompleted, done = progress.completedUnitCount, known = progress.totalUnitCount > 0
+            Task { @MainActor in self?.update(fraction: fraction, bytes: done, sizeKnown: known) }
+        }
+    }
+
+    /// Redraws on a 1% step (or 256 KB when the size is unknown), not on every packet.
+    func update(fraction: Double, bytes done: Int64, sizeKnown known: Bool) {
+        guard state == .running else { return }
+        if known != sizeKnown { sizeKnown = known }
+        if known {
+            if abs(fraction - progress) >= 0.01 || fraction >= 1 { progress = fraction }
+        } else if done - (bytes ?? 0) >= 256 << 10 {
+            bytes = done
         }
     }
 
     var isDone: Bool { state != .running }
+
+    func cancel() {
+        if let download {
+            download.cancel { _ in }
+        } else {
+            state = .cancelled
+            Downloads.shared.dismiss(self)
+        }
+    }
 }
 
 /// Downloads in this session, saved to the folder chosen in Settings (or wherever the user picks each time).
@@ -52,10 +76,14 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
     @Published private(set) var shelf: [DownloadItem] = []
     static let shelfTime: Duration = .seconds(8)
     private var relays: [UUID: AnyCancellable] = [:]
+    /// Where each download came from and goes, kept apart from the list so a forgotten item still gets quarantined.
+    private var origins: [ObjectIdentifier: (file: URL?, page: URL?, destination: URL?)] = [:]
 
-    func track(_ download: WKDownload, isPrivate: Bool) {
+    func track(_ download: WKDownload, from tab: Tab) {
         download.delegate = self
-        add(DownloadItem(download, isPrivate: isPrivate))
+        let owner = tab.browser
+        origins[ObjectIdentifier(download)] = tab.isPrivate ? (nil, nil, nil) : (download.originalRequest?.url, download.webView?.url, nil)
+        add(DownloadItem(download, owner: tab.isPrivate ? owner : nil))
     }
 
     func add(_ item: DownloadItem) {
@@ -64,12 +92,21 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         shelf.insert(item, at: 0)
     }
 
-    func items(isPrivate: Bool) -> [DownloadItem] {
-        items.filter { $0.isPrivate == isPrivate }
+    func items(for browser: Browser) -> [DownloadItem] {
+        items.filter { Self.belongs($0, to: browser) }
     }
 
-    func shelf(isPrivate: Bool) -> [DownloadItem] {
-        shelf.filter { $0.isPrivate == isPrivate }
+    func shelf(for browser: Browser) -> [DownloadItem] {
+        shelf.filter { Self.belongs($0, to: browser) }
+    }
+
+    static func belongs(_ item: DownloadItem, to browser: Browser) -> Bool {
+        browser.isPrivate ? item.owner === browser : !item.isPrivate
+    }
+
+    /// A private window closed: its downloads leave the list (the files stay where they were saved).
+    func forget(_ browser: Browser) {
+        remove { $0.isPrivate && ($0.owner == nil || $0.owner === browser) }
     }
 
     /// The share done of the running downloads, or nil when none is running.
@@ -79,17 +116,21 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         return running.map(\.progress).reduce(0, +) / Double(running.count)
     }
 
-    func markSeen(isPrivate: Bool) {
-        for item in items(isPrivate: isPrivate) where item.isDone && !item.seen { item.seen = true }
+    func markSeen(for browser: Browser) {
+        for item in items(for: browser) where item.isDone && !item.seen { item.seen = true }
     }
 
     func dismiss(_ item: DownloadItem) {
         shelf.removeAll { $0 === item }
     }
 
-    func clearFinished() {
-        items.removeAll { $0.isDone }
-        shelf.removeAll { $0.isDone }
+    func clearFinished(for browser: Browser) {
+        remove { $0.isDone && Self.belongs($0, to: browser) }
+    }
+
+    private func remove(where match: (DownloadItem) -> Bool) {
+        items.removeAll(where: match)
+        shelf.removeAll(where: match)
         relays = relays.filter { id, _ in items.contains { $0.id == id } }
     }
 
@@ -97,8 +138,36 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         guard let item else { return }
         Task {
             try? await Task.sleep(for: Self.shelfTime)
+            while item.isHovered { try? await Task.sleep(for: .seconds(1)) }
             dismiss(item)
         }
+    }
+
+    /// Marks a downloaded file the way Safari does, so Gatekeeper checks it before it first runs.
+    static func quarantine(_ file: URL, from source: URL?, page: URL?) {
+        var properties: [String: Any] = [
+            kLSQuarantineAgentNameKey as String: "Changmun",
+            kLSQuarantineTypeKey as String: kLSQuarantineTypeWebDownload as String,
+        ]
+        if let source { properties[kLSQuarantineDataURLKey as String] = source }
+        if let page { properties[kLSQuarantineOriginURLKey as String] = page }
+        var values = URLResourceValues()
+        values.quarantineProperties = properties
+        var url = file
+        try? url.setResourceValues(values)
+    }
+
+    /// Apps, scripts and installers are shown in Finder on a click instead of being opened.
+    static func opensOnClick(_ file: URL) -> Bool {
+        let type = (try? file.resourceValues(forKeys: [.contentTypeKey]))?.contentType ?? UTType(filenameExtension: file.pathExtension)
+        let risky: [UTType] = [.executable, .script, .application, .applicationBundle, .shellScript]
+            + ["com.apple.installer-package-archive", "com.sun.java-archive"].compactMap { UTType($0) }
+        if let type, risky.contains(where: type.conforms) { return false }
+        // Automator workflows and Terminal settings run commands but have no registered type without their apps.
+        if ["workflow", "action", "terminal"].contains(file.pathExtension.lowercased()) { return false }
+        var isFolder: ObjCBool = false
+        let exists = FileManager.default.fileExists(atPath: file.path, isDirectory: &isFolder)
+        return !(exists && !isFolder.boolValue && FileManager.default.isExecutableFile(atPath: file.path))
     }
 
     private func item(_ download: WKDownload) -> DownloadItem? {
@@ -138,10 +207,14 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         }
         item?.filename = destination.lastPathComponent
         item?.destination = destination
+        origins[ObjectIdentifier(download)]?.destination = destination
         return destination
     }
 
     func downloadDidFinish(_ download: WKDownload) {
+        if let origin = origins.removeValue(forKey: ObjectIdentifier(download)), let destination = origin.destination {
+            Self.quarantine(destination, from: origin.file, page: origin.page)
+        }
         item(download)?.progress = 1
         item(download)?.bytes = download.progress.completedUnitCount
         item(download)?.state = .finished
@@ -150,6 +223,7 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
     }
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
+        origins.removeValue(forKey: ObjectIdentifier(download))
         let cancelled = (error as NSError).code == NSURLErrorCancelled
         guard let item = item(download) else { return }
         item.state = cancelled ? .cancelled : .failed(error.localizedDescription)

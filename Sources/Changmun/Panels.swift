@@ -118,7 +118,7 @@ struct DownloadButton: View {
     @State private var hover = false
 
     var body: some View {
-        let items = downloads.items(isPrivate: browser.isPrivate)
+        let items = downloads.items(for: browser)
         let progress = Downloads.progress(of: items)
         let unseen = items.contains { $0.state == .finished && !$0.seen }
         Button { browser.showDownloads.toggle() } label: {
@@ -146,18 +146,18 @@ struct DownloadButton: View {
         .onHover { hover = $0 }
         .help("다운로드")
         .popover(isPresented: $browser.showDownloads, arrowEdge: arrowEdge) {
-            DownloadList(isPrivate: browser.isPrivate)
+            DownloadList(browser: browser)
         }
         .animation(.easeOut(duration: 0.2), value: progress == nil)
     }
 }
 
 struct DownloadList: View {
-    let isPrivate: Bool
+    let browser: Browser
     @ObservedObject private var downloads = Downloads.shared
 
     var body: some View {
-        let items = downloads.items(isPrivate: isPrivate)
+        let items = downloads.items(for: browser)
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("다운로드").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary)
@@ -184,7 +184,7 @@ struct DownloadList: View {
                 }
                 if items.contains(where: \.isDone) {
                     Hairline()
-                    Button("끝난 항목 지우기") { downloads.clearFinished() }
+                    Button("끝난 항목 지우기") { downloads.clearFinished(for: browser) }
                         .buttonStyle(.plain)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Theme.secondary)
@@ -194,8 +194,8 @@ struct DownloadList: View {
             }
         }
         .frame(width: 320)
-        .onAppear { downloads.markSeen(isPrivate: isPrivate) }
-        .onChange(of: items.filter(\.isDone).count) { downloads.markSeen(isPrivate: isPrivate) }
+        .onAppear { downloads.markSeen(for: browser) }
+        .onChange(of: items.filter(\.isDone).count) { downloads.markSeen(for: browser) }
     }
 
     private func rows(_ items: [DownloadItem]) -> some View {
@@ -213,7 +213,7 @@ struct DownloadShelf: View {
     @ObservedObject private var downloads = Downloads.shared
 
     var body: some View {
-        let items = Array(downloads.shelf(isPrivate: browser.isPrivate).prefix(3))
+        let items = Array(downloads.shelf(for: browser).prefix(3))
         VStack(spacing: 0) {
             ForEach(items) { item in
                 DownloadRow(item: item).transition(.move(edge: .bottom).combined(with: .opacity))
@@ -253,7 +253,7 @@ struct DownloadRow: View {
             }
             Spacer(minLength: 0)
             if item.state == .running {
-                HoverAction(symbol: "xmark", help: "취소") { item.download?.cancel { _ in } }
+                HoverAction(symbol: "xmark", help: "취소") { item.cancel() }
             } else if hover, let file {
                 HoverAction(symbol: "magnifyingglass", help: "Finder에서 보기") { NSWorkspace.shared.activateFileViewerSelecting([file]) }
             }
@@ -262,12 +262,18 @@ struct DownloadRow: View {
         .frame(height: Self.height)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover && file != nil ? Theme.hoverTab : .clear))
         .contentShape(Rectangle())
-        .onHover { hover = $0 }
+        .onHover {
+            hover = $0
+            item.isHovered = $0
+        }
         .onTapGesture { open() }
-        .onDrag { file.flatMap { NSItemProvider(contentsOf: $0) } ?? NSItemProvider() }
+        .modifier(FileDrag(file: file))
         .contextMenu {
             if let file {
-                Button("열기") { open() }
+                Button("열기") {
+                    item.seen = true
+                    NSWorkspace.shared.open(file)
+                }
                 Button("Finder에서 보기") { NSWorkspace.shared.activateFileViewerSelecting([file]) }
                 Button("경로 복사") {
                     NSPasteboard.general.clearContents()
@@ -275,14 +281,17 @@ struct DownloadRow: View {
                 }
             }
             if item.state == .running {
-                Button("취소") { item.download?.cancel { _ in } }
+                Button("취소") { item.cancel() }
             }
         }
-        .help(file.map { "\($0.path)\n누르면 열려요. 끌어서 다른 앱에 넣을 수 있어요." } ?? item.filename)
+        .help(file.map { "\($0.path)\n" + (Downloads.opensOnClick($0) ? "누르면 열려요." : "누르면 Finder에서 보여 줘요.") + " 끌어서 다른 앱에 넣을 수 있어요." } ?? item.filename)
     }
 
     @ViewBuilder private var detail: some View {
         switch item.state {
+        case .running where !item.sizeKnown:
+            Text("받는 중 · " + ByteCountFormatter.string(fromByteCount: item.bytes ?? 0, countStyle: .file))
+                .font(.system(size: 11, weight: .medium).monospacedDigit()).foregroundStyle(Theme.secondary)
         case .running:
             HStack(spacing: 6) {
                 Meter(fraction: item.progress)
@@ -302,9 +311,27 @@ struct DownloadRow: View {
 
     private func open() {
         guard let file else { return }
+        guard FileManager.default.fileExists(atPath: file.path) else { return NSSound.beep() }
         item.seen = true
         Downloads.shared.dismiss(item)
-        NSWorkspace.shared.open(file)
+        if Downloads.opensOnClick(file) {
+            NSWorkspace.shared.open(file)
+        } else {
+            NSWorkspace.shared.activateFileViewerSelecting([file])
+        }
+    }
+}
+
+/// Lets a finished download be dragged into other apps; rows without a file don't start a drag.
+private struct FileDrag: ViewModifier {
+    let file: URL?
+
+    func body(content: Content) -> some View {
+        if let file, FileManager.default.fileExists(atPath: file.path) {
+            content.onDrag { NSItemProvider(contentsOf: file) ?? NSItemProvider() }
+        } else {
+            content
+        }
     }
 }
 

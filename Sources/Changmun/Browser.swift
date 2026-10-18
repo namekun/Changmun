@@ -57,13 +57,17 @@ final class Browser: ObservableObject {
             tab.sleep()
         }
         if #available(macOS 15.4, *) { ExtensionHost.shared.windowClosed(self) }
+        if isPrivate { Downloads.shared.forget(self) }
     }
 
     @Published private(set) var tabs: [Tab] = []
     @Published private(set) var activeID: Int?
     @Published var showChat = false
     @Published var showSidebar = UserDefaults.standard.object(forKey: "showSidebar") as? Bool ?? true {
-        didSet { UserDefaults.standard.set(showSidebar, forKey: "showSidebar") }
+        didSet {
+            UserDefaults.standard.set(showSidebar, forKey: "showSidebar")
+            showDownloads = false
+        }
     }
     @Published var commandBar: CommandBarMode? {
         didSet { if commandBar != nil { closePeek() } }
