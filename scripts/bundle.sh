@@ -2,10 +2,11 @@
 # Builds the Swift package and wraps the binary in an .app bundle at build/Changmun.app.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source scripts/env.sh
 
 CONFIG="${1:-debug}"
-swift build -c "$CONFIG"
-BIN_DIR="$(swift build -c "$CONFIG" --show-bin-path)"
+swift build "${SCRATCH[@]}" -c "$CONFIG"
+BIN_DIR="$(swift build "${SCRATCH[@]}" -c "$CONFIG" --show-bin-path)"
 
 # Assemble and sign outside the project folder: a synced folder (iCloud Desktop) keeps adding
 # Finder info to the bundle, which codesign rejects.

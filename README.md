@@ -11,6 +11,19 @@ scripts/test.sh             # 테스트
 swift scripts/make-icon.swift        # Resources/AppIcon.icns (기본 시안 c, a·b도 있음)
 ```
 
+Command Line Tools만 깔려 있으면 스크립트가 macOS 26 SDK로 빌드하고(27 SDK의 SwiftUI 매크로 플러그인은 Xcode에만 있다), 빌드 결과물은 iCloud 동기화를 피해 `~/Library/Caches/Changmun/build`에 둔다.
+
+### 헤드리스
+
+테스트나 에이전트가 쓰는 화면 없는 Changmun. 창을 화면 밖에 두고, 포커스를 가져가거나 소리를 내지 않으며, 사용하는 Changmun과 따로 프로필(설정·쿠키·기록·`~/Library/Application Support/Changmun Headless`)을 쓴다. 키체인의 비밀번호는 읽지도 저장하지도 않고, AI 도구 확인 창·사이트 권한·JavaScript 대화상자는 묻지 않고 처리한다(권한은 거부).
+
+```bash
+scripts/headless.sh start                                  # build/Changmun.app을 헤드리스로 복사해 실행
+scripts/headless.sh call open_tab '{"url": "example.com"}' # AI 도구 그대로: list_tabs, navigate, read_page, click, screenshot…
+scripts/headless.sh shot window.png                        # 사이드바까지 포함한 창 전체 이미지
+scripts/headless.sh stop
+```
+
 ## 단축키
 
 설정(⌘,)에서 Safari식과 Chrome식 중에 고른다. 두 브라우저가 다른 것만 다르다.

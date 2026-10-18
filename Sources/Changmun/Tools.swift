@@ -287,6 +287,8 @@ enum Approvals {
 
     /// Asks on the browser window; no answer within `timeout` counts as no, so a late yes never runs a stale request.
     private static func ask(_ message: String, _ detail: String) async -> Bool {
+        // Headless has nobody to ask, and its own profile holds nothing of the user's to leak.
+        if Headless.isOn { return true }
         guard let window = Browser.recent?.window else { return false }
         let alert = NSAlert()
         alert.messageText = message

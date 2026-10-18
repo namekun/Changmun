@@ -174,6 +174,13 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         items.first { $0.download === download }
     }
 
+    static var folder: URL {
+        guard Headless.isOn else { return Preferences.shared.downloadFolder }
+        let url = Library.folder.appendingPathComponent("Downloads", isDirectory: true)
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }
+
     static func uniqueURL(in folder: URL, for filename: String) -> URL {
         let base = (filename as NSString).deletingPathExtension
         let ext = (filename as NSString).pathExtension
@@ -191,7 +198,7 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         item?.filename = suggestedFilename
         let prefs = Preferences.shared
         var destination: URL
-        if prefs.askWhereToSave {
+        if prefs.askWhereToSave && !Headless.isOn {
             let panel = NSSavePanel()
             panel.nameFieldStringValue = suggestedFilename
             panel.directoryURL = prefs.downloadFolder
@@ -203,7 +210,7 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
             try? FileManager.default.removeItem(at: chosen)
             destination = chosen
         } else {
-            destination = Self.uniqueURL(in: prefs.downloadFolder, for: suggestedFilename)
+            destination = Self.uniqueURL(in: Self.folder, for: suggestedFilename)
         }
         item?.filename = destination.lastPathComponent
         item?.destination = destination
@@ -219,7 +226,7 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         item(download)?.bytes = download.progress.completedUnitCount
         item(download)?.state = .finished
         settle(item(download))
-        NSSound(named: "Glass")?.play()
+        if !Headless.isOn { NSSound(named: "Glass")?.play() }
     }
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {

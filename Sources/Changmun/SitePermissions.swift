@@ -57,6 +57,7 @@ final class SitePermissions: ObservableObject {
         let decisions = devices.map { decision(host, $0) }
         if decisions.contains(.deny) { return .deny }
         if decisions.allSatisfy({ $0 == .allow }) { return .grant }
+        if Headless.isOn { return .deny }
 
         let alert = NSAlert()
         alert.messageText = "\(host)에서 \(devices.map(\.name).joined(separator: "와 "))를 쓰려고 해요"

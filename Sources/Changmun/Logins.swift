@@ -3,13 +3,13 @@ import Security
 import SwiftUI
 import WebKit
 
-/// Saved sign-ins, kept in the login keychain as internet passwords labelled "Changmun".
+/// Saved sign-ins, kept in the login keychain as internet passwords labelled "Changmun". Headless never touches them.
 enum Logins {
     static let label = "Changmun"
 
     /// Updates the account where it is already saved (`example.com` or its `www.` twin), so filling never finds an old one.
     static func save(host: String, username: String, password: String) -> Bool {
-        guard !host.isEmpty, !password.isEmpty, let secret = password.data(using: .utf8) else { return false }
+        guard !Headless.isOn, !host.isEmpty, !password.isEmpty, let secret = password.data(using: .utf8) else { return false }
         let server = hostVariants(host).first { exists(server: $0, username: username) } ?? host
         let query: [String: Any] = [
             kSecClass as String: kSecClassInternetPassword,
@@ -37,6 +37,7 @@ enum Logins {
 
     /// Usernames saved for a host (or its www/non-www twin). Reads no secrets, so it never prompts.
     static func accounts(for host: String) -> [String] {
+        guard !Headless.isOn else { return [] }
         var names: [String] = []
         for candidate in hostVariants(host) {
             let query: [String: Any] = [
@@ -55,6 +56,7 @@ enum Logins {
     }
 
     static func password(host: String, username: String) -> String? {
+        guard !Headless.isOn else { return nil }
         for candidate in hostVariants(host) {
             let query: [String: Any] = [
                 kSecClass as String: kSecClassInternetPassword,
@@ -79,6 +81,7 @@ enum Logins {
 
     /// Every saved sign-in, without secrets.
     static func all() -> [Saved] {
+        guard !Headless.isOn else { return [] }
         let query: [String: Any] = [
             kSecClass as String: kSecClassInternetPassword,
             kSecAttrLabel as String: label,
@@ -96,6 +99,7 @@ enum Logins {
 
     @discardableResult
     static func delete(host: String, username: String) -> Bool {
+        guard !Headless.isOn else { return false }
         let query: [String: Any] = [
             kSecClass as String: kSecClassInternetPassword,
             kSecAttrServer as String: host,

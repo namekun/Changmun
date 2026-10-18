@@ -73,7 +73,7 @@ enum MCPBridge {
         guard bundle.pathExtension == "app" else { return nil }
         let open = Process()
         open.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        open.arguments = [bundle.path]
+        open.arguments = Headless.isOn ? ["-g", bundle.path] : [bundle.path]
         try? open.run()
         open.waitUntilExit()
         for _ in 0..<100 {

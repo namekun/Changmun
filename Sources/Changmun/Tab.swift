@@ -134,7 +134,11 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         audioWatcher = AudioWatcher(view) { [weak self] playing in
             if self?.webView != nil { self?.isPlayingAudio = playing }
         }
-        if isMuted { Self.setMuted(true, in: view) }
+        if isMuted || Headless.isOn { Self.setMuted(true, in: view) }
+        // Off screen counts as hidden, and WebKit stops drawing hidden pages.
+        if Headless.isOn, view.responds(to: NSSelectorFromString("_setWindowOcclusionDetectionEnabled:")) {
+            view.setValue(false, forKey: "windowOcclusionDetectionEnabled")
+        }
     }
 
     /// Silences the tab (or lets it play again). WebKit's switch for this is private, so a WebKit without it does nothing.
@@ -270,7 +274,7 @@ extension Tab: WKNavigationDelegate {
 
     /// mailto:, zoommtg: and the like open their app after the user says which app and agrees.
     private func openExternally(_ url: URL, scheme: String, from page: URL?) {
-        guard !Self.blockedSchemes.contains(scheme), let app = NSWorkspace.shared.urlForApplication(toOpen: url) else { return }
+        guard !Headless.isOn, !Self.blockedSchemes.contains(scheme), let app = NSWorkspace.shared.urlForApplication(toOpen: url) else { return }
         let alert = NSAlert()
         alert.messageText = "\(page?.host() ?? "이 페이지")에서 \(FileManager.default.displayName(atPath: app.path))을(를) 열려고 해요"
         alert.informativeText = String(url.absoluteString.prefix(200))
@@ -330,7 +334,7 @@ extension Tab: WKNavigationDelegate {
     func webView(_ webView: WKWebView, respondTo challenge: URLAuthenticationChallenge) async -> (URLSession.AuthChallengeDisposition, URLCredential?) {
         let method = challenge.protectionSpace.authenticationMethod
         guard method == NSURLAuthenticationMethodHTTPBasic || method == NSURLAuthenticationMethodHTTPDigest else { return (.performDefaultHandling, nil) }
-        guard challenge.previousFailureCount < 3 else { return (.cancelAuthenticationChallenge, nil) }
+        guard challenge.previousFailureCount < 3, !Headless.isOn else { return (.cancelAuthenticationChallenge, nil) }
         let alert = NSAlert()
         alert.messageText = "\(challenge.protectionSpace.host)에 로그인"
         alert.informativeText = challenge.previousFailureCount > 0 ? "아이디나 비밀번호가 맞지 않아요." : (challenge.protectionSpace.realm ?? "")
@@ -374,6 +378,7 @@ extension Tab: WKUIDelegate {
     }
 
     func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo) async {
+        guard !Headless.isOn else { return }
         let alert = NSAlert()
         alert.messageText = frame.securityOrigin.host
         alert.informativeText = message
@@ -381,6 +386,7 @@ extension Tab: WKUIDelegate {
     }
 
     func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo) async -> Bool {
+        guard !Headless.isOn else { return false }
         let alert = NSAlert()
         alert.messageText = frame.securityOrigin.host
         alert.informativeText = message
@@ -390,6 +396,7 @@ extension Tab: WKUIDelegate {
     }
 
     func webView(_ webView: WKWebView, runJavaScriptTextInputPanelWithPrompt prompt: String, defaultText: String?, initiatedByFrame frame: WKFrameInfo) async -> String? {
+        guard !Headless.isOn else { return nil }
         let alert = NSAlert()
         alert.messageText = frame.securityOrigin.host
         alert.informativeText = prompt
@@ -402,6 +409,7 @@ extension Tab: WKUIDelegate {
     }
 
     func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters, initiatedByFrame frame: WKFrameInfo) async -> [URL]? {
+        guard !Headless.isOn else { return nil }
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = parameters.allowsMultipleSelection
         panel.canChooseDirectories = parameters.allowsDirectories

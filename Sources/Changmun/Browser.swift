@@ -126,7 +126,7 @@ final class Browser: ObservableObject {
         set { if overlay.hoveredLink != newValue { overlay.hoveredLink = newValue } }
     }
 
-    static let configuration = makeConfiguration(store: .default(), extensions: true)
+    static let configuration = makeConfiguration(store: .default(), extensions: !Headless.isOn)
 
     private static func makeConfiguration(store: WKWebsiteDataStore, extensions: Bool) -> WKWebViewConfiguration {
         let config = WKWebViewConfiguration()
@@ -144,7 +144,7 @@ final class Browser: ObservableObject {
             config.preferences.setValue(true, forKey: "allowsPictureInPictureMediaPlayback")
         }
         LinkHover.install(in: config.userContentController)
-        LoginCapture.install(in: config.userContentController)
+        if !Headless.isOn { LoginCapture.install(in: config.userContentController) }
         AdBlocker.shared.attach(config.userContentController)
         if extensions, #available(macOS 15.4, *) { config.webExtensionController = ExtensionHost.shared.controller }
         return config

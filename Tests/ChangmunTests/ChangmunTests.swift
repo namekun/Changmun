@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SwiftUI
 import Testing
 import WebKit
 @testable import Changmun
@@ -1189,5 +1190,24 @@ struct DownloadTests {
         for name in ["report.pdf", "photo.jpg", "notes.txt", "archive.zip", "Xcode.dmg"] {
             #expect(Downloads.opensOnClick(folder.appendingPathComponent(name)), "\(name)")
         }
+    }
+}
+
+@MainActor
+struct HeadlessTests {
+    @Test func theNormalAppIsNotHeadless() {
+        #expect(!Headless.isOn)
+        #expect(Library.folder.lastPathComponent == "Changmun")
+    }
+
+    @Test func windowImagesDrawWithoutTheWindowOnScreen() async throws {
+        let window = NSWindow(contentRect: NSRect(origin: Headless.origin, size: NSSize(width: 200, height: 100)),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = NSHostingView(rootView: Color(red: 1, green: 0, blue: 0).frame(width: 200, height: 100))
+        let png = try #require(await WindowImage.png(of: window))
+        let image = try #require(NSBitmapImageRep(data: png))
+        #expect(image.pixelsWide >= 200 && image.pixelsHigh >= 100)
+        let center = try #require(image.colorAt(x: image.pixelsWide / 2, y: image.pixelsHigh / 2)?.usingColorSpace(.sRGB))
+        #expect(center.redComponent > 0.8 && center.greenComponent < 0.5 && center.blueComponent < 0.5)
     }
 }

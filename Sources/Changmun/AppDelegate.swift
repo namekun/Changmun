@@ -16,8 +16,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuSubscription = Preferences.shared.$shortcuts.sink { NSApp.mainMenu = AppMenu.make(scheme: $0) }
         NSApp.appearance = Preferences.shared.appearance.nsAppearance
         Task { await AdBlocker.shared.start() }
-        Task { await ContentBlockerHost.shared.start() }
-        if #available(macOS 15.4, *) { Task { await ExtensionHost.shared.start() } }
+        if !Headless.isOn {
+            Task { await ContentBlockerHost.shared.start() }
+            if #available(macOS 15.4, *) { Task { await ExtensionHost.shared.start() } }
+        }
         let saved = Browser.savedWindows()
         if saved.isEmpty {
             BrowserWindow.open().commandBar = .newTab
@@ -30,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         watchMouseButtons()
         watchPeekKeys()
+        guard !Headless.isOn else { return }
         if !UserDefaults.standard.bool(forKey: "onboarded") { browser.showOnboarding = true }
         NSApp.activate()
     }
@@ -283,7 +286,9 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
         host.sizingOptions = []
         contentView = host
         // The first window keeps its place across launches; others step down from the one before.
-        if let previous {
+        if Headless.isOn {
+            setFrame(NSRect(origin: Headless.origin, size: Headless.windowSize), display: false)
+        } else if let previous {
             setFrame(Self.cascaded(from: previous.frame, in: previous.screen?.visibleFrame), display: false)
         } else {
             if !setFrameUsingName("ChangmunMain") { center() }
@@ -294,6 +299,10 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
                 MainActor.assumeIsolated { self?.layoutTrafficLights() }
             })
         }
+    }
+
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        Headless.isOn ? frameRect : super.constrainFrameRect(frameRect, to: screen)
     }
 
     /// One step down and right of the window before; a window that fills the screen leaves room for the step,

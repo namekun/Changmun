@@ -69,6 +69,15 @@ final class ControlServer {
     }
 
     private func handle(_ request: HTTPRequest, on connection: NWConnection) {
+        if request.method == "POST", request.path == "/window-image" {
+            Task { @MainActor in
+                guard let window = Browser.current?.window, let png = await WindowImage.png(of: window) else {
+                    return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
+                }
+                self.respond(connection, status: "200 OK", body: ["png": png.base64EncodedString()])
+            }
+            return
+        }
         guard request.method == "POST", request.path == "/call",
               let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any],
               let name = body["name"] as? String else {

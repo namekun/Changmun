@@ -9,7 +9,7 @@ final class Library: @unchecked Sendable {
 
     static var folder: URL {
         let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Changmun", isDirectory: true)
+            .appendingPathComponent(Headless.isOn ? "Changmun Headless" : "Changmun", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }
