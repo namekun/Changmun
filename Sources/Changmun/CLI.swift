@@ -14,6 +14,7 @@ enum CLI {
       changmun go <url or words> [--tab N]   load a page in a tab
       changmun back | forward | reload [--tab N]
       changmun read [--tab N] [--max N]      the page's text and its numbered elements
+      changmun read-tabs <tab>… [--max N]    several tabs' text in one call
       changmun click <element> [--tab N]     click an element numbered by `read`
       changmun type <element> <text> [--submit] [--tab N]
       changmun scroll down|up|top|bottom [--tab N]
@@ -111,6 +112,12 @@ enum CLI {
         case "read":
             if let max { args["max_chars"] = max }
             return .call("read_page", args, output: nil)
+        case "read-tabs":
+            if operands.isEmpty { throw UsageError(message: "read-tabs needs tab numbers") }
+            args["tab_ids"] = try operands.indices.map { try number($0, "tab numbers") }
+            args["tab_id"] = nil
+            if let max { args["max_chars"] = max }
+            return .call("read_tabs", args, output: nil)
         case "click":
             args["element_id"] = try number(0, "an element number from `changmun read`")
             return .call("click", args, output: nil)

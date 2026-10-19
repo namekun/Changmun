@@ -24,6 +24,7 @@
 "Ad Blocking" = "広告ブロック";
 "Add" = "追加";
 "Add filter list URL (e.g. a Korean ad list)" = "フィルタリストのURLを追加 (例: 韓国の広告リスト)";
+"Add Tab" = "タブを追加";
 "Add to Changmun" = "Changmunに追加";
 "Add to Favorites (⌘D)" = "お気に入りに追加 (⌘D)";
 "Add to New Group" = "新規グループに追加";
@@ -45,6 +46,7 @@
 "AI Panel" = "AIパネル";
 "AI Panel (⌘E)" = "AIパネル (⌘E)";
 "All done" = "すべて読み込みました";
+"All Open Tabs" = "開いているタブすべて";
 "All Time" = "すべて";
 "Allow" = "許可";
 "Always Allow for This Site" = "このサイトでは常に許可";
@@ -77,6 +79,7 @@
 "Cancel" = "キャンセル";
 "Cancelled" = "キャンセルしました";
 "Can’t open the page" = "ページを開けません";
+"Capture Full Page…" = "ページ全体をキャプチャ…";
 "Change…" = "変更…";
 "Changmun is your default browser" = "Changmunがデフォルトのブラウザです";
 "Changmun Private Window" = "Changmun プライベートウインドウ";
@@ -106,6 +109,7 @@
 "Close Tab (⌘W)" = "タブを閉じる (⌘W)";
 "Close Window" = "ウインドウを閉じる";
 "Collapse" = "折りたたむ";
+"Compare the attached tabs" = "追加したタブを比較して";
 "Console" = "コンソール";
 "Cookies %@" = "Cookie %@";
 "Cookies: %@" = "Cookie: %@";
@@ -121,6 +125,7 @@
 "Couldn't find the rules. In System Settings › Privacy & Security, check that Changmun is allowed to access data from other apps." = "ルールが見つかりません。システム設定 › プライバシーとセキュリティで、Changmunがほかのアプリケーションのデータにアクセスすることを許可しているか確認してください。";
 "Couldn't read '%@' from the Keychain, so passwords and cookies were skipped. Click 'Allow' in the permission dialog to import them." = "キーチェーンから「%@」を読み取れなかったため、パスワードとCookieをスキップしました。読み込むには、許可のダイアログで「許可」をクリックしてください。";
 "Couldn't run claude: %@" = "claudeを実行できませんでした: %@";
+"Couldn't save the page" = "ページを保存できませんでした";
 "Couldn’t run it: %@" = "実行できませんでした: %@";
 "Current Site" = "現在のサイト";
 "Cut" = "カット";
@@ -184,6 +189,7 @@
 "General" = "一般";
 "Get search suggestions as you type" = "入力中に検索候補を表示";
 "Get Started" = "はじめる";
+"Give the AI more tabs to read" = "AIに読ませるタブを追加";
 "Go to · %@" = "移動 · %@";
 "Group name" = "グループ名";
 "Haiku (fastest)" = "Haiku (最速)";
@@ -273,6 +279,7 @@
 "Other" = "その他";
 "Other Bookmarks" = "その他のブックマーク";
 "Other Browsers" = "ほかのブラウザ";
+"Page" = "ページ";
 "Password" = "パスワード";
 "Passwords %@" = "パスワード %@";
 "Passwords: %@" = "パスワード: %@";
@@ -297,6 +304,7 @@
 "Private Window" = "プライベートウインドウ";
 "Quit Changmun" = "Changmunを終了";
 "Read page" = "ページを読み取る";
+"Read tabs" = "タブを読み取る";
 "Reading rules…" = "ルールを読み込み中…";
 "Reads the rules saved by the blocker app. The first time you turn one on, macOS asks whether Changmun may access another app’s data. If you change the rules in the blocker app, they take effect the next time you launch Changmun." = "ブロッカAppが保存したルールを読み込みます。初めてオンにするとき、ChangmunがほかのアプリケーションのデータにアクセスしてよいかをmacOSが確認します。ブロッカAppでルールを変更した場合は、Changmunを次回起動したときに反映されます。";
 "Recent Tab" = "最近のタブ";
@@ -309,6 +317,7 @@
 "Remove from Favorites (⌘D)" = "お気に入りから削除 (⌘D)";
 "Remove from Group" = "グループから削除";
 "Remove from History" = "履歴から削除";
+"Remove from the AI's tabs" = "AIのタブから外す";
 "Rename" = "名前を変更";
 "Reopen" = "開き直す";
 "Reopen Closed Tab" = "最後に閉じたタブを開く";
@@ -321,7 +330,9 @@
 "Safari history" = "Safariの履歴";
 "Safari-style" = "Safari方式";
 "Save" = "保存";
+"Save as PDF…" = "PDFとして保存…";
 "Save login info for %@?" = "%@のログイン情報を保存しますか？";
+"Saved %@" = "%@を保存しました";
 "Saved Passwords" = "保存済みのパスワード";
 "Scroll · %@" = "スクロール · %@";
 "Search" = "検索";
@@ -363,6 +374,7 @@
 "Start with a new tab" = "新規タブで開始";
 "Stop" = "停止";
 "Stop generating" = "生成を停止";
+"Sum up only the key points of each attached tab" = "追加したタブごとに要点だけまとめて";
 "Summarize this page in three lines" = "このページを3行で要約して";
 "Switch tab" = "タブを切り替え";
 "Switch to Tab" = "タブに切り替え";

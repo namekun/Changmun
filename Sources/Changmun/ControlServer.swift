@@ -97,6 +97,19 @@ final class ControlServer {
             }
             return
         }
+        // Tests only: the active tab as a PDF or a full-page picture, written to a path without the save panel.
+        if Headless.isOn, request.method == "POST", request.path == "/save-page",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any],
+           let kind = body["format"] as? String, let path = body["path"] as? String {
+            Task { @MainActor in
+                guard let webView = Browser.current?.active?.webView,
+                      let data = await SavePage.data(of: webView, as: kind == "pdf" ? .pdf : .image), (try? data.write(to: URL(fileURLWithPath: path))) != nil else {
+                    return self.respond(connection, status: "404 Not Found", body: ["error": "nothing saved"])
+                }
+                self.respond(connection, status: "200 OK", body: ["bytes": data.count])
+            }
+            return
+        }
         // Tests only: open the settings window on a page, far off screen, and answer with its picture.
         if Headless.isOn, request.method == "POST", request.path == "/settings-image",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {

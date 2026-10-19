@@ -18,9 +18,11 @@ enum ToolCatalog {
 
     private static func tool(_ name: String, _ description: String, _ properties: [String: Any] = [:], required: [String] = []) -> [String: Any] {
         var props = properties
-        if name != "list_tabs" && name != "open_tab" { props["tab_id"] = tabID }
+        if !["list_tabs", "open_tab", "read_tabs"].contains(name) { props["tab_id"] = tabID }
         return ["name": name, "description": description, "inputSchema": ["type": "object", "properties": props, "required": required]]
     }
+
+    static let maxTabsPerRead = 10
 
     static let definitions: [[String: Any]] = [
         tool("list_tabs", "List the open tabs with their ids, titles and URLs, and which one is active."),
@@ -33,6 +35,9 @@ enum ToolCatalog {
         tool("reload", "Reload the tab."),
         tool("read_page", "Read the page: title, URL, scroll position, a numbered list of interactive elements, and the visible text. Use the element numbers with click and type_text.",
              ["max_chars": ["type": "integer", "description": "Maximum characters of page text (default 12000)"]]),
+        tool("read_tabs", "Read several tabs at once: each one's title, URL and visible text, without the numbered elements. Use it to compare or combine tabs instead of switching between them; use read_page on a tab before clicking in it.",
+             ["tab_ids": ["type": "array", "items": ["type": "integer"], "description": "Tab ids from list_tabs (at most \(maxTabsPerRead))"],
+              "max_chars": ["type": "integer", "description": "Maximum characters of text per tab (default 6000)"]], required: ["tab_ids"]),
         tool("click", "Click an element by its number from the latest read_page.", ["element_id": ["type": "integer"]], required: ["element_id"]),
         tool("type_text", "Replace the text of an input, text area or editable element (by number from read_page). Set submit to press Enter afterwards.",
              ["element_id": ["type": "integer"], "text": ["type": "string"], "submit": ["type": "boolean"]], required: ["element_id", "text"]),
@@ -56,16 +61,16 @@ enum ToolCatalog {
             await waitForLoad(tab)
             return .text("Opened tab #\(tab.id): \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")")
         }
+        if name == "read_tabs" { return await readTabs(args, caller: caller) }
         if args["tab_id"] != nil && int(args["tab_id"]) == nil { return .text("tab_id must be a number.", error: true) }
         // Tab ids are unique across windows: one listed earlier is found even after another window came to the front.
-        let tab = int(args["tab_id"]).map { id in Browser.all.lazy.filter { !$0.isPrivate }.compactMap { $0.tabs.first { $0.id == id } }.first }
-            ?? Browser.recent?.active
+        let tab = int(args["tab_id"]).map(findTab) ?? Browser.recent?.active
         guard let tab, let browser = tab.browser else {
             return .text(args["tab_id"] == nil ? "No tab is open. Use open_tab first." : "No tab with that id.", error: true)
         }
         // Only the tab in front of the user goes without asking.
         if (tab.id != browser.activeID || browser !== Browser.recent) && name != "close_tab" {
-            guard await Approvals.allowTab(tab) else { return declined }
+            guard await Approvals.allowTab(tab, caller: caller, reading: name == "read_page" || name == "screenshot") else { return declined }
         }
         // Every answer below carries the tab's title, address or content.
         defer { if name != "close_tab" { Approvals.noteRead(tab, caller: caller) } }
@@ -113,6 +118,42 @@ enum ToolCatalog {
         default:
             return .text("Unknown tool \(name).", error: true)
         }
+    }
+
+    /// Tab ids are unique across windows. Private windows are not the AI's to use.
+    @MainActor
+    static func findTab(_ id: Int) -> Tab? {
+        Browser.all.lazy.filter { !$0.isPrivate }.compactMap { $0.tabs.first { $0.id == id } }.first
+    }
+
+    @MainActor
+    private static func readTabs(_ args: [String: Any], caller: String) async -> ToolResult {
+        guard let values = args["tab_ids"] as? [Any], !values.isEmpty, values.allSatisfy({ int($0) != nil }) else {
+            return .text("tab_ids must be a list of tab ids.", error: true)
+        }
+        let ids = values.compactMap(int).reduce(into: [Int]()) { if !$0.contains($1) { $0.append($1) } }
+        guard ids.count <= maxTabsPerRead else { return .text("Read at most \(maxTabsPerRead) tabs at a time.", error: true) }
+        let maxChars = min(max(int(args["max_chars"]) ?? 6000, 200), 30000)
+        var sections: [String] = []
+        for id in ids {
+            let heading = "=== Tab #\(id) ===\n"
+            guard let tab = findTab(id), let browser = tab.browser else {
+                sections.append(heading + "No tab with that id.")
+                continue
+            }
+            let inFront = tab.id == browser.activeID && browser === Browser.recent
+            if !inFront, !(await Approvals.allowTab(tab, caller: caller, reading: true)) {
+                sections.append(heading + "The user declined this tab. Don't retry it.")
+                continue
+            }
+            Approvals.noteRead(tab, caller: caller)
+            let wasAsleep = tab.isAsleep
+            let webView = tab.wake()
+            if wasAsleep { await waitForLoad(tab) }
+            let result = await run(PageScripts.readText, ["maxChars": maxChars], in: webView)
+            sections.append(heading + (result.content.first?["text"] as? String ?? ""))
+        }
+        return .text(sections.joined(separator: "\n\n"))
     }
 
     private static let declined = ToolResult.text("The user declined this in Changmun. Don't retry it; tell the user what you wanted to do.", error: true)
@@ -215,15 +256,26 @@ enum ToolCatalog {
 enum Approvals {
     /// Tabs the user let the AI use, each together with the site it was on then.
     private static var tabs = Set<String>()
+    /// Tabs the user attached in the chat panel, which the panel may read.
+    private static var attached = Set<String>()
     private static var urls = Set<String>()
     /// Per caller, the sites whose titles, addresses or content the AI has been given since its chat started.
     private static var readHosts: [String: Set<String>] = [:]
     static var timeout: TimeInterval = 90
 
-    static func allowTab(_ tab: Tab) async -> Bool {
+    private static func key(_ tab: Tab) -> String {
+        "\(tab.id)|\(tab.url?.host()?.lowercased() ?? "")"
+    }
+
+    /// The tabs attached in the chat panel: the panel reads them without asking, as long as they stay on the same site.
+    static func attach(_ tabs: [Tab]) {
+        attached = Set(tabs.map(key))
+    }
+
+    static func allowTab(_ tab: Tab, caller: String, reading: Bool = false) async -> Bool {
         guard Preferences.shared.aiApprovals else { return true }
-        let key = "\(tab.id)|\(tab.url?.host()?.lowercased() ?? "")"
-        if tabs.contains(key) { return true }
+        let key = key(tab)
+        if tabs.contains(key) || (reading && caller == ChatStore.caller && attached.contains(key)) { return true }
         let allowed = await ask(String(localized: "The AI wants to use a tab you aren't looking at"),
                                 "#\(tab.id) \(tab.displayTitle.prefix(80))\n\(tab.url?.host() ?? "")\n\n" + String(localized: "If you allow it, you won't be asked again while this tab stays on this site."))
         if allowed { tabs.insert(key) }
@@ -355,6 +407,12 @@ enum PageScripts {
     return 'Title: ' + document.title + '\\nURL: ' + location.href +
       '\\nScroll: ' + Math.round(scrollY) + ' of ' + document.documentElement.scrollHeight + ' (viewport ' + innerHeight + ')' +
       '\\n\\n--- Interactive elements ---\\n' + (lines.join('\\n') || '(none)') + '\\n\\n--- Page text ---\\n' + cut;
+    """
+
+    static let readText = """
+    const text = (document.body ? document.body.innerText : '').replace(/\\n{3,}/g, '\\n\\n');
+    const cut = text.length > maxChars ? text.slice(0, maxChars) + '\\n…(truncated)' : text;
+    return 'Title: ' + document.title + '\\nURL: ' + location.href + '\\n\\n' + cut;
     """
 
     static let click = """

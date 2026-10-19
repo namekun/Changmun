@@ -61,6 +61,7 @@ Command Line Toolsだけがインストールされている場合、スクリ�
 - **ピクチャインピクチャ** (⌃⌘P) は、動画を再生中のタブから移動すると自動でオンになります。⌃⌘← / ⌃⌘→ なら、ほかのAppを使っているときでも5秒戻る・進むができ、「タブに戻る」でそのタブが前面に表示されます。
 - **パスワード**はサインイン後にキーチェーンへ保存され (httpsのみ)、アドレスバーのキーのボタンから入力します。コピーするにはTouch IDまたはMacのパスワードが必要です。
 - クリックなしで開かれた**ポップアップ**はブロックされ、ページのすぐ上に「開く」と「このサイトでは常に許可」が表示されます。
+- **ページを保存。** ファイル › PDFとして保存… は1枚の長いPDFに、ファイル › ページ全体をキャプチャ… は画面に見えている部分だけでなくページ全体を1枚の画像にして保存します。どちらもタブのメニューにもあり、別の場所を選ばなければ「ダウンロード」フォルダに保存され、プライベートウインドウでも使えます。
 - **ダウンロード**の進行状況はサイドバーの下部に表示されます。Safariと同じ隔離フラグが付くので、初めて開くときにGatekeeperが確認します。Appやスクリプト、インストーラは実行せず、Finderで表示します。 途中で切れたダウンロードは、その行の「再試行」で止まったところから再開できます。
 - **スリープするタブ。** バックグラウンドで20分間見ていないタブと、メモリが逼迫したときのすべてのバックグラウンドのタブは、Webプロセスを手放します。戻ると履歴とともに復帰します。
 - ページの拡大率はサイトごとに記憶され、開いているタブは15秒ごとに保存されるので、クラッシュしてもほとんど何も失われません。
@@ -102,7 +103,9 @@ Command Line Toolsだけがインストールされている場合、スクリ�
 
 右側のパネル (⌘E) は、すでにお使いの`claude` CLIを利用するので、Claude Codeのサブスクリプションで動作します。デフォルトのモデルはSonnetで、`defaults write io.github.namekun.Changmun aiModel opus`で切り替えられます。
 
-AIは次のツールでブラウザを操作します: `list_tabs`、`open_tab`、`switch_tab`、`close_tab`、`navigate`、`go_back`、`go_forward`、`reload`、`read_page`、`click`、`type_text`、`scroll`、`screenshot`。パスワード欄は読み取れず、入力もできません。
+AIは次のツールでブラウザを操作します: `list_tabs`、`open_tab`、`switch_tab`、`close_tab`、`navigate`、`go_back`、`go_forward`、`reload`、`read_page`、`read_tabs`、`click`、`type_text`、`scroll`、`screenshot`。パスワード欄は読み取れず、入力もできません。
+
+複数のタブにまたがる作業は、チャットの下の「タブを追加」でタブを加えます (1つずつ、タブグループごと、開いているタブすべて)。加えたタブは外せるチップとして表示され、AIは `read_tabs` でまとめて読み、読む前に確認は入りません。2つ以上加えると、パネルがタブの比較や、タブごとの要点のまとめを提案します。
 
 ページに仕込まれた指示によって、読み取った内容がほかの場所へ持ち出されることがないよう、Changmunは次の場合にまず確認します (90秒間応答がなければ拒否として扱います)。
 
@@ -124,6 +127,7 @@ claude mcp add changmun -- /Applications/Changmun.app/Contents/MacOS/Changmun --
 changmun tabs
 changmun open example.com
 changmun read
+changmun read-tabs 3 5
 changmun click 12
 changmun type 3 "hello" --submit
 ```

@@ -61,6 +61,7 @@ Si seuls les Command Line Tools sont installés, les scripts compilent avec le S
 - **Image dans l’image** (⌃⌘P) s’active toute seule quand vous quittez un onglet où une vidéo est en lecture. ⌃⌘← / ⌃⌘→ avancent ou reculent de 5 secondes, même si vous êtes dans une autre app, et « Retour à l’onglet » ramène l’onglet au premier plan.
 - **Les mots de passe** sont enregistrés dans le Trousseau après votre connexion (https uniquement) et remplis depuis la clé située dans la barre d’adresse. Pour en copier un, Touch ID ou le mot de passe de votre Mac est demandé.
 - **Les pop-ups** ouverts sans clic sont bloqués, avec « Ouvrir » et « Toujours autoriser pour ce site » juste au-dessus de la page.
+- **Enregistrer une page** en un long PDF d’une seule page (Fichier › Enregistrer en PDF…) ou en une image de la page entière, et pas seulement de la partie visible (Fichier › Capturer la page entière…). Les deux sont aussi dans le menu d’un onglet, vont dans Téléchargements sauf si vous choisissez un autre dossier et fonctionnent aussi dans les fenêtres privées.
 - **Les téléchargements** affichent leur progression en bas de la barre latérale et reçoivent l’indicateur de quarantaine de Safari, si bien que Gatekeeper les vérifie à la première ouverture. Les apps, scripts et installateurs sont affichés dans le Finder au lieu d’être exécutés. Un téléchargement interrompu reprend là où il s’était arrêté avec Réessayer sur sa ligne.
 - **Onglets en veille.** Les onglets en arrière-plan que vous n’avez pas vus depuis 20 minutes, et tous les onglets en arrière-plan quand la mémoire se fait rare, libèrent leur processus web et reviennent avec leur historique quand vous les rouvrez.
 - Le zoom des pages est mémorisé pour chaque site, et les onglets ouverts sont enregistrés toutes les 15 secondes : un plantage ne coûte presque rien.
@@ -102,7 +103,9 @@ Choisissez le style Safari ou le style Chrome dans les Réglages (⌘,). Seules 
 
 Le panneau de droite (⌘E) utilise la CLI `claude` que vous avez déjà, il fonctionne donc avec votre abonnement Claude Code. Le modèle par défaut est Sonnet ; pour en changer, utilisez `defaults write io.github.namekun.Changmun aiModel opus`.
 
-L’IA pilote le navigateur grâce à ces outils : `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `click`, `type_text`, `scroll`, `screenshot`. Elle ne peut ni lire ni remplir les champs de mot de passe.
+L’IA pilote le navigateur grâce à ces outils : `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `type_text`, `scroll`, `screenshot`. Elle ne peut ni lire ni remplir les champs de mot de passe.
+
+Pour travailler sur plusieurs onglets, ajoutez-les sous le chat avec « Ajouter un onglet » (un par un, un groupe d’onglets ou tous les onglets ouverts) : ils apparaissent sous forme de pastilles que vous pouvez retirer, l’IA les lit ensemble avec `read_tabs` et ne vous demande rien avant de les lire. Avec deux onglets ou plus, le panneau propose de les comparer ou de résumer l’essentiel de chacun.
 
 Pour que des instructions cachées dans une page ne puissent pas lui faire emporter ailleurs ce qu’elle a lu, Changmun vous demande d’abord (et refuse après 90 secondes sans réponse) :
 
@@ -124,6 +127,7 @@ Ou depuis un shell, pour tout agent capable de lancer des commandes (Homebrew pl
 changmun tabs
 changmun open example.com
 changmun read
+changmun read-tabs 3 5
 changmun click 12
 changmun type 3 "hello" --submit
 ```

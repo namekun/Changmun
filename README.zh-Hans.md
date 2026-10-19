@@ -61,6 +61,7 @@ open build/Changmun.app
 - **画中画**（⌃⌘P）会在你离开正在播放视频的标签页时自动开启。即使在其他 App 里，⌃⌘← / ⌃⌘→ 也能快退或快进 5 秒，点按“返回标签页”则会把该标签页切换到前台。
 - **密码**在你登录后保存到钥匙串（仅限 https），并通过地址栏中的钥匙按钮填入。拷贝密码需要触控 ID 或 Mac 密码验证。
 - **弹出式窗口**若未经点按就打开会被拦截，页面上方会显示“打开”和“始终允许此网站”。
+- **存储页面。** 文件 › 存储为 PDF… 会把页面存成一页很长的 PDF，文件 › 捕获整个页面… 会把整个页面（而不只是屏幕上看到的部分）存成一张图片。两者也都在标签页的菜单中；除非另选位置，否则存储到“下载”文件夹，在无痕窗口中同样可用。
 - **下载**的进度显示在边栏底部，并带有 Safari 的隔离标记，因此首次打开时 Gatekeeper 会进行检查。App、脚本和安装程序只会在 Finder 中显示，不会直接运行。 中断的下载可以在该行点按“重试”，从中断处继续。
 - **休眠标签页。** 20 分钟没有查看的后台标签页，以及内存紧张时的所有后台标签页，都会释放其网页进程，当你回来时连同历史记录一起恢复。
 - 页面缩放按网站记忆，已打开的标签页每 15 秒保存一次，因此即使崩溃也几乎不会损失什么。
@@ -102,7 +103,9 @@ open build/Changmun.app
 
 右侧的面板 (⌘E) 使用你已有的 `claude` CLI，因此直接消耗你的 Claude Code 订阅。默认模型是 Sonnet；可用 `defaults write io.github.namekun.Changmun aiModel opus` 切换。
 
-AI 通过以下工具操作浏览器：`list_tabs`、`open_tab`、`switch_tab`、`close_tab`、`navigate`、`go_back`、`go_forward`、`reload`、`read_page`、`click`、`type_text`、`scroll`、`screenshot`。它无法读取或填写密码栏。
+AI 通过以下工具操作浏览器：`list_tabs`、`open_tab`、`switch_tab`、`close_tab`、`navigate`、`go_back`、`go_forward`、`reload`、`read_page`、`read_tabs`、`click`、`type_text`、`scroll`、`screenshot`。它无法读取或填写密码栏。
+
+要跨多个标签页完成任务，可在聊天下方用“添加标签页”添加它们（逐个添加、整个标签页群组，或所有已打开的标签页）。添加的标签页显示为可移除的小标签，AI 会用 `read_tabs` 一并读取，读取前不再询问。添加两个或更多时，面板会建议比较它们，或分别总结每个标签页的要点。
 
 为了避免页面里暗藏的指令让它把读到的内容带到别处，Changmun 会先征求你的同意（90 秒内没有回应则视为拒绝）：
 
@@ -124,6 +127,7 @@ claude mcp add changmun -- /Applications/Changmun.app/Contents/MacOS/Changmun --
 changmun tabs
 changmun open example.com
 changmun read
+changmun read-tabs 3 5
 changmun click 12
 changmun type 3 "hello" --submit
 ```

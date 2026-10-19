@@ -61,6 +61,7 @@ Si solo tienes instaladas las Command Line Tools, los scripts compilan con el SD
 - **Imagen en imagen** (⌃⌘P) se activa sola cuando sales de una pestaña con un vídeo en reproducción. ⌃⌘← / ⌃⌘→ saltan 5 segundos incluso mientras estás en otra app, y "Volver a la pestaña" trae la pestaña al frente.
 - **Las contraseñas** se guardan en el llavero después de iniciar sesión (solo https) y se rellenan desde la llave de la barra de direcciones. Para copiar una se pide Touch ID o la contraseña de tu Mac.
 - **Las ventanas emergentes** que se abren sin un clic se bloquean, con "Abrir" y "Permitir siempre en este sitio" justo encima de la página.
+- **Guardar una página** como un PDF largo de una sola hoja (Archivo › Guardar como PDF…) o como una imagen de la página entera, no solo de lo que se ve en pantalla (Archivo › Capturar página completa…). Ambas están también en el menú de una pestaña, se guardan en Descargas salvo que elijas otra carpeta y funcionan en ventanas privadas.
 - **Las descargas** muestran su progreso en la parte inferior de la barra lateral y reciben la marca de cuarentena de Safari, así que Gatekeeper las comprueba la primera vez que se abren. Las apps, los scripts y los instaladores se muestran en el Finder en lugar de ejecutarse. Una descarga interrumpida continúa desde donde se quedó con Reintentar en su fila.
 - **Pestañas suspendidas.** Las pestañas en segundo plano que no has visto en 20 minutos, y todas las pestañas en segundo plano cuando hay poca memoria, devuelven su proceso web y vuelven con su historial cuando regresas a ellas.
 - El zoom de página se recuerda por sitio, y las pestañas abiertas se guardan cada 15 segundos, así que un cierre inesperado cuesta casi nada.
@@ -102,7 +103,9 @@ Elige estilo Safari o estilo Chrome en Ajustes (⌘,). Solo cambian las teclas e
 
 El panel de la derecha (⌘E) usa la CLI `claude` que ya tienes, así que funciona con tu suscripción a Claude Code. El modelo por defecto es Sonnet; cámbialo con `defaults write io.github.namekun.Changmun aiModel opus`.
 
-La IA maneja el navegador con estas herramientas: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `click`, `type_text`, `scroll`, `screenshot`. No puede leer ni rellenar campos de contraseña.
+La IA maneja el navegador con estas herramientas: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `type_text`, `scroll`, `screenshot`. No puede leer ni rellenar campos de contraseña.
+
+Para trabajar con varias pestañas, añádelas bajo el chat con «Añadir pestaña» (una a una, un grupo de pestañas o todas las abiertas): aparecen como etiquetas que puedes quitar, la IA las lee juntas con `read_tabs` y no te pregunta antes de leerlas. Con dos o más añadidas, el panel sugiere compararlas o resumir lo esencial de cada una.
 
 Para que unas instrucciones ocultas en una página no puedan hacer que lleve a otro sitio lo que ha leído, Changmun te pregunta primero (y responde que no tras 90 segundos sin respuesta):
 
@@ -124,6 +127,7 @@ O desde una shell, para cualquier agente que pueda ejecutar órdenes (Homebrew p
 changmun tabs
 changmun open example.com
 changmun read
+changmun read-tabs 3 5
 changmun click 12
 changmun type 3 "hello" --submit
 ```

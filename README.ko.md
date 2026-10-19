@@ -61,6 +61,7 @@ Command Line Tools만 깔려 있으면 스크립트가 macOS 26 SDK로 빌드한
 - **화면 속 화면**(⌃⌘P)은 영상이 재생 중인 탭에서 다른 탭으로 가면 저절로 켜진다. ⌃⌘← / ⌃⌘→로 5초씩 옮기는 건 다른 앱을 쓰는 중에도 되고, "탭으로 돌아가기"를 누르면 그 탭이 앞으로 나온다.
 - **비밀번호**는 로그인한 뒤 키체인에 저장되고(https만), 주소창의 열쇠로 채운다. 복사하려면 Touch ID나 Mac 암호로 확인해야 한다.
 - 클릭 없이 열리는 **팝업**은 막고, 페이지 바로 위에 "열기"와 "이 사이트는 항상 허용"을 띄운다.
+- **페이지 저장.** 파일 › PDF로 저장…은 한 장짜리 긴 PDF로, 파일 › 전체 페이지 캡처…는 화면에 보이는 부분이 아니라 페이지 전체를 그림 한 장으로 저장한다. 둘 다 탭 메뉴에도 있고, 따로 고르지 않으면 다운로드 폴더에 저장되며 비공개 윈도우에서도 쓸 수 있다.
 - **다운로드**는 사이드바 아래에 진행률이 보이고, Safari처럼 격리 표시가 붙어서 처음 열 때 Gatekeeper가 검사한다. 앱·스크립트·설치 패키지는 실행하지 않고 Finder에서 보여 준다. 받다가 끊긴 다운로드는 그 행의 다시 시도로 멈춘 곳부터 이어 받는다.
 - **탭 재우기.** 20분 넘게 보지 않은 백그라운드 탭과 메모리 압박 때의 백그라운드 탭은 웹 프로세스를 내려놓고, 다시 볼 때 방문 기록과 함께 복원한다.
 - 페이지 확대 비율은 사이트별로 기억하고, 열린 탭은 15초마다 저장해서 비정상 종료돼도 거의 잃는 게 없다.
@@ -102,7 +103,9 @@ Command Line Tools만 깔려 있으면 스크립트가 macOS 26 SDK로 빌드한
 
 오른쪽 패널(⌘E)은 이미 설치된 `claude` CLI를 쓰므로 Claude Code 구독으로 돌아간다. 기본 모델은 Sonnet이고, `defaults write io.github.namekun.Changmun aiModel opus`로 바꿀 수 있다.
 
-AI는 다음 도구로 브라우저를 다룬다: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `click`, `type_text`, `scroll`, `screenshot`. 비밀번호 칸은 읽지도 입력하지도 못한다.
+AI는 다음 도구로 브라우저를 다룬다: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `type_text`, `scroll`, `screenshot`. 비밀번호 칸은 읽지도 입력하지도 못한다.
+
+여러 탭에 걸친 일은 채팅 아래의 "탭 추가"로 탭을 붙이면 된다(하나씩, 탭 그룹째, 열린 탭 전부). 붙인 탭은 지울 수 있는 칩으로 보이고, AI가 `read_tabs`로 한꺼번에 읽으며, 읽기 전에 따로 묻지 않는다. 두 개 이상 붙이면 패널이 탭 비교하기와 탭마다 핵심만 정리하기를 제안한다.
 
 페이지에 숨은 지시로 AI가 읽은 내용을 다른 곳에 빼돌리지 못하게, Changmun은 먼저 확인 창으로 묻는다(90초 동안 답이 없으면 거부).
 
@@ -124,6 +127,7 @@ claude mcp add changmun -- /Applications/Changmun.app/Contents/MacOS/Changmun --
 changmun tabs
 changmun open example.com
 changmun read
+changmun read-tabs 3 5
 changmun click 12
 changmun type 3 "hello" --submit
 ```

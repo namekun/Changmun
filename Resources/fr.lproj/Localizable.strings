@@ -24,6 +24,7 @@
 "Ad Blocking" = "Blocage des publicités";
 "Add" = "Ajouter";
 "Add filter list URL (e.g. a Korean ad list)" = "Ajouter l’adresse d’une liste de filtres (p. ex. une liste de publicités coréennes)";
+"Add Tab" = "Ajouter un onglet";
 "Add to Changmun" = "Ajouter à Changmun";
 "Add to Favorites (⌘D)" = "Ajouter aux favoris (⌘D)";
 "Add to New Group" = "Ajouter à un nouveau groupe";
@@ -45,6 +46,7 @@
 "AI Panel" = "Panneau IA";
 "AI Panel (⌘E)" = "Panneau IA (⌘E)";
 "All done" = "Tout est importé";
+"All Open Tabs" = "Tous les onglets ouverts";
 "All Time" = "Depuis toujours";
 "Allow" = "Autoriser";
 "Always Allow for This Site" = "Toujours autoriser pour ce site";
@@ -77,6 +79,7 @@
 "Cancel" = "Annuler";
 "Cancelled" = "Annulé";
 "Can’t open the page" = "Impossible d’ouvrir la page";
+"Capture Full Page…" = "Capturer la page entière…";
 "Change…" = "Modifier…";
 "Changmun is your default browser" = "Changmun est votre navigateur par défaut";
 "Changmun Private Window" = "Fenêtre privée Changmun";
@@ -106,6 +109,7 @@
 "Close Tab (⌘W)" = "Fermer l’onglet (⌘W)";
 "Close Window" = "Fermer la fenêtre";
 "Collapse" = "Réduire";
+"Compare the attached tabs" = "Comparez les onglets joints";
 "Console" = "Console";
 "Cookies %@" = "Cookies %@";
 "Cookies: %@" = "Cookies : %@";
@@ -121,6 +125,7 @@
 "Couldn't find the rules. In System Settings › Privacy & Security, check that Changmun is allowed to access data from other apps." = "Impossible de trouver les règles. Dans Réglages Système › Confidentialité et sécurité, vérifiez que Changmun est autorisé à accéder aux données d’autres apps.";
 "Couldn't read '%@' from the Keychain, so passwords and cookies were skipped. Click 'Allow' in the permission dialog to import them." = "Impossible de lire « %@ » dans le Trousseau ; les mots de passe et les cookies ont donc été ignorés. Cliquez sur « Autoriser » dans la fenêtre d’autorisation pour les importer.";
 "Couldn't run claude: %@" = "Impossible d’exécuter claude : %@";
+"Couldn't save the page" = "Impossible d’enregistrer la page";
 "Couldn’t run it: %@" = "Impossible de l’exécuter : %@";
 "Current Site" = "Site actuel";
 "Cut" = "Couper";
@@ -184,6 +189,7 @@
 "General" = "Général";
 "Get search suggestions as you type" = "Obtenir des suggestions de recherche pendant la saisie";
 "Get Started" = "Commencer";
+"Give the AI more tabs to read" = "Donner d’autres onglets à lire à l’IA";
 "Go to · %@" = "Aller à · %@";
 "Group name" = "Nom du groupe";
 "Haiku (fastest)" = "Haiku (le plus rapide)";
@@ -273,6 +279,7 @@
 "Other" = "Autre";
 "Other Bookmarks" = "Autres signets";
 "Other Browsers" = "Autres navigateurs";
+"Page" = "Page";
 "Password" = "Mot de passe";
 "Passwords %@" = "Mots de passe %@";
 "Passwords: %@" = "Mots de passe : %@";
@@ -297,6 +304,7 @@
 "Private Window" = "Fenêtre privée";
 "Quit Changmun" = "Quitter Changmun";
 "Read page" = "Lire la page";
+"Read tabs" = "Lire les onglets";
 "Reading rules…" = "Lecture des règles…";
 "Reads the rules saved by the blocker app. The first time you turn one on, macOS asks whether Changmun may access another app’s data. If you change the rules in the blocker app, they take effect the next time you launch Changmun." = "Lit les règles enregistrées par l’app de blocage. La première fois que vous en activez une, macOS demande si Changmun peut accéder aux données d’une autre app. Si vous modifiez les règles dans l’app de blocage, elles prennent effet au prochain lancement de Changmun.";
 "Recent Tab" = "Onglet récent";
@@ -309,6 +317,7 @@
 "Remove from Favorites (⌘D)" = "Retirer des favoris (⌘D)";
 "Remove from Group" = "Retirer du groupe";
 "Remove from History" = "Supprimer de l’historique";
+"Remove from the AI's tabs" = "Retirer des onglets de l’IA";
 "Rename" = "Renommer";
 "Reopen" = "Rouvrir";
 "Reopen Closed Tab" = "Rouvrir l’onglet fermé";
@@ -321,7 +330,9 @@
 "Safari history" = "Historique Safari";
 "Safari-style" = "Style Safari";
 "Save" = "Enregistrer";
+"Save as PDF…" = "Enregistrer en PDF…";
 "Save login info for %@?" = "Enregistrer les identifiants pour %@ ?";
+"Saved %@" = "%@ enregistré";
 "Saved Passwords" = "Mots de passe enregistrés";
 "Scroll · %@" = "Défilement · %@";
 "Search" = "Rechercher";
@@ -363,6 +374,7 @@
 "Start with a new tab" = "Démarrer avec un nouvel onglet";
 "Stop" = "Arrêter";
 "Stop generating" = "Arrêter la génération";
+"Sum up only the key points of each attached tab" = "Résumez l’essentiel de chaque onglet joint";
 "Summarize this page in three lines" = "Résumez cette page en trois lignes";
 "Switch tab" = "Changer d’onglet";
 "Switch to Tab" = "Passer à l’onglet";

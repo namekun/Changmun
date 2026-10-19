@@ -1806,7 +1806,11 @@ struct SidebarTabRow: View {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(tab.url?.absoluteString ?? "", forType: .string)
         }
-        if !tab.isAsleep { Button(tab.isMuted ? String(localized: "Unmute") : String(localized: "Mute Tab")) { tab.toggleMute() } }
+        if !tab.isAsleep {
+            Button(tab.isMuted ? String(localized: "Unmute") : String(localized: "Mute Tab")) { tab.toggleMute() }
+            Button("Save as PDF…") { Task { await SavePage.save(tab, as: .pdf) } }
+            Button("Capture Full Page…") { Task { await SavePage.save(tab, as: .image) } }
+        }
         Divider()
         Button("Pin to Favorites") {
             if let url = tab.url?.absoluteString {

@@ -177,6 +177,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
     }
 
+    @objc func savePDF(_ sender: Any?) {
+        guard let tab = browser.active else { return }
+        Task { await SavePage.save(tab, as: .pdf) }
+    }
+
+    @objc func captureFullPage(_ sender: Any?) {
+        guard let tab = browser.active else { return }
+        Task { await SavePage.save(tab, as: .image) }
+    }
+
     @objc func openFile(_ sender: Any?) {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
@@ -447,6 +457,8 @@ enum AppMenu {
         file.addItem(.separator())
         add(file, "Copy Address", #selector(AppDelegate.copyAddress(_:)), "c", [.command, .shift])
         add(file, "Print…", #selector(AppDelegate.printPage(_:)), "p")
+        add(file, "Save as PDF…", #selector(AppDelegate.savePDF(_:)))
+        add(file, "Capture Full Page…", #selector(AppDelegate.captureFullPage(_:)))
 
         let edit = submenu(main, "Edit")
         add(edit, "Undo", Selector(("undo:")), "z")
