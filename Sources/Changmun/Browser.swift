@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import WebKit
 
 enum CommandBarMode: Equatable {
@@ -34,11 +35,24 @@ final class Browser: ObservableObject {
     /// A private window keeps no history, session, cookies or site data once it closes, and the AI and extensions can't see it.
     let isPrivate: Bool
     let configuration: WKWebViewConfiguration
+    let spaces: SpaceStore
     weak var window: NSWindow?
 
-    init(isPrivate: Bool = false) {
+    /// A new window starts in the space the one in front is in, and the first window in the one used last.
+    init(isPrivate: Bool = false, spaces: SpaceStore? = nil) {
+        let spaces = spaces ?? .shared
         self.isPrivate = isPrivate
+        self.spaces = spaces
+        spaceID = isPrivate ? spaces.space(nil).id : spaces.space(Self.current.map(\.spaceID) ?? spaces.lastActive).id
         configuration = isPrivate ? Self.makeConfiguration(store: .nonPersistent(), extensions: false) : Self.configuration
+        // A space renamed or recoloured redraws what shows it.
+        spacesWatch = spaces.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
+    }
+    private var spacesWatch: AnyCancellable?
+
+    /// A profile space's tabs load with its own data store and everything else the same; a private window has no spaces.
+    func configuration(for space: UUID) -> WKWebViewConfiguration {
+        isPrivate ? configuration : Profiles.configuration(for: spaces.space(space), base: configuration)
     }
 
     func focused() {
@@ -60,8 +74,17 @@ final class Browser: ObservableObject {
         if isPrivate { Downloads.shared.forget(self) }
     }
 
+    /// The tabs of every space in this window.
     @Published private(set) var tabs: [Tab] = []
     @Published private(set) var activeID: Int?
+    /// The space shown: the sidebar lists its tabs, favorites and folders, and new tabs open in it.
+    @Published private(set) var spaceID: UUID
+    /// Which way the last switch went (1 to a space further on), for the sidebar to slide that way.
+    private(set) var spaceDirection = 1
+    /// The tab each space last showed, so coming back finds it.
+    private var spaceSelection: [UUID: Int] = [:]
+    /// The space's new-space sheet or edit sheet, shown over the window.
+    @Published var spaceSheet: SpaceSheetMode?
     /// Opening the AI panel, the sidebar or the downloads ends focus mode, whichever way it is opened.
     @Published var showChat = false {
         didSet { if showChat { focusMode = false } }
@@ -125,6 +148,7 @@ final class Browser: ObservableObject {
         var index: Int
         var bookmarkKey: String?
         var group: TabGroup?
+        var space: UUID
     }
 
     /// Most recently closed last.
@@ -154,7 +178,7 @@ final class Browser: ObservableObject {
 
     static let configuration = makeConfiguration(store: .default(), extensions: !Headless.isOn)
 
-    private static func makeConfiguration(store: WKWebsiteDataStore, extensions: Bool) -> WKWebViewConfiguration {
+    static func makeConfiguration(store: WKWebsiteDataStore, extensions: Bool) -> WKWebViewConfiguration {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = store
         config.preferences.isElementFullscreenEnabled = true
@@ -227,8 +251,9 @@ final class Browser: ObservableObject {
     // MARK: Tabs
 
     @discardableResult
-    func openTab(url: URL?, activate: Bool = true, after: Tab? = nil) -> Tab {
+    func openTab(url: URL?, activate: Bool = true, after: Tab? = nil, space: UUID? = nil) -> Tab {
         let tab = Tab(id: Self.takeID(), url: url, browser: self)
+        if let space, spaces.contains(space) { tab.spaceID = space }
         insert(tab, after: after)
         tab.sortsIntoGroup = tab.groupID == nil
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
@@ -241,6 +266,7 @@ final class Browser: ObservableObject {
 
     func openTab(configuration: WKWebViewConfiguration, after: Tab?) -> Tab {
         let tab = Tab(id: Self.takeID(), configuration: configuration, browser: self)
+        if let after { tab.spaceID = after.spaceID }
         insert(tab, after: after)
         tab.sortsIntoGroup = tab.groupID == nil
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
@@ -253,8 +279,10 @@ final class Browser: ObservableObject {
         hoveredLink = nil
         if id != activeID && findBarVisible { hideFindBar() }
         let previous = active
+        // A tab of another space brings its space along.
+        if tab.spaceID != spaceID && !isPrivate { enter(tab.spaceID) }
         if let previous, previous !== tab {
-            previousActiveID = previous.id
+            previousActiveID = previous.spaceID == tab.spaceID ? previous.id : nil
             // Like Arc: a video playing in the tab being left keeps playing in picture in picture, until it is shown again
             // (not when the two halves of a split trade places, as both stay on screen).
             let staysOnScreen = split?.contains(previous.id) == true && split?.contains(id) == true
@@ -266,6 +294,7 @@ final class Browser: ObservableObject {
         if previous !== tab { tab.pictureInPicture(.exit) }
         for shown in tabs where isShown(shown) { shown.lastShown = Date() }
         activeID = id
+        spaceSelection[tab.spaceID] = id
         closePeek()
         tab.lastShown = Date()
         tab.wake()
@@ -278,11 +307,71 @@ final class Browser: ObservableObject {
     /// Whether the tab is on screen: the active one, or the other half of the split.
     func isShown(_ tab: Tab) -> Bool { tab.id == activeID || shownSplit?.contains(tab.id) == true }
 
+    // MARK: Spaces
+
+    /// The tab a space shows when it is switched to: the one it showed last, else its first listed tab.
+    private func switchTarget(in space: UUID) -> Tab? {
+        if let remembered = spaceSelection[space], let tab = tab(remembered), tab.spaceID == space { return tab }
+        return tabs.first { $0.spaceID == space && $0.bookmarkKey == nil } ?? tabs.first { $0.spaceID == space }
+    }
+
+    /// Makes `id` the space shown; the caller shows a tab of it.
+    private func enter(_ id: UUID) {
+        let order = spaces.spaces.map(\.id)
+        spaceDirection = (order.firstIndex(of: id) ?? 0) >= (order.firstIndex(of: spaceID) ?? 0) ? 1 : -1
+        spaceID = id
+        previousActiveID = nil
+        spaces.rememberActive(id)
+    }
+
+    func switchSpace(to id: UUID) {
+        guard !isPrivate, id != spaceID, spaces.contains(id) else { return }
+        commandBar = nil
+        if let target = switchTarget(in: id) { return activate(target.id) }
+        // A space with no tabs shows nothing but the bar to open one.
+        for shown in tabs where isShown(shown) { shown.lastShown = Date() }
+        if findBarVisible { hideFindBar() }
+        closePeek()
+        hoveredLink = nil
+        enter(id)
+        activeID = nil
+        commandBar = .newTab
+    }
+
+    /// The next space (1) or the one before (-1), going round.
+    func switchSpace(offset: Int) {
+        let order = spaces.spaces
+        guard order.count > 1, let at = order.firstIndex(where: { $0.id == spaceID }) else { return }
+        switchSpace(to: order[(at + offset + order.count) % order.count].id)
+    }
+
+    /// ⌃1 to ⌃9; 9 is the last, as with tabs.
+    func switchSpace(number: Int) {
+        let order = spaces.spaces
+        switchSpace(to: order[number >= 9 ? order.count - 1 : min(number - 1, order.count - 1)].id)
+    }
+
+    /// Takes a space away with its tabs, in this window and every other; a profile's cookies and site data go with it.
+    static func deleteSpace(_ id: UUID, from store: SpaceStore? = nil) {
+        let store = store ?? .shared
+        guard let removed = store.remove(id) else { return }
+        for browser in all where browser.spaces === store { browser.spaceRemoved(id) }
+        if removed.isProfile { Profiles.remove(id) }
+    }
+
+    private func spaceRemoved(_ id: UUID) {
+        if spaceID == id, let next = spaces.spaces.first(where: { $0.id != id })?.id { switchSpace(to: next) }
+        for tab in tabs where tab.spaceID == id { close(tab.id, remember: false) }
+        spaceSelection[id] = nil
+        closedTabs.removeAll { $0.space == id }
+        if spaceID == id, let next = spaces.spaces.first?.id { spaceID = next }
+    }
+
     // MARK: Split view
 
     /// Shows `id` to the right of the active tab.
     func split(with id: Int) {
-        guard let activeID, id != activeID, tab(id) != nil else { return }
+        guard let activeID, id != activeID, tab(id)?.spaceID == spaceID else { return }
         split = Split(left: activeID, right: id)
         splitFraction = 0.5
         tab(id)?.wake()
@@ -330,20 +419,23 @@ final class Browser: ObservableObject {
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabClosed(closing) }
         if remember {
             closedTabs.append(ClosedTab(url: closing.url, title: closing.title, state: closing.sessionState, index: index, bookmarkKey: closing.bookmarkKey,
-                                        group: groups.first { $0.id == closing.groupID }))
+                                        group: groups.first { $0.id == closing.groupID }, space: closing.spaceID))
             if closedTabs.count > 100 { closedTabs.removeFirst() }
         }
         closing.sleep()
         pruneGroups()
+        if spaceSelection[closing.spaceID] == id { spaceSelection[closing.spaceID] = nil }
         if activeID == id {
-            if tabs.isEmpty {
+            let here = spaceTabs
+            if here.isEmpty {
                 activeID = nil
                 commandBar = .newTab
-            } else if let back = previousActiveID, tabs.contains(where: { $0.id == back }) {
+            } else if let back = previousActiveID, here.contains(where: { $0.id == back }) {
                 activate(back)
             } else {
                 let listed = listedTabs
-                activate(listed.isEmpty ? tabs[min(index, tabs.count - 1)].id : listed[min(listed.count - 1, max(0, listedIndex(before: index)))].id)
+                let before = tabs.prefix(index).filter { $0.spaceID == closing.spaceID }.count
+                activate(listed.isEmpty ? here[min(before, here.count - 1)].id : listed[min(listed.count - 1, max(0, listedIndex(before: index, in: closing.spaceID)))].id)
             }
         }
     }
@@ -352,7 +444,8 @@ final class Browser: ObservableObject {
     func reopenClosedTab() {
         guard let closed = closedTabs.popLast() else { return }
         let tab = Tab(id: Self.takeID(), url: closed.url, title: closed.title, state: closed.state, browser: self)
-        if let key = closed.bookmarkKey, bookmarkTab(key) == nil { tab.bookmarkKey = key }
+        if spaces.contains(closed.space) { tab.spaceID = closed.space }
+        if let key = closed.bookmarkKey, !tabs.contains(where: { $0.spaceID == tab.spaceID && $0.bookmarkKey == key }) { tab.bookmarkKey = key }
         tabs.insert(tab, at: min(closed.index, tabs.count))
         // Back into its group, made again if it went away with its last tab.
         if let group = closed.group, tab.bookmarkKey == nil {
@@ -426,9 +519,10 @@ final class Browser: ObservableObject {
         activate(number >= 9 ? listed[listed.count - 1].id : listed[min(number - 1, listed.count - 1)].id)
     }
 
-    /// How many listed tabs came before position `index` in `tabs` (after a tab there was removed).
-    private func listedIndex(before index: Int) -> Int {
-        tabs.prefix(index).filter { $0.bookmarkKey == nil }.count - 1 + (tabs.indices.contains(index) && tabs[index].bookmarkKey == nil ? 1 : 0)
+    /// How many listed tabs of the space came before position `index` in `tabs` (after a tab there was removed).
+    private func listedIndex(before index: Int, in space: UUID) -> Int {
+        tabs.prefix(index).filter { $0.spaceID == space && $0.bookmarkKey == nil }.count - 1
+            + (tabs.indices.contains(index) && tabs[index].spaceID == space && tabs[index].bookmarkKey == nil ? 1 : 0)
     }
 
     func open(_ input: String, in mode: CommandBarMode) {
@@ -439,10 +533,16 @@ final class Browser: ObservableObject {
 
     static func bookmarkKey(url: String, folder: String) -> String { folder + "\n" + url }
 
-    /// Tabs shown in the sidebar's tab list; bookmark tabs show in their bookmark's place instead.
-    var listedTabs: [Tab] { tabs.filter { $0.bookmarkKey == nil } }
+    var space: Space { spaces.space(spaceID) }
+    var favoritesFolder: String { space.favoritesFolder }
 
-    func bookmarkTab(_ key: String) -> Tab? { tabs.first { $0.bookmarkKey == key } }
+    /// The tabs of the space shown.
+    var spaceTabs: [Tab] { tabs.filter { $0.spaceID == spaceID } }
+
+    /// Tabs shown in the sidebar's tab list; bookmark tabs show in their bookmark's place instead.
+    var listedTabs: [Tab] { spaceTabs.filter { $0.bookmarkKey == nil } }
+
+    func bookmarkTab(_ key: String) -> Tab? { spaceTabs.first { $0.bookmarkKey == key } }
 
     /// A bookmark is its own tab, as in Dia and Arc: the first click opens it in its place, later clicks switch back
     /// to it (wherever it has navigated since). ⌘-click opens the page in an ordinary new tab instead.
@@ -453,7 +553,7 @@ final class Browser: ObservableObject {
             return
         }
         guard let key else {
-            if let open = tabs.first(where: { $0.url?.absoluteString == address }) { activate(open.id) } else { openTab(url: url, after: active) }
+            if let open = spaceTabs.first(where: { $0.url?.absoluteString == address }) { activate(open.id) } else { openTab(url: url, after: active) }
             return
         }
         activate(bookmarkTab(opening: url, key: key).id)
@@ -487,9 +587,10 @@ final class Browser: ObservableObject {
         guard Library.shared.moveBookmark(url: url, from: from, to: to) else { return }
         let old = bookmarkKey(url: url, folder: from), new = bookmarkKey(url: url, folder: to)
         for browser in all {
-            guard let tab = browser.bookmarkTab(old), browser.bookmarkTab(new) == nil else { continue }
-            tab.bookmarkKey = new
-            browser.objectWillChange.send()
+            for tab in browser.tabs where tab.bookmarkKey == old && !browser.tabs.contains(where: { $0.spaceID == tab.spaceID && $0.bookmarkKey == new }) {
+                tab.bookmarkKey = new
+                browser.objectWillChange.send()
+            }
         }
     }
 
@@ -516,7 +617,7 @@ final class Browser: ObservableObject {
 
     /// The shown tab first, then the others by when they were last shown.
     var recentTabs: [Tab] {
-        tabs.enumerated().sorted { a, b in
+        spaceTabs.enumerated().sorted { a, b in
             if (a.element.id == activeID) != (b.element.id == activeID) { return a.element.id == activeID }
             if a.element.lastShown != b.element.lastShown { return a.element.lastShown > b.element.lastShown }
             return a.offset < b.offset
@@ -555,6 +656,11 @@ final class Browser: ObservableObject {
     }
 
     @Published private(set) var groups: [TabGroup] = []
+    /// The groups of the space shown (a group's tabs are all in one space).
+    var spaceGroups: [TabGroup] {
+        let used = Set(spaceTabs.compactMap(\.groupID))
+        return groups.filter { used.contains($0.id) }
+    }
     /// The group whose name is being typed in the sidebar; a new group starts that way.
     @Published var renamingGroup: UUID?
 
@@ -682,7 +788,7 @@ final class Browser: ObservableObject {
     /// Takes a tab out into a window of its own, keeping its back and forward history.
     func moveToNewWindow(_ id: Int) {
         guard let tab = tab(id) else { return }
-        let saved = SavedSession(tabs: [SavedTab(url: tab.url?.absoluteString, title: tab.title, state: tab.sessionState)], active: 0)
+        let saved = SavedSession(tabs: [SavedTab(url: tab.url?.absoluteString, title: tab.title, state: tab.sessionState, space: tab.spaceID)], active: 0, space: tab.spaceID)
         close(id, remember: false)
         BrowserWindow.open(private: isPrivate, restoring: saved)
     }
@@ -750,14 +856,14 @@ final class Browser: ObservableObject {
     @Published private(set) var lastTidy: Tidy?
 
     /// The tabs a tidy sorts: those in no group (favorites and bookmarks live in their own places).
-    var looseTabs: [Tab] { tabs.filter { $0.groupID == nil && $0.bookmarkKey == nil } }
+    var looseTabs: [Tab] { spaceTabs.filter { $0.groupID == nil && $0.bookmarkKey == nil } }
 
     func tidyTabs() {
         guard !tidying else { return }
         let loose = looseTabs
         guard loose.count > 1 else { return flashStatus(String(localized: "No tabs to tidy")) }
         tidying = true
-        let items = loose.map(\.sortItem), names = groups.map(\.name)
+        let items = loose.map(\.sortItem), names = spaceGroups.map(\.name)
         Task {
             let plan = await TabSorter.plan(items, existing: names)
             tidying = false
@@ -771,7 +877,7 @@ final class Browser: ObservableObject {
         for entry in plan {
             let members = entry.ids.compactMap { tab($0) }.filter { $0.groupID == nil && $0.bookmarkKey == nil }
             let group: UUID
-            if let existing = groups.first(where: { $0.name == entry.name }) {
+            if let existing = spaceGroups.first(where: { $0.name == entry.name }) {
                 group = existing.id
             } else {
                 guard members.count > 1 else { continue }
@@ -806,9 +912,11 @@ final class Browser: ObservableObject {
     /// A new tab whose first page has loaded joins the group it plainly belongs in, if there is one.
     func sortIntoGroup(_ tab: Tab) {
         // A tab opened from another (a link, a sign-in popup) stays by it.
-        guard Preferences.shared.groupNewTabs, tab.groupID == nil, tab.bookmarkKey == nil, tab.openerID == nil, !groups.isEmpty else { return }
-        let ids = groups.map(\.id)
-        let candidates = groups.map { group in (name: group.name, members: tabs.filter { $0.groupID == group.id }.map(\.sortItem)) }
+        let spaceGroups = spaceGroups
+        guard Preferences.shared.groupNewTabs, tab.groupID == nil, tab.bookmarkKey == nil, tab.openerID == nil, !spaceGroups.isEmpty,
+              tab.spaceID == spaceID else { return }
+        let ids = spaceGroups.map(\.id)
+        let candidates = spaceGroups.map { group in (name: group.name, members: tabs.filter { $0.groupID == group.id }.map(\.sortItem)) }
         let item = tab.sortItem
         Task {
             guard let index = await TabSorter.fit(item, groups: candidates), self.tab(tab.id) === tab, tab.groupID == nil,
@@ -940,7 +1048,7 @@ final class Browser: ObservableObject {
         }
         guard !idle.isEmpty else { return }
         archive.add(idle.map { tab in
-            TabArchive.Entry(url: tab.url?.absoluteString ?? "", title: tab.displayTitle, archived: now, group: groups.first { $0.id == tab.groupID }?.name)
+            TabArchive.Entry(url: tab.url?.absoluteString ?? "", title: tab.displayTitle, archived: now, group: groups.first { $0.id == tab.groupID }?.name, space: tab.spaceID)
         })
         for tab in idle { close(tab.id, remember: false) }
     }
@@ -949,8 +1057,8 @@ final class Browser: ObservableObject {
     func reopen(_ entry: TabArchive.Entry, from archive: TabArchive? = nil) {
         guard let url = URL(string: entry.url) else { return }
         let archive = archive ?? .shared
-        let tab = openTab(url: url)
-        if let name = entry.group, let group = groups.first(where: { $0.name == name }) { addTab(tab.id, to: group.id) }
+        let tab = openTab(url: url, space: entry.space)
+        if let name = entry.group, let group = spaceGroups.first(where: { $0.name == name }) { addTab(tab.id, to: group.id) }
         archive.remove(entry.id)
     }
 
@@ -964,6 +1072,10 @@ final class Browser: ObservableObject {
         var group: UUID?
         /// When it was last shown, for archiving tabs not looked at in a while.
         var shown: Date?
+        /// The space it is in; sessions from before spaces have none, and their tabs go to the first space.
+        var space: UUID?
+        /// The tab its space showed last.
+        var selected: Bool?
     }
 
     struct SavedSession: Codable {
@@ -973,6 +1085,8 @@ final class Browser: ObservableObject {
         var groups: [TabGroup]?
         /// When it was written: time with the app closed doesn't count toward archiving a tab.
         var saved: Date?
+        /// The space the window was showing.
+        var space: UUID?
     }
 
     /// The open windows, the one in front last. Older versions saved one window as a bare `SavedSession`.
@@ -1006,11 +1120,13 @@ final class Browser: ObservableObject {
     func savedSession(fresh: Bool) -> SavedSession {
         SavedSession(
             tabs: tabs.map { SavedTab(url: $0.url?.absoluteString, title: $0.title, state: fresh ? $0.sessionState : $0.lastSessionState,
-                                  bookmarkKey: $0.bookmarkKey, group: $0.groupID, shown: $0.lastShown) },
+                                  bookmarkKey: $0.bookmarkKey, group: $0.groupID, shown: $0.lastShown, space: $0.spaceID,
+                                  selected: spaceSelection[$0.spaceID] == $0.id) },
             active: tabs.firstIndex { $0.id == activeID },
             previous: tabs.firstIndex { $0.id == previousActiveID },
             groups: groups,
-            saved: Date()
+            saved: Date(),
+            space: spaceID
         )
     }
 
@@ -1038,8 +1154,8 @@ final class Browser: ObservableObject {
     /// Saves whenever the ordinary windows' tabs or addresses changed, so a crash or a forced quit loses little.
     static func saveSessionIfChanged() {
         let signature = all.filter { !$0.isPrivate }.map { browser in
-            browser.tabs.map { "\($0.id) \($0.groupID?.uuidString ?? "") \($0.url?.absoluteString ?? "")" }.joined(separator: "|")
-                + " #\(browser.activeID ?? 0) " + browser.groups.map { "\($0.id) \($0.isOpen) \($0.name)" }.joined(separator: "|")
+            browser.tabs.map { "\($0.id) \($0.spaceID) \($0.groupID?.uuidString ?? "") \($0.url?.absoluteString ?? "")" }.joined(separator: "|")
+                + " #\(browser.activeID ?? 0) \(browser.spaceID) " + browser.groups.map { "\($0.id) \($0.isOpen) \($0.name)" }.joined(separator: "|")
         }
         guard signature != savedSignature else { return }
         savedSignature = signature
@@ -1064,16 +1180,25 @@ final class Browser: ObservableObject {
     func restore(_ saved: SavedSession) {
         for item in saved.tabs {
             let tab = Tab(id: Self.takeID(), url: item.url.flatMap(URL.init(string:)), title: item.title, state: item.state, browser: self)
+            tab.spaceID = spaces.space(item.space).id
             tab.bookmarkKey = item.bookmarkKey
             tab.groupID = item.group
+            if item.selected == true { spaceSelection[tab.spaceID] = tab.id }
             if let shown = item.shown { tab.lastShown = Date(timeIntervalSinceNow: -max(0, (saved.saved ?? shown).timeIntervalSince(shown))) }
             tabs.append(tab)
         }
         groups = saved.groups ?? []
         pruneGroups()
         guard !tabs.isEmpty else { return }
-        activate(tabs[min(saved.active ?? 0, tabs.count - 1)].id)
-        if let previous = saved.previous, tabs.indices.contains(previous) { previousActiveID = tabs[previous].id }
+        let shown = tabs[min(saved.active ?? 0, tabs.count - 1)]
+        // The space the window was in, with the tab it showed there; a space with none shows its first tab, or is empty.
+        if let space = saved.space, spaces.contains(space), !isPrivate { spaceID = space } else if !isPrivate { spaceID = shown.spaceID }
+        if let start = shown.spaceID == spaceID ? shown : switchTarget(in: spaceID) {
+            activate(start.id)
+        } else {
+            activeID = nil
+        }
+        if let previous = saved.previous, tabs.indices.contains(previous), tabs[previous].spaceID == spaceID { previousActiveID = tabs[previous].id }
     }
 }
 
@@ -1091,6 +1216,7 @@ extension Browser.SavedSession {
         previous = position((try? values.decodeIfPresent(Int.self, forKey: .previous)) ?? nil)
         groups = try? values.decodeIfPresent([Browser.TabGroup].self, forKey: .groups)
         saved = try? values.decodeIfPresent(Date.self, forKey: .saved)
+        space = try? values.decodeIfPresent(UUID.self, forKey: .space)
     }
 }
 

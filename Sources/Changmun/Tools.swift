@@ -27,7 +27,7 @@ enum ToolCatalog {
     static let readDeadline: TimeInterval = 60
 
     static let definitions: [[String: Any]] = [
-        tool("list_tabs", "List the open tabs with their ids, titles and URLs, and which one is active."),
+        tool("list_tabs", "List the open tabs of every space with their ids, titles and URLs (and the space's name in brackets when there are several spaces), and which one is active."),
         tool("open_tab", "Open a new tab with a URL or a search query and show it.", ["url": ["type": "string", "description": "URL, domain, or search words"]], required: ["url"]),
         tool("switch_tab", "Show a tab to the user.", required: ["tab_id"]),
         tool("close_tab", "Close a tab.", required: ["tab_id"]),
@@ -216,8 +216,11 @@ enum ToolCatalog {
     @MainActor
     private static func listTabs(_ browser: Browser) -> ToolResult {
         if browser.tabs.isEmpty { return .text("No tabs are open.") }
+        // With more than one space, each tab says which one it is in (all of them are listed).
+        let named = browser.spaces.spaces.count > 1
         let lines = browser.tabs.map { tab in
-            "\(tab.id == browser.activeID ? "*" : " ") #\(tab.id) \(tab.displayTitle) — \(tab.url?.absoluteString ?? "about:blank")\(tab.isAsleep ? " (asleep)" : "")"
+            let space = named ? " [\(browser.spaces.space(tab.spaceID).name)]" : ""
+            return "\(tab.id == browser.activeID ? "*" : " ") #\(tab.id)\(space) \(tab.displayTitle) — \(tab.url?.absoluteString ?? "about:blank")\(tab.isAsleep ? " (asleep)" : "")"
         }
         return .text("Tabs (* = the one the user is looking at):\n" + lines.joined(separator: "\n"))
     }

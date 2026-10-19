@@ -10,6 +10,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var bookmarkKey: String?
     /// The tab group it is in, in the sidebar's tab list.
     var groupID: UUID?
+    /// The space it belongs to: its pages use that space's data store.
+    var spaceID: UUID
     /// The tab it was opened from (a link, a popup): tidying keeps the two together.
     var openerID: Int?
     /// Opened outside any group: once its first page loads, it may join the group it belongs in.
@@ -57,6 +59,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// The page is a PDF document, not a web page.
     private(set) var showsPDF = false
 
+    /// The folder the favorites of its space are kept in.
+    var favoritesFolder: String { browser?.spaces.space(spaceID).favoritesFolder ?? Library.favoritesFolder }
+
     var isAsleep: Bool { webView == nil }
     var isPrivate: Bool { browser?.isPrivate == true }
 
@@ -66,6 +71,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         self.title = title
         self.savedState = state
         self.browser = browser
+        spaceID = browser.spaceID
         super.init()
     }
 
@@ -74,6 +80,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         self.id = id
         self.title = ""
         self.browser = browser
+        spaceID = browser.spaceID
         super.init()
         attach(WKWebView(frame: .zero, configuration: configuration))
     }
@@ -91,7 +98,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     func wake() -> WKWebView {
         lastShown = Date()
         if let webView { return webView }
-        let view = WKWebView(frame: .zero, configuration: browser?.configuration ?? Browser.configuration)
+        let view = WKWebView(frame: .zero, configuration: browser?.configuration(for: spaceID) ?? Browser.configuration)
         attach(view)
         // A file the user opened is allowed to load again, also when it comes back from a saved back/forward list.
         if let url, url.isFileURL { userFileLoad = url }
