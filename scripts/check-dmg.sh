@@ -46,6 +46,15 @@ lipo "$APP/Contents/MacOS/Changmun" -verify_arch arm64 || fail "The app is $(lip
 
 step "Signature"
 codesign --verify --deep --strict "$APP" || fail "Signature is broken"
+if codesign -dv "$APP" 2>&1 | grep -q "^Authority=Developer ID Application"; then
+    step "Developer ID, hardened runtime, notarized"
+    codesign -dv "$APP" 2>&1 | grep -q "flags=.*runtime" || fail "The hardened runtime is off"
+    codesign -d --entitlements - "$APP" 2>/dev/null | grep -q "com.apple.security.device.camera" \
+        || fail "The camera entitlement is missing, so sites couldn't use the camera"
+    xcrun stapler validate -q "$DMG" || fail "The DMG has no notarization ticket"
+    spctl --assess --type open --context context:primary-signature "$DMG" 2>/dev/null || fail "Gatekeeper rejects the DMG"
+    spctl --assess --type execute "$APP" 2>/dev/null || fail "Gatekeeper rejects the app"
+fi
 
 step "Resources"
 for item in AppIcon.icns {en,ko,ja,zh-Hans,es,de,fr}.lproj/InfoPlist.strings {ko,ja,zh-Hans,es,de,fr}.lproj/Localizable.strings; do

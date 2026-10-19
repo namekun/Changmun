@@ -17,7 +17,14 @@ cp "$BIN_DIR/Changmun" "$APP/Contents/MacOS/Changmun"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp -R Resources/*.lproj Resources/AppIcon.icns Resources/changmun "$APP/Contents/Resources/"
 xattr -cr "$APP"
-codesign --force --sign - "$APP" >/dev/null
+IDENTITY=""
+[[ "$CONFIG" == release ]] && IDENTITY="$(developer_id)"
+if [[ -n "$IDENTITY" ]]; then
+    codesign --force --options runtime --timestamp --entitlements Resources/Changmun.entitlements \
+        --sign "$IDENTITY" "$APP" >/dev/null
+else
+    codesign --force --sign - "$APP" >/dev/null
+fi
 rm -rf build/Changmun.app
 mkdir -p build
 ditto "$APP" build/Changmun.app
