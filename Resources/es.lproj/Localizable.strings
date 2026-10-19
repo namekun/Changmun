@@ -24,6 +24,7 @@
 "Ad Blocking" = "Bloqueo de anuncios";
 "Add" = "Añadir";
 "Add filter list URL (e.g. a Korean ad list)" = "Añadir URL de lista de filtros (p. ej., una lista de anuncios de Corea)";
+"Add Tab" = "Añadir pestaña";
 "Add to Changmun" = "Añadir a Changmun";
 "Add to Favorites (⌘D)" = "Añadir a favoritos (⌘D)";
 "Add to New Group" = "Añadir a un grupo nuevo";
@@ -45,6 +46,7 @@
 "AI Panel" = "Panel de IA";
 "AI Panel (⌘E)" = "Panel de IA (⌘E)";
 "All done" = "Todo listo";
+"All Open Tabs" = "Todas las pestañas abiertas";
 "All Time" = "Todo";
 "Allow" = "Permitir";
 "Allow pop-ups" = "Permitir ventanas emergentes";
@@ -78,6 +80,7 @@
 "Cancel" = "Cancelar";
 "Cancelled" = "Cancelado";
 "Can’t open the page" = "No se puede abrir la página";
+"Capture Full Page…" = "Capturar página completa…";
 "Change…" = "Cambiar…";
 "Changmun %@ is out" = "Changmun %@ ya está disponible";
 "Changmun is your default browser" = "Changmun es tu navegador predeterminado";
@@ -109,6 +112,7 @@
 "Close Tab (⌘W)" = "Cerrar pestaña (⌘W)";
 "Close Window" = "Cerrar ventana";
 "Collapse" = "Contraer";
+"Compare the attached tabs" = "Compara las pestañas adjuntas";
 "Console" = "Consola";
 "Cookies %@" = "Cookies %@";
 "Cookies: %@" = "Cookies: %@";
@@ -124,6 +128,7 @@
 "Couldn't find the rules. In System Settings › Privacy & Security, check that Changmun is allowed to access data from other apps." = "No se han encontrado las reglas. En Ajustes del Sistema › Privacidad y seguridad, comprueba que Changmun tenga permiso para acceder a datos de otras apps.";
 "Couldn't read '%@' from the Keychain, so passwords and cookies were skipped. Click 'Allow' in the permission dialog to import them." = "No se ha podido leer “%@” del llavero, así que se han omitido las contraseñas y las cookies. Haz clic en “Permitir” en el cuadro de diálogo de permiso para importarlas.";
 "Couldn't run claude: %@" = "No se ha podido ejecutar claude: %@";
+"Couldn't save the page" = "No se pudo guardar la página";
 "Couldn’t run it: %@" = "No se ha podido ejecutar: %@";
 "Current Site" = "Sitio actual";
 "Cut" = "Cortar";
@@ -189,6 +194,7 @@
 "General" = "General";
 "Get search suggestions as you type" = "Obtener sugerencias de búsqueda mientras escribes";
 "Get Started" = "Empezar";
+"Give the AI more tabs to read" = "Dar más pestañas para que la IA las lea";
 "Go to · %@" = "Ir a · %@";
 "Group name" = "Nombre del grupo";
 "Haiku (fastest)" = "Haiku (el más rápido)";
@@ -281,6 +287,7 @@
 "Other" = "Otros";
 "Other Bookmarks" = "Otros marcadores";
 "Other Browsers" = "Otros navegadores";
+"Page" = "Página";
 "Password" = "Contraseña";
 "Passwords %@" = "Contraseñas %@";
 "Passwords: %@" = "Contraseñas: %@";
@@ -307,6 +314,7 @@
 "Read page" = "Leer página";
 "Reader Mode" = "Modo lectura";
 "Reader Mode (%@)" = "Modo lectura (%@)";
+"Read tabs" = "Leer pestañas";
 "Reading rules…" = "Leyendo reglas…";
 "Reads the rules saved by the blocker app. The first time you turn one on, macOS asks whether Changmun may access another app’s data. If you change the rules in the blocker app, they take effect the next time you launch Changmun." = "Lee las reglas guardadas por la app bloqueadora. La primera vez que activas una, macOS pregunta si Changmun puede acceder a los datos de otra app. Si cambias las reglas en la app bloqueadora, se aplicarán la próxima vez que abras Changmun.";
 "Recent Tab" = "Pestaña reciente";
@@ -319,6 +327,7 @@
 "Remove from Favorites (⌘D)" = "Quitar de favoritos (⌘D)";
 "Remove from Group" = "Quitar del grupo";
 "Remove from History" = "Quitar del historial";
+"Remove from the AI's tabs" = "Quitar de las pestañas de la IA";
 "Rename" = "Renombrar";
 "Reopen" = "Volver a abrir";
 "Reopen Closed Tab" = "Reabrir pestaña cerrada";
@@ -331,7 +340,10 @@
 "Safari history" = "Historial de Safari";
 "Safari-style" = "Estilo Safari";
 "Save" = "Guardar";
+"Save as PDF…" = "Guardar como PDF…";
 "Save login info for %@?" = "¿Guardar los datos de inicio de sesión de %@?";
+"Saved %@" = "%@ guardado";
+"Saved %@. The page was too large to fit, so only its top left part is included." = "%@ guardado. La página era demasiado grande, así que solo incluye su parte superior izquierda.";
 "Saved Passwords" = "Contraseñas guardadas";
 "Scroll · %@" = "Desplazar · %@";
 "Search" = "Buscar";
@@ -374,6 +386,7 @@
 "Start with a new tab" = "Empezar con una pestaña nueva";
 "Stop" = "Detener";
 "Stop generating" = "Dejar de generar";
+"Sum up only the key points of each attached tab" = "Resume solo lo esencial de cada pestaña adjunta";
 "Summarize this page in three lines" = "Resume esta página en tres líneas";
 "Switch tab" = "Cambiar de pestaña";
 "Switch to Tab" = "Cambiar a la pestaña";

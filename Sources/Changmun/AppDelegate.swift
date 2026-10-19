@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.appearance = Preferences.shared.appearance.nsAppearance
         Task { await AdBlocker.shared.start() }
         Library.shared.pruneHistory()
+        ChatStore.removeOldConfigs()
         // Watching the library from the start, so no change goes unseen before a sidebar first shows.
         _ = LibraryWatcher.shared
         if !Headless.isOn {
@@ -48,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         Browser.saveSession()
         ChatStore.shared.stop()
+        ChatStore.removeOldConfigs()
         ControlServer.shared.stop()
     }
 
@@ -179,6 +181,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let operation = webView.printOperation(with: info)
         operation.view?.frame = webView.bounds
         operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
+    }
+
+    @objc func savePDF(_ sender: Any?) {
+        guard let tab = browser.active else { return }
+        Task { await SavePage.save(tab, as: .pdf) }
+    }
+
+    @objc func captureFullPage(_ sender: Any?) {
+        guard let tab = browser.active else { return }
+        Task { await SavePage.save(tab, as: .image) }
+    }
+
+    /// Saving needs a page that is loaded, and a picture of a PDF document isn't offered.
+    @objc func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        switch item.action {
+        case #selector(savePDF(_:)): browser.active?.webView != nil
+        case #selector(captureFullPage(_:)): browser.active?.webView != nil && browser.active?.showsPDF != true
+        default: true
+        }
     }
 
     @objc func openFile(_ sender: Any?) {
@@ -452,6 +473,8 @@ enum AppMenu {
         file.addItem(.separator())
         add(file, "Copy Address", #selector(AppDelegate.copyAddress(_:)), "c", [.command, .shift])
         add(file, "Print…", #selector(AppDelegate.printPage(_:)), "p")
+        add(file, "Save as PDF…", #selector(AppDelegate.savePDF(_:)))
+        add(file, "Capture Full Page…", #selector(AppDelegate.captureFullPage(_:)))
 
         let edit = submenu(main, "Edit")
         add(edit, "Undo", Selector(("undo:")), "z")

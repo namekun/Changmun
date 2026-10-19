@@ -63,6 +63,7 @@ Sind nur die Command Line Tools installiert, bauen die Skripte gegen das macOS-2
 - **Bild-in-Bild** (⌃⌘P) startet von selbst, wenn du einen Tab mit laufendem Video verlässt. ⌃⌘← / ⌃⌘→ springen 5 Sekunden, sogar während du in einer anderen App bist, und „Zurück zum Tab“ holt den Tab wieder nach vorn.
 - **Passwörter** werden nach der Anmeldung im Schlüsselbund gesichert (nur https) und über die Schlüssel-Taste in der Adressleiste eingesetzt. Zum Kopieren eines Passworts brauchst du Touch ID oder dein Mac-Passwort.
 - **Pop-ups**, die ohne Klick aufgehen, werden blockiert; „Öffnen“ und „Für diese Website immer erlauben“ erscheinen direkt oberhalb der Seite.
+- **Seite sichern** als ein langes PDF (Ablage › Als PDF sichern …) oder als Bild der ganzen Seite, nicht nur des sichtbaren Ausschnitts (Ablage › Ganze Seite aufnehmen …). Beides gibt es auch im Menü eines Tabs; es landet im Downloads-Ordner, sofern du keinen anderen wählst, und funktioniert auch in privaten Fenstern. Seiten, die in einem inneren Bereich scrollen, und Bilder, die erst beim Scrollen laden, werden womöglich nicht vollständig erfasst.
 - **Downloads** zeigen ihren Fortschritt unten in der Seitenleiste und erhalten das Quarantäne-Flag von Safari, sodass Gatekeeper sie beim ersten Öffnen prüft. Apps, Skripte und Installer werden im Finder angezeigt statt ausgeführt. Ein abgebrochener Download macht mit „Erneut versuchen“ in seiner Zeile dort weiter, wo er aufgehört hat.
 - **Tabs im Ruhezustand.** Hintergrund-Tabs, die du 20 Minuten nicht gesehen hast, und bei knappem Speicher alle Hintergrund-Tabs geben ihren Webprozess frei und kommen samt Verlauf zurück, sobald du zu ihnen wechselst.
 - Der Seitenzoom wird pro Website gemerkt, und offene Tabs werden alle 15 Sekunden gesichert, sodass ein Absturz fast nichts kostet.
@@ -106,7 +107,9 @@ Wähle in den Einstellungen (⌘,) „Wie in Safari“ oder „Wie in Chrome“.
 
 Die Seitenleiste rechts (⌘E) nutzt das `claude`-CLI, das du schon hast, und läuft damit über dein Claude-Code-Abo. Das Standardmodell ist Sonnet; wechseln kannst du mit `defaults write io.github.namekun.Changmun aiModel opus`.
 
-Die KI bedient den Browser mit diesen Werkzeugen: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `click`, `type_text`, `scroll`, `screenshot`. Passwortfelder kann sie weder lesen noch ausfüllen.
+Die KI bedient den Browser mit diesen Werkzeugen: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `type_text`, `scroll`, `screenshot`. Passwortfelder kann sie weder lesen noch ausfüllen.
+
+Für Aufgaben über mehrere Tabs fügst du sie unter dem Chat mit „Tab hinzufügen“ hinzu (einzeln, als Tab-Gruppe oder alle geöffneten): Sie erscheinen als Chips, die sich entfernen lassen, die KI liest sie gemeinsam mit `read_tabs`, und vor dem Lesen wird nicht nachgefragt. Sind zwei oder mehr angehängt, schlägt das Panel vor, sie zu vergleichen oder das Wichtigste jedes Tabs zusammenzufassen.
 
 Damit in einer Seite versteckte Anweisungen sie nicht dazu bringen, Gelesenes anderswohin zu schicken, fragt Changmun dich zuerst (und lehnt nach 90 Sekunden ohne Antwort ab):
 
@@ -128,6 +131,7 @@ Oder aus einer Shell, für jeden Agenten, der Befehle ausführen kann (Homebrew 
 changmun tabs
 changmun open example.com
 changmun read
+changmun read-tabs 3 5
 changmun click 12
 changmun type 3 "hello" --submit
 ```

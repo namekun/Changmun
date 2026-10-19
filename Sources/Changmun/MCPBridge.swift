@@ -73,6 +73,9 @@ enum ControlClient {
         request.httpMethod = "POST"
         request.setValue("Bearer \(endpoint.token)", forHTTPHeaderField: "Authorization")
         request.setValue(caller, forHTTPHeaderField: "X-Changmun-Caller")
+        if let secret = ProcessInfo.processInfo.environment[ChatStore.panelSecretVariable] {
+            request.setValue(secret, forHTTPHeaderField: "X-Changmun-Panel-Secret")
+        }
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["name": name, "arguments": arguments])
         var result: [String: Any]?
         var failure = "no response"

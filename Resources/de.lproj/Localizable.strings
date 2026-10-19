@@ -24,6 +24,7 @@
 "Ad Blocking" = "Werbeblocker";
 "Add" = "Hinzufügen";
 "Add filter list URL (e.g. a Korean ad list)" = "URL einer Filterliste hinzufügen (z. B. eine koreanische Werbeliste)";
+"Add Tab" = "Tab hinzufügen";
 "Add to Changmun" = "Zu Changmun hinzufügen";
 "Add to Favorites (⌘D)" = "Zu Favoriten hinzufügen (⌘D)";
 "Add to New Group" = "Zu neuer Gruppe hinzufügen";
@@ -45,6 +46,7 @@
 "AI Panel" = "KI-Seitenleiste";
 "AI Panel (⌘E)" = "KI-Seitenleiste (⌘E)";
 "All done" = "Alles importiert";
+"All Open Tabs" = "Alle geöffneten Tabs";
 "All Time" = "Gesamter Zeitraum";
 "Allow" = "Erlauben";
 "Allow pop-ups" = "Pop-ups erlauben";
@@ -78,6 +80,7 @@
 "Cancel" = "Abbrechen";
 "Cancelled" = "Abgebrochen";
 "Can’t open the page" = "Die Seite kann nicht geöffnet werden";
+"Capture Full Page…" = "Ganze Seite aufnehmen …";
 "Change…" = "Ändern …";
 "Changmun %@ is out" = "Changmun %@ ist da";
 "Changmun is your default browser" = "Changmun ist dein Standardbrowser";
@@ -109,6 +112,7 @@
 "Close Tab (⌘W)" = "Tab schließen (⌘W)";
 "Close Window" = "Fenster schließen";
 "Collapse" = "Einklappen";
+"Compare the attached tabs" = "Vergleiche die angehängten Tabs";
 "Console" = "Konsole";
 "Cookies %@" = "Cookies %@";
 "Cookies: %@" = "Cookies: %@";
@@ -124,6 +128,7 @@
 "Couldn't find the rules. In System Settings › Privacy & Security, check that Changmun is allowed to access data from other apps." = "Die Regeln wurden nicht gefunden. Prüfe in den Systemeinstellungen › Datenschutz & Sicherheit, ob Changmun auf Daten anderer Apps zugreifen darf.";
 "Couldn't read '%@' from the Keychain, so passwords and cookies were skipped. Click 'Allow' in the permission dialog to import them." = "„%@“ konnte nicht aus dem Schlüsselbund gelesen werden, daher wurden Passwörter und Cookies übersprungen. Klicke im Dialog auf „Erlauben“, um sie zu importieren.";
 "Couldn't run claude: %@" = "claude konnte nicht ausgeführt werden: %@";
+"Couldn't save the page" = "Die Seite konnte nicht gesichert werden";
 "Couldn’t run it: %@" = "Ausführen nicht möglich: %@";
 "Current Site" = "Aktuelle Website";
 "Cut" = "Ausschneiden";
@@ -189,6 +194,7 @@
 "General" = "Allgemein";
 "Get search suggestions as you type" = "Suchvorschläge während der Eingabe erhalten";
 "Get Started" = "Los geht’s";
+"Give the AI more tabs to read" = "Der KI weitere Tabs zum Lesen geben";
 "Go to · %@" = "Gehe zu · %@";
 "Group name" = "Gruppenname";
 "Haiku (fastest)" = "Haiku (am schnellsten)";
@@ -281,6 +287,7 @@
 "Other" = "Andere";
 "Other Bookmarks" = "Weitere Lesezeichen";
 "Other Browsers" = "Andere Browser";
+"Page" = "Seite";
 "Password" = "Passwort";
 "Passwords %@" = "Passwörter %@";
 "Passwords: %@" = "Passwörter: %@";
@@ -307,6 +314,7 @@
 "Read page" = "Seite lesen";
 "Reader Mode" = "Lesemodus";
 "Reader Mode (%@)" = "Lesemodus (%@)";
+"Read tabs" = "Tabs lesen";
 "Reading rules…" = "Regeln werden gelesen …";
 "Reads the rules saved by the blocker app. The first time you turn one on, macOS asks whether Changmun may access another app’s data. If you change the rules in the blocker app, they take effect the next time you launch Changmun." = "Liest die Regeln, die von der Blocker-App gesichert wurden. Beim ersten Einschalten fragt macOS, ob Changmun auf die Daten einer anderen App zugreifen darf. Wenn du die Regeln in der Blocker-App änderst, werden sie beim nächsten Start von Changmun übernommen.";
 "Recent Tab" = "Zuletzt verwendeter Tab";
@@ -319,6 +327,7 @@
 "Remove from Favorites (⌘D)" = "Aus Favoriten entfernen (⌘D)";
 "Remove from Group" = "Aus Gruppe entfernen";
 "Remove from History" = "Aus Verlauf entfernen";
+"Remove from the AI's tabs" = "Aus den Tabs der KI entfernen";
 "Rename" = "Umbenennen";
 "Reopen" = "Erneut öffnen";
 "Reopen Closed Tab" = "Geschlossenen Tab erneut öffnen";
@@ -331,7 +340,10 @@
 "Safari history" = "Safari-Verlauf";
 "Safari-style" = "Wie in Safari";
 "Save" = "Sichern";
+"Save as PDF…" = "Als PDF sichern …";
 "Save login info for %@?" = "Anmeldedaten für %@ sichern?";
+"Saved %@" = "%@ gesichert";
+"Saved %@. The page was too large to fit, so only its top left part is included." = "%@ gesichert. Die Seite war zu groß; enthalten ist nur ihr oberer linker Bereich.";
 "Saved Passwords" = "Gesicherte Passwörter";
 "Scroll · %@" = "Scrollen · %@";
 "Search" = "Suchen";
@@ -374,6 +386,7 @@
 "Start with a new tab" = "Mit einem neuen Tab starten";
 "Stop" = "Stopp";
 "Stop generating" = "Generierung stoppen";
+"Sum up only the key points of each attached tab" = "Fasse nur das Wichtigste jedes angehängten Tabs zusammen";
 "Summarize this page in three lines" = "Fasse diese Seite in drei Zeilen zusammen";
 "Switch tab" = "Tab wechseln";
 "Switch to Tab" = "Zu Tab wechseln";

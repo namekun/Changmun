@@ -24,6 +24,7 @@
 "Ad Blocking" = "广告拦截";
 "Add" = "添加";
 "Add filter list URL (e.g. a Korean ad list)" = "添加过滤列表网址（例如韩国广告列表）";
+"Add Tab" = "添加标签页";
 "Add to Changmun" = "添加到 Changmun";
 "Add to Favorites (⌘D)" = "添加到个人收藏 (⌘D)";
 "Add to New Group" = "添加到新群组";
@@ -45,6 +46,7 @@
 "AI Panel" = "AI 面板";
 "AI Panel (⌘E)" = "AI 面板 (⌘E)";
 "All done" = "全部导入完成";
+"All Open Tabs" = "所有已打开的标签页";
 "All Time" = "全部时间";
 "Allow" = "允许";
 "Allow pop-ups" = "允许弹出式窗口";
@@ -78,6 +80,7 @@
 "Cancel" = "取消";
 "Cancelled" = "已取消";
 "Can’t open the page" = "无法打开页面";
+"Capture Full Page…" = "捕获整个页面…";
 "Change…" = "更改…";
 "Changmun %@ is out" = "Changmun %@ 已发布";
 "Changmun is your default browser" = "Changmun 是你的默认浏览器";
@@ -109,6 +112,7 @@
 "Close Tab (⌘W)" = "关闭标签页 (⌘W)";
 "Close Window" = "关闭窗口";
 "Collapse" = "收起";
+"Compare the attached tabs" = "比较已添加的标签页";
 "Console" = "控制台";
 "Cookies %@" = "Cookie %@";
 "Cookies: %@" = "Cookie：%@";
@@ -124,6 +128,7 @@
 "Couldn't find the rules. In System Settings › Privacy & Security, check that Changmun is allowed to access data from other apps." = "找不到规则。请在“系统设置 › 隐私与安全性”中，确认已允许 Changmun 访问其他 App 的数据。";
 "Couldn't read '%@' from the Keychain, so passwords and cookies were skipped. Click 'Allow' in the permission dialog to import them." = "无法从钥匙串读取“%@”，因此已跳过密码和 Cookie。请在权限对话框中点按“允许”以导入。";
 "Couldn't run claude: %@" = "无法运行 claude：%@";
+"Couldn't save the page" = "无法存储页面";
 "Couldn’t run it: %@" = "无法运行：%@";
 "Current Site" = "当前网站";
 "Cut" = "剪切";
@@ -189,6 +194,7 @@
 "General" = "通用";
 "Get search suggestions as you type" = "输入时获取搜索建议";
 "Get Started" = "开始使用";
+"Give the AI more tabs to read" = "添加供 AI 阅读的标签页";
 "Go to · %@" = "前往 · %@";
 "Group name" = "群组名称";
 "Haiku (fastest)" = "Haiku（最快）";
@@ -281,6 +287,7 @@
 "Other" = "其他";
 "Other Bookmarks" = "其他书签";
 "Other Browsers" = "其他浏览器";
+"Page" = "页面";
 "Password" = "密码";
 "Passwords %@" = "密码 %@";
 "Passwords: %@" = "密码：%@";
@@ -307,6 +314,7 @@
 "Read page" = "读取页面";
 "Reader Mode" = "阅读模式";
 "Reader Mode (%@)" = "阅读模式 (%@)";
+"Read tabs" = "读取标签页";
 "Reading rules…" = "正在读取规则…";
 "Reads the rules saved by the blocker app. The first time you turn one on, macOS asks whether Changmun may access another app’s data. If you change the rules in the blocker app, they take effect the next time you launch Changmun." = "读取拦截器 App 存储的规则。首次开启时，macOS 会询问 Changmun 是否可以访问其他 App 的数据。如果在拦截器 App 中更改了规则，将在下次启动 Changmun 时生效。";
 "Recent Tab" = "最近的标签页";
@@ -319,6 +327,7 @@
 "Remove from Favorites (⌘D)" = "从个人收藏中移除 (⌘D)";
 "Remove from Group" = "从群组中移除";
 "Remove from History" = "从历史记录中移除";
+"Remove from the AI's tabs" = "从 AI 的标签页中移除";
 "Rename" = "重命名";
 "Reopen" = "重新打开";
 "Reopen Closed Tab" = "重新打开最近关闭的标签页";
@@ -331,7 +340,10 @@
 "Safari history" = "Safari 历史记录";
 "Safari-style" = "Safari 风格";
 "Save" = "存储";
+"Save as PDF…" = "存储为 PDF…";
 "Save login info for %@?" = "要存储 %@ 的登录信息吗？";
+"Saved %@" = "已存储 %@";
+"Saved %@. The page was too large to fit, so only its top left part is included." = "已存储 %@。页面过大，仅包含左上部分。";
 "Saved Passwords" = "已存储的密码";
 "Scroll · %@" = "滚动 · %@";
 "Search" = "搜索";
@@ -374,6 +386,7 @@
 "Start with a new tab" = "以新标签页启动";
 "Stop" = "停止";
 "Stop generating" = "停止生成";
+"Sum up only the key points of each attached tab" = "分别总结已添加标签页的要点";
 "Summarize this page in three lines" = "用三行总结此页面";
 "Switch tab" = "切换标签页";
 "Switch to Tab" = "切换到标签页";
