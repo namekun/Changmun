@@ -492,8 +492,6 @@
 "Emoji" = "이모지";
 "History and passwords shared" = "방문 기록·비밀번호 공유";
 "Icon" = "아이콘";
-"Its tabs are closed, and the cookies, logins and site data it kept are erased. Bookmarks stay in the library." = "탭은 닫히고, 이 스페이스가 보관한 쿠키·로그인·사이트 데이터는 지워져요. 북마크는 보관함에 남아요.";
-"Its tabs are closed. Bookmarks stay in the library." = "탭이 닫혀요. 북마크는 보관함에 남아요.";
 "Keep logins and cookies separate (profile)" = "로그인·쿠키 따로 쓰기 (프로필)";
 "Last Space" = "마지막 스페이스";
 "Name" = "이름";
@@ -511,3 +509,5 @@
 "Symbol" = "기호";
 "Whether a space is a profile is fixed when it is made." = "프로필 여부는 만들 때 정해지고 바꿀 수 없어요.";
 "· tints the sidebar glass" = "· 사이드바 유리에 은은하게 입혀져요";
+"Its tabs are closed. Its favorites move to “%@”. Bookmarks stay in the library." = "탭이 닫혀요. 즐겨찾기는 “%@”(으)로 옮겨져요. 북마크는 보관함에 남아요.";
+"Its tabs are closed, and the cookies, logins and site data it kept are erased. Its favorites move to “%@”. Bookmarks stay in the library." = "탭은 닫히고, 이 스페이스가 보관한 쿠키·로그인·사이트 데이터는 지워져요. 즐겨찾기는 “%@”(으)로 옮겨져요. 북마크는 보관함에 남아요.";

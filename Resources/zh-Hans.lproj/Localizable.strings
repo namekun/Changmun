@@ -492,8 +492,6 @@
 "Emoji" = "表情符号";
 "History and passwords shared" = "共用历史记录和密码";
 "Icon" = "图标";
-"Its tabs are closed, and the cookies, logins and site data it kept are erased. Bookmarks stay in the library." = "其标签页会被关闭，它保存的 Cookie、登录信息和网站数据会被清除。书签仍保留在资料库中。";
-"Its tabs are closed. Bookmarks stay in the library." = "其标签页会被关闭。书签仍保留在资料库中。";
 "Keep logins and cookies separate (profile)" = "单独保存登录和 Cookie（配置文件）";
 "Last Space" = "最后一个空间";
 "Name" = "名称";
@@ -511,3 +509,5 @@
 "Symbol" = "符号";
 "Whether a space is a profile is fixed when it is made." = "是否为配置文件在创建时确定，之后无法更改。";
 "· tints the sidebar glass" = "· 为边栏玻璃轻轻着色";
+"Its tabs are closed. Its favorites move to “%@”. Bookmarks stay in the library." = "其标签页会被关闭。其个人收藏会移到“%@”。书签仍保留在资料库中。";
+"Its tabs are closed, and the cookies, logins and site data it kept are erased. Its favorites move to “%@”. Bookmarks stay in the library." = "其标签页会被关闭，它保存的 Cookie、登录信息和网站数据会被清除。其个人收藏会移到“%@”。书签仍保留在资料库中。";

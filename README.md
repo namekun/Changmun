@@ -52,7 +52,7 @@ With only the Command Line Tools installed, the scripts build against the macOS 
 - **Address bar where you like.** At the top of the sidebar beside back and forward, as in Arc, or above the page, as in Dia: Settings › Appearance › Address Bar Position. It shows just the site; the shield comes up when the pointer is over it, and so does the star, which stays for a favorite: click it to take the page out of the favorites.
 - **Bookmark folders.** Imported folders keep their nesting, as in the browser they came from. Pin the ones you use to the sidebar (right-click or … › Pin to Sidebar, or drag the folder up under the favorites) and open them right there. Drag a bookmark onto another folder or onto the favorites, or use Move To in its menu. The rest of your bookmarks are behind the bookmark button at the bottom of the sidebar, with a search field; the … beside it opens History, Archived Tabs, Focus Mode and Settings.
 - **Tab groups.** Right-click a tab › Add to New Group, name it, fold it. Tabs opened from a group's tab join the group; a reopened tab (⌘⇧T) goes back to its group.
-- **Spaces.** The row at the bottom of the sidebar switches between spaces: click a dot, press ⌃1–⌃9, or swipe sideways with two fingers over the sidebar (Window › Next Space, Previous Space, New Space…). Each space has its own tabs, tab groups, favorites and pinned folders, and tints the sidebar with its colour. The bookmark library, history and saved passwords are shared. Turn on "Keep logins and cookies separate (profile)" when you make a space to give it its own cookies and site data too, so one site can have two accounts signed in side by side; that can't be changed afterwards, and deleting a profile erases its cookies and site data. Your first space is made from what you already had. Private windows have no spaces.
+- **Spaces.** The row at the bottom of the sidebar switches between spaces: click a dot, press ⌃1–⌃9, or swipe sideways with two fingers over the sidebar (Window › Next Space, Previous Space, New Space…). Each space has its own tabs, tab groups, favorites and pinned folders, and tints the sidebar with its colour. The bookmark library, history and saved passwords are shared. Turn on "Keep logins and cookies separate (profile)" when you make a space to give it its own cookies and site data too, so one site can have two accounts signed in side by side; that can't be changed afterwards, and deleting a profile erases its cookies and site data. Your first space is made from what you already had. Private windows have no spaces. The AI sees the tabs of ordinary spaces (with the space's name), but those of a profile space only while you're in it.
 - **Tidy tabs.** The wand next to "New Tab" (Window › Tidy Tabs) groups the loose tabs. With Apple Intelligence on (macOS 26), the model on your Mac groups them by topic and names the groups; nothing about your tabs leaves the Mac. Without it, tabs opened from one another and tabs of one site go together. "Undo" puts things back for a few seconds. New tabs you open from the address bar join a matching group on their own (turn it off in Settings › Tabs).
 - **Archive old tabs** (off by default). Tabs you haven't looked at for a set time (12 hours to 30 days, counted only while Changmun runs) close into History › Archived Tabs, ready to reopen into their group. Visible, playing, picture-in-picture, camera/mic, favorite and private tabs are never archived.
 - **Split view** (⌥⌘\\) shows two tabs side by side. **Focus mode** (⌘⇧F) hides everything but the page. **Link preview**: ⇧-click a link to open it in a floating card, ⌘↩ to keep it as a tab.
@@ -82,6 +82,9 @@ Pick Safari-style or Chrome-style in Settings (⌘,). Only the keys the two brow
 | ⌘N / ⌘⇧N / ⌘⇧W | New window / new private window / close window |
 | ⌘W, ⌘1–9, ⌘⇧[ ⌘⇧] | Close tab, go to a tab in sidebar order |
 | ⌃Tab / ⌃⇧Tab | Switch tabs in the order you last saw them (hold ⌃, press Tab, let go; esc cancels) |
+| ⌃1–9 | Go to a space (9 is the last); gives way to macOS's "Switch to Desktop N" if you've turned that on |
+| ⌃⌥← / ⌃⌥→ | Previous / next space |
+| ⌃⌘N | New space |
 | ⌥⌘\\ | Split view on or off |
 | ⇧-click | Link preview: esc closes, ⌘↩ opens it as a tab |
 | ⌘⇧T | Reopen closed tab (or the closed window when no tab is left) |
@@ -146,6 +149,8 @@ Changmun turns EasyList (ads) and EasyPrivacy (trackers) into WebKit content-blo
 ## Extensions
 
 Managed in Settings › Extensions (web extensions need macOS 15.4 or later).
+
+In the tabs of a profile space, extensions run, but their cookie APIs see only the default data store, not the profile's.
 
 - **Safari extensions from the App Store** show up once installed and ask for their permissions when you turn them on.
 - **Chrome Web Store extensions**: open an extension's store page and "Add to Changmun" appears above it (or paste its address or ID in Settings). Changmun unpacks it into `~/Library/Application Support/Changmun/Extensions` and loads it as a WebKit extension; adding it again updates it.

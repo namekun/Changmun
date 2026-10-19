@@ -492,8 +492,6 @@
 "Emoji" = "Emoji";
 "History and passwords shared" = "Verlauf und Passwörter geteilt";
 "Icon" = "Icon";
-"Its tabs are closed, and the cookies, logins and site data it kept are erased. Bookmarks stay in the library." = "Die Tabs werden geschlossen und die gespeicherten Cookies, Anmeldungen und Websitedaten gelöscht. Lesezeichen bleiben in der Bibliothek.";
-"Its tabs are closed. Bookmarks stay in the library." = "Die Tabs werden geschlossen. Lesezeichen bleiben in der Bibliothek.";
 "Keep logins and cookies separate (profile)" = "Anmeldungen und Cookies trennen (Profil)";
 "Last Space" = "Letzter Space";
 "Name" = "Name";
@@ -511,3 +509,5 @@
 "Symbol" = "Symbol";
 "Whether a space is a profile is fixed when it is made." = "Ob ein Space ein Profil ist, wird beim Erstellen festgelegt.";
 "· tints the sidebar glass" = "· färbt das Glas der Seitenleiste leicht ein";
+"Its tabs are closed. Its favorites move to “%@”. Bookmarks stay in the library." = "Die Tabs werden geschlossen. Die Favoriten wandern nach „%@“. Lesezeichen bleiben in der Bibliothek.";
+"Its tabs are closed, and the cookies, logins and site data it kept are erased. Its favorites move to “%@”. Bookmarks stay in the library." = "Die Tabs werden geschlossen und die gespeicherten Cookies, Anmeldungen und Websitedaten gelöscht. Die Favoriten wandern nach „%@“. Lesezeichen bleiben in der Bibliothek.";

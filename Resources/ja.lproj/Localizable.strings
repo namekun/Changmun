@@ -492,8 +492,6 @@
 "Emoji" = "絵文字";
 "History and passwords shared" = "履歴とパスワードを共有";
 "Icon" = "アイコン";
-"Its tabs are closed, and the cookies, logins and site data it kept are erased. Bookmarks stay in the library." = "タブは閉じられ、このスペースが保存していたCookie、ログイン、サイトデータは消去されます。ブックマークはライブラリに残ります。";
-"Its tabs are closed. Bookmarks stay in the library." = "タブは閉じられます。ブックマークはライブラリに残ります。";
 "Keep logins and cookies separate (profile)" = "ログインとCookieを分ける（プロファイル）";
 "Last Space" = "最後のスペース";
 "Name" = "名前";
@@ -511,3 +509,5 @@
 "Symbol" = "シンボル";
 "Whether a space is a profile is fixed when it is made." = "プロファイルにするかどうかは作成時に決まり、変更できません。";
 "· tints the sidebar glass" = "· サイドバーのガラスにうっすら色がつきます";
+"Its tabs are closed. Its favorites move to “%@”. Bookmarks stay in the library." = "タブは閉じられます。お気に入りは「%@」に移ります。ブックマークはライブラリに残ります。";
+"Its tabs are closed, and the cookies, logins and site data it kept are erased. Its favorites move to “%@”. Bookmarks stay in the library." = "タブは閉じられ、このスペースが保存していたCookie、ログイン、サイトデータは消去されます。お気に入りは「%@」に移ります。ブックマークはライブラリに残ります。";
