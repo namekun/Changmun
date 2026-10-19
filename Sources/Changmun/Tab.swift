@@ -161,7 +161,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         view.pageZoom = Preferences.shared.zoom(for: url?.host())
         observations = [
             view.observe(\.title) { [weak self] v, _ in Task { @MainActor in if let t = v.title, !t.isEmpty { self?.title = t; self?.extensionsSeeChange() } } },
-            view.observe(\.url) { [weak self] v, _ in Task { @MainActor in if let u = v.url { self?.url = u; self?.extensionsSeeChange() } } },
+            view.observe(\.url) { [weak self] v, _ in Task { @MainActor in if let u = v.url { if self?.url != u { self?.closeReader() }; self?.url = u; self?.extensionsSeeChange() } } },
             view.observe(\.isLoading) { [weak self] v, _ in Task { @MainActor in self?.isLoading = v.isLoading; self?.extensionsSeeChange() } },
             view.observe(\.estimatedProgress) { [weak self] v, _ in Task { @MainActor in self?.progress = v.estimatedProgress } },
             view.observe(\.canGoBack) { [weak self] v, _ in Task { @MainActor in self?.canGoBack = v.canGoBack } },
@@ -373,12 +373,7 @@ extension Tab: WKNavigationDelegate {
             let language = await PageTranslator.foreignLanguage(of: webView)
             if self.page == page && translation == .original { foreignLanguage = language }
         }
-        if webView.url?.scheme?.hasPrefix("http") == true {
-            Task {
-                let readable = await Reader.run(.check, in: webView)
-                if self.page == page { isReadable = readable }
-            }
-        }
+        if webView.url?.scheme?.hasPrefix("http") == true { Task { await checkReader() } }
     }
 
     /// What belonged to the page that was shown: a new page, or a sleeping tab, starts without it.
@@ -422,11 +417,29 @@ extension Tab: WKNavigationDelegate {
         guard let webView, webView.url?.scheme?.hasPrefix("http") == true else { return }
         let page = page
         Task {
-            let reading = await Reader.run(.toggle, in: webView)
+            let state = await Reader.run(.toggle, in: webView)
             guard self.page == page else { return }
-            if !reading && !isReading { browser?.flashStatus(String(localized: "No article to show in Reader Mode")) }
-            isReading = reading
+            if state == .none { browser?.flashStatus(String(localized: "No article to show in Reader Mode")) }
+            isReading = state == .up
         }
+    }
+
+    /// Reads from the page whether it looks like an article and whether the article is up: a page that comes back from
+    /// the back/forward cache keeps its article, whatever was reset on the way.
+    func checkReader() async {
+        guard let webView else { return }
+        let page = page
+        let state = await Reader.run(.check, in: webView)
+        guard self.page == page else { return }
+        isReadable = state == .up || state == .readable
+        isReading = state == .up
+    }
+
+    /// The address changed without a new page (a single-page site moved on): the article is no longer this page's.
+    private func closeReader() {
+        guard isReading, let webView else { return }
+        isReading = false
+        Task { _ = await Reader.run(.close, in: webView) }
     }
 
     // MARK: Translation

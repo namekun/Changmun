@@ -8,7 +8,11 @@ final class UpdateCheck: ObservableObject {
     static let shared = UpdateCheck()
     static let command = "brew upgrade --cask changmun"
     private static let endpoint = URL(string: "https://api.github.com/repos/namekun/Changmun/releases/latest")!
+    private static let session = URLSession(configuration: .ephemeral)
     private let defaults = UserDefaults.standard
+    /// Keeps a request that fails (offline) from being repeated every time the app comes to the front.
+    private var lastAttempt: Date?
+    private var asking = false
 
     /// The version waiting to be installed that the user hasn't dismissed.
     @Published private(set) var available: String?
@@ -17,20 +21,28 @@ final class UpdateCheck: ObservableObject {
         available = Self.announced(latest: defaults.string(forKey: "latestVersion"), current: Self.current, dismissed: defaults.string(forKey: "dismissedUpdate"))
     }
 
-
     nonisolated static var current: String? { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String }
 
-    /// Asks GitHub when a day has passed since the last time. Never in the headless app, and silent when anything goes wrong.
+    /// Asks GitHub when a day has passed since the last answer. Never in the headless app, and silent when anything goes wrong.
     func checkIfDue() {
-        guard !Headless.isOn, Preferences.shared.checkForUpdates, let current = Self.current,
-              Self.isDue(last: defaults.object(forKey: "lastUpdateCheck") as? Date, now: Date()) else { return }
-        defaults.set(Date(), forKey: "lastUpdateCheck")
+        guard !Headless.isOn, !asking, Preferences.shared.checkForUpdates, let current = Self.current,
+              Self.isDue(last: defaults.object(forKey: "lastUpdateCheck") as? Date, now: Date()),
+              lastAttempt.map({ Date().timeIntervalSince($0) > 3600 }) ?? true else { return }
+        lastAttempt = Date()
+        asking = true
         Task {
-            guard let tag = await Self.latestTag() else { return }
-            let version = Self.numbers(tag).map { $0.map(String.init).joined(separator: ".") }
-            defaults.set(version, forKey: "latestVersion")
-            available = Self.announced(latest: version, current: current, dismissed: defaults.string(forKey: "dismissedUpdate"))
+            let tag = await Self.latestTag()
+            asking = false
+            if let tag { received(tag, current: current) }
         }
+    }
+
+    /// The latest release's tag, as GitHub answered: only now does the day's wait start.
+    func received(_ tag: String, current: String) {
+        defaults.set(Date(), forKey: "lastUpdateCheck")
+        let version = Self.numbers(tag).map { $0.map(String.init).joined(separator: ".") }
+        defaults.set(version, forKey: "latestVersion")
+        available = Self.announced(latest: version, current: current, dismissed: defaults.string(forKey: "dismissedUpdate"))
     }
 
     /// Hides this version; a newer one shows again.
@@ -43,7 +55,7 @@ final class UpdateCheck: ObservableObject {
     private static func latestTag() async -> String? {
         var request = URLRequest(url: endpoint, timeoutInterval: 8)
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        guard let (data, response) = try? await URLSession(configuration: .ephemeral).data(for: request),
+        guard let (data, response) = try? await session.data(for: request),
               (response as? HTTPURLResponse)?.statusCode == 200,
               let release = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         return release["tag_name"] as? String
@@ -105,5 +117,10 @@ struct UpdateNotice: View {
             .help(UpdateCheck.command)
         }
         .padding(.leading, Metrics.rowPadding)
+        .task(id: copied) {
+            guard copied else { return }
+            try? await Task.sleep(for: .seconds(2))
+            copied = false
+        }
     }
 }

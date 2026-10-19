@@ -44,6 +44,29 @@ struct UpdateCheckTests {
         #expect(UpdateCheck.isDue(last: now.addingTimeInterval(-25 * 3600), now: now))
     }
 
+    @MainActor @Test func onlyAnAnswerStartsTheDayAndAnnouncesANewerVersion() {
+        let defaults = UserDefaults.standard
+        let keys = ["lastUpdateCheck", "latestVersion", "dismissedUpdate"]
+        let saved = keys.map { defaults.object(forKey: $0) }
+        defer {
+            UpdateCheck.shared.received("v0.0.1", current: "99.0.0")
+            for (key, value) in zip(keys, saved) { defaults.set(value, forKey: key) }
+        }
+        keys.forEach { defaults.removeObject(forKey: $0) }
+        let updates = UpdateCheck.shared
+        updates.received("v0.4.0", current: "0.3.1")
+        #expect(updates.available == "0.4.0")
+        #expect(defaults.object(forKey: "lastUpdateCheck") as? Date != nil)
+        updates.dismiss()
+        #expect(updates.available == nil)
+        updates.received("v0.4.0", current: "0.3.1")
+        #expect(updates.available == nil)
+        updates.received("v0.4.1", current: "0.3.1")
+        #expect(updates.available == "0.4.1")
+        updates.received("v0.3.1", current: "0.3.1")
+        #expect(updates.available == nil)
+    }
+
     @MainActor @Test(.enabled(if: UpdateCheck.current == nil)) func aRunWithoutAVersionNeverAsks() {
         UserDefaults.standard.removeObject(forKey: "lastUpdateCheck")
         UpdateCheck.shared.checkIfDue()
@@ -57,6 +80,18 @@ struct SiteListTests {
     @Test func aSiteIsAddedOnceWithoutWWW() {
         #expect(Preferences.adding("www.Example.com", to: ["a.com"]) == ["a.com", "example.com"])
         #expect(Preferences.adding("example.com", to: ["example.com"]) == ["example.com"])
+    }
+
+    @Test func nothingEmptyIsEverStored() {
+        #expect(Preferences.adding("", to: ["a.com"]) == ["a.com"])
+        #expect(Preferences.adding("www.", to: []) == [])
+    }
+
+    @Test func blockingComesBackOnForASiteUnderAnAllowedParent() {
+        #expect(AdBlocker.allowlist(["example.com", "a.com"], blocking: true, host: "WWW.Sub.Example.com") == ["a.com"])
+        #expect(AdBlocker.allowlist(["a.com"], blocking: false, host: "www.Sub.example.com") == ["a.com", "sub.example.com"])
+        #expect(AdBlocker.allowlist(["a.com"], blocking: true, host: "other.org") == ["a.com"])
+        #expect(AdBlocker.allowlist(["a.com"], blocking: false, host: "") == ["a.com"])
     }
 
     @Test func removingASiteAlsoRemovesTheOneAboveItThatCoversIt() {
@@ -111,19 +146,19 @@ struct ReaderTests {
     @Test func anArticleLooksReadableAndAListingDoesNot() async throws {
         let (article, articleWindow) = try await page(Self.article)
         defer { articleWindow.close() }
-        #expect(await Reader.run(.check, in: article))
+        #expect(await Reader.run(.check, in: article) == .readable)
         let (listing, listingWindow) = try await page(Self.listing)
         defer { listingWindow.close() }
-        #expect(await !Reader.run(.check, in: listing))
+        #expect(await Reader.run(.check, in: listing) == .unreadable)
         let (short, shortWindow) = try await page("<p>Just one line, nothing to read here.</p>")
         defer { shortWindow.close() }
-        #expect(await !Reader.run(.check, in: short))
+        #expect(await Reader.run(.check, in: short) == .unreadable)
     }
 
     @Test func theArticleIsShownWithoutTheRestOfThePage() async throws {
         let (view, window) = try await page(Self.article)
         defer { window.close() }
-        #expect(await Reader.run(.toggle, in: view))
+        #expect(await Reader.run(.toggle, in: view) == .up)
         let text = try #require(try await shadow(view, "return s.textContent") as? String)
         for kept in ["Big Story", "Intro:", "Third:", "Part two", "First point", "Quoted words", "let x = 1", "Jane Doe", "reader.test"] {
             #expect(text.contains(kept), "\(kept)")
@@ -142,11 +177,12 @@ struct ReaderTests {
     @Test func togglingAgainPutsThePageBack() async throws {
         let (view, window) = try await page(Self.article)
         defer { window.close() }
-        #expect(await Reader.run(.toggle, in: view))
+        #expect(await Reader.run(.toggle, in: view) == .up)
+        #expect(await Reader.run(.check, in: view) == .up)
         let up: () async throws -> Bool? = { try await view.callAsyncJavaScript("return document.getElementById('changmun-reader') !== null", contentWorld: .page) as? Bool }
         #expect(try await up() == true)
         #expect(try await view.callAsyncJavaScript("return getComputedStyle(document.documentElement).overflow", contentWorld: .page) as? String == "hidden")
-        #expect(await !Reader.run(.toggle, in: view))
+        #expect(await Reader.run(.toggle, in: view) == .down)
         #expect(try await up() == false)
         #expect(try await view.callAsyncJavaScript("return getComputedStyle(document.documentElement).overflow", contentWorld: .page) as? String != "hidden")
     }
@@ -154,7 +190,7 @@ struct ReaderTests {
     @Test func aPageWithoutAnArticleShowsNothing() async throws {
         let (view, window) = try await page(Self.listing)
         defer { window.close() }
-        #expect(await !Reader.run(.toggle, in: view))
+        #expect(await Reader.run(.toggle, in: view) == .none)
         #expect(try await view.callAsyncJavaScript("return document.getElementById('changmun-reader') === null", contentWorld: .page) as? Bool == true)
     }
 
@@ -178,5 +214,84 @@ struct ReaderTests {
         view.loadHTMLString("<p>Another page</p>", baseURL: URL(string: "https://www.reader.test/other"))
         for _ in 0..<80 where tab.isReadable { try await Task.sleep(for: .milliseconds(50)) }
         #expect(!tab.isReadable)
+    }
+
+    private func readableTab(_ html: String = ReaderTests.article) async throws -> (Browser, Tab, WKWebView, NSWindow) {
+        let b = Browser()
+        b.focused()
+        let tab = b.openTab(url: nil)
+        let view = tab.wake()
+        let window = OffscreenWindow(view)
+        view.loadHTMLString(html, baseURL: URL(string: "https://www.reader.test/post"))
+        for _ in 0..<80 where !tab.isReadable { try await Task.sleep(for: .milliseconds(50)) }
+        return (b, tab, view, window)
+    }
+
+    @Test func aPageBackFromTheCacheStillKnowsItsArticleIsUp() async throws {
+        let (b, tab, _, window) = try await readableTab()
+        defer { window.close(); b.windowClosed() }
+        tab.toggleReader()
+        for _ in 0..<80 where !tab.isReading { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(tab.isReading)
+        // What a page shown again from the back/forward cache goes through: the tab forgets, the page didn't.
+        tab.isReading = false
+        await tab.checkReader()
+        #expect(tab.isReading && tab.isReadable)
+        tab.toggleReader()
+        for _ in 0..<80 where tab.isReading { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(!tab.isReading)
+        #expect(b.overlay.statusMessage == nil, "closing the article is not 'no article'")
+    }
+
+    @Test func aPageWithNothingToShowSaysSo() async throws {
+        let b = Browser()
+        b.focused()
+        defer { b.windowClosed() }
+        let tab = b.openTab(url: nil)
+        let view = tab.wake()
+        let window = OffscreenWindow(view)
+        defer { window.close() }
+        view.loadHTMLString(Self.listing, baseURL: URL(string: "https://www.reader.test/list"))
+        for _ in 0..<60 where view.isLoading || view.url == nil { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(b.overlay.statusMessage == nil)
+        tab.toggleReader()
+        for _ in 0..<80 where b.overlay.statusMessage == nil { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(b.overlay.statusMessage != nil)
+        #expect(!tab.isReading)
+    }
+
+    @Test func aSinglePageSiteMovingOnTakesTheArticleAway() async throws {
+        let (b, tab, view, window) = try await readableTab()
+        defer { window.close(); b.windowClosed() }
+        tab.toggleReader()
+        for _ in 0..<80 where !tab.isReading { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(tab.isReading)
+        _ = try await view.callAsyncJavaScript("history.pushState({}, '', '/next')", contentWorld: .page)
+        for _ in 0..<80 where tab.isReading { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(!tab.isReading)
+        var gone = false
+        for _ in 0..<80 where !gone {
+            gone = try await view.callAsyncJavaScript("return document.getElementById('changmun-reader') === null", contentWorld: .page) as? Bool == true
+            if !gone { try await Task.sleep(for: .milliseconds(50)) }
+        }
+        #expect(gone)
+    }
+
+    @Test func aLinkToAPlaceInThePageScrollsTheArticleNotThePage() async throws {
+        let filler = (1...30).map { "<p>Filler \($0): \(Self.sentence)\(Self.sentence)</p>" }.joined()
+        let html = """
+            <html><body><article><h1>Long</h1><p>Top: <a href="#end">to the end</a> \(Self.sentence)\(Self.sentence)</p>\(filler)
+            <h2 id="end">The end</h2><p>Last: \(Self.sentence)\(Self.sentence)</p></article></body></html>
+            """
+        let (view, window) = try await page(html)
+        defer { window.close() }
+        #expect(await Reader.run(.toggle, in: view) == .up)
+        let top = { (try await self.shadow(view, "return s.host.scrollTop") as? NSNumber)?.doubleValue ?? -1 }
+        #expect(try await top() == 0)
+        _ = try await shadow(view, "s.querySelector('a[href]').click()")
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(try await top() > 100)
+        #expect(try await view.callAsyncJavaScript("return location.hash", contentWorld: .page) as? String == "")
+        #expect(try await view.callAsyncJavaScript("return window.scrollY", contentWorld: .page) as? NSNumber == 0)
     }
 }

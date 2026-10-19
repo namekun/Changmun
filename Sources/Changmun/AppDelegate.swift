@@ -42,6 +42,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate()
     }
 
+    /// A browser left running for days asks again once the day has passed.
+    func applicationDidBecomeActive(_ notification: Notification) { UpdateCheck.shared.checkIfDue() }
+
     func applicationWillTerminate(_ notification: Notification) {
         Browser.saveSession()
         ChatStore.shared.stop()
@@ -263,8 +266,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // ⌃ already let go (a quick tap): switch at once.
         if !NSEvent.modifierFlags.contains(.control) { browser.finishSwitching() }
     }
-    @objc func translatePage(_ sender: Any?) { browser.active?.toggleTranslation() }
-    @objc func toggleReader(_ sender: Any?) { browser.active?.toggleReader() }
+    @objc func translatePage(_ sender: Any?) { (browser.peek ?? browser.active)?.toggleTranslation() }
+    @objc func toggleReader(_ sender: Any?) { (browser.peek ?? browser.active)?.toggleReader() }
     @objc func seekBack(_ sender: Any?) { PictureInPictureKeys.target?.seekVideo(by: -PictureInPictureKeys.step) }
     @objc func seekForward(_ sender: Any?) { PictureInPictureKeys.target?.seekVideo(by: PictureInPictureKeys.step) }
     @objc func previousTab(_ sender: Any?) { browser.selectTab(offset: -1) }

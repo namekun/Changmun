@@ -6,16 +6,30 @@ import WebKit
 /// scripts, attributes or styles of the page), into a closed shadow tree the page's own CSS can't reach.
 enum Reader {
     enum Mode: String {
-        /// Whether the page looks like an article.
+        /// What the page is like now: showing the article, or whether it looks like one.
         case check
-        /// Shows the article, or takes it away when it is up. Answers whether it is up now.
+        /// Shows the article, or takes it away when it is up.
         case toggle
+        /// Takes the article away when it is up.
+        case close
+    }
+
+    enum State: String {
+        /// The article is showing.
+        case up
+        /// It was showing and is gone.
+        case down
+        /// The page has an article that can be shown, or has none.
+        case readable, unreadable
+        /// Asked to show it, but there is nothing to show (or the page didn't answer).
+        case none
     }
 
     @MainActor
-    static func run(_ mode: Mode, in webView: WKWebView) async -> Bool {
+    static func run(_ mode: Mode, in webView: WKWebView) async -> State {
         let arguments: [String: Any] = ["mode": mode.rawValue, "exitLabel": String(localized: "Exit Reader Mode")]
-        return (try? await webView.callAsyncJavaScript(script, arguments: arguments, contentWorld: .defaultClient) as? Bool) == true
+        let answer = try? await webView.callAsyncJavaScript(script, arguments: arguments, contentWorld: .defaultClient) as? String
+        return answer.flatMap(State.init) ?? .none
     }
 
     static let script = #"""
@@ -53,10 +67,12 @@ enum Reader {
       return { root, readable: length >= 600 && root.querySelectorAll('p').length >= 3 && links < length * 0.4 };
     }
 
-    if (mode === 'check') { const found = find(); return !!found && found.readable; }
-    if (globalThis.changmunReader) { globalThis.changmunReader.exit(); return false; }
+    const shown = globalThis.changmunReader;
+    if (mode === 'check') { if (shown) return 'up'; const found = find(); return found && found.readable ? 'readable' : 'unreadable'; }
+    if (shown) { shown.exit(); return 'down'; }
+    if (mode === 'close') return 'down';
     const found = find();
-    if (!found) return false;
+    if (!found) return 'none';
 
     const root = found.root;
     // A wrapper that holds most of the article ("page-with-sidebar") is not junk, however it is named.
@@ -78,10 +94,13 @@ enum Reader {
       if (tag === 'br') { out.appendChild(document.createElement('br')); return; }
       let el = out;
       if (tag === 'a') {
-        const href = link(n);
-        if (href) { el = document.createElement('a'); el.href = href; }
+        const href = link(n), id = n.id || n.getAttribute('name');
+        if (href || id) el = document.createElement('a');
+        if (href) el.href = href;
+        if (id && el !== out) el.id = id;
       } else if (INLINE.has(tag)) {
         el = document.createElement(tag);
+        if (n.id) el.id = n.id;
       }
       for (const child of n.childNodes) inlineNode(child, el);
       if (el !== out) out.appendChild(el);
@@ -127,6 +146,7 @@ enum Reader {
         }
         run = null;
         const el = document.createElement(tag);
+        if (n.id) el.id = n.id;
         if (kind === 1) {
           if (tag === 'pre') el.textContent = n.textContent; else for (const child of n.childNodes) inlineNode(child, el);
           if (!el.textContent.trim()) continue;
@@ -140,7 +160,7 @@ enum Reader {
 
     const content = document.createElement('div');
     blocks(root, content);
-    if (text(content).length < 200) return false;
+    if (text(content).length < 200) return 'none';
 
     const dark = matchMedia('(prefers-color-scheme: dark)').matches;
     const c = dark ? { bg: '#1c1c1e', fg: '#e6e6e8', muted: '#98989f', line: '#3a3a3c', code: '#2c2c2e', link: '#6cb2ff' }
@@ -209,16 +229,26 @@ enum Reader {
       html.style.removeProperty('overflow');
       if (previousOverflow[0]) html.style.setProperty('overflow', previousOverflow[0], previousOverflow[1]);
       globalThis.changmunReader = null;
-      window.webkit.messageHandlers.changmunReader.postMessage(false);
+      try { window.webkit.messageHandlers.changmunReader.postMessage(false); } catch (e) {}
     }
     close.addEventListener('click', exit);
+    // A link to a place in this same page scrolls the article, not the page under it.
+    shadow.addEventListener('click', e => {
+      const a = e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a || !a.href.includes('#') || a.href.split('#')[0] !== location.href.split('#')[0]) return;
+      e.preventDefault();
+      let id = a.href.slice(a.href.indexOf('#') + 1);
+      try { id = decodeURIComponent(id); } catch (err) {}
+      const target = id && shadow.getElementById(id);
+      if (target) target.scrollIntoView(); else if (!id) host.scrollTo(0, 0);
+    });
     document.addEventListener('keydown', onKey, true);
     document.querySelectorAll('video, audio').forEach(m => { try { m.pause(); } catch (e) {} });
     html.style.setProperty('overflow', 'hidden', 'important');
     html.appendChild(host);
     host.focus({ preventScroll: true });
     globalThis.changmunReader = { exit, shadow };
-    return true;
+    return 'up';
     """#
 }
 

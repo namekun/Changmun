@@ -1240,27 +1240,27 @@ struct AddressPill: View {
 
     var body: some View {
         let host = tab.url?.host().map { $0.hasPrefix("www.") ? String($0.dropFirst(4)) : $0 }
-        // The lock and the site's name open the site's settings; anywhere else on the pill edits the address.
-        let hasSite = tab.url?.scheme?.hasPrefix("http") == true && host != nil
+        // The lock opens the site's settings; the rest of the pill, the site's name included, edits the address.
+        let hasSite = tab.url?.scheme?.hasPrefix("http") == true && host?.isEmpty == false
         HStack(spacing: 8) {
-            HStack(spacing: 8) {
+            HStack(spacing: 2) {
                 Image(systemName: tab.url?.scheme == "https" ? "lock.fill" : "globe")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(Theme.secondary)
+                    .frame(width: 22, height: 22)
+                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(hasSite && (siteHover || showSite) ? Theme.pill : .clear))
+                    .contentShape(Rectangle())
+                    .onHover { siteHover = $0 }
+                    .onTapGesture { if hasSite { showSite = true } else { edit() } }
+                    .popover(isPresented: $showSite, arrowEdge: .bottom) { SiteSettings(tab: tab) }
+                    .onChange(of: tab.url?.host()) { _, _ in showSite = false }
+                    .help(hasSite ? String(localized: "Site Settings") : String(localized: "Edit Address (⌘L)"))
                 Text(host ?? String(localized: "Enter Address"))
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
                     .foregroundStyle(Theme.primary)
             }
-            .padding(.horizontal, 6)
-            .frame(height: Metrics.action + 4)
-            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(hasSite && (siteHover || showSite) ? Theme.pill : .clear))
             .layoutPriority(1)
-            .contentShape(Rectangle())
-            .onHover { siteHover = $0 }
-            .onTapGesture { if hasSite { showSite = true } else { edit() } }
-            .popover(isPresented: $showSite, arrowEdge: .bottom) { SiteSettings(tab: tab) }
-            .help(hasSite ? String(localized: "Site Settings") : String(localized: "Edit Address (⌘L)"))
             if !compact, let title = Self.shownTitle(tab.title, host: host) {
                 Text(verbatim: "·").font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.faint)
                 Text(verbatim: title)

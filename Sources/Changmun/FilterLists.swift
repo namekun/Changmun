@@ -328,15 +328,19 @@ final class AdBlocker: ObservableObject {
     }
 
     /// Turns blocking off (or back on) for one site, then rebuilds the rules.
-    func toggleSite(_ host: String) {
-        let site = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
-        var allowlist = Preferences.shared.adBlockAllowlist
-        if let index = allowlist.firstIndex(of: site) { allowlist.remove(at: index) } else { allowlist.append(site) }
-        Preferences.shared.adBlockAllowlist = allowlist
+    func toggleSite(_ host: String) { setBlocking(isAllowed(host), for: host) }
+
+    /// Blocking on removes every entry that covers the host, a parent's too; off adds the host's site.
+    func setBlocking(_ on: Bool, for host: String) {
+        Preferences.shared.adBlockAllowlist = Self.allowlist(Preferences.shared.adBlockAllowlist, blocking: on, host: host)
         Task {
             await recompile()
             await ContentBlockerHost.shared.reload()
         }
+    }
+
+    nonisolated static func allowlist(_ list: [String], blocking: Bool, host: String) -> [String] {
+        blocking ? Preferences.removing(host, from: list) : Preferences.adding(host, to: list)
     }
 
     func isAllowed(_ host: String?) -> Bool {

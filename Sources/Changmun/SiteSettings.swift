@@ -2,25 +2,29 @@ import SwiftUI
 
 /// What Changmun keeps for one site, in one place: the popover over the site's name in the address bar. Each row is the
 /// same setting that Settings shows for all sites. A private window records nothing about a site, so the rows that
-/// would (pop-ups, camera and microphone, sleep) stay out of it.
+/// would (ad blocking, pop-ups, camera and microphone, sleep) stay out of it.
 struct SiteSettings: View {
     @ObservedObject var tab: Tab
     @ObservedObject private var prefs = Preferences.shared
     @ObservedObject private var permissions = SitePermissions.shared
     @State private var zoom = 1.0
 
-    private var host: String { tab.url?.host() ?? "" }
+    private var host: String { (tab.url?.host() ?? "").lowercased() }
 
     var body: some View {
+        if tab.url?.scheme?.hasPrefix("http") == true && !host.isEmpty { content }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: Metrics.rowGap) {
             Text(host.hasPrefix("www.") ? String(host.dropFirst(4)) : host)
                 .font(.rowSelected)
                 .foregroundStyle(Theme.primary)
                 .lineLimit(1)
                 .frame(height: Metrics.row)
-            if prefs.blockTrackers {
+            if prefs.blockTrackers && !tab.isPrivate {
                 row(String(localized: "Block ads and trackers")) {
-                    switchFor(Binding(get: { !AdBlocker.shared.isAllowed(host) }, set: { _ in AdBlocker.shared.toggleSite(host) }))
+                    switchFor(Binding(get: { !AdBlocker.shared.isAllowed(host) }, set: { if !host.isEmpty { AdBlocker.shared.setBlocking($0, for: host) } }))
                 }
             }
             row(String(localized: "Zoom")) {
@@ -32,7 +36,7 @@ struct SiteSettings: View {
                     }
                     .buttonStyle(FillStyle(resting: .clear, hoverFill: Theme.pill, radius: 6))
                     .foregroundStyle(Theme.body)
-                    .help("Actual Size")
+                    .help("Default Zoom")
                     HoverAction(symbol: "plus", help: String(localized: "Zoom In")) { setZoom(zoom + 0.1) }
                 }
             }

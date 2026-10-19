@@ -107,10 +107,10 @@ final class Preferences: ObservableObject {
 
     func allowPopups(from host: String) { popupHosts = Self.adding(host, to: popupHosts) }
 
-    /// The list with the host's site on it: lower case, without "www.".
+    /// The list with the host's site on it: lower case, without "www."; never an empty one.
     nonisolated static func adding(_ host: String, to sites: [String]) -> [String] {
         let site = (host.hasPrefix("www.") ? String(host.dropFirst(4)) : host).lowercased()
-        return sites.contains(site) ? sites : sites + [site]
+        return site.isEmpty || sites.contains(site) ? sites : sites + [site]
     }
 
     /// The list without the host, or any site above it that covers it.

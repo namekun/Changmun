@@ -36,6 +36,7 @@ final class SitePermissions: ObservableObject {
     }
 
     func set(_ decision: Decision, host: String, device: Device) {
+        guard !host.isEmpty else { return }
         var forHost = stored[host] ?? [:]
         forHost[device.rawValue] = decision == .ask ? nil : decision.rawValue
         stored[host] = forHost.isEmpty ? nil : forHost
