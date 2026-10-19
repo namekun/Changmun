@@ -52,7 +52,7 @@ enum ToolCatalog {
     static func call(_ name: String, _ args: [String: Any], caller: String) async -> ToolResult {
         if name == "list_tabs" {
             guard let browser = Browser.recent else { return .text("No tabs are open.") }
-            for tab in browser.tabs { Approvals.noteRead(tab, caller: caller) }
+            for tab in browser.tabs where browser.isVisibleToAI(tab) { Approvals.noteRead(tab, caller: caller) }
             return listTabs(browser)
         }
         if name == "open_tab" {
@@ -130,7 +130,7 @@ enum ToolCatalog {
     /// Tab ids are unique across windows. Private windows are not the AI's to use.
     @MainActor
     static func findTab(_ id: Int) -> Tab? {
-        Browser.all.lazy.filter { !$0.isPrivate }.compactMap { $0.tabs.first { $0.id == id } }.first
+        Browser.all.lazy.filter { !$0.isPrivate }.compactMap { browser in browser.tabs.first { $0.id == id && browser.isVisibleToAI($0) } }.first
     }
 
     @MainActor
@@ -215,10 +215,12 @@ enum ToolCatalog {
 
     @MainActor
     private static func listTabs(_ browser: Browser) -> ToolResult {
-        if browser.tabs.isEmpty { return .text("No tabs are open.") }
-        // With more than one space, each tab says which one it is in (all of them are listed).
-        let named = browser.spaces.spaces.count > 1
-        let lines = browser.tabs.map { tab in
+        // The tabs of every space but another profile's, which keeps its logins apart.
+        let visible = browser.tabs.filter { browser.isVisibleToAI($0) }
+        if visible.isEmpty { return .text("No tabs are open.") }
+        // With more than one space, each tab says which one it is in.
+        let named = browser.spaces.spaces.count > 1 && !browser.isPrivate
+        let lines = visible.map { tab in
             let space = named ? " [\(browser.spaces.space(tab.spaceID).name)]" : ""
             return "\(tab.id == browser.activeID ? "*" : " ") #\(tab.id)\(space) \(tab.displayTitle) — \(tab.url?.absoluteString ?? "about:blank")\(tab.isAsleep ? " (asleep)" : "")"
         }

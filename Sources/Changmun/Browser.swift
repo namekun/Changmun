@@ -43,7 +43,7 @@ final class Browser: ObservableObject {
         let spaces = spaces ?? .shared
         self.isPrivate = isPrivate
         self.spaces = spaces
-        spaceID = isPrivate ? spaces.space(nil).id : spaces.space(Self.current.map(\.spaceID) ?? spaces.lastActive).id
+        spaceID = isPrivate ? spaces.space(nil).id : spaces.space(Self.current.flatMap { $0.isPrivate ? nil : $0.spaceID } ?? spaces.lastActive).id
         configuration = isPrivate ? Self.makeConfiguration(store: .nonPersistent(), extensions: false) : Self.configuration
         // A space renamed or recoloured redraws what shows it.
         spacesWatch = spaces.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
@@ -83,6 +83,8 @@ final class Browser: ObservableObject {
     private(set) var spaceDirection = 1
     /// The tab each space last showed, so coming back finds it.
     private var spaceSelection: [UUID: Int] = [:]
+    /// A swipe over the sidebar in progress, for this window.
+    var swipe = SpaceSwipe()
     /// The space's new-space sheet or edit sheet, shown over the window.
     @Published var spaceSheet: SpaceSheetMode?
     /// Opening the AI panel, the sidebar or the downloads ends focus mode, whichever way it is opened.
@@ -211,9 +213,15 @@ final class Browser: ObservableObject {
         func contains(_ id: Int?) -> Bool { id == left || id == right }
     }
 
+    /// Each space's split, so going away and coming back finds it as it was.
+    @Published private var splits: [UUID: Split] = [:]
+    var split: Split? { splits[spaceID] }
+
     /// The halves of a split that ends were on screen until now.
-    @Published private(set) var split: Split? {
-        didSet { for id in [oldValue?.left, oldValue?.right].compactMap({ $0 }) where split?.contains(id) != true { tab(id)?.lastShown = Date() } }
+    private func setSplit(_ new: Split?, in space: UUID) {
+        let old = splits[space]
+        splits[space] = new
+        for id in [old?.left, old?.right].compactMap({ $0 }) where new?.contains(id) != true { tab(id)?.lastShown = Date() }
     }
     var shownSplit: Split? { split?.contains(activeID) == true ? split : nil }
 
@@ -324,7 +332,8 @@ final class Browser: ObservableObject {
         spaces.rememberActive(id)
     }
 
-    func switchSpace(to id: UUID) {
+    /// `opensBar` false (a swipe) leaves an empty space empty, with no bar taking the keyboard.
+    func switchSpace(to id: UUID, opensBar: Bool = true) {
         guard !isPrivate, id != spaceID, spaces.contains(id) else { return }
         commandBar = nil
         if let target = switchTarget(in: id) { return activate(target.id) }
@@ -335,14 +344,16 @@ final class Browser: ObservableObject {
         hoveredLink = nil
         enter(id)
         activeID = nil
-        commandBar = .newTab
+        if opensBar { commandBar = .newTab }
     }
 
-    /// The next space (1) or the one before (-1), going round.
-    func switchSpace(offset: Int) {
+    /// The next space (1) or the one before (-1), going round unless `wraps` is false (a swipe stops at the ends).
+    func switchSpace(offset: Int, wraps: Bool = true, opensBar: Bool = true) {
         let order = spaces.spaces
         guard order.count > 1, let at = order.firstIndex(where: { $0.id == spaceID }) else { return }
-        switchSpace(to: order[(at + offset + order.count) % order.count].id)
+        let to = at + offset
+        guard wraps || order.indices.contains(to) else { return }
+        switchSpace(to: order[(to + order.count) % order.count].id, opensBar: opensBar)
     }
 
     /// ⌃1 to ⌃9; 9 is the last, as with tabs.
@@ -352,19 +363,34 @@ final class Browser: ObservableObject {
     }
 
     /// Takes a space away with its tabs, in this window and every other; a profile's cookies and site data go with it.
-    static func deleteSpace(_ id: UUID, from store: SpaceStore? = nil) {
+    /// Its favorites move to the first space left, in one change, so they are still somewhere to be found.
+    static func deleteSpace(_ id: UUID, from store: SpaceStore? = nil, library: Library = .shared) {
         let store = store ?? .shared
-        guard let removed = store.remove(id) else { return }
-        for browser in all where browser.spaces === store { browser.spaceRemoved(id) }
-        if removed.isProfile { Profiles.remove(id) }
+        guard let next = store.neighbour(afterRemoving: id), let removed = store.remove(id) else { return }
+        if let target = store.spaces.first { library.moveFavorites(from: removed.favoritesFolder, to: target.favoritesFolder) }
+        for browser in all where browser.spaces === store { browser.spaceRemoved(id, to: next) }
+        if removed.isProfile { Profiles.startDraining(store) }
     }
 
-    private func spaceRemoved(_ id: UUID) {
-        if spaceID == id, let next = spaces.spaces.first(where: { $0.id != id })?.id { switchSpace(to: next) }
+    /// `next` is where a window that was in the space goes. A private window has no spaces of its own: it only keeps a valid one.
+    private func spaceRemoved(_ id: UUID, to next: UUID) {
+        guard !isPrivate else {
+            for tab in tabs where tab.spaceID == id { tab.spaceID = next }
+            if spaceID == id { spaceID = next }
+            return
+        }
+        if spaceID == id { switchSpace(to: next) }
         for tab in tabs where tab.spaceID == id { close(tab.id, remember: false) }
         spaceSelection[id] = nil
+        splits[id] = nil
         closedTabs.removeAll { $0.space == id }
-        if spaceID == id, let next = spaces.spaces.first?.id { spaceID = next }
+        if spaceID == id { spaceID = next }
+    }
+
+    /// Whether the AI may see the tab: not a private window's, and not a profile's other than the one the window shows,
+    /// whose logins are kept apart on purpose.
+    func isVisibleToAI(_ tab: Tab) -> Bool {
+        !isPrivate && (tab.spaceID == spaceID || !spaces.space(tab.spaceID).isProfile)
     }
 
     // MARK: Split view
@@ -372,12 +398,12 @@ final class Browser: ObservableObject {
     /// Shows `id` to the right of the active tab.
     func split(with id: Int) {
         guard let activeID, id != activeID, tab(id)?.spaceID == spaceID else { return }
-        split = Split(left: activeID, right: id)
+        setSplit(Split(left: activeID, right: id), in: spaceID)
         splitFraction = 0.5
         tab(id)?.wake()
     }
 
-    func unsplit() { split = nil }
+    func unsplit() { setSplit(nil, in: spaceID) }
 
     nonisolated static func clampedSplitFraction(_ fraction: Double) -> Double { min(max(fraction, 0.2), 0.8) }
 
@@ -415,7 +441,7 @@ final class Browser: ObservableObject {
     func close(_ id: Int, remember: Bool = true) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         let closing = tabs.remove(at: index)
-        if split?.contains(id) == true { split = nil }
+        for (space, shared) in splits where shared.contains(id) { setSplit(nil, in: space) }
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabClosed(closing) }
         if remember {
             closedTabs.append(ClosedTab(url: closing.url, title: closing.title, state: closing.sessionState, index: index, bookmarkKey: closing.bookmarkKey,
@@ -445,7 +471,8 @@ final class Browser: ObservableObject {
         guard let closed = closedTabs.popLast() else { return }
         let tab = Tab(id: Self.takeID(), url: closed.url, title: closed.title, state: closed.state, browser: self)
         if spaces.contains(closed.space) { tab.spaceID = closed.space }
-        if let key = closed.bookmarkKey, !tabs.contains(where: { $0.spaceID == tab.spaceID && $0.bookmarkKey == key }) { tab.bookmarkKey = key }
+        if let key = closed.bookmarkKey, Self.keeps(key, in: spaces.space(tab.spaceID)),
+           !tabs.contains(where: { $0.spaceID == tab.spaceID && $0.bookmarkKey == key }) { tab.bookmarkKey = key }
         tabs.insert(tab, at: min(closed.index, tabs.count))
         // Back into its group, made again if it went away with its last tab.
         if let group = closed.group, tab.bookmarkKey == nil {
@@ -532,6 +559,13 @@ final class Browser: ObservableObject {
     }
 
     static func bookmarkKey(url: String, folder: String) -> String { folder + "\n" + url }
+
+    /// Whether a tab of this space may keep the bookmark key. A favorite's key belongs to its own space: a tab whose space
+    /// couldn't be found would otherwise be bound to a favorite it can't show, and be out of sight. Imported folders are shared.
+    static func keeps(_ key: String, in space: Space) -> Bool {
+        let folder = String(key.prefix { $0 != "\n" })
+        return !Library.isFavorites(folder) || folder == space.favoritesFolder
+    }
 
     var space: Space { spaces.space(spaceID) }
     var favoritesFolder: String { space.favoritesFolder }
@@ -657,8 +691,10 @@ final class Browser: ObservableObject {
 
     @Published private(set) var groups: [TabGroup] = []
     /// The groups of the space shown (a group's tabs are all in one space).
-    var spaceGroups: [TabGroup] {
-        let used = Set(spaceTabs.compactMap(\.groupID))
+    var spaceGroups: [TabGroup] { groups(in: spaceID) }
+
+    func groups(in space: UUID) -> [TabGroup] {
+        let used = Set(tabs.filter { $0.spaceID == space }.compactMap(\.groupID))
         return groups.filter { used.contains($0.id) }
     }
     /// The group whose name is being typed in the sidebar; a new group starts that way.
@@ -863,21 +899,24 @@ final class Browser: ObservableObject {
         let loose = looseTabs
         guard loose.count > 1 else { return flashStatus(String(localized: "No tabs to tidy")) }
         tidying = true
+        // The plan is for the tabs of this space, whichever space is shown by the time it comes.
+        let space = spaceID
         let items = loose.map(\.sortItem), names = spaceGroups.map(\.name)
         Task {
             let plan = await TabSorter.plan(items, existing: names)
             tidying = false
-            apply(plan)
+            apply(plan, in: space)
         }
     }
 
     /// Puts the planned tabs (those still loose) into their groups: one with the same name if the window has it, else a new one.
-    func apply(_ plan: [TabSorter.Group]) {
+    func apply(_ plan: [TabSorter.Group], in space: UUID? = nil) {
+        let space = space ?? spaceID
         var tidy = Tidy(made: [], placed: [:])
         for entry in plan {
-            let members = entry.ids.compactMap { tab($0) }.filter { $0.groupID == nil && $0.bookmarkKey == nil }
+            let members = entry.ids.compactMap { tab($0) }.filter { $0.spaceID == space && $0.groupID == nil && $0.bookmarkKey == nil }
             let group: UUID
-            if let existing = spaceGroups.first(where: { $0.name == entry.name }) {
+            if let existing = groups(in: space).first(where: { $0.name == entry.name }) {
                 group = existing.id
             } else {
                 guard members.count > 1 else { continue }
@@ -1181,7 +1220,7 @@ final class Browser: ObservableObject {
         for item in saved.tabs {
             let tab = Tab(id: Self.takeID(), url: item.url.flatMap(URL.init(string:)), title: item.title, state: item.state, browser: self)
             tab.spaceID = spaces.space(item.space).id
-            tab.bookmarkKey = item.bookmarkKey
+            tab.bookmarkKey = item.bookmarkKey.flatMap { Self.keeps($0, in: spaces.space(tab.spaceID)) ? $0 : nil }
             tab.groupID = item.group
             if item.selected == true { spaceSelection[tab.spaceID] = tab.id }
             if let shown = item.shown { tab.lastShown = Date(timeIntervalSinceNow: -max(0, (saved.saved ?? shown).timeIntervalSince(shown))) }
@@ -1197,6 +1236,7 @@ final class Browser: ObservableObject {
             activate(start.id)
         } else {
             activeID = nil
+            if !isPrivate { commandBar = .newTab }
         }
         if let previous = saved.previous, tabs.indices.contains(previous), tabs[previous].spaceID == spaceID { previousActiveID = tabs[previous].id }
     }

@@ -422,7 +422,7 @@ struct ChatPanel: View {
         HStack(spacing: 6) {
             Menu {
                 // A private window's tabs are not the AI's to read.
-                let candidates = browser.isPrivate ? [] : browser.tabs
+                let candidates = browser.tabs.filter { browser.isVisibleToAI($0) }
                 ForEach(candidates.filter { !chat.attachedIDs.contains($0.id) }) { tab in
                     Button(tab.displayTitle) { chat.attach([tab]) }
                 }

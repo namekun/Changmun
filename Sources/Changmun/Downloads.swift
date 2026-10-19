@@ -94,7 +94,7 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         let owner = tab.browser
         origins[ObjectIdentifier(download)] = tab.isPrivate ? (nil, nil, nil) : (download.originalRequest?.url, download.webView?.url, nil)
         let item = DownloadItem(download, owner: tab.isPrivate ? owner : nil)
-        item.space = owner?.spaces.space(tab.spaceID)
+        item.space = Self.spaceToKeep(for: tab)
         add(item)
     }
 
@@ -259,12 +259,25 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
     /// Web views that picked up a broken-off download, kept until it ends.
     private var resumers: [UUID: WKWebView] = [:]
 
+    /// A private window's download never has a space: it resumes in that window's own non-persistent store.
+    static func spaceToKeep(for tab: Tab) -> Space? {
+        tab.isPrivate ? nil : tab.browser?.spaces.space(tab.spaceID)
+    }
+
+    /// A private download resumes in its window's configuration; any other in the default one, or its profile's if that
+    /// space still exists (a deleted profile's store is never made again).
+    static func resumeConfiguration(for item: DownloadItem, spaces: SpaceStore? = nil) -> WKWebViewConfiguration {
+        if item.isPrivate, let owner = item.owner { return owner.configuration }
+        let spaces = spaces ?? .shared
+        guard !item.isPrivate, let space = item.space, spaces.contains(space.id) else { return Browser.configuration }
+        return Profiles.configuration(for: spaces.space(space.id), base: Browser.configuration)
+    }
+
     /// Picks a download that broke off up again from where it stopped.
     func retry(_ item: DownloadItem) {
         guard let data = item.resumeData, !item.isPrivate || item.owner != nil else { return }
         item.resumeData = nil
-        let base = item.owner?.configuration ?? Browser.configuration
-        let webView = WKWebView(frame: .zero, configuration: item.space.map { Profiles.configuration(for: $0, base: base) } ?? base)
+        let webView = WKWebView(frame: .zero, configuration: Self.resumeConfiguration(for: item))
         resumers[item.id] = webView
         Task {
             let download = await webView.resumeDownload(fromResumeData: data)
