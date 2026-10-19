@@ -65,8 +65,22 @@ struct SpaceSwitcher: View {
     @ObservedObject var browser: Browser
 
     var body: some View {
+        // Centred while it fits; with many spaces it scrolls sideways, to the one shown.
+        ViewThatFits(in: .horizontal) {
+            row.frame(maxWidth: .infinity)
+            ScrollViewReader { scroller in
+                ScrollView(.horizontal, showsIndicators: false) { row }
+                    .onAppear { scroller.scrollTo(browser.spaceID, anchor: .center) }
+                    .onChange(of: browser.spaceID) { _, id in withAnimation(Motion.standard) { scroller.scrollTo(id, anchor: .center) } }
+            }
+        }
+        .animation(Motion.standard, value: browser.spaceID)
+        .animation(Motion.standard, value: browser.spaces.spaces)
+    }
+
+    private var row: some View {
         let spaces = browser.spaces.spaces
-        HStack(spacing: 2) {
+        return HStack(spacing: 2) {
             ForEach(Array(spaces.enumerated()), id: \.element.id) { index, space in
                 Group {
                     if space.id == browser.spaceID {
@@ -75,6 +89,7 @@ struct SpaceSwitcher: View {
                         dot(space, number: index + 1)
                     }
                 }
+                .id(space.id)
                 .contextMenu {
                     Button("Edit Space…") { browser.spaceSheet = .edit(space.id) }
                     if spaces.count > 1 {
@@ -85,9 +100,6 @@ struct SpaceSwitcher: View {
             }
             BarButton(symbol: "plus", help: String(localized: "New Space…")) { browser.spaceSheet = .new }
         }
-        .frame(maxWidth: .infinity)
-        .animation(Motion.standard, value: browser.spaceID)
-        .animation(Motion.standard, value: spaces)
     }
 
     private func chip(_ space: Space) -> some View {
@@ -135,9 +147,11 @@ struct SpaceSwitcher: View {
     static func confirmDelete(_ space: Space, in browser: Browser) {
         let alert = NSAlert()
         alert.messageText = String(localized: "Delete the space “\(space.name)”?")
+        // Its favorites go to the first space left.
+        let heir = browser.spaces.spaces.first { $0.id != space.id }?.name ?? ""
         alert.informativeText = space.isProfile
-            ? String(localized: "Its tabs are closed, and the cookies, logins and site data it kept are erased. Bookmarks stay in the library.")
-            : String(localized: "Its tabs are closed. Bookmarks stay in the library.")
+            ? String(localized: "Its tabs are closed, and the cookies, logins and site data it kept are erased. Its favorites move to “\(heir)”. Bookmarks stay in the library.")
+            : String(localized: "Its tabs are closed. Its favorites move to “\(heir)”. Bookmarks stay in the library.")
         alert.addButton(withTitle: String(localized: "Cancel"))
         alert.addButton(withTitle: String(localized: "Delete")).hasDestructiveAction = true
         let delete = { Browser.deleteSpace(space.id, from: browser.spaces) }

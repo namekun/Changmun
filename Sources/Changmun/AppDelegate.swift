@@ -20,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ChatStore.removeOldConfigs()
         // Watching the library from the start, so no change goes unseen before a sidebar first shows.
         _ = LibraryWatcher.shared
+        // Profiles deleted last time whose data couldn't be erased yet.
+        Profiles.startDraining(SpaceStore.shared)
         if !Headless.isOn {
             Task { await ContentBlockerHost.shared.start() }
             if #available(macOS 15.4, *) { Task { await ExtensionHost.shared.start() } }
@@ -129,7 +131,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var keyMonitor: Any?
     private var switcherMonitor: Any?
     private var swipeMonitor: Any?
-    private var swipe = SpaceSwipe()
 
     /// The side buttons on most mice (4 and 5) go back and forward in the browser window. A click in the other half of
     /// a split makes that tab the active one.
@@ -165,12 +166,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Two fingers moving sideways over the sidebar (never over the page) go to the next space or the one before.
     private func watchSpaceSwipes() {
-        swipeMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
-            guard let self, event.hasPreciseScrollingDeltas, let browser = (event.window as? BrowserWindow)?.browser, !browser.isPrivate,
+        swipeMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+            guard event.hasPreciseScrollingDeltas, let browser = (event.window as? BrowserWindow)?.browser, !browser.isPrivate,
                   browser.showSidebar, !browser.focusMode, event.locationInWindow.x < Preferences.shared.sidebarWidth else { return event }
             let began = event.phase.contains(.began), ended = event.phase.contains(.ended) || event.phase.contains(.cancelled)
-            guard let step = swipe.scrolled(dx: event.scrollingDeltaX, dy: event.scrollingDeltaY, began: began, ended: ended) else { return event }
-            withAnimation(Motion.standard) { browser.switchSpace(offset: step) }
+            guard let step = browser.swipe.scrolled(dx: event.scrollingDeltaX, dy: event.scrollingDeltaY, began: began, ended: ended) else { return event }
+            // It stops at the ends, and a space with nothing in it stays empty: only a click or a key opens the bar.
+            withAnimation(Motion.standard) { browser.switchSpace(offset: step, wraps: false, opensBar: false) }
             return nil
         }
     }

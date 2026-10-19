@@ -2506,13 +2506,18 @@ struct CommandBar: View {
         }
     }
 
+    /// Another profile's favorites aren't suggested here: they belong to a space with logins of its own.
+    private var hiddenFavorites: [String] {
+        browser.spaces.spaces.filter { $0.isProfile && $0.id != browser.spaceID }.map(\.favoritesFolder)
+    }
+
     /// Bookmarks for an empty field (or the current address, untouched); otherwise a search as the user types.
     private func refresh() {
         let query = text.trimmingCharacters(in: .whitespaces)
         if query.isEmpty || (mode == .editCurrent && query == browser.active?.url?.absoluteString) {
-            source.update("", remote: false)
+            source.update("", remote: false, hiding: hiddenFavorites)
         } else {
-            source.update(text, remote: prefs.searchSuggestions && !browser.isPrivate)
+            source.update(text, remote: prefs.searchSuggestions && !browser.isPrivate, hiding: hiddenFavorites)
         }
     }
 
