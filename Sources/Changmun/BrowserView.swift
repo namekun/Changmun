@@ -500,8 +500,6 @@ struct Sidebar: View {
                 let key = Browser.bookmarkKey(url: entry.url, folder: Library.favoritesFolder)
                 FavoriteTile(entry: entry, state: BookmarkTabState(key, browser)) {
                     browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
-                } closeTab: {
-                    if let tab = browser.bookmarkTab(key) { browser.close(tab.id) }
                 } menu: {
                     bookmarkMenu(url: entry.url, folder: Library.favoritesFolder, key: key)
                 }
@@ -593,8 +591,6 @@ struct Sidebar: View {
             let key = Browser.bookmarkKey(url: entry.url, folder: folder)
             BookmarkRow(entry: entry, state: BookmarkTabState(key, browser)) {
                 browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
-            } closeTab: {
-                if let tab = browser.bookmarkTab(key) { browser.close(tab.id) }
             } menu: {
                 bookmarkMenu(url: entry.url, folder: folder, key: key)
             }
@@ -1033,7 +1029,7 @@ struct AddressPill: View {
             LoginButton(tab: tab)
             PictureInPictureButton(tab: tab)
             if hover || AdBlocker.shared.isAllowed(tab.url?.host() ?? "") { AdBlockShield(tab: tab) }
-            if hover { BookmarkStar(tab: tab) }
+            if hover || tab.url.map({ Library.shared.isFavorite($0.absoluteString) }) == true { BookmarkStar(tab: tab) }
         }
         .padding(.leading, 10)
         .padding(.trailing, 4)
@@ -1275,7 +1271,6 @@ struct FavoriteTile<MenuItems: View>: View {
     let entry: Library.Entry
     let state: BookmarkTabState
     let open: () -> Void
-    let closeTab: () -> Void
     @ViewBuilder let menu: () -> MenuItems
     @State private var hover = false
 
@@ -1288,13 +1283,6 @@ struct FavoriteTile<MenuItems: View>: View {
             }
             .rowChrome(hover: hover, selected: state == .shown, radius: Metrics.fieldRadius)
             .onTapGesture(perform: open)
-            .overlay(alignment: .topTrailing) {
-                // Only closing the tab is on the tile; removing the favorite is in its menu, out of a stray click's way.
-                if hover && state != .closed {
-                    HoverAction(symbol: "xmark", help: String(localized: "Close this favorite’s tab"), action: closeTab)
-                        .offset(x: 4, y: -4)
-                }
-            }
             .onHover { hover = $0 }
             .contextMenu(menuItems: menu)
             .help(entry.title.isEmpty ? entry.url : entry.title)
@@ -1343,7 +1331,6 @@ struct BookmarkRow<MenuItems: View>: View {
     let entry: Library.Entry
     let state: BookmarkTabState
     let open: () -> Void
-    let closeTab: () -> Void
     @ViewBuilder let menu: () -> MenuItems
     @State private var hover = false
 
@@ -1357,8 +1344,6 @@ struct BookmarkRow<MenuItems: View>: View {
             Spacer(minLength: 0)
             if hover {
                 MoreButton(items: menu)
-                // The × only ever closes the bookmark's tab; deleting the bookmark is in the menu.
-                if state != .closed { HoverAction(symbol: "xmark", help: String(localized: "Close this bookmark’s tab"), action: closeTab) }
             } else if state == .open {
                 Circle().fill(Theme.dim).frame(width: 4, height: 4).frame(width: Metrics.icon)
             }
