@@ -12,6 +12,15 @@ enum AddressBarChoice: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+/// Where the address bar and the back and forward buttons sit: on the page card, as in Dia, or at the top of the
+/// sidebar, as in Arc. With the sidebar hidden they are always on the page card.
+enum ToolbarPlace: String, CaseIterable, Identifiable {
+    case page
+    case sidebar
+
+    var id: String { rawValue }
+}
+
 enum ShortcutScheme: String, CaseIterable, Identifiable {
     case safari
     case chrome
@@ -83,6 +92,7 @@ final class Preferences: ObservableObject {
         }
     }
     @Published var sidebarWidth: Double { didSet { defaults.set(sidebarWidth, forKey: "sidebarWidth") } }
+    @Published var toolbarPlace: ToolbarPlace { didSet { defaults.set(toolbarPlace.rawValue, forKey: "toolbarPlace") } }
     @Published var defaultZoom: Double { didSet { defaults.set(defaultZoom, forKey: "defaultZoom") } }
     /// Leaving a tab whose video is playing floats the video in picture in picture.
     @Published var autoPictureInPicture: Bool { didSet { defaults.set(autoPictureInPicture, forKey: "autoPictureInPicture") } }
@@ -166,6 +176,7 @@ final class Preferences: ObservableObject {
         askWhereToSave = d.bool(forKey: "askWhereToSave")
         appearance = AppAppearance(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
         sidebarWidth = Self.clampedSidebarWidth(d.object(forKey: "sidebarWidth") as? Double ?? Self.defaultSidebarWidth)
+        toolbarPlace = ToolbarPlace(rawValue: d.string(forKey: "toolbarPlace") ?? "") ?? .page
         defaultZoom = d.object(forKey: "defaultZoom") as? Double ?? 1
         autoPictureInPicture = d.object(forKey: "autoPictureInPicture") as? Bool ?? true
         siteZoom = d.dictionary(forKey: "siteZoom") as? [String: Double] ?? [:]

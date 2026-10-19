@@ -77,6 +77,8 @@ final class Browser: ObservableObject {
         didSet { if commandBar != nil { closePeek() } }
     }
     @Published var showOnboarding = false
+    /// A bookmark folder spread over the page card instead of the page, until a tab is shown.
+    @Published var folderPage: FolderPage?
     @Published var showDownloads = false {
         didSet { if showDownloads { focusMode = false } }
     }
@@ -242,6 +244,7 @@ final class Browser: ObservableObject {
 
     func activate(_ id: Int) {
         guard let tab = tab(id) else { return }
+        folderPage = nil
         hoveredLink = nil
         if id != activeID && findBarVisible { hideFindBar() }
         let previous = active
@@ -472,6 +475,23 @@ final class Browser: ObservableObject {
     func releaseBookmarkTabs(keeping keys: Set<String>) {
         for tab in tabs where tab.bookmarkKey.map({ !keys.contains($0) }) == true { tab.bookmarkKey = nil }
         objectWillChange.send()
+    }
+
+    struct FolderPage: Equatable {
+        var title: String
+        /// The folders shown, each under its own heading when there are several.
+        var folders: [String]
+    }
+
+    /// Moves a bookmark to another folder; its tab, in any window, goes with it.
+    static func moveBookmark(url: String, from: String, to: String) {
+        guard Library.shared.moveBookmark(url: url, from: from, to: to) else { return }
+        let old = bookmarkKey(url: url, folder: from), new = bookmarkKey(url: url, folder: to)
+        for browser in all {
+            guard let tab = browser.bookmarkTab(old), browser.bookmarkTab(new) == nil else { continue }
+            tab.bookmarkKey = new
+            browser.objectWillChange.send()
+        }
     }
 
     /// Turns an open tab into a bookmark's tab (pinning it).

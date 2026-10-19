@@ -126,6 +126,11 @@ struct LooksSettings: View {
                     Text("Dark").tag(AppAppearance.dark)
                 }
                 .pickerStyle(.segmented)
+                Picker("Address Bar Position", selection: $prefs.toolbarPlace) {
+                    Text("Above the Page").tag(ToolbarPlace.page)
+                    Text("In the Sidebar").tag(ToolbarPlace.sidebar)
+                }
+                .pickerStyle(.segmented)
                 LabeledContent("Sidebar Width") {
                     Slider(value: $prefs.sidebarWidth, in: Preferences.sidebarWidths, step: 4).frame(width: 220)
                 }

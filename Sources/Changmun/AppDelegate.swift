@@ -283,6 +283,8 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
     static let cardInset: CGFloat = 8
     static let pageBarHeight: CGFloat = 40
     static let barHeight = cardInset + pageBarHeight
+    /// Just below the window buttons, where the sidebar starts when the page bar is on the page card.
+    static let windowButtonsBottom = cardInset + pageBarHeight / 2 + 12
     private static var windows: [BrowserWindow] = []
 
     let browser: Browser

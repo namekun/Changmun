@@ -207,6 +207,25 @@ final class Library: @unchecked Sendable {
         changed()
     }
 
+    /// Moves a bookmark to the end of another folder (the favorites are folder ""); if it is there already, the copy
+    /// it was moved from just goes. Returns whether it moved.
+    @discardableResult
+    func moveBookmark(url: String, from: String, to: String) -> Bool {
+        guard from != to, let db,
+              !((try? db.query("SELECT 1 FROM bookmarks WHERE url = ? AND folder = ?", [url, from])) ?? []).isEmpty else { return false }
+        do {
+            try db.transaction {
+                try db.run("INSERT OR IGNORE INTO bookmarks (url, title, folder, added) SELECT url, title, ?, ? FROM bookmarks WHERE url = ? AND folder = ?",
+                           [to, Date().timeIntervalSince1970, url, from])
+                try db.run("DELETE FROM bookmarks WHERE url = ? AND folder = ?", [url, from])
+            }
+        } catch {
+            return false
+        }
+        changed()
+        return true
+    }
+
     /// Reads on a queue of their own, away from the main thread.
     private static let readQueue = DispatchQueue(label: "Changmun.library.read", qos: .userInitiated)
     private lazy var reader = Library(path: path)

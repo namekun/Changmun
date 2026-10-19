@@ -250,6 +250,44 @@ struct LibraryTests {
         #expect(lib.favorites().map(\.title) == ["d", "b", "c", "a"])
     }
 
+    @Test func bookmarksMoveBetweenFoldersAndFavorites() throws {
+        let lib = library()
+        _ = try lib.importBookmarks([
+            ("https://a.com/", "A", "Chrome Bookmarks Bar"), ("https://b.com/", "B", "Chrome Bookmarks Bar"),
+            ("https://c.com/", "C", "Chrome Other Bookmarks"), ("https://c.com/", "C", "Chrome Bookmarks Bar"),
+        ])
+        func folder(_ name: String) -> [String] { lib.folders().first { $0.name == name }?.entries.map(\.title) ?? [] }
+
+        lib.moveBookmark(url: "https://a.com/", from: "Chrome Bookmarks Bar", to: "Chrome Other Bookmarks")
+        #expect(folder("Chrome Bookmarks Bar") == ["B", "C"])
+        #expect(folder("Chrome Other Bookmarks") == ["C", "A"])
+
+        // Already in the folder it goes to: only the copy it came from goes.
+        lib.moveBookmark(url: "https://c.com/", from: "Chrome Bookmarks Bar", to: "Chrome Other Bookmarks")
+        #expect(folder("Chrome Bookmarks Bar") == ["B"])
+        #expect(folder("Chrome Other Bookmarks") == ["C", "A"])
+
+        _ = lib.toggleBookmark(url: "https://z.com/", title: "Z")
+        lib.moveBookmark(url: "https://a.com/", from: "Chrome Other Bookmarks", to: Library.favoritesFolder)
+        #expect(lib.favorites().map(\.title) == ["Z", "A"])
+        #expect(folder("Chrome Other Bookmarks") == ["C"])
+        lib.moveBookmark(url: "https://z.com/", from: Library.favoritesFolder, to: "Chrome Bookmarks Bar")
+        #expect(lib.favorites().map(\.title) == ["A"])
+        #expect(folder("Chrome Bookmarks Bar") == ["B", "Z"])
+
+        // Gone from the folder already (a stale drag): nothing moves.
+        #expect(!lib.moveBookmark(url: "https://gone.com/", from: "Chrome Bookmarks Bar", to: Library.favoritesFolder))
+        #expect(lib.favorites().map(\.title) == ["A"])
+    }
+
+    @MainActor @Test func draggedBookmarksKeepTheirFolder() {
+        let folder = "Arc Sidebar / Work: 2026 / Q4"
+        let url = "https://example.com/a?b=c#d"
+        #expect(SidebarDrag.bookmark([SidebarDrag.bookmark(url, in: folder)])! == (url, folder))
+        #expect(SidebarDrag.bookmark([SidebarDrag.favorite(url)])! == (url, Library.favoritesFolder))
+        #expect(SidebarDrag.bookmark([SidebarDrag.tab(3)]) == nil)
+    }
+
     @Test func foldersAndSourcesCanBeRemoved() throws {
         let lib = library()
         _ = try lib.importBookmarks([
