@@ -181,7 +181,7 @@ struct LibraryTests {
         #expect(lib.toggleBookmark(url: "https://a.example/", title: "A"))
         _ = try lib.importBookmarks([("https://b.example/", "B", "Arc Bar")])
         let read = try #require(lib.readBookmarks())
-        #expect(read.favorites.map(\.url) == ["https://a.example/"])
+        #expect(read.favorites[Library.favoritesFolder]?.map(\.url) == ["https://a.example/"])
         #expect(read.folders.map(\.name) == ["Arc Bar"])
         lib.removeBookmark(url: "https://b.example/", folder: "Arc Bar")
         lib.addBookmark(url: "https://b.example/", title: "B", folder: "Arc Bar")
@@ -313,7 +313,7 @@ struct LibraryTests {
         let folder = "Arc Sidebar / Work: 2026 / Q4"
         let url = "https://example.com/a?b=c#d"
         #expect(SidebarDrag.bookmark([SidebarDrag.bookmark(url, in: folder)])! == (url, folder))
-        #expect(SidebarDrag.bookmark([SidebarDrag.favorite(url)])! == (url, Library.favoritesFolder))
+        #expect(SidebarDrag.bookmark([SidebarDrag.bookmark(url, in: Library.favoritesFolder)])! == (url, Library.favoritesFolder))
         #expect(SidebarDrag.bookmark([SidebarDrag.tab(3)]) == nil)
         // A dragged folder is never taken for a bookmark, and says which folder it is.
         #expect(SidebarDrag.bookmark([SidebarDrag.folder(folder)]) == nil)
@@ -324,27 +324,27 @@ struct LibraryTests {
     }
 
     @MainActor @Test func pinnedFoldersKeepTheOrderTheyAreDroppedIn() {
-        let prefs = Preferences.shared
-        let saved = prefs.pinnedFolders
-        defer { prefs.pinnedFolders = saved }
-        prefs.pinnedFolders = []
-        prefs.pinFolder("Arc A")
-        prefs.pinFolder("Arc B")
-        prefs.pinFolder("Arc C")
-        #expect(prefs.pinnedFolders == ["Arc A", "Arc B", "Arc C"])
-        prefs.pinFolder("Arc C", before: "Arc A")
-        #expect(prefs.pinnedFolders == ["Arc C", "Arc A", "Arc B"])
+        let browser = Browser(spaces: SpaceStore(folder: FileManager.default.temporaryDirectory.appendingPathComponent("spaces-\(UUID().uuidString)"),
+                                                 defaults: UserDefaults(suiteName: "spaces-\(UUID().uuidString)")!))
+        let store = browser.spaces, id = browser.spaceID
+        let pinned = { store.space(id).pinnedFolders }
+        store.pinFolder("Arc A", in: id)
+        store.pinFolder("Arc B", in: id)
+        store.pinFolder("Arc C", in: id)
+        #expect(pinned() == ["Arc A", "Arc B", "Arc C"])
+        store.pinFolder("Arc C", before: "Arc A", in: id)
+        #expect(pinned() == ["Arc C", "Arc A", "Arc B"])
         // Dropped at the end (or pinned again from its menu), a pinned folder moves there instead of doubling.
-        prefs.pinFolder("Arc C")
-        #expect(prefs.pinnedFolders == ["Arc A", "Arc B", "Arc C"])
-        prefs.pinFolder("Arc B", before: "Arc B")
-        prefs.pinFolder("")
-        #expect(prefs.pinnedFolders == ["Arc A", "Arc B", "Arc C"])
-        #expect(SidebarDrag.pin([SidebarDrag.folder("Arc B")], before: "Arc A"))
-        #expect(prefs.pinnedFolders == ["Arc B", "Arc A", "Arc C"])
-        #expect(!SidebarDrag.pin([SidebarDrag.tab(1)], before: nil))
-        prefs.unpinFolder("Arc A")
-        #expect(prefs.pinnedFolders == ["Arc B", "Arc C"])
+        store.pinFolder("Arc C", in: id)
+        #expect(pinned() == ["Arc A", "Arc B", "Arc C"])
+        store.pinFolder("Arc B", before: "Arc B", in: id)
+        store.pinFolder("", in: id)
+        #expect(pinned() == ["Arc A", "Arc B", "Arc C"])
+        #expect(SidebarDrag.pin([SidebarDrag.folder("Arc B")], before: "Arc A", in: browser))
+        #expect(pinned() == ["Arc B", "Arc A", "Arc C"])
+        #expect(!SidebarDrag.pin([SidebarDrag.tab(1)], before: nil, in: browser))
+        store.unpinFolder("Arc A", in: id)
+        #expect(pinned() == ["Arc B", "Arc C"])
     }
 
     @Test func foldersAndSourcesCanBeRemoved() throws {
