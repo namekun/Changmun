@@ -247,6 +247,26 @@ extension View {
     }
 }
 
+/// "Open in" another browser on this Mac: for a site that only works in one of them.
+struct OpenInMenu: View {
+    let url: URL
+
+    var body: some View {
+        let apps = NSWorkspace.shared.urlsForApplications(toOpen: url).filter {
+            Bundle(url: $0)?.bundleIdentifier?.hasPrefix("io.github.namekun.Changmun") != true
+        }
+        if !apps.isEmpty {
+            Menu("Open In") {
+                ForEach(apps, id: \.self) { app in
+                    Button(FileManager.default.displayName(atPath: app.path).replacingOccurrences(of: ".app", with: "")) {
+                        NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// "…" on a hovered row: the same menu as a right-click, for people who don't think to right-click.
 struct MoreButton<Items: View>: View {
     /// In a row it is a small filled square; in a bar, a plain button the size of the bar's others.
@@ -494,9 +514,9 @@ struct Sidebar: View {
                             tabRow(tab, depth: 0)
                         case .group(let group, let tabs):
                             TabGroupHeader(group: group, count: tabs.count, browser: browser,
-                                           target: dropTarget == "group:\(group.id)" && SidebarDrag.dragging == .tab)
-                                .dropDestination(for: String.self) { items, _ in
-                                    SidebarDrag.drop(items, onGroup: group.id, browser: browser)
+                                           target: dropTarget == "group:\(group.id)" && SidebarDrag.carriesTab)
+                                .dropDestination(for: SidebarDrop.self) { items, _ in
+                                    SidebarDrag.drop(items.texts, onGroup: group.id, browser: browser)
                                 } isTargeted: { target("group:\(group.id)", $0) }
                             ForEach(browser.shown(tabs, in: group)) { tab in
                                 tabRow(tab, depth: 1)
@@ -505,9 +525,9 @@ struct Sidebar: View {
                     }
                     // Below the last tab: a tab dropped here goes to the end of the list.
                     SectionGap()
-                        .dropLine(dropTarget == "tabs:end" && SidebarDrag.dragging == .tab)
-                        .dropDestination(for: String.self) { items, _ in
-                            SidebarDrag.dropAtEnd(items, browser: browser)
+                        .dropLine(dropTarget == "tabs:end" && SidebarDrag.carriesTab)
+                        .dropDestination(for: SidebarDrop.self) { items, _ in
+                            SidebarDrag.dropAtEnd(items.texts, browser: browser)
                         } isTargeted: { target("tabs:end", $0) }
                 }
                 .padding(.horizontal, Metrics.inset)
@@ -576,14 +596,14 @@ struct Sidebar: View {
                 }
                 .dropLine(dropTarget == "fav:" + entry.url && SidebarDrag.dragging != .folder, edge: .leading)
                 .draggable(SidebarDrag.favorite(entry.url))
-                .dropDestination(for: String.self) { items, _ in
-                    SidebarDrag.drop(items, onFavorite: entry.url, browser: browser)
+                .dropDestination(for: SidebarDrop.self) { items, _ in
+                    SidebarDrag.drop(items.texts, onFavorite: entry.url, browser: browser)
                 } isTargeted: { target("fav:" + entry.url, $0) }
             }
         }
         // Between and after the tiles: dropped there, it goes to the end of the favorites.
-        .dropDestination(for: String.self) { items, _ in
-            SidebarDrag.drop(items, onFavorite: nil, browser: browser)
+        .dropDestination(for: SidebarDrop.self) { items, _ in
+            SidebarDrag.drop(items.texts, onFavorite: nil, browser: browser)
         }
         .padding(.bottom, Metrics.section - Metrics.rowGap)
     }
@@ -598,8 +618,8 @@ struct Sidebar: View {
         }
         SectionGap()
             .dropLine(dropTarget == "pin:end" && SidebarDrag.dragging == .folder)
-            .dropDestination(for: String.self) { items, _ in
-                SidebarDrag.pin(items, before: nil)
+            .dropDestination(for: SidebarDrop.self) { items, _ in
+                SidebarDrag.pin(items.texts, before: nil)
             } isTargeted: { target("pin:end", $0) }
     }
 
@@ -725,7 +745,7 @@ struct Sidebar: View {
         let reorders = pinned && depth == 0
         let over = dropTarget == targetKey
         return FolderRow(name: folder.label, count: folder.count, isOpen: prefs.openFolders.contains(openKey), showCount: false,
-                         target: over && SidebarDrag.dragging == .bookmark) {
+                         target: over && SidebarDrag.dragging != .tab && SidebarDrag.dragging != .folder) {
             prefs.toggleOpen(openKey)
         } menu: {
             if isPinned {
@@ -748,9 +768,9 @@ struct Sidebar: View {
         .help(folder.key)
         .dropLine(reorders && over && SidebarDrag.dragging == .folder)
         .draggable(SidebarDrag.folder(folder.key))
-        .dropDestination(for: String.self) { items, _ in
-            if reorders, SidebarDrag.pin(items, before: folder.key) { return true }
-            return SidebarDrag.drop(items, onFolder: folder.key)
+        .dropDestination(for: SidebarDrop.self) { items, _ in
+            if reorders, SidebarDrag.pin(items.texts, before: folder.key) { return true }
+            return SidebarDrag.drop(items.texts, onFolder: folder.key)
         } isTargeted: { target(targetKey, $0) }
     }
 
@@ -762,10 +782,10 @@ struct Sidebar: View {
         }
         .padding(.leading, CGFloat(depth) * Metrics.indent)
         .id("tab:\(tab.id)")
-        .dropLine(dropTarget == "tab:\(tab.id)" && SidebarDrag.dragging == .tab)
+        .dropLine(dropTarget == "tab:\(tab.id)" && SidebarDrag.carriesTab)
         .draggable(SidebarDrag.tab(tab.id))
-        .dropDestination(for: String.self) { items, _ in
-            SidebarDrag.drop(items, onTab: tab.id, browser: browser)
+        .dropDestination(for: SidebarDrop.self) { items, _ in
+            SidebarDrag.drop(items.texts, onTab: tab.id, browser: browser)
         } isTargeted: { target("tab:\(tab.id)", $0) }
     }
 
@@ -870,6 +890,22 @@ struct SidebarResizeHandle: View {
     }
 }
 
+/// What the sidebar takes when something is dropped on it: one of its own rows (carried as text naming it), or a
+/// link dragged from a page, the address or another app.
+struct SidebarDrop: Transferable {
+    let text: String
+
+    static var transferRepresentation: some TransferRepresentation {
+        ProxyRepresentation(exporting: { (drop: SidebarDrop) in URL(string: drop.text) ?? URL(fileURLWithPath: "/") },
+                            importing: { (url: URL) in SidebarDrop(text: url.absoluteString) })
+        ProxyRepresentation(exporting: \.text, importing: { SidebarDrop(text: $0) })
+    }
+}
+
+extension Array where Element == SidebarDrop {
+    var texts: [String] { map(\.text) }
+}
+
 /// Dragging tabs and favorites around the sidebar: the payload names what is dragged.
 @MainActor
 enum SidebarDrag {
@@ -881,6 +917,16 @@ enum SidebarDrag {
     static func favorite(_ url: String) -> String { dragging = .bookmark; return "changmun-favorite:" + url }
     static func bookmark(_ url: String, in folder: String) -> String { dragging = .bookmark; return "changmun-bookmark:" + folder + "\n" + url }
     static func folder(_ key: String) -> String { dragging = .folder; return "changmun-folder:" + key }
+
+    /// A web address dragged in from a page or another app.
+    static func link(_ items: [String]) -> URL? {
+        guard let item = items.first?.trimmingCharacters(in: .whitespacesAndNewlines), !item.hasPrefix("changmun-"),
+              let url = URL(string: item), ["http", "https"].contains(url.scheme?.lowercased()), url.host() != nil else { return nil }
+        return url
+    }
+
+    /// Nothing from the sidebar is being carried: a link from outside, which lands where a tab would.
+    static var carriesTab: Bool { dragging == .tab || dragging == nil }
 
     static func folderKey(_ items: [String]) -> String? {
         guard let item = items.first, item.hasPrefix("changmun-folder:") else { return nil }
@@ -899,6 +945,10 @@ enum SidebarDrag {
     /// A tab dropped below the list goes to its end, out of any group.
     static func dropAtEnd(_ items: [String], browser: Browser) -> Bool {
         defer { dragging = nil }
+        if let url = link(items) {
+            withAnimation(Motion.standard) { browser.moveTab(browser.openTab(url: url).id, to: nil) }
+            return true
+        }
         guard let id = tabID(items) else { return false }
         withAnimation(Motion.standard) {
             browser.moveTab(id, to: nil)
@@ -920,6 +970,10 @@ enum SidebarDrag {
     /// A bookmark or favorite dropped on a folder moves into it.
     static func drop(_ items: [String], onFolder folder: String) -> Bool {
         defer { dragging = nil }
+        if let url = link(items) {
+            Library.shared.addBookmark(url: url.absoluteString, title: url.host() ?? url.absoluteString, folder: folder)
+            return true
+        }
         guard let (url, from) = bookmark(items), from != folder else { return false }
         Browser.moveBookmark(url: url, from: from, to: folder)
         return true
@@ -927,6 +981,15 @@ enum SidebarDrag {
 
     static func drop(_ items: [String], onTab target: Int, browser: Browser) -> Bool {
         defer { dragging = nil }
+        if let url = link(items) {
+            withAnimation(Motion.standard) {
+                // Just above the tab it was dropped on, where the drop line showed, and into its group.
+                let tab = browser.openTab(url: url)
+                browser.moveTab(tab.id, to: nil)
+                browser.dropTab(tab.id, on: target)
+            }
+            return true
+        }
         guard let id = tabID(items) else { return false }
         withAnimation(Motion.standard) { browser.dropTab(id, on: target) }
         return true
@@ -934,6 +997,10 @@ enum SidebarDrag {
 
     static func drop(_ items: [String], onGroup group: UUID, browser: Browser) -> Bool {
         defer { dragging = nil }
+        if let url = link(items) {
+            withAnimation(Motion.standard) { browser.addTab(browser.openTab(url: url).id, to: group) }
+            return true
+        }
         guard let id = tabID(items) else { return false }
         withAnimation(Motion.standard) { browser.addTab(id, to: group) }
         return true
@@ -948,6 +1015,12 @@ enum SidebarDrag {
     /// With no target, past the last tile, it goes to the end.
     static func drop(_ items: [String], onFavorite target: String?, browser: Browser) -> Bool {
         defer { dragging = nil }
+        if let url = link(items) {
+            let address = url.absoluteString
+            if !Library.shared.isFavorite(address) { _ = Library.shared.toggleBookmark(url: address, title: url.host() ?? address) }
+            Library.shared.moveFavorite(address, to: target)
+            return true
+        }
         if let (url, folder) = bookmark(items) {
             if folder != Library.favoritesFolder { Browser.moveBookmark(url: url, from: folder, to: Library.favoritesFolder) }
             Library.shared.moveFavorite(url, to: target)
@@ -1705,6 +1778,16 @@ struct SidebarTabRow: View {
 
     /// The tab, then where it goes, then closing it: the same order as a bookmark's menu.
     @ViewBuilder private var menu: some View {
+        Button("Reload") {
+            if tab.isAsleep { browser.activate(tab.id) } else { tab.webView?.reload() }
+        }
+        Button("Duplicate Tab") { browser.duplicate(tab.id) }
+        Button("Move to New Window") { browser.moveToNewWindow(tab.id) }
+        if let url = tab.url, url.scheme?.hasPrefix("http") == true {
+            ShareLink(item: url)
+            OpenInMenu(url: url)
+        }
+        Divider()
         if browser.split?.contains(tab.id) == true {
             Button("End Split View") { browser.unsplit() }
         } else if !isActive && browser.activeID != nil {

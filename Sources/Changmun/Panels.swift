@@ -317,6 +317,8 @@ struct DownloadRow: View {
             Spacer(minLength: 0)
             if item.state == .running {
                 HoverAction(symbol: "xmark", help: String(localized: "Cancel")) { item.cancel() }
+            } else if item.resumeData != nil {
+                HoverAction(symbol: "arrow.clockwise", help: String(localized: "Try Again")) { Downloads.shared.retry(item) }
             } else if hover, let file {
                 HoverAction(symbol: "magnifyingglass", help: String(localized: "Show in Finder")) { NSWorkspace.shared.activateFileViewerSelecting([file]) }
             }
@@ -345,6 +347,9 @@ struct DownloadRow: View {
             }
             if item.state == .running {
                 Button("Cancel") { item.cancel() }
+            }
+            if item.resumeData != nil {
+                Button("Try Again") { Downloads.shared.retry(item) }
             }
         }
         .help(file.map { "\($0.path)\n" + (Downloads.opensOnClick($0) ? String(localized: "Click to open it. You can drag it into another app.") : String(localized: "Click to show it in Finder. You can drag it into another app.")) } ?? item.filename)

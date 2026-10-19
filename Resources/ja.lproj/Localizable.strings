@@ -448,3 +448,6 @@
 "Deleted the bookmark" = "ブックマークを削除しました";
 "Removed from Favorites" = "お気に入りから外しました";
 "Search Bookmarks" = "ブックマークを検索";
+"Duplicate Tab" = "タブを複製";
+"Move to New Window" = "新規ウインドウに移動";
+"Open In" = "ほかのアプリで開く";

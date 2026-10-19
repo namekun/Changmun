@@ -26,6 +26,10 @@ final class DownloadItem: ObservableObject, Identifiable {
     /// Under the pointer on the shelf: it stays there until the pointer leaves.
     var isHovered = false
     weak var download: WKDownload?
+    /// What WebKit kept of a download that broke off, to pick it up from there.
+    var resumeData: Data?
+    /// Where it came from and goes, kept for a resumed download's quarantine.
+    var origin: (file: URL?, page: URL?, destination: URL?)?
     private var observation: NSKeyValueObservation?
 
     convenience init(_ download: WKDownload, owner: Browser?) {
@@ -37,6 +41,10 @@ final class DownloadItem: ObservableObject, Identifiable {
     init(filename: String, progress: Progress, isPrivate: Bool) {
         self.isPrivate = isPrivate
         self.filename = filename
+        watch(progress)
+    }
+
+    func watch(_ progress: Progress) {
         observation = progress.observe(\.completedUnitCount) { [weak self] progress, _ in
             let fraction = progress.fractionCompleted, done = progress.completedUnitCount, known = progress.totalUnitCount > 0
             Task { @MainActor in self?.update(fraction: fraction, bytes: done, sizeKnown: known) }
@@ -225,15 +233,41 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         item(download)?.progress = 1
         item(download)?.bytes = download.progress.completedUnitCount
         item(download)?.state = .finished
+        if let id = item(download)?.id { resumers[id] = nil }
         settle(item(download))
         if !Headless.isOn { NSSound(named: "Glass")?.play() }
     }
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
-        origins.removeValue(forKey: ObjectIdentifier(download))
+        let origin = origins.removeValue(forKey: ObjectIdentifier(download))
         let cancelled = (error as NSError).code == NSURLErrorCancelled
         guard let item = item(download) else { return }
+        resumers[item.id] = nil
         item.state = cancelled ? .cancelled : .failed(error.localizedDescription)
+        if !cancelled {
+            item.resumeData = resumeData
+            item.origin = origin
+        }
         if cancelled { dismiss(item) } else { settle(item) }
+    }
+
+    /// Web views that picked up a broken-off download, kept until it ends.
+    private var resumers: [UUID: WKWebView] = [:]
+
+    /// Picks a download that broke off up again from where it stopped, into the same file.
+    func retry(_ item: DownloadItem) {
+        guard let data = item.resumeData else { return }
+        item.resumeData = nil
+        let webView = WKWebView(frame: .zero, configuration: item.owner?.configuration ?? Browser.configuration)
+        resumers[item.id] = webView
+        Task {
+            let download = await webView.resumeDownload(fromResumeData: data)
+            download.delegate = self
+            origins[ObjectIdentifier(download)] = item.origin ?? (nil, nil, nil)
+            item.download = download
+            item.state = .running
+            item.watch(download.progress)
+            if !shelf.contains(where: { $0 === item }) { shelf.insert(item, at: 0) }
+        }
     }
 }

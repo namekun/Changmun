@@ -490,6 +490,33 @@ struct BrowserTabTests {
     /// Tab ids count up across windows, so tests name tabs by position.
     private func ids(_ b: Browser) -> [Int] { b.tabs.map(\.id) }
 
+    @Test func linksDroppedOnTheSidebarOpenWhereTheyLand() throws {
+        #expect(SidebarDrag.link(["https://a.example/x?y=1"])?.absoluteString == "https://a.example/x?y=1")
+        #expect(SidebarDrag.link(["  https://a.example/  "]) != nil)
+        #expect(SidebarDrag.link(["changmun-tab:3"]) == nil)
+        #expect(SidebarDrag.link(["javascript:alert(1)"]) == nil)
+        #expect(SidebarDrag.link(["file:///etc/passwd"]) == nil)
+        #expect(SidebarDrag.link(["just words"]) == nil)
+        let b = browser(3)
+        let first = ids(b)[0]
+        #expect(SidebarDrag.drop(["https://dropped.example/"], onTab: first, browser: b))
+        #expect(b.tabs.map { $0.url?.host() } == ["dropped.example", "site1.example", "site2.example", "site3.example"])
+        #expect(SidebarDrag.dropAtEnd(["https://end.example/"], browser: b))
+        #expect(b.tabs.last?.url?.host() == "end.example")
+        let group = try #require(b.group([ids(b)[2]], name: "G"))
+        #expect(SidebarDrag.drop(["https://grouped.example/"], onGroup: group, browser: b))
+        #expect(b.tabs.first { $0.url?.host() == "grouped.example" }?.groupID == group)
+        #expect(!SidebarDrag.drop(["not a link"], onTab: first, browser: b))
+    }
+
+    @Test func duplicatingATabPutsTheCopyNextToIt() throws {
+        let b = browser(3)
+        let group = try #require(b.group([ids(b)[1]], name: "G"))
+        let copy = try #require(b.duplicate(ids(b)[1]))
+        #expect(b.tabs.map { $0.url?.host() } == ["site1.example", "site2.example", "site2.example", "site3.example"])
+        #expect(copy.groupID == group)
+    }
+
     @Test func closingAGroupCanBeTakenBack() throws {
         let b = browser(4)
         let group = try #require(b.group(Array(ids(b).prefix(3)), name: "Work"))

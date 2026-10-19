@@ -668,6 +668,23 @@ final class Browser: ObservableObject {
         }
     }
 
+    /// A second tab on the same page, right after it, in its group.
+    @discardableResult
+    func duplicate(_ id: Int) -> Tab? {
+        guard let tab = tab(id), let url = tab.url else { return nil }
+        let copy = openTab(url: url, activate: false, after: tab)
+        if let group = tab.groupID, tab.bookmarkKey == nil { join(copy, group) }
+        return copy
+    }
+
+    /// Takes a tab out into a window of its own, keeping its back and forward history.
+    func moveToNewWindow(_ id: Int) {
+        guard let tab = tab(id) else { return }
+        let saved = SavedSession(tabs: [SavedTab(url: tab.url?.absoluteString, title: tab.title, state: tab.sessionState)], active: 0)
+        close(id, remember: false)
+        BrowserWindow.open(private: isPrivate, restoring: saved)
+    }
+
     /// Something just done that can be taken back, under the new tab row for a few seconds.
     struct Notice: Equatable {
         let id = UUID()
