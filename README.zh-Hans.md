@@ -118,6 +118,18 @@ claude mcp add changmun -- /Applications/Changmun.app/Contents/MacOS/Changmun --
 
 如果 Changmun 没有运行，`--mcp` 会将其启动。控制服务器只监听 127.0.0.1，并需要一个每次启动都会变化的令牌。
 
+任何能运行命令的代理也可以在 shell 中使用（Homebrew 会把 `changmun` 放到 PATH 中）：
+
+```sh
+changmun tabs
+changmun open example.com
+changmun read
+changmun click 12
+changmun type 3 "hello" --submit
+```
+
+其余命令见 `changmun help`。每条命令调用一个相同的工具，经过同样的确认，必要时会启动 Changmun。
+
 ## 广告拦截
 
 Changmun 会把 EasyList（广告）和 EasyPrivacy（跟踪器）转换为 WebKit 内容拦截规则，并每 4 天更新一次。在设置 › 隐私中，你可以关闭某些列表，或通过网址添加其他列表（一键即可添加韩国广告列表）。如果某个网站出现异常，可用地址栏中的盾牌按钮仅对该网站关闭拦截。WebKit 无法表达的规则（正则表达式、`$redirect`、scriptlet、`:has-text` 及其他扩展选择器）会被跳过，而不是凭猜测处理。

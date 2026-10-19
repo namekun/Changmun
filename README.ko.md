@@ -118,6 +118,18 @@ claude mcp add changmun -- /Applications/Changmun.app/Contents/MacOS/Changmun --
 
 앱이 꺼져 있으면 `--mcp`가 Changmun을 먼저 띄운다. 제어 서버는 127.0.0.1에서만 열리고, 실행할 때마다 바뀌는 토큰이 필요하다.
 
+셸에서 쓸 수도 있다. 명령을 실행할 수 있는 에이전트라면 무엇이든 쓴다(Homebrew가 `changmun`을 PATH에 넣는다).
+
+```sh
+changmun tabs
+changmun open example.com
+changmun read
+changmun click 12
+changmun type 3 "hello" --submit
+```
+
+나머지 명령은 `changmun help`에 있다. 명령마다 같은 도구를 하나씩 부르고, 같은 확인을 거치며, 필요하면 Changmun을 띄운다.
+
 ## 광고 차단
 
 EasyList(광고)와 EasyPrivacy(추적)를 WebKit 콘텐츠 차단 규칙으로 바꿔 쓰고, 4일마다 새로 받는다. 설정 › 개인정보에서 목록을 끄거나 다른 목록을 주소로 더할 수 있다(한국 광고 목록은 한 번에 추가된다). 사이트가 깨지면 주소창의 방패 버튼으로 그 사이트만 끈다. WebKit이 표현할 수 없는 규칙(정규식, `$redirect`, 스크립틀릿, `:has-text` 같은 확장 선택자)은 잘못 막지 않도록 건너뛴다.

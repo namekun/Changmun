@@ -1,0 +1,5 @@
+#!/bin/sh
+# `changmun`: the Changmun browser from the command line, for people and AI agents. `changmun help` lists the commands.
+# Homebrew links this file onto the PATH; it runs the app's own binary, which talks to the running app.
+self=$(readlink -f "$0" 2>/dev/null || echo "$0")
+exec "$(dirname "$self")/../MacOS/Changmun" --cli "$@"

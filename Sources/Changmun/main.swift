@@ -6,6 +6,10 @@ signal(SIGPIPE, SIG_IGN)
 if CommandLine.arguments.contains("--mcp") {
     MCPBridge.run()
 }
+// `Changmun --cli …` (the `changmun` command): one tool call from a shell.
+if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "--cli" {
+    CLI.run(Array(CommandLine.arguments.dropFirst(2)))
+}
 
 MainActor.assumeIsolated {
     let app = NSApplication.shared

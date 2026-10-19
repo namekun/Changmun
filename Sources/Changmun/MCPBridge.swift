@@ -44,6 +44,28 @@ enum MCPBridge {
     }()
 
     private static func forward(_ name: String, _ arguments: [String: Any]) -> [String: Any] {
+        ControlClient.call(name, arguments, caller: caller)
+    }
+
+    private static func reply(_ id: Any, _ result: [String: Any]) -> [String: Any] {
+        ["jsonrpc": "2.0", "id": id, "result": result]
+    }
+
+    private static func error(_ id: Any, _ code: Int, _ message: String) -> [String: Any] {
+        ["jsonrpc": "2.0", "id": id, "error": ["code": code, "message": message]]
+    }
+
+    private static func write(_ message: [String: Any]) {
+        guard var data = try? JSONSerialization.data(withJSONObject: message) else { return }
+        data.append(0x0A)
+        FileHandle.standardOutput.write(data)
+    }
+}
+
+/// Talks to the running app's control server, for the MCP bridge and the command line.
+enum ControlClient {
+    /// Carries out one tool call in the running app (starting it first if needed) and returns the tool's result.
+    static func call(_ name: String, _ arguments: [String: Any], caller: String) -> [String: Any] {
         guard let endpoint = ControlEndpoint.read() ?? launchApp() else {
             return ToolResult.text("Changmun is not running and could not be started.", error: true).json
         }
@@ -81,19 +103,5 @@ enum MCPBridge {
             Thread.sleep(forTimeInterval: 0.15)
         }
         return nil
-    }
-
-    private static func reply(_ id: Any, _ result: [String: Any]) -> [String: Any] {
-        ["jsonrpc": "2.0", "id": id, "result": result]
-    }
-
-    private static func error(_ id: Any, _ code: Int, _ message: String) -> [String: Any] {
-        ["jsonrpc": "2.0", "id": id, "error": ["code": code, "message": message]]
-    }
-
-    private static func write(_ message: [String: Any]) {
-        guard var data = try? JSONSerialization.data(withJSONObject: message) else { return }
-        data.append(0x0A)
-        FileHandle.standardOutput.write(data)
     }
 }

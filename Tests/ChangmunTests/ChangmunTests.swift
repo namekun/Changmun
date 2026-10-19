@@ -490,6 +490,23 @@ struct BrowserTabTests {
     /// Tab ids count up across windows, so tests name tabs by position.
     private func ids(_ b: Browser) -> [Int] { b.tabs.map(\.id) }
 
+    @Test func commandLineWordsBecomeToolCalls() throws {
+        #expect(try CLI.parse([]) == .help)
+        #expect(try CLI.parse(["tabs"]) == .call("list_tabs", [:], output: nil))
+        #expect(try CLI.parse(["open", "swift", "concurrency"]) == .call("open_tab", ["url": "swift concurrency"], output: nil))
+        #expect(try CLI.parse(["show", "#12"]) == .call("switch_tab", ["tab_id": 12], output: nil))
+        #expect(try CLI.parse(["go", "example.com", "--tab", "3"]) == .call("navigate", ["url": "example.com", "tab_id": 3], output: nil))
+        #expect(try CLI.parse(["read", "--max", "500"]) == .call("read_page", ["max_chars": 500], output: nil))
+        #expect(try CLI.parse(["type", "4", "hello", "world", "--submit"]) == .call("type_text", ["element_id": 4, "text": "hello world", "submit": true], output: nil))
+        #expect(try CLI.parse(["screenshot", "-o", "shot.jpg"]) == .call("screenshot", [:], output: "shot.jpg"))
+        #expect(try CLI.parse(["call", "scroll", #"{"direction":"down"}"#]) == .call("scroll", ["direction": "down"], output: nil))
+        #expect(throws: CLI.UsageError.self) { try CLI.parse(["click"]) }
+        #expect(throws: CLI.UsageError.self) { try CLI.parse(["scroll", "sideways"]) }
+        #expect(throws: CLI.UsageError.self) { try CLI.parse(["frobnicate"]) }
+        #expect(throws: CLI.UsageError.self) { try CLI.parse(["read", "--tab"]) }
+        #expect(throws: CLI.UsageError.self) { try CLI.parse(["call", "scroll", "not json"]) }
+    }
+
     @Test func linksDroppedOnTheSidebarOpenWhereTheyLand() throws {
         #expect(SidebarDrag.link(["https://a.example/x?y=1"])?.absoluteString == "https://a.example/x?y=1")
         #expect(SidebarDrag.link(["  https://a.example/  "]) != nil)

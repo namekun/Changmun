@@ -118,6 +118,18 @@ claude mcp add changmun -- /Applications/Changmun.app/Contents/MacOS/Changmun --
 
 `--mcp` inicia Changmun si no está en marcha. El servidor de control solo escucha en 127.0.0.1 y requiere un token que cambia en cada arranque.
 
+O desde una shell, para cualquier agente que pueda ejecutar órdenes (Homebrew pone `changmun` en el PATH):
+
+```sh
+changmun tabs
+changmun open example.com
+changmun read
+changmun click 12
+changmun type 3 "hello" --submit
+```
+
+`changmun help` muestra el resto. Cada orden es una de las mismas herramientas, con las mismas preguntas, y abre Changmun si hace falta.
+
 ## Bloqueo de anuncios
 
 Changmun convierte EasyList (anuncios) y EasyPrivacy (rastreadores) en reglas de bloqueo de contenido de WebKit y las actualiza cada 4 días. En Ajustes › Privacidad puedes desactivar listas o añadir otras por su dirección (una lista de anuncios coreana está a un clic). Si un sitio se rompe, el escudo de la barra de direcciones desactiva el bloqueo para ese sitio. Las reglas que WebKit no puede expresar (expresiones regulares, `$redirect`, scriptlets, `:has-text` y otros selectores extendidos) se omiten en lugar de adivinarse.

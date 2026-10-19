@@ -118,6 +118,18 @@ claude mcp add changmun -- /Applications/Changmun.app/Contents/MacOS/Changmun --
 
 `--mcp`を付けると、Changmunが起動していない場合は起動します。制御サーバは127.0.0.1だけで待ち受け、起動のたびに変わるトークンが必要です。
 
+コマンドを実行できるエージェントなら、シェルからも使えます (Homebrewが`changmun`をPATHに置きます)。
+
+```sh
+changmun tabs
+changmun open example.com
+changmun read
+changmun click 12
+changmun type 3 "hello" --submit
+```
+
+ほかのコマンドは`changmun help`で確認できます。各コマンドは同じツールを1つずつ呼び出し、同じ確認を経て、必要ならChangmunを起動します。
+
 ## 広告ブロック
 
 ChangmunはEasyList (広告) とEasyPrivacy (トラッカー) をWebKitのコンテンツブロックルールに変換し、4日ごとに更新します。設定 › プライバシーでは、リストをオフにしたり、アドレスで別のリストを追加したりできます (韓国の広告リストはワンクリックで追加できます)。サイトが正しく表示されないときは、アドレスバーのシールドボタンでそのサイトだけブロックをオフにできます。WebKitで表現できないルール (正規表現、`$redirect`、スクリプトレット、`:has-text`などの拡張セレクタ) は、推測で扱わずにスキップします。
