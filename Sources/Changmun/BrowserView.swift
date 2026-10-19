@@ -393,6 +393,7 @@ struct BrowserView: View {
         .animation(Motion.standard, value: browser.focusMode)
         .animation(Motion.standard, value: prefs.addressBarOnTop)
         .animation(Motion.standard, value: prefs.toolbarPlace)
+        .animation(Motion.standard, value: browser.fullScreen)
         .animation(Motion.quick, value: browser.commandBar)
         .animation(Motion.quick, value: browser.peek?.id)
     }
@@ -413,7 +414,7 @@ struct Sidebar: View {
             if prefs.toolbarPlace == .sidebar {
                 SidebarToolbar(browser: browser)
             } else {
-                WindowDragArea().frame(height: BrowserWindow.windowButtonsBottom)
+                WindowDragArea().frame(height: browser.fullScreen ? 0 : BrowserWindow.windowButtonsBottom)
             }
 
             ScrollView {
@@ -886,7 +887,7 @@ struct SidebarToolbar: View {
                 BarButton(symbol: "sidebar.left", help: String(localized: "Hide Sidebar")) { browser.showSidebar.toggle() }
                 if let tab = browser.active { NavigationButtons(tab: tab) } else { DisabledNavigationButtons() }
             }
-            .padding(.leading, BrowserWindow.windowButtonsTrailing)
+            .padding(.leading, browser.fullScreen ? Metrics.inset : BrowserWindow.windowButtonsTrailing)
             .padding(.trailing, Metrics.inset)
             .frame(height: BrowserWindow.pageBarHeight)
             .padding(.top, BrowserWindow.cardInset)
@@ -915,7 +916,7 @@ struct PageBar: View {
 
     var body: some View {
         HStack(spacing: Metrics.rowGap) {
-            if !browser.showSidebar { Color.clear.frame(width: BrowserWindow.windowButtonsTrailing - 2 * Metrics.inset) }
+            if !browser.showSidebar && !browser.fullScreen { Color.clear.frame(width: BrowserWindow.windowButtonsTrailing - 2 * Metrics.inset) }
             BarButton(symbol: "sidebar.left", help: browser.showSidebar ? String(localized: "Hide Sidebar") : String(localized: "Show Sidebar")) { browser.showSidebar.toggle() }
             if let tab = browser.active { NavigationButtons(tab: tab) } else { DisabledNavigationButtons() }
             Group {

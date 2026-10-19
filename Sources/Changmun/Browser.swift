@@ -83,6 +83,8 @@ final class Browser: ObservableObject {
     /// Bumped to put the cursor in the full address field (⌘L).
     @Published var addressFocusRequest = 0
     /// Only the page, as in Dia: no sidebar, bar, AI panel or window buttons. Not kept across launches.
+    /// In full screen the window buttons are gone, and so is the room kept for them.
+    @Published var fullScreen = false
     @Published var focusMode = false {
         didSet {
             guard focusMode != oldValue else { return }

@@ -304,6 +304,7 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
         browser.startSleepingIdleTabs()
         if #available(macOS 15.4, *) { ExtensionHost.shared.windowOpened(browser) }
         window.makeKeyAndOrderFront(nil)
+        browser.fullScreen = window.styleMask.contains(.fullScreen)
         window.layoutTrafficLights()
         return browser
     }
@@ -340,6 +341,12 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
         for name in [NSWindow.didResizeNotification, NSWindow.didExitFullScreenNotification, NSWindow.didBecomeKeyNotification] {
             observers.append(NotificationCenter.default.addObserver(forName: name, object: self, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.layoutTrafficLights() }
+            })
+        }
+        for (name, entering) in [(NSWindow.willEnterFullScreenNotification, true), (NSWindow.didEnterFullScreenNotification, true),
+                                 (NSWindow.willExitFullScreenNotification, false), (NSWindow.didExitFullScreenNotification, false)] {
+            observers.append(NotificationCenter.default.addObserver(forName: name, object: self, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.browser.fullScreen = entering }
             })
         }
     }
