@@ -196,7 +196,12 @@ final class Preferences: ObservableObject {
         askWhereToSave = d.bool(forKey: "askWhereToSave")
         appearance = AppAppearance(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
         sidebarWidth = Self.clampedSidebarWidth(d.object(forKey: "sidebarWidth") as? Double ?? Self.defaultSidebarWidth)
-        toolbarPlace = ToolbarPlace(rawValue: d.string(forKey: "toolbarPlace") ?? "") ?? .page
+        // The address moved into the sidebar with the glass look; everyone starts there once, and can move it back.
+        if !d.bool(forKey: "addressInSidebarOnce") {
+            d.set(ToolbarPlace.sidebar.rawValue, forKey: "toolbarPlace")
+            d.set(true, forKey: "addressInSidebarOnce")
+        }
+        toolbarPlace = ToolbarPlace(rawValue: d.string(forKey: "toolbarPlace") ?? "") ?? .sidebar
         defaultZoom = d.object(forKey: "defaultZoom") as? Double ?? 1
         autoPictureInPicture = d.object(forKey: "autoPictureInPicture") as? Bool ?? true
         siteZoom = d.dictionary(forKey: "siteZoom") as? [String: Double] ?? [:]

@@ -317,7 +317,9 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
         )
         titlebarAppearsTransparent = true
         titleVisibility = .hidden
-        backgroundColor = Theme.nsBackground
+        // Clear, so the window's material shows the desktop through the sidebar.
+        isOpaque = false
+        backgroundColor = .clear
         title = browser.isPrivate ? String(localized: "Changmun Private Window") : "Changmun"
         minSize = NSSize(width: 640, height: 420)
         isReleasedWhenClosed = false

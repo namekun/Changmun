@@ -29,6 +29,11 @@ enum Theme {
     static let selected = ink(0.08)
     static let hoverTab = ink(0.07)
     static let pressed = ink(0.13)
+    /// A selected row stands up from the glass: white with a soft shadow on light, a brighter film on dark.
+    static let selectedFill = dynamic(light: .white, dark: NSColor(white: 1, alpha: 0.14))
+    static let selectedEdge = dynamic(light: NSColor(white: 0, alpha: 0.06), dark: NSColor(white: 1, alpha: 0.08))
+    static let selectedShadow = dynamic(light: NSColor(white: 0, alpha: 0.08), dark: .clear)
+    static let cardShadow = dynamic(light: NSColor(red: 0.12, green: 0.16, blue: 0.24, alpha: 0.12), dark: NSColor(white: 0, alpha: 0.35))
     static let track = ink(0.15)
     static let meter = ink(0.75)
     static let waiting = Color(red: 1.0, green: 0.62, blue: 0.2)
@@ -36,10 +41,6 @@ enum Theme {
 
     private static func dynamic(light: NSColor, dark: NSColor) -> Color {
         Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light })
-    }
-
-    static var nsBackground: NSColor {
-        NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? darkGround : lightGround }
     }
 }
 
@@ -69,7 +70,7 @@ enum Metrics {
     static let indent: CGFloat = icon + iconGap
     /// Between the sidebar's parts: favorites, pinned folders, tabs, bookmarks.
     static let section: CGFloat = 16
-    static let tile: CGFloat = 40
+    static let tile: CGFloat = 36
     /// Buttons and fields in a bar.
     static let control: CGFloat = 28
     /// Small buttons inside a row.
@@ -80,7 +81,7 @@ enum Metrics {
 }
 
 extension Font {
-    static let row = Font.system(size: 13, weight: .medium)
+    static let row = Font.system(size: 13)
     static let rowSelected = Font.system(size: 13, weight: .semibold)
     static let caption = Font.system(size: 11, weight: .medium)
     static let captionStrong = Font.system(size: 11, weight: .semibold)
@@ -232,16 +233,30 @@ struct MoreButton<Items: View>: View {
     }
 }
 
-/// A selected row or tile: a faint fill inside a hairline, as in Nunsseop's lists.
+/// A selected row or tile, raised a little off the glass.
 struct SelectedBackground: View {
     var radius: CGFloat = Metrics.rowRadius
     var pressed = false
 
     var body: some View {
         RoundedRectangle(cornerRadius: radius, style: .continuous)
-            .fill(pressed ? Theme.pressed : Theme.selected)
-            .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
+            .fill(pressed ? Theme.pressed : Theme.selectedFill)
+            .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Theme.selectedEdge, lineWidth: 0.5))
+            .shadow(color: pressed ? .clear : Theme.selectedShadow, radius: 1, y: 1)
     }
+}
+
+/// The window's ground: the desktop shows through it, blurred, as in Finder's sidebar.
+struct WindowMaterial: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .sidebar
+        view.blendingMode = .behindWindow
+        view.state = .followsWindowActiveState
+        return view
+    }
+
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {}
 }
 
 /// A key as a keycap, quiet next to what it opens.
@@ -324,7 +339,7 @@ struct BrowserView: View {
     var body: some View {
         let sidebar = browser.showSidebar && !browser.focusMode
         ZStack {
-            Theme.background
+            WindowMaterial()
             if browser.focusMode { WindowDragArea() }
             HStack(spacing: 0) {
                 if sidebar {
@@ -341,6 +356,12 @@ struct BrowserView: View {
                     .background(Theme.card)
                     .clipShape(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5))
+                    // The shadow comes from a shape behind the card, not from the web views in it.
+                    .background {
+                        RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous)
+                            .fill(Theme.card)
+                            .shadow(color: Theme.cardShadow, radius: 14, y: 6)
+                    }
                     if browser.showChat && !browser.focusMode {
                         ChatPanel(chat: chat, browser: browser)
                             .padding(.leading, Metrics.inset)
@@ -384,7 +405,8 @@ struct Sidebar: View {
     @ObservedObject private var prefs = Preferences.shared
     @StateObject private var library = LibraryWatcher()
     @State private var dropTarget: String?
-    @AppStorage("sidebarBookmarksOpen") private var showBookmarks = false
+    @State private var showLibrary = false
+    @State private var newTabHover = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -400,10 +422,12 @@ struct Sidebar: View {
                         favorites
                     }
                     pinned
+                    // Tidying is offered where the tabs start, when the pointer is there.
                     HStack(spacing: Metrics.rowGap) {
                         NewTabRow { browser.commandBar = .newTab }
-                        if browser.tidying || browser.looseTabs.count > 1 { TidyButton(browser: browser) }
+                        if browser.tidying || (newTabHover && browser.looseTabs.count > 1) { TidyButton(browser: browser) }
                     }
+                    .onHover { newTabHover = $0 }
                     if let tidy = browser.lastTidy {
                         TidyNotice(tidy: tidy) { browser.undoTidy() }.transition(.opacity)
                     }
@@ -428,9 +452,6 @@ struct Sidebar: View {
                         .dropDestination(for: String.self) { items, _ in
                             SidebarDrag.dropAtEnd(items, browser: browser)
                         } isTargeted: { target("tabs:end", $0) }
-                    if !library.sources.isEmpty {
-                        bookmarks
-                    }
                 }
                 .padding(.horizontal, Metrics.inset)
                 .padding(.top, prefs.toolbarPlace == .sidebar ? Metrics.section : Metrics.inset)
@@ -441,25 +462,31 @@ struct Sidebar: View {
                 .animation(Motion.standard, value: browser.lastTidy)
                 .animation(Motion.standard, value: prefs.pinnedFolders)
                 .animation(Motion.standard, value: prefs.openFolders)
-                .animation(Motion.standard, value: showBookmarks)
                 .animation(Motion.quick, value: dropTarget)
             }
 
             DownloadShelf(browser: browser).padding(.bottom, Metrics.inset)
-            if prefs.toolbarPlace == .sidebar {
-                HStack(spacing: Metrics.rowGap) {
-                    if #available(macOS 15.4, *), !browser.isPrivate { ExtensionButtons(browser: browser) }
-                    Spacer(minLength: 0)
+            // The rest of the browser, out of the way at the bottom: every bookmark, downloads, extensions and AI.
+            HStack(spacing: Metrics.rowGap) {
+                if !library.sources.isEmpty {
+                    BarButton(symbol: "bookmark", help: String(localized: "Bookmarks")) { showLibrary.toggle() }
+                        .popover(isPresented: $showLibrary, arrowEdge: .top) { allBookmarks }
+                }
+                if prefs.toolbarPlace == .sidebar {
                     DownloadButton(browser: browser, arrowEdge: .top)
+                    if #available(macOS 15.4, *), !browser.isPrivate { ExtensionButtons(browser: browser) }
+                }
+                Spacer(minLength: 0)
+                if prefs.toolbarPlace == .sidebar {
                     if browser.isPrivate {
                         PrivateBadge()
                     } else {
                         AIButton(isOn: browser.showChat) { browser.showChat.toggle() }
                     }
                 }
-                .padding(.horizontal, Metrics.inset)
-                .padding(.bottom, Metrics.inset)
             }
+            .padding(.horizontal, Metrics.inset)
+            .padding(.bottom, Metrics.inset)
         }
     }
 
@@ -467,7 +494,7 @@ struct Sidebar: View {
 
     private var favorites: some View {
         // As many tiles a row as the sidebar's width holds: four at the default width, up to seven when wide.
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 46), spacing: Metrics.inset)], spacing: Metrics.inset) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 40), spacing: 4)], spacing: 4) {
             ForEach(library.favorites, id: \.url) { entry in
                 let key = Browser.bookmarkKey(url: entry.url, folder: Library.favoritesFolder)
                 FavoriteTile(entry: entry, state: BookmarkTabState(key, browser)) {
@@ -491,25 +518,26 @@ struct Sidebar: View {
         .padding(.bottom, Metrics.section - Metrics.rowGap)
     }
 
-    /// Folders kept under the favorites, opened where they are, then a hairline before the tabs. A folder dropped
-    /// on the hairline is pinned at the end.
+    /// Folders kept under the favorites, opened where they are, then a gap before the tabs. A folder dropped in
+    /// the gap is pinned at the end.
     @ViewBuilder private var pinned: some View {
         let folders = prefs.pinnedFolders.compactMap(library.folder)
         // Ids carry the part of the sidebar: a folder can show both pinned and under Bookmarks.
         ForEach(folders.flatMap { treeRows($0, depth: 0, scope: "pin:", pinned: true) }) { row in
             treeRow(row)
         }
-        SectionGap(hairline: !folders.isEmpty)
+        SectionGap()
             .dropLine(dropTarget == "pin:end" && SidebarDrag.dragging == .folder)
             .dropDestination(for: String.self) { items, _ in
                 SidebarDrag.pin(items, before: nil)
             } isTargeted: { target("pin:end", $0) }
     }
 
-    @ViewBuilder private var bookmarks: some View {
-        SectionHeader(title: String(localized: "Bookmarks"), isOpen: showBookmarks) { showBookmarks.toggle() }
-        if showBookmarks {
-            ForEach(library.sources, id: \.source) { group in
+    /// Every imported bookmark, by browser and folder, in a popover over the sidebar's bottom bar.
+    private var allBookmarks: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: Metrics.rowGap) {
+                ForEach(library.sources, id: \.source) { group in
                 let key = "source:" + group.source
                 FolderRow(name: group.source, symbol: "books.vertical", count: group.folders.reduce(0) { $0 + $1.count },
                           isOpen: prefs.openFolders.contains(key)) {
@@ -524,8 +552,12 @@ struct Sidebar: View {
                         treeRow(row)
                     }
                 }
+                }
             }
+            .padding(Metrics.inset)
+            .animation(Motion.standard, value: prefs.openFolders)
         }
+        .frame(width: 320, height: 460)
     }
 
     /// One row of a folder tree, with how far in it sits. The tree is laid out as a flat list so the lazy stack
@@ -677,14 +709,11 @@ struct Sidebar: View {
     }
 }
 
-/// The space between two parts of the sidebar, with an optional hairline across it.
+/// The space between two parts of the sidebar.
 struct SectionGap: View {
-    var hairline = false
-
     var body: some View {
         Color.clear
             .frame(height: Metrics.section - 2 * Metrics.rowGap)
-            .overlay { if hairline { Hairline().padding(.horizontal, Metrics.rowPadding) } }
             .contentShape(Rectangle())
     }
 }
@@ -717,29 +746,6 @@ struct SidebarResizeHandle: View {
             )
             .onTapGesture(count: 2) { width = Preferences.defaultSidebarWidth }
             .help("Drag to resize the sidebar · double-click for default width")
-    }
-}
-
-struct SectionHeader: View {
-    let title: String
-    let isOpen: Bool
-    let toggle: () -> Void
-    @State private var hover = false
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Text(title).font(.captionStrong)
-            Image(systemName: "chevron.right")
-                .font(.system(size: 8, weight: .bold))
-                .rotationEffect(.degrees(isOpen ? 90 : 0))
-            Spacer()
-        }
-        .foregroundStyle(hover ? Theme.primary : Theme.secondary)
-        .padding(.horizontal, Metrics.rowPadding)
-        .frame(height: 24)
-        .contentShape(Rectangle())
-        .onHover { hover = $0 }
-        .onTapGesture { withAnimation(Motion.standard) { toggle() } }
     }
 }
 
@@ -890,7 +896,7 @@ struct SidebarToolbar: View {
                     if prefs.addressBarOnTop {
                         AddressField(tab: tab, browser: browser).id(tab.id)
                     } else {
-                        AddressPill(tab: tab, compact: true) { browser.commandBar = .editCurrent }
+                        AddressPill(tab: tab, compact: true, height: 32) { browser.commandBar = .editCurrent }
                     }
                 } else {
                     AddressPlaceholder { browser.commandBar = .newTab }
@@ -979,6 +985,7 @@ struct AddressPill: View {
     @ObservedObject var tab: Tab
     /// In the narrow sidebar: the site alone, without the page's title or the ⌘L hint.
     var compact = false
+    var height = Metrics.control
     let edit: () -> Void
     @State private var hover = false
     @State private var frame = CGRect.zero
@@ -1024,13 +1031,12 @@ struct AddressPill: View {
             TranslateButton(tab: tab)
             LoginButton(tab: tab)
             PictureInPictureButton(tab: tab)
-            AdBlockShield(tab: tab)
-            BookmarkStar(tab: tab)
-            if !compact { Keycap("⌘L") }
+            if hover || AdBlocker.shared.isAllowed(tab.url?.host() ?? "") { AdBlockShield(tab: tab) }
+            if hover { BookmarkStar(tab: tab) }
         }
         .padding(.leading, 10)
         .padding(.trailing, 4)
-        .frame(height: Metrics.control)
+        .frame(height: height)
         .background(FieldBackground(tab: tab))
         .overlay {
             RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous)
@@ -1106,7 +1112,6 @@ struct AddressPlaceholder: View {
             Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .semibold))
             Text("Search or enter address").font(.system(size: 13, weight: .medium))
             Spacer()
-            Keycap("⌘T")
         }
         .foregroundStyle(Theme.faint)
         .padding(.leading, 10)
@@ -1278,9 +1283,9 @@ struct FavoriteTile<MenuItems: View>: View {
             .frame(maxWidth: .infinity)
             .frame(height: Metrics.tile)
             .overlay(alignment: .bottom) {
-                if state == .open { Circle().fill(Theme.dim).frame(width: 4, height: 4).padding(.bottom, 4) }
+                if state == .open { Circle().fill(Theme.dim).frame(width: 4, height: 4).padding(.bottom, 2) }
             }
-            .rowChrome(hover: hover, selected: state == .shown, radius: Metrics.fieldRadius, resting: Theme.hoverTab)
+            .rowChrome(hover: hover, selected: state == .shown, radius: Metrics.fieldRadius)
             .onTapGesture(perform: open)
             .overlay(alignment: .topTrailing) {
                 // Only closing the tab is on the tile; removing the favorite is in its menu, out of a stray click's way.
@@ -1504,7 +1509,6 @@ struct NewTabRow: View {
             Image(systemName: "plus").font(.system(size: 12, weight: .medium)).frame(width: Metrics.icon)
             Text("New Tab").font(.row)
             Spacer()
-            if hover { Keycap("⌘T") }
         }
         .foregroundStyle(Theme.secondary)
         .padding(.leading, Metrics.rowPadding)
@@ -1645,10 +1649,8 @@ struct AIButton: View {
             HStack(spacing: 6) {
                 Image(systemName: "sparkles").font(.system(size: 11, weight: .semibold))
                 Text("AI").font(.system(size: 12, weight: .semibold))
-                Keycap("⌘E")
             }
-            .padding(.leading, 10)
-            .padding(.trailing, 5)
+            .padding(.horizontal, 10)
             .frame(height: Metrics.control)
             .foregroundStyle(Theme.primary)
             .contentShape(Capsule())
