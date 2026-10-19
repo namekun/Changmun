@@ -1604,8 +1604,6 @@ struct WebViewHost: NSViewRepresentable {
         override init(frame: NSRect) {
             super.init(frame: frame)
             wantsLayer = true
-            layer?.cornerRadius = 12
-            layer?.cornerCurve = .continuous
             layer?.masksToBounds = true
         }
         required init?(coder: NSCoder) { fatalError() }
