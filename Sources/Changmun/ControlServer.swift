@@ -97,16 +97,17 @@ final class ControlServer {
             }
             return
         }
-        // Tests only: the active tab as a PDF or a full-page picture, written to a path without the save panel.
+        // Tests only: a tab (the active one unless "tab_id" names another) as a PDF or a full-page picture, written to a
+        // path without the save panel. Private windows are refused.
         if Headless.isOn, request.method == "POST", request.path == "/save-page",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any],
            let kind = body["format"] as? String, let path = body["path"] as? String {
             Task { @MainActor in
-                guard let webView = Browser.current?.active?.webView,
-                      let data = await SavePage.data(of: webView, as: kind == "pdf" ? .pdf : .image), (try? data.write(to: URL(fileURLWithPath: path))) != nil else {
+                guard let tab = (body["tab_id"] as? Int).flatMap(ToolCatalog.findTab) ?? Browser.recent?.active,
+                      let page = await SavePage.data(of: tab, as: kind == "pdf" ? .pdf : .image), (try? page.data.write(to: URL(fileURLWithPath: path))) != nil else {
                     return self.respond(connection, status: "404 Not Found", body: ["error": "nothing saved"])
                 }
-                self.respond(connection, status: "200 OK", body: ["bytes": data.count])
+                self.respond(connection, status: "200 OK", body: ["bytes": page.data.count, "cut": page.cut])
             }
             return
         }
@@ -145,8 +146,16 @@ final class ControlServer {
     /// request is an ordinary outside client that happens to use that name.
     static func caller(_ headers: [String: String]) -> String {
         let name = headers["x-changmun-caller"] ?? "unknown"
-        guard name == ChatStore.caller, headers["x-changmun-panel-secret"] != ChatStore.panelSecret else { return name }
+        guard name == ChatStore.caller, !sameSecret(headers["x-changmun-panel-secret"] ?? "", ChatStore.panelSecret) else { return name }
         return "unverified-" + name
+    }
+
+    /// Compares without stopping at the first difference, so how long it takes says nothing about the secret.
+    static func sameSecret(_ given: String, _ secret: String) -> Bool {
+        let a = Array(given.utf8), b = Array(secret.utf8)
+        var difference = a.count ^ b.count
+        for i in 0..<b.count { difference |= Int((i < a.count ? a[i] : 0) ^ b[i]) }
+        return difference == 0
     }
 
     private func respond(_ connection: NWConnection, status: String, body: [String: Any]) {

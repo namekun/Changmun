@@ -33,16 +33,22 @@ final class ChatStore: ObservableObject {
     var attachedTabs: [Tab] { attachedIDs.compactMap(ToolCatalog.findTab) }
 
     func attach(_ tabs: [Tab]) {
+        for id in attachedIDs where ToolCatalog.findTab(id) == nil { Approvals.detach(id) }
         attachedIDs = attachedTabs.map(\.id)
         for tab in tabs where !tab.isPrivate && !attachedIDs.contains(tab.id) && attachedIDs.count < ToolCatalog.maxTabsPerRead {
             attachedIDs.append(tab.id)
+            Approvals.attach(tab)
         }
-        Approvals.attach(attachedTabs)
+    }
+
+    /// The attached tabs' titles and addresses go to the AI with each message, so they count as read.
+    func noteAttachedRead() {
+        for tab in attachedTabs { Approvals.noteRead(tab, caller: Self.caller) }
     }
 
     func detach(_ id: Int) {
         attachedIDs.removeAll { $0 == id }
-        Approvals.attach(attachedTabs)
+        Approvals.detach(id)
     }
 
     static let systemPrompt = """
@@ -71,6 +77,7 @@ final class ChatStore: ObservableObject {
             items.append(ChatItem(kind: .error, text: String(localized: "Couldn't find the `claude` CLI. Install Claude Code and try again.")))
             return
         }
+        noteAttachedRead()
         // The config holds the panel's secret, so it goes in a file only this user can read, not on the command line.
         guard let config = try? Self.writeMCPConfig() else {
             fail(String(localized: "The AI request failed."))
@@ -154,7 +161,7 @@ final class ChatStore: ObservableObject {
         items.removeAll()
         sessionID = nil
         attachedIDs = []
-        Approvals.attach([])
+        Approvals.detachAll()
         Approvals.forgetReads(caller: Self.caller)
     }
 
@@ -283,13 +290,14 @@ final class ChatStore: ObservableObject {
         return "\n[Tabs the user attached: " + tabs.map { "#\($0.id) \"\(title($0))\" \(address($0))" }.joined(separator: "; ") + "]"
     }
 
-    private static func title(_ tab: Tab) -> Substring {
-        tab.displayTitle.components(separatedBy: .newlines).joined(separator: " ")
-            .replacingOccurrences(of: "\"", with: "'").replacingOccurrences(of: "]", with: ")").prefix(80)
-    }
+    private static func title(_ tab: Tab) -> Substring { oneLine(tab.displayTitle).prefix(80) }
 
-    private static func address(_ tab: Tab) -> Substring {
-        (tab.url?.absoluteString ?? "about:blank").prefix(300)
+    private static func address(_ tab: Tab) -> Substring { oneLine(tab.url?.absoluteString ?? "about:blank").prefix(300) }
+
+    /// Page-supplied text that can't end the bracket it sits in or start a new line of its own.
+    private static func oneLine(_ text: String) -> String {
+        text.components(separatedBy: .newlines).joined(separator: " ")
+            .replacingOccurrences(of: "\"", with: "'").replacingOccurrences(of: "]", with: ")")
     }
 
     /// How the panel's tool calls are told apart from other MCP clients'.
@@ -413,17 +421,19 @@ struct ChatPanel: View {
     private var attachments: some View {
         HStack(spacing: 6) {
             Menu {
-                ForEach(browser.tabs.filter { !chat.attachedIDs.contains($0.id) }) { tab in
+                // A private window's tabs are not the AI's to read.
+                let candidates = browser.isPrivate ? [] : browser.tabs
+                ForEach(candidates.filter { !chat.attachedIDs.contains($0.id) }) { tab in
                     Button(tab.displayTitle) { chat.attach([tab]) }
                 }
-                if !browser.groups.isEmpty {
+                if !browser.groups.isEmpty && !candidates.isEmpty {
                     Divider()
                     ForEach(browser.groups) { group in
-                        Button(group.name, systemImage: "square.stack") { chat.attach(browser.tabs.filter { $0.groupID == group.id }) }
+                        Button(group.name, systemImage: "square.stack") { chat.attach(candidates.filter { $0.groupID == group.id }) }
                     }
                 }
                 Divider()
-                Button("All Open Tabs") { chat.attach(browser.tabs) }
+                Button("All Open Tabs") { chat.attach(candidates) }
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "plus").font(.system(size: 9, weight: .bold))

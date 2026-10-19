@@ -333,6 +333,7 @@
 "Save as PDF…" = "存储为 PDF…";
 "Save login info for %@?" = "要存储 %@ 的登录信息吗？";
 "Saved %@" = "已存储 %@";
+"Saved %@. The page was too large to fit, so only its top left part is included." = "已存储 %@。页面过大，仅包含左上部分。";
 "Saved Passwords" = "已存储的密码";
 "Scroll · %@" = "滚动 · %@";
 "Search" = "搜索";

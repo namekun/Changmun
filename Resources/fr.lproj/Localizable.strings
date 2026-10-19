@@ -333,6 +333,7 @@
 "Save as PDF…" = "Enregistrer en PDF…";
 "Save login info for %@?" = "Enregistrer les identifiants pour %@ ?";
 "Saved %@" = "%@ enregistré";
+"Saved %@. The page was too large to fit, so only its top left part is included." = "%@ enregistré. La page était trop grande : seule sa partie supérieure gauche est incluse.";
 "Saved Passwords" = "Mots de passe enregistrés";
 "Scroll · %@" = "Défilement · %@";
 "Search" = "Rechercher";

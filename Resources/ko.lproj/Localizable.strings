@@ -333,6 +333,7 @@
 "Save as PDF…" = "PDF로 저장…";
 "Save login info for %@?" = "%@의 로그인 정보를 저장할까요?";
 "Saved %@" = "%@ 저장했어요";
+"Saved %@. The page was too large to fit, so only its top left part is included." = "%@ 저장했어요. 페이지가 너무 커서 왼쪽 위 부분만 담았어요.";
 "Saved Passwords" = "저장된 비밀번호";
 "Scroll · %@" = "스크롤 · %@";
 "Search" = "검색";

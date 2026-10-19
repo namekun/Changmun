@@ -51,6 +51,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     private var observations: [NSKeyValueObservation] = []
     private(set) weak var browser: Browser?
 
+    /// The page is a PDF document, not a web page.
+    private(set) var showsPDF = false
+
     var isAsleep: Bool { webView == nil }
     var isPrivate: Bool { browser?.isPrivate == true }
 
@@ -330,7 +333,8 @@ extension Tab: WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse) async -> WKNavigationResponsePolicy {
-        response.isForMainFrame && !response.canShowMIMEType ? .download : .allow
+        if response.isForMainFrame { showsPDF = response.response.mimeType == "application/pdf" }
+        return response.isForMainFrame && !response.canShowMIMEType ? .download : .allow
     }
 
     func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {

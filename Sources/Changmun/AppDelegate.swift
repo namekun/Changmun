@@ -189,6 +189,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { await SavePage.save(tab, as: .image) }
     }
 
+    /// Saving needs a page that is loaded, and a picture of a PDF document isn't offered.
+    @objc func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        switch item.action {
+        case #selector(savePDF(_:)): browser.active?.webView != nil
+        case #selector(captureFullPage(_:)): browser.active?.webView != nil && browser.active?.showsPDF != true
+        default: true
+        }
+    }
+
     @objc func openFile(_ sender: Any?) {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true

@@ -333,6 +333,7 @@
 "Save as PDF…" = "PDFとして保存…";
 "Save login info for %@?" = "%@のログイン情報を保存しますか？";
 "Saved %@" = "%@を保存しました";
+"Saved %@. The page was too large to fit, so only its top left part is included." = "%@を保存しました。ページが大きすぎるため、左上の部分のみ含まれています。";
 "Saved Passwords" = "保存済みのパスワード";
 "Scroll · %@" = "スクロール · %@";
 "Search" = "検索";

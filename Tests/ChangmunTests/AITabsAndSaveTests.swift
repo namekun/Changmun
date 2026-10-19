@@ -48,8 +48,8 @@ struct AttachedTabTests {
         defer { browser.windowClosed() }
         let before = Preferences.shared.aiApprovals
         Preferences.shared.aiApprovals = true
-        defer { Preferences.shared.aiApprovals = before; Approvals.attach([]) }
-        Approvals.attach([tabs[0]])
+        defer { Preferences.shared.aiApprovals = before; Approvals.detachAll() }
+        Approvals.attach(tabs[0])
         #expect(await Approvals.allowTab(tabs[0], caller: ChatStore.caller, reading: true))
         #expect(!(await Approvals.allowTab(tabs[0], caller: ChatStore.caller)))
         #expect(!(await Approvals.allowTab(tabs[0], caller: "mcp-1", reading: true)))
@@ -103,8 +103,8 @@ struct AttachedTabTests {
         defer { browser.windowClosed() }
         let before = Preferences.shared.aiApprovals
         Preferences.shared.aiApprovals = true
-        defer { Preferences.shared.aiApprovals = before; Approvals.attach([]) }
-        Approvals.attach(tabs)
+        defer { Preferences.shared.aiApprovals = before; Approvals.detachAll() }
+        Approvals.attach(tabs[0])
         let panel = ChatStore.caller
         #expect(await Approvals.allowRead(tabs[0], approvedHost: "a.example", readHost: "a.example", caller: panel))
         #expect(await Approvals.allowRead(tabs[0], approvedHost: "a.example", readHost: nil, caller: panel))
@@ -138,6 +138,81 @@ struct AttachedTabTests {
         Approvals.noteRead(tabs[0], readHost: nil, caller: caller)
         #expect(!(await Approvals.allowTyping("hi", into: tabs[1], caller: caller)))
         Approvals.forgetReads(caller: caller)
+    }
+
+    @Test func anAttachedTabThatMovedStaysAskedAboutWhateverIsAttachedLater() async {
+        let (browser, tabs) = open(["https://a.example/", "https://other.example/", "https://third.example/"])
+        defer { browser.windowClosed() }
+        let before = Preferences.shared.aiApprovals
+        Preferences.shared.aiApprovals = true
+        let chat = ChatStore()
+        defer { Preferences.shared.aiApprovals = before; chat.reset() }
+        chat.attach([tabs[0]])
+        let panel = ChatStore.caller
+        #expect(await Approvals.allowTab(tabs[0], caller: panel, reading: true))
+        tabs[0].url = URL(string: "https://b.example/")
+        #expect(!(await Approvals.allowTab(tabs[0], caller: panel, reading: true)))
+        chat.attach([tabs[1]])
+        #expect(!(await Approvals.allowTab(tabs[0], caller: panel, reading: true)))
+        chat.detach(tabs[1].id)
+        #expect(!(await Approvals.allowTab(tabs[0], caller: panel, reading: true)))
+        #expect(!(await Approvals.allowTab(tabs[2], caller: panel, reading: true)))
+        tabs[0].url = URL(string: "https://a.example/again")
+        #expect(await Approvals.allowTab(tabs[0], caller: panel, reading: true))
+        chat.detach(tabs[0].id)
+        #expect(!(await Approvals.allowTab(tabs[0], caller: panel, reading: true)))
+    }
+
+    @Test func attachedAddressesCannotBreakOutOfTheirLine() {
+        let (browser, tabs) = open(["https://a.example/"])
+        defer { browser.windowClosed() }
+        tabs[0].url = URL(string: "https://a.example/x]%0A[Current")
+        let line = ChatStore.attachedLine(tabs)
+        #expect(line.filter { $0 == "]" }.count == 1 && line.hasSuffix("]") && !line.dropFirst().contains("\n"))
+        #expect(ChatStore.contextLine(tabs[0]).filter { $0 == "]" }.count == 1)
+    }
+
+    @Test func attachedTabsAreNotedAsReadWhenTheMessageIsSent() async {
+        let (browser, tabs) = open(["https://a.example/", "https://b.example/"])
+        defer { browser.windowClosed() }
+        let before = Preferences.shared.aiApprovals
+        Preferences.shared.aiApprovals = true
+        let chat = ChatStore()
+        defer { Preferences.shared.aiApprovals = before; chat.reset() }
+        Approvals.forgetReads(caller: ChatStore.caller)
+        chat.attach([tabs[0]])
+        #expect(await Approvals.allowTyping("hi", into: tabs[1], caller: ChatStore.caller))
+        chat.noteAttachedRead()
+        #expect(!(await Approvals.allowTyping("hi", into: tabs[1], caller: ChatStore.caller)))
+        Approvals.forgetReads(caller: ChatStore.caller)
+    }
+
+    @Test func secretsAreComparedWholeAndExactly() {
+        #expect(ControlServer.sameSecret("abc", "abc"))
+        #expect(!ControlServer.sameSecret("abd", "abc"))
+        #expect(!ControlServer.sameSecret("ab", "abc"))
+        #expect(!ControlServer.sameSecret("abcd", "abc"))
+        #expect(!ControlServer.sameSecret("", "abc"))
+        #expect(ControlServer.sameSecret(ChatStore.panelSecret, ChatStore.panelSecret))
+    }
+
+    @Test func aSleepingTabReadAloneGoesBackToSleepAsIfUntouched() async throws {
+        let (browser, tabs) = open(["http://127.0.0.1:9/"])
+        defer { browser.windowClosed() }
+        let before = Preferences.shared.aiApprovals
+        Preferences.shared.aiApprovals = false
+        defer { Preferences.shared.aiApprovals = before }
+        let tab = tabs[0]
+        tab.lastShown = Date(timeIntervalSinceNow: -3600)
+        let shown = tab.lastShown
+        #expect(tab.isAsleep)
+        let result = await ToolCatalog.call("read_tabs", ["tab_ids": [tab.id]], caller: "test-sleep")
+        #expect((result.content.first?["text"] as? String)?.hasPrefix("=== Tab #\(tab.id) ===") == true)
+        #expect(tab.isAsleep && tab.lastShown == shown)
+    }
+
+    @Test func readTabsEndsBeforeTheControlServerGivesUp() {
+        #expect(ToolCatalog.readDeadline < 150)
     }
 
     @Test func theSiteReadIsTakenFromTheURLLine() {
@@ -199,5 +274,19 @@ struct SavePageTests {
         #expect(top.redComponent > 0.9 && top.greenComponent < 0.2)
         #expect(bottom.greenComponent > 0.9 && bottom.blueComponent > 0.9)
         #expect(SavePage.png(fromPDF: Data("nope".utf8)) == nil)
+    }
+
+    @Test func aHugePageIsDrawnWithinThePixelBudgetOffTheMainThread() async throws {
+        let pdf = NSMutableData()
+        var box = CGRect(x: 0, y: 0, width: SavePage.maxWidth, height: SavePage.maxHeight)
+        let context = try #require(CGContext(consumer: CGDataConsumer(data: pdf)!, mediaBox: &box, nil))
+        context.beginPDFPage(nil)
+        context.endPDFPage()
+        context.closePDF()
+        let data = pdf as Data
+        let png = try #require(await Task.detached { SavePage.png(fromPDF: data) }.value)
+        let rep = try #require(NSBitmapImageRep(data: png))
+        #expect(CGFloat(rep.pixelsWide * rep.pixelsHigh) <= SavePage.maxPixels * 1.01)
+        #expect(rep.pixelsHigh > rep.pixelsWide)
     }
 }

@@ -23,6 +23,8 @@ enum ToolCatalog {
     }
 
     static let maxTabsPerRead = 10
+    /// All of a read_tabs call, approvals included, ends before the control server gives up on its caller.
+    static let readDeadline: TimeInterval = 60
 
     static let definitions: [[String: Any]] = [
         tool("list_tabs", "List the open tabs with their ids, titles and URLs, and which one is active."),
@@ -139,32 +141,52 @@ enum ToolCatalog {
         let ids = values.compactMap(int).reduce(into: [Int]()) { if !$0.contains($1) { $0.append($1) } }
         guard ids.count <= maxTabsPerRead else { return .text("Read at most \(maxTabsPerRead) tabs at a time.", error: true) }
         let maxChars = min(max(int(args["max_chars"]) ?? 6000, 200), 30000)
-        var sections: [String] = []
+        let deadline = Date().addingTimeInterval(readDeadline)
+        var sections: [Int: String] = [:]
+        var reads: [(tab: Tab, approvedHost: String?, inFront: Bool, wasShown: Date?)] = []
+        // Approve and wake every tab first, so the sleeping ones load at the same time.
         for id in ids {
-            let heading = "=== Tab #\(id) ===\n"
             guard let tab = findTab(id), let browser = tab.browser else {
-                sections.append(heading + "No tab with that id.")
+                sections[id] = "No tab with that id."
+                continue
+            }
+            if Date() >= deadline {
+                sections[id] = "Not reached in time. Try again."
                 continue
             }
             let inFront = tab.id == browser.activeID && browser === Browser.recent
             if !inFront, !(await Approvals.allowTab(tab, caller: caller, reading: true)) {
-                sections.append(heading + "The user declined this tab. Don't retry it.")
+                sections[id] = "The user declined this tab. Don't retry it."
                 continue
             }
-            let approvedHost = tab.url?.host()?.lowercased()
-            let wasAsleep = tab.isAsleep
-            let webView = tab.wake()
-            if wasAsleep { await waitForLoad(tab) }
-            let result = await run(PageScripts.readText, ["maxChars": maxChars], in: webView)
+            // A tab woken only to be read goes back to sleep, looking as if nobody had shown it.
+            reads.append((tab, tab.url?.host()?.lowercased(), inFront, tab.isAsleep ? tab.lastShown : nil))
+            tab.wake()
+        }
+        for read in reads {
+            let tab = read.tab
+            if read.wasShown != nil { await waitForLoad(tab, within: min(10, deadline.timeIntervalSinceNow)) }
+            let remaining = deadline.timeIntervalSinceNow
+            guard remaining > 0, let webView = tab.webView else {
+                sections[tab.id] = "This tab didn't load in time. Try again."
+                continue
+            }
+            let result = await run(PageScripts.readText, ["maxChars": maxChars], in: webView, timeout: min(20, remaining))
             let host = readHost(result)
-            if !inFront, !(await Approvals.allowRead(tab, approvedHost: approvedHost, readHost: host, caller: caller)) {
-                sections.append(heading + "The user declined this tab. Don't retry it.")
+            if !read.inFront, !(await Approvals.allowRead(tab, approvedHost: read.approvedHost, readHost: host, caller: caller)) {
+                sections[tab.id] = "The user declined this tab. Don't retry it."
                 continue
             }
             Approvals.noteRead(tab, readHost: host, caller: caller)
-            sections.append(heading + (result.content.first?["text"] as? String ?? ""))
+            sections[tab.id] = result.content.first?["text"] as? String ?? ""
         }
-        return .text(sections.joined(separator: "\n\n"))
+        for read in reads {
+            if let shown = read.wasShown, read.tab.browser?.isShown(read.tab) != true {
+                read.tab.sleep()
+                read.tab.lastShown = shown
+            }
+        }
+        return .text(ids.map { "=== Tab #\($0) ===\n" + (sections[$0] ?? "") }.joined(separator: "\n\n"))
     }
 
     /// The site a read's text came from, by its "URL:" line: the page itself says where it was when it was read.
@@ -201,8 +223,8 @@ enum ToolCatalog {
     }
 
     @MainActor
-    private static func run(_ script: String, _ arguments: [String: Any], in webView: WKWebView) async -> ToolResult {
-        await withTimeout(seconds: 20, fallback: .text("Error: the page did not answer in time (a dialog may be open).", error: true)) { finish in
+    private static func run(_ script: String, _ arguments: [String: Any], in webView: WKWebView, timeout: Double = 20) async -> ToolResult {
+        await withTimeout(seconds: timeout, fallback: .text("Error: the page did not answer in time (a dialog may be open).", error: true)) { finish in
             webView.callAsyncJavaScript(script, arguments: arguments, in: nil, in: .defaultClient) { result in
                 switch result {
                 case .success(let value):
@@ -255,9 +277,9 @@ enum ToolCatalog {
 
     /// Waits until the tab stops loading (at most ten seconds). After a click, gives a navigation a moment to start.
     @MainActor
-    static func waitForLoad(_ tab: Tab, expectingChangeFrom before: URL? = nil) async {
+    static func waitForLoad(_ tab: Tab, expectingChangeFrom before: URL? = nil, within seconds: Double = 10) async {
         try? await Task.sleep(for: .milliseconds(before == nil ? 250 : 500))
-        let deadline = Date().addingTimeInterval(10)
+        let deadline = Date().addingTimeInterval(seconds)
         while tab.isLoading && Date() < deadline {
             try? await Task.sleep(for: .milliseconds(100))
         }
@@ -273,8 +295,8 @@ enum ToolCatalog {
 enum Approvals {
     /// Tabs the user let the AI use, each together with the site it was on then.
     private static var tabs = Set<String>()
-    /// Tabs the user attached in the chat panel, which the panel may read.
-    private static var attached = Set<String>()
+    /// Tabs the user attached in the chat panel, each with the site it was on then; the panel may read them there.
+    private static var attached: [Int: String] = [:]
     private static var urls = Set<String>()
     /// Per caller, the sites whose titles, addresses or content the AI has been given since its chat started.
     private static var readHosts: [String: Set<String>] = [:]
@@ -285,15 +307,24 @@ enum Approvals {
         "\(tab.id)|\(host ?? tab.url?.host()?.lowercased() ?? "")"
     }
 
-    /// The tabs attached in the chat panel: the panel reads them without asking, as long as they stay on the same site.
-    static func attach(_ tabs: [Tab]) {
-        attached = Set(tabs.map { key($0) })
+    /// Attaching records the tab's site once; attaching or detaching others never renews it, so a tab that has since
+    /// moved to another site is asked about.
+    static func attach(_ tab: Tab) {
+        if attached[tab.id] == nil { attached[tab.id] = tab.url?.host()?.lowercased() ?? "" }
+    }
+
+    static func detach(_ id: Int) {
+        attached[id] = nil
+    }
+
+    static func detachAll() {
+        attached = [:]
     }
 
     static func allowTab(_ tab: Tab, caller: String, reading: Bool = false, host: String? = nil) async -> Bool {
         guard Preferences.shared.aiApprovals else { return true }
         let key = key(tab, host: host)
-        if tabs.contains(key) || (reading && caller == ChatStore.caller && attached.contains(key)) { return true }
+        if tabs.contains(key) || (reading && caller == ChatStore.caller && attached[tab.id] == (host ?? tab.url?.host()?.lowercased() ?? "")) { return true }
         let allowed = await ask(String(localized: "The AI wants to use a tab you aren't looking at"),
                                 "#\(tab.id) \(tab.displayTitle.prefix(80))\n\(host ?? tab.url?.host() ?? "")\n\n" + String(localized: "If you allow it, you won't be asked again while this tab stays on this site."))
         if allowed { tabs.insert(key) }
