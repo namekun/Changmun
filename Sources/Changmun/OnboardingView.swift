@@ -58,7 +58,7 @@ struct OnboardingView: View {
             .frame(width: 540)
             .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Theme.background))
             .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
-            .animation(.easeOut(duration: 0.22), value: model.step)
+            .animation(Motion.standard, value: model.step)
         }
     }
 

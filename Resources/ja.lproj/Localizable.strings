@@ -438,4 +438,6 @@
 "Above the Page" = "ページの上";
 "In the Sidebar" = "サイドバー";
 "Move To" = "移動";
-"Show as Page" = "ページとして表示";
+"More" = "その他";
+"Pin to Sidebar" = "サイドバーに固定";
+"Unpin from Sidebar" = "サイドバーへの固定を解除";

@@ -256,26 +256,68 @@ final class Library: @unchecked Sendable {
         return (marks + recent).filter { seen.insert($0.url).inserted }.prefix(limit).map { $0 }
     }
 
-    struct Folder: Equatable {
+    /// A folder with the folders inside it. `key` is the stored folder name ("Arc Bookmarks Bar / Work"); a folder
+    /// that holds only folders has no bookmarks of its own but still gets the key its children's names begin with.
+    struct Folder: Equatable, Identifiable {
         var key: String
         var label: String
         var entries: [Entry]
+        var children: [Folder] = []
+
+        var id: String { key }
+        var count: Int { entries.count + children.reduce(0) { $0 + $1.count } }
+
+        /// The folder and every folder inside it, with how deep each one is.
+        func flattened(depth: Int = 0) -> [(folder: Folder, depth: Int)] {
+            [(self, depth)] + children.flatMap { $0.flattened(depth: depth + 1) }
+        }
+
+        func find(_ key: String) -> Folder? {
+            if self.key == key { return self }
+            return children.lazy.compactMap { $0.find(key) }.first
+        }
     }
 
-    /// Imported folders grouped by the browser they came from (the first word of the folder path),
-    /// each labelled by the last folder in its path.
+    /// Imported folders by the browser they came from (the first word of the folder name), nested by their
+    /// " / " paths, in the order they were first imported.
     static func groupBySource(_ folders: [(name: String, entries: [Entry])]) -> [(source: String, folders: [Folder])] {
+        final class Node {
+            let key: String, label: String
+            var entries: [Entry] = []
+            var children: [Node] = []
+            init(key: String, label: String) { self.key = key; self.label = label }
+            func child(_ key: String, _ label: String) -> Node {
+                if let found = children.first(where: { $0.key == key }) { return found }
+                let node = Node(key: key, label: label)
+                children.append(node)
+                return node
+            }
+            var folder: Folder { Folder(key: key, label: label, entries: entries, children: children.map(\.folder)) }
+        }
         var order: [String] = []
-        var groups: [String: [Folder]] = [:]
+        var roots: [String: Node] = [:]
         for folder in folders {
             let parts = folder.name.split(separator: " ", maxSplits: 1).map(String.init)
             let source = parts.count == 2 ? parts[0] : String(localized: "Other")
-            let path = parts.count == 2 ? parts[1] : folder.name
-            let label = path.components(separatedBy: " / ").last ?? path
-            if groups[source] == nil { order.append(source) }
-            groups[source, default: []].append(Folder(key: folder.name, label: label, entries: folder.entries))
+            let path = (parts.count == 2 ? parts[1] : folder.name).components(separatedBy: " / ")
+            if roots[source] == nil {
+                order.append(source)
+                roots[source] = Node(key: "", label: source)
+            }
+            var node = roots[source]!
+            var key = parts.count == 2 ? source + " " : ""
+            for (index, name) in path.enumerated() {
+                key += (index == 0 ? "" : " / ") + name
+                node = node.child(key, name)
+            }
+            node.entries += folder.entries
         }
-        return order.map { ($0, groups[$0] ?? []) }
+        return order.map { ($0, roots[$0]!.children.map(\.folder)) }
+    }
+
+    /// Every folder of every source, outermost first.
+    static func allFolders(_ sources: [(source: String, folders: [Folder])]) -> [Folder] {
+        sources.flatMap { $0.folders.flatMap { $0.flattened().map(\.folder) } }
     }
 
     var counts: (bookmarks: Int, history: Int) {

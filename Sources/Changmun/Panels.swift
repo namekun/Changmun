@@ -181,7 +181,6 @@ struct DownloadButton: View {
     @ObservedObject var browser: Browser
     let arrowEdge: Edge
     @ObservedObject private var downloads = Downloads.shared
-    @State private var hover = false
 
     var body: some View {
         let items = downloads.items(for: browser)
@@ -200,21 +199,19 @@ struct DownloadButton: View {
                 }
             }
             .frame(width: progress == nil ? nil : 15, height: progress == nil ? nil : 15)
-            .frame(width: 28, height: 28)
+            .frame(width: Metrics.control, height: Metrics.control)
             .overlay(alignment: .topTrailing) {
                 if unseen { Circle().fill(Theme.working).frame(width: 6, height: 6).padding(5) }
             }
-            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(hover || browser.showDownloads ? Theme.field : .clear))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .foregroundStyle(hover || progress != nil ? Theme.primary : Theme.dim)
-        .onHover { hover = $0 }
+        .buttonStyle(FillStyle(resting: browser.showDownloads ? Theme.field : .clear))
+        .foregroundStyle(progress != nil ? Theme.primary : Theme.secondary)
         .help("Downloads")
         .popover(isPresented: $browser.showDownloads, arrowEdge: arrowEdge) {
             DownloadList(browser: browser)
         }
-        .animation(.easeOut(duration: 0.2), value: progress == nil)
+        .animation(Motion.quick, value: progress == nil)
     }
 }
 
@@ -282,23 +279,23 @@ struct DownloadShelf: View {
         let items = Array(downloads.shelf(for: browser).prefix(3))
         VStack(spacing: 0) {
             ForEach(items) { item in
-                DownloadRow(item: item).transition(.move(edge: .bottom).combined(with: .opacity))
+                DownloadRow(item: item).transition(Motion.slide(.bottom))
             }
         }
-        .padding(.horizontal, 12)
-        .animation(.easeOut(duration: 0.2), value: items.map(\.id))
+        .padding(.horizontal, Metrics.inset)
+        .animation(Motion.standard, value: items.map(\.id))
     }
 }
 
 struct DownloadRow: View {
-    static let height: CGFloat = 42
+    static let height: CGFloat = 40
     @ObservedObject var item: DownloadItem
     @State private var hover = false
 
     private var file: URL? { item.state == .finished ? item.destination : nil }
 
     var body: some View {
-        HStack(spacing: 9) {
+        HStack(spacing: Metrics.iconGap) {
             Group {
                 if let file {
                     Image(nsImage: NSWorkspace.shared.icon(forFile: file.path)).resizable()
@@ -309,9 +306,9 @@ struct DownloadRow: View {
                 }
             }
             .frame(width: 24, height: 24)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(item.filename)
-                    .font(.system(size: 12.5, weight: .semibold))
+                    .font(.row)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -324,10 +321,10 @@ struct DownloadRow: View {
                 HoverAction(symbol: "magnifyingglass", help: String(localized: "Show in Finder")) { NSWorkspace.shared.activateFileViewerSelecting([file]) }
             }
         }
-        .padding(.horizontal, 8)
+        .padding(.leading, Metrics.rowPadding)
+        .padding(.trailing, 4)
         .frame(height: Self.height)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover && file != nil ? Theme.hoverTab : .clear))
-        .contentShape(Rectangle())
+        .rowChrome(hover: hover && file != nil)
         .onHover {
             hover = $0
             item.isHovered = $0
@@ -435,10 +432,10 @@ struct FindBar: View {
             BarButton(symbol: "xmark", help: String(localized: "Close (esc)")) { browser.hideFindBar() }
         }
         .padding(.leading, 10)
-        .padding(.trailing, 2)
+        .padding(.trailing, 4)
         .frame(height: 36)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.background))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
+        .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Theme.background))
+        .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
         .padding(10)
         .onAppear { focused = true }
         .onChange(of: overlay.findFocusRequest) { focused = true }

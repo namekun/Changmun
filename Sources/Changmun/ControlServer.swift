@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Network
 
@@ -75,6 +76,24 @@ final class ControlServer {
                     return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
                 }
                 self.respond(connection, status: "200 OK", body: ["png": png.base64EncodedString()])
+            }
+            return
+        }
+        // Tests only: a mouse event at a point in the window (from its top left), handed to the app as if it came
+        // from the window server, so the headless app can be clicked without touching the real pointer.
+        if Headless.isOn, request.method == "POST", request.path == "/window-event",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any],
+           let kind = body["type"] as? String, let x = body["x"] as? Double, let y = body["y"] as? Double {
+            Task { @MainActor in
+                let types: [String: NSEvent.EventType] = ["down": .leftMouseDown, "drag": .leftMouseDragged, "up": .leftMouseUp, "right": .rightMouseDown]
+                guard let window = Browser.current?.window, let content = window.contentView, let type = types[kind],
+                      let event = NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: content.bounds.height - y), modifierFlags: [],
+                                                     timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                                                     context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1) else {
+                    return self.respond(connection, status: "404 Not Found", body: ["error": "no window or unknown type"])
+                }
+                NSApp.sendEvent(event)
+                self.respond(connection, status: "200 OK", body: [:])
             }
             return
         }

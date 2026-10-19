@@ -285,6 +285,9 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
     static let barHeight = cardInset + pageBarHeight
     /// Just below the window buttons, where the sidebar starts when the page bar is on the page card.
     static let windowButtonsBottom = cardInset + pageBarHeight / 2 + 12
+    /// The window buttons start where a sidebar row's icon does; controls beside them start one inset after the third.
+    static let windowButtonsLeading: CGFloat = 16
+    static let windowButtonsTrailing = windowButtonsLeading + 2 * 20 + 14 + Metrics.inset
     private static var windows: [BrowserWindow] = []
 
     let browser: Browser
@@ -388,7 +391,7 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
         for (index, kind) in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].enumerated() {
             guard let button = standardWindowButton(kind) else { continue }
             button.isHidden = browser.focusMode
-            button.setFrameOrigin(NSPoint(x: 16 + CGFloat(index) * 20, y: height - Self.cardInset - Self.pageBarHeight / 2 - button.frame.height / 2))
+            button.setFrameOrigin(NSPoint(x: Self.windowButtonsLeading + CGFloat(index) * 20, y: height - Self.cardInset - Self.pageBarHeight / 2 - button.frame.height / 2))
         }
     }
 }

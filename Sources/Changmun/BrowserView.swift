@@ -28,6 +28,7 @@ enum Theme {
     static let field = ink(0.1)
     static let selected = ink(0.08)
     static let hoverTab = ink(0.07)
+    static let pressed = ink(0.13)
     static let track = ink(0.15)
     static let meter = ink(0.75)
     static let waiting = Color(red: 1.0, green: 0.62, blue: 0.2)
@@ -55,13 +56,180 @@ struct Hairline: View {
     }
 }
 
+/// Sizes on a 4 pt grid. Rows share one height, and a row inside another steps in by one icon column, so its icon
+/// lines up with the text above it.
+enum Metrics {
+    /// From the window's edge to the sidebar's contents and to the page card.
+    static let inset: CGFloat = 8
+    static let row: CGFloat = 28
+    static let rowGap: CGFloat = 2
+    static let rowPadding: CGFloat = 8
+    static let icon: CGFloat = 16
+    static let iconGap: CGFloat = 8
+    static let indent: CGFloat = icon + iconGap
+    /// Between the sidebar's parts: favorites, pinned folders, tabs, bookmarks.
+    static let section: CGFloat = 16
+    static let tile: CGFloat = 40
+    /// Buttons and fields in a bar.
+    static let control: CGFloat = 28
+    /// Small buttons inside a row.
+    static let action: CGFloat = 20
+    static let rowRadius: CGFloat = 8
+    static let fieldRadius: CGFloat = 10
+    static let cardRadius: CGFloat = 12
+}
+
+extension Font {
+    static let row = Font.system(size: 13, weight: .medium)
+    static let rowSelected = Font.system(size: 13, weight: .semibold)
+    static let caption = Font.system(size: 11, weight: .medium)
+    static let captionStrong = Font.system(size: 11, weight: .semibold)
+}
+
+/// Springs without overshoot: they settle smoothly and, when interrupted, turn around from where they are. With
+/// Reduce Motion on, things fade instead of moving.
+@MainActor
+enum Motion {
+    static var reduced: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+    static var standard: Animation { reduced ? .easeOut(duration: 0.15) : .spring(response: 0.3, dampingFraction: 1) }
+    static var quick: Animation { reduced ? .easeOut(duration: 0.1) : .spring(response: 0.2, dampingFraction: 1) }
+
+    /// In from an edge and back out the same way.
+    static func slide(_ edge: Edge) -> AnyTransition {
+        reduced ? .opacity : .move(edge: edge).combined(with: .opacity)
+    }
+
+    /// A panel grows out of where it is anchored (a bar opening under the address, a card over the page).
+    static func pop(_ anchor: UnitPoint) -> AnyTransition {
+        reduced ? .opacity : .opacity.combined(with: .scale(scale: 0.97, anchor: anchor))
+    }
+}
+
+/// Where the left button is held down, so a row can darken the moment it is pressed. It only watches the events,
+/// leaving clicks, drags and menus to the views as before.
+@MainActor
+final class PressTracker: ObservableObject {
+    static let shared = PressTracker()
+    @Published private(set) var press: (window: Int, point: CGPoint)?
+    private var start: CGPoint?
+
+    private init() {
+        NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { event in
+            MainActor.assumeIsolated { PressTracker.shared.handle(event) }
+            return event
+        }
+    }
+
+    private func handle(_ event: NSEvent) {
+        guard let window = event.window, let content = window.contentView else { return }
+        let point = CGPoint(x: event.locationInWindow.x, y: content.bounds.height - event.locationInWindow.y)
+        switch event.type {
+        case .leftMouseDown:
+            start = point
+            press = (window.windowNumber, point)
+        case .leftMouseDragged:
+            // A drag has begun: the row is being carried, not pressed.
+            if press != nil, let start, hypot(point.x - start.x, point.y - start.y) > 4 { press = nil }
+        default:
+            start = nil
+            press = nil
+        }
+    }
+
+    func isPressed(_ frame: CGRect, in window: Int?) -> Bool {
+        guard let press, press.window == window else { return false }
+        return frame.contains(press.point)
+    }
+}
+
+private struct WindowNumberKey: EnvironmentKey {
+    static let defaultValue: Int? = nil
+}
+
+extension EnvironmentValues {
+    /// The window the view is in, to tell its presses from another window's.
+    var windowNumber: Int? {
+        get { self[WindowNumberKey.self] }
+        set { self[WindowNumberKey.self] = newValue }
+    }
+}
+
+/// A row's fill: selected, pressed, a drop landing in it, hovered, or none (tiles have a resting fill).
+struct RowChrome: ViewModifier {
+    let hover: Bool
+    var selected = false
+    var target = false
+    var radius = Metrics.rowRadius
+    var resting: Color = .clear
+    @ObservedObject private var tracker = PressTracker.shared
+    @Environment(\.windowNumber) private var window
+    @State private var frame = CGRect.zero
+
+    func body(content: Content) -> some View {
+        let pressed = tracker.isPressed(frame, in: window)
+        content
+            .background {
+                if selected {
+                    SelectedBackground(radius: radius, pressed: pressed)
+                } else {
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .fill(target || pressed ? Theme.pressed : hover ? Theme.hoverTab : resting)
+                }
+            }
+            .contentShape(Rectangle())
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame = $0 }
+    }
+}
+
+extension View {
+    func rowChrome(hover: Bool, selected: Bool = false, target: Bool = false, radius: CGFloat = Metrics.rowRadius, resting: Color = .clear) -> some View {
+        modifier(RowChrome(hover: hover, selected: selected, target: target, radius: radius, resting: resting))
+    }
+
+    /// A line where a dragged item would land: above a row, or before a tile.
+    func dropLine(_ shown: Bool, edge: Edge = .top) -> some View {
+        overlay(alignment: edge == .top ? .top : .leading) {
+            if shown {
+                let line = Capsule().fill(Theme.primary)
+                Group {
+                    if edge == .top {
+                        line.frame(height: 2).padding(.horizontal, 4).offset(y: -2)
+                    } else {
+                        line.frame(width: 2).padding(.vertical, 4).offset(x: -5)
+                    }
+                }
+                .allowsHitTesting(false)
+            }
+        }
+    }
+}
+
+/// "…" on a hovered row: the same menu as a right-click, for people who don't think to right-click.
+struct MoreButton<Items: View>: View {
+    @ViewBuilder let items: () -> Items
+
+    var body: some View {
+        Menu(content: items) {
+            Image(systemName: "ellipsis").font(.system(size: 11, weight: .bold))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .frame(width: Metrics.action, height: Metrics.action)
+        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.field))
+        .foregroundStyle(Theme.secondary)
+        .help("More")
+    }
+}
+
 /// A selected row or tile: a faint fill inside a hairline, as in Nunsseop's lists.
 struct SelectedBackground: View {
-    var radius: CGFloat = 8
+    var radius: CGFloat = Metrics.rowRadius
+    var pressed = false
 
     var body: some View {
         RoundedRectangle(cornerRadius: radius, style: .continuous)
-            .fill(Theme.selected)
+            .fill(pressed ? Theme.pressed : Theme.selected)
             .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
     }
 }
@@ -153,7 +321,7 @@ struct BrowserView: View {
                     Sidebar(browser: browser)
                         .frame(width: prefs.sidebarWidth)
                         .overlay(alignment: .trailing) { SidebarResizeHandle(width: $prefs.sidebarWidth) }
-                        .transition(.move(edge: .leading).combined(with: .opacity))
+                        .transition(Motion.slide(.leading))
                 }
                 HStack(spacing: 0) {
                     VStack(spacing: 0) {
@@ -161,40 +329,40 @@ struct BrowserView: View {
                         WebCard(browser: browser)
                     }
                     .background(Theme.card)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5))
+                    .clipShape(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5))
                     if browser.showChat && !browser.focusMode {
                         ChatPanel(chat: chat, browser: browser)
-                            .padding(.leading, 8)
+                            .padding(.leading, Metrics.inset)
                             .frame(minWidth: 300, maxWidth: 360)
-                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                            .transition(Motion.slide(.trailing))
                     }
                 }
                 .padding(.top, BrowserWindow.cardInset)
-                .padding([.trailing, .bottom], 8)
-                .padding(.leading, sidebar ? 0 : 8)
+                .padding([.trailing, .bottom], Metrics.inset)
+                .padding(.leading, sidebar ? 0 : Metrics.inset)
             }
             if let peek = browser.peek {
-                PeekCard(tab: peek, browser: browser).transition(.opacity)
+                PeekCard(tab: peek, browser: browser).transition(Motion.pop(.center))
             }
             if let switcher = browser.tabSwitcher {
                 TabSwitcherView(browser: browser, switcher: switcher)
             }
             if let mode = browser.commandBar, !browser.showOnboarding {
-                CommandBar(browser: browser, chat: chat, mode: mode)
+                CommandBar(browser: browser, chat: chat, mode: mode).transition(Motion.pop(.top))
             }
             if browser.showOnboarding {
                 OnboardingView(browser: browser)
             }
         }
         .ignoresSafeArea()
-        .animation(.easeOut(duration: 0.22), value: browser.showChat)
-        .animation(.easeOut(duration: 0.22), value: browser.showSidebar)
-        .animation(.easeOut(duration: 0.22), value: browser.focusMode)
-        .animation(.easeOut(duration: 0.22), value: prefs.addressBarOnTop)
-        .animation(.easeOut(duration: 0.22), value: prefs.toolbarPlace)
-        .animation(.easeOut(duration: 0.14), value: browser.commandBar)
-        .animation(.easeOut(duration: 0.16), value: browser.peek?.id)
+        .animation(Motion.standard, value: browser.showChat)
+        .animation(Motion.standard, value: browser.showSidebar)
+        .animation(Motion.standard, value: browser.focusMode)
+        .animation(Motion.standard, value: prefs.addressBarOnTop)
+        .animation(Motion.standard, value: prefs.toolbarPlace)
+        .animation(Motion.quick, value: browser.commandBar)
+        .animation(Motion.quick, value: browser.peek?.id)
     }
 }
 
@@ -204,44 +372,24 @@ struct Sidebar: View {
     @ObservedObject var browser: Browser
     @ObservedObject private var prefs = Preferences.shared
     @StateObject private var library = LibraryWatcher()
-    @State private var openFolders: Set<String> = []
-    @State private var dropFolder: String?
+    @State private var dropTarget: String?
     @AppStorage("sidebarBookmarksOpen") private var showBookmarks = false
 
     var body: some View {
         VStack(spacing: 0) {
             if prefs.toolbarPlace == .sidebar {
-                SidebarToolbar(browser: browser).padding(.bottom, 10)
+                SidebarToolbar(browser: browser)
             } else {
                 WindowDragArea().frame(height: BrowserWindow.windowButtonsBottom)
             }
 
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 2) {
+                LazyVStack(alignment: .leading, spacing: Metrics.rowGap) {
                     if !library.favorites.isEmpty {
-                        // As many tiles a row as the sidebar's width holds: four at the default width, up to seven when wide.
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 46), spacing: 6)], spacing: 6) {
-                            ForEach(library.favorites, id: \.url) { entry in
-                                let key = Browser.bookmarkKey(url: entry.url, folder: Library.favoritesFolder)
-                                FavoriteTile(entry: entry, state: BookmarkTabState(key, browser)) {
-                                    browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
-                                } closeTab: {
-                                    if let tab = browser.bookmarkTab(key) { browser.close(tab.id) }
-                                } remove: {
-                                    Library.shared.removeBookmark(url: entry.url, folder: Library.favoritesFolder)
-                                } more: {
-                                    splitItem(url: entry.url, key: key)
-                                    moveMenu(url: entry.url, from: Library.favoritesFolder)
-                                }
-                                .draggable(SidebarDrag.favorite(entry.url))
-                                .dropDestination(for: String.self) { items, _ in
-                                    SidebarDrag.drop(items, onFavorite: entry.url, browser: browser)
-                                }
-                            }
-                        }
-                        .padding(.bottom, 14)
+                        favorites
                     }
-                    HStack(spacing: 2) {
+                    pinned
+                    HStack(spacing: Metrics.rowGap) {
                         NewTabRow { browser.commandBar = .newTab }
                         if browser.tidying || browser.looseTabs.count > 1 { TidyButton(browser: browser) }
                     }
@@ -251,99 +399,44 @@ struct Sidebar: View {
                     ForEach(browser.listing) { item in
                         switch item {
                         case .tab(let tab):
-                            tabRow(tab)
+                            tabRow(tab, depth: 0)
                         case .group(let group, let tabs):
-                            TabGroupHeader(group: group, count: tabs.count, browser: browser)
+                            TabGroupHeader(group: group, count: tabs.count, browser: browser, target: dropTarget == "group:\(group.id)")
                                 .dropDestination(for: String.self) { items, _ in
                                     SidebarDrag.drop(items, onGroup: group.id, browser: browser)
-                                }
+                                } isTargeted: { target("group:\(group.id)", $0) }
                             ForEach(browser.shown(tabs, in: group)) { tab in
-                                tabRow(tab).padding(.leading, 12)
+                                tabRow(tab, depth: 1)
                             }
                         }
                     }
+                    // Below the last tab: a tab dropped here goes to the end of the list.
+                    SectionGap()
+                        .dropLine(dropTarget == "tabs:end")
+                        .dropDestination(for: String.self) { items, _ in
+                            SidebarDrag.dropAtEnd(items, browser: browser)
+                        } isTargeted: { target("tabs:end", $0) }
                     if !library.sources.isEmpty {
-                        SectionHeader(title: String(localized: "Bookmarks"), isOpen: showBookmarks) { showBookmarks.toggle() }
-                            .padding(.top, 14)
-                            .padding(.bottom, 2)
-                        if showBookmarks {
-                            ForEach(library.sources, id: \.source) { group in
-                                let key = "source:" + group.source
-                                FolderRow(name: group.source, symbol: "books.vertical", count: group.folders.reduce(0) { $0 + $1.entries.count },
-                                          isOpen: openFolders.contains(key)) { toggle(key) } showPage: {
-                                    browser.folderPage = Browser.FolderPage(title: group.source, folders: group.folders.map(\.key))
-                                }
-                                    .contextMenu {
-                                        Button("Show as Page") {
-                                            browser.folderPage = Browser.FolderPage(title: group.source, folders: group.folders.map(\.key))
-                                        }
-                                        Button("Delete All \(group.source) Bookmarks…") {
-                                            if confirmDelete(String(localized: "Delete all bookmarks imported from \(group.source)?")) { Library.shared.removeSource(group.source) }
-                                        }
-                                    }
-                                if openFolders.contains(key) {
-                                    ForEach(group.folders, id: \.key) { folder in
-                                        FolderRow(name: folder.label, symbol: "folder", count: folder.entries.count, isOpen: openFolders.contains(folder.key),
-                                                  isDropTarget: dropFolder == folder.key) {
-                                            toggle(folder.key)
-                                        } showPage: {
-                                            browser.folderPage = Browser.FolderPage(title: folder.label, folders: [folder.key])
-                                        }
-                                        .padding(.leading, 12)
-                                        .help(folder.key)
-                                        .dropDestination(for: String.self) { items, _ in
-                                            SidebarDrag.drop(items, onFolder: folder.key)
-                                        } isTargeted: { inside in
-                                            if inside { dropFolder = folder.key } else if dropFolder == folder.key { dropFolder = nil }
-                                        }
-                                        .contextMenu {
-                                            Button("Show as Page") {
-                                                browser.folderPage = Browser.FolderPage(title: folder.label, folders: [folder.key])
-                                            }
-                                            Button("Delete Folder…") {
-                                                let count = folder.entries.count
-                                                let question = count == 1 ? String(localized: "Delete the folder “\(folder.label)” and its \(count) bookmark?")
-                                                                          : String(localized: "Delete the folder “\(folder.label)” and its \(count) bookmarks?")
-                                                if confirmDelete(question) {
-                                                    Library.shared.removeFolder(folder.key)
-                                                }
-                                            }
-                                        }
-                                        if openFolders.contains(folder.key) {
-                                            ForEach(folder.entries, id: \.url) { entry in
-                                                let key = Browser.bookmarkKey(url: entry.url, folder: folder.key)
-                                                BookmarkRow(entry: entry, state: BookmarkTabState(key, browser)) {
-                                                    browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
-                                                } closeTab: {
-                                                    if let tab = browser.bookmarkTab(key) { browser.close(tab.id) }
-                                                } remove: {
-                                                    Library.shared.removeBookmark(url: entry.url, folder: folder.key)
-                                                } more: {
-                                                    splitItem(url: entry.url, key: key)
-                                                    moveMenu(url: entry.url, from: folder.key)
-                                                }
-                                                .padding(.leading, 26)
-                                                .draggable(SidebarDrag.bookmark(entry.url, in: folder.key))
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        bookmarks
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.top, 4)
-                .padding(.bottom, 8)
-                .animation(.easeOut(duration: 0.18), value: browser.tabs.map(\.id))
-                .animation(.easeOut(duration: 0.15), value: browser.groups)
-                .animation(.easeOut(duration: 0.15), value: browser.tabs.map(\.groupID))
-                .animation(.easeOut(duration: 0.15), value: browser.lastTidy)
+                .padding(.horizontal, Metrics.inset)
+                .padding(.top, prefs.toolbarPlace == .sidebar ? Metrics.section : Metrics.inset)
+                .padding(.bottom, Metrics.inset)
+                .animation(Motion.standard, value: browser.tabs.map(\.id))
+                .animation(Motion.standard, value: browser.groups)
+                .animation(Motion.standard, value: browser.tabs.map(\.groupID))
+                .animation(Motion.standard, value: browser.lastTidy)
+                .animation(Motion.standard, value: prefs.pinnedFolders)
+                .animation(Motion.standard, value: prefs.openFolders)
+                .animation(Motion.standard, value: showBookmarks)
+                .animation(Motion.quick, value: dropTarget)
             }
+            .environment(\.windowNumber, browser.window?.windowNumber)
 
-            DownloadShelf(browser: browser).padding(.bottom, 8)
+            DownloadShelf(browser: browser).padding(.bottom, Metrics.inset)
             if prefs.toolbarPlace == .sidebar {
-                HStack(spacing: 2) {
+                HStack(spacing: Metrics.rowGap) {
                     if #available(macOS 15.4, *), !browser.isPrivate { ExtensionButtons(browser: browser) }
                     Spacer(minLength: 0)
                     DownloadButton(browser: browser, arrowEdge: .top)
@@ -353,62 +446,215 @@ struct Sidebar: View {
                         AIButton(isOn: browser.showChat) { browser.showChat.toggle() }
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
+                .padding(.horizontal, Metrics.inset)
+                .padding(.bottom, Metrics.inset)
             }
         }
     }
 
-    private func tabRow(_ tab: Tab) -> some View {
-        SidebarTabRow(tab: tab, browser: browser, isActive: tab.id == browser.activeID) {
-            browser.activate(tab.id)
-        } close: {
-            browser.close(tab.id)
+    // MARK: Parts
+
+    private var favorites: some View {
+        // As many tiles a row as the sidebar's width holds: four at the default width, up to seven when wide.
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 46), spacing: Metrics.inset)], spacing: Metrics.inset) {
+            ForEach(library.favorites, id: \.url) { entry in
+                let key = Browser.bookmarkKey(url: entry.url, folder: Library.favoritesFolder)
+                FavoriteTile(entry: entry, state: BookmarkTabState(key, browser)) {
+                    browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
+                } closeTab: {
+                    if let tab = browser.bookmarkTab(key) { browser.close(tab.id) }
+                } menu: {
+                    bookmarkMenu(url: entry.url, folder: Library.favoritesFolder, key: key)
+                }
+                .dropLine(dropTarget == "fav:" + entry.url, edge: .leading)
+                .draggable(SidebarDrag.favorite(entry.url))
+                .dropDestination(for: String.self) { items, _ in
+                    SidebarDrag.drop(items, onFavorite: entry.url, browser: browser)
+                } isTargeted: { target("fav:" + entry.url, $0) }
+            }
         }
-        .draggable(SidebarDrag.tab(tab.id))
+        // Between and after the tiles: dropped there, it goes to the end of the favorites.
         .dropDestination(for: String.self) { items, _ in
-            SidebarDrag.drop(items, onTab: tab.id, browser: browser)
+            SidebarDrag.drop(items, onFavorite: nil, browser: browser)
         }
+        .padding(.bottom, Metrics.section - Metrics.rowGap)
     }
 
-    /// The split item in a bookmark's menu: end the split it is in, or show it next to the active tab.
-    @ViewBuilder private func splitItem(url: String, key: String) -> some View {
-        let tab = browser.bookmarkTab(key)
-        if let tab, browser.split?.contains(tab.id) == true {
-            Button("End Split View") { browser.unsplit() }
-        } else if browser.activeID != nil && tab?.id != browser.activeID {
-            Button("Show Side by Side with Current Tab") { browser.split(withBookmark: url, key: key) }
+    /// Folders kept under the favorites, opened where they are, then a hairline before the tabs. A folder dropped
+    /// on the hairline is pinned at the end.
+    @ViewBuilder private var pinned: some View {
+        let folders = prefs.pinnedFolders.compactMap(library.folder)
+        // Ids carry the part of the sidebar: a folder can show both pinned and under Bookmarks.
+        ForEach(folders.map { ("pin:" + $0.key, $0) }, id: \.0) { _, folder in
+            folderTree(folder, depth: 0, scope: "pin:", pinned: true)
         }
+        SectionGap(hairline: !folders.isEmpty)
+            .dropLine(dropTarget == "pin:end")
+            .dropDestination(for: String.self) { items, _ in
+                SidebarDrag.pin(items, before: nil)
+            } isTargeted: { target("pin:end", $0) }
     }
 
-    /// "Move To" in a bookmark's menu: the favorites and every imported folder, by the browser it came from.
-    @ViewBuilder private func moveMenu(url: String, from: String) -> some View {
-        Menu("Move To") {
-            Button("Favorites") { Browser.moveBookmark(url: url, from: from, to: Library.favoritesFolder) }
-                .disabled(from == Library.favoritesFolder)
+    @ViewBuilder private var bookmarks: some View {
+        SectionHeader(title: String(localized: "Bookmarks"), isOpen: showBookmarks) { showBookmarks.toggle() }
+        if showBookmarks {
             ForEach(library.sources, id: \.source) { group in
-                Section(group.source) {
-                    ForEach(group.folders, id: \.key) { folder in
-                        Button(folder.label) { Browser.moveBookmark(url: url, from: from, to: folder.key) }
-                            .disabled(folder.key == from)
+                let key = "source:" + group.source
+                FolderRow(name: group.source, symbol: "books.vertical", count: group.folders.reduce(0) { $0 + $1.count },
+                          isOpen: prefs.openFolders.contains(key)) {
+                    prefs.toggleOpen(key)
+                } menu: {
+                    Button("Delete All \(group.source) Bookmarks…") {
+                        confirmDelete(String(localized: "Delete all bookmarks imported from \(group.source)?")) { Library.shared.removeSource(group.source) }
+                    }
+                }
+                if prefs.openFolders.contains(key) {
+                    ForEach(group.folders.map { ($0.key, $0) }, id: \.0) { _, folder in
+                        folderTree(folder, depth: 1, scope: "", pinned: false)
                     }
                 }
             }
         }
     }
 
-    private func confirmDelete(_ message: String) -> Bool {
+    /// A folder row, and when it is open the folders and bookmarks inside it, each a step further in.
+    private func folderTree(_ folder: Library.Folder, depth: Int, scope: String, pinned: Bool) -> AnyView {
+        let openKey = scope + folder.key
+        let isOpen = prefs.openFolders.contains(openKey)
+        let isPinned = prefs.pinnedFolders.contains(folder.key)
+        let targetKey = scope + "folder:" + folder.key
+        // Pinned folders reorder when a folder is dropped on one; a bookmark dropped on any folder moves in.
+        let reorders = pinned && depth == 0
+        return AnyView(Group {
+            FolderRow(name: folder.label, count: folder.count, isOpen: isOpen, showCount: false,
+                      target: dropTarget == targetKey && !(reorders && SidebarDrag.dragging == .folder)) {
+                prefs.toggleOpen(openKey)
+            } menu: {
+                if isPinned {
+                    Button("Unpin from Sidebar") { prefs.unpinFolder(folder.key) }
+                } else {
+                    Button("Pin to Sidebar") { prefs.pinFolder(folder.key) }
+                }
+                Divider()
+                Button("Delete Folder…") {
+                    let count = folder.count
+                    let question = count == 1 ? String(localized: "Delete the folder “\(folder.label)” and its \(count) bookmark?")
+                                              : String(localized: "Delete the folder “\(folder.label)” and its \(count) bookmarks?")
+                    confirmDelete(question) {
+                        prefs.unpinFolder(folder.key)
+                        Library.shared.removeFolder(folder.key)
+                    }
+                }
+            }
+            .padding(.leading, CGFloat(depth) * Metrics.indent)
+            .help(folder.key)
+            .dropLine(reorders && dropTarget == targetKey && SidebarDrag.dragging == .folder)
+            .draggable(SidebarDrag.folder(folder.key))
+            .dropDestination(for: String.self) { items, _ in
+                if reorders, SidebarDrag.pin(items, before: folder.key) { return true }
+                return SidebarDrag.drop(items, onFolder: folder.key)
+            } isTargeted: { target(targetKey, $0) }
+            if isOpen {
+                ForEach(folder.children.map { (scope + $0.key, $0) }, id: \.0) { _, child in
+                    folderTree(child, depth: depth + 1, scope: scope, pinned: pinned)
+                }
+                ForEach(folder.entries.map { (scope + Browser.bookmarkKey(url: $0.url, folder: folder.key), $0) }, id: \.0) { _, entry in
+                    let key = Browser.bookmarkKey(url: entry.url, folder: folder.key)
+                    BookmarkRow(entry: entry, state: BookmarkTabState(key, browser)) {
+                        browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
+                    } closeTab: {
+                        if let tab = browser.bookmarkTab(key) { browser.close(tab.id) }
+                    } menu: {
+                        bookmarkMenu(url: entry.url, folder: folder.key, key: key)
+                    }
+                    .padding(.leading, CGFloat(depth + 1) * Metrics.indent)
+                    .draggable(SidebarDrag.bookmark(entry.url, in: folder.key))
+                }
+            }
+        })
+    }
+
+    private func tabRow(_ tab: Tab, depth: Int) -> some View {
+        SidebarTabRow(tab: tab, browser: browser, isActive: tab.id == browser.activeID) {
+            browser.activate(tab.id)
+        } close: {
+            browser.close(tab.id)
+        }
+        .padding(.leading, CGFloat(depth) * Metrics.indent)
+        .dropLine(dropTarget == "tab:\(tab.id)")
+        .draggable(SidebarDrag.tab(tab.id))
+        .dropDestination(for: String.self) { items, _ in
+            SidebarDrag.drop(items, onTab: tab.id, browser: browser)
+        } isTargeted: { target("tab:\(tab.id)", $0) }
+    }
+
+    // MARK: Menus
+
+    /// The same items for a favorite and a bookmark, in the same order: the tab, then where it goes, then deleting.
+    @ViewBuilder private func bookmarkMenu(url: String, folder: String, key: String) -> some View {
+        let tab = browser.bookmarkTab(key)
+        if let tab {
+            Button("Close Tab") { browser.close(tab.id) }
+        }
+        if let tab, browser.split?.contains(tab.id) == true {
+            Button("End Split View") { browser.unsplit() }
+        } else if browser.activeID != nil && tab?.id != browser.activeID {
+            Button("Show Side by Side with Current Tab") { browser.split(withBookmark: url, key: key) }
+        }
+        moveMenu(url: url, from: folder)
+        Divider()
+        if folder == Library.favoritesFolder {
+            Button("Remove from Favorites") { Library.shared.removeBookmark(url: url, folder: folder) }
+        } else {
+            Button("Delete Bookmark") { Library.shared.removeBookmark(url: url, folder: folder) }
+        }
+    }
+
+    /// "Move To": the favorites and every imported folder, by the browser it came from, inner folders indented.
+    @ViewBuilder private func moveMenu(url: String, from: String) -> some View {
+        Menu("Move To") {
+            Button("Favorites") { Browser.moveBookmark(url: url, from: from, to: Library.favoritesFolder) }
+                .disabled(from == Library.favoritesFolder)
+            ForEach(library.sources, id: \.source) { group in
+                Section(group.source) {
+                    ForEach(group.folders.flatMap { $0.flattened() }, id: \.folder.key) { item in
+                        Button(String(repeating: "    ", count: item.depth) + item.folder.label) {
+                            Browser.moveBookmark(url: url, from: from, to: item.folder.key)
+                        }
+                        .disabled(item.folder.key == from)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Asks over this window (not the whole app) before deleting what can't be brought back.
+    private func confirmDelete(_ message: String, then delete: @escaping () -> Void) {
         let alert = NSAlert()
         alert.messageText = message
         alert.addButton(withTitle: String(localized: "Cancel"))
         alert.addButton(withTitle: String(localized: "Delete")).hasDestructiveAction = true
-        return alert.runModal() == .alertSecondButtonReturn
+        if let window = browser.window {
+            alert.beginSheetModal(for: window) { if $0 == .alertSecondButtonReturn { delete() } }
+        } else if alert.runModal() == .alertSecondButtonReturn {
+            delete()
+        }
     }
 
-    private func toggle(_ key: String) {
-        withAnimation(.easeOut(duration: 0.15)) {
-            if openFolders.contains(key) { openFolders.remove(key) } else { openFolders.insert(key) }
-        }
+    private func target(_ key: String, _ inside: Bool) {
+        if inside { dropTarget = key } else if dropTarget == key { dropTarget = nil }
+    }
+}
+
+/// The space between two parts of the sidebar, with an optional hairline across it.
+struct SectionGap: View {
+    var hairline = false
+
+    var body: some View {
+        Color.clear
+            .frame(height: Metrics.section - 2 * Metrics.rowGap)
+            .overlay { if hairline { Hairline().padding(.horizontal, Metrics.rowPadding) } }
+            .contentShape(Rectangle())
     }
 }
 
@@ -450,29 +696,56 @@ struct SectionHeader: View {
     @State private var hover = false
 
     var body: some View {
-        HStack(spacing: 5) {
-            Text(title).font(.system(size: 11, weight: .semibold))
+        HStack(spacing: 4) {
+            Text(title).font(.captionStrong)
             Image(systemName: "chevron.right")
                 .font(.system(size: 8, weight: .bold))
                 .rotationEffect(.degrees(isOpen ? 90 : 0))
-                .opacity(hover ? 1 : 0.7)
             Spacer()
         }
-        .foregroundStyle(Theme.secondary)
-        .padding(.horizontal, 8)
-        .frame(height: 22)
+        .foregroundStyle(hover ? Theme.primary : Theme.secondary)
+        .padding(.horizontal, Metrics.rowPadding)
+        .frame(height: 24)
         .contentShape(Rectangle())
         .onHover { hover = $0 }
-        .onTapGesture { withAnimation(.easeOut(duration: 0.15)) { toggle() } }
+        .onTapGesture { withAnimation(Motion.standard) { toggle() } }
     }
 }
 
 /// Dragging tabs and favorites around the sidebar: the payload names what is dragged.
 @MainActor
 enum SidebarDrag {
-    static func tab(_ id: Int) -> String { "changmun-tab:\(id)" }
-    static func favorite(_ url: String) -> String { "changmun-favorite:" + url }
-    static func bookmark(_ url: String, in folder: String) -> String { "changmun-bookmark:" + folder + "\n" + url }
+    enum Kind { case tab, bookmark, folder }
+    /// What the latest drag from the sidebar carries: set when the drag starts, so drop targets can show where it lands.
+    private(set) static var dragging: Kind?
+
+    static func tab(_ id: Int) -> String { dragging = .tab; return "changmun-tab:\(id)" }
+    static func favorite(_ url: String) -> String { dragging = .bookmark; return "changmun-favorite:" + url }
+    static func bookmark(_ url: String, in folder: String) -> String { dragging = .bookmark; return "changmun-bookmark:" + folder + "\n" + url }
+    static func folder(_ key: String) -> String { dragging = .folder; return "changmun-folder:" + key }
+
+    static func folderKey(_ items: [String]) -> String? {
+        guard let item = items.first, item.hasPrefix("changmun-folder:") else { return nil }
+        return String(item.dropFirst("changmun-folder:".count))
+    }
+
+    /// A folder dropped among the pinned ones is pinned there (before `target`, or at the end).
+    @discardableResult
+    static func pin(_ items: [String], before target: String?) -> Bool {
+        guard let key = folderKey(items) else { return false }
+        withAnimation(Motion.standard) { Preferences.shared.pinFolder(key, before: target) }
+        return true
+    }
+
+    /// A tab dropped below the list goes to its end, out of any group.
+    static func dropAtEnd(_ items: [String], browser: Browser) -> Bool {
+        guard let id = tabID(items) else { return false }
+        withAnimation(Motion.standard) {
+            browser.moveTab(id, to: nil)
+            browser.removeFromGroup(id)
+        }
+        return true
+    }
 
     /// The bookmark (or favorite) being dragged, and the folder it is in.
     static func bookmark(_ items: [String]) -> (url: String, folder: String)? {
@@ -493,13 +766,13 @@ enum SidebarDrag {
 
     static func drop(_ items: [String], onTab target: Int, browser: Browser) -> Bool {
         guard let id = tabID(items) else { return false }
-        withAnimation(.easeOut(duration: 0.18)) { browser.dropTab(id, on: target) }
+        withAnimation(Motion.standard) { browser.dropTab(id, on: target) }
         return true
     }
 
     static func drop(_ items: [String], onGroup group: UUID, browser: Browser) -> Bool {
         guard let id = tabID(items) else { return false }
-        withAnimation(.easeOut(duration: 0.18)) { browser.addTab(id, to: group) }
+        withAnimation(Motion.standard) { browser.addTab(id, to: group) }
         return true
     }
 
@@ -509,7 +782,8 @@ enum SidebarDrag {
     }
 
     /// A favorite dropped on a favorite moves there; a bookmark from a folder or a tab dropped on one is pinned there.
-    static func drop(_ items: [String], onFavorite target: String, browser: Browser) -> Bool {
+    /// With no target, past the last tile, it goes to the end.
+    static func drop(_ items: [String], onFavorite target: String?, browser: Browser) -> Bool {
         if let (url, folder) = bookmark(items) {
             if folder != Library.favoritesFolder { Browser.moveBookmark(url: url, from: folder, to: Library.favoritesFolder) }
             Library.shared.moveFavorite(url, to: target)
@@ -531,6 +805,13 @@ final class LibraryWatcher: ObservableObject {
     @Published private(set) var favorites: [Library.Entry] = []
     @Published private(set) var sources: [(source: String, folders: [Library.Folder])] = []
     private var observer: NSObjectProtocol?
+
+    func folder(_ key: String) -> Library.Folder? {
+        for source in sources {
+            for folder in source.folders { if let found = folder.find(key) { return found } }
+        }
+        return nil
+    }
 
     init() {
         reload()
@@ -556,14 +837,14 @@ struct SidebarToolbar: View {
     @ObservedObject private var prefs = Preferences.shared
 
     var body: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 2) {
+        VStack(spacing: Metrics.inset) {
+            HStack(spacing: Metrics.rowGap) {
                 Spacer(minLength: 0)
                 BarButton(symbol: "sidebar.left", help: String(localized: "Hide Sidebar")) { browser.showSidebar.toggle() }
                 if let tab = browser.active { NavigationButtons(tab: tab) } else { DisabledNavigationButtons() }
             }
-            .padding(.leading, 72)
-            .padding(.trailing, 6)
+            .padding(.leading, BrowserWindow.windowButtonsTrailing)
+            .padding(.trailing, Metrics.inset)
             .frame(height: BrowserWindow.pageBarHeight)
             .padding(.top, BrowserWindow.cardInset)
             .background(WindowDragArea())
@@ -578,7 +859,7 @@ struct SidebarToolbar: View {
                     AddressPlaceholder { browser.commandBar = .newTab }
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, Metrics.inset)
         }
     }
 }
@@ -590,8 +871,8 @@ struct PageBar: View {
     @ObservedObject private var prefs = Preferences.shared
 
     var body: some View {
-        HStack(spacing: 2) {
-            if !browser.showSidebar { Color.clear.frame(width: 62) }
+        HStack(spacing: Metrics.rowGap) {
+            if !browser.showSidebar { Color.clear.frame(width: BrowserWindow.windowButtonsTrailing - 2 * Metrics.inset) }
             BarButton(symbol: "sidebar.left", help: browser.showSidebar ? String(localized: "Hide Sidebar") : String(localized: "Show Sidebar")) { browser.showSidebar.toggle() }
             if let tab = browser.active { NavigationButtons(tab: tab) } else { DisabledNavigationButtons() }
             Group {
@@ -605,7 +886,7 @@ struct PageBar: View {
                     AddressPlaceholder { browser.commandBar = .newTab }
                 }
             }
-            .padding(.horizontal, 6)
+            .padding(.horizontal, Metrics.inset)
             if #available(macOS 15.4, *), !browser.isPrivate { ExtensionButtons(browser: browser) }
             DownloadButton(browser: browser, arrowEdge: .bottom)
             if browser.isPrivate {
@@ -647,13 +928,13 @@ struct FieldBackground: View {
     var focused = false
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 10, style: .continuous)
+        RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous)
             .fill(Theme.field)
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.hairline, lineWidth: focused ? 0.5 : 0))
+            .overlay(RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous).strokeBorder(Theme.hairline, lineWidth: focused ? 0.5 : 0))
             .overlay(alignment: .bottom) {
                 if tab.isLoading { Meter(fraction: tab.progress).padding(.horizontal, 10).padding(.bottom, 3).transition(.opacity) }
             }
-            .animation(.easeOut(duration: 0.2), value: tab.isLoading)
+            .animation(Motion.quick, value: tab.isLoading)
     }
 }
 
@@ -662,6 +943,12 @@ struct AddressPill: View {
     /// In the narrow sidebar: the site alone, without the page's title or the ⌘L hint.
     var compact = false
     let edit: () -> Void
+    @State private var hover = false
+    @State private var frame = CGRect.zero
+    @ObservedObject private var tracker = PressTracker.shared
+    @Environment(\.windowNumber) private var window
+
+    private var pressed: Bool { tracker.isPressed(frame, in: window) }
 
     /// The page names itself, so its title sits behind a dot and may not start like the rest of an address ("/login", ".bank.com").
     /// Invisible characters (zero-width spaces, direction overrides, Hangul fillers) are taken out first, and stray
@@ -704,11 +991,18 @@ struct AddressPill: View {
             BookmarkStar(tab: tab)
             if !compact { Keycap("⌘L") }
         }
-        .padding(.leading, 11)
-        .padding(.trailing, 5)
-        .frame(height: 30)
+        .padding(.leading, 10)
+        .padding(.trailing, 4)
+        .frame(height: Metrics.control)
         .background(FieldBackground(tab: tab))
+        .overlay {
+            RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous)
+                .fill(pressed ? Theme.hoverTab : hover ? Theme.ink(0.03) : .clear)
+                .allowsHitTesting(false)
+        }
         .contentShape(Rectangle())
+        .onHover { hover = $0 }
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame = $0 }
         .onTapGesture(perform: edit)
         .help("Edit Address (⌘L)")
     }
@@ -749,9 +1043,9 @@ struct AddressField: View {
             BookmarkStar(tab: tab)
             Keycap(focused ? "↵" : "⌘L")
         }
-        .padding(.leading, 11)
-        .padding(.trailing, 5)
-        .frame(height: 30)
+        .padding(.leading, 10)
+        .padding(.trailing, 4)
+        .frame(height: Metrics.control)
         .background(FieldBackground(tab: tab, focused: focused))
         .onAppear { text = current }
         .onChange(of: tab.url) { if !focused { text = current } }
@@ -768,6 +1062,7 @@ struct AddressField: View {
 
 struct AddressPlaceholder: View {
     let open: () -> Void
+    @State private var hover = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -777,11 +1072,12 @@ struct AddressPlaceholder: View {
             Keycap("⌘T")
         }
         .foregroundStyle(Theme.faint)
-        .padding(.leading, 11)
-        .padding(.trailing, 5)
-        .frame(height: 30)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
+        .padding(.leading, 10)
+        .padding(.trailing, 4)
+        .frame(height: Metrics.control)
+        .background(RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous).fill(hover ? Theme.pill : Theme.field))
         .contentShape(Rectangle())
+        .onHover { hover = $0 }
         .onTapGesture(perform: open)
     }
 }
@@ -819,6 +1115,8 @@ struct PictureInPictureButton: View {
         if tab.isPlayingAudio {
             Button { tab.pictureInPicture(.toggle) } label: {
                 Image(systemName: "pip.enter").font(.system(size: 10.5, weight: .semibold))
+                    .frame(width: 20, height: 22)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .foregroundStyle(Theme.secondary)
@@ -880,7 +1178,7 @@ enum BookmarkTabState {
     }
 }
 
-/// The little button that appears on hover: "–" closes a bookmark's tab, "✕" deletes.
+/// A small button inside a row: closing a tab, muting it.
 struct HoverAction: View {
     let symbol: String
     let help: String
@@ -888,162 +1186,168 @@ struct HoverAction: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 8.5, weight: .bold))
-                .frame(width: 18, height: 18)
-                .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Theme.field))
+            Image(systemName: symbol).font(.system(size: 9, weight: .bold))
+                .frame(width: Metrics.action, height: Metrics.action)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(FillStyle(resting: Theme.field, hoverFill: Theme.pill, radius: 6))
         .foregroundStyle(Theme.secondary)
         .help(help)
     }
 }
 
-struct FavoriteTile<MoreItems: View>: View {
+/// A button's fill: resting, hovered, and darker the moment it is pressed. A nil radius makes a capsule.
+struct FillStyle: ButtonStyle {
+    var resting: Color = .clear
+    var hoverFill: Color = Theme.field
+    var radius: CGFloat? = Metrics.rowRadius
+
+    func makeBody(configuration: Configuration) -> some View {
+        Filled(style: self, label: configuration.label, pressed: configuration.isPressed)
+    }
+
+    private struct Filled: View {
+        let style: FillStyle
+        let label: Configuration.Label
+        let pressed: Bool
+        @State private var hover = false
+        @Environment(\.isEnabled) private var enabled
+
+        var body: some View {
+            let fill = pressed ? Theme.pressed : hover && enabled ? style.hoverFill : style.resting
+            label
+                .background {
+                    if let radius = style.radius {
+                        RoundedRectangle(cornerRadius: radius, style: .continuous).fill(fill)
+                    } else {
+                        Capsule().fill(fill)
+                    }
+                }
+                .onHover { hover = $0 }
+        }
+    }
+}
+
+struct FavoriteTile<MenuItems: View>: View {
     let entry: Library.Entry
     let state: BookmarkTabState
     let open: () -> Void
     let closeTab: () -> Void
-    let remove: () -> Void
-    /// Further items for its menu.
-    @ViewBuilder let more: () -> MoreItems
+    @ViewBuilder let menu: () -> MenuItems
     @State private var hover = false
 
     var body: some View {
         SiteIcon(url: entry.url, size: 20)
             .frame(maxWidth: .infinity)
-            .frame(height: 42)
-            .background {
-                if state == .shown {
-                    SelectedBackground(radius: 10)
-                } else {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous).fill(hover ? Theme.field : Theme.hoverTab)
-                }
-            }
+            .frame(height: Metrics.tile)
             .overlay(alignment: .bottom) {
                 if state == .open { Circle().fill(Theme.dim).frame(width: 4, height: 4).padding(.bottom, 4) }
             }
-            .contentShape(Rectangle())
+            .rowChrome(hover: hover, selected: state == .shown, radius: Metrics.fieldRadius, resting: Theme.hoverTab)
             .onTapGesture(perform: open)
             .overlay(alignment: .topTrailing) {
-                if hover {
-                    HoverAction(symbol: state == .closed ? "xmark" : "minus",
-                                help: state == .closed ? String(localized: "Remove from Favorites") : String(localized: "Close this favorite’s tab"),
-                                action: state == .closed ? remove : closeTab)
-                        .scaleEffect(0.78)
-                        .padding(1)
+                // Only closing the tab is on the tile; removing the favorite is in its menu, out of a stray click's way.
+                if hover && state != .closed {
+                    HoverAction(symbol: "xmark", help: String(localized: "Close this favorite’s tab"), action: closeTab)
+                        .offset(x: 4, y: -4)
                 }
             }
             .onHover { hover = $0 }
-            .contextMenu {
-                if state != .closed { Button("Close Tab", action: closeTab) }
-                more()
-                Divider()
-                Button("Remove from Favorites", action: remove)
-            }
+            .contextMenu(menuItems: menu)
             .help(entry.title.isEmpty ? entry.url : entry.title)
     }
 }
 
-struct FolderRow: View {
+struct FolderRow<MenuItems: View>: View {
     let name: String
     var symbol = "folder"
     let count: Int
     let isOpen: Bool
+    var showCount = true
     /// A bookmark is being dragged over it.
-    var isDropTarget = false
+    var target = false
     let toggle: () -> Void
-    let showPage: () -> Void
+    @ViewBuilder let menu: () -> MenuItems
     @State private var hover = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: symbol).font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.secondary).frame(width: 16)
-            Text(name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
-            Image(systemName: "chevron.right")
-                .font(.system(size: 7.5, weight: .bold))
-                .foregroundStyle(Theme.faint)
-                .rotationEffect(.degrees(isOpen ? 90 : 0))
+        HStack(spacing: Metrics.iconGap) {
+            Image(systemName: symbol).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.secondary).frame(width: Metrics.icon)
+            Text(name).font(.row).foregroundStyle(Theme.body).lineLimit(1)
             Spacer(minLength: 0)
             if hover {
-                HoverAction(symbol: "square.grid.2x2", help: String(localized: "Show as Page"), action: showPage)
-            } else {
-                Text("\(count)").font(.system(size: 11, weight: .medium).monospacedDigit()).foregroundStyle(Theme.faint)
+                MoreButton(items: menu)
+            } else if showCount {
+                Text("\(count)").font(.caption.monospacedDigit()).foregroundStyle(Theme.faint)
             }
+            Image(systemName: "chevron.right")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(Theme.faint)
+                .rotationEffect(.degrees(isOpen ? 90 : 0))
+                .frame(width: Metrics.icon)
         }
-        .padding(.horizontal, 8)
-        .frame(height: 30)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(isDropTarget ? Theme.field : hover ? Theme.hoverTab : .clear))
-        .contentShape(Rectangle())
+        .padding(.leading, Metrics.rowPadding)
+        .padding(.trailing, 4)
+        .frame(height: Metrics.row)
+        .rowChrome(hover: hover, target: target)
         .onHover { hover = $0 }
-        .onTapGesture { withAnimation(.easeOut(duration: 0.15)) { toggle() } }
+        .onTapGesture { withAnimation(Motion.standard) { toggle() } }
+        .contextMenu(menuItems: menu)
     }
 }
 
-struct BookmarkRow<MoreItems: View>: View {
+struct BookmarkRow<MenuItems: View>: View {
     let entry: Library.Entry
     let state: BookmarkTabState
     let open: () -> Void
     let closeTab: () -> Void
-    let remove: () -> Void
-    /// Further items for its menu.
-    @ViewBuilder let more: () -> MoreItems
+    @ViewBuilder let menu: () -> MenuItems
     @State private var hover = false
 
     var body: some View {
-        HStack(spacing: 9) {
-            SiteIcon(url: entry.url, size: 16)
+        HStack(spacing: Metrics.iconGap) {
+            SiteIcon(url: entry.url, size: Metrics.icon)
             Text(entry.title.isEmpty ? entry.url : entry.title)
-                .font(.system(size: 12.5, weight: .semibold))
+                .font(state == .shown ? .rowSelected : .row)
                 .foregroundStyle(state == .closed ? Theme.dim : Theme.primary)
                 .lineLimit(1)
             Spacer(minLength: 0)
             if hover {
-                HoverAction(symbol: state == .closed ? "xmark" : "minus",
-                            help: state == .closed ? String(localized: "Delete Bookmark") : String(localized: "Close this bookmark’s tab"),
-                            action: state == .closed ? remove : closeTab)
+                MoreButton(items: menu)
+                // The × only ever closes the bookmark's tab; deleting the bookmark is in the menu.
+                if state != .closed { HoverAction(symbol: "xmark", help: String(localized: "Close this bookmark’s tab"), action: closeTab) }
             } else if state == .open {
-                Circle().fill(Theme.dim).frame(width: 4, height: 4).padding(.trailing, 6)
+                Circle().fill(Theme.dim).frame(width: 4, height: 4).frame(width: Metrics.icon)
             }
         }
-        .padding(.horizontal, 8)
-        .frame(height: 30)
-        .background {
-            if state == .shown { SelectedBackground() } else { RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.hoverTab : .clear) }
-        }
-        .contentShape(Rectangle())
+        .padding(.leading, Metrics.rowPadding)
+        .padding(.trailing, 4)
+        .frame(height: Metrics.row)
+        .rowChrome(hover: hover, selected: state == .shown)
         .onHover { hover = $0 }
         .onTapGesture(perform: open)
-        .contextMenu {
-            if state != .closed { Button("Close Tab", action: closeTab) }
-            more()
-            Divider()
-            Button("Delete Bookmark", action: remove)
-        }
+        .contextMenu(menuItems: menu)
         .help(entry.url)
     }
 }
 
-/// A tab group in the tab list: click to fold it, right-click to rename, ungroup or close it. A tab dropped on it joins.
+/// A tab group in the tab list: click to fold it; its menu renames, ungroups or closes it. A tab dropped on it joins.
 struct TabGroupHeader: View {
     let group: Browser.TabGroup
     let count: Int
     @ObservedObject var browser: Browser
+    var target = false
     @State private var hover = false
     @State private var name = ""
     @FocusState private var editing: Bool
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "chevron.right")
-                .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(Theme.faint)
-                .rotationEffect(.degrees(group.isOpen ? 90 : 0))
-                .frame(width: 16)
+        HStack(spacing: Metrics.iconGap) {
+            Image(systemName: "square.on.square").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondary).frame(width: Metrics.icon)
             if browser.renamingGroup == group.id {
                 TextField("Group name", text: $name)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 12.5, weight: .semibold))
+                    .font(.row)
                     .foregroundStyle(Theme.primary)
                     .focused($editing)
                     .onAppear {
@@ -1058,27 +1362,38 @@ struct TabGroupHeader: View {
                         return .handled
                     }
             } else {
-                Text(group.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.secondary).lineLimit(1)
+                Text(group.name).font(.row).foregroundStyle(Theme.secondary).lineLimit(1)
             }
             Spacer(minLength: 0)
-            Text("\(count)").font(.system(size: 11, weight: .medium).monospacedDigit()).foregroundStyle(Theme.faint)
+            if hover && browser.renamingGroup != group.id {
+                MoreButton { menu }
+            } else {
+                Text("\(count)").font(.caption.monospacedDigit()).foregroundStyle(Theme.faint)
+            }
+            Image(systemName: "chevron.right")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(Theme.faint)
+                .rotationEffect(.degrees(group.isOpen ? 90 : 0))
+                .frame(width: Metrics.icon)
         }
-        .padding(.horizontal, 8)
-        .frame(height: 30)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
-        .contentShape(Rectangle())
+        .padding(.leading, Metrics.rowPadding)
+        .padding(.trailing, 4)
+        .frame(height: Metrics.row)
+        .rowChrome(hover: hover, target: target)
         .onHover { hover = $0 }
         .onTapGesture {
             guard browser.renamingGroup != group.id else { return }
-            withAnimation(.easeOut(duration: 0.15)) { browser.toggleGroup(group.id) }
+            withAnimation(Motion.standard) { browser.toggleGroup(group.id) }
         }
-        .contextMenu {
-            Button("Rename") { browser.renamingGroup = group.id }
-            Button("Ungroup") { browser.ungroup(group.id) }
-            Divider()
-            Button("Close All Tabs in Group") { browser.closeGroup(group.id) }
-        }
+        .contextMenu { menu }
         .help(group.isOpen ? String(localized: "Collapse") : String(localized: "Expand"))
+    }
+
+    @ViewBuilder private var menu: some View {
+        Button("Rename") { browser.renamingGroup = group.id }
+        Button("Ungroup") { withAnimation(Motion.standard) { browser.ungroup(group.id) } }
+        Divider()
+        Button("Close All Tabs in Group") { withAnimation(Motion.standard) { browser.closeGroup(group.id) } }
     }
 
     private func commit() {
@@ -1091,7 +1406,6 @@ struct TabGroupHeader: View {
 /// Sorts the tabs in no group into groups; a spinner while the model thinks.
 struct TidyButton: View {
     @ObservedObject var browser: Browser
-    @State private var hover = false
 
     var body: some View {
         Button { browser.tidyTabs() } label: {
@@ -1099,17 +1413,15 @@ struct TidyButton: View {
                 if browser.tidying {
                     ProgressView().controlSize(.small).scaleEffect(0.7)
                 } else {
-                    Image(systemName: "wand.and.stars").font(.system(size: 12, weight: .semibold))
+                    Image(systemName: "wand.and.stars").font(.system(size: 12, weight: .medium))
                 }
             }
-            .frame(width: 30, height: 30)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
+            .frame(width: Metrics.row, height: Metrics.row)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .foregroundStyle(hover ? Theme.primary : Theme.dim)
+        .buttonStyle(FillStyle(hoverFill: Theme.hoverTab))
+        .foregroundStyle(Theme.secondary)
         .disabled(browser.tidying)
-        .onHover { hover = $0 }
         .help("Tidy Tabs: group tabs that are not in a group by similarity")
     }
 }
@@ -1128,19 +1440,21 @@ struct TidyNotice: View {
     }
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: Metrics.iconGap) {
             Text(message)
-                .font(.system(size: 12, weight: .medium))
+                .font(.row)
                 .foregroundStyle(Theme.secondary)
                 .lineLimit(1)
             Spacer(minLength: 0)
-            Button("Undo", action: undo)
-                .buttonStyle(.plain)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Theme.primary)
+            Button(action: undo) {
+                Text("Undo").font(.rowSelected).padding(.horizontal, Metrics.rowPadding).frame(height: Metrics.action).contentShape(Rectangle())
+            }
+            .buttonStyle(FillStyle(resting: Theme.field, hoverFill: Theme.pill, radius: 6))
+            .foregroundStyle(Theme.primary)
         }
-        .padding(.horizontal, 8)
-        .frame(height: 26)
+        .padding(.leading, Metrics.rowPadding)
+        .padding(.trailing, 4)
+        .frame(height: Metrics.row)
     }
 }
 
@@ -1149,17 +1463,17 @@ struct NewTabRow: View {
     @State private var hover = false
 
     var body: some View {
-        HStack(spacing: 9) {
-            Image(systemName: "plus").font(.system(size: 12, weight: .semibold)).frame(width: 16)
-            Text("New Tab").font(.system(size: 12.5, weight: .medium))
+        HStack(spacing: Metrics.iconGap) {
+            Image(systemName: "plus").font(.system(size: 12, weight: .medium)).frame(width: Metrics.icon)
+            Text("New Tab").font(.row)
             Spacer()
             if hover { Keycap("⌘T") }
         }
-        .foregroundStyle(Theme.dim)
-        .padding(.horizontal, 8)
-        .frame(height: 30)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
-        .contentShape(Rectangle())
+        .foregroundStyle(Theme.secondary)
+        .padding(.leading, Metrics.rowPadding)
+        .padding(.trailing, 4)
+        .frame(height: Metrics.row)
+        .rowChrome(hover: hover)
         .onHover { hover = $0 }
         .onTapGesture(perform: action)
         .help("New Tab (⌘T)")
@@ -1175,10 +1489,10 @@ struct SidebarTabRow: View {
     @State private var hover = false
 
     var body: some View {
-        HStack(spacing: 9) {
+        HStack(spacing: Metrics.iconGap) {
             Favicon(tab: tab)
             Text(tab.displayTitle)
-                .font(.system(size: 12.5, weight: .semibold))
+                .font(isActive ? .rowSelected : .row)
                 .lineLimit(1)
                 .foregroundStyle(isActive || !tab.isAsleep ? Theme.primary : Theme.dim)
             Spacer(minLength: 0)
@@ -1187,56 +1501,60 @@ struct SidebarTabRow: View {
                             help: tab.isMuted ? String(localized: "Unmute (⌃⌘M)") : String(localized: "Mute (⌃⌘M)")) { tab.toggleMute() }
             }
             if hover {
+                MoreButton { menu }
                 HoverAction(symbol: "xmark", help: String(localized: "Close Tab (⌘W)"), action: close)
             } else if browser.split?.contains(tab.id) == true {
                 Image(systemName: "rectangle.split.2x1")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(Theme.faint)
+                    .frame(width: Metrics.action)
                     .help("Split View")
             }
         }
-        .padding(.horizontal, 8)
-        .frame(height: 30)
-        .background {
-            if isActive { SelectedBackground() } else { RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.hoverTab : .clear) }
-        }
-        .contentShape(Rectangle())
+        .padding(.leading, Metrics.rowPadding)
+        .padding(.trailing, 4)
+        .frame(height: Metrics.row)
+        .rowChrome(hover: hover, selected: isActive)
         .onHover { hover = $0 }
         .onTapGesture(perform: select)
-        .contextMenu {
-            Button("Pin to Favorites") {
-                if let url = tab.url?.absoluteString {
-                    if !Library.shared.isFavorite(url) { _ = Library.shared.toggleBookmark(url: url, title: tab.title) }
-                    browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: Library.favoritesFolder))
-                }
-            }
-            if tab.groupID == nil {
-                Button("Add to New Group") { browser.group([tab.id]) }
-            } else {
-                Button("Remove from Group") { browser.removeFromGroup(tab.id) }
-            }
-            let otherGroups = browser.groups.filter { $0.id != tab.groupID }
-            if !otherGroups.isEmpty {
-                Menu("Move to Group") {
-                    ForEach(otherGroups) { group in
-                        Button(group.name) { browser.addTab(tab.id, to: group.id) }
-                    }
-                }
-            }
-            if browser.split?.contains(tab.id) == true {
-                Button("End Split View") { browser.unsplit() }
-            } else if !isActive && browser.activeID != nil {
-                Button("Show Side by Side with Current Tab") { browser.split(with: tab.id) }
-            }
-            Button("Copy Address") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(tab.url?.absoluteString ?? "", forType: .string)
-            }
-            if !tab.isAsleep { Button(tab.isMuted ? String(localized: "Unmute") : String(localized: "Mute Tab")) { tab.toggleMute() } }
-            Divider()
-            Button("Close Tab", action: close)
-        }
+        .contextMenu { menu }
         .help(tab.url?.absoluteString ?? "")
+    }
+
+    /// The tab, then where it goes, then closing it: the same order as a bookmark's menu.
+    @ViewBuilder private var menu: some View {
+        if browser.split?.contains(tab.id) == true {
+            Button("End Split View") { browser.unsplit() }
+        } else if !isActive && browser.activeID != nil {
+            Button("Show Side by Side with Current Tab") { browser.split(with: tab.id) }
+        }
+        Button("Copy Address") {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(tab.url?.absoluteString ?? "", forType: .string)
+        }
+        if !tab.isAsleep { Button(tab.isMuted ? String(localized: "Unmute") : String(localized: "Mute Tab")) { tab.toggleMute() } }
+        Divider()
+        Button("Pin to Favorites") {
+            if let url = tab.url?.absoluteString {
+                if !Library.shared.isFavorite(url) { _ = Library.shared.toggleBookmark(url: url, title: tab.title) }
+                browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: Library.favoritesFolder))
+            }
+        }
+        if tab.groupID == nil {
+            Button("Add to New Group") { _ = withAnimation(Motion.standard) { browser.group([tab.id]) } }
+        } else {
+            Button("Remove from Group") { withAnimation(Motion.standard) { browser.removeFromGroup(tab.id) } }
+        }
+        let otherGroups = browser.groups.filter { $0.id != tab.groupID }
+        if !otherGroups.isEmpty {
+            Menu("Move to Group") {
+                ForEach(otherGroups) { group in
+                    Button(group.name) { withAnimation(Motion.standard) { browser.addTab(tab.id, to: group.id) } }
+                }
+            }
+        }
+        Divider()
+        Button("Close Tab", action: close)
     }
 }
 
@@ -1265,20 +1583,17 @@ struct BarButton: View {
     let symbol: String
     let help: String
     let action: () -> Void
-    @State private var hover = false
     @Environment(\.isEnabled) private var enabled
 
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 13, weight: .semibold))
-                .frame(width: 28, height: 28)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(hover && enabled ? Theme.field : .clear))
+                .frame(width: Metrics.control, height: Metrics.control)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .foregroundStyle(enabled ? (hover ? Theme.primary : Theme.dim) : Theme.ink(0.22))
-        .onHover { hover = $0 }
+        .buttonStyle(FillStyle())
+        .foregroundStyle(enabled ? Theme.secondary : Theme.ink(0.22))
         .help(help)
     }
 }
@@ -1287,7 +1602,6 @@ struct BarButton: View {
 struct AIButton: View {
     let isOn: Bool
     let action: () -> Void
-    @State private var hover = false
 
     var body: some View {
         Button(action: action) {
@@ -1296,15 +1610,13 @@ struct AIButton: View {
                 Text("AI").font(.system(size: 12, weight: .semibold))
                 Keycap("⌘E")
             }
-            .padding(.leading, 11)
-            .padding(.trailing, 6)
-            .frame(height: 30)
+            .padding(.leading, 10)
+            .padding(.trailing, 5)
+            .frame(height: Metrics.control)
             .foregroundStyle(Theme.primary)
-            .background(Capsule().fill(isOn ? Theme.pill : (hover ? Theme.field : Theme.hoverTab)))
             .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
-        .onHover { hover = $0 }
+        .buttonStyle(FillStyle(resting: isOn ? Theme.pill : Theme.hoverTab, hoverFill: isOn ? Theme.pill : Theme.field, radius: nil))
         .help("AI Panel (⌘E)")
     }
 }
@@ -1316,8 +1628,8 @@ struct PrivateBadge: View {
             Image(systemName: "eye.slash").font(.system(size: 11, weight: .semibold))
             Text("Private Window").font(.system(size: 12, weight: .semibold))
         }
-        .padding(.horizontal, 11)
-        .frame(height: 30)
+        .padding(.horizontal, 10)
+        .frame(height: Metrics.control)
         .foregroundStyle(Theme.primary)
         .background(Capsule().strokeBorder(Theme.hairline, lineWidth: 0.5))
         .help("Leaves no history, cookies or site data. AI and extensions can’t see this window.")
@@ -1369,16 +1681,9 @@ struct WebCard: View {
 
     var body: some View {
         content
-            .overlay {
-                // Over the page rather than instead of it, so the page keeps playing and drawing underneath.
-                if let page = browser.folderPage {
-                    FolderPageView(page: page, browser: browser)
-                        .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 12, bottomTrailingRadius: 12, style: .continuous))
-                }
-            }
             .overlay(alignment: .topTrailing) {
                 if browser.findBarVisible {
-                    FindBar(browser: browser, overlay: overlay).transition(.opacity)
+                    FindBar(browser: browser, overlay: overlay).transition(Motion.pop(.topTrailing))
                 }
             }
             .overlay(alignment: .top) {
@@ -1397,7 +1702,7 @@ struct WebCard: View {
             }
             .animation(.easeOut(duration: 0.12), value: overlay.hoveredLink)
             .animation(.easeOut(duration: 0.12), value: overlay.statusMessage)
-            .animation(.easeOut(duration: 0.15), value: browser.findBarVisible)
+            .animation(Motion.quick, value: browser.findBarVisible)
     }
 
     @ViewBuilder private var content: some View {
@@ -1474,7 +1779,7 @@ struct LoginOfferBar: View {
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.background))
             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
             .padding(10)
-            .transition(.opacity)
+            .transition(Motion.pop(.top))
         }
     }
 }
@@ -1507,7 +1812,7 @@ struct PopupBar: View {
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.background))
             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
             .padding(10)
-            .transition(.opacity)
+            .transition(Motion.pop(.top))
         }
     }
 }
@@ -1629,7 +1934,7 @@ struct PeekCard: View {
             .padding(.top, BrowserWindow.barHeight)
             .padding(.bottom, 32)
         }
-        .animation(.easeOut(duration: 0.2), value: tab.isLoading)
+        .animation(Motion.quick, value: tab.isLoading)
     }
 }
 
@@ -1666,9 +1971,10 @@ struct TabSwitcherView: View {
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.background))
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
         .opacity(shown ? 1 : 0)
+        .scaleEffect(shown || Motion.reduced ? 1 : 0.97)
         .task {
             try? await Task.sleep(for: .milliseconds(120))
-            shown = true
+            withAnimation(Motion.quick) { shown = true }
         }
     }
 }
@@ -1677,7 +1983,6 @@ struct PeekAction: View {
     let title: String
     var key: String?
     let action: () -> Void
-    @State private var hover = false
 
     var body: some View {
         Button(action: action) {
@@ -1685,15 +1990,13 @@ struct PeekAction: View {
                 Text(title).font(.system(size: 12, weight: .semibold))
                 if let key { Keycap(key) }
             }
-            .padding(.leading, 9)
-            .padding(.trailing, key == nil ? 9 : 5)
-            .frame(height: 26)
+            .padding(.leading, Metrics.rowPadding)
+            .padding(.trailing, key == nil ? Metrics.rowPadding : 4)
+            .frame(height: Metrics.row)
             .foregroundStyle(Theme.primary)
-            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(hover ? Theme.field : .clear))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .onHover { hover = $0 }
+        .buttonStyle(FillStyle())
     }
 }
 
@@ -1752,94 +2055,6 @@ struct WebViewHost: NSViewRepresentable {
             let shown = tab.id == browser.activeID || browser.peek === tab
             if shown, browser.commandBar == nil, browser.showOnboarding == false { container.window?.makeFirstResponder(webView) }
         }
-    }
-}
-
-/// A bookmark folder spread over the page card: every bookmark with its icon, name and site, to open from here.
-struct FolderPageView: View {
-    let page: Browser.FolderPage
-    @ObservedObject var browser: Browser
-    @StateObject private var library = LibraryWatcher()
-
-    var body: some View {
-        let folders = library.sources.flatMap(\.folders).filter { page.folders.contains($0.key) }
-        ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text(verbatim: page.title).font(.system(size: 26, weight: .bold)).foregroundStyle(Theme.primary).lineLimit(1)
-                    Text("\(folders.reduce(0) { $0 + $1.entries.count })")
-                        .font(.system(size: 13, weight: .medium).monospacedDigit())
-                        .foregroundStyle(Theme.faint)
-                    Spacer(minLength: 0)
-                    BarButton(symbol: "xmark", help: String(localized: "Close")) { browser.folderPage = nil }
-                }
-                ForEach(folders, id: \.key) { folder in
-                    VStack(alignment: .leading, spacing: 10) {
-                        if folders.count > 1 {
-                            Text(verbatim: folder.label).font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary)
-                        }
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 8)], spacing: 8) {
-                            ForEach(folder.entries, id: \.url) { entry in
-                                FolderPageItem(entry: entry) {
-                                    browser.openBookmark(entry.url, key: Browser.bookmarkKey(url: entry.url, folder: folder.key), inNewTab: Browser.commandClick)
-                                }
-                                .draggable(SidebarDrag.bookmark(entry.url, in: folder.key))
-                            }
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 32)
-            .padding(.vertical, 28)
-        }
-        .background(Theme.card)
-        .background { if let tab = browser.active { CloseOnNavigation(tab: tab) { browser.folderPage = nil } } }
-        .onChange(of: browser.shownSplit) { browser.folderPage = nil }
-        .onChange(of: browser.findBarVisible) { browser.folderPage = nil }
-        .onChange(of: folders.isEmpty) { _, empty in if empty { browser.folderPage = nil } }
-    }
-}
-
-/// Ends the folder page when the page under it starts going somewhere (an address typed, back, forward, reload),
-/// so that never happens out of sight.
-private struct CloseOnNavigation: View {
-    @ObservedObject var tab: Tab
-    let close: () -> Void
-
-    var body: some View {
-        Color.clear
-            .onChange(of: tab.url) { close() }
-            .onChange(of: tab.isLoading) { _, loading in if loading { close() } }
-    }
-}
-
-struct FolderPageItem: View {
-    let entry: Library.Entry
-    let open: () -> Void
-    @State private var hover = false
-
-    var body: some View {
-        HStack(spacing: 10) {
-            SiteIcon(url: entry.url, size: 20)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: entry.title.isEmpty ? entry.url : entry.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.primary)
-                    .lineLimit(1)
-                Text(verbatim: URL(string: entry.url)?.host() ?? entry.url)
-                    .font(.system(size: 11.5, weight: .medium))
-                    .foregroundStyle(Theme.faint)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 12)
-        .frame(height: 52)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(hover ? Theme.field : Theme.hoverTab))
-        .contentShape(Rectangle())
-        .onHover { hover = $0 }
-        .onTapGesture(perform: open)
-        .help(entry.url)
     }
 }
 

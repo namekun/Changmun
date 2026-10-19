@@ -5,6 +5,7 @@
 #   scripts/headless.sh start               copy build/Changmun.app as the headless app and start it
 #   scripts/headless.sh call <tool> [json]  run a browser tool: list_tabs, open_tab, navigate, read_page, click, screenshot…
 #   scripts/headless.sh shot <file.png>     capture the front window, sidebar and all
+#   scripts/headless.sh mouse <down|drag|up|right> <x> <y>   a mouse event at a point in the window, from its top left
 #   scripts/headless.sh stop
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -54,6 +55,12 @@ shot)
     [[ $# -ge 2 ]] || { echo "usage: $0 shot <file.png>" >&2; exit 2; }
     post /window-image '{}' | python3 -I -c 'import base64, json, sys; open(sys.argv[1], "wb").write(base64.b64decode(json.load(sys.stdin)["png"]))' "$2"
     echo "$2"
+    ;;
+mouse)
+    running || { echo "not running: $0 start" >&2; exit 1; }
+    [[ $# -eq 4 ]] || { echo "usage: $0 mouse <down|drag|up|right> <x> <y>" >&2; exit 2; }
+    post /window-event "{\"type\": \"$2\", \"x\": $3, \"y\": $4}"
+    echo
     ;;
 stop)
     if running; then kill "$(field pid)"; echo stopped; else echo "not running"; fi

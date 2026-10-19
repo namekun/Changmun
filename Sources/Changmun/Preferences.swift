@@ -130,6 +130,26 @@ final class Preferences: ObservableObject {
     @Published var archiveHours: Int { didSet { defaults.set(archiveHours, forKey: "archiveTabsAfterHours") } }
     /// A newly opened tab joins the group it belongs in.
     @Published var groupNewTabs: Bool { didSet { defaults.set(groupNewTabs, forKey: "groupNewTabs") } }
+    /// Bookmark folders kept under the favorites, by folder name, in their order there.
+    @Published var pinnedFolders: [String] { didSet { defaults.set(pinnedFolders, forKey: "pinnedFolders") } }
+    /// The folders and sections open in the sidebar, so they stay open across launches.
+    @Published var openFolders: Set<String> { didSet { defaults.set(openFolders.sorted(), forKey: "openFolders") } }
+
+    /// Pins a folder, or moves a pinned one, to where `target` is (dropped on it), or to the end.
+    func pinFolder(_ key: String, before target: String? = nil) {
+        guard !key.isEmpty, key != target else { return }
+        var list = pinnedFolders.filter { $0 != key }
+        if let target, let index = list.firstIndex(of: target) { list.insert(key, at: index) } else { list.append(key) }
+        pinnedFolders = list
+    }
+
+    func unpinFolder(_ key: String) {
+        pinnedFolders.removeAll { $0 == key }
+    }
+
+    func toggleOpen(_ key: String) {
+        if openFolders.contains(key) { openFolders.remove(key) } else { openFolders.insert(key) }
+    }
 
     // MARK: Privacy
 
@@ -186,6 +206,8 @@ final class Preferences: ObservableObject {
         neverSleepHosts = d.stringArray(forKey: "neverSleepHosts") ?? []
         archiveHours = d.object(forKey: "archiveTabsAfterHours") as? Int ?? 0
         groupNewTabs = d.object(forKey: "groupNewTabs") as? Bool ?? true
+        pinnedFolders = d.stringArray(forKey: "pinnedFolders") ?? []
+        openFolders = Set(d.stringArray(forKey: "openFolders") ?? [])
         blockTrackers = d.object(forKey: "blockTrackers") as? Bool ?? true
         customFilterLists = d.stringArray(forKey: "customFilterLists") ?? []
         disabledFilterLists = d.stringArray(forKey: "disabledFilterLists") ?? []

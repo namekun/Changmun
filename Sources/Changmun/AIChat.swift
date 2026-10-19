@@ -295,14 +295,16 @@ struct ChatPanel: View {
                     Text("AI").font(.system(size: 12, weight: .semibold))
                 }
                 .foregroundStyle(Theme.primary)
-                .padding(.horizontal, 12)
-                .frame(height: 28)
+                .padding(.horizontal, 10)
+                .frame(height: Metrics.control)
                 .background(Capsule().fill(Theme.pill))
                 Spacer()
                 BarButton(symbol: "square.and.pencil", help: String(localized: "New Chat (⌘⇧E)")) { chat.reset() }
                 BarButton(symbol: "xmark", help: String(localized: "Close (⌘E)")) { browser.showChat = false }
             }
-            .frame(height: 38)
+            .padding(.horizontal, 6)
+            // Level with the page card's bar beside it.
+            .frame(height: BrowserWindow.pageBarHeight)
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {

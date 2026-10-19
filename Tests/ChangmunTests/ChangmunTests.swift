@@ -213,8 +213,20 @@ struct LibraryTests {
             ("Arc 북마크 바 / Safari에서 가져옴 / 개발", [entry]), ("Arc 사이드바", [entry, entry]), ("Dia 북마크 바", [entry]), ("Arc 북마크 바", [entry]),
         ])
         #expect(groups.map(\.source) == ["Arc", "Dia"])
-        #expect(groups[0].folders.map(\.label) == ["개발", "사이드바", "북마크 바"])
-        #expect(groups[0].folders.map(\.key) == ["Arc 북마크 바 / Safari에서 가져옴 / 개발", "Arc 사이드바", "Arc 북마크 바"])
+        // Folders sit inside the folders their names say, even when the outer ones arrive later or hold no bookmarks.
+        #expect(groups[0].folders.map(\.label) == ["북마크 바", "사이드바"])
+        #expect(groups[0].folders.map(\.key) == ["Arc 북마크 바", "Arc 사이드바"])
+        let bar = groups[0].folders[0]
+        #expect(bar.entries.count == 1)
+        #expect(bar.children.map(\.key) == ["Arc 북마크 바 / Safari에서 가져옴"])
+        #expect(bar.children[0].entries.isEmpty)
+        #expect(bar.children[0].children.map(\.label) == ["개발"])
+        #expect(bar.count == 2)
+        #expect(bar.find("Arc 북마크 바 / Safari에서 가져옴 / 개발")?.entries.count == 1)
+        #expect(bar.flattened().map(\.depth) == [0, 1, 2])
+        #expect(Library.allFolders(groups).map(\.key) == [
+            "Arc 북마크 바", "Arc 북마크 바 / Safari에서 가져옴", "Arc 북마크 바 / Safari에서 가져옴 / 개발", "Arc 사이드바", "Dia 북마크 바",
+        ])
     }
 
     @Test func knowsHostsFromHistoryAndBookmarksOnly() throws {
@@ -286,6 +298,36 @@ struct LibraryTests {
         #expect(SidebarDrag.bookmark([SidebarDrag.bookmark(url, in: folder)])! == (url, folder))
         #expect(SidebarDrag.bookmark([SidebarDrag.favorite(url)])! == (url, Library.favoritesFolder))
         #expect(SidebarDrag.bookmark([SidebarDrag.tab(3)]) == nil)
+        // A dragged folder is never taken for a bookmark, and says which folder it is.
+        #expect(SidebarDrag.bookmark([SidebarDrag.folder(folder)]) == nil)
+        #expect(SidebarDrag.dragging == .folder)
+        #expect(SidebarDrag.folderKey([SidebarDrag.folder(folder)]) == folder)
+        #expect(SidebarDrag.folderKey([SidebarDrag.bookmark(url, in: folder)]) == nil)
+        #expect(SidebarDrag.dragging == .bookmark)
+    }
+
+    @MainActor @Test func pinnedFoldersKeepTheOrderTheyAreDroppedIn() {
+        let prefs = Preferences.shared
+        let saved = prefs.pinnedFolders
+        defer { prefs.pinnedFolders = saved }
+        prefs.pinnedFolders = []
+        prefs.pinFolder("Arc A")
+        prefs.pinFolder("Arc B")
+        prefs.pinFolder("Arc C")
+        #expect(prefs.pinnedFolders == ["Arc A", "Arc B", "Arc C"])
+        prefs.pinFolder("Arc C", before: "Arc A")
+        #expect(prefs.pinnedFolders == ["Arc C", "Arc A", "Arc B"])
+        // Dropped at the end (or pinned again from its menu), a pinned folder moves there instead of doubling.
+        prefs.pinFolder("Arc C")
+        #expect(prefs.pinnedFolders == ["Arc A", "Arc B", "Arc C"])
+        prefs.pinFolder("Arc B", before: "Arc B")
+        prefs.pinFolder("")
+        #expect(prefs.pinnedFolders == ["Arc A", "Arc B", "Arc C"])
+        #expect(SidebarDrag.pin([SidebarDrag.folder("Arc B")], before: "Arc A"))
+        #expect(prefs.pinnedFolders == ["Arc B", "Arc A", "Arc C"])
+        #expect(!SidebarDrag.pin([SidebarDrag.tab(1)], before: nil))
+        prefs.unpinFolder("Arc A")
+        #expect(prefs.pinnedFolders == ["Arc B", "Arc C"])
     }
 
     @Test func foldersAndSourcesCanBeRemoved() throws {
