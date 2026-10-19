@@ -5,8 +5,14 @@ import WebKit
 @testable import Changmun
 
 /// A folder of its own, with the settings the first space is made from, so no test touches the user's data.
+/// Removes the data stores a test made, so they don't pile up in the test runner's own folder.
 @MainActor
-private struct Sandbox {
+func erase(_ ids: UUID...) {
+    Task { for id in ids { try? await WKWebsiteDataStore.remove(forIdentifier: id) } }
+}
+
+@MainActor
+struct Sandbox {
     let folder = FileManager.default.temporaryDirectory.appendingPathComponent("spaces-\(UUID().uuidString)", isDirectory: true)
     let defaults = UserDefaults(suiteName: "spaces-\(UUID().uuidString)")!
 
@@ -197,7 +203,7 @@ struct SpaceStoreTests {
         #expect(again.space(work.id).dataStoreID == work.id && again.space(other.id).dataStoreID == other.id)
 
         let browser = Browser(spaces: store)
-        defer { Profiles.remove(work.id); Profiles.remove(other.id) }
+        defer { erase(work.id, other.id) }
         let ordinary = browser.configuration(for: plain.id)
         let first = browser.configuration(for: work.id)
         #expect(ordinary === browser.configuration, "an ordinary space uses the shared configuration")
@@ -333,7 +339,7 @@ struct SpaceBrowserTests {
         let rig = Rig(), b = rig.browser
         defer { b.windowClosed() }
         let profile = b.spaces.add(name: "Login", symbol: "key", tint: .coral, isProfile: true)
-        defer { Profiles.remove(profile.id) }
+        defer { erase(profile.id) }
         let plain = rig.open("plain", activate: true)
         let kept = rig.open("kept", in: profile.id)
         #expect(plain.wake().configuration.websiteDataStore === b.configuration.websiteDataStore)
