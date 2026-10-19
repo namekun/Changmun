@@ -69,18 +69,20 @@ struct Space: Identifiable, Codable, Equatable {
 /// Every space, and the one a new window starts in, kept in a file next to the library.
 @MainActor
 final class SpaceStore: ObservableObject {
-    /// Only the app itself keeps its spaces in the user's data; anything else (the test runner) gets a throwaway folder.
-    static let shared = SpaceStore(folder: Bundle.main.bundleIdentifier?.hasPrefix("io.github.namekun.Changmun") == true
-                                   ? Library.folder : FileManager.default.temporaryDirectory.appendingPathComponent("changmun-spaces-\(UUID().uuidString)", isDirectory: true),
-                                   defaults: .standard)
+    static let shared = SpaceStore(folder: Library.folder, defaults: .standard)
+    /// Set once the pinned and open folders of the settings from before spaces have been taken into the first space.
+    static let importedKey = "spacesLegacyFoldersImported"
 
     private struct Saved: Codable {
         var spaces: [Space]
         var active: UUID?
+        /// Profile data stores of deleted spaces that are still to be erased.
+        var pendingRemovals: [UUID]?
 
-        init(spaces: [Space], active: UUID?) {
+        init(spaces: [Space], active: UUID?, pendingRemovals: [UUID]) {
             self.spaces = spaces
             self.active = active
+            self.pendingRemovals = pendingRemovals
         }
 
         /// A space that doesn't decode is left out; the others stay.
@@ -88,12 +90,16 @@ final class SpaceStore: ObservableObject {
             let values = try decoder.container(keyedBy: CodingKeys.self)
             spaces = try values.decode([Browser.Lossy<Space>].self, forKey: .spaces).compactMap(\.value)
             active = try? values.decodeIfPresent(UUID.self, forKey: .active)
+            pendingRemovals = try? values.decodeIfPresent([UUID].self, forKey: .pendingRemovals)
         }
     }
 
     @Published private(set) var spaces: [Space] = []
     private(set) var lastActive: UUID
+    private(set) var pendingRemovals: [UUID] = []
     private let file: URL
+    /// False when the file is there but couldn't be read: what it holds is never written over.
+    private var writable = true
 
     /// With no file yet, the first space is made from what the browser already holds: its pinned and open folders come from
     /// the settings, and its tabs and favorites carry over as they are. Everything the move could touch is copied first.
@@ -101,44 +107,79 @@ final class SpaceStore: ObservableObject {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         file = folder.appendingPathComponent("spaces.json")
         lastActive = Space.defaultID
-        if let data = try? Data(contentsOf: file) {
+        var data: Data?
+        do {
+            data = try Data(contentsOf: file)
+        } catch {
+            let missing = (error as NSError).domain == NSCocoaErrorDomain && (error as NSError).code == NSFileReadNoSuchFileError
+            writable = missing
+        }
+        if let data {
             if let saved = try? JSONDecoder().decode(Saved.self, from: data), !saved.spaces.isEmpty {
                 spaces = saved.spaces
                 lastActive = saved.active ?? saved.spaces[0].id
+                pendingRemovals = saved.pendingRemovals ?? []
+                // A file made before the settings were taken over (a stray one, or the first launch cut short) still gets them, once.
+                if !defaults.bool(forKey: Self.importedKey) {
+                    Self.backUp(folder: folder, defaults: defaults)
+                    if let index = spaces.firstIndex(where: { $0.id == Space.defaultID }), spaces[index].pinnedFolders.isEmpty, spaces[index].openFolders.isEmpty {
+                        spaces[index].pinnedFolders = defaults.stringArray(forKey: "pinnedFolders") ?? []
+                        spaces[index].openFolders = (defaults.stringArray(forKey: "openFolders") ?? []).sorted()
+                    }
+                    defaults.set(true, forKey: Self.importedKey)
+                    save()
+                }
                 return
             }
             // Damaged: kept as it is, and the browser starts over from one space holding everything.
             try? FileManager.default.copyItem(at: file, to: folder.appendingPathComponent("spaces-damaged-\(Int(Date().timeIntervalSince1970)).json"))
         }
-        Self.backUp(folder: folder, defaults: defaults)
         var first = Space(id: Space.defaultID, name: String(localized: "Personal"), symbol: "house", tint: .gray)
         first.pinnedFolders = defaults.stringArray(forKey: "pinnedFolders") ?? []
         first.openFolders = (defaults.stringArray(forKey: "openFolders") ?? []).sorted()
         spaces = [first]
+        guard writable else { return }
+        Self.backUp(folder: folder, defaults: defaults)
+        defaults.set(true, forKey: Self.importedKey)
         save()
     }
 
     /// Copies, once, the files the move to spaces reads (the session, the library, the settings it takes over). Nothing is
-    /// overwritten or deleted: the originals stay as they are.
-    private static func backUp(folder: URL, defaults: UserDefaults) {
+    /// overwritten or deleted: the originals stay as they are. A copy is written under another name and renamed when whole,
+    /// so a copy cut short is never taken for one, and is made again.
+    static func backUp(folder: URL, defaults: UserDefaults) {
         let manager = FileManager.default
-        let session = folder.appendingPathComponent("session.json"), sessionCopy = folder.appendingPathComponent("before-spaces-session.json")
-        if manager.fileExists(atPath: session.path), !manager.fileExists(atPath: sessionCopy.path) { try? manager.copyItem(at: session, to: sessionCopy) }
+        func copyOnce(_ name: String, from source: URL?, _ make: (URL) throws -> Void) {
+            let copy = folder.appendingPathComponent("before-spaces-" + name)
+            guard !manager.fileExists(atPath: copy.path), source.map({ manager.fileExists(atPath: $0.path) }) != false else { return }
+            let partial = copy.appendingPathExtension("partial")
+            try? manager.removeItem(at: partial)
+            do {
+                try make(partial)
+                try manager.moveItem(at: partial, to: copy)
+            } catch {
+                try? manager.removeItem(at: partial)
+            }
+        }
+        let session = folder.appendingPathComponent("session.json")
+        copyOnce("session.json", from: session) { try manager.copyItem(at: session, to: $0) }
         // The library is copied by SQLite itself, so the copy is whole even while the browser is writing to it.
-        let library = folder.appendingPathComponent("library.sqlite"), libraryCopy = folder.appendingPathComponent("before-spaces-library.sqlite")
-        if manager.fileExists(atPath: library.path), !manager.fileExists(atPath: libraryCopy.path) {
-            let copied = (try? SQLite(path: library.path).run("VACUUM INTO ?", [libraryCopy.path])) != nil
-            if !copied { try? manager.copyItem(at: library, to: libraryCopy) }
+        let library = folder.appendingPathComponent("library.sqlite")
+        copyOnce("library.sqlite", from: library) { partial in
+            do {
+                try SQLite(path: library.path).run("VACUUM INTO ?", [partial.path])
+            } catch {
+                try? manager.removeItem(at: partial)
+                try manager.copyItem(at: library, to: partial)
+            }
         }
-        let preferences = folder.appendingPathComponent("before-spaces-preferences.json")
-        if !manager.fileExists(atPath: preferences.path) {
-            let old: [String: [String]] = ["pinnedFolders": defaults.stringArray(forKey: "pinnedFolders") ?? [], "openFolders": defaults.stringArray(forKey: "openFolders") ?? []]
-            try? JSONEncoder().encode(old).write(to: preferences, options: .atomic)
-        }
+        let old: [String: [String]] = ["pinnedFolders": defaults.stringArray(forKey: "pinnedFolders") ?? [], "openFolders": defaults.stringArray(forKey: "openFolders") ?? []]
+        copyOnce("preferences.json", from: nil) { try JSONEncoder().encode(old).write(to: $0) }
     }
 
     private func save() {
-        try? JSONEncoder().encode(Saved(spaces: spaces, active: lastActive)).write(to: file, options: .atomic)
+        guard writable else { return }
+        try? JSONEncoder().encode(Saved(spaces: spaces, active: lastActive, pendingRemovals: pendingRemovals)).write(to: file, options: .atomic)
     }
 
     /// The space with this id; a tab saved in a space that is gone, or in none, belongs to the first one.
@@ -171,14 +212,29 @@ final class SpaceStore: ObservableObject {
         save()
     }
 
-    /// The last space stays.
+    /// The space a window in `id` goes to when it is deleted: the one that takes its place in the row, or the one before it
+    /// when it was the last. Nil for the last space, which stays.
+    func neighbour(afterRemoving id: UUID) -> UUID? {
+        let rest = spaces.filter { $0.id != id }
+        guard !rest.isEmpty, let index = spaces.firstIndex(where: { $0.id == id }) else { return nil }
+        return rest[min(index, rest.count - 1)].id
+    }
+
+    /// The last space stays. A profile's data store is put on the list of those still to be erased.
     @discardableResult
     func remove(_ id: UUID) -> Space? {
-        guard spaces.count > 1, let index = spaces.firstIndex(where: { $0.id == id }) else { return nil }
+        guard let next = neighbour(afterRemoving: id), let index = spaces.firstIndex(where: { $0.id == id }) else { return nil }
         let removed = spaces.remove(at: index)
-        if lastActive == id { lastActive = spaces[min(index, spaces.count - 1)].id }
+        if lastActive == id { lastActive = next }
+        if removed.isProfile, !pendingRemovals.contains(id) { pendingRemovals.append(id) }
         save()
         return removed
+    }
+
+    /// The store is gone; it needn't be tried again.
+    func finishRemoval(_ id: UUID) {
+        pendingRemovals.removeAll { $0 == id }
+        save()
     }
 
     private static func clean(_ name: String) -> String {
@@ -224,16 +280,34 @@ enum Profiles {
         return made
     }
 
-    /// Erases a deleted profile's cookies and site data. A store still in use by a page that is closing can't be removed
-    /// yet, so it is tried again.
-    static func remove(_ id: UUID) {
-        configurations[id] = nil
-        Task {
-            for _ in 0..<5 {
-                if (try? await WKWebsiteDataStore.remove(forIdentifier: id)) != nil { return }
-                try? await Task.sleep(for: .seconds(1))
+    /// How a store is erased, and how long to wait between tries (a store a closing page still holds can't go yet).
+    static var remover: (UUID) async throws -> Void = { try await WKWebsiteDataStore.remove(forIdentifier: $0) }
+    static var delays: [Duration] = [.seconds(1), .seconds(2), .seconds(4), .seconds(8), .seconds(16)]
+    private static var draining: Set<UUID> = []
+
+    /// Erases the stores of deleted profiles, each leaving the store's list only once it is gone; one that wouldn't go is
+    /// tried again at the next launch. Only stores that were on the list are touched, never any other.
+    static func drain(_ store: SpaceStore) async {
+        for id in store.pendingRemovals where !draining.contains(id) {
+            draining.insert(id)
+            defer { draining.remove(id) }
+            guard !store.spaces.contains(where: { $0.dataStoreID == id }) else {
+                store.finishRemoval(id)
+                continue
+            }
+            configurations[id] = nil
+            for delay in delays {
+                if (try? await remover(id)) != nil {
+                    store.finishRemoval(id)
+                    break
+                }
+                try? await Task.sleep(for: delay)
             }
         }
+    }
+
+    static func startDraining(_ store: SpaceStore) {
+        Task { await drain(store) }
     }
 
     /// Every profile's store, for clearing website data in Settings.
