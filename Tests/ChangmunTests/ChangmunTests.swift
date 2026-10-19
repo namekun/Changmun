@@ -173,6 +173,21 @@ struct LibraryTests {
         Library(path: FileManager.default.temporaryDirectory.appendingPathComponent("lib-\(UUID().uuidString).sqlite").path)
     }
 
+    @Test func anUnreadableLibraryIsNotAnEmptyOne() throws {
+        let broken = Library(path: "/nonexistent-\(UUID().uuidString)/library.sqlite")
+        #expect(broken.readBookmarks() == nil)
+        #expect(!broken.toggleBookmark(url: "https://a.example/", title: "A"))
+        let lib = library()
+        #expect(lib.toggleBookmark(url: "https://a.example/", title: "A"))
+        _ = try lib.importBookmarks([("https://b.example/", "B", "Arc Bar")])
+        let read = try #require(lib.readBookmarks())
+        #expect(read.favorites.map(\.url) == ["https://a.example/"])
+        #expect(read.folders.map(\.name) == ["Arc Bar"])
+        lib.removeBookmark(url: "https://b.example/", folder: "Arc Bar")
+        lib.addBookmark(url: "https://b.example/", title: "B", folder: "Arc Bar")
+        #expect(lib.folders().first?.entries.map(\.title) == ["B"])
+    }
+
     @Test func searchFindsBookmarksBeforeHistory() throws {
         let lib = library()
         lib.recordVisit(url: "https://swift.org/blog", title: "Swift Blog")
@@ -639,6 +654,15 @@ struct BrowserTabTests {
         let new = try JSONEncoder().encode(Browser.SavedWindows(windows: [.init(tabs: [tab]), .init(tabs: [tab, tab], active: 1)]))
         #expect(Browser.SavedWindows.decode(new).map(\.tabs.count) == [1, 2])
         #expect(Browser.SavedWindows.decode(Data("nope".utf8)).isEmpty)
+    }
+
+    @Test func aDamagedTabOrWindowDoesNotLoseTheRestOfTheSession() {
+        // One tab with a broken title, one window that is not a window at all, one good window.
+        let json = #"{"windows":[{"tabs":[{"url":"https://a.example/","title":"A"},{"url":"https://b.example/","title":7}],"active":0},"#
+            + #"{"tabs":"broken"},{"tabs":[{"url":"https://c.example/","title":"C"}],"active":"x"}]}"#
+        let windows = Browser.SavedWindows.decode(Data(json.utf8))
+        #expect(windows.map { $0.tabs.compactMap(\.url) } == [["https://a.example/"], ["https://c.example/"]])
+        #expect(windows[0].active == 0 && windows[1].active == nil)
     }
 
     @Test func closedTabsComeBackWhereTheyWere() {

@@ -921,7 +921,15 @@ final class Browser: ObservableObject {
         }
     }
 
+    /// Decodes what it can: a value that doesn't decode becomes nil instead of failing everything around it.
+    struct Lossy<Value: Decodable>: Decodable {
+        let value: Value?
+        init(from decoder: Decoder) throws { value = try? Value(from: decoder) }
+    }
+
     private static var sessionFile: URL { Library.folder.appendingPathComponent("session.json") }
+    /// The last session that was read back whole, kept in case the next one can't be.
+    private static var previousSessionFile: URL { Library.folder.appendingPathComponent("session-previous.json") }
 
     var savedSession: SavedSession {
         SavedSession(
@@ -970,8 +978,16 @@ final class Browser: ObservableObject {
     static var closedWindows: [SavedSession] = []
 
     static func savedWindows() -> [SavedSession] {
-        guard Preferences.shared.restoreTabs, let data = try? Data(contentsOf: sessionFile) else { return [] }
-        return SavedWindows.decode(data).filter { !$0.tabs.isEmpty }
+        guard Preferences.shared.restoreTabs else { return [] }
+        let read = { (file: URL) in (try? Data(contentsOf: file)).map { SavedWindows.decode($0).filter { !$0.tabs.isEmpty } } ?? [] }
+        let windows = read(sessionFile)
+        if !windows.isEmpty {
+            try? FileManager.default.removeItem(at: previousSessionFile)
+            try? FileManager.default.copyItem(at: sessionFile, to: previousSessionFile)
+            return windows
+        }
+        // Nothing usable (a damaged or emptied file): the session before it, rather than an empty window.
+        return read(previousSessionFile)
     }
 
     /// Restores a saved window asleep, apart from the tab that was shown.
@@ -988,5 +1004,23 @@ final class Browser: ObservableObject {
         guard !tabs.isEmpty else { return }
         activate(tabs[min(saved.active ?? 0, tabs.count - 1)].id)
         if let previous = saved.previous, tabs.indices.contains(previous) { previousActiveID = tabs[previous].id }
+    }
+}
+
+extension Browser.SavedSession {
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        tabs = try values.decode([Browser.Lossy<Browser.SavedTab>].self, forKey: .tabs).compactMap(\.value)
+        active = try? values.decodeIfPresent(Int.self, forKey: .active)
+        previous = try? values.decodeIfPresent(Int.self, forKey: .previous)
+        groups = try? values.decodeIfPresent([Browser.TabGroup].self, forKey: .groups)
+        saved = try? values.decodeIfPresent(Date.self, forKey: .saved)
+    }
+}
+
+extension Browser.SavedWindows {
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        windows = try values.decode([Browser.Lossy<Browser.SavedSession>].self, forKey: .windows).compactMap(\.value)
     }
 }

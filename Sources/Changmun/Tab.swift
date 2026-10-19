@@ -14,6 +14,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var openerID: Int?
     /// Opened outside any group: once its first page loads, it may join the group it belongs in.
     var sortsIntoGroup = false
+    /// When its page's process last went away, to stop reloading a page that keeps crashing.
+    private var crashes: [Date] = []
     @Published var title: String
     @Published var url: URL?
     @Published var isLoading = false
@@ -433,16 +435,24 @@ extension Tab: WKNavigationDelegate {
         let nsError = error as NSError
         guard nsError.code != NSURLErrorCancelled, nsError.domain != "WebKitErrorDomain" || nsError.code != 102 else { return }
         let failing = (nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL) ?? url
-        let message = nsError.localizedDescription.replacingOccurrences(of: "<", with: "&lt;")
-        let address = (failing?.absoluteString ?? "").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: "\"", with: "&quot;")
-        let heading = String(localized: "Can’t open the page").replacingOccurrences(of: "<", with: "&lt;")
+        showError(String(localized: "Can’t open the page"), nsError.localizedDescription, address: failing, in: webView)
+        if let failing { url = failing }
+    }
+
+    /// A page of our own in place of one that couldn't be shown, with a way to try again.
+    private func showError(_ heading: String, _ message: String, address: URL?, in webView: WKWebView) {
+        let escape = { (text: String) in
+            text.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: "\"", with: "&quot;")
+        }
+        let link = address.flatMap { ["http", "https"].contains($0.scheme?.lowercased()) ? escape($0.absoluteString) : nil }
+        let retry = link.map { "<a href=\"\($0)\" style=\"display: inline-block; margin-top: 16px; padding: 6px 14px; border-radius: 8px; background: rgba(128,128,128,0.16); color: CanvasText; text-decoration: none; font-weight: 600; font-size: 13px\">\(escape(String(localized: "Try Again")))</a>" } ?? ""
         webView.loadHTMLString("""
-        <meta name="color-scheme" content="light dark"><title>\(heading)</title>
-        <body style="font: 15px -apple-system; display: grid; place-content: center; height: 90vh; text-align: center; color: #888">
-        <h2 style="color: CanvasText; font-weight: 600">\(heading)</h2><p>\(message)</p><p style="font-size: 12px">\(address)</p>
+        <meta name="color-scheme" content="light dark"><title>\(escape(heading))</title>
+        <body style="font: 13px -apple-system; display: grid; place-content: center; height: 90vh; text-align: center; color: #888">
+        <h2 style="color: CanvasText; font-weight: 600; font-size: 17px; margin: 0 0 8px">\(escape(heading))</h2><div>\(escape(message))</div>
+        <div style="font-size: 11px; margin-top: 4px">\(escape(address?.absoluteString ?? ""))</div>\(retry)
         </body>
         """, baseURL: nil)
-        if let failing { url = failing }
     }
 
     /// Sites behind HTTP authentication ask for a user name and password.
@@ -469,8 +479,17 @@ extension Tab: WKNavigationDelegate {
         return (.useCredential, URLCredential(user: user.stringValue, password: password.stringValue, persistence: .forSession))
     }
 
+    /// The page's process went away (it crashed, or was killed for memory): load it again, but a page that keeps
+    /// crashing stops after two tries, and a tab nobody is looking at just goes to sleep.
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        webView.reload()
+        crashes = crashes.filter { $0.timeIntervalSinceNow > -30 } + [Date()]
+        if browser?.isShown(self) != true {
+            sleep()
+        } else if crashes.count <= 2 {
+            webView.reload()
+        } else {
+            showError(String(localized: "This page keeps crashing"), String(localized: "Changmun stopped reloading it."), address: url, in: webView)
+        }
     }
 }
 

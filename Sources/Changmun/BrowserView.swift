@@ -404,7 +404,7 @@ struct BrowserView: View {
 struct Sidebar: View {
     @ObservedObject var browser: Browser
     @ObservedObject private var prefs = Preferences.shared
-    @StateObject private var library = LibraryWatcher()
+    @ObservedObject private var library = LibraryWatcher.shared
     @State private var dropTarget: String?
     @State private var showLibrary = false
     @State private var newTabHover = false
@@ -839,12 +839,17 @@ enum SidebarDrag {
     }
 }
 
-/// Re-reads the bookmarks whenever the library changes.
+/// The bookmarks as the sidebar shows them, read again off the main thread whenever the library changes. One for
+/// the whole app, so showing and hiding the sidebar costs nothing.
 @MainActor
 final class LibraryWatcher: ObservableObject {
+    static let shared = LibraryWatcher()
     @Published private(set) var favorites: [Library.Entry] = []
     @Published private(set) var sources: [(source: String, folders: [Library.Folder])] = []
-    private var observer: NSObjectProtocol?
+    /// The favorites' addresses, for the star in the address bar.
+    private(set) var favoriteURLs: Set<String> = []
+    private var reading = false
+    private var readAgain = false
 
     func folder(_ key: String) -> Library.Folder? {
         for source in sources {
@@ -853,19 +858,36 @@ final class LibraryWatcher: ObservableObject {
         return nil
     }
 
-    init() {
-        reload()
-        observer = NotificationCenter.default.addObserver(forName: Library.didChange, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.reload() }
+    private init() {
+        if let read = Library.shared.readBookmarks() { apply(read) }
+        NotificationCenter.default.addObserver(forName: Library.didChange, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { LibraryWatcher.shared.reload() }
         }
     }
 
     private func reload() {
-        favorites = Library.shared.favorites()
-        let folders = Library.shared.folders()
-        sources = Library.groupBySource(folders)
-        var keys = Set(favorites.map { Browser.bookmarkKey(url: $0.url, folder: Library.favoritesFolder) })
-        for folder in folders { for entry in folder.entries { keys.insert(Browser.bookmarkKey(url: entry.url, folder: folder.name)) } }
+        guard !reading else { readAgain = true; return }
+        reading = true
+        Task {
+            // An unreadable library (locked, damaged, a full disk) keeps what is shown, and every tab keeps its bookmark.
+            if let read = await Library.shared.inBackground({ $0.readBookmarks() }) { apply(read) }
+            reading = false
+            if readAgain {
+                readAgain = false
+                reload()
+            }
+        }
+    }
+
+    private func apply(_ read: (favorites: [Library.Entry], folders: [(name: String, entries: [Library.Entry])])) {
+        let sources = Library.groupBySource(read.folders)
+        if read.favorites != favorites {
+            favorites = read.favorites
+            favoriteURLs = Set(read.favorites.map(\.url))
+        }
+        if sources.map(\.source) != self.sources.map(\.source) || sources.map(\.folders) != self.sources.map(\.folders) { self.sources = sources }
+        var keys = Set(read.favorites.map { Browser.bookmarkKey(url: $0.url, folder: Library.favoritesFolder) })
+        for folder in read.folders { for entry in folder.entries { keys.insert(Browser.bookmarkKey(url: entry.url, folder: folder.name)) } }
         for browser in Browser.all { browser.releaseBookmarkTabs(keeping: keys) }
     }
 }
@@ -984,6 +1006,7 @@ struct AddressPill: View {
     var compact = false
     var height = Metrics.control
     let edit: () -> Void
+    @ObservedObject private var library = LibraryWatcher.shared
     @State private var hover = false
     @State private var frame = CGRect.zero
     @ObservedObject private var tracker = PressTracker.shared
@@ -1029,7 +1052,7 @@ struct AddressPill: View {
             LoginButton(tab: tab)
             PictureInPictureButton(tab: tab)
             if hover || AdBlocker.shared.isAllowed(tab.url?.host() ?? "") { AdBlockShield(tab: tab) }
-            if hover || tab.url.map({ Library.shared.isFavorite($0.absoluteString) }) == true { BookmarkStar(tab: tab) }
+            if hover || tab.url.map({ library.favoriteURLs.contains($0.absoluteString) }) == true { BookmarkStar(tab: tab) }
         }
         .padding(.leading, 10)
         .padding(.trailing, 4)
@@ -1186,14 +1209,14 @@ struct AdBlockShield: View {
 
 struct BookmarkStar: View {
     @ObservedObject var tab: Tab
+    @ObservedObject private var library = LibraryWatcher.shared
 
     var body: some View {
         let url = tab.url?.absoluteString ?? ""
-        let marked = !url.isEmpty && Library.shared.isFavorite(url)
+        let marked = !url.isEmpty && library.favoriteURLs.contains(url)
         Button {
             guard !url.isEmpty else { return }
             _ = Library.shared.toggleBookmark(url: url, title: tab.title)
-            tab.objectWillChange.send()
         } label: {
             Image(systemName: marked ? "star.fill" : "star")
                 .font(.system(size: 10.5, weight: .medium))

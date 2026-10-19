@@ -90,15 +90,21 @@ final class Library: @unchecked Sendable {
         ((try? db?.query("SELECT 1 FROM bookmarks WHERE url = ? AND folder = '' LIMIT 1", [url])) ?? []).isEmpty == false
     }
 
-    /// Adds the page to the favorites or takes it out; returns whether it is a favorite now.
+    /// Adds the page to the favorites or takes it out; returns whether it is a favorite now (unchanged if the write failed).
     func toggleBookmark(url: String, title: String) -> Bool {
         defer { changed() }
         if isFavorite(url) {
             try? db?.run("DELETE FROM bookmarks WHERE url = ? AND folder = ''", [url])
-            return false
+        } else {
+            try? db?.run("INSERT OR IGNORE INTO bookmarks (url, title, folder, added) VALUES (?, ?, '', ?)", [url, title, Date().timeIntervalSince1970])
         }
-        try? db?.run("INSERT OR IGNORE INTO bookmarks (url, title, folder, added) VALUES (?, ?, '', ?)", [url, title, Date().timeIntervalSince1970])
-        return true
+        return isFavorite(url)
+    }
+
+    /// Puts a bookmark back (undoing a removal): at the end of its folder, or of the favorites.
+    func addBookmark(url: String, title: String, folder: String) {
+        try? db?.run("INSERT OR IGNORE INTO bookmarks (url, title, folder, added) VALUES (?, ?, ?, ?)", [url, title, folder, Date().timeIntervalSince1970])
+        changed()
     }
 
     /// Removes a folder and the folders inside it.
@@ -130,7 +136,20 @@ final class Library: @unchecked Sendable {
 
     /// Imported bookmarks grouped by folder, folders in the order they were first imported.
     func folders() -> [(name: String, entries: [Entry])] {
-        let all = ((try? db?.query("SELECT folder, url, title FROM bookmarks WHERE folder <> '' ORDER BY id")) ?? [])
+        Self.grouped((try? db?.query(Self.foldersQuery)) ?? [])
+    }
+
+    /// The favorites and the folders in one read, or nil when the database can't be read: an unreadable library
+    /// must not look like one whose bookmarks were all deleted.
+    func readBookmarks() -> (favorites: [Entry], folders: [(name: String, entries: [Entry])])? {
+        guard let db, let favorites = try? db.query("SELECT url, title FROM bookmarks WHERE folder = '' ORDER BY added, id"),
+              let folders = try? db.query(Self.foldersQuery) else { return nil }
+        return (favorites.compactMap { row in (row[0] as? String).map { Entry(url: $0, title: row[1] as? String ?? "") } }, Self.grouped(folders))
+    }
+
+    private static let foldersQuery = "SELECT folder, url, title FROM bookmarks WHERE folder <> '' ORDER BY id"
+
+    private static func grouped(_ all: [[Any?]]) -> [(name: String, entries: [Entry])] {
         var order: [String] = []
         var groups: [String: [Entry]] = [:]
         for row in all {
