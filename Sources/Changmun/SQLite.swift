@@ -12,6 +12,8 @@ final class SQLite {
         guard sqlite3_open_v2(path, &db, flags | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK else {
             let message = db.map { String(cString: sqlite3_errmsg($0)) } ?? "open failed"
             sqlite3_close(db)
+            // The failed init is deinitialized too: it must not close the same handle again.
+            db = nil
             throw SQLiteError(message: message)
         }
         sqlite3_busy_timeout(db, 2000)
