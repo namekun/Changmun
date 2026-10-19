@@ -172,6 +172,7 @@ final class Browser: ObservableObject {
         LinkHover.install(in: config.userContentController)
         PopupWatcher.install(in: config.userContentController)
         PictureInPictureWatcher.install(in: config.userContentController)
+        ReaderWatcher.install(in: config.userContentController)
         if !Headless.isOn { LoginCapture.install(in: config.userContentController) }
         AdBlocker.shared.attach(config.userContentController)
         if extensions, #available(macOS 15.4, *) { config.webExtensionController = ExtensionHost.shared.controller }

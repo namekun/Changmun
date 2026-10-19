@@ -47,6 +47,7 @@
 "All done" = "全部导入完成";
 "All Time" = "全部时间";
 "Allow" = "允许";
+"Allow pop-ups" = "允许弹出式窗口";
 "Always Allow for This Site" = "始终允许此网站";
 "Archive tabs you haven’t viewed in a while" = "归档一段时间未查看的标签页";
 "Archived Tabs" = "已归档的标签页";
@@ -78,8 +79,10 @@
 "Cancelled" = "已取消";
 "Can’t open the page" = "无法打开页面";
 "Change…" = "更改…";
+"Changmun %@ is out" = "Changmun %@ 已发布";
 "Changmun is your default browser" = "Changmun 是你的默认浏览器";
 "Changmun Private Window" = "Changmun 私密浏览窗口";
+"Check for Updates" = "检查更新";
 "Check tab list" = "检查标签页列表";
 "Checking…" = "正在检查…";
 "Choose an extension folder that contains manifest.json" = "选择包含 manifest.json 的扩展文件夹";
@@ -160,6 +163,8 @@
 "Element hiding" = "元素隐藏";
 "End Split View" = "结束分屏浏览";
 "Enter Address" = "输入地址";
+"Exit Reader Mode" = "退出阅读模式";
+"Exit Reader Mode (%@)" = "退出阅读模式 (%@)";
 "Expand" = "展开";
 "Extension" = "扩展";
 "Extension Settings" = "扩展设置";
@@ -232,6 +237,7 @@
 "Network" = "网络";
 "Never ask to save" = "从不询问是否存储";
 "Never for This Site" = "此网站永不";
+"Never put to sleep" = "不进入休眠";
 "New AI Chat" = "新建 AI 对话";
 "New Chat (⌘⇧E)" = "新建对话 (⌘⇧E)";
 "New Group" = "新建群组";
@@ -242,6 +248,7 @@
 "Next (⌘G)" = "下一个 (⌘G)";
 "Next Tab" = "下一个标签页";
 "No archived tabs" = "没有已归档的标签页";
+"No article to show in Reader Mode" = "没有可在阅读模式中显示的文章";
 "No content blockers installed." = "未安装内容拦截器。";
 "No downloads this session" = "本次没有下载";
 "No extensions yet. You can install Safari extensions from the App Store or extensions from the Chrome Web Store." = "还没有扩展。你可以从 App Store 安装 Safari 扩展，或从 Chrome 网上应用店安装扩展。";
@@ -261,6 +268,7 @@
 "Off" = "关闭";
 "OK" = "好";
 "On Startup" = "启动时";
+"Once a day, Changmun asks GitHub whether a newer version is out and tells you in the sidebar. Nothing else is sent." = "每天一次向 GitHub 询问是否有新版本，有的话会在侧边栏提醒你。不会发送其他任何内容。";
 "Open" = "打开";
 "Open as Tab" = "作为标签页打开";
 "Open Downloads Folder" = "打开“下载”文件夹";
@@ -297,6 +305,8 @@
 "Private Window" = "私密浏览窗口";
 "Quit Changmun" = "退出 Changmun";
 "Read page" = "读取页面";
+"Reader Mode" = "阅读模式";
+"Reader Mode (%@)" = "阅读模式 (%@)";
 "Reading rules…" = "正在读取规则…";
 "Reads the rules saved by the blocker app. The first time you turn one on, macOS asks whether Changmun may access another app’s data. If you change the rules in the blocker app, they take effect the next time you launch Changmun." = "读取拦截器 App 存储的规则。首次开启时，macOS 会询问 Changmun 是否可以访问其他 App 的数据。如果在拦截器 App 中更改了规则，将在下次启动 Changmun 时生效。";
 "Recent Tab" = "最近的标签页";
@@ -350,6 +360,7 @@
 "site data" = "网站数据";
 "Site data" = "网站数据";
 "Site data such as cookies and cache (signs you out of sites)" = "Cookie 和缓存等网站数据（会退出网站登录）";
+"Site Settings" = "网站设置";
 "Sites ask the first time they request access. If you choose “Remember”, they stay here." = "网站首次请求访问时会询问。如果选择“记住”，它们会保留在这里。";
 "Sites that never sleep" = "不进入休眠的网站";
 "Skip Back 5 Seconds" = "后退 5 秒";
@@ -424,6 +435,7 @@
 "Working" = "处理中";
 "You can use this extension in Changmun" = "你可以在 Changmun 中使用此扩展";
 "YousList (Korean ads)" = "YousList（韩国广告）";
+"Zoom" = "缩放";
 "Zoom In" = "放大";
 "Zoom Out" = "缩小";
 "AI" = "AI";

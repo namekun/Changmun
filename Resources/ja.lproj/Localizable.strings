@@ -47,6 +47,7 @@
 "All done" = "すべて読み込みました";
 "All Time" = "すべて";
 "Allow" = "許可";
+"Allow pop-ups" = "ポップアップを許可";
 "Always Allow for This Site" = "このサイトでは常に許可";
 "Archive tabs you haven’t viewed in a while" = "しばらく見ていないタブをアーカイブ";
 "Archived Tabs" = "アーカイブしたタブ";
@@ -78,8 +79,10 @@
 "Cancelled" = "キャンセルしました";
 "Can’t open the page" = "ページを開けません";
 "Change…" = "変更…";
+"Changmun %@ is out" = "Changmun %@ が公開されました";
 "Changmun is your default browser" = "Changmunがデフォルトのブラウザです";
 "Changmun Private Window" = "Changmun プライベートウインドウ";
+"Check for Updates" = "アップデートを確認";
 "Check tab list" = "タブ一覧を確認";
 "Checking…" = "確認中…";
 "Choose an extension folder that contains manifest.json" = "manifest.jsonを含む機能拡張のフォルダを選択してください";
@@ -160,6 +163,8 @@
 "Element hiding" = "要素の非表示";
 "End Split View" = "スプリットビューを終了";
 "Enter Address" = "アドレスを入力";
+"Exit Reader Mode" = "リーダーモードを終了";
+"Exit Reader Mode (%@)" = "リーダーモードを終了 (%@)";
 "Expand" = "展開";
 "Extension" = "機能拡張";
 "Extension Settings" = "機能拡張の設定";
@@ -232,6 +237,7 @@
 "Network" = "ネットワーク";
 "Never ask to save" = "保存を確認しない";
 "Never for This Site" = "このサイトでは使用しない";
+"Never put to sleep" = "スリープさせない";
 "New AI Chat" = "新規AIチャット";
 "New Chat (⌘⇧E)" = "新規チャット (⌘⇧E)";
 "New Group" = "新規グループ";
@@ -242,6 +248,7 @@
 "Next (⌘G)" = "次へ (⌘G)";
 "Next Tab" = "次のタブ";
 "No archived tabs" = "アーカイブしたタブはありません";
+"No article to show in Reader Mode" = "リーダーモードで表示できる記事がありません";
 "No content blockers installed." = "コンテンツブロッカはインストールされていません。";
 "No downloads this session" = "今回ダウンロードした項目はありません";
 "No extensions yet. You can install Safari extensions from the App Store or extensions from the Chrome Web Store." = "機能拡張はまだありません。App StoreのSafari機能拡張や、Chrome ウェブストアの機能拡張をインストールできます。";
@@ -261,6 +268,7 @@
 "Off" = "オフ";
 "OK" = "OK";
 "On Startup" = "起動時";
+"Once a day, Changmun asks GitHub whether a newer version is out and tells you in the sidebar. Nothing else is sent." = "1日に1回、GitHubに新しいバージョンが出ているか確認し、あればサイドバーでお知らせします。それ以外は何も送信しません。";
 "Open" = "開く";
 "Open as Tab" = "タブとして開く";
 "Open Downloads Folder" = "ダウンロードフォルダを開く";
@@ -297,6 +305,8 @@
 "Private Window" = "プライベートウインドウ";
 "Quit Changmun" = "Changmunを終了";
 "Read page" = "ページを読み取る";
+"Reader Mode" = "リーダーモード";
+"Reader Mode (%@)" = "リーダーモード (%@)";
 "Reading rules…" = "ルールを読み込み中…";
 "Reads the rules saved by the blocker app. The first time you turn one on, macOS asks whether Changmun may access another app’s data. If you change the rules in the blocker app, they take effect the next time you launch Changmun." = "ブロッカAppが保存したルールを読み込みます。初めてオンにするとき、ChangmunがほかのアプリケーションのデータにアクセスしてよいかをmacOSが確認します。ブロッカAppでルールを変更した場合は、Changmunを次回起動したときに反映されます。";
 "Recent Tab" = "最近のタブ";
@@ -350,6 +360,7 @@
 "site data" = "サイトデータ";
 "Site data" = "サイトデータ";
 "Site data such as cookies and cache (signs you out of sites)" = "Cookieやキャッシュなどのサイトデータ (サイトからサインアウトされます)";
+"Site Settings" = "サイトの設定";
 "Sites ask the first time they request access. If you choose “Remember”, they stay here." = "サイトは最初にアクセスを要求したときに確認します。「記憶する」を選ぶと、ここに残ります。";
 "Sites that never sleep" = "スリープさせないサイト";
 "Skip Back 5 Seconds" = "5秒戻る";
@@ -424,6 +435,7 @@
 "Working" = "作業中";
 "You can use this extension in Changmun" = "この機能拡張はChangmunで使用できます";
 "YousList (Korean ads)" = "YousList (韓国の広告)";
+"Zoom" = "ズーム";
 "Zoom In" = "拡大";
 "Zoom Out" = "縮小";
 "AI" = "AI";

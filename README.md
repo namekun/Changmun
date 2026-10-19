@@ -58,12 +58,15 @@ With only the Command Line Tools installed, the scripts build against the macOS 
 - **Private windows** keep their cookies and site data in memory and forget them when closed; nothing goes to history, the session or the AI.
 - **Command bar** (⌘T): search, addresses, switching to open tabs, bookmarks and history, and asking the AI.
 - **Translate pages** in place with macOS's on-device translation (⌥⌘T, macOS 26+). Links and layout stay; the text never leaves the Mac.
+- **Site settings.** Click the lock and site name in the address bar for a small panel with what Changmun keeps for that site: ad blocking, zoom, pop-ups, camera and microphone, and whether its tabs may sleep. Click anywhere else on the address bar to edit the address, as before.
+- **Reader mode** (⇧⌘R, or ⌥⌘R with Chrome-style shortcuts) shows an article as clean, readable text over the page. A button appears in the address bar when the page looks like an article. Esc, the ×, or the same key brings the page back as it was. A small script on the page does it; nothing is downloaded or sent anywhere.
 - **Picture in picture** (⌃⌘P) turns on by itself when you leave a tab with a playing video. ⌃⌘← / ⌃⌘→ skip 5 seconds even while you're in another app, and "Back to tab" brings the tab forward.
 - **Passwords** are saved to the Keychain after you sign in (https only) and filled from the key in the address bar. Copying one asks for Touch ID or your Mac password.
 - **Pop-ups** opened without a click are blocked, with "Open" and "Always Allow for This Site" right above the page.
 - **Downloads** show their progress at the bottom of the sidebar and get Safari's quarantine flag, so Gatekeeper checks them on first open. Apps, scripts and installers are shown in Finder instead of run. A download that breaks off picks up from where it stopped with Try Again on its row.
 - **Sleeping tabs.** Background tabs you haven't seen in 20 minutes, and all background tabs under memory pressure, give back their web process and come back with their history when you return.
 - Page zoom is remembered per site, and open tabs are saved every 15 seconds, so a crash costs almost nothing.
+- **Update notice.** Changmun is updated through Homebrew. Once a day it asks GitHub for the latest release, and when there's a newer one a quiet note at the bottom of the sidebar copies `brew upgrade --cask changmun` for you. Turn it off in Settings › Advanced › Check for Updates.
 
 ## Shortcuts
 
@@ -94,6 +97,7 @@ Pick Safari-style or Chrome-style in Settings (⌘,). Only the keys the two brow
 | --- | --- | --- |
 | Sidebar | ⌘⇧L | ⌘S |
 | Hard reload | ⌥⌘R | ⌘⇧R |
+| Reader mode | ⇧⌘R | ⌥⌘R |
 | Console | ⌥⌘C | ⌥⌘J |
 | Downloads | ⌥⌘L | ⌘⇧J |
 | Previous Tab / Next Tab | | ⌥⌘← ⌥⌘→ |
@@ -153,6 +157,7 @@ On first launch, or from the menu, Changmun imports bookmarks and history from S
 ## Privacy
 
 - Your browsing stays on your Mac. Changmun has no account, server or analytics.
+- The update check asks GitHub's public releases API for the latest version number once a day and sends nothing else (Settings › Advanced turns it off).
 - Search suggestions send what you type in the command bar to your search engine (turn them off in Settings; never sent from private windows).
 - The AI panel sends your messages, and the page content the AI reads, to Anthropic through the `claude` CLI. Tidy tabs and page translation run on your Mac.
 

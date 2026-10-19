@@ -37,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         watchPeekKeys()
         watchSwitcherKeys()
         guard !Headless.isOn else { return }
+        UpdateCheck.shared.checkIfDue()
         if !UserDefaults.standard.bool(forKey: "onboarded") { browser.showOnboarding = true }
         NSApp.activate()
     }
@@ -263,6 +264,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !NSEvent.modifierFlags.contains(.control) { browser.finishSwitching() }
     }
     @objc func translatePage(_ sender: Any?) { browser.active?.toggleTranslation() }
+    @objc func toggleReader(_ sender: Any?) { browser.active?.toggleReader() }
     @objc func seekBack(_ sender: Any?) { PictureInPictureKeys.target?.seekVideo(by: -PictureInPictureKeys.step) }
     @objc func seekForward(_ sender: Any?) { PictureInPictureKeys.target?.seekVideo(by: PictureInPictureKeys.step) }
     @objc func previousTab(_ sender: Any?) { browser.selectTab(offset: -1) }
@@ -478,6 +480,8 @@ enum AppMenu {
         add(view, "Skip Back 5 Seconds", #selector(AppDelegate.seekBack(_:)), left, [.command, .control])
         add(view, "Skip Forward 5 Seconds", #selector(AppDelegate.seekForward(_:)), right, [.command, .control])
         add(view, "Translate Page", #selector(AppDelegate.translatePage(_:)), "t", [.command, .option])
+        // The one of ⇧⌘R and ⌥⌘R that Hard Reload leaves free.
+        add(view, "Reader Mode", #selector(AppDelegate.toggleReader(_:)), "r", chrome ? [.command, .option] : [.command, .shift])
         view.addItem(.separator())
         add(view, "Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control])
 

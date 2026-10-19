@@ -58,12 +58,15 @@ Si solo tienes instaladas las Command Line Tools, los scripts compilan con el SD
 - **Las ventanas privadas** guardan sus cookies y datos de sitios web en memoria y los olvidan al cerrarse; nada va al historial, a la sesión ni a la IA.
 - **Barra de comandos** (⌘T): búsqueda, direcciones, cambio a pestañas abiertas, marcadores e historial, y preguntas a la IA.
 - **Traduce páginas** en el sitio con la traducción en el dispositivo de macOS (⌥⌘T, macOS 26 o posterior). Los enlaces y el diseño se mantienen; el texto nunca sale del Mac.
+- **Ajustes del sitio.** Haz clic en el candado y el nombre del sitio en la barra de direcciones para ver un panel pequeño con lo que Changmun guarda de ese sitio: bloqueo de anuncios, zoom, ventanas emergentes, cámara y micrófono, y si sus pestañas pueden suspenderse. Haz clic en cualquier otra parte de la barra para editar la dirección, como siempre.
+- **Modo lectura** (⇧⌘R, o ⌥⌘R con los atajos al estilo de Chrome) muestra un artículo como texto limpio y legible sobre la página. Cuando la página parece un artículo, aparece un botón en la barra de direcciones. Esc, la × o la misma tecla devuelven la página tal como estaba. Lo hace un pequeño script de la página; no se descarga ni se envía nada.
 - **Imagen en imagen** (⌃⌘P) se activa sola cuando sales de una pestaña con un vídeo en reproducción. ⌃⌘← / ⌃⌘→ saltan 5 segundos incluso mientras estás en otra app, y "Volver a la pestaña" trae la pestaña al frente.
 - **Las contraseñas** se guardan en el llavero después de iniciar sesión (solo https) y se rellenan desde la llave de la barra de direcciones. Para copiar una se pide Touch ID o la contraseña de tu Mac.
 - **Las ventanas emergentes** que se abren sin un clic se bloquean, con "Abrir" y "Permitir siempre en este sitio" justo encima de la página.
 - **Las descargas** muestran su progreso en la parte inferior de la barra lateral y reciben la marca de cuarentena de Safari, así que Gatekeeper las comprueba la primera vez que se abren. Las apps, los scripts y los instaladores se muestran en el Finder en lugar de ejecutarse. Una descarga interrumpida continúa desde donde se quedó con Reintentar en su fila.
 - **Pestañas suspendidas.** Las pestañas en segundo plano que no has visto en 20 minutos, y todas las pestañas en segundo plano cuando hay poca memoria, devuelven su proceso web y vuelven con su historial cuando regresas a ellas.
 - El zoom de página se recuerda por sitio, y las pestañas abiertas se guardan cada 15 segundos, así que un cierre inesperado cuesta casi nada.
+- **Aviso de actualización.** Changmun se actualiza con Homebrew. Una vez al día pregunta a GitHub por la última versión y, si hay una más reciente, una nota discreta al final de la barra lateral copia `brew upgrade --cask changmun` por ti. Desactívalo en Ajustes › Avanzado › Buscar actualizaciones.
 
 ## Atajos
 
@@ -94,6 +97,7 @@ Elige estilo Safari o estilo Chrome en Ajustes (⌘,). Solo cambian las teclas e
 | --- | --- | --- |
 | Barra lateral | ⌘⇧L | ⌘S |
 | Recarga forzada | ⌥⌘R | ⌘⇧R |
+| Modo lectura | ⇧⌘R | ⌥⌘R |
 | Consola | ⌥⌘C | ⌥⌘J |
 | Descargas | ⌥⌘L | ⌘⇧J |
 | Pestaña anterior / Pestaña siguiente | | ⌥⌘← ⌥⌘→ |
@@ -153,6 +157,7 @@ En el primer arranque, o desde el menú, Changmun importa marcadores e historial
 ## Privacidad
 
 - Tu navegación se queda en tu Mac. Changmun no tiene cuentas, servidores ni analíticas.
+- La búsqueda de actualizaciones consulta una vez al día la API pública de versiones de GitHub para saber el número de la última versión y no envía nada más (se desactiva en Ajustes › Avanzado).
 - Las sugerencias de búsqueda envían a tu buscador lo que escribes en la barra de comandos (desactívalas en Ajustes; nunca se envían desde ventanas privadas).
 - El panel de IA envía tus mensajes, y el contenido de las páginas que lee la IA, a Anthropic a través de la CLI `claude`. Ordenar pestañas y la traducción de páginas se ejecutan en tu Mac.
 

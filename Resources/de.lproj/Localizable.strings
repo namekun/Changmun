@@ -47,6 +47,7 @@
 "All done" = "Alles importiert";
 "All Time" = "Gesamter Zeitraum";
 "Allow" = "Erlauben";
+"Allow pop-ups" = "Pop-ups erlauben";
 "Always Allow for This Site" = "Für diese Website immer erlauben";
 "Archive tabs you haven’t viewed in a while" = "Tabs archivieren, die du länger nicht angesehen hast";
 "Archived Tabs" = "Archivierte Tabs";
@@ -78,8 +79,10 @@
 "Cancelled" = "Abgebrochen";
 "Can’t open the page" = "Die Seite kann nicht geöffnet werden";
 "Change…" = "Ändern …";
+"Changmun %@ is out" = "Changmun %@ ist da";
 "Changmun is your default browser" = "Changmun ist dein Standardbrowser";
 "Changmun Private Window" = "Privates Changmun-Fenster";
+"Check for Updates" = "Nach Updates suchen";
 "Check tab list" = "Tab-Liste prüfen";
 "Checking…" = "Wird geprüft …";
 "Choose an extension folder that contains manifest.json" = "Wähle einen Erweiterungsordner, der manifest.json enthält";
@@ -160,6 +163,8 @@
 "Element hiding" = "Elemente ausblenden";
 "End Split View" = "Split View beenden";
 "Enter Address" = "Adresse eingeben";
+"Exit Reader Mode" = "Lesemodus beenden";
+"Exit Reader Mode (%@)" = "Lesemodus beenden (%@)";
 "Expand" = "Ausklappen";
 "Extension" = "Erweiterung";
 "Extension Settings" = "Erweiterungseinstellungen";
@@ -232,6 +237,7 @@
 "Network" = "Netzwerk";
 "Never ask to save" = "Nie nach dem Sichern fragen";
 "Never for This Site" = "Nie für diese Website";
+"Never put to sleep" = "Nie in den Ruhezustand versetzen";
 "New AI Chat" = "Neuer KI-Chat";
 "New Chat (⌘⇧E)" = "Neuer Chat (⌘⇧E)";
 "New Group" = "Neue Gruppe";
@@ -242,6 +248,7 @@
 "Next (⌘G)" = "Weiter (⌘G)";
 "Next Tab" = "Nächster Tab";
 "No archived tabs" = "Keine archivierten Tabs";
+"No article to show in Reader Mode" = "Kein Artikel für den Lesemodus gefunden";
 "No content blockers installed." = "Keine Inhaltsblocker installiert.";
 "No downloads this session" = "Keine Downloads in dieser Sitzung";
 "No extensions yet. You can install Safari extensions from the App Store or extensions from the Chrome Web Store." = "Noch keine Erweiterungen. Du kannst Safari-Erweiterungen aus dem App Store oder Erweiterungen aus dem Chrome Web Store installieren.";
@@ -261,6 +268,7 @@
 "Off" = "Aus";
 "OK" = "OK";
 "On Startup" = "Beim Start";
+"Once a day, Changmun asks GitHub whether a newer version is out and tells you in the sidebar. Nothing else is sent." = "Einmal am Tag fragt Changmun bei GitHub nach, ob eine neuere Version erschienen ist, und sagt es dir in der Seitenleiste. Sonst wird nichts gesendet.";
 "Open" = "Öffnen";
 "Open as Tab" = "Als Tab öffnen";
 "Open Downloads Folder" = "Download-Ordner öffnen";
@@ -297,6 +305,8 @@
 "Private Window" = "Privates Fenster";
 "Quit Changmun" = "Changmun beenden";
 "Read page" = "Seite lesen";
+"Reader Mode" = "Lesemodus";
+"Reader Mode (%@)" = "Lesemodus (%@)";
 "Reading rules…" = "Regeln werden gelesen …";
 "Reads the rules saved by the blocker app. The first time you turn one on, macOS asks whether Changmun may access another app’s data. If you change the rules in the blocker app, they take effect the next time you launch Changmun." = "Liest die Regeln, die von der Blocker-App gesichert wurden. Beim ersten Einschalten fragt macOS, ob Changmun auf die Daten einer anderen App zugreifen darf. Wenn du die Regeln in der Blocker-App änderst, werden sie beim nächsten Start von Changmun übernommen.";
 "Recent Tab" = "Zuletzt verwendeter Tab";
@@ -350,6 +360,7 @@
 "site data" = "Websitedaten";
 "Site data" = "Websitedaten";
 "Site data such as cookies and cache (signs you out of sites)" = "Websitedaten wie Cookies und Cache (du wirst von Websites abgemeldet)";
+"Site Settings" = "Website-Einstellungen";
 "Sites ask the first time they request access. If you choose “Remember”, they stay here." = "Websites fragen beim ersten Zugriff nach. Wenn du „Merken“ wählst, bleiben sie hier.";
 "Sites that never sleep" = "Websites, die nie schlafen";
 "Skip Back 5 Seconds" = "5 Sekunden zurückspringen";
@@ -424,6 +435,7 @@
 "Working" = "In Arbeit";
 "You can use this extension in Changmun" = "Du kannst diese Erweiterung in Changmun verwenden";
 "YousList (Korean ads)" = "YousList (koreanische Werbung)";
+"Zoom" = "Zoom";
 "Zoom In" = "Vergrößern";
 "Zoom Out" = "Verkleinern";
 "AI" = "KI";

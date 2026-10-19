@@ -57,7 +57,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .ai:
             [String(localized: "Model"), String(localized: "Claude Code"), String(localized: "AI Chat")]
         case .advanced:
-            [String(localized: "Shortcuts"), String(localized: "Developer Mode")]
+            [String(localized: "Shortcuts"), String(localized: "Developer Mode"), String(localized: "Check for Updates")]
         }
     }
 
@@ -909,6 +909,10 @@ struct AdvancedSettings: View {
             Section {
                 Toggle("Developer Mode", isOn: $prefs.developerMode)
                 Caption(text: "When on, the address bar shows the full address by default. You can open the Web Inspector any time with F12 (Network tab) or ⌥⌘I.")
+            }
+            Section {
+                Toggle("Check for Updates", isOn: $prefs.checkForUpdates)
+                Caption(text: "Once a day, Changmun asks GitHub whether a newer version is out and tells you in the sidebar. Nothing else is sent.")
             }
         }
         .formStyle(.grouped)

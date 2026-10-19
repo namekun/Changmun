@@ -58,12 +58,15 @@ Sind nur die Command Line Tools installiert, bauen die Skripte gegen das macOS-2
 - **Private Fenster** halten Cookies und Websitedaten nur im Arbeitsspeicher und vergessen sie beim Schließen; nichts landet im Verlauf, in der Sitzung oder bei der KI.
 - **Befehlsleiste** (⌘T): Suche, Adressen, Wechsel zu offenen Tabs, Lesezeichen und Verlauf sowie Fragen an die KI.
 - **Seiten übersetzen** direkt an Ort und Stelle mit der Übersetzung von macOS auf dem Gerät (⌥⌘T, ab macOS 26). Links und Layout bleiben erhalten; der Text verlässt den Mac nie.
+- **Website-Einstellungen.** Ein Klick auf das Schloss und den Namen der Website in der Adressleiste öffnet ein kleines Fenster mit allem, was Changmun für diese Website merkt: Werbeblocker, Zoom, Pop-ups, Kamera und Mikrofon und ob ihre Tabs in den Ruhezustand dürfen. Ein Klick auf eine andere Stelle der Adressleiste bearbeitet wie bisher die Adresse.
+- Der **Lesemodus** (⇧⌘R, mit Chrome-Tastenkürzeln ⌥⌘R) zeigt einen Artikel als aufgeräumten, gut lesbaren Text über der Seite. Wirkt die Seite wie ein Artikel, erscheint in der Adressleiste ein Knopf. Esc, das × oder dasselbe Kürzel bringt die Seite unverändert zurück. Das erledigt ein kleines Skript auf der Seite; es wird nichts geladen oder gesendet.
 - **Bild-in-Bild** (⌃⌘P) startet von selbst, wenn du einen Tab mit laufendem Video verlässt. ⌃⌘← / ⌃⌘→ springen 5 Sekunden, sogar während du in einer anderen App bist, und „Zurück zum Tab“ holt den Tab wieder nach vorn.
 - **Passwörter** werden nach der Anmeldung im Schlüsselbund gesichert (nur https) und über die Schlüssel-Taste in der Adressleiste eingesetzt. Zum Kopieren eines Passworts brauchst du Touch ID oder dein Mac-Passwort.
 - **Pop-ups**, die ohne Klick aufgehen, werden blockiert; „Öffnen“ und „Für diese Website immer erlauben“ erscheinen direkt oberhalb der Seite.
 - **Downloads** zeigen ihren Fortschritt unten in der Seitenleiste und erhalten das Quarantäne-Flag von Safari, sodass Gatekeeper sie beim ersten Öffnen prüft. Apps, Skripte und Installer werden im Finder angezeigt statt ausgeführt. Ein abgebrochener Download macht mit „Erneut versuchen“ in seiner Zeile dort weiter, wo er aufgehört hat.
 - **Tabs im Ruhezustand.** Hintergrund-Tabs, die du 20 Minuten nicht gesehen hast, und bei knappem Speicher alle Hintergrund-Tabs geben ihren Webprozess frei und kommen samt Verlauf zurück, sobald du zu ihnen wechselst.
 - Der Seitenzoom wird pro Website gemerkt, und offene Tabs werden alle 15 Sekunden gesichert, sodass ein Absturz fast nichts kostet.
+- **Update-Hinweis.** Changmun wird über Homebrew aktualisiert. Einmal am Tag fragt es bei GitHub nach der neuesten Version; gibt es eine neuere, kopiert ein dezenter Hinweis unten in der Seitenleiste `brew upgrade --cask changmun` für dich. Abschalten unter Einstellungen › Erweitert › Nach Updates suchen.
 
 ## Tastenkurzbefehle
 
@@ -94,6 +97,7 @@ Wähle in den Einstellungen (⌘,) „Wie in Safari“ oder „Wie in Chrome“.
 | --- | --- | --- |
 | Seitenleiste | ⌘⇧L | ⌘S |
 | Vollständig neu laden | ⌥⌘R | ⌘⇧R |
+| Lesemodus | ⇧⌘R | ⌥⌘R |
 | Konsole | ⌥⌘C | ⌥⌘J |
 | Downloads | ⌥⌘L | ⌘⇧J |
 | Vorheriger Tab / Nächster Tab | | ⌥⌘← ⌥⌘→ |
@@ -153,6 +157,7 @@ Beim ersten Start oder über das Menü importiert Changmun Lesezeichen und Verla
 ## Datenschutz
 
 - Dein Surfverhalten bleibt auf deinem Mac. Changmun hat kein Konto, keinen Server und keine Analyse.
+- Die Update-Prüfung fragt einmal am Tag die öffentliche Releases-API von GitHub nach der neuesten Versionsnummer und sendet sonst nichts (abschaltbar unter Einstellungen › Erweitert).
 - Suchvorschläge senden, was du in die Befehlsleiste eingibst, an deine Suchmaschine (in den Einstellungen ausschaltbar; aus privaten Fenstern wird nie etwas gesendet).
 - Die KI-Seitenleiste sendet deine Nachrichten und die Seiteninhalte, die die KI liest, über das `claude`-CLI an Anthropic. „Tabs aufräumen“ und die Seitenübersetzung laufen auf deinem Mac.
 

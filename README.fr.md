@@ -58,12 +58,15 @@ Si seuls les Command Line Tools sont installés, les scripts compilent avec le S
 - **Les fenêtres privées** gardent leurs cookies et les données des sites en mémoire et les oublient à la fermeture ; rien n’est envoyé à l’historique, à la session ni à l’IA.
 - **Barre de commande** (⌘T) : recherche, adresses, passage aux onglets ouverts, signets et historique, et questions à l’IA.
 - **Traduction des pages** sur place avec la traduction sur l’appareil de macOS (⌥⌘T, macOS 26 ou ultérieur). Les liens et la mise en page sont conservés ; le texte ne quitte jamais le Mac.
+- **Réglages du site.** Cliquez sur le cadenas et le nom du site dans la barre d’adresse pour afficher un petit panneau avec ce que Changmun retient pour ce site : blocage des publicités, zoom, pop-ups, caméra et micro, et si ses onglets peuvent se mettre en veille. Cliquez ailleurs sur la barre pour modifier l’adresse, comme avant.
+- Le **mode lecture** (⇧⌘R, ou ⌥⌘R avec les raccourcis façon Chrome) affiche un article en texte épuré et lisible par-dessus la page. Quand la page ressemble à un article, un bouton apparaît dans la barre d’adresse. Échap, la × ou le même raccourci rend la page telle qu’elle était. Un petit script dans la page s’en charge ; rien n’est téléchargé ni envoyé.
 - **Image dans l’image** (⌃⌘P) s’active toute seule quand vous quittez un onglet où une vidéo est en lecture. ⌃⌘← / ⌃⌘→ avancent ou reculent de 5 secondes, même si vous êtes dans une autre app, et « Retour à l’onglet » ramène l’onglet au premier plan.
 - **Les mots de passe** sont enregistrés dans le Trousseau après votre connexion (https uniquement) et remplis depuis la clé située dans la barre d’adresse. Pour en copier un, Touch ID ou le mot de passe de votre Mac est demandé.
 - **Les pop-ups** ouverts sans clic sont bloqués, avec « Ouvrir » et « Toujours autoriser pour ce site » juste au-dessus de la page.
 - **Les téléchargements** affichent leur progression en bas de la barre latérale et reçoivent l’indicateur de quarantaine de Safari, si bien que Gatekeeper les vérifie à la première ouverture. Les apps, scripts et installateurs sont affichés dans le Finder au lieu d’être exécutés. Un téléchargement interrompu reprend là où il s’était arrêté avec Réessayer sur sa ligne.
 - **Onglets en veille.** Les onglets en arrière-plan que vous n’avez pas vus depuis 20 minutes, et tous les onglets en arrière-plan quand la mémoire se fait rare, libèrent leur processus web et reviennent avec leur historique quand vous les rouvrez.
 - Le zoom des pages est mémorisé pour chaque site, et les onglets ouverts sont enregistrés toutes les 15 secondes : un plantage ne coûte presque rien.
+- **Avis de mise à jour.** Changmun se met à jour avec Homebrew. Une fois par jour, il demande à GitHub la dernière version et, s’il y en a une plus récente, une note discrète en bas de la barre latérale copie `brew upgrade --cask changmun` pour vous. Désactivez-la dans Réglages › Avancé › Rechercher des mises à jour.
 
 ## Raccourcis
 
@@ -94,6 +97,7 @@ Choisissez le style Safari ou le style Chrome dans les Réglages (⌘,). Seules 
 | --- | --- | --- |
 | Barre latérale | ⌘⇧L | ⌘S |
 | Actualisation forcée | ⌥⌘R | ⌘⇧R |
+| Mode lecture | ⇧⌘R | ⌥⌘R |
 | Console | ⌥⌘C | ⌥⌘J |
 | Téléchargements | ⌥⌘L | ⌘⇧J |
 | Onglet précédent / Onglet suivant | | ⌥⌘← ⌥⌘→ |
@@ -153,6 +157,7 @@ Au premier lancement, ou depuis le menu, Changmun importe les signets et l’his
 ## Confidentialité
 
 - Votre navigation reste sur votre Mac. Changmun n’a ni compte, ni serveur, ni outil d’analyse.
+- La recherche de mises à jour interroge une fois par jour l’API publique des versions de GitHub pour connaître le dernier numéro de version et n’envoie rien d’autre (désactivable dans Réglages › Avancé).
 - Les suggestions de recherche envoient à votre moteur de recherche ce que vous saisissez dans la barre de commande (désactivez-les dans les Réglages ; jamais envoyées depuis les fenêtres privées).
 - Le panneau IA envoie vos messages, ainsi que le contenu des pages que l’IA lit, à Anthropic via la CLI `claude`. Le rangement des onglets et la traduction des pages s’exécutent sur votre Mac.
 

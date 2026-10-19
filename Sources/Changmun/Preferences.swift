@@ -105,9 +105,18 @@ final class Preferences: ObservableObject {
 
     func allowsPopups(from host: String?) -> Bool { Self.matches(host, popupHosts) }
 
-    func allowPopups(from host: String) {
+    func allowPopups(from host: String) { popupHosts = Self.adding(host, to: popupHosts) }
+
+    /// The list with the host's site on it: lower case, without "www.".
+    nonisolated static func adding(_ host: String, to sites: [String]) -> [String] {
         let site = (host.hasPrefix("www.") ? String(host.dropFirst(4)) : host).lowercased()
-        if !popupHosts.contains(site) { popupHosts.append(site) }
+        return sites.contains(site) ? sites : sites + [site]
+    }
+
+    /// The list without the host, or any site above it that covers it.
+    nonisolated static func removing(_ host: String, from sites: [String]) -> [String] {
+        let host = host.lowercased()
+        return sites.filter { host != $0 && !host.hasSuffix("." + $0) }
     }
 
     /// The host is one of the sites, or under one of them.
@@ -184,6 +193,8 @@ final class Preferences: ObservableObject {
     @Published var developerMode: Bool { didSet { defaults.set(developerMode, forKey: "developerMode") } }
     @Published var addressBar: AddressBarChoice { didSet { defaults.set(addressBar.rawValue, forKey: "addressBar") } }
     @Published var shortcuts: ShortcutScheme { didSet { defaults.set(shortcuts.rawValue, forKey: "shortcuts") } }
+    /// Once a day, asks GitHub whether a newer Changmun is out.
+    @Published var checkForUpdates: Bool { didSet { defaults.set(checkForUpdates, forKey: "checkForUpdates") } }
 
     private init() {
         let d = UserDefaults.standard
@@ -227,6 +238,7 @@ final class Preferences: ObservableObject {
         developerMode = d.bool(forKey: "developerMode")
         addressBar = AddressBarChoice(rawValue: d.string(forKey: "addressBar") ?? "") ?? .automatic
         shortcuts = ShortcutScheme(rawValue: d.string(forKey: "shortcuts") ?? "") ?? .safari
+        checkForUpdates = d.object(forKey: "checkForUpdates") as? Bool ?? true
     }
 
     var addressBarOnTop: Bool { Self.onTop(addressBar, developerMode: developerMode) }

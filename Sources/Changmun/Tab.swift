@@ -34,6 +34,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// The page's language when it isn't the user's: the address bar offers to translate it.
     @Published var foreignLanguage: Locale.Language?
     @Published private(set) var translation = Translation.original
+    /// The page looks like an article, which Reader Mode can show; and it is showing.
+    @Published private(set) var isReadable = false
+    @Published var isReading = false
     private var translating: Task<Void, Never>?
     /// Counts the pages shown, so work begun for one page doesn't land on the next.
     private var page = 0
@@ -370,6 +373,12 @@ extension Tab: WKNavigationDelegate {
             let language = await PageTranslator.foreignLanguage(of: webView)
             if self.page == page && translation == .original { foreignLanguage = language }
         }
+        if webView.url?.scheme?.hasPrefix("http") == true {
+            Task {
+                let readable = await Reader.run(.check, in: webView)
+                if self.page == page { isReadable = readable }
+            }
+        }
     }
 
     /// What belonged to the page that was shown: a new page, or a sleeping tab, starts without it.
@@ -381,6 +390,8 @@ extension Tab: WKNavigationDelegate {
         isInPictureInPicture = false
         foreignLanguage = nil
         translation = .original
+        isReadable = false
+        isReading = false
     }
 
     // MARK: Popups
@@ -402,6 +413,20 @@ extension Tab: WKNavigationDelegate {
         blockedPopup = nil
         if always, !isPrivate, let host = url?.host() { Preferences.shared.allowPopups(from: host) }
         browser?.openTab(url: popup, after: self).openerID = id
+    }
+
+    // MARK: Reader Mode
+
+    /// Shows the page's article over it as clean text, or takes it away again.
+    func toggleReader() {
+        guard let webView, webView.url?.scheme?.hasPrefix("http") == true else { return }
+        let page = page
+        Task {
+            let reading = await Reader.run(.toggle, in: webView)
+            guard self.page == page else { return }
+            if !reading && !isReading { browser?.flashStatus(String(localized: "No article to show in Reader Mode")) }
+            isReading = reading
+        }
     }
 
     // MARK: Translation

@@ -477,6 +477,7 @@ struct Sidebar: View {
     @ObservedObject var browser: Browser
     @ObservedObject private var prefs = Preferences.shared
     @ObservedObject private var library = LibraryWatcher.shared
+    @ObservedObject private var updates = UpdateCheck.shared
     @State private var dropTarget: String?
     @State private var showLibrary = false
     @State private var bookmarkQuery = ""
@@ -549,6 +550,10 @@ struct Sidebar: View {
             }
             }
 
+            if prefs.checkForUpdates, let version = updates.available {
+                UpdateNotice(version: version) { updates.dismiss() }
+                    .padding(.horizontal, Metrics.inset).padding(.bottom, Metrics.inset)
+            }
             DownloadShelf(browser: browser).padding(.bottom, Metrics.inset)
             // The rest of the browser, out of the way at the bottom: every bookmark, downloads, extensions and AI.
             HStack(spacing: Metrics.rowGap) {
@@ -1212,6 +1217,8 @@ struct AddressPill: View {
     let edit: () -> Void
     @ObservedObject private var library = LibraryWatcher.shared
     @State private var hover = false
+    @State private var siteHover = false
+    @State private var showSite = false
     @StateObject private var press = PressState()
 
     private var pressed: Bool { press.isPressed }
@@ -1232,16 +1239,28 @@ struct AddressPill: View {
     }
 
     var body: some View {
+        let host = tab.url?.host().map { $0.hasPrefix("www.") ? String($0.dropFirst(4)) : $0 }
+        // The lock and the site's name open the site's settings; anywhere else on the pill edits the address.
+        let hasSite = tab.url?.scheme?.hasPrefix("http") == true && host != nil
         HStack(spacing: 8) {
-            Image(systemName: tab.url?.scheme == "https" ? "lock.fill" : "globe")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(Theme.secondary)
-            let host = tab.url?.host().map { $0.hasPrefix("www.") ? String($0.dropFirst(4)) : $0 }
-            Text(host ?? String(localized: "Enter Address"))
-                .font(.system(size: 13, weight: .semibold))
-                .lineLimit(1)
-                .foregroundStyle(Theme.primary)
-                .layoutPriority(1)
+            HStack(spacing: 8) {
+                Image(systemName: tab.url?.scheme == "https" ? "lock.fill" : "globe")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Theme.secondary)
+                Text(host ?? String(localized: "Enter Address"))
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                    .foregroundStyle(Theme.primary)
+            }
+            .padding(.horizontal, 6)
+            .frame(height: Metrics.action + 4)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(hasSite && (siteHover || showSite) ? Theme.pill : .clear))
+            .layoutPriority(1)
+            .contentShape(Rectangle())
+            .onHover { siteHover = $0 }
+            .onTapGesture { if hasSite { showSite = true } else { edit() } }
+            .popover(isPresented: $showSite, arrowEdge: .bottom) { SiteSettings(tab: tab) }
+            .help(hasSite ? String(localized: "Site Settings") : String(localized: "Edit Address (⌘L)"))
             if !compact, let title = Self.shownTitle(tab.title, host: host) {
                 Text(verbatim: "·").font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.faint)
                 Text(verbatim: title)
@@ -1250,13 +1269,14 @@ struct AddressPill: View {
                     .foregroundStyle(Theme.faint)
             }
             Spacer(minLength: 0)
+            ReaderButton(tab: tab)
             TranslateButton(tab: tab)
             LoginButton(tab: tab)
             PictureInPictureButton(tab: tab)
             if hover || AdBlocker.shared.isAllowed(tab.url?.host() ?? "") { AdBlockShield(tab: tab) }
             if hover || tab.url.map({ library.favoriteURLs.contains($0.absoluteString) }) == true { BookmarkStar(tab: tab) }
         }
-        .padding(.leading, 10)
+        .padding(.leading, 4)
         .padding(.trailing, 4)
         .frame(height: height)
         .background(FieldBackground(tab: tab))
@@ -1343,6 +1363,27 @@ struct AddressPlaceholder: View {
         .contentShape(Rectangle())
         .onHover { hover = $0 }
         .onTapGesture(perform: open)
+    }
+}
+
+/// On a page that looks like an article: shows it as clean text over the page, and takes it away again.
+struct ReaderButton: View {
+    @ObservedObject var tab: Tab
+    @ObservedObject private var prefs = Preferences.shared
+
+    var body: some View {
+        if tab.isReadable || tab.isReading {
+            // Hard Reload takes one of the two, so Reader Mode has the other.
+            let key = prefs.shortcuts == .chrome ? "⌥⌘R" : "⇧⌘R"
+            Button { tab.toggleReader() } label: {
+                Image(systemName: "doc.plaintext").font(.system(size: 10.5, weight: .semibold))
+                    .frame(width: 20, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(tab.isReading ? Theme.primary : Theme.dim)
+            .help(tab.isReading ? String(localized: "Exit Reader Mode (\(key))") : String(localized: "Reader Mode (\(key))"))
+        }
     }
 }
 
