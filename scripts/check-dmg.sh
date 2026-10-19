@@ -46,7 +46,7 @@ lipo "$APP/Contents/MacOS/Changmun" -verify_arch arm64 || fail "The app is $(lip
 
 step "Signature"
 codesign --verify --deep --strict "$APP" || fail "Signature is broken"
-if codesign -dv "$APP" 2>&1 | grep -q "^Authority=Developer ID Application"; then
+if codesign -dvv "$APP" 2>&1 | grep -q "^Authority=Developer ID Application"; then
     step "Developer ID, hardened runtime, notarized"
     codesign -dv "$APP" 2>&1 | grep -q "flags=.*runtime" || fail "The hardened runtime is off"
     codesign -d --entitlements - "$APP" 2>/dev/null | grep -q "com.apple.security.device.camera" \
