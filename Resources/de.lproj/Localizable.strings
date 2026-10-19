@@ -200,14 +200,14 @@
 "Import" = "Importieren";
 "Import Bookmarks, History, and Passwords…" = "Lesezeichen, Verlauf und Passwörter importieren …";
 "Import from Another Browser…" = "Aus anderem Browser importieren …";
-"Imported bookmarks are in folders in the left sidebar. On login forms, use the key button next to the address to fill in a password." = "Importierte Lesezeichen findest du in Ordnern in der linken Seitenleiste. In Anmeldeformularen kannst du mit der Schlüssel-Taste neben der Adresse ein Passwort einsetzen.";
+"Imported bookmarks are behind the bookmark button at the bottom of the sidebar; pin the folders you use to keep them above your tabs. On login forms, use the key button next to the address to fill in a password." = "Importierte Lesezeichen findest du unter der Lesezeichen-Taste unten in der Seitenleiste; fixiere die Ordner, die du brauchst, damit sie über deinen Tabs bleiben. In Anmeldeformularen kannst du mit der Schlüssel-Taste neben der Adresse ein Passwort einsetzen.";
 "Install" = "Installieren";
 "Installation was cancelled" = "Die Installation wurde abgebrochen";
 "It can read and change the content of all websites." = "Sie kann die Inhalte aller Websites lesen und ändern.";
 "It can read and change the content of these sites: %@" = "Sie kann die Inhalte dieser Websites lesen und ändern: %@";
 "It can read and change the content of these sites: %@ and %lld more" = "Sie kann die Inhalte dieser Websites lesen und ändern: %@ und %lld weitere";
 "It doesn’t ask for the tab you’re viewing or for addresses it already knows." = "Für den Tab, den du gerade ansiehst, und für bereits bekannte Adressen wird nicht nachgefragt.";
-"It runs on the same WebKit engine as Safari, so it's light, and when you talk to the AI panel on the right (⌘E), the AI reads the page and clicks and types for you.\nWould you like to bring over the bookmarks, history, passwords and login state from the browser you used before?" = "Er nutzt dieselbe WebKit-Engine wie Safari und ist daher schlank. Wenn du mit der KI-Seitenleiste rechts (⌘E) sprichst, liest die KI die Seite und klickt und tippt für dich.\nMöchtest du Lesezeichen, Verlauf, Passwörter und Anmeldestatus aus deinem bisherigen Browser übernehmen?";
+"It runs on the same WebKit engine as Safari, so it's light, and when you talk to the AI panel (⌘E), the AI reads the page and clicks and types for you.\nWould you like to bring over the bookmarks, history, passwords and login state from the browser you used before?" = "Er nutzt dieselbe WebKit-Engine wie Safari und ist daher schlank. Wenn du mit der KI-Seitenleiste (⌘E) sprichst, liest die KI die Seite und klickt und tippt für dich.\nMöchtest du Lesezeichen, Verlauf, Passwörter und Anmeldestatus aus deinem bisherigen Browser übernehmen?";
 "Last Tab" = "Letzter Tab";
 "Last updated %@" = "Zuletzt aktualisiert: %@";
 "Later" = "Später";
@@ -442,3 +442,9 @@
 "Try Again" = "Erneut versuchen";
 "This page keeps crashing" = "Diese Seite stürzt immer wieder ab";
 "Changmun stopped reloading it." = "Changmun lädt sie nicht mehr neu.";
+"Bookmarks you bring over from another browser show up here." = "Lesezeichen aus einem anderen Browser erscheinen hier.";
+"Closed %lld tab" = "%lld Tab geschlossen";
+"Closed %lld tabs" = "%lld Tabs geschlossen";
+"Deleted the bookmark" = "Lesezeichen gelöscht";
+"Removed from Favorites" = "Aus den Favoriten entfernt";
+"Search Bookmarks" = "Lesezeichen durchsuchen";

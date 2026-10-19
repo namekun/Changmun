@@ -56,8 +56,7 @@ struct OnboardingView: View {
                 }
             }
             .frame(width: 540)
-            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Theme.background))
-            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
+            .floatingPanel(radius: 18)
             .animation(Motion.standard, value: model.step)
         }
     }
@@ -69,7 +68,7 @@ struct OnboardingView: View {
                 .foregroundStyle(Theme.primary)
             Text("Welcome to Changmun")
                 .font(.system(size: 22, weight: .semibold))
-            Text("It runs on the same WebKit engine as Safari, so it's light, and when you talk to the AI panel on the right (⌘E), the AI reads the page and clicks and types for you.\nWould you like to bring over the bookmarks, history, passwords and login state from the browser you used before?")
+            Text("It runs on the same WebKit engine as Safari, so it's light, and when you talk to the AI panel (⌘E), the AI reads the page and clicks and types for you.\nWould you like to bring over the bookmarks, history, passwords and login state from the browser you used before?")
                 .font(.system(size: 13.5))
                 .lineSpacing(3)
                 .foregroundStyle(Color.primary.opacity(0.7))
@@ -153,7 +152,7 @@ struct OnboardingView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.hoverTab))
             }
-            Text("Imported bookmarks are in folders in the left sidebar. On login forms, use the key button next to the address to fill in a password.")
+            Text("Imported bookmarks are behind the bookmark button at the bottom of the sidebar; pin the folders you use to keep them above your tabs. On login forms, use the key button next to the address to fill in a password.")
                 .font(.system(size: 12))
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)

@@ -196,7 +196,8 @@ final class Browser: ObservableObject {
 
     func flashStatus(_ message: String) {
         overlay.statusMessage = message
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { [weak self] in
+        // Long enough to read: a short word for a moment, a sentence for longer.
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(1.6, Double(message.count) * 0.06)) { [weak self] in
             if self?.overlay.statusMessage == message { self?.overlay.statusMessage = nil }
         }
     }
@@ -328,7 +329,7 @@ final class Browser: ObservableObject {
         if remember {
             closedTabs.append(ClosedTab(url: closing.url, title: closing.title, state: closing.sessionState, index: index, bookmarkKey: closing.bookmarkKey,
                                         group: groups.first { $0.id == closing.groupID }))
-            if closedTabs.count > 25 { closedTabs.removeFirst() }
+            if closedTabs.count > 100 { closedTabs.removeFirst() }
         }
         closing.sleep()
         pruneGroups()
@@ -657,7 +658,38 @@ final class Browser: ObservableObject {
            let outside = tabs.first(where: { $0.id == previousActiveID && $0.groupID != id }) ?? listedTabs.first(where: { $0.groupID != id }) {
             activate(outside.id)
         }
-        for tab in tabs where tab.groupID == id { close(tab.id) }
+        let closing = tabs.filter { $0.groupID == id }
+        for tab in closing { close(tab.id) }
+        let count = closing.count, stack = closedTabs.count
+        offerUndo(count == 1 ? String(localized: "Closed \(count) tab") : String(localized: "Closed \(count) tabs")) { [weak self] in
+            // Only while they are still the last ones closed; ⌘⇧T is there for the rest.
+            guard let self, closedTabs.count == stack else { return }
+            for _ in 0..<min(count, stack) { reopenClosedTab() }
+        }
+    }
+
+    /// Something just done that can be taken back, under the new tab row for a few seconds.
+    struct Notice: Equatable {
+        let id = UUID()
+        let message: String
+        let undo: () -> Void
+        static func == (a: Notice, b: Notice) -> Bool { a.id == b.id }
+    }
+
+    @Published private(set) var notice: Notice?
+
+    func offerUndo(_ message: String, undo: @escaping () -> Void) {
+        let notice = Notice(message: message, undo: undo)
+        self.notice = notice
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in
+            if self?.notice == notice { self?.notice = nil }
+        }
+    }
+
+    func undoNotice() {
+        guard let notice else { return }
+        self.notice = nil
+        notice.undo()
     }
 
     /// Joins a tab to a group after the group's last tab, so a group's tabs stay together.

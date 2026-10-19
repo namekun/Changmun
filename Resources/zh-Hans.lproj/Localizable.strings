@@ -200,14 +200,14 @@
 "Import" = "导入";
 "Import Bookmarks, History, and Passwords…" = "导入书签、历史记录和密码…";
 "Import from Another Browser…" = "从其他浏览器导入…";
-"Imported bookmarks are in folders in the left sidebar. On login forms, use the key button next to the address to fill in a password." = "导入的书签位于左侧边栏的文件夹中。在登录表单中，可使用地址栏旁的钥匙按钮填入密码。";
+"Imported bookmarks are behind the bookmark button at the bottom of the sidebar; pin the folders you use to keep them above your tabs. On login forms, use the key button next to the address to fill in a password." = "导入的书签在边栏底部的书签按钮中；常用的文件夹固定后会留在标签页上方。在登录表单中，可使用地址栏旁的钥匙按钮填入密码。";
 "Install" = "安装";
 "Installation was cancelled" = "安装已取消";
 "It can read and change the content of all websites." = "它可以读取并更改所有网站的内容。";
 "It can read and change the content of these sites: %@" = "它可以读取并更改以下网站的内容：%@";
 "It can read and change the content of these sites: %@ and %lld more" = "它可以读取并更改以下网站的内容：%@ 以及另外 %lld 个";
 "It doesn’t ask for the tab you’re viewing or for addresses it already knows." = "对于你正在查看的标签页和它已知的地址，它不会询问。";
-"It runs on the same WebKit engine as Safari, so it's light, and when you talk to the AI panel on the right (⌘E), the AI reads the page and clicks and types for you.\nWould you like to bring over the bookmarks, history, passwords and login state from the browser you used before?" = "它基于与 Safari 相同的 WebKit 引擎，因此很轻巧；在右侧 AI 面板 (⌘E) 中对话时，AI 会读取页面，并替你点按和输入。\n要导入你之前使用的浏览器中的书签、历史记录、密码和登录状态吗？";
+"It runs on the same WebKit engine as Safari, so it's light, and when you talk to the AI panel (⌘E), the AI reads the page and clicks and types for you.\nWould you like to bring over the bookmarks, history, passwords and login state from the browser you used before?" = "它基于与 Safari 相同的 WebKit 引擎，因此很轻巧；在 AI 面板 (⌘E) 中对话时，AI 会读取页面，并替你点按和输入。\n要导入你之前使用的浏览器中的书签、历史记录、密码和登录状态吗？";
 "Last Tab" = "最后一个标签页";
 "Last updated %@" = "最后更新：%@";
 "Later" = "稍后";
@@ -442,3 +442,9 @@
 "Try Again" = "重试";
 "This page keeps crashing" = "此页面不断崩溃";
 "Changmun stopped reloading it." = "Changmun 已停止重新载入它。";
+"Bookmarks you bring over from another browser show up here." = "从其他浏览器导入的书签会显示在这里。";
+"Closed %lld tab" = "已关闭 %lld 个标签页";
+"Closed %lld tabs" = "已关闭 %lld 个标签页";
+"Deleted the bookmark" = "已删除书签";
+"Removed from Favorites" = "已从个人收藏中移除";
+"Search Bookmarks" = "搜索书签";

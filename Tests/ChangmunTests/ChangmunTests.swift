@@ -490,6 +490,26 @@ struct BrowserTabTests {
     /// Tab ids count up across windows, so tests name tabs by position.
     private func ids(_ b: Browser) -> [Int] { b.tabs.map(\.id) }
 
+    @Test func closingAGroupCanBeTakenBack() throws {
+        let b = browser(4)
+        let group = try #require(b.group(Array(ids(b).prefix(3)), name: "Work"))
+        b.closeGroup(group)
+        #expect(b.tabs.count == 1)
+        #expect(b.notice != nil)
+        b.undoNotice()
+        #expect(b.notice == nil)
+        #expect(b.tabs.count == 4)
+        #expect(b.tabs.filter { $0.groupID != nil }.count == 3)
+        #expect(b.groups.map(\.name) == ["Work"])
+        // Once other tabs were closed after it, undo leaves the stack alone (⌘⇧T is there for that).
+        let again = try #require(b.group(Array(ids(b).prefix(2)), name: "Again"))
+        b.closeGroup(again)
+        b.close(ids(b)[0])
+        let left = b.tabs.count
+        b.undoNotice()
+        #expect(b.tabs.count == left)
+    }
+
     @Test func movingATabPutsItWhereItWasDropped() {
         let b = browser(4)
         let (one, two, three, four) = (b.tabs[0].id, b.tabs[1].id, b.tabs[2].id, b.tabs[3].id)

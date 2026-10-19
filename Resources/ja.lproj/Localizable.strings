@@ -200,14 +200,14 @@
 "Import" = "読み込む";
 "Import Bookmarks, History, and Passwords…" = "ブックマーク、履歴、パスワードを読み込む…";
 "Import from Another Browser…" = "ほかのブラウザから読み込む…";
-"Imported bookmarks are in folders in the left sidebar. On login forms, use the key button next to the address to fill in a password." = "読み込んだブックマークは、左のサイドバーのフォルダ内にあります。ログインフォームでは、アドレスの横にあるキーのボタンでパスワードを入力できます。";
+"Imported bookmarks are behind the bookmark button at the bottom of the sidebar; pin the folders you use to keep them above your tabs. On login forms, use the key button next to the address to fill in a password." = "読み込んだブックマークは、サイドバー下部のブックマークボタンから開けます。よく使うフォルダは固定するとタブの上に残ります。ログインフォームでは、アドレスの横にあるキーのボタンでパスワードを入力できます。";
 "Install" = "インストール";
 "Installation was cancelled" = "インストールをキャンセルしました";
 "It can read and change the content of all websites." = "すべてのWebサイトの内容を読み取り、変更できます。";
 "It can read and change the content of these sites: %@" = "次のサイトの内容を読み取り、変更できます: %@";
 "It can read and change the content of these sites: %@ and %lld more" = "次のサイトの内容を読み取り、変更できます: %@ ほか%lld件";
 "It doesn’t ask for the tab you’re viewing or for addresses it already knows." = "表示中のタブや、すでに知っているアドレスについては確認しません。";
-"It runs on the same WebKit engine as Safari, so it's light, and when you talk to the AI panel on the right (⌘E), the AI reads the page and clicks and types for you.\nWould you like to bring over the bookmarks, history, passwords and login state from the browser you used before?" = "Safariと同じWebKitエンジンで動作するため軽量で、右側のAIパネル (⌘E) に話しかけると、AIがページを読み取り、代わりにクリックや入力を行います。\n以前使っていたブラウザのブックマーク、履歴、パスワード、ログイン状態を読み込みますか？";
+"It runs on the same WebKit engine as Safari, so it's light, and when you talk to the AI panel (⌘E), the AI reads the page and clicks and types for you.\nWould you like to bring over the bookmarks, history, passwords and login state from the browser you used before?" = "Safariと同じWebKitエンジンで動作するため軽量で、AIパネル (⌘E) に話しかけると、AIがページを読み取り、代わりにクリックや入力を行います。\n以前使っていたブラウザのブックマーク、履歴、パスワード、ログイン状態を読み込みますか？";
 "Last Tab" = "最後のタブ";
 "Last updated %@" = "最終更新 %@";
 "Later" = "あとで";
@@ -442,3 +442,9 @@
 "Try Again" = "再試行";
 "This page keeps crashing" = "このページはクラッシュを繰り返しています";
 "Changmun stopped reloading it." = "Changmunは再読み込みを止めました。";
+"Bookmarks you bring over from another browser show up here." = "ほかのブラウザから読み込んだブックマークがここに表示されます。";
+"Closed %lld tab" = "%lld個のタブを閉じました";
+"Closed %lld tabs" = "%lld個のタブを閉じました";
+"Deleted the bookmark" = "ブックマークを削除しました";
+"Removed from Favorites" = "お気に入りから外しました";
+"Search Bookmarks" = "ブックマークを検索";

@@ -434,8 +434,7 @@ struct FindBar: View {
         .padding(.leading, 10)
         .padding(.trailing, 4)
         .frame(height: 36)
-        .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Theme.background))
-        .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
+        .floatingPanel(radius: Metrics.cardRadius)
         .padding(10)
         .onAppear { focused = true }
         .onChange(of: overlay.findFocusRequest) { focused = true }

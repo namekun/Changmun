@@ -200,14 +200,14 @@
 "Import" = "Importer";
 "Import Bookmarks, History, and Passwords…" = "Importer les signets, l’historique et les mots de passe…";
 "Import from Another Browser…" = "Importer depuis un autre navigateur…";
-"Imported bookmarks are in folders in the left sidebar. On login forms, use the key button next to the address to fill in a password." = "Les signets importés se trouvent dans des dossiers de la barre latérale gauche. Dans les formulaires de connexion, utilisez le bouton en forme de clé à côté de l’adresse pour remplir un mot de passe.";
+"Imported bookmarks are behind the bookmark button at the bottom of the sidebar; pin the folders you use to keep them above your tabs. On login forms, use the key button next to the address to fill in a password." = "Les signets importés sont derrière le bouton des signets, en bas de la barre latérale ; épinglez les dossiers que vous utilisez pour les garder au-dessus de vos onglets. Dans les formulaires de connexion, utilisez le bouton en forme de clé à côté de l’adresse pour remplir un mot de passe.";
 "Install" = "Installer";
 "Installation was cancelled" = "L’installation a été annulée";
 "It can read and change the content of all websites." = "Elle peut lire et modifier le contenu de tous les sites web.";
 "It can read and change the content of these sites: %@" = "Elle peut lire et modifier le contenu de ces sites : %@";
 "It can read and change the content of these sites: %@ and %lld more" = "Elle peut lire et modifier le contenu de ces sites : %@ et %lld autres";
 "It doesn’t ask for the tab you’re viewing or for addresses it already knows." = "Elle ne demande rien pour l’onglet que vous consultez ni pour les adresses qu’elle connaît déjà.";
-"It runs on the same WebKit engine as Safari, so it's light, and when you talk to the AI panel on the right (⌘E), the AI reads the page and clicks and types for you.\nWould you like to bring over the bookmarks, history, passwords and login state from the browser you used before?" = "Il repose sur le même moteur WebKit que Safari, il est donc léger, et lorsque vous dialoguez avec le panneau IA à droite (⌘E), l’IA lit la page, clique et saisit du texte à votre place.\nSouhaitez-vous importer les signets, l’historique, les mots de passe et l’état de connexion du navigateur que vous utilisiez auparavant ?";
+"It runs on the same WebKit engine as Safari, so it's light, and when you talk to the AI panel (⌘E), the AI reads the page and clicks and types for you.\nWould you like to bring over the bookmarks, history, passwords and login state from the browser you used before?" = "Il repose sur le même moteur WebKit que Safari, il est donc léger, et lorsque vous dialoguez avec le panneau IA (⌘E), l’IA lit la page, clique et saisit du texte à votre place.\nSouhaitez-vous importer les signets, l’historique, les mots de passe et l’état de connexion du navigateur que vous utilisiez auparavant ?";
 "Last Tab" = "Dernier onglet";
 "Last updated %@" = "Dernière mise à jour : %@";
 "Later" = "Plus tard";
@@ -442,3 +442,9 @@
 "Try Again" = "Réessayer";
 "This page keeps crashing" = "Cette page plante sans cesse";
 "Changmun stopped reloading it." = "Changmun a cessé de la recharger.";
+"Bookmarks you bring over from another browser show up here." = "Les signets importés d’un autre navigateur apparaissent ici.";
+"Closed %lld tab" = "%lld onglet fermé";
+"Closed %lld tabs" = "%lld onglets fermés";
+"Deleted the bookmark" = "Signet supprimé";
+"Removed from Favorites" = "Retiré des favoris";
+"Search Bookmarks" = "Rechercher dans les signets";
