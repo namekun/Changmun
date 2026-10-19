@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.appearance = Preferences.shared.appearance.nsAppearance
         Task { await AdBlocker.shared.start() }
         Library.shared.pruneHistory()
+        ChatStore.removeOldConfigs()
         // Watching the library from the start, so no change goes unseen before a sidebar first shows.
         _ = LibraryWatcher.shared
         if !Headless.isOn {
@@ -44,6 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         Browser.saveSession()
         ChatStore.shared.stop()
+        ChatStore.removeOldConfigs()
         ControlServer.shared.stop()
     }
 

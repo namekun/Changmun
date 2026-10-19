@@ -68,12 +68,34 @@ struct AttachedTabTests {
         #expect(ControlServer.caller([:]) == "unknown")
     }
 
-    @Test func onlyThePanelsOwnClaudeGetsTheSecret() throws {
-        let config = try #require(JSONSerialization.jsonObject(with: Data(ChatStore.mcpConfig().utf8)) as? [String: Any])
+    @Test func theSecretTravelsInAPrivateFileNotOnACommandLine() throws {
+        let file = try ChatStore.writeMCPConfig()
+        defer { try? FileManager.default.removeItem(at: file) }
+        let mode = { (url: URL) in (try? FileManager.default.attributesOfItem(atPath: url.path)[.posixPermissions] as? Int) ?? -1 }
+        #expect(mode(file) == 0o600 && mode(ChatStore.configFolder) == 0o700)
+        let config = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
         let server = try #require((config["mcpServers"] as? [String: Any])?["changmun"] as? [String: Any])
         #expect((server["env"] as? [String: String])?[ChatStore.panelSecretVariable] == ChatStore.panelSecret)
-        #expect(!(server["args"] as? [String] ?? []).contains(ChatStore.panelSecret))
+        #expect(!(server["args"] as? [String] ?? []).contains { $0.contains(ChatStore.panelSecret) })
         #expect(ChatStore.panelSecret.count >= 64)
+        // Each run has its own file, and an existing one is never reused.
+        let other = try ChatStore.writeMCPConfig()
+        defer { try? FileManager.default.removeItem(at: other) }
+        #expect(other != file)
+    }
+
+    @Test func leftoverConfigsOfEndedAppsAreRemovedAndLiveOnesKept() throws {
+        let folder = ChatStore.configFolder
+        let own = try ChatStore.writeMCPConfig()
+        let dead = folder.appendingPathComponent("mcp-2147483646-\(UUID().uuidString).json")
+        let live = folder.appendingPathComponent("mcp-1-\(UUID().uuidString).json")
+        let stranger = folder.appendingPathComponent("notes.txt")
+        for file in [dead, live, stranger] { try Data("x".utf8).write(to: file) }
+        defer { for file in [own, dead, live, stranger] { try? FileManager.default.removeItem(at: file) } }
+        ChatStore.removeOldConfigs()
+        let exists = { (url: URL) in FileManager.default.fileExists(atPath: url.path) }
+        #expect(!exists(own) && !exists(dead))
+        #expect(exists(live) && exists(stranger))
     }
 
     @Test func aTabThatEndedUpOnAnotherSiteNeedsThatSiteApproved() async {
@@ -88,6 +110,34 @@ struct AttachedTabTests {
         #expect(await Approvals.allowRead(tabs[0], approvedHost: "a.example", readHost: nil, caller: panel))
         #expect(!(await Approvals.allowRead(tabs[0], approvedHost: "a.example", readHost: "b.example", caller: panel)))
         #expect(!(await Approvals.allowTab(tabs[0], caller: panel, reading: true, host: "b.example")))
+    }
+
+    @Test func aReadThatNamesNoSiteFallsBackToTheTabsOwn() async {
+        let (browser, tabs) = open(["https://a.example/"])
+        defer { browser.windowClosed() }
+        let before = Preferences.shared.aiApprovals
+        Preferences.shared.aiApprovals = true
+        defer { Preferences.shared.aiApprovals = before }
+        let tab = tabs[0], caller = "test-nil-host"
+        #expect(await Approvals.allowRead(tab, approvedHost: "a.example", readHost: nil, caller: caller))
+        tab.url = URL(string: "https://moved.example/")
+        #expect(!(await Approvals.allowRead(tab, approvedHost: "a.example", readHost: nil, caller: caller)))
+        tab.url = nil
+        #expect(!(await Approvals.allowRead(tab, approvedHost: "a.example", readHost: nil, caller: caller)))
+    }
+
+    @Test func aReadWithoutASiteIsStillRecordedForTheTypingRules() async {
+        let (browser, tabs) = open(["https://a.example/", "https://b.example/"])
+        defer { browser.windowClosed() }
+        let before = Preferences.shared.aiApprovals
+        Preferences.shared.aiApprovals = true
+        defer { Preferences.shared.aiApprovals = before }
+        let caller = "test-note-read"
+        Approvals.forgetReads(caller: caller)
+        #expect(await Approvals.allowTyping("hi", into: tabs[1], caller: caller))
+        Approvals.noteRead(tabs[0], readHost: nil, caller: caller)
+        #expect(!(await Approvals.allowTyping("hi", into: tabs[1], caller: caller)))
+        Approvals.forgetReads(caller: caller)
     }
 
     @Test func theSiteReadIsTakenFromTheURLLine() {

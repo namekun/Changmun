@@ -71,12 +71,17 @@ final class ChatStore: ObservableObject {
             items.append(ChatItem(kind: .error, text: String(localized: "Couldn't find the `claude` CLI. Install Claude Code and try again.")))
             return
         }
+        // The config holds the panel's secret, so it goes in a file only this user can read, not on the command line.
+        guard let config = try? Self.writeMCPConfig() else {
+            fail(String(localized: "The AI request failed."))
+            return
+        }
         var arguments = [
             "-p", Self.contextLine(Browser.recent?.active) + Self.attachedLine(attachedTabs) + "\n\n" + message,
             "--output-format", "stream-json", "--verbose", "--include-partial-messages",
             "--model", model,
             "--setting-sources", "",
-            "--strict-mcp-config", "--mcp-config", Self.mcpConfig(),
+            "--strict-mcp-config", "--mcp-config", config.path,
             "--tools", "",
             "--allowedTools", "mcp__changmun",
             "--system-prompt", Self.systemPrompt,
@@ -102,6 +107,7 @@ final class ChatStore: ObservableObject {
         do {
             try process.run()
         } catch {
+            try? FileManager.default.removeItem(at: config)
             fail(String(localized: "Couldn't run claude: \(error.localizedDescription)"))
             return
         }
@@ -120,6 +126,7 @@ final class ChatStore: ObservableObject {
             } catch {}
             let sawResult = results > 0
             process.waitUntilExit()
+            try? FileManager.default.removeItem(at: config)
             let errorText = String(data: await errorOutput.value, encoding: .utf8) ?? ""
             await self?.finished(run: run, sawResult: sawResult, status: process.terminationStatus, errorText: errorText)
         }
@@ -293,11 +300,41 @@ final class ChatStore: ObservableObject {
     nonisolated static let panelSecret = UUID().uuidString + UUID().uuidString
     nonisolated static let panelSecretVariable = "CHANGMUN_PANEL_SECRET"
 
-    static func mcpConfig() -> String {
+    static func mcpConfig() -> Data {
         let server: [String: Any] = ["command": Bundle.main.executablePath ?? CommandLine.arguments[0], "args": ["--mcp", "--caller", caller],
                                      "env": [panelSecretVariable: panelSecret]]
-        let data = try! JSONSerialization.data(withJSONObject: ["mcpServers": ["changmun": server]])
-        return String(data: data, encoding: .utf8)!
+        return try! JSONSerialization.data(withJSONObject: ["mcpServers": ["changmun": server]])
+    }
+
+    /// Where the MCP configs of this user's runs are written: a folder only they can open.
+    static var configFolder: URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("Changmun", isDirectory: true)
+    }
+
+    /// One run's MCP config, made with the owner's permissions from the start (never readable by others, even for a moment).
+    static func writeMCPConfig() throws -> URL {
+        try FileManager.default.createDirectory(at: configFolder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: configFolder.path)
+        let file = configFolder.appendingPathComponent("mcp-\(getpid())-\(UUID().uuidString).json")
+        let descriptor = open(file.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0o600)
+        guard descriptor >= 0 else { throw CocoaError(.fileWriteUnknown) }
+        defer { close(descriptor) }
+        let data = mcpConfig()
+        guard write(descriptor, (data as NSData).bytes, data.count) == data.count else {
+            try? FileManager.default.removeItem(at: file)
+            throw CocoaError(.fileWriteUnknown)
+        }
+        return file
+    }
+
+    /// Removes the configs of this app's runs and of apps that are no longer running, which a crash left behind.
+    static func removeOldConfigs() {
+        let files = (try? FileManager.default.contentsOfDirectory(at: configFolder, includingPropertiesForKeys: nil)) ?? []
+        for file in files {
+            let parts = file.lastPathComponent.split(separator: "-")
+            guard parts.count > 2, parts[0] == "mcp", let pid = Int32(parts[1]) else { continue }
+            if pid == getpid() || (kill(pid, 0) != 0 && errno != EPERM) { try? FileManager.default.removeItem(at: file) }
+        }
     }
 
     static var workingDirectory: URL {

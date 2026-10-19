@@ -98,7 +98,7 @@ enum ToolCatalog {
             let result = await run(PageScripts.read, ["maxChars": int(args["max_chars"]) ?? 12000], in: webView)
             let host = readHost(result)
             if needsApproval, !(await Approvals.allowRead(tab, approvedHost: approvedHost, readHost: host, caller: caller)) { return declined }
-            Approvals.noteRead(host: host, caller: caller)
+            Approvals.noteRead(tab, readHost: host, caller: caller)
             return result
         case "click":
             guard let id = int(args["element_id"]) else { return .text("element_id is required.", error: true) }
@@ -161,7 +161,7 @@ enum ToolCatalog {
                 sections.append(heading + "The user declined this tab. Don't retry it.")
                 continue
             }
-            Approvals.noteRead(host: host, caller: caller)
+            Approvals.noteRead(tab, readHost: host, caller: caller)
             sections.append(heading + (result.content.first?["text"] as? String ?? ""))
         }
         return .text(sections.joined(separator: "\n\n"))
@@ -301,10 +301,12 @@ enum Approvals {
     }
 
     /// A tab approved while asleep or loading may have ended up on another site by the time it was read; what it
-    /// gave is held back unless the site it really came from is approved too.
+    /// gave is held back unless the site it really came from is approved too. When the page named no site (an error,
+    /// a page without an address), the tab's own site stands in, and an unknown one is asked about.
     static func allowRead(_ tab: Tab, approvedHost: String?, readHost: String?, caller: String) async -> Bool {
-        guard let readHost, readHost != approvedHost else { return true }
-        return await allowTab(tab, caller: caller, reading: true, host: readHost)
+        let host = readHost ?? tab.url?.host()?.lowercased()
+        if let host, host == approvedHost { return true }
+        return await allowTab(tab, caller: caller, reading: true, host: host)
     }
 
     static func allowNavigation(_ url: URL) async -> Bool {
@@ -340,11 +342,12 @@ enum Approvals {
     }
 
     static func noteRead(_ tab: Tab, caller: String) {
-        noteRead(host: tab.url?.host()?.lowercased(), caller: caller)
+        noteRead(tab, readHost: nil, caller: caller)
     }
 
-    static func noteRead(host: String?, caller: String) {
-        if let host { readHosts[caller, default: []].insert(host) }
+    /// Records a read by the site its text came from, or by the tab's own site when the page named none.
+    static func noteRead(_ tab: Tab, readHost: String?, caller: String) {
+        if let host = readHost ?? tab.url?.host()?.lowercased() { readHosts[caller, default: []].insert(host) }
     }
 
     /// Typing hands text to the page; after reading other sites, the user sees what would be typed and says yes.
