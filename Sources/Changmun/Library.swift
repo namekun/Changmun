@@ -272,6 +272,12 @@ final class Library: @unchecked Sendable {
             [(self, depth)] + children.flatMap { $0.flattened(depth: depth + 1) }
         }
 
+        /// The folder and every folder inside it, each named by its path from here ("Work › 2026").
+        func paths(_ prefix: String = "") -> [(key: String, path: String)] {
+            let path = prefix.isEmpty ? label : prefix + " › " + label
+            return [(key, path)] + children.flatMap { $0.paths(path) }
+        }
+
         func find(_ key: String) -> Folder? {
             if self.key == key { return self }
             return children.lazy.compactMap { $0.find(key) }.first

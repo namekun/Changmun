@@ -118,21 +118,31 @@ final class PressTracker: ObservableObject {
             MainActor.assumeIsolated { PressTracker.shared.handle(event) }
             return event
         }
+        // A menu that opens takes the mouse-up with it, as does a window that loses focus mid-press.
+        for name in [NSMenu.didBeginTrackingNotification, NSWindow.didResignKeyNotification] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { PressTracker.shared.release() }
+            }
+        }
+    }
+
+    func release() {
+        start = nil
+        press = nil
     }
 
     private func handle(_ event: NSEvent) {
         guard let window = event.window, let content = window.contentView else { return }
         let point = CGPoint(x: event.locationInWindow.x, y: content.bounds.height - event.locationInWindow.y)
         switch event.type {
-        case .leftMouseDown:
+        case .leftMouseDown where !event.modifierFlags.contains(.control):
             start = point
             press = (window.windowNumber, point)
         case .leftMouseDragged:
             // A drag has begun: the row is being carried, not pressed.
             if press != nil, let start, hypot(point.x - start.x, point.y - start.y) > 4 { press = nil }
         default:
-            start = nil
-            press = nil
+            release()
         }
     }
 
@@ -356,6 +366,7 @@ struct BrowserView: View {
             }
         }
         .ignoresSafeArea()
+        .environment(\.windowNumber, browser.window?.windowNumber)
         .animation(Motion.standard, value: browser.showChat)
         .animation(Motion.standard, value: browser.showSidebar)
         .animation(Motion.standard, value: browser.focusMode)
@@ -401,7 +412,8 @@ struct Sidebar: View {
                         case .tab(let tab):
                             tabRow(tab, depth: 0)
                         case .group(let group, let tabs):
-                            TabGroupHeader(group: group, count: tabs.count, browser: browser, target: dropTarget == "group:\(group.id)")
+                            TabGroupHeader(group: group, count: tabs.count, browser: browser,
+                                           target: dropTarget == "group:\(group.id)" && SidebarDrag.dragging == .tab)
                                 .dropDestination(for: String.self) { items, _ in
                                     SidebarDrag.drop(items, onGroup: group.id, browser: browser)
                                 } isTargeted: { target("group:\(group.id)", $0) }
@@ -412,7 +424,7 @@ struct Sidebar: View {
                     }
                     // Below the last tab: a tab dropped here goes to the end of the list.
                     SectionGap()
-                        .dropLine(dropTarget == "tabs:end")
+                        .dropLine(dropTarget == "tabs:end" && SidebarDrag.dragging == .tab)
                         .dropDestination(for: String.self) { items, _ in
                             SidebarDrag.dropAtEnd(items, browser: browser)
                         } isTargeted: { target("tabs:end", $0) }
@@ -432,7 +444,6 @@ struct Sidebar: View {
                 .animation(Motion.standard, value: showBookmarks)
                 .animation(Motion.quick, value: dropTarget)
             }
-            .environment(\.windowNumber, browser.window?.windowNumber)
 
             DownloadShelf(browser: browser).padding(.bottom, Metrics.inset)
             if prefs.toolbarPlace == .sidebar {
@@ -466,7 +477,7 @@ struct Sidebar: View {
                 } menu: {
                     bookmarkMenu(url: entry.url, folder: Library.favoritesFolder, key: key)
                 }
-                .dropLine(dropTarget == "fav:" + entry.url, edge: .leading)
+                .dropLine(dropTarget == "fav:" + entry.url && SidebarDrag.dragging != .folder, edge: .leading)
                 .draggable(SidebarDrag.favorite(entry.url))
                 .dropDestination(for: String.self) { items, _ in
                     SidebarDrag.drop(items, onFavorite: entry.url, browser: browser)
@@ -485,11 +496,11 @@ struct Sidebar: View {
     @ViewBuilder private var pinned: some View {
         let folders = prefs.pinnedFolders.compactMap(library.folder)
         // Ids carry the part of the sidebar: a folder can show both pinned and under Bookmarks.
-        ForEach(folders.map { ("pin:" + $0.key, $0) }, id: \.0) { _, folder in
-            folderTree(folder, depth: 0, scope: "pin:", pinned: true)
+        ForEach(folders.flatMap { treeRows($0, depth: 0, scope: "pin:", pinned: true) }) { row in
+            treeRow(row)
         }
         SectionGap(hairline: !folders.isEmpty)
-            .dropLine(dropTarget == "pin:end")
+            .dropLine(dropTarget == "pin:end" && SidebarDrag.dragging == .folder)
             .dropDestination(for: String.self) { items, _ in
                 SidebarDrag.pin(items, before: nil)
             } isTargeted: { target("pin:end", $0) }
@@ -509,69 +520,91 @@ struct Sidebar: View {
                     }
                 }
                 if prefs.openFolders.contains(key) {
-                    ForEach(group.folders.map { ($0.key, $0) }, id: \.0) { _, folder in
-                        folderTree(folder, depth: 1, scope: "", pinned: false)
+                    ForEach(group.folders.flatMap { treeRows($0, depth: 1, scope: "", pinned: false) }) { row in
+                        treeRow(row)
                     }
                 }
             }
         }
     }
 
-    /// A folder row, and when it is open the folders and bookmarks inside it, each a step further in.
-    private func folderTree(_ folder: Library.Folder, depth: Int, scope: String, pinned: Bool) -> AnyView {
+    /// One row of a folder tree, with how far in it sits. The tree is laid out as a flat list so the lazy stack
+    /// only builds the rows on screen, however big an open folder is.
+    enum TreeRow: Identifiable {
+        case folder(Library.Folder, depth: Int, scope: String, pinned: Bool)
+        case bookmark(Library.Entry, folder: String, depth: Int, scope: String)
+
+        /// Carries the part of the sidebar: a folder can show both pinned and under Bookmarks.
+        var id: String {
+            switch self {
+            case .folder(let folder, _, let scope, _): scope + folder.key
+            case .bookmark(let entry, let folder, _, let scope): scope + folder + "\n" + entry.url
+            }
+        }
+    }
+
+    /// A folder, and when it is open the folders and bookmarks inside it, each a step further in.
+    private func treeRows(_ folder: Library.Folder, depth: Int, scope: String, pinned: Bool) -> [TreeRow] {
+        var rows: [TreeRow] = [.folder(folder, depth: depth, scope: scope, pinned: pinned)]
+        guard prefs.openFolders.contains(scope + folder.key) else { return rows }
+        for child in folder.children { rows += treeRows(child, depth: depth + 1, scope: scope, pinned: pinned) }
+        rows += folder.entries.map { .bookmark($0, folder: folder.key, depth: depth + 1, scope: scope) }
+        return rows
+    }
+
+    @ViewBuilder private func treeRow(_ row: TreeRow) -> some View {
+        switch row {
+        case .folder(let folder, let depth, let scope, let pinned):
+            folderRow(folder, depth: depth, scope: scope, pinned: pinned)
+        case .bookmark(let entry, let folder, let depth, _):
+            let key = Browser.bookmarkKey(url: entry.url, folder: folder)
+            BookmarkRow(entry: entry, state: BookmarkTabState(key, browser)) {
+                browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
+            } closeTab: {
+                if let tab = browser.bookmarkTab(key) { browser.close(tab.id) }
+            } menu: {
+                bookmarkMenu(url: entry.url, folder: folder, key: key)
+            }
+            .padding(.leading, CGFloat(depth) * Metrics.indent)
+            .draggable(SidebarDrag.bookmark(entry.url, in: folder))
+        }
+    }
+
+    private func folderRow(_ folder: Library.Folder, depth: Int, scope: String, pinned: Bool) -> some View {
         let openKey = scope + folder.key
-        let isOpen = prefs.openFolders.contains(openKey)
         let isPinned = prefs.pinnedFolders.contains(folder.key)
         let targetKey = scope + "folder:" + folder.key
         // Pinned folders reorder when a folder is dropped on one; a bookmark dropped on any folder moves in.
         let reorders = pinned && depth == 0
-        return AnyView(Group {
-            FolderRow(name: folder.label, count: folder.count, isOpen: isOpen, showCount: false,
-                      target: dropTarget == targetKey && !(reorders && SidebarDrag.dragging == .folder)) {
-                prefs.toggleOpen(openKey)
-            } menu: {
-                if isPinned {
-                    Button("Unpin from Sidebar") { prefs.unpinFolder(folder.key) }
-                } else {
-                    Button("Pin to Sidebar") { prefs.pinFolder(folder.key) }
-                }
-                Divider()
-                Button("Delete Folder…") {
-                    let count = folder.count
-                    let question = count == 1 ? String(localized: "Delete the folder “\(folder.label)” and its \(count) bookmark?")
-                                              : String(localized: "Delete the folder “\(folder.label)” and its \(count) bookmarks?")
-                    confirmDelete(question) {
-                        prefs.unpinFolder(folder.key)
-                        Library.shared.removeFolder(folder.key)
-                    }
+        let over = dropTarget == targetKey
+        return FolderRow(name: folder.label, count: folder.count, isOpen: prefs.openFolders.contains(openKey), showCount: false,
+                         target: over && SidebarDrag.dragging == .bookmark) {
+            prefs.toggleOpen(openKey)
+        } menu: {
+            if isPinned {
+                Button("Unpin from Sidebar") { prefs.unpinFolder(folder.key) }
+            } else {
+                Button("Pin to Sidebar") { prefs.pinFolder(folder.key) }
+            }
+            Divider()
+            Button("Delete Folder…") {
+                let count = folder.count
+                let question = count == 1 ? String(localized: "Delete the folder “\(folder.label)” and its \(count) bookmark?")
+                                          : String(localized: "Delete the folder “\(folder.label)” and its \(count) bookmarks?")
+                confirmDelete(question) {
+                    for inner in folder.flattened() { prefs.unpinFolder(inner.folder.key) }
+                    Library.shared.removeFolder(folder.key)
                 }
             }
-            .padding(.leading, CGFloat(depth) * Metrics.indent)
-            .help(folder.key)
-            .dropLine(reorders && dropTarget == targetKey && SidebarDrag.dragging == .folder)
-            .draggable(SidebarDrag.folder(folder.key))
-            .dropDestination(for: String.self) { items, _ in
-                if reorders, SidebarDrag.pin(items, before: folder.key) { return true }
-                return SidebarDrag.drop(items, onFolder: folder.key)
-            } isTargeted: { target(targetKey, $0) }
-            if isOpen {
-                ForEach(folder.children.map { (scope + $0.key, $0) }, id: \.0) { _, child in
-                    folderTree(child, depth: depth + 1, scope: scope, pinned: pinned)
-                }
-                ForEach(folder.entries.map { (scope + Browser.bookmarkKey(url: $0.url, folder: folder.key), $0) }, id: \.0) { _, entry in
-                    let key = Browser.bookmarkKey(url: entry.url, folder: folder.key)
-                    BookmarkRow(entry: entry, state: BookmarkTabState(key, browser)) {
-                        browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
-                    } closeTab: {
-                        if let tab = browser.bookmarkTab(key) { browser.close(tab.id) }
-                    } menu: {
-                        bookmarkMenu(url: entry.url, folder: folder.key, key: key)
-                    }
-                    .padding(.leading, CGFloat(depth + 1) * Metrics.indent)
-                    .draggable(SidebarDrag.bookmark(entry.url, in: folder.key))
-                }
-            }
-        })
+        }
+        .padding(.leading, CGFloat(depth) * Metrics.indent)
+        .help(folder.key)
+        .dropLine(reorders && over && SidebarDrag.dragging == .folder)
+        .draggable(SidebarDrag.folder(folder.key))
+        .dropDestination(for: String.self) { items, _ in
+            if reorders, SidebarDrag.pin(items, before: folder.key) { return true }
+            return SidebarDrag.drop(items, onFolder: folder.key)
+        } isTargeted: { target(targetKey, $0) }
     }
 
     private func tabRow(_ tab: Tab, depth: Int) -> some View {
@@ -581,7 +614,7 @@ struct Sidebar: View {
             browser.close(tab.id)
         }
         .padding(.leading, CGFloat(depth) * Metrics.indent)
-        .dropLine(dropTarget == "tab:\(tab.id)")
+        .dropLine(dropTarget == "tab:\(tab.id)" && SidebarDrag.dragging == .tab)
         .draggable(SidebarDrag.tab(tab.id))
         .dropDestination(for: String.self) { items, _ in
             SidebarDrag.drop(items, onTab: tab.id, browser: browser)
@@ -610,18 +643,16 @@ struct Sidebar: View {
         }
     }
 
-    /// "Move To": the favorites and every imported folder, by the browser it came from, inner folders indented.
+    /// "Move To": the favorites and every imported folder, by the browser it came from.
     @ViewBuilder private func moveMenu(url: String, from: String) -> some View {
         Menu("Move To") {
             Button("Favorites") { Browser.moveBookmark(url: url, from: from, to: Library.favoritesFolder) }
                 .disabled(from == Library.favoritesFolder)
             ForEach(library.sources, id: \.source) { group in
                 Section(group.source) {
-                    ForEach(group.folders.flatMap { $0.flattened() }, id: \.folder.key) { item in
-                        Button(String(repeating: "    ", count: item.depth) + item.folder.label) {
-                            Browser.moveBookmark(url: url, from: from, to: item.folder.key)
-                        }
-                        .disabled(item.folder.key == from)
+                    ForEach(group.folders.flatMap { $0.paths() }, id: \.key) { item in
+                        Button(item.path) { Browser.moveBookmark(url: url, from: from, to: item.key) }
+                            .disabled(item.key == from)
                     }
                 }
             }
@@ -733,12 +764,14 @@ enum SidebarDrag {
     @discardableResult
     static func pin(_ items: [String], before target: String?) -> Bool {
         guard let key = folderKey(items) else { return false }
+        dragging = nil
         withAnimation(Motion.standard) { Preferences.shared.pinFolder(key, before: target) }
         return true
     }
 
     /// A tab dropped below the list goes to its end, out of any group.
     static func dropAtEnd(_ items: [String], browser: Browser) -> Bool {
+        defer { dragging = nil }
         guard let id = tabID(items) else { return false }
         withAnimation(Motion.standard) {
             browser.moveTab(id, to: nil)
@@ -759,18 +792,21 @@ enum SidebarDrag {
 
     /// A bookmark or favorite dropped on a folder moves into it.
     static func drop(_ items: [String], onFolder folder: String) -> Bool {
+        defer { dragging = nil }
         guard let (url, from) = bookmark(items), from != folder else { return false }
         Browser.moveBookmark(url: url, from: from, to: folder)
         return true
     }
 
     static func drop(_ items: [String], onTab target: Int, browser: Browser) -> Bool {
+        defer { dragging = nil }
         guard let id = tabID(items) else { return false }
         withAnimation(Motion.standard) { browser.dropTab(id, on: target) }
         return true
     }
 
     static func drop(_ items: [String], onGroup group: UUID, browser: Browser) -> Bool {
+        defer { dragging = nil }
         guard let id = tabID(items) else { return false }
         withAnimation(Motion.standard) { browser.addTab(id, to: group) }
         return true
@@ -784,6 +820,7 @@ enum SidebarDrag {
     /// A favorite dropped on a favorite moves there; a bookmark from a folder or a tab dropped on one is pinned there.
     /// With no target, past the last tile, it goes to the end.
     static func drop(_ items: [String], onFavorite target: String?, browser: Browser) -> Bool {
+        defer { dragging = nil }
         if let (url, folder) = bookmark(items) {
             if folder != Library.favoritesFolder { Browser.moveBookmark(url: url, from: folder, to: Library.favoritesFolder) }
             Library.shared.moveFavorite(url, to: target)

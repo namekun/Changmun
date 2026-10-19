@@ -224,6 +224,8 @@ struct LibraryTests {
         #expect(bar.count == 2)
         #expect(bar.find("Arc 북마크 바 / Safari에서 가져옴 / 개발")?.entries.count == 1)
         #expect(bar.flattened().map(\.depth) == [0, 1, 2])
+        #expect(bar.paths().map(\.path) == ["북마크 바", "북마크 바 › Safari에서 가져옴", "북마크 바 › Safari에서 가져옴 › 개발"])
+        #expect(bar.paths().map(\.key) == bar.flattened().map(\.folder.key))
         #expect(Library.allFolders(groups).map(\.key) == [
             "Arc 북마크 바", "Arc 북마크 바 / Safari에서 가져옴", "Arc 북마크 바 / Safari에서 가져옴 / 개발", "Arc 사이드바", "Dia 북마크 바",
         ])
