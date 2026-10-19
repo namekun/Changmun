@@ -1382,7 +1382,15 @@ struct DownloadTests {
 struct HeadlessTests {
     @Test func theNormalAppIsNotHeadless() {
         #expect(!Headless.isOn)
-        #expect(Library.folder.lastPathComponent == "Changmun")
+        // Only the app's own bundle ids reach the user's data; anything else, this test runner included, gets a folder of its own.
+        let real = Library.location(forBundle: "io.github.namekun.Changmun")
+        #expect(real.lastPathComponent == "Changmun" && real.path.contains("Application Support"))
+        #expect(Library.location(forBundle: Headless.bundleID).lastPathComponent == "Changmun Headless")
+        #expect(Library.location(forBundle: "io.github.namekun.Changmun.dev") == real)
+        for other in [nil, "com.apple.dt.xctest.tool", "io.github.someone.Changmun"] {
+            #expect(!Library.location(forBundle: other).path.contains("Application Support"))
+        }
+        #expect(Library.folder == Library.location(forBundle: Bundle.main.bundleIdentifier) && !Library.folder.path.contains("Application Support"))
     }
 
     @Test func windowImagesDrawWithoutTheWindowOnScreen() async throws {

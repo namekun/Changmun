@@ -12,11 +12,20 @@ final class Library: @unchecked Sendable {
     static func isFavorites(_ folder: String) -> Bool { folder.isEmpty || folder.hasPrefix(favoritesPrefix) }
     static let shared = Library(path: Library.folder.appendingPathComponent("library.sqlite").path)
 
+    /// The user's data folder, for the app and for Changmun Headless only. Anything else (the test runner, a bare
+    /// `swift run` binary) gets a folder of its own in the temporary directory, so it can never touch that data.
     static var folder: URL {
-        let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent(Headless.isOn ? "Changmun Headless" : "Changmun", isDirectory: true)
+        let url = location(forBundle: Bundle.main.bundleIdentifier)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
+    }
+
+    private static let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("changmun-\(ProcessInfo.processInfo.processIdentifier)-\(UUID().uuidString)", isDirectory: true)
+
+    static func location(forBundle bundleID: String?) -> URL {
+        guard bundleID?.hasPrefix("io.github.namekun.Changmun") == true else { return scratch }
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(bundleID == Headless.bundleID ? "Changmun Headless" : "Changmun", isDirectory: true)
     }
 
     struct Entry: Equatable {
@@ -253,6 +262,22 @@ final class Library: @unchecked Sendable {
         changed()
     }
 
+    /// Moves every favorite of one space to another, as one change, leaving out those already there. Returns whether it worked.
+    @discardableResult
+    func moveFavorites(from: String, to: String) -> Bool {
+        guard from != to, let db else { return false }
+        do {
+            try db.transaction {
+                try db.run("INSERT OR IGNORE INTO bookmarks (url, title, folder, added) SELECT url, title, ?, added FROM bookmarks WHERE folder = ?", [to, from])
+                try db.run("DELETE FROM bookmarks WHERE folder = ?", [from])
+            }
+        } catch {
+            return false
+        }
+        changed()
+        return true
+    }
+
     /// Moves a bookmark to the end of another folder (the favorites are folder ""); if it is there already, the copy
     /// it was moved from just goes. Returns whether it moved.
     @discardableResult
@@ -289,17 +314,24 @@ final class Library: @unchecked Sendable {
         }
     }
 
-    func bookmarks(limit: Int = 8) -> [Entry] {
-        rows("SELECT url, title FROM bookmarks ORDER BY added DESC, id LIMIT ?", [limit])
+    /// `hiding` names folders whose bookmarks stay out (another profile's favorites).
+    func bookmarks(limit: Int = 8, hiding folders: [String] = []) -> [Entry] {
+        let hidden = Self.notIn(folders)
+        return rows("SELECT url, title FROM bookmarks WHERE \(hidden.clause) ORDER BY added DESC, id LIMIT ?", hidden.values + [limit])
+    }
+
+    private static func notIn(_ folders: [String]) -> (clause: String, values: [Any?]) {
+        folders.isEmpty ? ("1", []) : ("folder NOT IN (\(Array(repeating: "?", count: folders.count).joined(separator: ", ")))", folders)
     }
 
     /// Bookmarks first, then history ranked by visits and recency.
-    func search(_ text: String, limit: Int = 6) -> [Entry] {
+    func search(_ text: String, limit: Int = 6, hiding folders: [String] = []) -> [Entry] {
         let words = text.lowercased().split(separator: " ").map(String.init).filter { !$0.isEmpty }
         guard !words.isEmpty else { return [] }
         let clause = words.map { _ in "(lower(title) LIKE ? OR lower(url) LIKE ?)" }.joined(separator: " AND ")
         let values: [Any?] = words.flatMap { word -> [String] in ["%\(word)%", "%\(word)%"] }
-        let marks = rows("SELECT url, title FROM bookmarks WHERE \(clause) LIMIT ?", values + [limit])
+        let hidden = Self.notIn(folders)
+        let marks = rows("SELECT url, title FROM bookmarks WHERE \(clause) AND \(hidden.clause) LIMIT ?", values + hidden.values + [limit])
         let recent = rows("""
         SELECT url, title FROM history WHERE \(clause)
         ORDER BY visits * 1.0 / (1 + (strftime('%s','now') - last_visit) / 604800.0) DESC LIMIT ?
