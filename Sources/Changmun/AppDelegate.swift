@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuSubscription = Preferences.shared.$shortcuts.sink { NSApp.mainMenu = AppMenu.make(scheme: $0) }
         NSApp.appearance = Preferences.shared.appearance.nsAppearance
         Task { await AdBlocker.shared.start() }
+        Library.shared.pruneHistory()
         if !Headless.isOn {
             Task { await ContentBlockerHost.shared.start() }
             if #available(macOS 15.4, *) { Task { await ExtensionHost.shared.start() } }

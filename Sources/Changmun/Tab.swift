@@ -87,12 +87,14 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         if let webView { return webView }
         let view = WKWebView(frame: .zero, configuration: browser?.configuration ?? Browser.configuration)
         attach(view)
+        // A file the user opened is allowed to load again, also when it comes back from a saved back/forward list.
+        if let url, url.isFileURL { userFileLoad = url }
         if let savedState {
             view.interactionState = savedState as NSData
         } else if let url {
-            if url.isFileURL { userFileLoad = url }
             Self.load(url, in: view)
         }
+        finishedState = savedState
         savedState = nil
         return view
     }
@@ -100,6 +102,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     func sleep() {
         guard let webView else { return }
         savedState = webView.interactionState as? Data
+        finishedState = nil
         url = webView.url ?? url
         webView.stopLoading()
         webView.removeFromSuperview()
@@ -141,6 +144,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
 
     /// What gets written to disk to restore the tab at the next launch.
     var sessionState: Data? { (webView?.interactionState as? Data) ?? savedState }
+    /// The same as of the last page that finished loading, cheap to read.
+    var lastSessionState: Data? { finishedState ?? savedState }
+    private var finishedState: Data?
 
     private func attach(_ view: WKWebView) {
         view.navigationDelegate = self
@@ -351,6 +357,7 @@ extension Tab: WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        finishedState = webView.interactionState as? Data
         loadFavicon()
         if sortsIntoGroup, webView.url?.scheme?.hasPrefix("http") == true, webView.title?.isEmpty == false {
             sortsIntoGroup = false

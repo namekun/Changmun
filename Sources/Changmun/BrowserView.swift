@@ -106,12 +106,24 @@ enum Motion {
     }
 }
 
-/// Where the left button is held down, so a row can darken the moment it is pressed. It only watches the events,
-/// leaving clicks, drags and menus to the views as before.
+/// One row's pressed state. The tracker sets it, so a press redraws the row under the pointer and nothing else.
 @MainActor
-final class PressTracker: ObservableObject {
+final class PressState: ObservableObject {
+    @Published fileprivate(set) var isPressed = false
+}
+
+/// Darkens a row the moment the left button goes down on it. It only watches the events, leaving clicks, drags and
+/// menus to the views as before; rows tell it where they are.
+@MainActor
+final class PressTracker {
     static let shared = PressTracker()
-    @Published private(set) var press: (window: Int, point: CGPoint)?
+    private struct Area {
+        weak var state: PressState?
+        var frame: CGRect
+        var window: Int?
+    }
+    private var areas: [ObjectIdentifier: Area] = [:]
+    private var pressed: [PressState] = []
     private var start: CGPoint?
 
     private init() {
@@ -127,9 +139,12 @@ final class PressTracker: ObservableObject {
         }
     }
 
-    func release() {
-        start = nil
-        press = nil
+    func place(_ state: PressState, frame: CGRect, window: Int?) {
+        areas[ObjectIdentifier(state)] = Area(state: state, frame: frame, window: window)
+    }
+
+    func remove(_ state: PressState) {
+        areas[ObjectIdentifier(state)] = nil
     }
 
     private func handle(_ event: NSEvent) {
@@ -137,20 +152,39 @@ final class PressTracker: ObservableObject {
         let point = CGPoint(x: event.locationInWindow.x, y: content.bounds.height - event.locationInWindow.y)
         switch event.type {
         case .leftMouseDown where !event.modifierFlags.contains(.control):
+            release()
             start = point
-            press = (window.windowNumber, point)
+            pressed = areas.values.compactMap { $0.window == window.windowNumber && $0.frame.contains(point) ? $0.state : nil }
+            for state in pressed { state.isPressed = true }
         case .leftMouseDragged:
             // A drag has begun: the row is being carried, not pressed.
-            if press != nil, let start, hypot(point.x - start.x, point.y - start.y) > 4 { press = nil }
+            if !pressed.isEmpty, let start, hypot(point.x - start.x, point.y - start.y) > 4 { release() }
         default:
             release()
         }
     }
 
-    func isPressed(_ frame: CGRect, in window: Int?) -> Bool {
-        guard let press, press.window == window else { return false }
-        return frame.contains(press.point)
+    func release() {
+        start = nil
+        for state in pressed { state.isPressed = false }
+        pressed = []
     }
+}
+
+/// Tells the tracker where a pressable view is.
+private struct PressArea: ViewModifier {
+    let state: PressState
+    @Environment(\.windowNumber) private var window
+
+    func body(content: Content) -> some View {
+        content
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { PressTracker.shared.place(state, frame: $0, window: window) }
+            .onDisappear { PressTracker.shared.remove(state) }
+    }
+}
+
+extension View {
+    func pressArea(_ state: PressState) -> some View { modifier(PressArea(state: state)) }
 }
 
 private struct WindowNumberKey: EnvironmentKey {
@@ -172,12 +206,10 @@ struct RowChrome: ViewModifier {
     var target = false
     var radius = Metrics.rowRadius
     var resting: Color = .clear
-    @ObservedObject private var tracker = PressTracker.shared
-    @Environment(\.windowNumber) private var window
-    @State private var frame = CGRect.zero
+    @StateObject private var press = PressState()
 
     func body(content: Content) -> some View {
-        let pressed = tracker.isPressed(frame, in: window)
+        let pressed = press.isPressed
         content
             .background {
                 if selected {
@@ -188,7 +220,7 @@ struct RowChrome: ViewModifier {
                 }
             }
             .contentShape(Rectangle())
-            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame = $0 }
+            .pressArea(press)
     }
 }
 
@@ -1008,11 +1040,9 @@ struct AddressPill: View {
     let edit: () -> Void
     @ObservedObject private var library = LibraryWatcher.shared
     @State private var hover = false
-    @State private var frame = CGRect.zero
-    @ObservedObject private var tracker = PressTracker.shared
-    @Environment(\.windowNumber) private var window
+    @StateObject private var press = PressState()
 
-    private var pressed: Bool { tracker.isPressed(frame, in: window) }
+    private var pressed: Bool { press.isPressed }
 
     /// The page names itself, so its title sits behind a dot and may not start like the rest of an address ("/login", ".bank.com").
     /// Invisible characters (zero-width spaces, direction overrides, Hangul fillers) are taken out first, and stray
@@ -1065,7 +1095,7 @@ struct AddressPill: View {
         }
         .contentShape(Rectangle())
         .onHover { hover = $0 }
-        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame = $0 }
+        .pressArea(press)
         .onTapGesture(perform: edit)
         .help("Edit Address (⌘L)")
     }

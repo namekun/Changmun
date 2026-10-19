@@ -100,7 +100,10 @@ final class Browser: ObservableObject {
     static var favicons: [String: NSImage] = [:]
     /// For a private window's requests: no disk cache, no shared cookies.
     static let ephemeral = URLSession(configuration: .ephemeral)
-    private static var missingIcons = Set<String>()
+    /// Hosts whose icon couldn't be found, and when: asked again after an hour, not on every row.
+    private static var missingIcons: [String: Date] = [:]
+    /// Icons being fetched, so rows showing the same site wait for one request.
+    private static var iconLoads: [String: Task<NSImage?, Never>] = [:]
     /// Tab ids are unique across windows: the AI's approvals remember tabs by id.
     private static var nextID = 1
     /// The tab shown before the current one: closing the current tab goes back to it, as in Safari and Chrome.
@@ -780,7 +783,8 @@ final class Browser: ObservableObject {
     static func icon(for address: String, keep: Bool = true) async -> NSImage? {
         guard let url = URL(string: address), let host = url.host(), let scheme = url.scheme, scheme.hasPrefix("http") else { return nil }
         if let cached = favicons[host] { return cached }
-        if missingIcons.contains(host) { return nil }
+        if let missed = missingIcons[host], missed.timeIntervalSinceNow > -3600 { return nil }
+        if let loading = iconLoads[host] { return await loading.value }
         let file = iconFolder.appendingPathComponent(host + ".png")
         if let image = NSImage(contentsOf: file) {
             favicons[host] = image
@@ -791,12 +795,22 @@ final class Browser: ObservableObject {
         components.host = url.host(percentEncoded: true)
         components.port = url.port
         components.path = "/favicon.ico"
-        missingIcons.insert(host)
-        guard let iconURL = components.url,
-              let (data, response) = try? await (keep ? URLSession.shared : ephemeral).data(from: iconURL),
-              (response as? HTTPURLResponse)?.statusCode == 200,
-              let image = NSImage(data: data), image.isValid else { return nil }
-        missingIcons.remove(host)
+        let session = keep ? URLSession.shared : ephemeral
+        let load = Task { () -> NSImage? in
+            guard let iconURL = components.url,
+                  let (data, response) = try? await session.data(from: iconURL),
+                  (response as? HTTPURLResponse)?.statusCode == 200,
+                  let image = NSImage(data: data), image.isValid else { return nil }
+            return image
+        }
+        iconLoads[host] = load
+        let image = await load.value
+        iconLoads[host] = nil
+        guard let image else {
+            missingIcons[host] = Date()
+            return nil
+        }
+        missingIcons[host] = nil
         favicons[host] = image
         if keep { storeIcon(image, host: host) }
         return image
@@ -931,10 +945,14 @@ final class Browser: ObservableObject {
     /// The last session that was read back whole, kept in case the next one can't be.
     private static var previousSessionFile: URL { Library.folder.appendingPathComponent("session-previous.json") }
 
-    var savedSession: SavedSession {
+    var savedSession: SavedSession { savedSession(fresh: true) }
+
+    /// `fresh` asks every open page for its back and forward list; the periodic save uses what each tab kept when
+    /// its last page finished loading, so it doesn't walk every web view on the main thread.
+    func savedSession(fresh: Bool) -> SavedSession {
         SavedSession(
-            tabs: tabs.map { SavedTab(url: $0.url?.absoluteString, title: $0.title, state: $0.sessionState, bookmarkKey: $0.bookmarkKey, group: $0.groupID,
-                                  shown: $0.lastShown) },
+            tabs: tabs.map { SavedTab(url: $0.url?.absoluteString, title: $0.title, state: fresh ? $0.sessionState : $0.lastSessionState,
+                                  bookmarkKey: $0.bookmarkKey, group: $0.groupID, shown: $0.lastShown) },
             active: tabs.firstIndex { $0.id == activeID },
             previous: tabs.firstIndex { $0.id == previousActiveID },
             groups: groups,
@@ -947,7 +965,7 @@ final class Browser: ObservableObject {
     static func saveSession(_ browsers: [Browser]? = nil, inBackground: Bool = false) {
         let normal = (browsers ?? all).filter { !$0.isPrivate }
         guard !normal.isEmpty else { return }
-        let saved = SavedWindows(windows: normal.reversed().map(\.savedSession).filter { !$0.tabs.isEmpty })
+        let saved = SavedWindows(windows: normal.reversed().map { $0.savedSession(fresh: !inBackground) }.filter { !$0.tabs.isEmpty })
         let file = sessionFile
         let write = { (try? JSONEncoder().encode(saved).write(to: file, options: .atomic)) != nil }
         if inBackground {

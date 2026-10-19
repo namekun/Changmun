@@ -27,6 +27,7 @@ final class Library: @unchecked Sendable {
         db = try? SQLite(path: path)
         try? db?.execute("""
         PRAGMA journal_mode=WAL;
+        PRAGMA synchronous=NORMAL;
         CREATE TABLE IF NOT EXISTS history (url TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', visits INTEGER NOT NULL DEFAULT 1, last_visit REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS bookmarks (id INTEGER PRIMARY KEY, url TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', folder TEXT NOT NULL DEFAULT '', added REAL NOT NULL, UNIQUE(url, folder));
         CREATE INDEX IF NOT EXISTS history_recent ON history(last_visit DESC);
@@ -189,6 +190,14 @@ final class Library: @unchecked Sendable {
         return rows.compactMap { row in
             guard let url = row[0] as? String else { return nil }
             return Visit(url: url, title: row[1] as? String ?? "", lastVisit: Date(timeIntervalSince1970: row[2] as? Double ?? 0))
+        }
+    }
+
+    /// Forgets visits older than a year, as Safari does, off the main thread.
+    func pruneHistory() {
+        let path = path
+        DispatchQueue.global(qos: .utility).async {
+            try? SQLite(path: path).run("DELETE FROM history WHERE last_visit < ?", [Date().timeIntervalSince1970 - 365 * 86400])
         }
     }
 
