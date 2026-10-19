@@ -793,8 +793,13 @@ struct Sidebar: View {
 
     /// The same items for a favorite and a bookmark, in the same order: the tab, then where it goes, then deleting.
     private func remove(url: String, title: String, folder: String, _ message: String) {
+        let key = Browser.bookmarkKey(url: url, folder: folder)
+        let tab = browser.bookmarkTab(key)
         Library.shared.removeBookmark(url: url, folder: folder)
-        browser.offerUndo(message) { Library.shared.addBookmark(url: url, title: title, folder: folder) }
+        browser.offerUndo(message) { [browser] in
+            Library.shared.addBookmark(url: url, title: title, folder: folder)
+            if let tab, browser.tab(tab.id) != nil { browser.bind(tab, to: key) }
+        }
     }
 
     @ViewBuilder private func bookmarkMenu(url: String, title: String, folder: String, key: String) -> some View {
@@ -896,9 +901,9 @@ struct SidebarDrop: Transferable {
     let text: String
 
     static var transferRepresentation: some TransferRepresentation {
+        ProxyRepresentation(exporting: \.text, importing: { SidebarDrop(text: $0) })
         ProxyRepresentation(exporting: { (drop: SidebarDrop) in URL(string: drop.text) ?? URL(fileURLWithPath: "/") },
                             importing: { (url: URL) in SidebarDrop(text: url.absoluteString) })
-        ProxyRepresentation(exporting: \.text, importing: { SidebarDrop(text: $0) })
     }
 }
 
@@ -1067,7 +1072,9 @@ final class LibraryWatcher: ObservableObject {
         reading = true
         Task {
             // An unreadable library (locked, damaged, a full disk) keeps what is shown, and every tab keeps its bookmark.
-            if let read = await Library.shared.inBackground({ $0.readBookmarks() }) { apply(read) }
+            let read = await Library.shared.inBackground { $0.readBookmarks() }
+            // Changed while reading: this read may already be old, so only the next one counts.
+            if let read, !readAgain { apply(read) }
             reading = false
             if readAgain {
                 readAgain = false
@@ -1412,8 +1419,10 @@ struct BookmarkStar: View {
         Button {
             guard !url.isEmpty else { return }
             let title = tab.title
-            if !Library.shared.toggleBookmark(url: url, title: title) {
-                tab.browser?.offerUndo(String(localized: "Removed from Favorites")) { _ = Library.shared.toggleBookmark(url: url, title: title) }
+            if !Library.shared.toggleBookmark(url: url, title: title) && marked {
+                tab.browser?.offerUndo(String(localized: "Removed from Favorites")) {
+                    Library.shared.addBookmark(url: url, title: title, folder: Library.favoritesFolder)
+                }
             }
         } label: {
             Image(systemName: marked ? "star.fill" : "star")
@@ -1782,7 +1791,7 @@ struct SidebarTabRow: View {
             if tab.isAsleep { browser.activate(tab.id) } else { tab.webView?.reload() }
         }
         Button("Duplicate Tab") { browser.duplicate(tab.id) }
-        Button("Move to New Window") { browser.moveToNewWindow(tab.id) }
+        if !tab.isPrivate && tab.bookmarkKey == nil { Button("Move to New Window") { browser.moveToNewWindow(tab.id) } }
         if let url = tab.url, url.scheme?.hasPrefix("http") == true {
             ShareLink(item: url)
             OpenInMenu(url: url)

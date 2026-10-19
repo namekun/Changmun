@@ -720,13 +720,20 @@ struct BrowserTabTests {
         #expect(Browser.SavedWindows.decode(Data("nope".utf8)).isEmpty)
     }
 
-    @Test func aDamagedTabOrWindowDoesNotLoseTheRestOfTheSession() {
+    @Test func aDamagedTabOrWindowDoesNotLoseTheRestOfTheSession() throws {
         // One tab with a broken title, one window that is not a window at all, one good window.
         let json = #"{"windows":[{"tabs":[{"url":"https://a.example/","title":"A"},{"url":"https://b.example/","title":7}],"active":0},"#
             + #"{"tabs":"broken"},{"tabs":[{"url":"https://c.example/","title":"C"}],"active":"x"}]}"#
         let windows = Browser.SavedWindows.decode(Data(json.utf8))
         #expect(windows.map { $0.tabs.compactMap(\.url) } == [["https://a.example/"], ["https://c.example/"]])
         #expect(windows[0].active == 0 && windows[1].active == nil)
+        // A dropped tab before the shown one doesn't shift which tab comes back shown.
+        let shifted = #"{"tabs":[{"url":"https://x.example/","title":1},{"url":"https://y.example/","title":"Y"},{"url":"https://z.example/","title":"Z"}],"active":2,"previous":0}"#
+        let one = try #require(Browser.SavedWindows.decode(Data(shifted.utf8)).first)
+        #expect(one.tabs.count == 2 && one.active == 1 && one.previous == nil)
+        // Nothing open is a valid session, not a damaged one.
+        #expect(Browser.SavedWindows.decodeIfValid(Data(#"{"windows":[]}"#.utf8))?.isEmpty == true)
+        #expect(Browser.SavedWindows.decodeIfValid(Data("garbage".utf8)) == nil)
     }
 
     @Test func closedTabsComeBackWhereTheyWere() {

@@ -490,7 +490,7 @@ extension Tab: WKNavigationDelegate {
     /// crashing stops after two tries, and a tab nobody is looking at just goes to sleep.
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         crashes = crashes.filter { $0.timeIntervalSinceNow > -30 } + [Date()]
-        if browser?.isShown(self) != true {
+        if browser?.isShown(self) != true && browser?.peek !== self {
             sleep()
         } else if crashes.count <= 2 {
             webView.reload()

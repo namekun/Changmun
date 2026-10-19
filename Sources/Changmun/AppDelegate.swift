@@ -17,6 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.appearance = Preferences.shared.appearance.nsAppearance
         Task { await AdBlocker.shared.start() }
         Library.shared.pruneHistory()
+        // Watching the library from the start, so no change goes unseen before a sidebar first shows.
+        _ = LibraryWatcher.shared
         if !Headless.isOn {
             Task { await ContentBlockerHost.shared.start() }
             if #available(macOS 15.4, *) { Task { await ExtensionHost.shared.start() } }

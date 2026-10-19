@@ -147,7 +147,8 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         Task {
             try? await Task.sleep(for: Self.shelfTime)
             while item.isHovered { try? await Task.sleep(for: .seconds(1)) }
-            dismiss(item)
+            // Picked up again meanwhile (Try Again): it stays while it runs.
+            if item.isDone { dismiss(item) }
         }
     }
 
@@ -254,9 +255,9 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
     /// Web views that picked up a broken-off download, kept until it ends.
     private var resumers: [UUID: WKWebView] = [:]
 
-    /// Picks a download that broke off up again from where it stopped, into the same file.
+    /// Picks a download that broke off up again from where it stopped.
     func retry(_ item: DownloadItem) {
-        guard let data = item.resumeData else { return }
+        guard let data = item.resumeData, !item.isPrivate || item.owner != nil else { return }
         item.resumeData = nil
         let webView = WKWebView(frame: .zero, configuration: item.owner?.configuration ?? Browser.configuration)
         resumers[item.id] = webView

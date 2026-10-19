@@ -143,7 +143,10 @@ final class Library: @unchecked Sendable {
     /// The favorites and the folders in one read, or nil when the database can't be read: an unreadable library
     /// must not look like one whose bookmarks were all deleted.
     func readBookmarks() -> (favorites: [Entry], folders: [(name: String, entries: [Entry])])? {
-        guard let db, let favorites = try? db.query("SELECT url, title FROM bookmarks WHERE folder = '' ORDER BY added, id"),
+        guard let db, (try? db.execute("BEGIN")) != nil else { return nil }
+        // One snapshot: a bookmark moving between folders meanwhile is in one place or the other, never neither.
+        defer { try? db.execute("COMMIT") }
+        guard let favorites = try? db.query("SELECT url, title FROM bookmarks WHERE folder = '' ORDER BY added, id"),
               let folders = try? db.query(Self.foldersQuery) else { return nil }
         return (favorites.compactMap { row in (row[0] as? String).map { Entry(url: $0, title: row[1] as? String ?? "") } }, Self.grouped(folders))
     }
@@ -197,7 +200,12 @@ final class Library: @unchecked Sendable {
     func pruneHistory() {
         let path = path
         DispatchQueue.global(qos: .utility).async {
-            try? SQLite(path: path).run("DELETE FROM history WHERE last_visit < ?", [Date().timeIntervalSince1970 - 365 * 86400])
+            guard let db = try? SQLite(path: path) else { return }
+            let cutoff = Date().timeIntervalSince1970 - 365 * 86400
+            for _ in 0..<500 {
+                guard let old = try? db.query("SELECT 1 FROM history WHERE last_visit < ? LIMIT 1", [cutoff]), !old.isEmpty else { break }
+                try? db.run("DELETE FROM history WHERE rowid IN (SELECT rowid FROM history WHERE last_visit < ? LIMIT 500)", [cutoff])
+            }
         }
     }
 
@@ -256,7 +264,13 @@ final class Library: @unchecked Sendable {
 
     /// Reads on a queue of their own, away from the main thread.
     private static let readQueue = DispatchQueue(label: "Changmun.library.read", qos: .userInitiated)
-    private lazy var reader = Library(path: path)
+    private var openedReader: Library?
+    private var reader: Library {
+        if let openedReader, openedReader.db != nil { return openedReader }
+        let fresh = Library(path: path)
+        openedReader = fresh
+        return fresh
+    }
 
     /// Runs a read on its own connection off the main thread (the command bar's search, as the user types).
     func inBackground<T>(_ read: @escaping (Library) -> T) async -> T {

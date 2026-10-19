@@ -35,7 +35,8 @@ final class SQLite {
         let statement = try prepare(sql, values)
         defer { sqlite3_finalize(statement) }
         var rows: [[Any?]] = []
-        while sqlite3_step(statement) == SQLITE_ROW {
+        var code = sqlite3_step(statement)
+        while code == SQLITE_ROW {
             var row: [Any?] = []
             for i in 0..<sqlite3_column_count(statement) {
                 switch sqlite3_column_type(statement, i) {
@@ -49,7 +50,10 @@ final class SQLite {
                 }
             }
             rows.append(row)
+            code = sqlite3_step(statement)
         }
+        // A read that broke off (busy, damaged, out of memory) is an error, not a shorter answer.
+        guard code == SQLITE_DONE else { throw error() }
         return rows
     }
 

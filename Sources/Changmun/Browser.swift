@@ -118,6 +118,7 @@ final class Browser: ObservableObject {
     }
 
     struct ClosedTab {
+        let id = UUID()
         var url: URL?
         var title: String
         var state: Data?
@@ -660,11 +661,11 @@ final class Browser: ObservableObject {
         }
         let closing = tabs.filter { $0.groupID == id }
         for tab in closing { close(tab.id) }
-        let count = closing.count, stack = closedTabs.count
+        let count = closing.count, top = closedTabs.last?.id
         offerUndo(count == 1 ? String(localized: "Closed \(count) tab") : String(localized: "Closed \(count) tabs")) { [weak self] in
             // Only while they are still the last ones closed; ⌘⇧T is there for the rest.
-            guard let self, closedTabs.count == stack else { return }
-            for _ in 0..<min(count, stack) { reopenClosedTab() }
+            guard let self, top != nil, closedTabs.last?.id == top else { return }
+            for _ in 0..<min(count, closedTabs.count) { reopenClosedTab() }
         }
     }
 
@@ -977,10 +978,13 @@ final class Browser: ObservableObject {
     struct SavedWindows: Codable {
         var windows: [SavedSession]
 
-        static func decode(_ data: Data) -> [SavedSession] {
+        static func decode(_ data: Data) -> [SavedSession] { decodeIfValid(data) ?? [] }
+
+        /// Nil only when the data is no session at all; an empty list is a session with nothing open.
+        static func decodeIfValid(_ data: Data) -> [SavedSession]? {
             if let saved = try? JSONDecoder().decode(SavedWindows.self, from: data) { return saved.windows }
             if let single = try? JSONDecoder().decode(SavedSession.self, from: data) { return [single] }
-            return []
+            return nil
         }
     }
 
@@ -1046,15 +1050,13 @@ final class Browser: ObservableObject {
 
     static func savedWindows() -> [SavedSession] {
         guard Preferences.shared.restoreTabs else { return [] }
-        let read = { (file: URL) in (try? Data(contentsOf: file)).map { SavedWindows.decode($0).filter { !$0.tabs.isEmpty } } ?? [] }
-        let windows = read(sessionFile)
-        if !windows.isEmpty {
-            try? FileManager.default.removeItem(at: previousSessionFile)
-            try? FileManager.default.copyItem(at: sessionFile, to: previousSessionFile)
+        let read = { (file: URL) in (try? Data(contentsOf: file)).flatMap(SavedWindows.decodeIfValid)?.filter { !$0.tabs.isEmpty } }
+        if let windows = read(sessionFile) {
+            if !windows.isEmpty, let data = try? Data(contentsOf: sessionFile) { try? data.write(to: previousSessionFile, options: .atomic) }
             return windows
         }
-        // Nothing usable (a damaged or emptied file): the session before it, rather than an empty window.
-        return read(previousSessionFile)
+        // A session that can't be read at all (damaged): the one before it, rather than an empty window.
+        return read(previousSessionFile) ?? []
     }
 
     /// Restores a saved window asleep, apart from the tab that was shown.
@@ -1077,9 +1079,15 @@ final class Browser: ObservableObject {
 extension Browser.SavedSession {
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
-        tabs = try values.decode([Browser.Lossy<Browser.SavedTab>].self, forKey: .tabs).compactMap(\.value)
-        active = try? values.decodeIfPresent(Int.self, forKey: .active)
-        previous = try? values.decodeIfPresent(Int.self, forKey: .previous)
+        let all = try values.decode([Browser.Lossy<Browser.SavedTab>].self, forKey: .tabs)
+        tabs = all.compactMap(\.value)
+        // Positions were saved among all the tabs; count only the ones that came through.
+        let position = { (index: Int?) -> Int? in
+            guard let index, all.indices.contains(index), all[index].value != nil else { return nil }
+            return all[..<index].filter { $0.value != nil }.count
+        }
+        active = position((try? values.decodeIfPresent(Int.self, forKey: .active)) ?? nil)
+        previous = position((try? values.decodeIfPresent(Int.self, forKey: .previous)) ?? nil)
         groups = try? values.decodeIfPresent([Browser.TabGroup].self, forKey: .groups)
         saved = try? values.decodeIfPresent(Date.self, forKey: .saved)
     }
