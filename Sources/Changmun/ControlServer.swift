@@ -136,9 +136,17 @@ final class ControlServer {
         }
         let arguments = body["arguments"] as? [String: Any] ?? [:]
         Task { @MainActor in
-            let result = await ToolCatalog.call(name, arguments, caller: request.headers["x-changmun-caller"] ?? "unknown")
+            let result = await ToolCatalog.call(name, arguments, caller: Self.caller(request.headers))
             self.respond(connection, status: "200 OK", body: result.json)
         }
+    }
+
+    /// The caller a request names, except that the panel's name counts only with the panel's secret: without it the
+    /// request is an ordinary outside client that happens to use that name.
+    static func caller(_ headers: [String: String]) -> String {
+        let name = headers["x-changmun-caller"] ?? "unknown"
+        guard name == ChatStore.caller, headers["x-changmun-panel-secret"] != ChatStore.panelSecret else { return name }
+        return "unverified-" + name
     }
 
     private func respond(_ connection: NWConnection, status: String, body: [String: Any]) {

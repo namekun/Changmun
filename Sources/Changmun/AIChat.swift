@@ -286,10 +286,16 @@ final class ChatStore: ObservableObject {
     }
 
     /// How the panel's tool calls are told apart from other MCP clients'.
-    static let caller = "panel"
+    nonisolated static let caller = "panel"
+
+    /// Proves a call named "panel" really comes from the panel's own `claude`: known only to this launch of the app
+    /// and passed in the environment of the MCP server it starts, so no other client of the control server can claim it.
+    nonisolated static let panelSecret = UUID().uuidString + UUID().uuidString
+    nonisolated static let panelSecretVariable = "CHANGMUN_PANEL_SECRET"
 
     static func mcpConfig() -> String {
-        let server: [String: Any] = ["command": Bundle.main.executablePath ?? CommandLine.arguments[0], "args": ["--mcp", "--caller", caller]]
+        let server: [String: Any] = ["command": Bundle.main.executablePath ?? CommandLine.arguments[0], "args": ["--mcp", "--caller", caller],
+                                     "env": [panelSecretVariable: panelSecret]]
         let data = try! JSONSerialization.data(withJSONObject: ["mcpServers": ["changmun": server]])
         return String(data: data, encoding: .utf8)!
     }

@@ -56,6 +56,48 @@ struct AttachedTabTests {
         #expect(!(await Approvals.allowTab(tabs[1], caller: ChatStore.caller, reading: true)))
     }
 
+    @Test func thePanelNameCountsOnlyWithItsSecret() {
+        let secret = ChatStore.panelSecret
+        #expect(ControlServer.caller(["x-changmun-caller": "panel", "x-changmun-panel-secret": secret]) == ChatStore.caller)
+        #expect(ControlServer.caller(["x-changmun-caller": "panel"]) != ChatStore.caller)
+        #expect(ControlServer.caller(["x-changmun-caller": "panel", "x-changmun-panel-secret": "guess"]) != ChatStore.caller)
+        #expect(ControlServer.caller(["x-changmun-caller": "panel", "x-changmun-panel-secret": ""]) != ChatStore.caller)
+        #expect(ControlServer.caller(["x-changmun-caller": "cli"]) == "cli")
+        #expect(ControlServer.caller(["x-changmun-caller": "cli", "x-changmun-panel-secret": secret]) == "cli")
+        #expect(ControlServer.caller(["x-changmun-caller": "mcp-42"]) == "mcp-42")
+        #expect(ControlServer.caller([:]) == "unknown")
+    }
+
+    @Test func onlyThePanelsOwnClaudeGetsTheSecret() throws {
+        let config = try #require(JSONSerialization.jsonObject(with: Data(ChatStore.mcpConfig().utf8)) as? [String: Any])
+        let server = try #require((config["mcpServers"] as? [String: Any])?["changmun"] as? [String: Any])
+        #expect((server["env"] as? [String: String])?[ChatStore.panelSecretVariable] == ChatStore.panelSecret)
+        #expect(!(server["args"] as? [String] ?? []).contains(ChatStore.panelSecret))
+        #expect(ChatStore.panelSecret.count >= 64)
+    }
+
+    @Test func aTabThatEndedUpOnAnotherSiteNeedsThatSiteApproved() async {
+        let (browser, tabs) = open(["https://a.example/"])
+        defer { browser.windowClosed() }
+        let before = Preferences.shared.aiApprovals
+        Preferences.shared.aiApprovals = true
+        defer { Preferences.shared.aiApprovals = before; Approvals.attach([]) }
+        Approvals.attach(tabs)
+        let panel = ChatStore.caller
+        #expect(await Approvals.allowRead(tabs[0], approvedHost: "a.example", readHost: "a.example", caller: panel))
+        #expect(await Approvals.allowRead(tabs[0], approvedHost: "a.example", readHost: nil, caller: panel))
+        #expect(!(await Approvals.allowRead(tabs[0], approvedHost: "a.example", readHost: "b.example", caller: panel)))
+        #expect(!(await Approvals.allowTab(tabs[0], caller: panel, reading: true, host: "b.example")))
+    }
+
+    @Test func theSiteReadIsTakenFromTheURLLine() {
+        func result(_ text: String) -> ToolResult { .text(text) }
+        #expect(ToolCatalog.readHost(result("Title: Hi\nURL: https://A.example/x?y=1\n\nbody")) == "a.example")
+        #expect(ToolCatalog.readHost(result("Title: URL: https://evil.example/\nURL: https://a.example/\n\nURL: https://evil.example/")) == "a.example")
+        #expect(ToolCatalog.readHost(result("Error: the page did not answer in time")) == nil)
+        #expect(ToolCatalog.readHost(result("Title: x\nURL: about:blank\n")) == nil)
+    }
+
     @Test func readTabsChecksItsArguments() async {
         for args: [String: Any] in [[:], ["tab_ids": []], ["tab_ids": ["x"]], ["tab_ids": Array(1...(ToolCatalog.maxTabsPerRead + 1))]] {
             #expect(await ToolCatalog.call("read_tabs", args, caller: "test").isError)

@@ -69,9 +69,11 @@ enum ToolCatalog {
             return .text(args["tab_id"] == nil ? "No tab is open. Use open_tab first." : "No tab with that id.", error: true)
         }
         // Only the tab in front of the user goes without asking.
-        if (tab.id != browser.activeID || browser !== Browser.recent) && name != "close_tab" {
+        let needsApproval = (tab.id != browser.activeID || browser !== Browser.recent) && name != "close_tab"
+        if needsApproval {
             guard await Approvals.allowTab(tab, caller: caller, reading: name == "read_page" || name == "screenshot") else { return declined }
         }
+        let approvedHost = tab.url?.host()?.lowercased()
         // Every answer below carries the tab's title, address or content.
         defer { if name != "close_tab" { Approvals.noteRead(tab, caller: caller) } }
         let webView = tab.wake()
@@ -93,8 +95,11 @@ enum ToolCatalog {
             await waitForLoad(tab)
             return .text("Now at: \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")")
         case "read_page":
-            Approvals.noteRead(tab, caller: caller)
-            return await run(PageScripts.read, ["maxChars": int(args["max_chars"]) ?? 12000], in: webView)
+            let result = await run(PageScripts.read, ["maxChars": int(args["max_chars"]) ?? 12000], in: webView)
+            let host = readHost(result)
+            if needsApproval, !(await Approvals.allowRead(tab, approvedHost: approvedHost, readHost: host, caller: caller)) { return declined }
+            Approvals.noteRead(host: host, caller: caller)
+            return result
         case "click":
             guard let id = int(args["element_id"]) else { return .text("element_id is required.", error: true) }
             let before = webView.url
@@ -146,14 +151,26 @@ enum ToolCatalog {
                 sections.append(heading + "The user declined this tab. Don't retry it.")
                 continue
             }
-            Approvals.noteRead(tab, caller: caller)
+            let approvedHost = tab.url?.host()?.lowercased()
             let wasAsleep = tab.isAsleep
             let webView = tab.wake()
             if wasAsleep { await waitForLoad(tab) }
             let result = await run(PageScripts.readText, ["maxChars": maxChars], in: webView)
+            let host = readHost(result)
+            if !inFront, !(await Approvals.allowRead(tab, approvedHost: approvedHost, readHost: host, caller: caller)) {
+                sections.append(heading + "The user declined this tab. Don't retry it.")
+                continue
+            }
+            Approvals.noteRead(host: host, caller: caller)
             sections.append(heading + (result.content.first?["text"] as? String ?? ""))
         }
         return .text(sections.joined(separator: "\n\n"))
+    }
+
+    /// The site a read's text came from, by its "URL:" line: the page itself says where it was when it was read.
+    static func readHost(_ result: ToolResult) -> String? {
+        let text = result.content.first?["text"] as? String ?? ""
+        return text.split(separator: "\n").first { $0.hasPrefix("URL: ") }.flatMap { URL(string: String($0.dropFirst(5)))?.host()?.lowercased() }
     }
 
     private static let declined = ToolResult.text("The user declined this in Changmun. Don't retry it; tell the user what you wanted to do.", error: true)
@@ -263,23 +280,31 @@ enum Approvals {
     private static var readHosts: [String: Set<String>] = [:]
     static var timeout: TimeInterval = 90
 
-    private static func key(_ tab: Tab) -> String {
-        "\(tab.id)|\(tab.url?.host()?.lowercased() ?? "")"
+    /// A tab and the site it is on, or the site given when that is where its content came from.
+    private static func key(_ tab: Tab, host: String? = nil) -> String {
+        "\(tab.id)|\(host ?? tab.url?.host()?.lowercased() ?? "")"
     }
 
     /// The tabs attached in the chat panel: the panel reads them without asking, as long as they stay on the same site.
     static func attach(_ tabs: [Tab]) {
-        attached = Set(tabs.map(key))
+        attached = Set(tabs.map { key($0) })
     }
 
-    static func allowTab(_ tab: Tab, caller: String, reading: Bool = false) async -> Bool {
+    static func allowTab(_ tab: Tab, caller: String, reading: Bool = false, host: String? = nil) async -> Bool {
         guard Preferences.shared.aiApprovals else { return true }
-        let key = key(tab)
+        let key = key(tab, host: host)
         if tabs.contains(key) || (reading && caller == ChatStore.caller && attached.contains(key)) { return true }
         let allowed = await ask(String(localized: "The AI wants to use a tab you aren't looking at"),
-                                "#\(tab.id) \(tab.displayTitle.prefix(80))\n\(tab.url?.host() ?? "")\n\n" + String(localized: "If you allow it, you won't be asked again while this tab stays on this site."))
+                                "#\(tab.id) \(tab.displayTitle.prefix(80))\n\(host ?? tab.url?.host() ?? "")\n\n" + String(localized: "If you allow it, you won't be asked again while this tab stays on this site."))
         if allowed { tabs.insert(key) }
         return allowed
+    }
+
+    /// A tab approved while asleep or loading may have ended up on another site by the time it was read; what it
+    /// gave is held back unless the site it really came from is approved too.
+    static func allowRead(_ tab: Tab, approvedHost: String?, readHost: String?, caller: String) async -> Bool {
+        guard let readHost, readHost != approvedHost else { return true }
+        return await allowTab(tab, caller: caller, reading: true, host: readHost)
     }
 
     static func allowNavigation(_ url: URL) async -> Bool {
@@ -315,7 +340,11 @@ enum Approvals {
     }
 
     static func noteRead(_ tab: Tab, caller: String) {
-        if let host = tab.url?.host()?.lowercased() { readHosts[caller, default: []].insert(host) }
+        noteRead(host: tab.url?.host()?.lowercased(), caller: caller)
+    }
+
+    static func noteRead(host: String?, caller: String) {
+        if let host { readHosts[caller, default: []].insert(host) }
     }
 
     /// Typing hands text to the page; after reading other sites, the user sees what would be typed and says yes.
