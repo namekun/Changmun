@@ -97,6 +97,25 @@ final class ControlServer {
             }
             return
         }
+        // Tests only: open the settings window on a page, far off screen, and answer with its picture.
+        if Headless.isOn, request.method == "POST", request.path == "/settings-image",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                UserDefaults.standard.set(body["page"] as? String ?? SettingsPage.general.rawValue, forKey: "settingsPage")
+                if let name = body["appearance"] as? String, let appearance = AppAppearance(rawValue: name) { Preferences.shared.appearance = appearance }
+                (NSApp.delegate as? AppDelegate)?.showSettings(nil)
+                guard let window = Panels.window("settings") else {
+                    return self.respond(connection, status: "404 Not Found", body: ["error": "no settings window"])
+                }
+                window.setFrameOrigin(Headless.origin)
+                try? await Task.sleep(for: .milliseconds(600))
+                guard let png = await WindowImage.png(of: window) else {
+                    return self.respond(connection, status: "404 Not Found", body: ["error": "no picture"])
+                }
+                self.respond(connection, status: "200 OK", body: ["png": png.base64EncodedString()])
+            }
+            return
+        }
         guard request.method == "POST", request.path == "/call",
               let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any],
               let name = body["name"] as? String else {

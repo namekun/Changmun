@@ -142,7 +142,7 @@
 "Done" = "完了";
 "Done · %@" = "完了 · %@";
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "ダブルクリックで新規タブに開きます。期間を指定して履歴を消去するには、設定 › プライバシーを開いてください。";
-"Double-click to reopen. Set how long until tabs are archived in Settings › Tabs & Appearance." = "ダブルクリックで開き直します。タブをアーカイブするまでの時間は、設定 › タブと外観で設定できます。";
+"Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "ダブルクリックで開き直します。タブをアーカイブするまでの時間は、設定 › タブで設定できます。";
 "Download" = "ダウンロード";
 "Download this language in System Settings › General › Language & Region › Translation Languages" = "システム設定 › 一般 › 言語と地域 › 翻訳言語で、この言語をダウンロードしてください";
 "Downloading filter lists…" = "フィルタリストをダウンロード中…";
@@ -369,7 +369,6 @@
 "System" = "システム";
 "Tab %lld" = "タブ %lld";
 "Tab Cleanup" = "タブの整理";
-"Tabs & Appearance" = "タブと外観";
 "Text to type:\n%@\n\nSites read earlier in this conversation: %@\nDeny if content from there is mixed in." = "入力するテキスト:\n%@\n\nこの会話でこれまでに読み取ったサイト: %@\nそれらの内容が混ざっている場合は拒否してください。";
 "The AI panel uses the Claude Code login (subscription) on this Mac." = "AIパネルは、このMacのClaude Codeのログイン (サブスクリプション) を使用します。";
 "The AI request failed." = "AIのリクエストに失敗しました。";
@@ -451,3 +450,9 @@
 "Duplicate Tab" = "タブを複製";
 "Move to New Window" = "新規ウインドウに移動";
 "Open In" = "ほかのアプリで開く";
+"Appearance" = "外観";
+"Tabs" = "タブ";
+"Browser" = "ブラウザ";
+"Behavior" = "動作";
+"Display" = "画面";
+"No matching settings" = "一致する設定はありません";

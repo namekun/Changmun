@@ -6,6 +6,8 @@ import SwiftUI
 enum Panels {
     private static var windows: [String: NSWindow] = [:]
 
+    static func window(_ id: String) -> NSWindow? { windows[id] }
+
     static func show<V: View>(_ id: String, title: String, size: NSSize, resizable: Bool = true, @ViewBuilder content: () -> V) {
         if let window = windows[id] {
             window.makeKeyAndOrderFront(nil)
@@ -116,7 +118,7 @@ struct ArchiveView: View {
                 if entries.isEmpty { Text(search.isEmpty ? String(localized: "No archived tabs") : String(localized: "No matching tabs")).foregroundStyle(.secondary) }
             }
             HStack {
-                Text("Double-click to reopen. Set how long until tabs are archived in Settings › Tabs & Appearance.")
+                Text("Double-click to reopen. Set how long until tabs are archived in Settings › Tabs.")
                     .font(.system(size: 11.5)).foregroundStyle(.secondary)
                 Spacer()
                 Button("Clear All") { archive.removeAll() }.disabled(archive.entries.isEmpty)

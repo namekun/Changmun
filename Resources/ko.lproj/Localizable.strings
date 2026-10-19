@@ -142,7 +142,7 @@
 "Done" = "완료";
 "Done · %@" = "완료 · %@";
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "두 번 클릭하면 새 탭에서 열려요. 기간별로 지우기는 설정 › 개인정보에서 할 수 있어요.";
-"Double-click to reopen. Set how long until tabs are archived in Settings › Tabs & Appearance." = "두 번 클릭하면 다시 열려요. 보관할 때까지의 시간은 설정 › 탭·모양에서 정해요.";
+"Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "두 번 클릭하면 다시 열려요. 보관할 때까지의 시간은 설정 › 탭에서 정해요.";
 "Download" = "다운로드";
 "Download this language in System Settings › General › Language & Region › Translation Languages" = "시스템 설정 › 일반 › 언어 및 지역 › 번역 언어에서 이 언어를 내려받아 주세요";
 "Downloading filter lists…" = "필터 목록을 받는 중…";
@@ -369,7 +369,6 @@
 "System" = "시스템";
 "Tab %lld" = "탭 %lld";
 "Tab Cleanup" = "탭 정리";
-"Tabs & Appearance" = "탭·모양";
 "Text to type:\n%@\n\nSites read earlier in this conversation: %@\nDeny if content from there is mixed in." = "입력할 내용:\n%@\n\n이 대화에서 앞서 읽은 사이트: %@\n그곳의 내용이 섞여 있다면 거부하세요.";
 "The AI panel uses the Claude Code login (subscription) on this Mac." = "AI 패널은 이 Mac의 Claude Code 로그인(구독)을 써요.";
 "The AI request failed." = "AI 요청이 실패했어요.";
@@ -451,3 +450,9 @@
 "Duplicate Tab" = "탭 복제";
 "Move to New Window" = "새 창으로 옮기기";
 "Open In" = "다른 앱으로 열기";
+"Appearance" = "모양";
+"Tabs" = "탭";
+"Browser" = "브라우저";
+"Behavior" = "동작";
+"Display" = "화면";
+"No matching settings" = "맞는 설정이 없어요";

@@ -3,19 +3,128 @@ import LocalAuthentication
 import SwiftUI
 import WebKit
 
+/// The pages in the settings sidebar, in groups.
+enum SettingsPage: String, CaseIterable, Identifiable {
+    case general, appearance, tabs, privacy, extensions, ai, advanced
+
+    static let groups: [[SettingsPage]] = [[.general, .appearance, .tabs], [.privacy, .extensions, .ai], [.advanced]]
+
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+        case .general: String(localized: "General")
+        case .appearance: String(localized: "Appearance")
+        case .tabs: String(localized: "Tabs")
+        case .privacy: String(localized: "Privacy")
+        case .extensions: String(localized: "Extensions")
+        case .ai: String(localized: "AI")
+        case .advanced: String(localized: "Advanced")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .general: "gearshape"
+        case .appearance: "macwindow"
+        case .tabs: "square.on.square"
+        case .privacy: "hand.raised"
+        case .extensions: "puzzlepiece.extension"
+        case .ai: "sparkles"
+        case .advanced: "wrench.and.screwdriver"
+        }
+    }
+
+    /// What the sidebar search looks through besides the page's name: the labels of its settings.
+    private var settings: [String] {
+        switch self {
+        case .general:
+            [String(localized: "Search Engine"), String(localized: "Get search suggestions as you type"), String(localized: "On Startup"),
+             String(localized: "Downloads Folder"), String(localized: "Ask where to save each download"),
+             String(localized: "Default Browser"), String(localized: "Other Browsers")]
+        case .appearance:
+            [String(localized: "Theme"), String(localized: "Address Bar Position"), String(localized: "Address Bar"),
+             String(localized: "Sidebar Width"), String(localized: "Default Zoom")]
+        case .tabs:
+            [String(localized: "Play video in Picture in Picture when you switch to another tab"), String(localized: "Sleep inactive tabs"),
+             String(localized: "Sites that never sleep"), String(localized: "Tab Cleanup"),
+             String(localized: "Automatically put new tabs in the right group"), String(localized: "Archive tabs you haven’t viewed in a while")]
+        case .privacy:
+            [String(localized: "Clear History"), String(localized: "Ad Blocking"), String(localized: "Saved Passwords"),
+             String(localized: "Pop-ups"), String(localized: "Camera & Microphone")]
+        case .extensions:
+            [String(localized: "Install"), String(localized: "Safari Content Blockers")]
+        case .ai:
+            [String(localized: "Model"), String(localized: "Claude Code"), String(localized: "AI Chat")]
+        case .advanced:
+            [String(localized: "Shortcuts"), String(localized: "Developer Mode")]
+        }
+    }
+
+    func matches(_ query: String) -> Bool {
+        ([name] + settings).contains { $0.localizedCaseInsensitiveContains(query) }
+    }
+}
+
 struct SettingsView: View {
     @ObservedObject var prefs: Preferences
+    @AppStorage("settingsPage") private var pageName = SettingsPage.general.rawValue
+    @State private var query = ""
+
+    private var page: SettingsPage { SettingsPage(rawValue: pageName) ?? .general }
+    private var search: String { query.trimmingCharacters(in: .whitespaces) }
+    private var shown: [SettingsPage] { search.isEmpty ? SettingsPage.allCases : SettingsPage.allCases.filter { $0.matches(search) } }
 
     var body: some View {
-        TabView {
-            GeneralSettings(prefs: prefs).tabItem { Label("General", systemImage: "gearshape") }
-            LooksSettings(prefs: prefs).tabItem { Label("Tabs & Appearance", systemImage: "macwindow") }
-            PrivacySettings(prefs: prefs).tabItem { Label("Privacy", systemImage: "hand.raised") }
-            ExtensionSettings().tabItem { Label("Extensions", systemImage: "puzzlepiece.extension") }
-            AISettings(prefs: prefs).tabItem { Label("AI", systemImage: "sparkles") }
-            AdvancedSettings(prefs: prefs).tabItem { Label("Advanced", systemImage: "wrench.and.screwdriver") }
+        NavigationSplitView {
+            List(selection: Binding<SettingsPage?>(get: { page }, set: { if let new = $0 { pageName = new.rawValue } })) {
+                ForEach(SettingsPage.groups, id: \.first) { group in
+                    let pages = group.filter(shown.contains)
+                    if !pages.isEmpty {
+                        Section {
+                            ForEach(pages) { Label($0.name, systemImage: $0.symbol).tag($0) }
+                        }
+                    }
+                }
+            }
+            .listStyle(.sidebar)
+            .safeAreaInset(edge: .top, spacing: 0) { searchField }
+            .overlay { if shown.isEmpty { Text("No matching settings").foregroundStyle(.secondary) } }
+            .navigationSplitViewColumnWidth(180)
+            .toolbar(removing: .sidebarToggle)
+        } detail: {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(page.name).font(.title2.bold()).padding(.horizontal, 20).padding(.top, 6)
+                detail
+            }
+            .navigationTitle("")
         }
-        .frame(width: 580, height: 500)
+        .frame(width: 720, height: 520)
+        .onChange(of: query) {
+            if let first = shown.first, !shown.contains(page) { pageName = first.rawValue }
+        }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            TextField("Search", text: $query).textFieldStyle(.plain)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 5)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 10).padding(.bottom, 6)
+    }
+
+    @ViewBuilder private var detail: some View {
+        switch page {
+        case .general: GeneralSettings(prefs: prefs)
+        case .appearance: AppearanceSettings(prefs: prefs)
+        case .tabs: TabSettings(prefs: prefs)
+        case .privacy: PrivacySettings(prefs: prefs)
+        case .extensions: ExtensionSettings()
+        case .ai: AISettings(prefs: prefs)
+        case .advanced: AdvancedSettings(prefs: prefs)
+        }
     }
 }
 
@@ -46,7 +155,7 @@ struct GeneralSettings: View {
 
     var body: some View {
         Form {
-            Section {
+            Section("Search") {
                 Picker("Search Engine", selection: $prefs.searchEngine) {
                     ForEach(SearchEngine.allCases) { Text($0.name).tag($0) }
                 }
@@ -57,7 +166,7 @@ struct GeneralSettings: View {
                     Text("Start with a new tab").tag(false)
                 }
             }
-            Section {
+            Section("Downloads") {
                 LabeledContent("Downloads Folder") {
                     HStack {
                         Text(prefs.downloadFolder.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
@@ -67,7 +176,7 @@ struct GeneralSettings: View {
                 }
                 Toggle("Ask where to save each download", isOn: $prefs.askWhereToSave)
             }
-            Section {
+            Section("Browser") {
                 LabeledContent("Default Browser") {
                     if isDefaultBrowser {
                         Text("Changmun is your default browser").foregroundStyle(.secondary)
@@ -111,35 +220,157 @@ struct GeneralSettings: View {
     }
 }
 
-// MARK: Tabs and looks
+// MARK: Appearance
 
-struct LooksSettings: View {
+struct AppearanceSettings: View {
     @ObservedObject var prefs: Preferences
-    @State private var newHost = ""
 
     var body: some View {
         Form {
-            Section {
-                Picker("Theme", selection: $prefs.appearance) {
-                    Text("System").tag(AppAppearance.system)
-                    Text("Light").tag(AppAppearance.light)
-                    Text("Dark").tag(AppAppearance.dark)
+            Section("Theme") {
+                HStack(spacing: 28) {
+                    ForEach(AppAppearance.allCases) { ThemeTile(choice: $0, selection: $prefs.appearance) }
                 }
-                .pickerStyle(.segmented)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+            }
+            Section("Address Bar") {
                 Picker("Address Bar Position", selection: $prefs.toolbarPlace) {
                     Text("Above the Page").tag(ToolbarPlace.page)
                     Text("In the Sidebar").tag(ToolbarPlace.sidebar)
                 }
                 .pickerStyle(.segmented)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Address Bar")
+                    addressBarChoice(.automatic) {
+                        Text("Match developer mode (currently: \(Preferences.onTop(.automatic, developerMode: prefs.developerMode) ? String(localized: "Full Address") : String(localized: "Site and Title")))")
+                    }
+                    addressBarChoice(.sidebar) { Text("Site and Title") }
+                    addressBarChoice(.top) { Text("Full Address") }
+                }
+                Caption(text: "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it.")
+            }
+            Section("Display") {
                 LabeledContent("Sidebar Width") {
                     Slider(value: $prefs.sidebarWidth, in: Preferences.sidebarWidths, step: 4).frame(width: 220)
                 }
                 Picker("Default Zoom", selection: $prefs.defaultZoom) {
                     ForEach([0.75, 0.9, 1, 1.1, 1.25, 1.5], id: \.self) { Text("\(Int($0 * 100))%").tag($0) }
                 }
-                Toggle("Play video in Picture in Picture when you switch to another tab", isOn: $prefs.autoPictureInPicture)
             }
-            Section {
+        }
+        .formStyle(.grouped)
+    }
+}
+
+extension AppearanceSettings {
+    /// A radio row, with the radio on the left of its text.
+    private func addressBarChoice(_ choice: AddressBarChoice, @ViewBuilder label: () -> some View) -> some View {
+        Button { prefs.addressBar = choice } label: {
+            HStack(spacing: 8) {
+                Image(systemName: prefs.addressBar == choice ? "largecircle.fill.circle" : "circle")
+                    .foregroundStyle(prefs.addressBar == choice ? Color.accentColor : .secondary)
+                label()
+                Spacer()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(prefs.addressBar == choice ? .isSelected : [])
+    }
+}
+
+/// One theme as a small picture of the window in it; the system theme is cut across, half light and half dark.
+private struct ThemeTile: View {
+    let choice: AppAppearance
+    @Binding var selection: AppAppearance
+
+    private struct Slant: Shape {
+        func path(in rect: CGRect) -> Path {
+            var path = Path()
+            path.move(to: CGPoint(x: rect.width * 0.62, y: 0))
+            path.addLine(to: CGPoint(x: rect.width, y: 0))
+            path.addLine(to: CGPoint(x: rect.width, y: rect.height))
+            path.addLine(to: CGPoint(x: rect.width * 0.46, y: rect.height))
+            path.closeSubpath()
+            return path
+        }
+    }
+
+    var body: some View {
+        Button { selection = choice } label: {
+            VStack(spacing: 6) {
+                picture
+                    .frame(width: 104, height: 66)
+                    .clipShape(RoundedRectangle(cornerRadius: 7))
+                    .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(.separator))
+                    .padding(3)
+                    .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.accentColor, lineWidth: selection == choice ? 3 : 0))
+                label
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selection == choice ? .isSelected : [])
+    }
+
+    @ViewBuilder private var label: some View {
+        switch choice {
+        case .system: Text("System")
+        case .light: Text("Light")
+        case .dark: Text("Dark")
+        }
+    }
+
+    @ViewBuilder private var picture: some View {
+        switch choice {
+        case .system:
+            ZStack {
+                window(dark: false)
+                window(dark: true).mask(Slant())
+            }
+        case .light: window(dark: false)
+        case .dark: window(dark: true)
+        }
+    }
+
+    private func window(dark: Bool) -> some View {
+        let sidebar = dark ? Color(white: 0.13) : Color(white: 0.86)
+        let page = dark ? Color(white: 0.17) : Color(white: 0.93)
+        let bar = dark ? Color(white: 0.27) : Color.white
+        return HStack(spacing: 0) {
+            VStack(alignment: .leading) {
+                HStack(spacing: 3) {
+                    Circle().fill(.red); Circle().fill(.yellow); Circle().fill(.green)
+                }
+                .frame(height: 4.5)
+                .padding(.top, 6)
+                Spacer()
+            }
+            .padding(.horizontal, 6)
+            .frame(width: 30)
+            .background(sidebar)
+            VStack(spacing: 5) {
+                Spacer().frame(height: 3)
+                ForEach(0..<3, id: \.self) { _ in RoundedRectangle(cornerRadius: 2.5).fill(bar).frame(height: 10) }
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity)
+            .background(page)
+        }
+    }
+}
+
+// MARK: Tabs
+
+struct TabSettings: View {
+    @ObservedObject var prefs: Preferences
+    @State private var newHost = ""
+
+    var body: some View {
+        Form {
+            Section("Behavior") {
+                Toggle("Play video in Picture in Picture when you switch to another tab", isOn: $prefs.autoPictureInPicture)
                 Picker("Sleep inactive tabs", selection: $prefs.sleepMinutes) {
                     Text("Off").tag(0)
                     Text("After 10 minutes").tag(10)
@@ -147,17 +378,6 @@ struct LooksSettings: View {
                     Text("After 1 hour").tag(60)
                 }
                 Caption(text: "Sleeping tabs free their memory and reload with their history when you go back to them. When memory runs low, tabs sleep regardless of this setting.")
-            }
-            Section("Tab Cleanup") {
-                Toggle("Automatically put new tabs in the right group", isOn: $prefs.groupNewTabs)
-                Picker("Archive tabs you haven’t viewed in a while", selection: $prefs.archiveHours) {
-                    Text("Off").tag(0)
-                    Text("After 12 hours").tag(12)
-                    Text("After 1 day").tag(24)
-                    Text("After 1 week").tag(168)
-                    Text("After 30 days").tag(720)
-                }
-                Caption(text: "The Tidy button in the sidebar groups tabs that aren’t in a group yet. With Apple Intelligence on, tabs are grouped by topic on this Mac; otherwise tabs from the same site, or opened from one another, are grouped together. You can reopen archived tabs from History › Archived Tabs.")
             }
             Section("Sites that never sleep") {
                 ForEach(prefs.neverSleepHosts, id: \.self) { host in
@@ -177,6 +397,17 @@ struct LooksSettings: View {
                     }
                 }
                 Caption(text: "For sites you keep open, like music or meetings. Subdomains are included.")
+            }
+            Section("Tab Cleanup") {
+                Toggle("Automatically put new tabs in the right group", isOn: $prefs.groupNewTabs)
+                Picker("Archive tabs you haven’t viewed in a while", selection: $prefs.archiveHours) {
+                    Text("Off").tag(0)
+                    Text("After 12 hours").tag(12)
+                    Text("After 1 day").tag(24)
+                    Text("After 1 week").tag(168)
+                    Text("After 30 days").tag(720)
+                }
+                Caption(text: "The Tidy button in the sidebar groups tabs that aren’t in a group yet. With Apple Intelligence on, tabs are grouped by topic on this Mac; otherwise tabs from the same site, or opened from one another, are grouped together. You can reopen archived tabs from History › Archived Tabs.")
             }
         }
         .formStyle(.grouped)
@@ -665,15 +896,6 @@ struct AdvancedSettings: View {
 
     var body: some View {
         Form {
-            Section {
-                Picker("Address Bar", selection: $prefs.addressBar) {
-                    Text("Match developer mode (currently: \(Preferences.onTop(.automatic, developerMode: prefs.developerMode) ? String(localized: "Full Address") : String(localized: "Site and Title")))").tag(AddressBarChoice.automatic)
-                    Text("Site and Title").tag(AddressBarChoice.sidebar)
-                    Text("Full Address").tag(AddressBarChoice.top)
-                }
-                .pickerStyle(.radioGroup)
-                Caption(text: "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it.")
-            }
             Section {
                 Picker("Shortcuts", selection: $prefs.shortcuts) {
                     Text("Safari-style").tag(ShortcutScheme.safari)

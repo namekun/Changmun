@@ -757,6 +757,13 @@ struct SettingsRuleTests {
         #expect(Preferences.sidebarWidths.contains(Preferences.defaultSidebarWidth))
     }
 
+    @Test func settingsSearchFindsThePageOfASetting() {
+        #expect(SettingsPage.allCases.filter { $0.matches("sleep") } == [.tabs])
+        #expect(SettingsPage.general.matches("SEARCH ENGINE"))
+        #expect(SettingsPage.appearance.matches("zoom"))
+        #expect(SettingsPage.allCases.filter { $0.matches("no such setting") }.isEmpty)
+    }
+
     @Test func neverSleepCoversSubdomains() {
         #expect(!Preferences.canSleep(host: "music.youtube.com", neverSleep: ["youtube.com"]))
         #expect(!Preferences.canSleep(host: "YouTube.com", neverSleep: ["youtube.com"]))

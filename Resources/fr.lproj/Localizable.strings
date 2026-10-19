@@ -142,7 +142,7 @@
 "Done" = "Terminé";
 "Done · %@" = "Terminé · %@";
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "Double-cliquez pour ouvrir dans un nouvel onglet. Pour effacer l’historique par période, accédez à Réglages › Confidentialité.";
-"Double-click to reopen. Set how long until tabs are archived in Settings › Tabs & Appearance." = "Double-cliquez pour rouvrir. Définissez le délai avant l’archivage des onglets dans Réglages › Onglets et apparence.";
+"Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "Double-cliquez pour rouvrir. Définissez le délai avant l’archivage des onglets dans Réglages › Onglets.";
 "Download" = "Télécharger";
 "Download this language in System Settings › General › Language & Region › Translation Languages" = "Téléchargez cette langue dans Réglages Système › Général › Langue et région › Langues de traduction";
 "Downloading filter lists…" = "Téléchargement des listes de filtres…";
@@ -369,7 +369,6 @@
 "System" = "Système";
 "Tab %lld" = "Onglet %lld";
 "Tab Cleanup" = "Rangement des onglets";
-"Tabs & Appearance" = "Onglets et apparence";
 "Text to type:\n%@\n\nSites read earlier in this conversation: %@\nDeny if content from there is mixed in." = "Texte à saisir :\n%@\n\nSites lus plus tôt dans cette conversation : %@\nRefusez si du contenu provenant de ces sites y est mélangé.";
 "The AI panel uses the Claude Code login (subscription) on this Mac." = "Le panneau IA utilise la connexion Claude Code (abonnement) de ce Mac.";
 "The AI request failed." = "La requête IA a échoué.";
@@ -451,3 +450,9 @@
 "Duplicate Tab" = "Dupliquer l’onglet";
 "Move to New Window" = "Déplacer vers une nouvelle fenêtre";
 "Open In" = "Ouvrir dans";
+"Appearance" = "Apparence";
+"Tabs" = "Onglets";
+"Browser" = "Navigateur";
+"Behavior" = "Comportement";
+"Display" = "Affichage";
+"No matching settings" = "Aucun réglage correspondant";

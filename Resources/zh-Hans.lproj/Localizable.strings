@@ -142,7 +142,7 @@
 "Done" = "完成";
 "Done · %@" = "完成 · %@";
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "双击可在新标签页中打开。如需按时间范围清除历史记录，请前往“设置 › 隐私”。";
-"Double-click to reopen. Set how long until tabs are archived in Settings › Tabs & Appearance." = "双击可重新打开。归档前的等待时间可在“设置 › 标签页与外观”中设定。";
+"Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "双击可重新打开。归档前的等待时间可在“设置 › 标签页”中设定。";
 "Download" = "下载";
 "Download this language in System Settings › General › Language & Region › Translation Languages" = "请在“系统设置 › 通用 › 语言与地区 › 翻译语言”中下载此语言";
 "Downloading filter lists…" = "正在下载过滤列表…";
@@ -369,7 +369,6 @@
 "System" = "系统";
 "Tab %lld" = "标签页 %lld";
 "Tab Cleanup" = "整理标签页";
-"Tabs & Appearance" = "标签页与外观";
 "Text to type:\n%@\n\nSites read earlier in this conversation: %@\nDeny if content from there is mixed in." = "要输入的内容：\n%@\n\n此对话中先前读取过的网站：%@\n如果混入了这些网站的内容，请拒绝。";
 "The AI panel uses the Claude Code login (subscription) on this Mac." = "AI 面板使用这台 Mac 上的 Claude Code 登录（订阅）。";
 "The AI request failed." = "AI 请求失败。";
@@ -451,3 +450,9 @@
 "Duplicate Tab" = "复制标签页";
 "Move to New Window" = "移到新窗口";
 "Open In" = "用其他应用打开";
+"Appearance" = "外观";
+"Tabs" = "标签页";
+"Browser" = "浏览器";
+"Behavior" = "行为";
+"Display" = "显示";
+"No matching settings" = "没有匹配的设置";

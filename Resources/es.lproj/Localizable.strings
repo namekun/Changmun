@@ -142,7 +142,7 @@
 "Done" = "Listo";
 "Done · %@" = "Listo · %@";
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "Haz doble clic para abrir en una pestaña nueva. Para borrar el historial por intervalo de tiempo, ve a Ajustes › Privacidad.";
-"Double-click to reopen. Set how long until tabs are archived in Settings › Tabs & Appearance." = "Haz doble clic para volver a abrir. Define cuánto tiempo pasa hasta archivar las pestañas en Ajustes › Pestañas y aspecto.";
+"Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "Haz doble clic para volver a abrir. Define cuánto tiempo pasa hasta archivar las pestañas en Ajustes › Pestañas.";
 "Download" = "Descargar";
 "Download this language in System Settings › General › Language & Region › Translation Languages" = "Descarga este idioma en Ajustes del Sistema › General › Idioma y región › Idiomas de traducción";
 "Downloading filter lists…" = "Descargando listas de filtros…";
@@ -369,7 +369,6 @@
 "System" = "Sistema";
 "Tab %lld" = "Pestaña %lld";
 "Tab Cleanup" = "Limpieza de pestañas";
-"Tabs & Appearance" = "Pestañas y aspecto";
 "Text to type:\n%@\n\nSites read earlier in this conversation: %@\nDeny if content from there is mixed in." = "Texto que escribir:\n%@\n\nSitios leídos antes en esta conversación: %@\nDeniega si hay contenido de ahí mezclado.";
 "The AI panel uses the Claude Code login (subscription) on this Mac." = "El panel de IA usa el inicio de sesión de Claude Code (suscripción) de este Mac.";
 "The AI request failed." = "La solicitud a la IA ha fallado.";
@@ -451,3 +450,9 @@
 "Duplicate Tab" = "Duplicar pestaña";
 "Move to New Window" = "Mover a una ventana nueva";
 "Open In" = "Abrir en";
+"Appearance" = "Aspecto";
+"Tabs" = "Pestañas";
+"Browser" = "Navegador";
+"Behavior" = "Comportamiento";
+"Display" = "Pantalla";
+"No matching settings" = "Ningún ajuste coincide";

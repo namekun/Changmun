@@ -74,7 +74,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showSettings(_ sender: Any?) {
-        Panels.show("settings", title: String(localized: "Settings"), size: NSSize(width: 580, height: 500), resizable: false) { SettingsView(prefs: Preferences.shared) }
+        Panels.show("settings", title: String(localized: "Settings"), size: NSSize(width: 720, height: 520), resizable: false) { SettingsView(prefs: Preferences.shared) }
+        // The sidebar runs up behind the window buttons, with no title over the page.
+        if let window = Panels.window("settings") {
+            window.styleMask.insert(.fullSizeContentView)
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = .hidden
+        }
     }
 
     @objc func showHistory(_ sender: Any?) {

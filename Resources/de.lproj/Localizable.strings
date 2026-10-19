@@ -142,7 +142,7 @@
 "Done" = "Fertig";
 "Done · %@" = "Fertig · %@";
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "Doppelklicken, um in einem neuen Tab zu öffnen. Um den Verlauf nach Zeitraum zu löschen, gehe zu Einstellungen › Datenschutz.";
-"Double-click to reopen. Set how long until tabs are archived in Settings › Tabs & Appearance." = "Doppelklicken, um erneut zu öffnen. Wie lange es bis zur Archivierung dauert, legst du unter Einstellungen › Tabs & Darstellung fest.";
+"Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "Doppelklicken, um erneut zu öffnen. Wie lange es bis zur Archivierung dauert, legst du unter Einstellungen › Tabs fest.";
 "Download" = "Download";
 "Download this language in System Settings › General › Language & Region › Translation Languages" = "Lade diese Sprache in den Systemeinstellungen › Allgemein › Sprache & Region › Übersetzungssprachen herunter";
 "Downloading filter lists…" = "Filterlisten werden geladen …";
@@ -369,7 +369,6 @@
 "System" = "System";
 "Tab %lld" = "Tab %lld";
 "Tab Cleanup" = "Tabs aufräumen";
-"Tabs & Appearance" = "Tabs & Darstellung";
 "Text to type:\n%@\n\nSites read earlier in this conversation: %@\nDeny if content from there is mixed in." = "Einzugebender Text:\n%@\n\nIn dieser Unterhaltung zuvor gelesene Websites: %@\nLehne ab, wenn Inhalte von dort enthalten sind.";
 "The AI panel uses the Claude Code login (subscription) on this Mac." = "Die KI-Seitenleiste verwendet die Claude-Code-Anmeldung (Abo) auf diesem Mac.";
 "The AI request failed." = "Die KI-Anfrage ist fehlgeschlagen.";
@@ -451,3 +450,9 @@
 "Duplicate Tab" = "Tab duplizieren";
 "Move to New Window" = "In neues Fenster bewegen";
 "Open In" = "Öffnen in";
+"Appearance" = "Darstellung";
+"Tabs" = "Tabs";
+"Browser" = "Browser";
+"Behavior" = "Verhalten";
+"Display" = "Anzeige";
+"No matching settings" = "Keine passenden Einstellungen";
