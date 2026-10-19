@@ -547,7 +547,9 @@ struct PrivacySettings: View {
             Browser.closedWindows = []
         }
         if clearSiteData {
-            WKWebsiteDataStore.default().removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: since) {}
+            for store in [WKWebsiteDataStore.default()] + Profiles.stores(SpaceStore.shared.spaces) {
+                store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: since) {}
+            }
             done.append(String(localized: "Site data"))
         }
         cleared = String(localized: "Cleared: \(done.joined(separator: ", "))")

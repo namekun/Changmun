@@ -14,6 +14,8 @@ final class DownloadItem: ObservableObject, Identifiable {
     let isPrivate: Bool
     /// The private window it came from: only that window lists it, and closing the window forgets it.
     weak var owner: Browser?
+    /// The profile space it came from, so a resumed download uses the same cookies.
+    var space: Space?
     @Published var filename: String
     @Published var destination: URL?
     @Published var progress: Double = 0
@@ -91,7 +93,9 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         download.delegate = self
         let owner = tab.browser
         origins[ObjectIdentifier(download)] = tab.isPrivate ? (nil, nil, nil) : (download.originalRequest?.url, download.webView?.url, nil)
-        add(DownloadItem(download, owner: tab.isPrivate ? owner : nil))
+        let item = DownloadItem(download, owner: tab.isPrivate ? owner : nil)
+        item.space = owner?.spaces.space(tab.spaceID)
+        add(item)
     }
 
     func add(_ item: DownloadItem) {
@@ -259,7 +263,8 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
     func retry(_ item: DownloadItem) {
         guard let data = item.resumeData, !item.isPrivate || item.owner != nil else { return }
         item.resumeData = nil
-        let webView = WKWebView(frame: .zero, configuration: item.owner?.configuration ?? Browser.configuration)
+        let base = item.owner?.configuration ?? Browser.configuration
+        let webView = WKWebView(frame: .zero, configuration: item.space.map { Profiles.configuration(for: $0, base: base) } ?? base)
         resumers[item.id] = webView
         Task {
             let download = await webView.resumeDownload(fromResumeData: data)

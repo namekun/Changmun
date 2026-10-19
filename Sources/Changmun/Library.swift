@@ -4,7 +4,12 @@ import Foundation
 /// thread; imports and background reads each open their own.
 final class Library: @unchecked Sendable {
     static let didChange = Notification.Name("ChangmunLibraryDidChange")
+    /// The first space's favorites (and the library's before spaces existed) are in folder "". Another space keeps its own
+    /// in a folder named by this prefix and its id, which the bookmark folders never list.
     static let favoritesFolder = ""
+    static let favoritesPrefix = "\u{1}"
+
+    static func isFavorites(_ folder: String) -> Bool { folder.isEmpty || folder.hasPrefix(favoritesPrefix) }
     static let shared = Library(path: Library.folder.appendingPathComponent("library.sqlite").path)
 
     static var folder: URL {
@@ -86,20 +91,20 @@ final class Library: @unchecked Sendable {
         }
     }
 
-    /// Whether the page is in the sidebar's favorites (imported folders don't count).
-    func isFavorite(_ url: String) -> Bool {
-        ((try? db?.query("SELECT 1 FROM bookmarks WHERE url = ? AND folder = '' LIMIT 1", [url])) ?? []).isEmpty == false
+    /// Whether the page is in a space's favorites (imported folders don't count).
+    func isFavorite(_ url: String, in folder: String = Library.favoritesFolder) -> Bool {
+        ((try? db?.query("SELECT 1 FROM bookmarks WHERE url = ? AND folder = ? LIMIT 1", [url, folder])) ?? []).isEmpty == false
     }
 
     /// Adds the page to the favorites or takes it out; returns whether it is a favorite now (unchanged if the write failed).
-    func toggleBookmark(url: String, title: String) -> Bool {
+    func toggleBookmark(url: String, title: String, in folder: String = Library.favoritesFolder) -> Bool {
         defer { changed() }
-        if isFavorite(url) {
-            try? db?.run("DELETE FROM bookmarks WHERE url = ? AND folder = ''", [url])
+        if isFavorite(url, in: folder) {
+            try? db?.run("DELETE FROM bookmarks WHERE url = ? AND folder = ?", [url, folder])
         } else {
-            try? db?.run("INSERT OR IGNORE INTO bookmarks (url, title, folder, added) VALUES (?, ?, '', ?)", [url, title, Date().timeIntervalSince1970])
+            try? db?.run("INSERT OR IGNORE INTO bookmarks (url, title, folder, added) VALUES (?, ?, ?, ?)", [url, title, folder, Date().timeIntervalSince1970])
         }
-        return isFavorite(url)
+        return isFavorite(url, in: folder)
     }
 
     /// Puts a bookmark back (undoing a removal): at the end of its folder, or of the favorites.
@@ -130,9 +135,9 @@ final class Library: @unchecked Sendable {
         changed()
     }
 
-    /// The bookmarks pinned in the sidebar's tile grid: the ones added in Changmun itself.
-    func favorites() -> [Entry] {
-        rows("SELECT url, title FROM bookmarks WHERE folder = '' ORDER BY added, id", [])
+    /// The bookmarks pinned in a space's tile grid: the ones added in Changmun itself.
+    func favorites(in folder: String = Library.favoritesFolder) -> [Entry] {
+        rows("SELECT url, title FROM bookmarks WHERE folder = ? ORDER BY added, id", [folder])
     }
 
     /// Imported bookmarks grouped by folder, folders in the order they were first imported.
@@ -140,18 +145,23 @@ final class Library: @unchecked Sendable {
         Self.grouped((try? db?.query(Self.foldersQuery)) ?? [])
     }
 
-    /// The favorites and the folders in one read, or nil when the database can't be read: an unreadable library
-    /// must not look like one whose bookmarks were all deleted.
-    func readBookmarks() -> (favorites: [Entry], folders: [(name: String, entries: [Entry])])? {
+    /// Every space's favorites (by their folder) and the folders in one read, or nil when the database can't be read:
+    /// an unreadable library must not look like one whose bookmarks were all deleted.
+    func readBookmarks() -> (favorites: [String: [Entry]], folders: [(name: String, entries: [Entry])])? {
         guard let db, (try? db.execute("BEGIN")) != nil else { return nil }
         // One snapshot: a bookmark moving between folders meanwhile is in one place or the other, never neither.
         defer { try? db.execute("COMMIT") }
-        guard let favorites = try? db.query("SELECT url, title FROM bookmarks WHERE folder = '' ORDER BY added, id"),
+        guard let favorites = try? db.query("SELECT folder, url, title FROM bookmarks WHERE folder = '' OR substr(folder, 1, 1) = char(1) ORDER BY added, id"),
               let folders = try? db.query(Self.foldersQuery) else { return nil }
-        return (favorites.compactMap { row in (row[0] as? String).map { Entry(url: $0, title: row[1] as? String ?? "") } }, Self.grouped(folders))
+        var byFolder: [String: [Entry]] = [:]
+        for row in favorites {
+            guard let folder = row[0] as? String, let url = row[1] as? String else { continue }
+            byFolder[folder, default: []].append(Entry(url: url, title: row[2] as? String ?? ""))
+        }
+        return (byFolder, Self.grouped(folders))
     }
 
-    private static let foldersQuery = "SELECT folder, url, title FROM bookmarks WHERE folder <> '' ORDER BY id"
+    private static let foldersQuery = "SELECT folder, url, title FROM bookmarks WHERE folder <> '' AND substr(folder, 1, 1) <> char(1) ORDER BY id"
 
     private static func grouped(_ all: [[Any?]]) -> [(name: String, entries: [Entry])] {
         var order: [String] = []
@@ -224,8 +234,8 @@ final class Library: @unchecked Sendable {
     }
 
     /// Moves a favorite to where another one is (dropping it on that tile), or to the end.
-    func moveFavorite(_ url: String, to target: String?) {
-        let original = favorites().map(\.url)
+    func moveFavorite(_ url: String, to target: String?, in folder: String = Library.favoritesFolder) {
+        let original = favorites(in: folder).map(\.url)
         guard let from = original.firstIndex(of: url), url != target else { return }
         var order = original
         order.remove(at: from)
@@ -237,7 +247,7 @@ final class Library: @unchecked Sendable {
         guard let db else { return }
         try? db.transaction {
             for (position, item) in order.enumerated() {
-                try db.run("UPDATE bookmarks SET added = ? WHERE url = ? AND folder = ''", [Double(position), item])
+                try db.run("UPDATE bookmarks SET added = ? WHERE url = ? AND folder = ?", [Double(position), item, folder])
             }
         }
         changed()

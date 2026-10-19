@@ -13,6 +13,8 @@ final class TabArchive: ObservableObject {
         var archived: Date
         /// The name of the group it was in, which it joins again if the window still has one by that name.
         var group: String?
+        /// The space it was in; older entries have none and open in the space shown.
+        var space: UUID?
     }
 
     @Published private(set) var entries: [Entry]
