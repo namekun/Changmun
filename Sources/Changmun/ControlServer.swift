@@ -97,6 +97,36 @@ final class ControlServer {
             }
             return
         }
+        // Tests only: the front window's spaces. "action" is list, create (name, symbol, tint, profile), switch, delete (by
+        // name), or sheet (shows the new-space sheet, or the edit sheet of the space named); the answer lists the spaces.
+        if Headless.isOn, request.method == "POST", request.path == "/spaces",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                guard let browser = Browser.current else {
+                    return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
+                }
+                let store = browser.spaces
+                if body["action"] as? String != "sheet" { browser.spaceSheet = nil }
+                let named = store.spaces.first { $0.name == body["name"] as? String }
+                switch body["action"] as? String {
+                case "create":
+                    let tint = SpaceTint(rawValue: body["tint"] as? String ?? "") ?? .blue
+                    let space = store.add(name: body["name"] as? String ?? "", symbol: body["symbol"] as? String ?? "briefcase", tint: tint,
+                                          isProfile: body["profile"] as? Bool ?? false)
+                    browser.switchSpace(to: space.id)
+                case "switch": if let named { browser.switchSpace(to: named.id) }
+                case "delete": if let named { Browser.deleteSpace(named.id, from: store) }
+                case "sheet": browser.spaceSheet = named.map { .edit($0.id) } ?? .new
+                default: break
+                }
+                let list = store.spaces.map { space -> [String: Any] in
+                    ["name": space.name, "symbol": space.symbol, "tint": space.tint.rawValue, "profile": space.isProfile, "active": space.id == browser.spaceID,
+                     "tabs": browser.tabs.filter { $0.spaceID == space.id }.count]
+                }
+                self.respond(connection, status: "200 OK", body: ["spaces": list])
+            }
+            return
+        }
         // Tests only: a tab (the active one unless "tab_id" names another) as a PDF or a full-page picture, written to a
         // path without the save panel. Private windows are refused.
         if Headless.isOn, request.method == "POST", request.path == "/save-page",

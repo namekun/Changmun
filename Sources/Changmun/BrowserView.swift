@@ -417,6 +417,7 @@ struct BrowserView: View {
                 if sidebar {
                     Sidebar(browser: browser)
                         .frame(width: prefs.sidebarWidth)
+                        .background { SpaceGlass(tint: browser.space.tint).animation(Motion.standard, value: browser.space.tint) }
                         .overlay(alignment: .trailing) { SidebarResizeHandle(width: $prefs.sidebarWidth) }
                         .transition(Motion.slide(.leading))
                 }
@@ -454,6 +455,9 @@ struct BrowserView: View {
             if let mode = browser.commandBar, !browser.showOnboarding {
                 CommandBar(browser: browser, chat: chat, mode: mode).transition(Motion.pop(.top))
             }
+            if let mode = browser.spaceSheet {
+                SpaceSheet(browser: browser, mode: mode).id(mode).transition(Motion.pop(.center))
+            }
             if browser.showOnboarding {
                 OnboardingView(browser: browser)
             }
@@ -467,6 +471,7 @@ struct BrowserView: View {
         .animation(Motion.standard, value: prefs.toolbarPlace)
         .animation(Motion.standard, value: browser.fullScreen)
         .animation(Motion.quick, value: browser.commandBar)
+        .animation(Motion.quick, value: browser.spaceSheet)
         .animation(Motion.quick, value: browser.peek?.id)
     }
 }
@@ -494,7 +499,7 @@ struct Sidebar: View {
             ScrollViewReader { scroller in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Metrics.rowGap) {
-                    if !library.favorites.isEmpty {
+                    if !library.favorites(in: browser.favoritesFolder).isEmpty {
                         favorites
                     }
                     pinned
@@ -539,8 +544,8 @@ struct Sidebar: View {
                 .animation(Motion.standard, value: browser.tabs.map(\.groupID))
                 .animation(Motion.standard, value: browser.lastTidy)
                 .animation(Motion.standard, value: browser.notice)
-                .animation(Motion.standard, value: prefs.pinnedFolders)
-                .animation(Motion.standard, value: prefs.openFolders)
+                .animation(Motion.standard, value: browser.space.pinnedFolders)
+                .animation(Motion.standard, value: browser.space.openFolders)
                 .animation(Motion.quick, value: dropTarget)
             }
             // A tab switched to from the keyboard or the command bar comes into view.
@@ -549,6 +554,7 @@ struct Sidebar: View {
                 withAnimation(Motion.standard) { scroller.scrollTo("tab:\(id)") }
             }
             }
+            .modifier(SpaceSlide(spaceID: browser.spaceID, direction: browser.spaceDirection))
 
             if prefs.checkForUpdates, let version = updates.available {
                 UpdateNotice(version: version) { updates.dismiss() }
@@ -583,7 +589,12 @@ struct Sidebar: View {
                 }
             }
             .padding(.horizontal, Metrics.inset)
-            .padding(.bottom, Metrics.inset)
+            .padding(.bottom, browser.isPrivate ? Metrics.inset : 0)
+            if !browser.isPrivate {
+                SpaceSwitcher(browser: browser)
+                    .padding(.horizontal, Metrics.inset)
+                    .padding(.bottom, Metrics.inset)
+            }
         }
     }
 
@@ -592,15 +603,15 @@ struct Sidebar: View {
     private var favorites: some View {
         // As many tiles a row as the sidebar's width holds: four at the default width, up to seven when wide.
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 40), spacing: 4)], spacing: 4) {
-            ForEach(library.favorites, id: \.url) { entry in
-                let key = Browser.bookmarkKey(url: entry.url, folder: Library.favoritesFolder)
+            ForEach(library.favorites(in: browser.favoritesFolder), id: \.url) { entry in
+                let key = Browser.bookmarkKey(url: entry.url, folder: browser.favoritesFolder)
                 FavoriteTile(entry: entry, state: BookmarkTabState(key, browser)) {
                     browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
                 } menu: {
-                    bookmarkMenu(url: entry.url, title: entry.title, folder: Library.favoritesFolder, key: key)
+                    bookmarkMenu(url: entry.url, title: entry.title, folder: browser.favoritesFolder, key: key)
                 }
                 .dropLine(dropTarget == "fav:" + entry.url && SidebarDrag.dragging != .folder, edge: .leading)
-                .draggable(SidebarDrag.favorite(entry.url))
+                .draggable(SidebarDrag.bookmark(entry.url, in: browser.favoritesFolder))
                 .dropDestination(for: SidebarDrop.self) { items, _ in
                     SidebarDrag.drop(items.texts, onFavorite: entry.url, browser: browser)
                 } isTargeted: { target("fav:" + entry.url, $0) }
@@ -616,7 +627,7 @@ struct Sidebar: View {
     /// Folders kept under the favorites, opened where they are, then a gap before the tabs. A folder dropped in
     /// the gap is pinned at the end.
     @ViewBuilder private var pinned: some View {
-        let folders = prefs.pinnedFolders.compactMap(library.folder)
+        let folders = browser.space.pinnedFolders.compactMap(library.folder)
         // Ids carry the part of the sidebar: a folder can show both pinned and under Bookmarks.
         ForEach(folders.flatMap { treeRows($0, depth: 0, scope: "pin:", pinned: true) }) { row in
             treeRow(row)
@@ -624,7 +635,7 @@ struct Sidebar: View {
         SectionGap()
             .dropLine(dropTarget == "pin:end" && SidebarDrag.dragging == .folder)
             .dropDestination(for: SidebarDrop.self) { items, _ in
-                SidebarDrag.pin(items.texts, before: nil)
+                SidebarDrag.pin(items.texts, before: nil, in: browser)
             } isTargeted: { target("pin:end", $0) }
     }
 
@@ -664,7 +675,7 @@ struct Sidebar: View {
                         }
                     }
                     .padding(Metrics.inset)
-                    .animation(Motion.standard, value: prefs.openFolders)
+                    .animation(Motion.standard, value: browser.space.openFolders)
                 }
                 .frame(width: 320, height: 420)
             }
@@ -675,14 +686,14 @@ struct Sidebar: View {
         ForEach(library.sources, id: \.source) { group in
             let key = "source:" + group.source
             FolderRow(name: group.source, symbol: "books.vertical", count: group.folders.reduce(0) { $0 + $1.count },
-                      isOpen: prefs.openFolders.contains(key)) {
-                prefs.toggleOpen(key)
+                      isOpen: browser.space.openFolders.contains(key)) {
+                browser.spaces.toggleOpen(key, in: browser.spaceID)
             } menu: {
                 Button("Delete All \(group.source) Bookmarks…") {
                     confirmDelete(String(localized: "Delete all bookmarks imported from \(group.source)?")) { Library.shared.removeSource(group.source) }
                 }
             }
-            if prefs.openFolders.contains(key) {
+            if browser.space.openFolders.contains(key) {
                 ForEach(group.folders.flatMap { treeRows($0, depth: 1, scope: "", pinned: false) }) { row in
                     treeRow(row)
                 }
@@ -720,7 +731,7 @@ struct Sidebar: View {
     /// A folder, and when it is open the folders and bookmarks inside it, each a step further in.
     private func treeRows(_ folder: Library.Folder, depth: Int, scope: String, pinned: Bool) -> [TreeRow] {
         var rows: [TreeRow] = [.folder(folder, depth: depth, scope: scope, pinned: pinned)]
-        guard prefs.openFolders.contains(scope + folder.key) else { return rows }
+        guard browser.space.openFolders.contains(scope + folder.key) else { return rows }
         for child in folder.children { rows += treeRows(child, depth: depth + 1, scope: scope, pinned: pinned) }
         rows += folder.entries.map { .bookmark($0, folder: folder.key, depth: depth + 1, scope: scope) }
         return rows
@@ -744,19 +755,19 @@ struct Sidebar: View {
 
     private func folderRow(_ folder: Library.Folder, depth: Int, scope: String, pinned: Bool) -> some View {
         let openKey = scope + folder.key
-        let isPinned = prefs.pinnedFolders.contains(folder.key)
+        let isPinned = browser.space.pinnedFolders.contains(folder.key)
         let targetKey = scope + "folder:" + folder.key
         // Pinned folders reorder when a folder is dropped on one; a bookmark dropped on any folder moves in.
         let reorders = pinned && depth == 0
         let over = dropTarget == targetKey
-        return FolderRow(name: folder.label, count: folder.count, isOpen: prefs.openFolders.contains(openKey), showCount: false,
+        return FolderRow(name: folder.label, count: folder.count, isOpen: browser.space.openFolders.contains(openKey), showCount: false,
                          target: over && SidebarDrag.dragging != .tab && SidebarDrag.dragging != .folder) {
-            prefs.toggleOpen(openKey)
+            browser.spaces.toggleOpen(openKey, in: browser.spaceID)
         } menu: {
             if isPinned {
-                Button("Unpin from Sidebar") { prefs.unpinFolder(folder.key) }
+                Button("Unpin from Sidebar") { browser.spaces.unpinFolder(folder.key, in: browser.spaceID) }
             } else {
-                Button("Pin to Sidebar") { prefs.pinFolder(folder.key) }
+                Button("Pin to Sidebar") { browser.spaces.pinFolder(folder.key, in: browser.spaceID) }
             }
             Divider()
             Button("Delete Folder…") {
@@ -764,7 +775,7 @@ struct Sidebar: View {
                 let question = count == 1 ? String(localized: "Delete the folder “\(folder.label)” and its \(count) bookmark?")
                                           : String(localized: "Delete the folder “\(folder.label)” and its \(count) bookmarks?")
                 confirmDelete(question) {
-                    for inner in folder.flattened() { prefs.unpinFolder(inner.folder.key) }
+                    for inner in folder.flattened() { browser.spaces.unpinFolder(inner.folder.key) }
                     Library.shared.removeFolder(folder.key)
                 }
             }
@@ -774,7 +785,7 @@ struct Sidebar: View {
         .dropLine(reorders && over && SidebarDrag.dragging == .folder)
         .draggable(SidebarDrag.folder(folder.key))
         .dropDestination(for: SidebarDrop.self) { items, _ in
-            if reorders, SidebarDrag.pin(items.texts, before: folder.key) { return true }
+            if reorders, SidebarDrag.pin(items.texts, before: folder.key, in: browser) { return true }
             return SidebarDrag.drop(items.texts, onFolder: folder.key)
         } isTargeted: { target(targetKey, $0) }
     }
@@ -819,7 +830,7 @@ struct Sidebar: View {
         }
         moveMenu(url: url, from: folder)
         Divider()
-        if folder == Library.favoritesFolder {
+        if Library.isFavorites(folder) {
             Button("Remove from Favorites") { remove(url: url, title: title, folder: folder, String(localized: "Removed from Favorites")) }
         } else {
             Button("Delete Bookmark") { remove(url: url, title: title, folder: folder, String(localized: "Deleted the bookmark")) }
@@ -829,8 +840,8 @@ struct Sidebar: View {
     /// "Move To": the favorites and every imported folder, by the browser it came from.
     @ViewBuilder private func moveMenu(url: String, from: String) -> some View {
         Menu("Move To") {
-            Button("Favorites") { Browser.moveBookmark(url: url, from: from, to: Library.favoritesFolder) }
-                .disabled(from == Library.favoritesFolder)
+            Button("Favorites") { Browser.moveBookmark(url: url, from: from, to: browser.favoritesFolder) }
+                .disabled(from == browser.favoritesFolder)
             ForEach(library.sources, id: \.source) { group in
                 Section(group.source) {
                     ForEach(group.folders.flatMap { $0.paths() }, id: \.key) { item in
@@ -924,7 +935,6 @@ enum SidebarDrag {
     private(set) static var dragging: Kind?
 
     static func tab(_ id: Int) -> String { dragging = .tab; return "changmun-tab:\(id)" }
-    static func favorite(_ url: String) -> String { dragging = .bookmark; return "changmun-favorite:" + url }
     static func bookmark(_ url: String, in folder: String) -> String { dragging = .bookmark; return "changmun-bookmark:" + folder + "\n" + url }
     static func folder(_ key: String) -> String { dragging = .folder; return "changmun-folder:" + key }
 
@@ -945,10 +955,10 @@ enum SidebarDrag {
 
     /// A folder dropped among the pinned ones is pinned there (before `target`, or at the end).
     @discardableResult
-    static func pin(_ items: [String], before target: String?) -> Bool {
+    static func pin(_ items: [String], before target: String?, in browser: Browser) -> Bool {
         guard let key = folderKey(items) else { return false }
         dragging = nil
-        withAnimation(Motion.standard) { Preferences.shared.pinFolder(key, before: target) }
+        withAnimation(Motion.standard) { browser.spaces.pinFolder(key, before: target, in: browser.spaceID) }
         return true
     }
 
@@ -970,7 +980,6 @@ enum SidebarDrag {
     /// The bookmark (or favorite) being dragged, and the folder it is in.
     static func bookmark(_ items: [String]) -> (url: String, folder: String)? {
         guard let item = items.first else { return nil }
-        if item.hasPrefix("changmun-favorite:") { return (String(item.dropFirst("changmun-favorite:".count)), Library.favoritesFolder) }
         guard item.hasPrefix("changmun-bookmark:") else { return nil }
         let rest = item.dropFirst("changmun-bookmark:".count)
         guard let newline = rest.firstIndex(of: "\n") else { return nil }
@@ -1025,21 +1034,22 @@ enum SidebarDrag {
     /// With no target, past the last tile, it goes to the end.
     static func drop(_ items: [String], onFavorite target: String?, browser: Browser) -> Bool {
         defer { dragging = nil }
+        let favorites = browser.favoritesFolder
         if let url = link(items) {
             let address = url.absoluteString
-            if !Library.shared.isFavorite(address) { _ = Library.shared.toggleBookmark(url: address, title: url.host() ?? address) }
-            Library.shared.moveFavorite(address, to: target)
+            if !Library.shared.isFavorite(address, in: favorites) { _ = Library.shared.toggleBookmark(url: address, title: url.host() ?? address, in: favorites) }
+            Library.shared.moveFavorite(address, to: target, in: favorites)
             return true
         }
         if let (url, folder) = bookmark(items) {
-            if folder != Library.favoritesFolder { Browser.moveBookmark(url: url, from: folder, to: Library.favoritesFolder) }
-            Library.shared.moveFavorite(url, to: target)
+            if folder != favorites { Browser.moveBookmark(url: url, from: folder, to: favorites) }
+            Library.shared.moveFavorite(url, to: target, in: favorites)
             return true
         }
         if let id = tabID(items), let tab = browser.tab(id), let url = tab.url?.absoluteString {
-            if !Library.shared.isFavorite(url) { _ = Library.shared.toggleBookmark(url: url, title: tab.title) }
-            browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: Library.favoritesFolder))
-            Library.shared.moveFavorite(url, to: target)
+            if !Library.shared.isFavorite(url, in: favorites) { _ = Library.shared.toggleBookmark(url: url, title: tab.title, in: favorites) }
+            browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: favorites))
+            Library.shared.moveFavorite(url, to: target, in: favorites)
             return true
         }
         return false
@@ -1051,12 +1061,17 @@ enum SidebarDrag {
 @MainActor
 final class LibraryWatcher: ObservableObject {
     static let shared = LibraryWatcher()
-    @Published private(set) var favorites: [Library.Entry] = []
+    /// Every space's favorites, by the folder they are kept in.
+    @Published private(set) var favoritesByFolder: [String: [Library.Entry]] = [:]
     @Published private(set) var sources: [(source: String, folders: [Library.Folder])] = []
     /// The favorites' addresses, for the star in the address bar.
-    private(set) var favoriteURLs: Set<String> = []
+    private var favoriteURLs: [String: Set<String>] = [:]
     private var reading = false
     private var readAgain = false
+
+    func favorites(in folder: String) -> [Library.Entry] { favoritesByFolder[folder] ?? [] }
+
+    func isFavorite(_ url: String, in folder: String) -> Bool { favoriteURLs[folder]?.contains(url) == true }
 
     func folder(_ key: String) -> Library.Folder? {
         for source in sources {
@@ -1088,14 +1103,14 @@ final class LibraryWatcher: ObservableObject {
         }
     }
 
-    private func apply(_ read: (favorites: [Library.Entry], folders: [(name: String, entries: [Library.Entry])])) {
+    private func apply(_ read: (favorites: [String: [Library.Entry]], folders: [(name: String, entries: [Library.Entry])])) {
         let sources = Library.groupBySource(read.folders)
-        if read.favorites != favorites {
-            favorites = read.favorites
-            favoriteURLs = Set(read.favorites.map(\.url))
+        if read.favorites != favoritesByFolder {
+            favoritesByFolder = read.favorites
+            favoriteURLs = read.favorites.mapValues { Set($0.map(\.url)) }
         }
         if sources.map(\.source) != self.sources.map(\.source) || sources.map(\.folders) != self.sources.map(\.folders) { self.sources = sources }
-        var keys = Set(read.favorites.map { Browser.bookmarkKey(url: $0.url, folder: Library.favoritesFolder) })
+        var keys = Set(read.favorites.flatMap { folder, entries in entries.map { Browser.bookmarkKey(url: $0.url, folder: folder) } })
         for folder in read.folders { for entry in folder.entries { keys.insert(Browser.bookmarkKey(url: entry.url, folder: folder.name)) } }
         for browser in Browser.all { browser.releaseBookmarkTabs(keeping: keys) }
     }
@@ -1274,7 +1289,7 @@ struct AddressPill: View {
             LoginButton(tab: tab)
             PictureInPictureButton(tab: tab)
             if hover || AdBlocker.shared.isAllowed(tab.url?.host() ?? "") { AdBlockShield(tab: tab) }
-            if hover || tab.url.map({ library.favoriteURLs.contains($0.absoluteString) }) == true { BookmarkStar(tab: tab) }
+            if hover || tab.url.map({ library.isFavorite($0.absoluteString, in: tab.favoritesFolder) }) == true { BookmarkStar(tab: tab) }
         }
         .padding(.leading, 4)
         .padding(.trailing, 4)
@@ -1456,13 +1471,14 @@ struct BookmarkStar: View {
 
     var body: some View {
         let url = tab.url?.absoluteString ?? ""
-        let marked = !url.isEmpty && library.favoriteURLs.contains(url)
+        let folder = tab.favoritesFolder
+        let marked = !url.isEmpty && library.isFavorite(url, in: folder)
         Button {
             guard !url.isEmpty else { return }
             let title = tab.title
-            if !Library.shared.toggleBookmark(url: url, title: title) && marked {
+            if !Library.shared.toggleBookmark(url: url, title: title, in: folder) && marked {
                 tab.browser?.offerUndo(String(localized: "Removed from Favorites")) {
-                    Library.shared.addBookmark(url: url, title: title, folder: Library.favoritesFolder)
+                    Library.shared.addBookmark(url: url, title: title, folder: folder)
                 }
             }
         } label: {
@@ -1855,8 +1871,8 @@ struct SidebarTabRow: View {
         Divider()
         Button("Pin to Favorites") {
             if let url = tab.url?.absoluteString {
-                if !Library.shared.isFavorite(url) { _ = Library.shared.toggleBookmark(url: url, title: tab.title) }
-                browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: Library.favoritesFolder))
+                if !Library.shared.isFavorite(url, in: tab.favoritesFolder) { _ = Library.shared.toggleBookmark(url: url, title: tab.title, in: tab.favoritesFolder) }
+                browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: tab.favoritesFolder))
             }
         }
         if tab.groupID == nil {
@@ -1864,7 +1880,7 @@ struct SidebarTabRow: View {
         } else {
             Button("Remove from Group") { withAnimation(Motion.standard) { browser.removeFromGroup(tab.id) } }
         }
-        let otherGroups = browser.groups.filter { $0.id != tab.groupID }
+        let otherGroups = browser.spaceGroups.filter { $0.id != tab.groupID }
         if !otherGroups.isEmpty {
             Menu("Move to Group") {
                 ForEach(otherGroups) { group in
@@ -2401,7 +2417,8 @@ struct CommandBar: View {
         case search(String)
         case suggested(String)
         case ask(String)
-        case tab(id: Int, url: String, title: String)
+        /// `space` names the space it is in when that isn't the one shown.
+        case tab(id: Int, url: String, title: String, space: String?)
         case page(url: String, title: String)
     }
 
@@ -2414,8 +2431,11 @@ struct CommandBar: View {
         }
         var list: [Suggestion] = [AddressInput.isAddress(query) ? .open(query) : .search(query)]
         if !browser.isPrivate { list.append(.ask(query)) }
-        let tabs = Self.matchingTabs(browser.tabs.filter { $0.id != browser.activeID }, query)
-        list += tabs.prefix(3).map { .tab(id: $0.id, url: $0.url?.absoluteString ?? "", title: $0.displayTitle) }
+        // The tabs of this space first, then those of the others, each with its space's name.
+        let others = browser.tabs.filter { $0.spaceID != browser.spaceID }
+        let tabs = Self.matchingTabs(browser.spaceTabs.filter { $0.id != browser.activeID }, query) + Self.matchingTabs(others, query)
+        list += tabs.prefix(3).map { .tab(id: $0.id, url: $0.url?.absoluteString ?? "", title: $0.displayTitle,
+                                          space: $0.spaceID == browser.spaceID ? nil : browser.spaces.space($0.spaceID).name) }
         list += source.searches.prefix(4).map { .suggested($0) }
         let open = Set(tabs.compactMap { $0.url?.absoluteString })
         list += source.pages.filter { !open.contains($0.url) }.prefix(6).map { .page(url: $0.url, title: $0.title) }
@@ -2513,7 +2533,7 @@ struct CommandBar: View {
         switch item {
         case .open(let input), .search(let input), .suggested(let input):
             browser.open(input, in: mode)
-        case .tab(let id, _, _):
+        case .tab(let id, _, _, _):
             browser.activate(id)
             browser.commandBar = nil
         case .ask(let question):
@@ -2549,7 +2569,7 @@ struct SuggestionRow: View {
         switch item {
         case .open: Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary)
         case .search, .suggested: Image(systemName: "magnifyingglass").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary)
-        case .tab(_, let url, _): SiteIcon(url: url, size: 16)
+        case .tab(_, let url, _, _): SiteIcon(url: url, size: 16)
         case .ask: Image(systemName: "sparkles").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.primary)
         case .page(let url, _): SiteIcon(url: url, size: 16)
         }
@@ -2564,9 +2584,9 @@ struct SuggestionRow: View {
             Text("Search").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint)
         case .suggested(let text):
             Text(text).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
-        case .tab(_, let url, let title):
+        case .tab(_, let url, let title, let space):
             Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
-            Text("Switch to Tab").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint)
+            Text(space.map { String(localized: "Switch to Tab in \($0)") } ?? String(localized: "Switch to Tab")).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint)
             Text(URL(string: url)?.host() ?? "").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
         case .ask(let text):
             Text("Ask AI").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.secondary)

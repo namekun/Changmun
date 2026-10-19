@@ -37,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         watchMouseButtons()
         watchPeekKeys()
         watchSwitcherKeys()
+        watchSpaceSwipes()
         guard !Headless.isOn else { return }
         UpdateCheck.shared.checkIfDue()
         if !UserDefaults.standard.bool(forKey: "onboarded") { browser.showOnboarding = true }
@@ -67,6 +68,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func newPrivateWindow(_ sender: Any?) { BrowserWindow.open(private: true).commandBar = .newTab }
     @objc func closeWindow(_ sender: Any?) { Browser.current?.window?.performClose(nil) }
     @objc func toggleSplit(_ sender: Any?) { Browser.current?.toggleSplit() }
+    @objc func nextSpace(_ sender: Any?) { Browser.current?.switchSpace(offset: 1) }
+    @objc func previousSpace(_ sender: Any?) { Browser.current?.switchSpace(offset: -1) }
+    @objc func selectNumberedSpace(_ sender: NSMenuItem) { Browser.current?.switchSpace(number: sender.tag) }
+    @objc func newSpace(_ sender: Any?) { browser.spaceSheet = .new }
 
     @objc func newTab(_ sender: Any?) { browser.commandBar = .newTab }
     @objc func openLocation(_ sender: Any?) {
@@ -123,6 +128,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var focusMonitor: Any?
     private var keyMonitor: Any?
     private var switcherMonitor: Any?
+    private var swipeMonitor: Any?
+    private var swipe = SpaceSwipe()
 
     /// The side buttons on most mice (4 and 5) go back and forward in the browser window. A click in the other half of
     /// a split makes that tab the active one.
@@ -153,6 +160,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return nil
             }
             return event
+        }
+    }
+
+    /// Two fingers moving sideways over the sidebar (never over the page) go to the next space or the one before.
+    private func watchSpaceSwipes() {
+        swipeMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+            guard let self, event.hasPreciseScrollingDeltas, let browser = (event.window as? BrowserWindow)?.browser, !browser.isPrivate,
+                  browser.showSidebar, !browser.focusMode, event.locationInWindow.x < Preferences.shared.sidebarWidth else { return event }
+            let began = event.phase.contains(.began), ended = event.phase.contains(.ended) || event.phase.contains(.cancelled)
+            guard let step = swipe.scrolled(dx: event.scrollingDeltaX, dy: event.scrollingDeltaY, began: began, ended: ended) else { return event }
+            withAnimation(Motion.standard) { browser.switchSpace(offset: step) }
+            return nil
         }
     }
 
@@ -196,6 +215,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Saving needs a page that is loaded, and a picture of a PDF document isn't offered.
     @objc func validateMenuItem(_ item: NSMenuItem) -> Bool {
         switch item.action {
+        case #selector(nextSpace(_:)), #selector(previousSpace(_:)), #selector(selectNumberedSpace(_:)), #selector(newSpace(_:)):
+            Browser.current?.isPrivate != true
         case #selector(savePDF(_:)): browser.active?.webView != nil
         case #selector(captureFullPage(_:)): browser.active?.webView != nil && browser.active?.showsPDF != true
         default: true
@@ -300,7 +321,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func togglePictureInPicture(_ sender: Any?) { (Browser.current?.peek ?? Browser.current?.active)?.pictureInPicture(.toggle) }
     @objc func toggleBookmark(_ sender: Any?) {
         guard let tab = browser.active, let url = tab.url?.absoluteString else { return }
-        _ = Library.shared.toggleBookmark(url: url, title: tab.title)
+        _ = Library.shared.toggleBookmark(url: url, title: tab.title, in: tab.favoritesFolder)
         tab.objectWillChange.send()
     }
     @objc func importData(_ sender: Any?) { browser.showOnboarding = true }
@@ -540,6 +561,13 @@ enum AppMenu {
         }
         for n in 1...9 {
             add(window, n == 9 ? "Last Tab" : "Tab \(n)", #selector(AppDelegate.selectNumberedTab(_:)), "\(n)").tag = n
+        }
+        window.addItem(.separator())
+        add(window, "New Space…", #selector(AppDelegate.newSpace(_:)), "n", [.command, .control])
+        add(window, "Next Space", #selector(AppDelegate.nextSpace(_:)), right, [.control, .option])
+        add(window, "Previous Space", #selector(AppDelegate.previousSpace(_:)), left, [.control, .option])
+        for n in 1...9 {
+            add(window, n == 9 ? "Last Space" : "Space \(n)", #selector(AppDelegate.selectNumberedSpace(_:)), "\(n)", [.control], hidden: true).tag = n
         }
         NSApp?.windowsMenu = window
         return main
