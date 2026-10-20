@@ -23,6 +23,14 @@
 
 *Changmun* (창문) is Korean for *window*. It's free, open source, and has no account or tracking. The app speaks English, Korean, Japanese, Simplified Chinese, Spanish, German and French.
 
+## Why Changmun
+
+- **Light.** Changmun uses the WebKit engine that ships with macOS, the one Safari uses, instead of bundling Chromium. The download is about 3 MB (the 0.4.1 DMG is 2.6 MB), it's easy on the battery, and engine security fixes arrive with macOS and Safari updates.
+- **A sidebar like Arc and Dia.** Vertical tabs, favorites as tiles, bookmark folders, tab groups and spaces.
+- **An AI that uses the browser.** The Claude panel reads pages and clicks and types for you through your existing `claude` CLI, and asks before anything risky.
+- **Private by default.** No account, server or analytics, and ad and tracker blocking is built in.
+- **Comes with your stuff.** Imports bookmarks, history, passwords and sign-ins from Safari and Chromium browsers.
+
 ## Install
 
 ```sh
@@ -48,27 +56,84 @@ With only the Command Line Tools installed, the scripts build against the macOS 
 
 ## What it does
 
-- **Sidebar.** Favorites as tiles, bookmark folders, vertical tabs. Drag tabs to reorder them, or onto the favorites to pin them. Favorites and bookmarks each keep their own tab, like Dia and Arc: clicking one goes to its tab instead of replacing the one you're reading (⌘-click opens a new tab). Drag a link from a page onto the sidebar to open it as a tab, make it a favorite or file it in a folder. A tab's menu also reloads, duplicates, moves it to a new window, shares it or opens it in another browser. Closing a group's tabs or removing a bookmark can be undone for a few seconds.
-- **Address bar where you like.** At the top of the sidebar beside back and forward, as in Arc, or above the page, as in Dia: Settings › Appearance › Address Bar Position. It shows just the site; the shield comes up when the pointer is over it, and so does the star, which stays for a favorite: click it to take the page out of the favorites.
-- **Bookmark folders.** Imported folders keep their nesting, as in the browser they came from. Pin the ones you use to the sidebar (right-click or … › Pin to Sidebar, or drag the folder up under the favorites) and open them right there. Drag a bookmark onto another folder or onto the favorites, or use Move To in its menu. The rest of your bookmarks are behind the bookmark button at the bottom of the sidebar, with a search field; the … beside it opens History, Archived Tabs, Focus Mode and Settings.
-- **Tab groups.** Right-click a tab › Add to New Group, name it, fold it. Tabs opened from a group's tab join the group; a reopened tab (⌘⇧T) goes back to its group.
-- **Spaces.** The row at the bottom of the sidebar switches between spaces: click a dot, press ⌃1–⌃9, or swipe sideways with two fingers over the sidebar (Window › Next Space, Previous Space, New Space…). Each space has its own tabs, tab groups, favorites and pinned folders, and tints the sidebar with its colour. The bookmark library, history and saved passwords are shared. Turn on "Keep logins and cookies separate (profile)" when you make a space to give it its own cookies and site data too, so one site can have two accounts signed in side by side; that can't be changed afterwards, and deleting a profile erases its cookies and site data. Your first space is made from what you already had. Private windows have no spaces. The AI sees the tabs of ordinary spaces (with the space's name), but those of a profile space only while you're in it.
-- **Tidy tabs.** The wand next to "New Tab" (Window › Tidy Tabs) groups the loose tabs. With Apple Intelligence on (macOS 26), the model on your Mac groups them by topic and names the groups; nothing about your tabs leaves the Mac. Without it, tabs opened from one another and tabs of one site go together. "Undo" puts things back for a few seconds. New tabs you open from the address bar join a matching group on their own (turn it off in Settings › Tabs).
-- **Archive old tabs** (off by default). Tabs you haven't looked at for a set time (12 hours to 30 days, counted only while Changmun runs) close into History › Archived Tabs, ready to reopen into their group. Visible, playing, picture-in-picture, camera/mic, favorite and private tabs are never archived.
-- **Split view** (⌥⌘\\) shows two tabs side by side. **Focus mode** (⌘⇧F) hides everything but the page. **Link preview**: ⇧-click a link to open it in a floating card, ⌘↩ to keep it as a tab.
-- **Private windows** keep their cookies and site data in memory and forget them when closed; nothing goes to history, the session or the AI.
-- **Command bar** (⌘T): search, addresses, switching to open tabs, bookmarks and history, and asking the AI.
-- **Translate pages** in place with macOS's on-device translation (⌥⌘T, macOS 26+). Links and layout stay; the text never leaves the Mac.
-- **Site settings.** Click the lock icon at the left of the address bar for a small panel with what Changmun keeps for that site: ad blocking, zoom, pop-ups, camera and microphone, and whether its tabs may sleep. Click anywhere else on the address bar, the site name included, to edit the address, as before.
-- **Reader mode** (⇧⌘R, or ⌥⌘R with Chrome-style shortcuts) shows an article as clean, readable text over the page. A button appears in the address bar when the page looks like an article. Esc, the ×, or the same key brings the page back as it was. A small script on the page does it: the article's images load from the same places the page loads them from, and nothing else is downloaded or sent.
-- **Picture in picture** (⌃⌘P) turns on by itself when you leave a tab with a playing video. ⌃⌘← / ⌃⌘→ skip 5 seconds even while you're in another app, and "Back to tab" brings the tab forward.
-- **Passwords** are saved to the Keychain after you sign in (https only) and filled from the key in the address bar. Copying one asks for Touch ID or your Mac password.
-- **Pop-ups** opened without a click are blocked, with "Open" and "Always Allow for This Site" right above the page.
-- **Save a page** as one long PDF (File › Save as PDF…) or as a picture of the whole page, not just what's on screen (File › Capture Full Page…). Both are also in a tab's menu, save to your Downloads folder unless you pick another, and work in private windows too. Pages that scroll inside an inner panel and images that load only on scroll may not be captured in full.
-- **Downloads** show their progress at the bottom of the sidebar and get Safari's quarantine flag, so Gatekeeper checks them on first open. Apps, scripts and installers are shown in Finder instead of run. A download that breaks off picks up from where it stopped with Try Again on its row.
-- **Sleeping tabs.** Background tabs you haven't seen in 20 minutes, and all background tabs under memory pressure, give back their web process and come back with their history when you return.
-- Page zoom is remembered per site, and open tabs are saved every 15 seconds, so a crash costs almost nothing.
-- **Update notice.** Changmun is updated through Homebrew. Once a day it asks GitHub for the latest release, and when there's a newer one a quiet note at the bottom of the sidebar copies `brew upgrade --cask changmun` for you. Turn it off in Settings › Advanced › Check for Updates.
+### Sidebar and tabs
+
+- **Sidebar.** Keeps your favorites, bookmarks and open tabs in one column on the left. Favorites as tiles, bookmark folders, vertical tabs. Drag tabs to reorder them, or onto the favorites to pin them. Favorites and bookmarks each keep their own tab, like Dia and Arc: clicking one goes to its tab instead of replacing the one you're reading (⌘-click opens a new tab). Drag a link from a page onto the sidebar to open it as a tab, make it a favorite or file it in a folder. A tab's menu also reloads, duplicates, moves it to a new window, shares it or opens it in another browser. Closing a group's tabs or removing a bookmark can be undone for a few seconds.
+- **Address bar where you like.** Choose the layout you're used to. At the top of the sidebar beside back and forward, as in Arc, or above the page, as in Dia: Settings › Appearance › Address Bar Position. It shows just the site; the shield comes up when the pointer is over it, and so does the star, which stays for a favorite: click it to take the page out of the favorites.
+- **Bookmark folders.** Keeps your bookmarks organized the way they were, and close at hand. Imported folders keep their nesting, as in the browser they came from. Pin the ones you use to the sidebar (right-click or … › Pin to Sidebar, or drag the folder up under the favorites) and open them right there. Drag a bookmark onto another folder or onto the favorites, or use Move To in its menu. The rest of your bookmarks are behind the bookmark button at the bottom of the sidebar, with a search field; the … beside it opens History, Archived Tabs, Focus Mode and Settings.
+- **Tab groups.** Keeps related tabs together and out of the way. Right-click a tab › Add to New Group, name it, fold it. Tabs opened from a group's tab join the group; a reopened tab (⌘⇧T) goes back to its group.
+- **Tidy tabs.** Sorts a pile of loose tabs into groups in one click. The wand next to "New Tab" (Window › Tidy Tabs) groups the loose tabs. With Apple Intelligence on (macOS 26), the model on your Mac groups them by topic and names the groups; nothing about your tabs leaves the Mac. Without it, tabs opened from one another and tabs of one site go together. "Undo" puts things back for a few seconds. New tabs you open from the address bar join a matching group on their own (turn it off in Settings › Tabs).
+- **Archive old tabs** (off by default). Clears out tabs you've stopped using without losing them. Tabs you haven't looked at for a set time (12 hours to 30 days, counted only while Changmun runs) close into History › Archived Tabs, ready to reopen into their group. Visible, playing, picture-in-picture, camera/mic, favorite and private tabs are never archived.
+- **Sleeping tabs.** Saves memory by letting background tabs rest. Background tabs you haven't seen in 20 minutes, and all background tabs under memory pressure, give back their web process and come back with their history when you return.
+- **Command bar** (⌘T). One box for search, addresses, switching to open tabs, bookmarks and history, and asking the AI.
+
+### Spaces and profiles
+
+- **Spaces.** Keeps separate sets of tabs, tab groups and favorites for different kinds of browsing. The row at the bottom of the sidebar switches between spaces: click a dot, press ⌃1–⌃9, or swipe sideways with two fingers over the sidebar (Window › Next Space, Previous Space, New Space…). Each space has its own tabs, tab groups, favorites and pinned folders, and tints the sidebar with its colour. The bookmark library, history and saved passwords are shared. Turn on "Keep logins and cookies separate (profile)" when you make a space to give it its own cookies and site data too, so one site can have two accounts signed in side by side; that can't be changed afterwards, and deleting a profile erases its cookies and site data. Your first space is made from what you already had. Private windows have no spaces. The AI sees the tabs of ordinary spaces (with the space's name), but those of a profile space only while you're in it.
+
+### Reading and watching
+
+- **Reader mode.** Read an article as clean, readable text. ⇧⌘R (or ⌥⌘R with Chrome-style shortcuts) shows it over the page. A button appears in the address bar when the page looks like an article. Esc, the ×, or the same key brings the page back as it was. A small script on the page does it: the article's images load from the same places the page loads them from, and nothing else is downloaded or sent.
+- **Translate pages.** Read a page in another language without leaving it. It's translated in place with macOS's on-device translation (⌥⌘T, macOS 26+). Links and layout stay; the text never leaves the Mac.
+- **Split view** (⌥⌘\\). Keeps two pages in view at once: it shows two tabs side by side.
+- **Focus mode** (⌘⇧F). Lets you read or work without distractions: it hides everything but the page.
+- **Link preview.** Peek at a link without leaving the page you're on. ⇧-click a link to open it in a floating card, ⌘↩ to keep it as a tab.
+- **Picture in picture** (⌃⌘P). Keeps a video in view after you leave its tab. It turns on by itself when you leave a tab with a playing video. ⌃⌘← / ⌃⌘→ skip 5 seconds even while you're in another app, and "Back to tab" brings the tab forward.
+
+### Privacy and safety
+
+- **Private windows.** Browse without leaving anything behind. Private windows keep their cookies and site data in memory and forget them when closed; nothing goes to history, the session or the AI.
+- **Site settings.** Shows and changes what Changmun remembers about a site, all in one place. Click the lock icon at the left of the address bar for a small panel with what Changmun keeps for that site: ad blocking, zoom, pop-ups, camera and microphone, and whether its tabs may sleep. Click anywhere else on the address bar, the site name included, to edit the address, as before.
+- **Passwords.** Sign in without retyping them. Passwords are saved to the Keychain after you sign in (https only) and filled from the key in the address bar. Copying one asks for Touch ID or your Mac password.
+- **Pop-ups.** Keeps pages from opening windows on you. Pop-ups opened without a click are blocked, with "Open" and "Always Allow for This Site" right above the page.
+
+Ad and tracker blocking is covered under [Ad blocking](#ad-blocking), and what stays on your Mac and what is sent is covered under [Privacy](#privacy).
+
+### Saving and downloads
+
+- **Save a page.** Keep a page for later as a PDF or a picture. Save it as one long PDF (File › Save as PDF…) or as a picture of the whole page, not just what's on screen (File › Capture Full Page…). Both are also in a tab's menu, save to your Downloads folder unless you pick another, and work in private windows too. Pages that scroll inside an inner panel and images that load only on scroll may not be captured in full.
+- **Downloads.** See how a download is going, with a safety check on first open. Downloads show their progress at the bottom of the sidebar and get Safari's quarantine flag, so Gatekeeper checks them on first open. Apps, scripts and installers are shown in Finder instead of run. A download that breaks off picks up from where it stopped with Try Again on its row.
+- **Page zoom.** Zoom a site once and it stays that way: page zoom is remembered per site.
+- **Session saving.** A crash costs almost nothing: open tabs are saved every 15 seconds.
+
+### Updates
+
+- **Update notice.** Tells you when a new version is out. Changmun is updated through Homebrew. Once a day it asks GitHub for the latest release, and when there's a newer one a quiet note at the bottom of the sidebar copies `brew upgrade --cask changmun` for you. Turn it off in Settings › Advanced › Check for Updates.
+
+## AI
+
+The panel on the right (⌘E) uses the `claude` CLI you already have, so it runs on your Claude Code subscription. The default model is Sonnet; switch with `defaults write io.github.namekun.Changmun aiModel opus`.
+
+The AI works the browser through these tools: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `type_text`, `scroll`, `screenshot`. It can't read or fill password fields.
+
+To work across several tabs, add them under the chat with "Add Tab" (one by one, a tab group, or all open tabs): they show as chips you can remove, the AI reads them together with `read_tabs`, and you aren't asked before it reads them. With two or more attached, the panel suggests comparing them or boiling each down to its key points.
+
+So that instructions hidden in a page can't make it carry what it read somewhere else, Changmun asks you first (and says no after 90 seconds without an answer):
+
+- before it uses a tab you aren't looking at, once per tab and site;
+- before it opens an address, unless it's a search, an address already open, visited or bookmarked, or a known site's front page;
+- before every bit of typing once the chat has read another site, showing what it will type. A new chat (⌘⇧E) starts over.
+
+Other agents, like Claude Code, can use the same tools through MCP, with the same questions:
+
+```sh
+claude mcp add changmun -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp
+```
+
+`--mcp` starts Changmun if it isn't running. The control server listens only on 127.0.0.1 and needs a token that changes every launch.
+
+Or from a shell, for any agent that can run commands (Homebrew puts `changmun` on the PATH):
+
+```sh
+changmun tabs
+changmun open example.com
+changmun read
+changmun read-tabs 3 5
+changmun click 12
+changmun type 3 "hello" --submit
+```
+
+`changmun help` lists the rest. Each command is one of the same tools, with the same questions, and starts Changmun if needed.
 
 ## Shortcuts
 
@@ -106,41 +171,6 @@ Pick Safari-style or Chrome-style in Settings (⌘,). Only the keys the two brow
 | Console | ⌥⌘C | ⌥⌘J |
 | Downloads | ⌥⌘L | ⌘⇧J |
 | Previous Tab / Next Tab | | ⌥⌘← ⌥⌘→ |
-
-## AI
-
-The panel on the right (⌘E) uses the `claude` CLI you already have, so it runs on your Claude Code subscription. The default model is Sonnet; switch with `defaults write io.github.namekun.Changmun aiModel opus`.
-
-The AI works the browser through these tools: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `type_text`, `scroll`, `screenshot`. It can't read or fill password fields.
-
-To work across several tabs, add them under the chat with "Add Tab" (one by one, a tab group, or all open tabs): they show as chips you can remove, the AI reads them together with `read_tabs`, and you aren't asked before it reads them. With two or more attached, the panel suggests comparing them or boiling each down to its key points.
-
-So that instructions hidden in a page can't make it carry what it read somewhere else, Changmun asks you first (and says no after 90 seconds without an answer):
-
-- before it uses a tab you aren't looking at, once per tab and site;
-- before it opens an address, unless it's a search, an address already open, visited or bookmarked, or a known site's front page;
-- before every bit of typing once the chat has read another site, showing what it will type. A new chat (⌘⇧E) starts over.
-
-Other agents, like Claude Code, can use the same tools through MCP, with the same questions:
-
-```sh
-claude mcp add changmun -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp
-```
-
-`--mcp` starts Changmun if it isn't running. The control server listens only on 127.0.0.1 and needs a token that changes every launch.
-
-Or from a shell, for any agent that can run commands (Homebrew puts `changmun` on the PATH):
-
-```sh
-changmun tabs
-changmun open example.com
-changmun read
-changmun read-tabs 3 5
-changmun click 12
-changmun type 3 "hello" --submit
-```
-
-`changmun help` lists the rest. Each command is one of the same tools, with the same questions, and starts Changmun if needed.
 
 ## Ad blocking
 

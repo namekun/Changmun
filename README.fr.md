@@ -23,6 +23,14 @@
 
 *Changmun* (창문) signifie *fenêtre* en coréen. Le navigateur est gratuit et open source, sans compte ni suivi. L’app est disponible en anglais, coréen, japonais, chinois simplifié, espagnol, allemand et français.
 
+## Pourquoi Changmun
+
+- **Léger.** Changmun utilise le moteur WebKit livré avec macOS, celui de Safari, au lieu d’embarquer Chromium. Le téléchargement fait environ 3 Mo (le DMG de la 0.4.1 pèse 2,6 Mo), il ménage la batterie, et les correctifs de sécurité du moteur arrivent avec les mises à jour de macOS et de Safari.
+- **Une barre latérale comme Arc et Dia.** Onglets verticaux, favoris en vignettes, dossiers de signets, groupes d’onglets et espaces.
+- **Une IA qui utilise le navigateur.** Le panneau Claude lit les pages, clique et saisit à votre place via la CLI `claude` que vous avez déjà, et demande avant toute action risquée.
+- **Privé par défaut.** Ni compte, ni serveur, ni analyse, avec blocage des publicités et des traqueurs intégré.
+- **Reprend vos affaires.** Importe signets, historique, mots de passe et connexions depuis Safari et les navigateurs Chromium.
+
 ## Installer
 
 ```sh
@@ -48,27 +56,84 @@ Si seuls les Command Line Tools sont installés, les scripts compilent avec le S
 
 ## Fonctionnalités
 
-- **Barre latérale.** Les favoris sous forme de vignettes, les dossiers de signets et les onglets verticaux. Faites glisser les onglets pour les réorganiser, ou sur les favoris pour les épingler. Comme dans Dia et Arc, chaque favori et chaque signet garde son propre onglet : un clic vous amène à cet onglet au lieu de remplacer celui que vous lisez (⌘-clic pour ouvrir un nouvel onglet). Faites glisser un lien d’une page dans la barre latérale pour l’ouvrir dans un onglet, en faire un favori ou le ranger dans un dossier. Le menu d’un onglet permet aussi de le recharger, le dupliquer, le déplacer vers une nouvelle fenêtre, le partager ou l’ouvrir dans un autre navigateur. Fermer les onglets d’un groupe ou supprimer un signet peut s’annuler pendant quelques secondes.
-- **La barre d’adresse où vous voulez.** En haut de la barre latérale, sous Précédent et Suivant, comme dans Arc, ou au-dessus de la page, comme dans Dia : Réglages › Apparence › Position de la barre d’adresse. Elle n’affiche que le site ; le bouclier et l’étoile apparaissent au survol. Sur une page favorite, l’étoile reste affichée : cliquez dessus pour la retirer des favoris.
-- **Dossiers de signets.** Les dossiers importés gardent leur imbrication, comme dans le navigateur d’origine. Épinglez ceux que vous utilisez dans la barre latérale (clic droit ou … › Épingler dans la barre latérale, ou faites glisser le dossier sous les favoris) et ouvrez-les sur place. Faites glisser un signet sur un autre dossier ou sur les favoris, ou utilisez Déplacer vers dans son menu. Les autres signets sont derrière le bouton des signets, en bas de la barre latérale, avec un champ de recherche ; le … à côté ouvre l’Historique, les Onglets archivés, le Mode concentration et les Réglages.
-- **Groupes d’onglets.** Clic droit sur un onglet › Ajouter à un nouveau groupe, donnez-lui un nom, repliez-le. Les onglets ouverts depuis l’onglet d’un groupe rejoignent ce groupe ; un onglet rouvert (⌘⇧T) retourne dans son groupe.
-- **Espaces.** La rangée en bas de la barre latérale permet de changer d’espace : cliquez sur un point, appuyez sur ⌃1–⌃9 ou balayez latéralement à deux doigts sur la barre latérale (Fenêtre › Espace suivant, Espace précédent, Nouvel espace…). Chaque espace a ses propres onglets, groupes d’onglets, favoris et dossiers épinglés, et teinte légèrement la barre latérale de sa couleur. La bibliothèque de signets, l’historique et les mots de passe enregistrés sont partagés. Activez « Séparer connexions et cookies (profil) » à la création pour que l’espace ait aussi ses propres cookies et données de sites : un même site peut alors avoir deux comptes connectés côte à côte. Ce choix ne peut plus être changé, et supprimer un profil efface ses cookies et ses données de sites. Votre premier espace est créé à partir de ce que vous aviez déjà. Les fenêtres privées n’ont pas d’espaces. L’IA voit les onglets des espaces ordinaires (avec le nom de l’espace), mais ceux d’un espace à profil seulement quand vous y êtes.
-- **Ranger les onglets.** La baguette à côté de « Nouvel onglet » (Fenêtre › Ranger les onglets) regroupe les onglets isolés. Avec Apple Intelligence activée (macOS 26), le modèle de votre Mac les regroupe par sujet et nomme les groupes ; rien de ce qui concerne vos onglets ne quitte le Mac. Sans elle, les onglets ouverts les uns à partir des autres et les onglets d’un même site vont ensemble. « Annuler » remet tout en place pendant quelques secondes. Les nouveaux onglets ouverts depuis la barre d’adresse rejoignent d’eux-mêmes un groupe correspondant (désactivez cette option dans Réglages › Onglets).
-- **Archivage des anciens onglets** (désactivé par défaut). Les onglets que vous n’avez pas consultés depuis un délai défini (de 12 heures à 30 jours, décompté uniquement pendant que Changmun est ouvert) se ferment dans Historique › Onglets archivés, prêts à être rouverts dans leur groupe. Les onglets visibles, en lecture, en image dans l’image, utilisant la caméra ou le micro, les favoris et les onglets privés ne sont jamais archivés.
-- **Écran partagé** (⌥⌘\\) affiche deux onglets côte à côte. Le **mode concentration** (⌘⇧F) masque tout sauf la page. **Aperçu de lien** : ⇧-clic sur un lien pour l’ouvrir dans une carte flottante, ⌘↩ pour le conserver comme onglet.
-- **Les fenêtres privées** gardent leurs cookies et les données des sites en mémoire et les oublient à la fermeture ; rien n’est envoyé à l’historique, à la session ni à l’IA.
-- **Barre de commande** (⌘T) : recherche, adresses, passage aux onglets ouverts, signets et historique, et questions à l’IA.
-- **Traduction des pages** sur place avec la traduction sur l’appareil de macOS (⌥⌘T, macOS 26 ou ultérieur). Les liens et la mise en page sont conservés ; le texte ne quitte jamais le Mac.
-- **Réglages du site.** Cliquez sur le cadenas, à gauche de la barre d’adresse, pour afficher un petit panneau avec ce que Changmun retient pour ce site : blocage des publicités, zoom, pop-ups, caméra et micro, et si ses onglets peuvent se mettre en veille. Cliquez ailleurs sur la barre, y compris sur le nom du site, pour modifier l’adresse, comme avant.
-- Le **mode lecture** (⇧⌘R, ou ⌥⌘R avec les raccourcis façon Chrome) affiche un article en texte épuré et lisible par-dessus la page. Quand la page ressemble à un article, un bouton apparaît dans la barre d’adresse. Échap, la × ou le même raccourci rend la page telle qu’elle était. Un petit script dans la page s’en charge : les images de l’article se chargent depuis les mêmes endroits que ceux de la page, et rien d’autre n’est téléchargé ni envoyé.
-- **Image dans l’image** (⌃⌘P) s’active toute seule quand vous quittez un onglet où une vidéo est en lecture. ⌃⌘← / ⌃⌘→ avancent ou reculent de 5 secondes, même si vous êtes dans une autre app, et « Retour à l’onglet » ramène l’onglet au premier plan.
-- **Les mots de passe** sont enregistrés dans le Trousseau après votre connexion (https uniquement) et remplis depuis la clé située dans la barre d’adresse. Pour en copier un, Touch ID ou le mot de passe de votre Mac est demandé.
-- **Les pop-ups** ouverts sans clic sont bloqués, avec « Ouvrir » et « Toujours autoriser pour ce site » juste au-dessus de la page.
-- **Enregistrer une page** en un long PDF d’une seule page (Fichier › Enregistrer en PDF…) ou en une image de la page entière, et pas seulement de la partie visible (Fichier › Capturer la page entière…). Les deux sont aussi dans le menu d’un onglet, vont dans Téléchargements sauf si vous choisissez un autre dossier et fonctionnent aussi dans les fenêtres privées. Les pages qui défilent dans un panneau interne et les images chargées au défilement peuvent ne pas être capturées en entier.
-- **Les téléchargements** affichent leur progression en bas de la barre latérale et reçoivent l’indicateur de quarantaine de Safari, si bien que Gatekeeper les vérifie à la première ouverture. Les apps, scripts et installateurs sont affichés dans le Finder au lieu d’être exécutés. Un téléchargement interrompu reprend là où il s’était arrêté avec Réessayer sur sa ligne.
-- **Onglets en veille.** Les onglets en arrière-plan que vous n’avez pas vus depuis 20 minutes, et tous les onglets en arrière-plan quand la mémoire se fait rare, libèrent leur processus web et reviennent avec leur historique quand vous les rouvrez.
-- Le zoom des pages est mémorisé pour chaque site, et les onglets ouverts sont enregistrés toutes les 15 secondes : un plantage ne coûte presque rien.
-- **Avis de mise à jour.** Changmun se met à jour avec Homebrew. Une fois par jour, il demande à GitHub la dernière version et, s’il y en a une plus récente, une note discrète en bas de la barre latérale copie `brew upgrade --cask changmun` pour vous. Désactivez-la dans Réglages › Avancé › Rechercher des mises à jour.
+### Barre latérale et onglets
+
+- **Barre latérale.** Réunit vos favoris, signets et onglets ouverts dans une colonne à gauche. Les favoris sous forme de vignettes, les dossiers de signets et les onglets verticaux. Faites glisser les onglets pour les réorganiser, ou sur les favoris pour les épingler. Comme dans Dia et Arc, chaque favori et chaque signet garde son propre onglet : un clic vous amène à cet onglet au lieu de remplacer celui que vous lisez (⌘-clic pour ouvrir un nouvel onglet). Faites glisser un lien d’une page dans la barre latérale pour l’ouvrir dans un onglet, en faire un favori ou le ranger dans un dossier. Le menu d’un onglet permet aussi de le recharger, le dupliquer, le déplacer vers une nouvelle fenêtre, le partager ou l’ouvrir dans un autre navigateur. Fermer les onglets d’un groupe ou supprimer un signet peut s’annuler pendant quelques secondes.
+- **La barre d’adresse où vous voulez.** Choisissez la disposition qui vous est familière. En haut de la barre latérale, sous Précédent et Suivant, comme dans Arc, ou au-dessus de la page, comme dans Dia : Réglages › Apparence › Position de la barre d’adresse. Elle n’affiche que le site ; le bouclier et l’étoile apparaissent au survol. Sur une page favorite, l’étoile reste affichée : cliquez dessus pour la retirer des favoris.
+- **Dossiers de signets.** Garde vos signets rangés comme avant, et à portée de main. Les dossiers importés gardent leur imbrication, comme dans le navigateur d’origine. Épinglez ceux que vous utilisez dans la barre latérale (clic droit ou … › Épingler dans la barre latérale, ou faites glisser le dossier sous les favoris) et ouvrez-les sur place. Faites glisser un signet sur un autre dossier ou sur les favoris, ou utilisez Déplacer vers dans son menu. Les autres signets sont derrière le bouton des signets, en bas de la barre latérale, avec un champ de recherche ; le … à côté ouvre l’Historique, les Onglets archivés, le Mode concentration et les Réglages.
+- **Groupes d’onglets.** Garde ensemble les onglets liés et les met à l’écart. Clic droit sur un onglet › Ajouter à un nouveau groupe, donnez-lui un nom, repliez-le. Les onglets ouverts depuis l’onglet d’un groupe rejoignent ce groupe ; un onglet rouvert (⌘⇧T) retourne dans son groupe.
+- **Ranger les onglets.** Range en un clic un tas d’onglets isolés en groupes. La baguette à côté de « Nouvel onglet » (Fenêtre › Ranger les onglets) regroupe les onglets isolés. Avec Apple Intelligence activée (macOS 26), le modèle de votre Mac les regroupe par sujet et nomme les groupes ; rien de ce qui concerne vos onglets ne quitte le Mac. Sans elle, les onglets ouverts les uns à partir des autres et les onglets d’un même site vont ensemble. « Annuler » remet tout en place pendant quelques secondes. Les nouveaux onglets ouverts depuis la barre d’adresse rejoignent d’eux-mêmes un groupe correspondant (désactivez cette option dans Réglages › Onglets).
+- **Archivage des anciens onglets** (désactivé par défaut). Met de côté les onglets que vous ne regardez plus, sans les perdre. Les onglets que vous n’avez pas consultés depuis un délai défini (de 12 heures à 30 jours, décompté uniquement pendant que Changmun est ouvert) se ferment dans Historique › Onglets archivés, prêts à être rouverts dans leur groupe. Les onglets visibles, en lecture, en image dans l’image, utilisant la caméra ou le micro, les favoris et les onglets privés ne sont jamais archivés.
+- **Onglets en veille.** Économise la mémoire en laissant les onglets en arrière-plan se reposer. Les onglets en arrière-plan que vous n’avez pas vus depuis 20 minutes, et tous les onglets en arrière-plan quand la mémoire se fait rare, libèrent leur processus web et reviennent avec leur historique quand vous les rouvrez.
+- **Barre de commande** (⌘T). Une seule zone pour la recherche, les adresses, le passage aux onglets ouverts, les signets et l’historique, et les questions à l’IA.
+
+### Espaces et profils
+
+- **Espaces.** Garde des ensembles séparés d’onglets, de groupes d’onglets et de favoris pour différents usages de la navigation. La rangée en bas de la barre latérale permet de changer d’espace : cliquez sur un point, appuyez sur ⌃1–⌃9 ou balayez latéralement à deux doigts sur la barre latérale (Fenêtre › Espace suivant, Espace précédent, Nouvel espace…). Chaque espace a ses propres onglets, groupes d’onglets, favoris et dossiers épinglés, et teinte légèrement la barre latérale de sa couleur. La bibliothèque de signets, l’historique et les mots de passe enregistrés sont partagés. Activez « Séparer connexions et cookies (profil) » à la création pour que l’espace ait aussi ses propres cookies et données de sites : un même site peut alors avoir deux comptes connectés côte à côte. Ce choix ne peut plus être changé, et supprimer un profil efface ses cookies et ses données de sites. Votre premier espace est créé à partir de ce que vous aviez déjà. Les fenêtres privées n’ont pas d’espaces. L’IA voit les onglets des espaces ordinaires (avec le nom de l’espace), mais ceux d’un espace à profil seulement quand vous y êtes.
+
+### Lire et regarder
+
+- **Mode lecture.** Lisez un article en texte épuré et lisible. ⇧⌘R (ou ⌥⌘R avec les raccourcis façon Chrome) l’affiche par-dessus la page. Quand la page ressemble à un article, un bouton apparaît dans la barre d’adresse. Échap, la × ou le même raccourci rend la page telle qu’elle était. Un petit script dans la page s’en charge : les images de l’article se chargent depuis les mêmes endroits que ceux de la page, et rien d’autre n’est téléchargé ni envoyé.
+- **Traduction des pages.** Lisez une page dans une autre langue sans la quitter. Elle se fait sur place avec la traduction sur l’appareil de macOS (⌥⌘T, macOS 26 ou ultérieur). Les liens et la mise en page sont conservés ; le texte ne quitte jamais le Mac.
+- **Écran partagé** (⌥⌘\\). Garde deux pages sous les yeux en même temps : il affiche deux onglets côte à côte.
+- **Mode concentration** (⌘⇧F). Vous laisse lire ou travailler sans distraction : il masque tout sauf la page.
+- **Aperçu de lien.** Jetez un œil à un lien sans quitter la page où vous êtes. ⇧-clic sur un lien pour l’ouvrir dans une carte flottante, ⌘↩ pour le conserver comme onglet.
+- **Image dans l’image** (⌃⌘P). Garde une vidéo à l’écran après avoir quitté son onglet. Elle s’active toute seule quand vous quittez un onglet où une vidéo est en lecture. ⌃⌘← / ⌃⌘→ avancent ou reculent de 5 secondes, même si vous êtes dans une autre app, et « Retour à l’onglet » ramène l’onglet au premier plan.
+
+### Confidentialité et sécurité
+
+- **Fenêtres privées.** Naviguez sans rien laisser derrière vous. Les fenêtres privées gardent leurs cookies et les données des sites en mémoire et les oublient à la fermeture ; rien n’est envoyé à l’historique, à la session ni à l’IA.
+- **Réglages du site.** Affiche et modifie au même endroit ce que Changmun retient pour un site. Cliquez sur le cadenas, à gauche de la barre d’adresse, pour afficher un petit panneau avec ce que Changmun retient pour ce site : blocage des publicités, zoom, pop-ups, caméra et micro, et si ses onglets peuvent se mettre en veille. Cliquez ailleurs sur la barre, y compris sur le nom du site, pour modifier l’adresse, comme avant.
+- **Mots de passe.** Connectez-vous sans tout retaper. Ils sont enregistrés dans le Trousseau après votre connexion (https uniquement) et remplis depuis la clé située dans la barre d’adresse. Pour en copier un, Touch ID ou le mot de passe de votre Mac est demandé.
+- **Pop-ups.** Empêche les pages d’ouvrir des fenêtres de leur propre chef. Les pop-ups ouverts sans clic sont bloqués, avec « Ouvrir » et « Toujours autoriser pour ce site » juste au-dessus de la page.
+
+Le blocage des publicités et des traqueurs est décrit dans [Blocage des publicités](#blocage-des-publicités), et ce qui reste sur votre Mac ou est envoyé dans [Confidentialité](#confidentialité).
+
+### Enregistrer et télécharger
+
+- **Enregistrer une page.** Gardez une page pour plus tard en PDF ou en image. Enregistrez-la en un long PDF d’une seule page (Fichier › Enregistrer en PDF…) ou en une image de la page entière, et pas seulement de la partie visible (Fichier › Capturer la page entière…). Les deux sont aussi dans le menu d’un onglet, vont dans Téléchargements sauf si vous choisissez un autre dossier et fonctionnent aussi dans les fenêtres privées. Les pages qui défilent dans un panneau interne et les images chargées au défilement peuvent ne pas être capturées en entier.
+- **Téléchargements.** Suivez un téléchargement, avec une vérification de sécurité à la première ouverture. La progression s’affiche en bas de la barre latérale et les fichiers reçoivent l’indicateur de quarantaine de Safari, si bien que Gatekeeper les vérifie à la première ouverture. Les apps, scripts et installateurs sont affichés dans le Finder au lieu d’être exécutés. Un téléchargement interrompu reprend là où il s’était arrêté avec Réessayer sur sa ligne.
+- **Zoom des pages.** Réglez le zoom d’un site une fois, il reste ainsi : le zoom des pages est mémorisé pour chaque site.
+- **Sauvegarde de session.** Un plantage ne coûte presque rien : les onglets ouverts sont enregistrés toutes les 15 secondes.
+
+### Mises à jour
+
+- **Avis de mise à jour.** Vous prévient quand une nouvelle version est disponible. Changmun se met à jour avec Homebrew. Une fois par jour, il demande à GitHub la dernière version et, s’il y en a une plus récente, une note discrète en bas de la barre latérale copie `brew upgrade --cask changmun` pour vous. Désactivez-la dans Réglages › Avancé › Rechercher des mises à jour.
+
+## IA
+
+Le panneau de droite (⌘E) utilise la CLI `claude` que vous avez déjà, il fonctionne donc avec votre abonnement Claude Code. Le modèle par défaut est Sonnet ; pour en changer, utilisez `defaults write io.github.namekun.Changmun aiModel opus`.
+
+L’IA pilote le navigateur grâce à ces outils : `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `type_text`, `scroll`, `screenshot`. Elle ne peut ni lire ni remplir les champs de mot de passe.
+
+Pour travailler sur plusieurs onglets, ajoutez-les sous le chat avec « Ajouter un onglet » (un par un, un groupe d’onglets ou tous les onglets ouverts) : ils apparaissent sous forme de pastilles que vous pouvez retirer, l’IA les lit ensemble avec `read_tabs` et ne vous demande rien avant de les lire. Avec deux onglets ou plus, le panneau propose de les comparer ou de résumer l’essentiel de chacun.
+
+Pour que des instructions cachées dans une page ne puissent pas lui faire emporter ailleurs ce qu’elle a lu, Changmun vous demande d’abord (et refuse après 90 secondes sans réponse) :
+
+- avant qu’elle utilise un onglet que vous ne regardez pas, une fois par onglet et par site ;
+- avant qu’elle ouvre une adresse, sauf s’il s’agit d’une recherche, d’une adresse déjà ouverte, visitée ou enregistrée dans les signets, ou de la page d’accueil d’un site connu ;
+- avant chaque saisie de texte une fois que la conversation a lu un autre site, en vous montrant ce qu’elle va saisir. Une nouvelle conversation (⌘⇧E) repart de zéro.
+
+D’autres agents, comme Claude Code, peuvent utiliser les mêmes outils via MCP, avec les mêmes questions :
+
+```sh
+claude mcp add changmun -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp
+```
+
+`--mcp` lance Changmun s’il n’est pas déjà ouvert. Le serveur de contrôle écoute uniquement sur 127.0.0.1 et exige un jeton qui change à chaque lancement.
+
+Ou depuis un shell, pour tout agent capable de lancer des commandes (Homebrew place `changmun` dans le PATH) :
+
+```sh
+changmun tabs
+changmun open example.com
+changmun read
+changmun read-tabs 3 5
+changmun click 12
+changmun type 3 "hello" --submit
+```
+
+`changmun help` liste le reste. Chaque commande est l’un des mêmes outils, avec les mêmes questions, et lance Changmun si besoin.
 
 ## Raccourcis
 
@@ -106,41 +171,6 @@ Choisissez le style Safari ou le style Chrome dans les Réglages (⌘,). Seules 
 | Console | ⌥⌘C | ⌥⌘J |
 | Téléchargements | ⌥⌘L | ⌘⇧J |
 | Onglet précédent / Onglet suivant | | ⌥⌘← ⌥⌘→ |
-
-## IA
-
-Le panneau de droite (⌘E) utilise la CLI `claude` que vous avez déjà, il fonctionne donc avec votre abonnement Claude Code. Le modèle par défaut est Sonnet ; pour en changer, utilisez `defaults write io.github.namekun.Changmun aiModel opus`.
-
-L’IA pilote le navigateur grâce à ces outils : `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `type_text`, `scroll`, `screenshot`. Elle ne peut ni lire ni remplir les champs de mot de passe.
-
-Pour travailler sur plusieurs onglets, ajoutez-les sous le chat avec « Ajouter un onglet » (un par un, un groupe d’onglets ou tous les onglets ouverts) : ils apparaissent sous forme de pastilles que vous pouvez retirer, l’IA les lit ensemble avec `read_tabs` et ne vous demande rien avant de les lire. Avec deux onglets ou plus, le panneau propose de les comparer ou de résumer l’essentiel de chacun.
-
-Pour que des instructions cachées dans une page ne puissent pas lui faire emporter ailleurs ce qu’elle a lu, Changmun vous demande d’abord (et refuse après 90 secondes sans réponse) :
-
-- avant qu’elle utilise un onglet que vous ne regardez pas, une fois par onglet et par site ;
-- avant qu’elle ouvre une adresse, sauf s’il s’agit d’une recherche, d’une adresse déjà ouverte, visitée ou enregistrée dans les signets, ou de la page d’accueil d’un site connu ;
-- avant chaque saisie de texte une fois que la conversation a lu un autre site, en vous montrant ce qu’elle va saisir. Une nouvelle conversation (⌘⇧E) repart de zéro.
-
-D’autres agents, comme Claude Code, peuvent utiliser les mêmes outils via MCP, avec les mêmes questions :
-
-```sh
-claude mcp add changmun -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp
-```
-
-`--mcp` lance Changmun s’il n’est pas déjà ouvert. Le serveur de contrôle écoute uniquement sur 127.0.0.1 et exige un jeton qui change à chaque lancement.
-
-Ou depuis un shell, pour tout agent capable de lancer des commandes (Homebrew place `changmun` dans le PATH) :
-
-```sh
-changmun tabs
-changmun open example.com
-changmun read
-changmun read-tabs 3 5
-changmun click 12
-changmun type 3 "hello" --submit
-```
-
-`changmun help` liste le reste. Chaque commande est l’un des mêmes outils, avec les mêmes questions, et lance Changmun si besoin.
 
 ## Blocage des publicités
 
