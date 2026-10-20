@@ -8,7 +8,7 @@ source scripts/env.sh
 
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
-swift build --scratch-path "$HOME/Library/Caches/Changmun/strings" \
+swift build --scratch-path "${CHANGMUN_STRINGS_SCRATCH:-$HOME/Library/Caches/Changmun/strings}" \
     -Xswiftc -emit-localized-strings -Xswiftc -emit-localized-strings-path -Xswiftc "$OUT" >/dev/null
 
 python3 - "$OUT" Resources <<'EOF'

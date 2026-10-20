@@ -8,7 +8,7 @@ if [[ -z "${SDKROOT:-}" && "$(xcode-select -p 2>/dev/null || true)" == "$CLT_ROO
 fi
 
 # Build products live outside the project: a synced folder (iCloud Desktop) adds Finder info that codesign rejects.
-SCRATCH=(--scratch-path "$HOME/Library/Caches/Changmun/build")
+SCRATCH=(--scratch-path "${CHANGMUN_SCRATCH:-$HOME/Library/Caches/Changmun/build}")
 
 # Release builds are signed with the Developer ID in the keychain (or $SIGN_IDENTITY) under the hardened runtime,
 # and the DMG is notarized with the notarytool profile $NOTARY_PROFILE. Without a Developer ID, and for debug
