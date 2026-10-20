@@ -231,7 +231,7 @@ final class AgentActivity: ObservableObject {
         Approvals.cancelPending(caller: caller)
         for (id, callers) in uses where callers[caller] != nil {
             guard let tab = ToolCatalog.findTab(id), let webView = tab.webView else { continue }
-            for frame in [nil] + tab.agent.frames.known.map({ Optional($0) }) {
+            for frame in [nil] + tab.agent.frames.known.map({ Optional($0.frame) }) {
                 webView.callAsyncJavaScript(PageScripts.clearMarks, arguments: [:], in: frame, in: .defaultClient) { _ in }
             }
         }
@@ -298,7 +298,14 @@ struct FrameRegistry<Frame> {
         return offers.last { $0.slot == slot && $0.nonce == nonce }?.frame
     }
 
-    var known: [Frame] { expected.keys.compactMap(frame(for:)) }
+    /// The frames that answered, by their names.
+    var known: [(slot: String, frame: Frame)] { expected.keys.compactMap { slot in frame(for: slot).map { (slot, $0) } } }
+
+    /// The frame is gone, or can't be asked anymore: it is not asked about again.
+    mutating func drop(slot: String) {
+        expected[slot] = nil
+        offers.removeAll { $0.slot == slot }
+    }
 
     /// A read begins: only the frames it names are kept.
     mutating func beginRead() {
@@ -867,7 +874,7 @@ extension ToolCatalog {
         while true {
             if session.stopped || Task.isCancelled { return stopped }
             if let text {
-                let has = await pageHas(text, tab: tab, webView: webView, caller: session.caller)
+                let has = await pageHas(text, tab: tab, webView: webView, caller: session.caller, until: started.addingTimeInterval(timeout))
                 if session.stopped || Task.isCancelled { return stopped }
                 unknown = has == nil
                 if waitIsOver(has: has, gone: gone) {
@@ -890,21 +897,38 @@ extension ToolCatalog {
         has.map { $0 != gone } ?? false
     }
 
+    /// How long one frame is given to answer a look at the page, when the wait it belongs to ends at `end`.
+    static func lookTimeout(until end: Date, now: Date = Date()) -> Double {
+        min(frameTimeout, max(end.timeIntervalSince(now), 1))
+    }
+
     /// Whether the text is on the page, in a frame of its site, or in a frame of another site the latest read named; nil
-    /// when a place that might hold it did not answer.
+    /// when a place that might hold it did not answer. The looks are over by `end` (one frame that hangs can't hold the
+    /// wait past it), and a frame that is gone or can't be asked is not asked again.
     @MainActor
-    private static func pageHas(_ text: String, tab: Tab, webView: WKWebView, caller: String) async -> Bool? {
+    private static func pageHas(_ text: String, tab: Tab, webView: WKWebView, caller: String, until end: Date) async -> Bool? {
         var unanswered = false
-        for frame in [nil] + tab.agent.frames.known.map({ Optional($0) }) {
-            let result = await run(PageScripts.hasText, ["args": ["text": text]], in: webView, frame: frame, timeout: 5)
+        let places: [(slot: String?, frame: WKFrameInfo?)] = [(nil, nil)] + tab.agent.frames.known.map { ($0.slot, $0.frame) }
+        for place in places {
+            if place.frame != nil, end.timeIntervalSinceNow <= 0 {
+                unanswered = true
+                break
+            }
+            let timeout = lookTimeout(until: end)
+            let result = await run(PageScripts.hasText, ["args": ["text": text]], in: webView, frame: place.frame, timeout: timeout)
             guard !result.isError, let answer = result.content.first?["text"] as? String,
                   let json = (try? JSONSerialization.jsonObject(with: Data(answer.utf8))) as? [String: Any] else {
-                unanswered = true
+                // A frame that had its whole time and still said nothing is gone (or hung); one cut short may only be slow.
+                if let slot = place.slot, timeout >= frameTimeout {
+                    tab.agent.frames.drop(slot: slot)
+                } else {
+                    unanswered = true
+                }
                 continue
             }
             // The answer says something about what the frame shows, so it was read from where it is.
             let host = host(ofOrigin: json["origin"] as? String ?? "")
-            Approvals.noteRead(tab, readHost: frame == nil && host.isEmpty ? nil : (host.isEmpty ? Approvals.unknownFrame : host), caller: caller)
+            Approvals.noteRead(tab, readHost: place.frame == nil && host.isEmpty ? nil : (host.isEmpty ? Approvals.unknownFrame : host), caller: caller)
             if json["found"] as? Bool == true { return true }
         }
         return unanswered ? nil : false

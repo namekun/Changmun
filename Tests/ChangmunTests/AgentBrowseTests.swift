@@ -291,6 +291,27 @@ extension SharedAgentState {
             #expect(frames.frame(for: "f1") == nil && frames.offers.isEmpty && frames.known.isEmpty)
         }
 
+        @Test func aDroppedFrameIsNotAskedAgainEvenIfItGreetsAgain() {
+            var frames = FrameRegistry<String>()
+            frames.expect(slot: "f1", nonce: "n1")
+            frames.expect(slot: "f2", nonce: "n2")
+            frames.offer(slot: "f1", nonce: "n1", frame: "one")
+            frames.offer(slot: "f2", nonce: "n2", frame: "two")
+            #expect(frames.known.map(\.slot).sorted() == ["f1", "f2"])
+            frames.drop(slot: "f1")
+            #expect(frames.known.map(\.frame) == ["two"] && frames.frame(for: "f1") == nil && frames.offers.count == 1)
+            frames.offer(slot: "f1", nonce: "n1", frame: "one again")
+            #expect(frames.frame(for: "f1") == nil, "only a new read names it again")
+        }
+
+        @Test func aLookIsGivenWhatIsLeftOfTheWaitButAtLeastASecondAndNeverMoreThanAFrameGets() {
+            let now = Date()
+            #expect(ToolCatalog.lookTimeout(until: now.addingTimeInterval(30), now: now) == ToolCatalog.frameTimeout)
+            #expect(ToolCatalog.lookTimeout(until: now.addingTimeInterval(2.5), now: now) == 2.5)
+            #expect(ToolCatalog.lookTimeout(until: now.addingTimeInterval(0.1), now: now) == 1)
+            #expect(ToolCatalog.lookTimeout(until: now.addingTimeInterval(-3), now: now) == 1)
+        }
+
         @Test func whatIsKeptIsCappedAndOldOffersGo() {
             var frames = FrameRegistry<Int>()
             let start = Date()
@@ -665,11 +686,14 @@ extension SharedAgentState {
             used.wake()
             let other = b.openTab(url: URL(string: "https://other.example/"), activate: false)
             other.wake()
-            for tab in [used, other] { tab.lastShown = Date(timeIntervalSinceNow: -3 * 86400) }
+            let last = b.openTab(url: URL(string: "https://last.example/"), activate: false)
+            last.wake()
+            for tab in [used, other, last] { tab.lastShown = Date(timeIntervalSinceNow: -3 * 86400) }
             b.sleepIdleTabs(olderThan: 60)
-            // The tabs to put to sleep are picked as the call is made: the one in use isn't among them.
-            #expect(await waitUntil { other.isAsleep }, "an idle tab goes to sleep")
-            #expect(!used.isAsleep, "the one in use stays awake")
+            // The tabs to put to sleep are picked as the call is made: the one in use isn't among them. Each sleeps in a
+            // callback of its own, so this is looked at once the others have, and a moment longer.
+            #expect(await waitUntil { other.isAsleep && last.isAsleep }, "an idle tab goes to sleep")
+            #expect(!(await waitUntil(0.5) { used.isAsleep }), "the one in use stays awake")
         }
 
         @Test func stoppingEndsAWaitAtOnce() async throws {
@@ -1248,6 +1272,26 @@ extension SharedAgentState {
             #expect(read.contains("Only the first 250 elements are listed"), "\(read.prefix(300))")
             #expect(!read.contains("could not be read"))
             #expect(read.contains("[250] button") && !read.contains("[251] button"))
+        }
+
+        @Test func aFrameThatIsGoneDoesNotStopAWaitForItsTextToGoAway() async throws {
+            let inner = "<p>Words in the frame</p>"
+            let (tab, window, browser) = try await page("<body><p>Outer</p><iframe sandbox='allow-scripts' style='width:200px;height:80px' srcdoc='\(inner)'></iframe></body>", host: "outer.test")
+            defer { window.close(); browser.windowClosed() }
+            var read = ""
+            for _ in 0..<100 where !read.contains("Words in the frame") {
+                read = await call(tab, "read_page").text
+                if !read.contains("Words in the frame") { try await Task.sleep(for: .milliseconds(50)) }
+            }
+            #expect(tab.agent.frames.known.count == 1)
+            let there = await call(tab, "wait_for", ["text": "Words in the frame", "timeout": 5])
+            #expect(!there.failed, "\(there.text)")
+            _ = await evaluate(tab, "document.querySelector('iframe').remove(); return 1")
+            let start = Date()
+            let gone = await call(tab, "wait_for", ["text": "Words in the frame", "gone": true, "timeout": 12])
+            #expect(!gone.failed && gone.text.contains("is gone"), "\(gone.text)")
+            #expect(Date().timeIntervalSince(start) < 12, "not after the whole wait")
+            #expect(tab.agent.frames.known.isEmpty, "the frame that is gone is not asked again")
         }
 
         @Test func aFrameIsGreetedByTheAppAndOnlyThatFrameAnswersForItsName() async throws {
