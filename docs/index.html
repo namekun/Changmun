@@ -18,7 +18,7 @@
     --bg1: #DCE7F0; --bg2: #F2EEE6;
     --blob1: #A4C8EA; --blob2: #F6D8A4; --blob3: #B2DCCE;
     --glass: rgba(255,255,255,.40); --glass-strong: rgba(255,255,255,.62); --glass-line: rgba(255,255,255,.85); --edge: rgba(15,27,38,.10);
-    --solid: #F3F6F9; --solid-strong: #FFFFFF;
+    --solid: #F3F6F9; --solid-strong: #FFFFFF; --bar: rgba(243,246,249,.94);
     --shadow: 0 1px 0 rgba(255,255,255,.7) inset, 0 20px 50px -22px rgba(30,60,90,.35), 0 2px 6px rgba(30,60,90,.06);
     --acc: #2F6FEB; --acc-fg: #FFFFFF; --acc-glow: rgba(47,111,235,.35);
     --chip: rgba(15,27,38,.06);
@@ -32,7 +32,7 @@
   @media (prefers-color-scheme: dark) {
     :root { --ink:#E8EEF3; --ink2:#B4C0CC; --ink3:#8E9EAE; --bg1:#0A1219; --bg2:#101A22;
       --blob1:#1B3C5E; --blob2:#4A3A22; --blob3:#17413C; --glass: rgba(255,255,255,.06); --glass-strong: rgba(255,255,255,.10); --glass-line: rgba(255,255,255,.16); --edge: rgba(255,255,255,.08);
-      --solid: #14202A; --solid-strong: #1B2A36;
+      --solid: #14202A; --solid-strong: #1B2A36; --bar: rgba(20,32,42,.94);
       --shadow: 0 1px 0 rgba(255,255,255,.08) inset, 0 24px 60px -24px rgba(0,0,0,.7);
       --acc:#7AAEFF; --acc-fg:#04122B; --acc-glow: rgba(122,174,255,.30); --chip: rgba(255,255,255,.08); --code-bg: rgba(0,0,0,.42); --code-fg:#EAF1F7; --beam: rgba(255,226,160,.10); color-scheme: dark; }
   }
@@ -95,19 +95,20 @@
   .side small { font: 400 12px var(--mono); color: var(--ink3); }
 
   /* The page card */
-  .card { min-width: 0; border-radius: 20px; overflow: clip; display: flex; flex-direction: column; }
-  .bar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--edge); background: var(--glass); -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5); }
+  /* The page card has no blur of its own: backdrop-filter inside another backdrop-filter gives no real blur in WebKit, and the cards and bar inside it have theirs. */
+  .card { min-width: 0; border-radius: 20px; overflow: clip; display: flex; flex-direction: column; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .bar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--edge); background: var(--bar); -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5); }
   .bar .ico { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: var(--ink3); flex: none; }
   .bar .ico svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .addr { flex: 1 1 auto; min-width: 0; max-width: 520px; margin: 0 auto; display: flex; align-items: center; justify-content: center; gap: 8px; height: 36px; border-radius: 11px; background: var(--chip); font-size: 14px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 14px; text-decoration: none; }
   .addr b { font-weight: 600; color: var(--ink); } .addr span { color: var(--ink3); }
-  .lang { position: relative; flex: none; }
+  .lang { position: relative; z-index: 40; flex: none; }
   .lang-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border-radius: 11px; border: 1px solid var(--edge); background: var(--chip); color: var(--ink); font-size: 14.5px; cursor: pointer; }
   .lang-btn:hover, .lang.open .lang-btn { background: var(--glass-strong); }
   .lang-btn svg { width: 15px; height: 15px; }
   .lang-btn .chev { width: 11px; height: 11px; transition: transform .38s cubic-bezier(.33,1,.68,1); }
   .lang.open .lang-btn .chev { transform: rotate(180deg); }
-  .lang-menu { position: absolute; right: 0; top: calc(100% + 8px); min-width: 176px; margin: 0; padding: 6px; list-style: none; border-radius: 14px; background: var(--glass-strong); border: 1px solid var(--glass-line); box-shadow: var(--shadow), 0 0 0 1px var(--edge); -webkit-backdrop-filter: blur(30px) saturate(1.6); backdrop-filter: blur(30px) saturate(1.6);
+  .lang-menu { position: absolute; right: 0; top: calc(100% + 8px); min-width: 176px; margin: 0; padding: 6px; list-style: none; border-radius: 14px; z-index: 40; background: var(--solid-strong); border: 1px solid var(--glass-line); box-shadow: var(--shadow), 0 0 0 1px var(--edge);
     opacity: 0; visibility: hidden; pointer-events: none; transform: scale(.97); transform-origin: top right; transition: opacity .24s, transform .4s cubic-bezier(.33,1,.68,1), visibility 0s linear .24s; }
   .lang.open .lang-menu { opacity: 1; visibility: visible; pointer-events: auto; transform: none; transition: opacity .24s, transform .4s cubic-bezier(.33,1,.68,1), visibility 0s; }
   .lang-menu button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 40px; border: 0; background: transparent; color: var(--ink2); font-size: 14.5px; padding: 0 12px; border-radius: 9px; cursor: pointer; text-align: left; }
@@ -116,7 +117,9 @@
   .lang-menu button[aria-selected="true"] { color: var(--ink); font-weight: 600; }
   .lang-menu button[aria-selected="true"]::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--acc); }
 
-  .inner { padding: 0 clamp(20px, 4.5vw, 64px); }
+  /* The page's own stacking contexts (hero animation, glass cards) stay below the bar and its menu. */
+  .inner { position: relative; z-index: 0; padding: 0 clamp(20px, 4.5vw, 64px); }
+  .nw { display: inline-block; white-space: nowrap; }
   /* Hero */
   .hero { padding: 64px 0 0; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 24px; }
   .pill { display: inline-flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; padding: 5px 14px; border-radius: 999px; background: var(--chip); border: 1px solid var(--edge); font-size: 13px; color: var(--ink2); }
@@ -231,7 +234,7 @@
   /* Narrow: the sidebar becomes a bar, still glass */
   @media (max-width: 960px) {
     .app { grid-template-columns: minmax(0, 1fr); padding: 8px; gap: 8px; }
-    aside.side { position: static; height: auto; min-height: 0; flex-direction: row; align-items: center; padding: 8px 10px; border-radius: 18px; gap: 12px; }
+    aside.side { position: static; height: auto; min-height: 0; flex-direction: row; align-items: center; padding: 8px 10px; border-radius: 18px; gap: 12px; background: var(--bar); }
     .lights, .tiles, .navh, .vtabs, .side .foot { display: none; }
     .brand { flex: 1; }
     .side .mobdl { display: inline-flex; }
@@ -522,7 +525,8 @@
   document.addEventListener('click', function (e) { if (!langBox.contains(e.target)) openMenu(false); });
   // Safari doesn't focus buttons on click, so keep focus where it is; otherwise focusout would close the menu mid-click.
   langBox.addEventListener('mousedown', function (e) { e.preventDefault(); });
-  langBox.addEventListener('focusout', function (e) { if (e.relatedTarget && !langBox.contains(e.relatedTarget)) openMenu(false); });
+  // Safari leaves focus on the body after Tab (relatedTarget is null), so look at where focus ended up.
+  langBox.addEventListener('focusout', function () { setTimeout(function () { if (!langBox.contains(document.activeElement)) openMenu(false); }, 0); });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && langBox.classList.contains('open')) { openMenu(false); langBtn.focus(); }
   });
