@@ -104,7 +104,7 @@ Le blocage des publicités et des traqueurs est décrit dans [Blocage des public
 
 Le panneau de droite (⌘E) utilise la CLI `claude` que vous avez déjà, il fonctionne donc avec votre abonnement Claude Code. Le modèle par défaut est Sonnet ; pour en changer, utilisez `defaults write io.github.namekun.Changmun aiModel opus`.
 
-L’IA pilote le navigateur grâce à ces outils : `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `type_text`, `scroll`, `screenshot`. Elle ne peut ni lire ni remplir les champs de mot de passe.
+L’IA pilote le navigateur grâce à ces outils : `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `click_at`, `type_text`, `press_key`, `select_option`, `hover`, `drag`, `wait_for`, `scroll`, `screenshot`. Elle ne peut ni lire, ni remplir, ni toucher au clavier les champs de mot de passe, de code à usage unique et de carte, et les captures d’écran les masquent. Elle ne peut pas non plus téléverser de fichiers.
 
 Pour travailler sur plusieurs onglets, ajoutez-les sous le chat avec « Ajouter un onglet » (un par un, un groupe d’onglets ou tous les onglets ouverts) : ils apparaissent sous forme de pastilles que vous pouvez retirer, l’IA les lit ensemble avec `read_tabs` et ne vous demande rien avant de les lire. Avec deux onglets ou plus, le panneau propose de les comparer ou de résumer l’essentiel de chacun.
 
@@ -112,7 +112,8 @@ Pour que des instructions cachées dans une page ne puissent pas lui faire empor
 
 - avant qu’elle utilise un onglet que vous ne regardez pas, une fois par onglet et par site ;
 - avant qu’elle ouvre une adresse, sauf s’il s’agit d’une recherche, d’une adresse déjà ouverte, visitée ou enregistrée dans les signets, ou de la page d’accueil d’un site connu ;
-- avant chaque saisie de texte une fois que la conversation a lu un autre site, en vous montrant ce qu’elle va saisir. Une nouvelle conversation (⌘⇧E) repart de zéro.
+- avant chaque clic, touche, survol, glisser-déposer, texte saisi ou option choisie une fois que la conversation a lu un autre site, en vous montrant ce qu’elle va faire. Vous pouvez l’autoriser une fois, ou sur ce site jusqu’à la fin de la conversation. Seul le défilement ne demande rien. Une nouvelle conversation (⌘⇧E) repart de zéro.
+- avant tout ce qui ressemble à un paiement, une commande, un envoi, une publication ou une suppression, à chaque fois, quoi que vous ayez autorisé.
 
 D’autres agents, comme Claude Code, peuvent utiliser les mêmes outils via MCP, avec les mêmes questions :
 

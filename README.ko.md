@@ -104,7 +104,7 @@ Command Line Tools만 깔려 있으면 스크립트가 macOS 26 SDK로 빌드해
 
 오른쪽 패널(⌘E)은 이미 설치된 `claude` CLI를 쓰니 Claude Code 구독으로 돌아가요. 기본 모델은 Sonnet이고, `defaults write io.github.namekun.Changmun aiModel opus`로 바꿀 수 있어요.
 
-AI는 이 도구들로 브라우저를 다뤄요: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `type_text`, `scroll`, `screenshot`. 비밀번호 칸은 읽지도 입력하지도 못해요.
+AI는 이 도구들로 브라우저를 다뤄요: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `click_at`, `type_text`, `press_key`, `select_option`, `hover`, `drag`, `wait_for`, `scroll`, `screenshot`. 비밀번호·인증 코드·카드 칸은 읽지도, 입력하거나 키를 누르지도 못하고, 스크린샷에서도 가려져요. 파일 업로드도 못 해요.
 
 여러 탭에 걸친 일은 채팅 아래의 "탭 추가"로 탭을 붙이면 돼요(하나씩, 탭 그룹째, 열린 탭 전부). 붙인 탭은 칩으로 나타나고 하나씩 뺄 수 있어요. AI는 `read_tabs`로 이 탭들을 한꺼번에 읽고, 읽기 전에 따로 묻지는 않아요. 두 개 이상 붙이면 패널이 탭 비교하기와 탭마다 핵심만 정리하기를 제안해요.
 
@@ -112,7 +112,8 @@ AI는 이 도구들로 브라우저를 다뤄요: `list_tabs`, `open_tab`, `swit
 
 - 보고 있지 않은 탭을 쓰기 전에, 탭과 사이트마다 한 번 물어봐요.
 - 주소를 열기 전에 물어봐요. 검색, 이미 열려 있거나 방문·북마크한 주소, 아는 사이트의 첫 화면은 예외예요.
-- 대화에서 다른 사이트를 읽은 뒤에는 입력할 때마다 물어봐요. 입력할 내용을 미리 보여 주고요. 새 대화(⌘⇧E)를 열면 처음부터 다시 시작해요.
+- 대화에서 다른 사이트를 읽은 뒤에는 클릭, 키 입력, 가리키기, 드래그, 텍스트 입력, 옵션 선택을 할 때마다 물어봐요. 무엇을 하려는지 미리 보여 주고, 한 번만 허용하거나 대화가 끝날 때까지 그 사이트에서 허용할 수 있어요. 스크롤만 묻지 않아요. 새 대화(⌘⇧E)를 열면 처음부터 다시 시작해요.
+- 결제, 주문, 전송, 게시, 삭제처럼 되돌릴 수 없어 보이는 동작은 무엇을 허용했든 매번 물어봐요.
 
 Claude Code 같은 다른 에이전트도 MCP로 같은 도구를 쓸 수 있어요. 확인 절차도 똑같고요.
 

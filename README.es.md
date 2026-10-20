@@ -104,7 +104,7 @@ El bloqueo de anuncios y rastreadores se explica en [Bloqueo de anuncios](#bloqu
 
 El panel de la derecha (⌘E) usa la CLI `claude` que ya tienes, así que funciona con tu suscripción a Claude Code. El modelo por defecto es Sonnet; cámbialo con `defaults write io.github.namekun.Changmun aiModel opus`.
 
-La IA maneja el navegador con estas herramientas: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `type_text`, `scroll`, `screenshot`. No puede leer ni rellenar campos de contraseña.
+La IA maneja el navegador con estas herramientas: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `click_at`, `type_text`, `press_key`, `select_option`, `hover`, `drag`, `wait_for`, `scroll`, `screenshot`. Los campos de contraseña, los códigos de un solo uso y los de tarjeta no puede leerlos ni rellenarlos ni pulsar teclas en ellos, y las capturas los ocultan. Tampoco puede subir archivos.
 
 Para trabajar con varias pestañas, añádelas bajo el chat con «Añadir pestaña» (una a una, un grupo de pestañas o todas las abiertas): aparecen como etiquetas que puedes quitar, la IA las lee juntas con `read_tabs` y no te pregunta antes de leerlas. Con dos o más añadidas, el panel sugiere compararlas o resumir lo esencial de cada una.
 
@@ -112,7 +112,8 @@ Para que unas instrucciones ocultas en una página no puedan hacer que lleve a o
 
 - antes de que use una pestaña que no estás mirando, una vez por pestaña y sitio;
 - antes de que abra una dirección, salvo que sea una búsqueda, una dirección ya abierta, visitada o guardada en marcadores, o la página principal de un sitio conocido;
-- antes de cada escritura una vez que el chat ha leído otro sitio, mostrándote lo que va a escribir. Un chat nuevo (⌘⇧E) empieza de cero.
+- antes de cada clic, tecla, paso del puntero, arrastre, texto escrito u opción elegida una vez que el chat ha leído otro sitio, mostrándote lo que va a hacer. Puedes permitirlo solo esta vez o en ese sitio hasta que acabe el chat. Solo el desplazamiento no pregunta. Un chat nuevo (⌘⇧E) empieza de cero.
+- antes de lo que parece pagar, pedir, enviar, publicar o borrar, siempre, aunque hayas permitido lo demás.
 
 Otros agentes, como Claude Code, pueden usar las mismas herramientas mediante MCP, con las mismas preguntas:
 

@@ -104,7 +104,7 @@ open build/Changmun.app
 
 右侧的面板 (⌘E) 使用你已有的 `claude` CLI，因此直接消耗你的 Claude Code 订阅。默认模型是 Sonnet；可用 `defaults write io.github.namekun.Changmun aiModel opus` 切换。
 
-AI 通过以下工具操作浏览器：`list_tabs`、`open_tab`、`switch_tab`、`close_tab`、`navigate`、`go_back`、`go_forward`、`reload`、`read_page`、`read_tabs`、`click`、`type_text`、`scroll`、`screenshot`。它无法读取或填写密码栏。
+AI 通过以下工具操作浏览器：`list_tabs`、`open_tab`、`switch_tab`、`close_tab`、`navigate`、`go_back`、`go_forward`、`reload`、`read_page`、`read_tabs`、`click`、`click_at`、`type_text`、`press_key`、`select_option`、`hover`、`drag`、`wait_for`、`scroll`、`screenshot`。密码、一次性验证码和银行卡栏位，它无法读取其值、无法输入或按键，截图中也会被遮住。它也无法上传文件。
 
 要跨多个标签页完成任务，可在聊天下方用“添加标签页”添加它们（逐个添加、整个标签页群组，或所有已打开的标签页）。添加的标签页显示为可移除的小标签，AI 会用 `read_tabs` 一并读取，读取前不再询问。添加两个或更多时，面板会建议比较它们，或分别总结每个标签页的要点。
 
@@ -112,7 +112,8 @@ AI 通过以下工具操作浏览器：`list_tabs`、`open_tab`、`switch_tab`�
 
 - 使用你没在看的标签页之前，每个标签页和网站只问一次；
 - 打开某个地址之前，除非是搜索、已经打开过、访问过或已加入书签的地址，或是知名网站的首页；
-- 在对话已读取过其他网站之后，每一次输入之前都会询问，并显示它将要输入的内容。新建对话 (⌘⇧E) 会重新开始。
+- 在对话已读取过其他网站之后，每一次点击、按键、悬停、拖放、输入文字和选择选项之前都会询问，并显示它将要做的事。你可以只允许这一次，或在该网站上允许到对话结束。只有滚动不会询问。新建对话 (⌘⇧E) 会重新开始。
+- 看起来像付款、下单、发送、发布、删除这类无法撤销的操作，无论你允许过什么，每次都会询问。
 
 其他智能体（例如 Claude Code）也可以通过 MCP 使用同样的工具，同样会有这些询问：
 

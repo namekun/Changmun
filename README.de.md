@@ -104,7 +104,7 @@ Werbe- und Tracker-Blocker werden unter [Werbeblocker](#werbeblocker) beschriebe
 
 Die Seitenleiste rechts (⌘E) nutzt das `claude`-CLI, das du schon hast, und läuft damit über dein Claude-Code-Abo. Das Standardmodell ist Sonnet; wechseln kannst du mit `defaults write io.github.namekun.Changmun aiModel opus`.
 
-Die KI bedient den Browser mit diesen Werkzeugen: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `type_text`, `scroll`, `screenshot`. Passwortfelder kann sie weder lesen noch ausfüllen.
+Die KI bedient den Browser mit diesen Werkzeugen: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `click_at`, `type_text`, `press_key`, `select_option`, `hover`, `drag`, `wait_for`, `scroll`, `screenshot`. Passwörter, Einmalcodes und Kartenfelder kann sie weder lesen noch ausfüllen noch Tasten darin drücken; Screenshots verdecken sie. Dateien hochladen kann sie auch nicht.
 
 Für Aufgaben über mehrere Tabs fügst du sie unter dem Chat mit „Tab hinzufügen“ hinzu (einzeln, als Tab-Gruppe oder alle geöffneten): Sie erscheinen als Chips, die sich entfernen lassen, die KI liest sie gemeinsam mit `read_tabs`, und vor dem Lesen wird nicht nachgefragt. Sind zwei oder mehr angehängt, schlägt das Panel vor, sie zu vergleichen oder das Wichtigste jedes Tabs zusammenzufassen.
 
@@ -112,7 +112,8 @@ Damit in einer Seite versteckte Anweisungen sie nicht dazu bringen, Gelesenes an
 
 - bevor sie einen Tab verwendet, den du gerade nicht ansiehst, einmal pro Tab und Website;
 - bevor sie eine Adresse öffnet, außer es ist eine Suche, eine bereits geöffnete, besuchte oder als Lesezeichen gesicherte Adresse oder die Startseite einer bekannten Website;
-- vor jeder Eingabe, sobald der Chat eine andere Website gelesen hat, mit Anzeige dessen, was sie eingeben will. Ein neuer Chat (⌘⇧E) beginnt von vorn.
+- vor jedem Klick, Tastendruck, Darüberfahren, Ziehen, eingegebenen Text und jeder gewählten Option, sobald der Chat eine andere Website gelesen hat, mit Anzeige dessen, was sie tun will. Du kannst es einmal erlauben oder für diese Website, bis der Chat endet. Nur Scrollen fragt nicht. Ein neuer Chat (⌘⇧E) beginnt von vorn.
+- vor allem, was nach Bezahlen, Bestellen, Senden, Veröffentlichen oder Löschen aussieht, jedes Mal, was auch immer du erlaubt hast.
 
 Andere Agenten wie Claude Code können dieselben Werkzeuge über MCP nutzen, mit denselben Rückfragen:
 
