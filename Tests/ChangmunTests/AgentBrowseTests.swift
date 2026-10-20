@@ -591,6 +591,136 @@ extension SharedAgentState {
             }
         }
 
+        @Test func typedTextIsShownWholeOrSaidToBeCutAndLineBreaksAreMadeVisible() async {
+            let (browser, tabs) = open(["https://a.example/", "https://evil.example/"])
+            defer { browser.windowClosed() }
+            let panel = ChatStore.caller
+            Approvals.forgetReads(caller: panel)
+            defer { Approvals.forgetReads(caller: panel) }
+            await asking({ _ in .site }) { stand in
+                Approvals.noteRead(tabs[0], readHost: nil, caller: panel)
+                // A short text is shown as it is; the line breaks and look-alikes that could push the warning off are made visible.
+                #expect(await Approvals.allowInteraction(.type("one\ntwo\n\n\n\n\n\n\n\n\u{202E}three"), on: tabs[1], caller: panel))
+                let detail = stand.asked[0].detail
+                #expect(detail.contains("one⏎two⏎⏎") && detail.contains("▯three") && !detail.contains("\u{202E}"))
+                #expect(detail.components(separatedBy: "\n").count == 5, "only the question's own lines: \(detail)")
+                #expect(!detail.contains("more characters"))
+                #expect(stand.asked[0].choices == [.deny, .once, .site])
+                // A long text is said to be cut, with how much; it is asked about every time and can't be allowed for the chat.
+                let long = String(repeating: "benign ", count: 100) + "SECRET-FROM-A"
+                for round in 1...2 { #expect(await Approvals.allowInteraction(.type(long), on: tabs[1], caller: panel)); #expect(stand.asked.count == 1 + round) }
+                let cut = stand.asked.last!
+                #expect(cut.choices == [.deny, .once])
+                #expect(cut.detail.contains("(\(long.count - 500) more characters are not shown)") && !cut.detail.contains("SECRET-FROM-A"))
+                #expect(cut.detail.hasSuffix("Deny if content from there is mixed in.") && cut.detail.contains("Sites read earlier"), "the warning is still there")
+                // After the short one was allowed for the chat, the cut one is still asked about; the short one is not.
+                #expect(await Approvals.allowInteraction(.type("short"), on: tabs[1], caller: panel))
+                #expect(stand.asked.count == 3)
+                #expect(await Approvals.allowInteraction(.choose(long), on: tabs[1], caller: panel))
+                #expect(stand.asked.count == 4 && stand.asked[3].choices == [.deny, .once])
+            }
+        }
+
+        @Test func anAddressWhoseEndIsNotShownIsAskedAboutEachTime() async {
+            let long = URL(string: "https://elsewhere.example/" + String(repeating: "a", count: 700) + "?secret=1")!
+            let short = URL(string: "https://elsewhere.example/page?x=1")!
+            await asking({ _ in .once }) { stand in
+                for _ in 1...2 { #expect(await Approvals.allowNavigation(long, caller: "mcp-long")) }
+                #expect(stand.asked.count == 2)
+                #expect(stand.asked[0].detail.contains("more characters are not shown") && !stand.asked[0].detail.contains("secret=1"))
+                for _ in 1...2 { #expect(await Approvals.allowNavigation(short, caller: "mcp-long")) }
+                #expect(stand.asked.count == 3, "a short address is remembered, as before")
+                #expect(!stand.asked[2].detail.contains("more characters"))
+            }
+        }
+
+        @Test func sitesAreToldByTheirRegistrableNameAndPort() {
+            func site(_ address: String) -> String? { Approvals.site(of: URL(string: address)) }
+            #expect(site("https://www.example.com/a") == "example.com" && site("https://checkout.shop.example.com:443/") == "example.com")
+            #expect(site("https://shop.example.co.uk/") == "example.co.uk" && site("http://Example.COM:80/") == "example.com")
+            #expect(site("http://localhost:18401/") == "localhost:18401" && site("http://localhost:18402/") == "localhost:18402" && site("http://localhost/") == "localhost")
+            #expect(site("http://127.0.0.1:18401/") == "127.0.0.1:18401" && site("http://[::1]:18401/") == "[::1]:18401" && site("http://[::1]/") == "::1")
+            #expect(site("https://a.github.io/") == "a.github.io" && site("https://b.github.io/") != site("https://a.github.io/"), "people sharing a host are not one site")
+            #expect(site("file:///Users/me/secret.html") == "file:" && site("data:text/html,hi") == "data:" && site("blob:https://a.com/u") == "blob:")
+            #expect(site("about:blank") == nil && site("") == nil && Approvals.site(of: nil) == nil)
+            #expect(Approvals.site(ofOrigin: "https://x.example:8443") == "x.example:8443" && Approvals.site(ofOrigin: "null") == "" && Approvals.site(ofOrigin: "") == "")
+            #expect(Approvals.hasSite("example.com") && Approvals.hasSite("::1") && !Approvals.hasSite("") && !Approvals.hasSite("file:"))
+        }
+
+        @Test func anotherPortOfTheSameHostIsAnotherSite() async {
+            let (browser, tabs) = open(["http://localhost:18401/", "http://localhost:18402/"])
+            defer { browser.windowClosed() }
+            let panel = ChatStore.caller
+            Approvals.forgetReads(caller: panel)
+            defer { Approvals.forgetReads(caller: panel) }
+            await asking({ _ in .site }) { stand in
+                Approvals.noteRead(tabs[0], readHost: nil, caller: panel)
+                #expect(stand.asked.isEmpty)
+                #expect(await Approvals.allowInteraction(.act("Clicking “Go”"), on: tabs[1], caller: panel))
+                #expect(stand.asked.count == 1 && stand.asked[0].message.contains("localhost:18402") && stand.asked[0].detail.contains("localhost:18401"))
+                #expect(await Approvals.allowInteraction(.act("Clicking “Go”"), on: tabs[1], caller: panel))
+                #expect(stand.asked.count == 1, "allowed for the chat")
+                // What was read from the other port is a different site, which the allowance for this one does not cover.
+                Approvals.noteRead(tabs[1], readHost: nil, caller: panel)
+                #expect(await Approvals.allowInteraction(.act("Clicking “Go”"), on: tabs[0], caller: panel))
+                #expect(stand.asked.count == 2)
+            }
+        }
+
+        @Test func pagesOfOneSiteDoNotCountAsOtherSitesForEachOther() async {
+            let (browser, tabs) = open(["https://www.shop.example/", "https://checkout.shop.example/pay", "https://other.example/"])
+            defer { browser.windowClosed() }
+            let panel = ChatStore.caller
+            Approvals.forgetReads(caller: panel)
+            defer { Approvals.forgetReads(caller: panel) }
+            await asking({ _ in .once }) { stand in
+                Approvals.noteRead(tabs[0], readHost: nil, caller: panel)
+                Approvals.noteRead(tabs[0], readHost: Approvals.site(of: URL(string: "https://cdn.shop.example/")), caller: panel)
+                #expect(await Approvals.allowInteraction(.type("x"), on: tabs[1], caller: panel))
+                #expect(stand.asked.isEmpty, "a hop between hosts of one site asks nothing")
+                #expect(await Approvals.allowInteraction(.type("x"), on: tabs[2], caller: panel))
+                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("shop.example"))
+            }
+        }
+
+        @Test func aPageWithNoHostCountsAsReadAndIsNotSilentlyFree() async {
+            let (browser, tabs) = open(["https://evil.example/"])
+            defer { browser.windowClosed() }
+            let file = browser.openTab(url: URL(string: "file:///Users/me/secrets.html"), activate: false)
+            let panel = ChatStore.caller
+            Approvals.forgetReads(caller: panel)
+            defer { Approvals.forgetReads(caller: panel) }
+            await asking({ _ in .site }) { stand in
+                Approvals.noteRead(file, caller: panel)
+                Approvals.noteRead(tabs[0], caller: panel)
+                #expect(await Approvals.allowInteraction(.type("what the file said"), on: tabs[0], caller: panel))
+                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("file:"))
+                // Using the file page itself after reading it asks nothing: it is the only thing read.
+                Approvals.forgetReads(caller: panel)
+                Approvals.noteRead(file, caller: panel)
+                #expect(await Approvals.allowInteraction(.type("x"), on: file, caller: panel, site: nil))
+                #expect(stand.asked.count == 1)
+                // A scheme is no site to allow for a chat.
+                Approvals.noteRead(tabs[0], caller: panel)
+                #expect(await Approvals.allowInteraction(.type("x"), on: file, caller: panel))
+                #expect(stand.asked.last?.choices == [.deny, .once])
+            }
+        }
+
+        @Test func listingTabsTellsOnlyTitlesAndAddressesAndAsksNothingLater() async {
+            let (browser, tabs) = open(["https://a.example/", "https://b.example/"])
+            defer { browser.windowClosed() }
+            let caller = "mcp-list"
+            Approvals.forgetReads(caller: caller)
+            defer { Approvals.forgetReads(caller: caller) }
+            await asking({ _ in .once }) { stand in
+                let listed = await ToolCatalog.call("list_tabs", [:], caller: caller)
+                #expect(!listed.isError && (listed.content.first?["text"] as? String)?.contains("a.example") == true)
+                #expect(await Approvals.allowInteraction(.type("x"), on: tabs[1], caller: caller))
+                #expect(stand.asked.isEmpty, "a list of titles is not a read of the tabs")
+            }
+        }
+
         @Test func aQuestionWaitsUntilTheUserAnswersOrTheCallerIsStopped() async {
             let (browser, tabs) = open(["https://shop.example/"])
             defer { browser.windowClosed() }

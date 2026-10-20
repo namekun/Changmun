@@ -480,7 +480,7 @@ extension ToolCatalog {
 
     /// The site an origin names, as the approvals know sites: "" for an origin that has none (a sandboxed frame, a data: page).
     static func host(ofOrigin origin: String) -> String {
-        URL(string: origin)?.host()?.lowercased() ?? ""
+        Approvals.site(ofOrigin: origin)
     }
 
     static let readTimeout = 10.0, frameTimeout = 5.0, pageReadDeadline = 25.0
@@ -594,8 +594,9 @@ extension ToolCatalog {
         var origin: String
         /// What the page showed of it, so that the action can tell it is still the same thing.
         var fingerprint: String
-        /// The site it is in, by what the document says: "" when it has none.
-        var host: String { ToolCatalog.host(ofOrigin: origin) }
+        /// The site it is in, by what the document says: "" when it has none (a frame with no site). The page of the tab itself,
+        /// when it has none (a file: page), is the site of its scheme.
+        var host: String
         var label: String { facts.label.isEmpty ? (args["id"] as? Int).map { "[\($0)]" } ?? "" : facts.label }
 
         /// The arguments the script that acts looks at: where, what it must still be, and anything the action needs.
@@ -654,12 +655,15 @@ extension ToolCatalog {
             }
             var facts = IrreversibleAction.Facts(json)
             if facts.label.isEmpty, let x = target["x"] as? Double, let y = target["y"] as? Double { facts.label = "\(Int(x)), \(Int(y))" }
+            let tabHost = Approvals.site(of: tab.url) ?? ""
+            let origin = json["origin"] as? String ?? "null"
+            var host = ToolCatalog.host(ofOrigin: origin)
+            if host.isEmpty && frame == nil { host = tabHost }
             let aim = Aim(frame: frame, slot: slot, args: args, facts: facts, secret: json["secret"] as? Bool ?? false,
-                          description: json["description"] as? String ?? "", origin: json["origin"] as? String ?? "null", fingerprint: json["fp"] as? String ?? "")
+                          description: json["description"] as? String ?? "", origin: origin, fingerprint: json["fp"] as? String ?? "", host: host)
             // The site is the one the document says it is, from inside it. What it showed of the target counts as read from
             // there; and a frame of another site is another site: using it from a tab the user isn't looking at is asked
             // about for that site.
-            let tabHost = tab.url?.host()?.lowercased() ?? ""
             if frame != nil || aim.host != tabHost {
                 let inFront = tab.browser.map { tab.id == $0.activeID && $0 === Browser.recent } ?? false
                 if !aim.host.isEmpty, aim.host != tabHost, !inFront {
@@ -693,11 +697,6 @@ extension ToolCatalog {
         }
     }
 
-    @MainActor
-    private static func now(_ tab: Tab) -> String {
-        "Now at: \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")"
-    }
-
     private static func said(_ result: ToolResult) -> String {
         let text = result.content.first?["text"] as? String ?? ""
         return text.hasPrefix("ok: ") ? String(text.dropFirst(4)) : text
@@ -723,7 +722,7 @@ extension ToolCatalog {
             try await approve(.act(step), aims: [aim], irreversible: [aim], tab: tab, session: session)
             let result = await act(PageScripts.click, aim.script(), aim: aim, tab: tab, webView: webView)
             if result.isError { return result }
-            return .text("Clicked [\(id)]. \(now(tab)). Element numbers may have changed; read the page again before using them.")
+            return .text("Clicked [\(id)]. \(now(tab, caller: session.caller)). Element numbers may have changed; read the page again before using them.")
         } catch let failure as ToolFailure {
             return failure.result
         } catch {
@@ -741,7 +740,7 @@ extension ToolCatalog {
             try await approve(.act(step), aims: [aim], irreversible: [aim], tab: tab, session: session)
             let result = await act(PageScripts.clickAt, aim.script(), aim: aim, tab: tab, webView: webView)
             if result.isError { return result }
-            return .text("Clicked at (\(pixels(x)), \(pixels(y))), which was \(aim.description). \(now(tab)). Element numbers may have changed; read the page again before using them.")
+            return .text("Clicked at (\(pixels(x)), \(pixels(y))), which was \(aim.description). \(now(tab, caller: session.caller)). Element numbers may have changed; read the page again before using them.")
         } catch let failure as ToolFailure {
             return failure.result
         } catch {
@@ -758,7 +757,7 @@ extension ToolCatalog {
             try await approve(.type(text), aims: [aim], irreversible: submit ? [aim] : [], tab: tab, session: session)
             let result = await act(PageScripts.type, aim.script(["text": text, "submit": submit]), aim: aim, tab: tab, webView: webView)
             if result.isError || !submit { return result }
-            return .text("Typed into [\(id)] and pressed Enter. \(now(tab))")
+            return .text("Typed into [\(id)] and pressed Enter. \(now(tab, caller: session.caller))")
         } catch let failure as ToolFailure {
             return failure.result
         } catch {
@@ -779,7 +778,7 @@ extension ToolCatalog {
             try await approve(.act(step), aims: [aim], irreversible: [aim], tab: tab, session: session)
             let result = await act(PageScripts.pressKey, aim.script(["mods": modifiers]), aim: aim, tab: tab, webView: webView)
             if result.isError { return result }
-            return .text("Pressed \(key) on \(aim.description): \(said(result)). \(now(tab)). Element numbers may have changed; read the page again before using them.")
+            return .text("Pressed \(key) on \(aim.description): \(said(result)). \(now(tab, caller: session.caller)). Element numbers may have changed; read the page again before using them.")
         } catch let failure as ToolFailure {
             return failure.result
         } catch {
@@ -824,7 +823,7 @@ extension ToolCatalog {
             try await approve(nil, aims: [aim], irreversible: [aim.judged(as: .init(chosen))], tab: tab, session: session)
             let result = await ask("choose", expect: fingerprint)
             if result.isError { return result }
-            return .text("Selected in [\(id)]: \(said(result)). \(now(tab)). Element numbers may have changed; read the page again before using them.")
+            return .text("Selected in [\(id)]: \(said(result)). \(now(tab, caller: session.caller)). Element numbers may have changed; read the page again before using them.")
         } catch let failure as ToolFailure {
             return failure.result
         } catch {
@@ -841,7 +840,7 @@ extension ToolCatalog {
             try await approve(.act(step), aims: [aim], tab: tab, session: session)
             let result = await act(PageScripts.hover, aim.script(), aim: aim, tab: tab, webView: webView)
             if result.isError { return result }
-            return .text("Moved the pointer over [\(id)]. Read the page again to see what appeared. \(now(tab))")
+            return .text("Moved the pointer over [\(id)]. Read the page again to see what appeared. \(now(tab, caller: session.caller))")
         } catch let failure as ToolFailure {
             return failure.result
         } catch {
@@ -869,7 +868,7 @@ extension ToolCatalog {
             try await approve(.act(step), aims: [from], irreversible: [from, to], tab: tab, session: session)
             let result = await act(PageScripts.drag, ["args": ["from": from.scriptArgs(), "to": to.scriptArgs()]], aim: from, tab: tab, webView: webView)
             if result.isError { return result }
-            return .text("Dragged \(from.description) to \(to.description): \(said(result)). \(now(tab)). Element numbers may have changed; read the page again before using them.")
+            return .text("Dragged \(from.description) to \(to.description): \(said(result)). \(now(tab, caller: session.caller)). Element numbers may have changed; read the page again before using them.")
         } catch let failure as ToolFailure {
             return failure.result
         } catch {
@@ -901,14 +900,14 @@ extension ToolCatalog {
                 if session.stopped || Task.isCancelled { return stopped }
                 unknown = has == nil
                 if waitIsOver(has: has, gone: gone) {
-                    return .text(gone ? "“\(text)” is gone (after \(seconds()) s). \(now(tab))" : "“\(text)” is on the page (after \(seconds()) s). \(now(tab))")
+                    return .text(gone ? "“\(text)” is gone (after \(seconds()) s). \(now(tab, caller: session.caller))" : "“\(text)” is on the page (after \(seconds()) s). \(now(tab, caller: session.caller))")
                 }
             } else if !tab.isLoading {
-                return .text("The page has loaded (after \(seconds()) s). \(now(tab))")
+                return .text("The page has loaded (after \(seconds()) s). \(now(tab, caller: session.caller))")
             }
             if Date().timeIntervalSince(started) >= timeout {
                 let what = text.map { gone ? (unknown ? "the page did not answer, so “\($0)” could not be checked" : "“\($0)” was still on the page") : "“\($0)” did not appear" } ?? "the page was still loading"
-                return .text("Timed out after \(Int(timeout)) s: \(what). \(now(tab))", error: true)
+                return .text("Timed out after \(Int(timeout)) s: \(what). \(now(tab, caller: session.caller))", error: true)
             }
             try? await Task.sleep(for: .milliseconds(pause))
             pause = min(pause * 3 / 2, 1000)

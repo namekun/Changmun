@@ -546,3 +546,4 @@
 "Save as Bookmark Folder" = "북마크 폴더로 저장";
 "Saved the group as a bookmark folder" = "그룹을 북마크 폴더로 저장했어요";
 "The group has no pages to save" = "저장할 페이지가 그룹에 없어요";
+"…(%lld more characters are not shown)" = "…(%lld자 더 있지만 표시되지 않아요)";

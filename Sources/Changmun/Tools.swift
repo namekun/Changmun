@@ -65,7 +65,6 @@ enum ToolCatalog {
     static func call(_ name: String, _ args: [String: Any], caller: String) async -> ToolResult {
         if name == "list_tabs" {
             guard let browser = Browser.recent else { return .text("No tabs are open.") }
-            for tab in browser.tabs where browser.isVisibleToAI(tab) { Approvals.noteRead(tab, caller: caller) }
             return listTabs(browser)
         }
         if name == "open_tab" {
@@ -89,13 +88,13 @@ enum ToolCatalog {
         guard let tab, let browser = tab.browser else {
             return .text(args["tab_id"] == nil ? "No tab is open. Use open_tab first." : "No tab with that id.", error: true)
         }
-        // Only the tab in front of the user goes without asking.
+        // Only the tab in front of the user goes without asking. What was approved is the site it was on when it was asked about.
         let needsApproval = (tab.id != browser.activeID || browser !== Browser.recent) && name != "close_tab"
+        let approvedHost = Approvals.site(of: tab.url)
         if needsApproval {
             guard await Approvals.allowTab(tab, caller: caller, reading: ["read_page", "screenshot", "wait_for"].contains(name)) else { return declined }
             if session.stopped { return stopped }
         }
-        let approvedHost = tab.url?.host()?.lowercased()
         // Every answer below carries the tab's title, address or content.
         defer { if name != "close_tab" { Approvals.noteRead(tab, caller: caller) } }
         let webView = tab.wake()
@@ -119,7 +118,7 @@ enum ToolCatalog {
         case "go_back", "go_forward", "reload":
             if name == "go_back" { webView.goBack() } else if name == "go_forward" { webView.goForward() } else { webView.reload() }
             await waitForLoad(tab)
-            return .text("Now at: \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")")
+            return .text(now(tab, caller: caller))
         case "read_page":
             AgentActivity.shared.step(tab.url?.host().map { String(localized: "Reading \($0)") } ?? String(localized: "Reading the page"), caller: caller)
             let (result, frameHosts) = await readPage(tab, webView, maxChars: int(args["max_chars"]) ?? 12000, session: session)
@@ -150,8 +149,8 @@ enum ToolCatalog {
         case "wait_for":
             return await waitFor(args, tab: tab, webView: webView, session: session)
         case "scroll":
-            // Free of the questions the other ways of using a page are asked: it moves what is in view and nothing else, and
-            // can neither press nor carry anything the AI chose.
+            // Free of the questions the other ways of using a page are asked: it moves what is in view and nothing else. A page
+            // can see which of four directions was chosen, which is all it can be told this way.
             AgentActivity.shared.step(String(localized: "Scrolling"), caller: caller)
             return await run(PageScripts.scroll, ["direction": args["direction"] as? String ?? "down"], in: webView)
         case "screenshot":
@@ -194,13 +193,14 @@ enum ToolCatalog {
                 continue
             }
             let inFront = tab.id == browser.activeID && browser === Browser.recent
+            let asked = Approvals.site(of: tab.url)
             if !inFront, !(await Approvals.allowTab(tab, caller: caller, reading: true)) {
                 sections[id] = "The user declined this tab. Don't retry it."
                 continue
             }
             if session.stopped { break }
             // A tab woken only to be read goes back to sleep, looking as if nobody had shown it.
-            reads.append((tab, tab.url?.host()?.lowercased(), inFront, tab.isAsleep ? tab.lastShown : nil))
+            reads.append((tab, asked, inFront, tab.isAsleep ? tab.lastShown : nil))
             tab.wake()
         }
         for read in reads {
@@ -234,7 +234,15 @@ enum ToolCatalog {
     /// The site a read's text came from, by its "URL:" line: the page itself says where it was when it was read.
     static func readHost(_ result: ToolResult) -> String? {
         let text = result.content.first?["text"] as? String ?? ""
-        return text.split(separator: "\n").first { $0.hasPrefix("URL: ") }.flatMap { URL(string: String($0.dropFirst(5)))?.host()?.lowercased() }
+        return text.split(separator: "\n").first { $0.hasPrefix("URL: ") }.flatMap { Approvals.site(of: URL(string: String($0.dropFirst(5)))) }
+    }
+
+    /// Where a tab is, for the answer of a tool that moved it. A tab the user isn't looking at that ended up on a site it wasn't
+    /// approved for gives neither its title nor its address: using it again asks about the new site.
+    @MainActor
+    static func now(_ tab: Tab, caller: String) -> String {
+        guard Approvals.mayShow(tab, caller: caller) else { return "The tab is now on another site, which the user hasn't allowed yet. Use the tab again to ask them." }
+        return "Now at: \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")"
     }
 
     static let declined = ToolResult.text("The user declined this in Changmun. Don't retry it; tell the user what you wanted to do.", error: true)
@@ -380,15 +388,68 @@ enum Approvals {
     /// Stands for a frame that has no site to name (a sandboxed frame, one that could not be asked): a site of its own.
     static let unknownFrame = "\u{1}unknown-frame"
 
+    /// The site an address is on, as what was read and allowed is remembered: the registrable name of its host (www.example.com and
+    /// shop.example.com are one site), with the port when it isn't the scheme's own (another port is another site); a page
+    /// with no host (a file:, data: or blob: page) is a site by its scheme; nil for a blank page.
+    nonisolated static func site(of url: URL?) -> String? {
+        guard let url else { return nil }
+        let scheme = url.scheme?.lowercased() ?? ""
+        guard let host = url.host()?.lowercased(), !host.isEmpty else { return scheme.isEmpty || scheme == "about" ? nil : scheme + ":" }
+        let name = Tab.registrableName(host)
+        guard let port = url.port, !(port == 443 && scheme == "https"), !(port == 80 && scheme == "http") else { return name }
+        return "\(name.contains(":") ? "[\(name)]" : name):\(port)"
+    }
+
+    /// The site an origin names ("https://example.com:8443"): "" for an origin that has none (a sandboxed frame, a data: page).
+    nonisolated static func site(ofOrigin origin: String) -> String {
+        site(of: URL(string: origin)) ?? ""
+    }
+
+    /// Whether a site is one a user could allow for a chat: not "" and not a page that only has a scheme (file:).
+    static func hasSite(_ site: String) -> Bool {
+        !site.isEmpty && !(site.hasSuffix(":") && site.dropLast().allSatisfy(\.isLetter))
+    }
+
     /// A tab and the site it is on, or the site given when that is where its content came from.
     private static func key(_ tab: Tab, host: String? = nil) -> String {
-        "\(tab.id)|\(host ?? tab.url?.host()?.lowercased() ?? "")"
+        "\(tab.id)|\(host ?? site(of: tab.url) ?? "")"
+    }
+
+    /// Whether the title and address of a tab can be told to the caller as they are: the tab is in front of the user, or the
+    /// caller was allowed to use it on the site it is on now.
+    static func mayShow(_ tab: Tab, caller: String) -> Bool {
+        guard Preferences.shared.aiApprovals, let browser = tab.browser else { return true }
+        if tab.id == browser.activeID && browser === Browser.recent { return true }
+        return tabs[caller]?.contains(key(tab)) == true
+    }
+
+    /// What the AI chose (or a page named), as a question shows it: line breaks and the characters that hide or move text are
+    /// made visible, and what doesn't fit is said to be left out, with how much, so that nothing goes unseen without the user
+    /// being told. `cut` is how many characters are not shown.
+    nonisolated static func shown(_ text: String, limit: Int = 500) -> (text: String, cut: Int) {
+        var clean = ""
+        for scalar in text.unicodeScalars {
+            let category = scalar.properties.generalCategory
+            if category == .control || category == .lineSeparator || category == .paragraphSeparator || (category == .format && scalar.value != 0x200C && scalar.value != 0x200D) {
+                clean += scalar == "\n" || scalar == "\r" ? "⏎" : scalar == "\t" ? "⇥" : "▯"
+            } else {
+                clean.unicodeScalars.append(scalar)
+            }
+        }
+        let head = clean.prefix(limit)
+        return (String(head), clean.count - head.count)
+    }
+
+    /// `shown`, with the note about what was left out at its end.
+    nonisolated static func shownWithNote(_ text: String, limit: Int = 500) -> (text: String, cut: Int) {
+        let (head, cut) = shown(text, limit: limit)
+        return (cut > 0 ? head + " " + String(localized: "…(\(cut) more characters are not shown)") : head, cut)
     }
 
     /// Attaching records the tab's site once; attaching or detaching others never renews it, so a tab that has since
     /// moved to another site is asked about.
     static func attach(_ tab: Tab) {
-        if attached[tab.id] == nil { attached[tab.id] = tab.url?.host()?.lowercased() ?? "" }
+        if attached[tab.id] == nil { attached[tab.id] = site(of: tab.url) ?? "" }
     }
 
     static func detach(_ id: Int) {
@@ -402,9 +463,10 @@ enum Approvals {
     static func allowTab(_ tab: Tab, caller: String, reading: Bool = false, host: String? = nil) async -> Bool {
         guard Preferences.shared.aiApprovals else { return true }
         let key = key(tab, host: host)
-        if tabs[caller]?.contains(key) == true || (reading && caller == ChatStore.caller && attached[tab.id] == (host ?? tab.url?.host()?.lowercased() ?? "")) { return true }
+        let current = host ?? site(of: tab.url) ?? ""
+        if tabs[caller]?.contains(key) == true || (reading && caller == ChatStore.caller && attached[tab.id] == current) { return true }
         let allowed = await ask(String(localized: "The AI wants to use a tab you aren't looking at"),
-                                "#\(tab.id) \(tab.displayTitle.prefix(80))\n\(host ?? tab.url?.host() ?? "")\n\n" + String(localized: "If you allow it, you won't be asked again while this tab stays on this site."),
+                                "#\(tab.id) \(shown(tab.displayTitle, limit: 80).text)\n\(current)\n\n" + String(localized: "If you allow it, you won't be asked again while this tab stays on this site."),
                                 caller: caller)
         if allowed { tabs[caller, default: []].insert(key) }
         return allowed
@@ -414,7 +476,7 @@ enum Approvals {
     /// gave is held back unless the site it really came from is approved too. When the page named no site (an error,
     /// a page without an address), the tab's own site stands in, and an unknown one is asked about.
     static func allowRead(_ tab: Tab, approvedHost: String?, readHost: String?, caller: String) async -> Bool {
-        let host = readHost ?? tab.url?.host()?.lowercased()
+        let host = readHost ?? site(of: tab.url)
         if let host, host == approvedHost { return true }
         return await allowTab(tab, caller: caller, reading: true, host: host)
     }
@@ -422,10 +484,12 @@ enum Approvals {
     static func allowNavigation(_ url: URL, caller: String) async -> Bool {
         guard Preferences.shared.aiApprovals else { return true }
         if isFree(url, knownURL: knownURL, knownHost: Library.shared.knowsHost) || urls[caller]?.contains(url.absoluteString) == true { return true }
+        let address = shownWithNote(url.absoluteString)
         let allowed = await ask(String(localized: "The AI wants to open this address"),
-                                "\(url.host() ?? "")\n\n\(url.absoluteString.prefix(300))\n\n" + String(localized: "Deny if the address carries content from another page or from the conversation."),
+                                "\(shown(url.host() ?? "", limit: 100).text)\n\n\(address.text)\n\n" + String(localized: "Deny if the address carries content from another page or from the conversation."),
                                 caller: caller)
-        if allowed { urls[caller, default: []].insert(url.absoluteString) }
+        // An address whose end was not shown is asked about each time.
+        if allowed && address.cut == 0 { urls[caller, default: []].insert(url.absoluteString) }
         return allowed
     }
 
@@ -458,7 +522,7 @@ enum Approvals {
 
     /// Records a read by the site its text came from, or by the tab's own site when the page named none.
     static func noteRead(_ tab: Tab, readHost: String?, caller: String) {
-        if let host = readHost ?? tab.url?.host()?.lowercased() { readHosts[caller, default: []].insert(host) }
+        if let site = readHost ?? site(of: tab.url) { readHosts[caller, default: []].insert(site) }
     }
 
     /// How an approval was answered. Only a chat panel can allow a site for as long as the chat lasts.
@@ -508,29 +572,35 @@ enum Approvals {
     /// a document with no site, which no allowance covers.
     static func allowInteraction(_ interaction: Interaction, on tab: Tab, caller: String, site: String? = nil) async -> Bool {
         guard Preferences.shared.aiApprovals else { return true }
-        let host = site ?? tab.url?.host()?.lowercased() ?? ""
+        let host = site ?? Self.site(of: tab.url) ?? ""
         let read = readHosts[caller, default: []]
         let others = read.subtracting([host])
         if others.isEmpty { return true }
-        if !host.isEmpty, let granted = allowances[caller]?[host], others.isSubset(of: granted) { return true }
-        let target = host.isEmpty ? String(localized: "this page") : host
+        // What is typed or chosen is shown whole, or said to be cut: text whose end the user can't see is asked about each time.
+        let text: (text: String, cut: Int)
+        switch interaction {
+        case .type(let value), .choose(let value), .act(let value): text = shownWithNote(value, limit: 500)
+        }
+        let allowable = text.cut == 0 && hasSite(host)
+        if allowable, let granted = allowances[caller]?[host], others.isSubset(of: granted) { return true }
+        let target = host.isEmpty ? String(localized: "this page") : display(host)
         let sites = others.sorted().prefix(5).map(display).joined(separator: ", ")
         let message: String, detail: String
         switch interaction {
-        case .type(let text):
+        case .type:
             message = String(localized: "The AI wants to type into \(target)")
-            detail = String(localized: "Text to type:\n\(String(text.prefix(300)))\n\nSites read earlier in this conversation: \(sites)\nDeny if content from there is mixed in.")
-        case .choose(let option):
+            detail = String(localized: "Text to type:\n\(text.text)\n\nSites read earlier in this conversation: \(sites)\nDeny if content from there is mixed in.")
+        case .choose:
             message = String(localized: "The AI wants to choose an option on \(target)")
-            detail = String(localized: "Option to choose:\n\(String(option.prefix(300)))\n\nSites read earlier in this conversation: \(sites)\nDeny if content from there is mixed in.")
-        case .act(let step):
+            detail = String(localized: "Option to choose:\n\(text.text)\n\nSites read earlier in this conversation: \(sites)\nDeny if content from there is mixed in.")
+        case .act:
             message = String(localized: "The AI wants to use \(target)")
-            detail = String(localized: "Action:\n\(String(step.prefix(300)))\n\nSites read earlier in this conversation: \(sites)\nA page can hide instructions for the AI. Deny if this isn’t what you asked for.")
+            detail = String(localized: "Action:\n\(text.text)\n\nSites read earlier in this conversation: \(sites)\nA page can hide instructions for the AI. Deny if this isn’t what you asked for.")
         }
-        let forChat = caller == ChatStore.caller && !host.isEmpty
+        let forChat = caller == ChatStore.caller && allowable
         let answer = await choose(message, detail,
                                   [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))]
-                                  + (forChat ? [(.site, String(localized: "Allow on \(host) for This Chat"))] : []), caller: caller)
+                                  + (forChat ? [(.site, String(localized: "Allow on \(display(host)) for This Chat"))] : []), caller: caller)
         if answer == .site, forChat { allowances[caller, default: [:]][host] = read }
         return answer != .deny
     }
@@ -543,9 +613,9 @@ enum Approvals {
     /// else the user allowed (and whether or not the other questions are asked): what it does can't be taken back, and
     /// a page can name a button anything.
     static func allowIrreversible(_ name: String, on tab: Tab, caller: String, site: String? = nil) async -> Bool {
-        let host = site ?? tab.url?.host()?.lowercased() ?? ""
-        let site = host.isEmpty ? String(localized: "this page") : host
-        return await choose(String(localized: "The AI wants to press “\(abbreviated(name))” on \(site)"),
+        let host = site ?? Self.site(of: tab.url) ?? ""
+        let site = host.isEmpty ? String(localized: "this page") : display(host)
+        return await choose(String(localized: "The AI wants to press “\(shown(abbreviated(name)).text)” on \(site)"),
                             String(localized: "This looks like it pays, orders, sends, posts, deletes or confirms something, and that can’t be undone.\n\nAllow it only if you asked for this."),
                             [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))], caller: caller) != .deny
     }

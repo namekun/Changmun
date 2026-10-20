@@ -546,3 +546,4 @@
 "Save as Bookmark Folder" = "ブックマークフォルダとして保存";
 "Saved the group as a bookmark folder" = "グループをブックマークフォルダとして保存しました";
 "The group has no pages to save" = "グループに保存できるページがありません";
+"…(%lld more characters are not shown)" = "…(さらに%lld文字ありますが表示されていません)";

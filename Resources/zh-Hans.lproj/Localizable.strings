@@ -546,3 +546,4 @@
 "Save as Bookmark Folder" = "存储为书签文件夹";
 "Saved the group as a bookmark folder" = "已将群组存储为书签文件夹";
 "The group has no pages to save" = "群组中没有可存储的页面";
+"…(%lld more characters are not shown)" = "…(另有 %lld 个字符未显示)";

@@ -546,3 +546,4 @@
 "Save as Bookmark Folder" = "Enregistrer comme dossier de signets";
 "Saved the group as a bookmark folder" = "Groupe enregistré comme dossier de signets";
 "The group has no pages to save" = "Le groupe n’a aucune page à enregistrer";
+"…(%lld more characters are not shown)" = "…(%lld caractères de plus non affichés)";
