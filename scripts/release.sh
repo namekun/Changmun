@@ -1,6 +1,8 @@
 #!/bin/bash
-# Releases a new version: runs every check (scripts/preflight.sh), bumps the version, builds the DMG and checks
-# it (scripts/check-dmg.sh), and only then commits, tags, publishes the GitHub release and updates the Homebrew tap.
+# Releases a new version: runs every check (scripts/preflight.sh), bumps the version (Info.plist and the website,
+# docs/index.html), builds the DMG and checks it (scripts/check-dmg.sh), and only then commits, tags, publishes the
+# GitHub release and updates the Homebrew tap. The DMG is attached twice, as Changmun-<version>.dmg and as Changmun.dmg,
+# so that the site's .../releases/latest/download/Changmun.dmg link always gives the newest.
 #
 #   scripts/release.sh <version> [notes-file]
 #
@@ -14,6 +16,7 @@ NOTES_FILE="${2:-}"
 TAP_DIR="${TAP_DIR:-../homebrew-tap}"
 CASK="$TAP_DIR/Casks/changmun.rb"
 PLIST="Resources/Info.plist"
+PAGE="docs/index.html"
 
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Version must look like 1.2.3" >&2; exit 1; }
 [[ "$(git branch --show-current)" == "main" ]] || { echo "Release from main" >&2; exit 1; }
@@ -29,9 +32,10 @@ fi
 
 ./scripts/preflight.sh
 
-# Until the version commit is pushed, a failure puts the bumped file back.
+# Until the version commit is pushed, a failure puts the bumped files back.
 PUSHED=0
-trap '(( PUSHED )) || git checkout -q -- "$PLIST"' EXIT
+STABLE="$(mktemp -d)"
+trap 'rm -rf "$STABLE"; (( PUSHED )) || git checkout -q -- "$PLIST" "$PAGE"' EXIT
 
 CURRENT="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")"
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")"
@@ -40,16 +44,20 @@ if [[ "$CURRENT" != "$VERSION" ]] || git rev-parse -q --verify "refs/tags/v$CURR
     BUILD=$(( BUILD + 1 ))
 fi
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" -c "Set :CFBundleVersion $BUILD" "$PLIST"
+# Every place the page shows the version is <span data-version>X</span>.
+sed -i '' -e "s|<span data-version>[0-9.]*</span>|<span data-version>$VERSION</span>|g" "$PAGE"
+grep -q "<span data-version>$VERSION</span>" "$PAGE" || { echo "$PAGE has no <span data-version> to update" >&2; exit 1; }
 
 DMG="$(./scripts/make-dmg.sh)"
 ./scripts/check-dmg.sh "$DMG" "$VERSION"
 
-git diff --quiet "$PLIST" || { git add "$PLIST"; git commit -q -m "Version $VERSION"; }
+git diff --quiet -- "$PLIST" "$PAGE" || { git add "$PLIST" "$PAGE"; git commit -q -m "Version $VERSION"; }
 git tag "v$VERSION"
 git push -q origin main "v$VERSION"
 PUSHED=1
 
-gh release create "v$VERSION" "$DMG" --title "v$VERSION" --notes-file "$NOTES_FILE"
+cp "$DMG" "$STABLE/Changmun.dmg"
+gh release create "v$VERSION" "$DMG" "$STABLE/Changmun.dmg" --title "v$VERSION" --notes-file "$NOTES_FILE"
 
 SHA="$(shasum -a 256 "$DMG" | cut -d' ' -f1)"
 git -C "$TAP_DIR" pull -q --ff-only
