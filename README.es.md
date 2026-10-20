@@ -29,7 +29,7 @@
 brew install --cask namekun/tap/changmun
 ```
 
-Necesitas [Homebrew](https://brew.sh), macOS 14 Sonoma o posterior y un Mac con Apple silicon. Homebrew quita la marca de cuarentena, así que la app se abre directamente. Para actualizar, ejecuta `brew update && brew upgrade --cask changmun`.
+Necesitas [Homebrew](https://brew.sh), macOS 14 Sonoma o posterior y un Mac con Apple silicon. La app está firmada con un Developer ID y notarizada por Apple, así que se abre directamente. Para actualizar, ejecuta `brew update && brew upgrade --cask changmun`.
 
 En el primer arranque, Changmun te ofrece traer los marcadores, el historial, las contraseñas y los inicios de sesión del navegador que usas ahora.
 

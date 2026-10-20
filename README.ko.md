@@ -29,7 +29,7 @@
 brew install --cask namekun/tap/changmun
 ```
 
-[Homebrew](https://brew.sh)가 필요하고, macOS 14 Sonoma 이상의 Apple 실리콘 Mac에서 돌아간다. Homebrew가 격리 표시를 지워 주므로 앱이 바로 열린다. 업데이트는 `brew update && brew upgrade --cask changmun`.
+[Homebrew](https://brew.sh)가 필요하고, macOS 14 Sonoma 이상의 Apple 실리콘 Mac에서 돌아간다. 앱은 Developer ID로 서명되고 Apple 공증을 받았으므로 바로 열린다. 업데이트는 `brew update && brew upgrade --cask changmun`.
 
 처음 실행하면 지금 쓰는 브라우저의 북마크, 방문 기록, 비밀번호, 로그인 상태를 가져올지 묻는다.
 

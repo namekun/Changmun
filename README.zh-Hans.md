@@ -29,7 +29,7 @@
 brew install --cask namekun/tap/changmun
 ```
 
-需要 [Homebrew](https://brew.sh)、macOS 14 Sonoma 或更高版本，以及搭载 Apple 芯片的 Mac。Homebrew 会清除隔离标记，所以 App 可以直接打开。更新时运行 `brew update && brew upgrade --cask changmun`。
+需要 [Homebrew](https://brew.sh)、macOS 14 Sonoma 或更高版本，以及搭载 Apple 芯片的 Mac。App 使用 Developer ID 签名并经过 Apple 公证，所以可以直接打开。更新时运行 `brew update && brew upgrade --cask changmun`。
 
 首次启动时，Changmun 会询问是否从你现在使用的浏览器导入书签、历史记录、密码和登录状态。
 

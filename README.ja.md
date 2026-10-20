@@ -29,7 +29,7 @@
 brew install --cask namekun/tap/changmun
 ```
 
-[Homebrew](https://brew.sh)、macOS 14 Sonoma以降、Appleシリコン搭載のMacが必要です。Homebrewが検疫フラグを外すので、アプリはすぐに開きます。アップデートは`brew update && brew upgrade --cask changmun`で行います。
+[Homebrew](https://brew.sh)、macOS 14 Sonoma以降、Appleシリコン搭載のMacが必要です。アプリはDeveloper IDで署名され、Appleの公証を受けているので、すぐに開きます。アップデートは`brew update && brew upgrade --cask changmun`で行います。
 
 初回起動時に、いま使っているブラウザからブックマーク、履歴、パスワード、ログイン状態を読み込むかどうかを確認します。
 
