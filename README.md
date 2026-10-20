@@ -104,7 +104,14 @@ Ad and tracker blocking is covered under [Ad blocking](#ad-blocking), and what s
 
 The panel on the right (⌘E) uses the `claude` CLI you already have, so it runs on your Claude Code subscription. The default model is Sonnet; switch with `defaults write io.github.namekun.Changmun aiModel opus`.
 
-The AI works the browser through these tools: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `type_text`, `scroll`, `screenshot`. It can't read or fill password fields.
+The AI gets these tools: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `click_at`, `type_text`, `press_key`, `select_option`, `hover`, `drag`, `wait_for`, `scroll`, `screenshot`. Passwords, one-time codes and card fields are off limits: it can't read their values (also after a "show password" button turned one into plain text), type or press keys in them, and screenshots mask them. It can't upload files either.
+
+- `read_page` numbers the buttons, links and fields, and the other tools take those numbers. It reads frames too: those of the same site fully, those of other sites when WebKit lets Changmun reach them (the page says when it can't). Elements inside shadow DOM (web components) aren't listed; `click_at` reaches those.
+- `click_at` clicks a point of the visible page, for what `read_page` can't list (a canvas, a map). The point is in CSS pixels from the page's top left, which is what a `screenshot` shows: the picture is as wide as the page is in CSS pixels (up to 1280, a wider page is scaled down and the picture's note says by how much), whatever the page zoom or the screen's pixel density. It says which element was hit.
+- `press_key` presses Enter, Escape, Tab, Backspace, Delete, Space, an arrow, Home, End, PageUp or PageDown, optionally with shift, alt, ctrl or meta. No letters or symbols, so it can't type text. The page gets keydown, keypress and keyup; what the page leaves alone is done as the browser would (Enter activates a button or submits a form, Tab moves focus, Escape closes a dialog, arrows move the cursor, change a list or scroll, Backspace and Delete edit a text field). Those defaults are emulated, because script-made key events don't trigger them, and combinations with alt, ctrl or meta only reach the page's own handlers.
+- `select_option` picks an option of a list by its text or value, also in custom listboxes and comboboxes. It finds the option first, judges the one it found (not the words it was asked with), and picks it only if it's still the same. `hover` moves the pointer over an element (the pointer and mouse enter, over and move events) so script-driven menus open; a menu made only with the CSS `:hover` rule doesn't. `drag` drags between two elements or points, as HTML5 drag and drop when the source is draggable and as pointer and mouse events otherwise. `wait_for` waits for text to appear or go away, or for the page to finish loading, for up to 30 seconds (10 by default); a look at the page that gets no answer doesn't count as "gone".
+
+While it works, its target is outlined on the page with a small "AI" label that goes away by itself (without motion when "Reduce motion" is on), and the panel says what it's up to ("Clicking “Sign in”", "Waiting for “Results”"). If the page changes between the AI's look and its action, even while you're deciding, the action is dropped. Stop ends a wait at once, takes the outline off and withdraws a question you haven't answered, so a late "Allow" can't run anything. Tabs the AI is using aren't put to sleep or archived while its run lasts (for other agents, for 90 seconds after each use), and the three used last stay in the window behind the page you're looking at, invisible, so their timers go on.
 
 To work across several tabs, add them under the chat with "Add Tab" (one by one, a tab group, or all open tabs): they show as chips you can remove, the AI reads them together with `read_tabs`, and you aren't asked before it reads them. With two or more attached, the panel suggests comparing them or boiling each down to its key points.
 
@@ -112,7 +119,11 @@ A web page can hide instructions meant for an AI. So that such instructions can'
 
 - before it uses a tab you aren't looking at, once per tab and site;
 - before it opens an address, unless it's a search, an address already open, visited or bookmarked, or a known site's front page;
-- before every bit of typing once the chat has read another site, showing what it will type. A new chat (⌘⇧E) starts over.
+- before every click, key press, hover, drag, typed text or chosen option once the chat has read another site (what a frame of another site showed counts as read from that site, and a frame with no site of its own is a site of its own), showing what it's about to do. You can allow it once, or allow it on that site until the chat is cleared, which keeps it to about one question per site. Reading yet another site takes that allowance back, and a new chat (⌘⇧E) starts over. Only scrolling goes without asking: it moves what's in view and can neither press nor carry anything.
+
+The site is the one the page itself says it is, from inside the frame, at the moment of the action, so a frame that moves to another site after the AI looked is asked about as that other site.
+
+Whatever you've allowed, and even with the setting off, it asks every time before something that looks like it pays, orders, books, sends, posts, shares, saves, deletes, transfers or confirms: a click, a click at a point, Enter or Space on it, Enter in a form's field, a chosen option, dropping something on it (or dragging it) or Enter after typing into a message box. It judges by every name the control has (what it says, its accessible name, a picture's alt text, its title, and the markup of an icon with no words) in English, Korean, Japanese, Chinese, Spanish, German and French, and by a submit button in a form that asks for card details or posts to a checkout. It shows the button's text and the site. This is a guess, made to err on the side of asking: a page can name a button anything, so a button that looks harmless isn't proof, and one that merely contains a word like "post" is asked about too.
 
 Other agents, like Claude Code, can use the same tools through MCP, with the same questions:
 
@@ -131,6 +142,8 @@ changmun read
 changmun read-tabs 3 5
 changmun click 12
 changmun type 3 "hello" --submit
+changmun press Enter
+changmun wait "Results"
 ```
 
 `changmun help` lists the rest. Each command is one of the same tools, with the same questions, and starts Changmun if needed.
