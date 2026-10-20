@@ -2458,8 +2458,10 @@ struct WebViewHost: NSViewRepresentable {
     /// out of the accessibility tree, with no part of it under the pointer, and never the one that takes the keys.
     final class PassiveHost: NSView {
         private(set) weak var page: WKWebView?
+        private(set) weak var tab: Tab?
 
-        init(page: WKWebView, frame: NSRect) {
+        init(tab: Tab, page: WKWebView, frame: NSRect) {
+            self.tab = tab
             self.page = page
             super.init(frame: frame)
             autoresizingMask = [.width, .height]
@@ -2468,8 +2470,12 @@ struct WebViewHost: NSViewRepresentable {
             page.frame = bounds
             page.autoresizingMask = [.width, .height]
             addSubview(page)
+            tab.holdBehind(true)
         }
         required init?(coder: NSCoder) { fatalError() }
+
+        /// Whether the page is still in here (another host may have taken it).
+        var holdsPage: Bool { page?.superview === self }
 
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
         override var acceptsFirstResponder: Bool { false }
@@ -2495,6 +2501,14 @@ struct WebViewHost: NSViewRepresentable {
             return browser.isShown(tab) || browser.peek === tab
         }
 
+        /// Whether it is the host of the window's page in front: the tab the browser has active, which the newest host claimed.
+        /// Only it holds the pages the AI uses behind that one. A peek or the other pane of a split would hold them at its
+        /// own smaller size, and drop them when it closes.
+        var isMain: Bool {
+            guard let tab, let browser else { return false }
+            return tab === browser.active && browser.peek !== tab && tab.pageOwner.owns(self)
+        }
+
         private var passive: [PassiveHost] { subviews.compactMap { $0 as? PassiveHost } }
 
         /// The page in front: it takes the top place, whatever was there (a page it held behind included), and any other
@@ -2508,7 +2522,8 @@ struct WebViewHost: NSViewRepresentable {
             } else if subviews.last !== webView {
                 addSubview(webView, positioned: .above, relativeTo: nil)
             }
-            for host in passive where host.page === webView { host.removeFromSuperview() }
+            for host in passive where host.page === webView || !host.holdsPage { host.removeFromSuperview() }
+            tab?.holdBehind(false)
         }
 
         /// No page in front (the tab has none): what is held behind stays invisible, so it doesn't show through.
@@ -2517,14 +2532,19 @@ struct WebViewHost: NSViewRepresentable {
         }
 
         /// Pages the AI is using that aren't shown: kept in the window, behind the page that is, so WebKit counts them as
-        /// visible and goes on running their timers and drawing, which it stops for a page without a window.
-        func keep(_ webViews: [WKWebView]) {
-            for host in passive where !webViews.contains(where: { $0 === host.page }) {
-                if let page = host.page, page.superview === host { page.removeFromSuperview() }
+        /// visible and goes on running their timers and drawing, which it stops for a page without a window. They are
+        /// silent there.
+        func keep(_ tabs: [Tab]) {
+            let pages = tabs.compactMap { tab in tab.webView.map { (tab, $0) } }
+            for host in passive where !host.holdsPage || !pages.contains(where: { $0.1 === host.page }) {
+                if host.holdsPage, let page = host.page {
+                    page.removeFromSuperview()
+                    host.tab?.holdBehind(false)
+                }
                 host.removeFromSuperview()
             }
-            for view in webViews where !passive.contains(where: { $0.page === view }) {
-                addSubview(PassiveHost(page: view, frame: bounds), positioned: .below, relativeTo: nil)
+            for (tab, page) in pages where !passive.contains(where: { $0.page === page }) {
+                addSubview(PassiveHost(tab: tab, page: page, frame: bounds), positioned: .below, relativeTo: nil)
             }
             // Nothing held has the keys.
             if let responder = window?.firstResponder as? NSView, passive.contains(where: { responder.isDescendant(of: $0) }) {
@@ -2533,6 +2553,18 @@ struct WebViewHost: NSViewRepresentable {
         }
 
         func releaseHeld() { keep([]) }
+
+        /// Takes the pages the AI is using that nobody looks at, if this is the host to hold them, else lets go of any it has.
+        func holdWhatIsInUse() {
+            var held: [Tab] = []
+            if isMain, let browser {
+                held = AgentActivity.shared.held.compactMap { id in browser.tabs.first { $0.id == id } }.filter { candidate in
+                    candidate !== tab && !browser.isShown(candidate) && browser.peek !== candidate && candidate.webView != nil
+                }
+            }
+            keep(held)
+            for candidate in held { candidate.pageOwner.claim(self, as: .behind) }
+        }
     }
 
     func makeNSView(context: Context) -> Container { Container() }
@@ -2557,20 +2589,17 @@ struct WebViewHost: NSViewRepresentable {
         } else {
             container.clearFront()
         }
-        // The tabs the AI is using that nobody is looking at stay in the window, behind, but only in the one host that has them.
-        let held = agent.held.compactMap { id in browser.tabs.first { $0.id == id } }.filter { candidate in
-            candidate !== tab && !browser.isShown(candidate) && browser.peek !== candidate && (candidate.pageOwner.host == nil || candidate.pageOwner.owns(container))
-        }
-        container.keep(held.compactMap(\.webView))
-        for candidate in held where candidate.webView != nil { candidate.pageOwner.claim(container, as: .behind) }
+        container.holdWhatIsInUse()
     }
 
     /// A host that goes while it still holds a page meant to be shown hands it to the host that owns it, so the page
-    /// doesn't go away with the container (and leave the window blank).
+    /// doesn't go away with the container (and leave the window blank). The pages it held behind go to the host of the
+    /// page in front, which may have updated before this one went.
     static func dismantleNSView(_ container: Container, coordinator: ()) {
         container.releaseHeld()
+        if let main = container.browser?.active?.pageOwner.host, main !== container { main.holdWhatIsInUse() }
         guard let tab = container.tab, let webView = tab.webView, webView.superview === container,
-              let owner = tab.pageOwner.host, owner !== container, owner.tab === tab, owner.showsPage else { return }
+              let owner = tab.pageOwner.host, owner !== container, owner.tab === tab, tab.pageOwner.place == .front, owner.showsPage else { return }
         owner.show(webView)
     }
 }

@@ -48,6 +48,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     }
     @Published private(set) var isPlayingAudio = false
     @Published private(set) var isMuted = false
+    /// The AI is using the tab behind the page in front (see WebViewHost.Container.keep): in the window, so WebKit counts
+    /// it as visible and lets its media play, which nobody asked for, so it is silent there.
+    private(set) var isHeldBehind = false
     private var audioWatcher: AudioWatcher?
     private var zoomHost: String?
     @Published private(set) var webView: WKWebView?
@@ -126,6 +129,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         observations.removeAll()
         audioWatcher = nil
         isPlayingAudio = false
+        isHeldBehind = false
         loginOffer = nil
         forgetPage()
         agent.reset()
@@ -186,7 +190,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         audioWatcher = AudioWatcher(view) { [weak self] playing in
             if self?.webView != nil { self?.isPlayingAudio = playing }
         }
-        if isMuted || Headless.isOn { Self.setMuted(true, in: view) }
+        if isMuted || isHeldBehind || Headless.isOn { Self.setMuted(true, in: view) }
         // Off screen counts as hidden, and WebKit stops drawing hidden pages.
         if Headless.isOn, view.responds(to: NSSelectorFromString("_setWindowOcclusionDetectionEnabled:")) {
             view.setValue(false, forKey: "windowOcclusionDetectionEnabled")
@@ -195,8 +199,15 @@ final class Tab: NSObject, ObservableObject, Identifiable {
 
     /// Silences the tab (or lets it play again). WebKit's switch for this is private, so a WebKit without it does nothing.
     func toggleMute() {
-        if let webView, !Self.setMuted(!isMuted, in: webView) { return }
+        if let webView, !Self.setMuted(!isMuted || isHeldBehind || Headless.isOn, in: webView) { return }
         isMuted.toggle()
+    }
+
+    /// The tab is held behind the page in front, or no longer is: it is silent while held, and sounds as the user left it after.
+    func holdBehind(_ held: Bool) {
+        guard held != isHeldBehind else { return }
+        isHeldBehind = held
+        if let webView { Self.setMuted(isMuted || held || Headless.isOn, in: webView) }
     }
 
     /// Hosts under the same registrable name, roughly: the last two labels, or three for names like example.co.kr.

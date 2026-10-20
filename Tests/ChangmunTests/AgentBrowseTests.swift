@@ -1369,6 +1369,7 @@ extension SharedAgentState {
             let r = rig()
             defer { finish(r) }
             use([r.tabs[1]])
+            r.browser.activate(r.tabs[2].id)
             r.tabs[2].sleep()
             host(r.tabs[2], r).update(r.container)
             #expect(r.tabs[2].webView == nil)
@@ -1388,22 +1389,87 @@ extension SharedAgentState {
             #expect(held.superview == nil && r.container.subviews.count == 1)
         }
 
-        @Test func onlyOneHostHoldsAPageAndAnotherTakesItWhenTheFirstIsGone() async throws {
+        @Test func onlyTheHostOfThePageInFrontHoldsAndASmallerOneNeverDoes() throws {
             let r = rig()
             defer { finish(r) }
             let held = try #require(r.tabs[1].webView)
             use([r.tabs[1]])
-            var first: WebViewHost.Container? = WebViewHost.Container(frame: NSRect(x: 0, y: 0, width: 300, height: 300))
-            let second = WebViewHost.Container(frame: NSRect(x: 0, y: 0, width: 300, height: 300))
-            host(r.tabs[0], r).update(first!)
-            host(r.tabs[2], r).update(second)
-            #expect(held.superview is WebViewHost.PassiveHost && (held.superview?.superview) === first, "the first host to ask has it")
-            host(r.tabs[2], r).update(second)
-            #expect(held.superview?.superview === first, "and the second doesn't take it away")
-            first = nil
-            #expect(await waitUntil { held.superview == nil }, "the first host is gone, and with it its hold")
-            host(r.tabs[2], r).update(second)
-            #expect(held.superview?.superview === second, "the page is held by the one that remains")
+            // The other pane of a split, or a peek, updates first: it is not the host of the page in front.
+            let pane = WebViewHost.Container(frame: NSRect(x: 0, y: 0, width: 300, height: 300))
+            host(r.tabs[2], r).update(pane)
+            #expect(held.superview == nil && !pane.isMain)
+            r.browser.openPeek(URL(string: "about:blank")!)
+            let peek = try #require(r.browser.peek)
+            let peekHost = WebViewHost.Container(frame: NSRect(x: 0, y: 0, width: 300, height: 300))
+            host(peek, r).update(peekHost)
+            #expect(held.superview == nil && !peekHost.isMain)
+            host(r.tabs[0], r).update(r.container)
+            #expect(r.container.isMain && held.superview?.superview === r.container, "the page in front holds it, at full size")
+            host(r.tabs[2], r).update(pane)
+            host(peek, r).update(peekHost)
+            #expect(held.superview?.superview === r.container, "and the others don't take it away")
+            #expect((held.superview as? WebViewHost.PassiveHost)?.frame == r.container.bounds)
+        }
+
+        @Test func aHostThatGoesHandsWhatItHeldToTheHostOfThePageInFront() throws {
+            let r = rig()
+            defer { finish(r) }
+            let held = try #require(r.tabs[1].webView)
+            use([r.tabs[1]])
+            let old = r.container, new = WebViewHost.Container(frame: r.container.frame)
+            r.window.contentView!.addSubview(new)
+            let tab = host(r.tabs[0], r)
+            tab.update(old)
+            #expect(held.superview?.superview === old)
+            // The split that ended: the new host started, and has already updated by the time the old one goes.
+            tab.update(new)
+            tab.update(old)
+            new.releaseHeld()
+            WebViewHost.dismantleNSView(old, coordinator: ())
+            #expect(held.superview is WebViewHost.PassiveHost && held.superview?.superview === new, "still in the window")
+            #expect(held.window === r.window)
+        }
+
+        @Test func aHostThatGoesWithNobodyToTakeOverLetsGoOfWhatItHeld() throws {
+            let r = rig()
+            defer { finish(r) }
+            let held = try #require(r.tabs[1].webView)
+            use([r.tabs[1]])
+            host(r.tabs[0], r).update(r.container)
+            WebViewHost.dismantleNSView(r.container, coordinator: ())
+            #expect(held.superview == nil, "free to be held or shown by another host")
+        }
+
+        @Test func aHeldPageIsSilentWhileHeldAndNotAfter() throws {
+            let r = rig()
+            defer { finish(r) }
+            let tab = r.tabs[1]
+            #expect(!tab.isHeldBehind)
+            use([tab])
+            host(r.tabs[0], r).update(r.container)
+            #expect(tab.isHeldBehind && !tab.isMuted)
+            // The user switches to it: it is theirs to hear.
+            r.browser.activate(tab.id)
+            host(tab, r).update(r.container)
+            #expect(!tab.isHeldBehind && tab.webView?.superview === r.container)
+            // The user's own mute is not undone by being held, or by being let go.
+            r.browser.activate(r.tabs[0].id)
+            tab.toggleMute()
+            host(r.tabs[0], r).update(r.container)
+            #expect(tab.isHeldBehind && tab.isMuted)
+            AgentActivity.shared.runEnded()
+            host(r.tabs[0], r).update(r.container)
+            #expect(!tab.isHeldBehind && tab.isMuted)
+        }
+
+        @Test func aPageThatSleepsIsNoLongerHeld() throws {
+            let r = rig()
+            defer { finish(r) }
+            use([r.tabs[1]])
+            host(r.tabs[0], r).update(r.container)
+            #expect(r.tabs[1].isHeldBehind)
+            r.tabs[1].sleep()
+            #expect(!r.tabs[1].isHeldBehind)
         }
 
         @Test func atMostThreeAreHeldAtOnce() throws {
@@ -1414,16 +1480,6 @@ extension SharedAgentState {
             let held = r.container.subviews.compactMap { $0 as? WebViewHost.PassiveHost }
             #expect(held.count == AgentActivity.maxHeld)
             #expect(Set(held.compactMap { $0.page }.map(ObjectIdentifier.init)) == Set(r.tabs.suffix(3).compactMap { $0.webView }.map(ObjectIdentifier.init)), "the most recently used")
-        }
-
-        @Test func aHostThatGoesLetsGoOfWhatItHeld() throws {
-            let r = rig()
-            defer { finish(r) }
-            let held = try #require(r.tabs[1].webView)
-            use([r.tabs[1]])
-            host(r.tabs[0], r).update(r.container)
-            WebViewHost.dismantleNSView(r.container, coordinator: ())
-            #expect(held.superview == nil, "free to be held or shown by another host")
         }
     }
 }
