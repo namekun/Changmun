@@ -46,10 +46,12 @@ lipo "$APP/Contents/MacOS/Changmun" -verify_arch arm64 || fail "The app is $(lip
 
 step "Signature"
 codesign --verify --deep --strict "$APP" || fail "Signature is broken"
-if codesign -dvv "$APP" 2>&1 | grep -q "^Authority=Developer ID Application"; then
+# Read codesign's output whole: grep -q quits at the first match, and under pipefail the cut-off codesign fails the test.
+SIGNING="$(codesign -dvv "$APP" 2>&1)"
+if grep -q "^Authority=Developer ID Application" <<<"$SIGNING"; then
     step "Developer ID, hardened runtime, notarized"
-    codesign -dv "$APP" 2>&1 | grep -q "flags=.*runtime" || fail "The hardened runtime is off"
-    codesign -d --entitlements - "$APP" 2>/dev/null | grep -q "com.apple.security.device.camera" \
+    grep -q "flags=.*runtime" <<<"$SIGNING" || fail "The hardened runtime is off"
+    grep -q "com.apple.security.device.camera" <<<"$(codesign -d --entitlements - "$APP" 2>/dev/null)" \
         || fail "The camera entitlement is missing, so sites couldn't use the camera"
     xcrun stapler validate -q "$DMG" || fail "The DMG has no notarization ticket"
     spctl --assess --type open --context context:primary-signature "$DMG" 2>/dev/null || fail "Gatekeeper rejects the DMG"
