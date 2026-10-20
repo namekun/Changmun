@@ -2353,36 +2353,74 @@ struct StatusLine: View {
     }
 }
 
+/// Who shows a tab's page: the newest host to start showing it. When a view is replaced (a split that ends or begins, a
+/// peek kept as a tab) the host on its way out is still updated after the new one took the page, and must not take it back.
+struct PageOwner<Host: AnyObject> {
+    private(set) weak var host: Host?
+
+    mutating func claim(_ new: Host) { host = new }
+    func owns(_ candidate: Host) -> Bool { host === candidate }
+}
+
 struct WebViewHost: NSViewRepresentable {
     @ObservedObject var tab: Tab
     let browser: Browser
 
     final class Container: NSView {
+        /// What it shows now: SwiftUI reuses a container when the tab in the same place changes.
+        weak var tab: Tab?
+        weak var browser: Browser?
+
         override init(frame: NSRect) {
             super.init(frame: frame)
             wantsLayer = true
             layer?.masksToBounds = true
         }
         required init?(coder: NSCoder) { fatalError() }
+
+        /// Whether its page is meant to be on screen: a closed peek or a tab hidden by a switch isn't.
+        var showsPage: Bool {
+            guard let tab, let browser else { return false }
+            return browser.isShown(tab) || browser.peek === tab
+        }
+
+        func show(_ webView: WKWebView) {
+            subviews.forEach { $0.removeFromSuperview() }
+            webView.frame = bounds
+            webView.autoresizingMask = [.width, .height]
+            addSubview(webView)
+        }
     }
 
     func makeNSView(context: Context) -> Container { Container() }
 
-    func updateNSView(_ container: Container, context: Context) {
+    func updateNSView(_ container: Container, context: Context) { update(container) }
+
+    func update(_ container: Container) {
+        if container.tab !== tab {
+            container.tab = tab
+            tab.pageOwner.claim(container)
+        }
+        container.browser = browser
         guard let webView = tab.webView else {
             container.subviews.forEach { $0.removeFromSuperview() }
             return
         }
         // A host fading out (a closed peek, a split that ended) must not take the page back from the one showing it.
-        guard webView.superview !== container, browser.isShown(tab) || browser.peek === tab else { return }
-        container.subviews.forEach { $0.removeFromSuperview() }
-        webView.frame = container.bounds
-        webView.autoresizingMask = [.width, .height]
-        container.addSubview(webView)
+        guard webView.superview !== container, tab.pageOwner.owns(container), container.showsPage else { return }
+        container.show(webView)
         DispatchQueue.main.async {
             let shown = tab.id == browser.activeID || browser.peek === tab
             if shown, browser.commandBar == nil, browser.showOnboarding == false { container.window?.makeFirstResponder(webView) }
         }
+    }
+
+    /// A host that goes while it still holds a page meant to be shown hands it to the host that owns it, so the page
+    /// doesn't go away with the container (and leave the window blank).
+    static func dismantleNSView(_ container: Container, coordinator: ()) {
+        guard let tab = container.tab, let webView = tab.webView, webView.superview === container,
+              let owner = tab.pageOwner.host, owner !== container, owner.tab === tab, owner.showsPage else { return }
+        owner.show(webView)
     }
 }
 

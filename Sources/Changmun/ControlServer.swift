@@ -141,6 +141,35 @@ final class ControlServer {
             }
             return
         }
+        // Tests only: split view and peek, run on the front window. "action" is split (tab_id: shown next to the active tab),
+        // unsplit, toggle, peek (url), closePeek or keepPeek; the answer says, for every tab on screen, whether its web view
+        // is in the window with a size, after a moment for the views to settle.
+        if Headless.isOn, request.method == "POST", request.path == "/views",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                guard let browser = Browser.current else {
+                    return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
+                }
+                switch body["action"] as? String {
+                case "split": if let id = body["tab_id"] as? Int { browser.split(with: id) }
+                case "unsplit": browser.unsplit()
+                case "toggle": browser.toggleSplit()
+                case "peek": if let url = (body["url"] as? String).flatMap(URL.init(string:)) { browser.openPeek(url) }
+                case "closePeek": browser.closePeek()
+                case "keepPeek": browser.keepPeek()
+                default: break
+                }
+                try? await Task.sleep(for: .milliseconds(500))
+                let shown = browser.tabs.filter { browser.isShown($0) } + [browser.peek].compactMap { $0 }
+                let report = shown.map { tab -> [String: Any] in
+                    let view = tab.webView
+                    return ["id": tab.id, "peek": tab === browser.peek, "hasWebView": view != nil, "attached": view?.superview != nil,
+                            "inWindow": view?.window != nil, "width": Int(view?.frame.width ?? 0), "height": Int(view?.frame.height ?? 0)]
+                }
+                self.respond(connection, status: "200 OK", body: ["shown": report, "active": browser.activeID ?? -1, "split": browser.shownSplit != nil])
+            }
+            return
+        }
         // Tests only: open the settings window on a page, far off screen, and answer with its picture.
         if Headless.isOn, request.method == "POST", request.path == "/settings-image",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {

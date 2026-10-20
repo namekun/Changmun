@@ -52,6 +52,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     private var zoomHost: String?
     @Published private(set) var webView: WKWebView?
     var lastShown = Date()
+    /// The host that shows the page now (see PageOwner).
+    var pageOwner = PageOwner<WebViewHost.Container>()
     private var savedState: Data?
     private var observations: [NSKeyValueObservation] = []
     private(set) weak var browser: Browser?
