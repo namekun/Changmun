@@ -945,7 +945,7 @@ extension SharedAgentState {
                 """
             let (tab, window, browser) = try await page(html)
             defer { window.close(); browser.windowClosed() }
-            try await asking({ _ in .deny }) { stand in
+            await asking({ _ in .deny }) { stand in
                 let read = await call(tab, "read_page").text
                 let ids = read.split(separator: "\n").filter { $0.hasPrefix("[") && ($0.contains("] button ") || $0.contains("] a ")) }.compactMap(number)
                 #expect(ids.count == 9)
@@ -967,7 +967,7 @@ extension SharedAgentState {
                 """
             let (tab, window, browser) = try await page(html)
             defer { window.close(); browser.windowClosed() }
-            try await asking({ _ in .deny }) { stand in
+            await asking({ _ in .deny }) { stand in
                 let refused = await call(tab, "click_at", ["x": 150, "y": 70])
                 #expect(refused.failed && guarded(stand).count == 1 && guarded(stand)[0].message.contains("Place order"))
                 #expect(tab.title != "ordered")
@@ -1447,7 +1447,7 @@ extension SharedAgentState {
                 """
             let (tab, window, browser) = try await page(html)
             defer { window.close(); browser.windowClosed() }
-            try await asking({ _ in .deny }) { stand in
+            await asking({ _ in .deny }) { stand in
                 let refused = await call(tab, "click_at", ["x": 150, "y": 70])
                 #expect(refused.failed && guarded(stand).count == 1 && guarded(stand)[0].message.contains("Delete account"), "\(refused.text)")
                 #expect(tab.title != "deleted")

@@ -253,204 +253,206 @@ struct SpaceStoreTests {
     }
 }
 
-@MainActor @Suite(.serialized)
-struct SpaceBrowserTests {
-    @MainActor private struct Rig {
-        let box = Sandbox()
-        let browser: Browser
-        let work: Space
-        init() {
-            let store = box.store()
-            work = store.add(name: "Work", symbol: "briefcase", tint: .blue, isProfile: false)
-            browser = Browser(spaces: store)
-            browser.focused()
+extension SharedAgentState {
+    @MainActor @Suite(.serialized)
+    struct SpaceBrowserTests {
+        @MainActor private struct Rig {
+            let box = Sandbox()
+            let browser: Browser
+            let work: Space
+            init() {
+                let store = box.store()
+                work = store.add(name: "Work", symbol: "briefcase", tint: .blue, isProfile: false)
+                browser = Browser(spaces: store)
+                browser.focused()
+            }
+            var home: UUID { Space.defaultID }
+            func open(_ address: String, in space: UUID? = nil, activate: Bool = false) -> Tab {
+                browser.openTab(url: URL(string: "https://\(address).example/"), activate: activate, space: space)
+            }
         }
-        var home: UUID { Space.defaultID }
-        func open(_ address: String, in space: UUID? = nil, activate: Bool = false) -> Tab {
-            browser.openTab(url: URL(string: "https://\(address).example/"), activate: activate, space: space)
+
+        @Test func eachSpaceShowsOnlyItsOwnTabsAndGroups() throws {
+            let rig = Rig(), b = rig.browser
+            defer { b.windowClosed() }
+            let a1 = rig.open("a1", activate: true), a2 = rig.open("a2")
+            let w1 = rig.open("w1", in: rig.work.id), w2 = rig.open("w2", in: rig.work.id)
+            #expect(b.spaceID == rig.home, "opening a tab in another space doesn't switch to it unless it is shown")
+            #expect(b.spaceTabs.map(\.id) == [a1.id, a2.id] && b.listedTabs.map(\.id) == [a1.id, a2.id] && b.recentTabs.map(\.id).sorted() == [a1.id, a2.id].sorted())
+            let group = try #require(b.group([a1.id, a2.id], name: "Mine"))
+            #expect(b.spaceGroups.map(\.id) == [group] && b.looseTabs.isEmpty)
+            b.switchSpace(to: rig.work.id)
+            #expect(b.spaceTabs.map(\.id) == [w1.id, w2.id] && b.spaceGroups.isEmpty && b.looseTabs.count == 2 && b.tabs.count == 4)
+            #expect(b.visibleTabs.map(\.id) == [w1.id, w2.id])
+            // Selecting by number and by offset stays inside the space.
+            b.selectTab(number: 1)
+            #expect(b.activeID == w1.id)
+            b.selectTab(offset: -1)
+            #expect(b.activeID == w2.id)
         }
-    }
 
-    @Test func eachSpaceShowsOnlyItsOwnTabsAndGroups() throws {
-        let rig = Rig(), b = rig.browser
-        defer { b.windowClosed() }
-        let a1 = rig.open("a1", activate: true), a2 = rig.open("a2")
-        let w1 = rig.open("w1", in: rig.work.id), w2 = rig.open("w2", in: rig.work.id)
-        #expect(b.spaceID == rig.home, "opening a tab in another space doesn't switch to it unless it is shown")
-        #expect(b.spaceTabs.map(\.id) == [a1.id, a2.id] && b.listedTabs.map(\.id) == [a1.id, a2.id] && b.recentTabs.map(\.id).sorted() == [a1.id, a2.id].sorted())
-        let group = try #require(b.group([a1.id, a2.id], name: "Mine"))
-        #expect(b.spaceGroups.map(\.id) == [group] && b.looseTabs.isEmpty)
-        b.switchSpace(to: rig.work.id)
-        #expect(b.spaceTabs.map(\.id) == [w1.id, w2.id] && b.spaceGroups.isEmpty && b.looseTabs.count == 2 && b.tabs.count == 4)
-        #expect(b.visibleTabs.map(\.id) == [w1.id, w2.id])
-        // Selecting by number and by offset stays inside the space.
-        b.selectTab(number: 1)
-        #expect(b.activeID == w1.id)
-        b.selectTab(offset: -1)
-        #expect(b.activeID == w2.id)
-    }
+        @Test func switchingKeepsEachSpacesSelectedTab() throws {
+            let rig = Rig(), b = rig.browser
+            defer { b.windowClosed() }
+            let a1 = rig.open("a1", activate: true), a2 = rig.open("a2")
+            let w1 = rig.open("w1", in: rig.work.id), w2 = rig.open("w2", in: rig.work.id)
+            b.activate(a2.id)
+            b.switchSpace(to: rig.work.id)
+            #expect(b.spaceID == rig.work.id && b.activeID == w1.id, "a space never shown shows its first tab")
+            b.activate(w2.id)
+            b.switchSpace(to: rig.home)
+            #expect(b.activeID == a2.id && b.previousActiveID == nil)
+            b.activate(a1.id)
+            b.switchSpace(to: rig.work.id)
+            #expect(b.activeID == w2.id)
+            b.switchSpace(offset: 1)
+            #expect(b.spaceID == rig.home && b.activeID == a1.id)
+            b.switchSpace(number: 2)
+            #expect(b.spaceID == rig.work.id)
+            b.switchSpace(number: 9)
+            #expect(b.spaceID == rig.work.id, "9 is the last space")
+            // Showing a tab of the other space brings its space along.
+            b.activate(a2.id)
+            #expect(b.spaceID == rig.home && b.activeID == a2.id)
+            // Closing the shown tab goes to one in the same space, never across.
+            b.close(a2.id)
+            #expect(b.spaceID == rig.home && b.activeID == a1.id)
+            b.close(a1.id)
+            #expect(b.spaceID == rig.home && b.activeID == nil && b.commandBar == .newTab && b.tabs.count == 2)
+            b.switchSpace(to: rig.work.id)
+            #expect(b.activeID == w2.id && b.commandBar == nil, "the bar an empty space opened goes away when another space is shown")
+        }
 
-    @Test func switchingKeepsEachSpacesSelectedTab() throws {
-        let rig = Rig(), b = rig.browser
-        defer { b.windowClosed() }
-        let a1 = rig.open("a1", activate: true), a2 = rig.open("a2")
-        let w1 = rig.open("w1", in: rig.work.id), w2 = rig.open("w2", in: rig.work.id)
-        b.activate(a2.id)
-        b.switchSpace(to: rig.work.id)
-        #expect(b.spaceID == rig.work.id && b.activeID == w1.id, "a space never shown shows its first tab")
-        b.activate(w2.id)
-        b.switchSpace(to: rig.home)
-        #expect(b.activeID == a2.id && b.previousActiveID == nil)
-        b.activate(a1.id)
-        b.switchSpace(to: rig.work.id)
-        #expect(b.activeID == w2.id)
-        b.switchSpace(offset: 1)
-        #expect(b.spaceID == rig.home && b.activeID == a1.id)
-        b.switchSpace(number: 2)
-        #expect(b.spaceID == rig.work.id)
-        b.switchSpace(number: 9)
-        #expect(b.spaceID == rig.work.id, "9 is the last space")
-        // Showing a tab of the other space brings its space along.
-        b.activate(a2.id)
-        #expect(b.spaceID == rig.home && b.activeID == a2.id)
-        // Closing the shown tab goes to one in the same space, never across.
-        b.close(a2.id)
-        #expect(b.spaceID == rig.home && b.activeID == a1.id)
-        b.close(a1.id)
-        #expect(b.spaceID == rig.home && b.activeID == nil && b.commandBar == .newTab && b.tabs.count == 2)
-        b.switchSpace(to: rig.work.id)
-        #expect(b.activeID == w2.id && b.commandBar == nil, "the bar an empty space opened goes away when another space is shown")
-    }
+        @Test func splitViewStaysInsideTheSpace() {
+            let rig = Rig(), b = rig.browser
+            defer { b.windowClosed() }
+            let a1 = rig.open("a1", activate: true), a2 = rig.open("a2")
+            let w1 = rig.open("w1", in: rig.work.id)
+            b.split(with: w1.id)
+            #expect(b.split == nil)
+            b.split(with: a2.id)
+            #expect(b.shownSplit == Browser.Split(left: a1.id, right: a2.id))
+            b.switchSpace(to: rig.work.id)
+            #expect(b.shownSplit == nil)
+        }
 
-    @Test func splitViewStaysInsideTheSpace() {
-        let rig = Rig(), b = rig.browser
-        defer { b.windowClosed() }
-        let a1 = rig.open("a1", activate: true), a2 = rig.open("a2")
-        let w1 = rig.open("w1", in: rig.work.id)
-        b.split(with: w1.id)
-        #expect(b.split == nil)
-        b.split(with: a2.id)
-        #expect(b.shownSplit == Browser.Split(left: a1.id, right: a2.id))
-        b.switchSpace(to: rig.work.id)
-        #expect(b.shownSplit == nil)
-    }
+        @Test func aTabInAProfileSpaceUsesItsStoreAndANormalOneDoesNot() {
+            let rig = Rig(), b = rig.browser
+            defer { b.windowClosed() }
+            let profile = b.spaces.add(name: "Login", symbol: "key", tint: .coral, isProfile: true)
+            defer { erase(profile.id) }
+            let plain = rig.open("plain", activate: true)
+            let kept = rig.open("kept", in: profile.id)
+            #expect(plain.wake().configuration.websiteDataStore === b.configuration.websiteDataStore)
+            #expect(kept.wake().configuration.websiteDataStore.identifier == profile.id)
+            kept.sleep()
+            plain.sleep()
+        }
 
-    @Test func aTabInAProfileSpaceUsesItsStoreAndANormalOneDoesNot() {
-        let rig = Rig(), b = rig.browser
-        defer { b.windowClosed() }
-        let profile = b.spaces.add(name: "Login", symbol: "key", tint: .coral, isProfile: true)
-        defer { erase(profile.id) }
-        let plain = rig.open("plain", activate: true)
-        let kept = rig.open("kept", in: profile.id)
-        #expect(plain.wake().configuration.websiteDataStore === b.configuration.websiteDataStore)
-        #expect(kept.wake().configuration.websiteDataStore.identifier == profile.id)
-        kept.sleep()
-        plain.sleep()
-    }
+        @Test func aSessionWithTwoSpacesComesBackAsItWas() throws {
+            let rig = Rig(), b = rig.browser
+            defer { b.windowClosed() }
+            let a1 = rig.open("a1", activate: true), a2 = rig.open("a2")
+            let w1 = rig.open("w1", in: rig.work.id), w2 = rig.open("w2", in: rig.work.id)
+            let group = try #require(b.group([w1.id, w2.id], name: "Docs"))
+            w1.bookmarkKey = Browser.bookmarkKey(url: "https://w1.example/", folder: rig.work.favoritesFolder)
+            b.activate(a2.id)
+            b.activate(w2.id)
+            b.activate(a1.id)
+            let data = try JSONEncoder().encode(Browser.SavedWindows(windows: [b.savedSession]))
 
-    @Test func aSessionWithTwoSpacesComesBackAsItWas() throws {
-        let rig = Rig(), b = rig.browser
-        defer { b.windowClosed() }
-        let a1 = rig.open("a1", activate: true), a2 = rig.open("a2")
-        let w1 = rig.open("w1", in: rig.work.id), w2 = rig.open("w2", in: rig.work.id)
-        let group = try #require(b.group([w1.id, w2.id], name: "Docs"))
-        w1.bookmarkKey = Browser.bookmarkKey(url: "https://w1.example/", folder: rig.work.favoritesFolder)
-        b.activate(a2.id)
-        b.activate(w2.id)
-        b.activate(a1.id)
-        let data = try JSONEncoder().encode(Browser.SavedWindows(windows: [b.savedSession]))
+            let again = Browser(spaces: rig.box.store())
+            again.restore(try #require(Browser.SavedWindows.decode(data).first))
+            #expect(again.tabs.map { $0.url?.host() } == b.tabs.map { $0.url?.host() })
+            #expect(again.tabs.map(\.spaceID) == [rig.home, rig.home, rig.work.id, rig.work.id])
+            #expect(again.spaceID == rig.home && again.active?.url?.host() == "a1.example")
+            #expect(again.tabs[2].bookmarkKey == w1.bookmarkKey && again.groups.map(\.id) == [group])
+            again.switchSpace(to: rig.work.id)
+            #expect(again.active?.url?.host() == "w2.example", "the other space's selected tab came back too")
+            again.switchSpace(to: rig.home)
+            #expect(again.active?.url?.host() == "a1.example")
+            // The same bookmark key can be open in two spaces without one standing for the other.
+            #expect(again.bookmarkTab(w1.bookmarkKey!) == nil)
+            again.windowClosed()
+        }
 
-        let again = Browser(spaces: rig.box.store())
-        again.restore(try #require(Browser.SavedWindows.decode(data).first))
-        #expect(again.tabs.map { $0.url?.host() } == b.tabs.map { $0.url?.host() })
-        #expect(again.tabs.map(\.spaceID) == [rig.home, rig.home, rig.work.id, rig.work.id])
-        #expect(again.spaceID == rig.home && again.active?.url?.host() == "a1.example")
-        #expect(again.tabs[2].bookmarkKey == w1.bookmarkKey && again.groups.map(\.id) == [group])
-        again.switchSpace(to: rig.work.id)
-        #expect(again.active?.url?.host() == "w2.example", "the other space's selected tab came back too")
-        again.switchSpace(to: rig.home)
-        #expect(again.active?.url?.host() == "a1.example")
-        // The same bookmark key can be open in two spaces without one standing for the other.
-        #expect(again.bookmarkTab(w1.bookmarkKey!) == nil)
-        again.windowClosed()
-    }
+        @Test func aTabMovedToANewWindowKeepsItsSpace() throws {
+            let rig = Rig(), b = rig.browser
+            defer { b.windowClosed() }
+            _ = rig.open("a", activate: true)
+            let w = rig.open("w", in: rig.work.id)
+            b.switchSpace(to: rig.work.id)
+            let saved = Browser.SavedSession(tabs: [Browser.SavedTab(url: w.url?.absoluteString, title: "", space: w.spaceID)], active: 0, space: w.spaceID)
+            let window = Browser(spaces: rig.box.store())
+            window.restore(saved)
+            #expect(window.spaceID == rig.work.id && window.tabs.first?.spaceID == rig.work.id)
+            window.windowClosed()
+        }
 
-    @Test func aTabMovedToANewWindowKeepsItsSpace() throws {
-        let rig = Rig(), b = rig.browser
-        defer { b.windowClosed() }
-        _ = rig.open("a", activate: true)
-        let w = rig.open("w", in: rig.work.id)
-        b.switchSpace(to: rig.work.id)
-        let saved = Browser.SavedSession(tabs: [Browser.SavedTab(url: w.url?.absoluteString, title: "", space: w.spaceID)], active: 0, space: w.spaceID)
-        let window = Browser(spaces: rig.box.store())
-        window.restore(saved)
-        #expect(window.spaceID == rig.work.id && window.tabs.first?.spaceID == rig.work.id)
-        window.windowClosed()
-    }
+        @Test func aNewWindowStartsInTheSpaceOfTheOneInFront() {
+            let rig = Rig(), b = rig.browser
+            defer { b.windowClosed() }
+            b.switchSpace(to: rig.work.id)
+            let second = Browser(spaces: b.spaces)
+            #expect(second.spaceID == rig.work.id)
+            #expect(Browser(isPrivate: true, spaces: b.spaces).spaceID == Space.defaultID)
+            let tab = second.openTab(url: URL(string: "https://link.example/"))
+            #expect(tab.spaceID == rig.work.id && second.active === tab)
+        }
 
-    @Test func aNewWindowStartsInTheSpaceOfTheOneInFront() {
-        let rig = Rig(), b = rig.browser
-        defer { b.windowClosed() }
-        b.switchSpace(to: rig.work.id)
-        let second = Browser(spaces: b.spaces)
-        #expect(second.spaceID == rig.work.id)
-        #expect(Browser(isPrivate: true, spaces: b.spaces).spaceID == Space.defaultID)
-        let tab = second.openTab(url: URL(string: "https://link.example/"))
-        #expect(tab.spaceID == rig.work.id && second.active === tab)
-    }
+        @Test func deletingASpaceClosesItsTabsEverywhereAndKeepsTheLast() {
+            let rig = Rig(), b = rig.browser
+            defer { b.windowClosed() }
+            let a = rig.open("a", activate: true)
+            _ = rig.open("w1", in: rig.work.id)
+            _ = rig.open("w2", in: rig.work.id)
+            let other = Browser(spaces: b.spaces)
+            other.focused()
+            defer { other.windowClosed() }
+            b.focused()
+            b.switchSpace(to: rig.work.id)
+            other.switchSpace(to: rig.work.id)
+            _ = other.openTab(url: URL(string: "https://w3.example/"))
+            Browser.deleteSpace(rig.work.id, from: b.spaces)
+            #expect(b.spaces.spaces.map(\.id) == [rig.home] && b.spaceID == rig.home && b.activeID == a.id)
+            #expect(b.tabs.map(\.id) == [a.id] && other.tabs.isEmpty && other.spaceID == rig.home)
+            #expect(b.closedTabs.isEmpty, "tabs of a deleted space aren't offered by Reopen Closed Tab")
+            Browser.deleteSpace(rig.home, from: b.spaces)
+            #expect(b.spaces.spaces.count == 1)
+        }
 
-    @Test func deletingASpaceClosesItsTabsEverywhereAndKeepsTheLast() {
-        let rig = Rig(), b = rig.browser
-        defer { b.windowClosed() }
-        let a = rig.open("a", activate: true)
-        _ = rig.open("w1", in: rig.work.id)
-        _ = rig.open("w2", in: rig.work.id)
-        let other = Browser(spaces: b.spaces)
-        other.focused()
-        defer { other.windowClosed() }
-        b.focused()
-        b.switchSpace(to: rig.work.id)
-        other.switchSpace(to: rig.work.id)
-        _ = other.openTab(url: URL(string: "https://w3.example/"))
-        Browser.deleteSpace(rig.work.id, from: b.spaces)
-        #expect(b.spaces.spaces.map(\.id) == [rig.home] && b.spaceID == rig.home && b.activeID == a.id)
-        #expect(b.tabs.map(\.id) == [a.id] && other.tabs.isEmpty && other.spaceID == rig.home)
-        #expect(b.closedTabs.isEmpty, "tabs of a deleted space aren't offered by Reopen Closed Tab")
-        Browser.deleteSpace(rig.home, from: b.spaces)
-        #expect(b.spaces.spaces.count == 1)
-    }
+        @Test func archivedTabsReopenInTheirSpace() {
+            let rig = Rig(), b = rig.browser
+            defer { b.windowClosed() }
+            _ = rig.open("a", activate: true)
+            let w = rig.open("w", in: rig.work.id)
+            w.lastShown = Date(timeIntervalSinceNow: -7200)
+            let archive = TabArchive(file: rig.box.file("archive.json"))
+            b.archiveIdleTabs(olderThan: 3600, to: archive)
+            #expect(archive.entries.map(\.space) == [rig.work.id] && b.tabs.count == 1)
+            b.reopen(archive.entries[0], from: archive)
+            #expect(b.spaceID == rig.work.id && b.active?.url?.host() == "w.example")
+        }
 
-    @Test func archivedTabsReopenInTheirSpace() {
-        let rig = Rig(), b = rig.browser
-        defer { b.windowClosed() }
-        _ = rig.open("a", activate: true)
-        let w = rig.open("w", in: rig.work.id)
-        w.lastShown = Date(timeIntervalSinceNow: -7200)
-        let archive = TabArchive(file: rig.box.file("archive.json"))
-        b.archiveIdleTabs(olderThan: 3600, to: archive)
-        #expect(archive.entries.map(\.space) == [rig.work.id] && b.tabs.count == 1)
-        b.reopen(archive.entries[0], from: archive)
-        #expect(b.spaceID == rig.work.id && b.active?.url?.host() == "w.example")
-    }
+        @Test func theAIListsTabsOfEverySpaceWithTheirNames() async throws {
+            let rig = Rig(), b = rig.browser
+            defer { b.windowClosed() }
+            let a = rig.open("a", activate: true)
+            let w = rig.open("w", in: rig.work.id)
+            let text = try #require(await ToolCatalog.call("list_tabs", [:], caller: "test").content.first?["text"] as? String)
+            #expect(text.contains("* #\(a.id) [\(b.spaces.space(Space.defaultID).name)] "))
+            #expect(text.contains("#\(w.id) [Work] ") && a.id != w.id)
+            #expect(ToolCatalog.findTab(w.id) === w, "a tab of another space is found by id")
+        }
 
-    @Test func theAIListsTabsOfEverySpaceWithTheirNames() async throws {
-        let rig = Rig(), b = rig.browser
-        defer { b.windowClosed() }
-        let a = rig.open("a", activate: true)
-        let w = rig.open("w", in: rig.work.id)
-        let text = try #require(await ToolCatalog.call("list_tabs", [:], caller: "test").content.first?["text"] as? String)
-        #expect(text.contains("* #\(a.id) [\(b.spaces.space(Space.defaultID).name)] "))
-        #expect(text.contains("#\(w.id) [Work] ") && a.id != w.id)
-        #expect(ToolCatalog.findTab(w.id) === w, "a tab of another space is found by id")
-    }
-
-    @Test func aSingleSpaceListsTabsAsBefore() async throws {
-        let box = Sandbox()
-        let b = Browser(spaces: box.store())
-        b.focused()
-        defer { b.windowClosed() }
-        let tab = b.openTab(url: URL(string: "https://solo.example/"))
-        let text = try #require(await ToolCatalog.call("list_tabs", [:], caller: "test").content.first?["text"] as? String)
-        #expect(text.contains("* #\(tab.id) ") && !text.contains("["))
+        @Test func aSingleSpaceListsTabsAsBefore() async throws {
+            let box = Sandbox()
+            let b = Browser(spaces: box.store())
+            b.focused()
+            defer { b.windowClosed() }
+            let tab = b.openTab(url: URL(string: "https://solo.example/"))
+            let text = try #require(await ToolCatalog.call("list_tabs", [:], caller: "test").content.first?["text"] as? String)
+            #expect(text.contains("* #\(tab.id) ") && !text.contains("["))
+        }
     }
 }

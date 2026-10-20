@@ -1029,35 +1029,37 @@ struct HTTPRequestTests {
     }
 }
 
-@MainActor
-struct ChatStreamTests {
-    @Test func streamsTextAndShowsTools() {
-        let chat = ChatStore()
-        chat.handle(["type": "system", "subtype": "init", "session_id": "s1"])
-        chat.handle(["type": "stream_event", "event": ["type": "message_start", "message": ["id": "m1"]]])
-        chat.handle(["type": "stream_event", "event": ["type": "content_block_delta", "delta": ["type": "text_delta", "text": "페이지를 "]]])
-        chat.handle(["type": "stream_event", "event": ["type": "content_block_delta", "delta": ["type": "text_delta", "text": "읽을게요."]]])
-        chat.handle(["type": "assistant", "message": ["id": "m1", "content": [
-            ["type": "text", "text": "페이지를 읽을게요."],
-            ["type": "tool_use", "name": "mcp__changmun__read_page", "input": [:]],
-        ]]])
-        chat.handle(["type": "stream_event", "event": ["type": "message_start", "message": ["id": "m2"]]])
-        chat.handle(["type": "stream_event", "event": ["type": "content_block_delta", "delta": ["type": "text_delta", "text": "요약입니다."]]])
-        #expect(chat.items.map(\.kind) == [.assistant, .tool, .assistant])
-        #expect(chat.items.map(\.text) == ["페이지를 읽을게요.", "Read page", "요약입니다."])
-        #expect(chat.items[1].symbol == "doc.text")
-    }
+extension SharedAgentState {
+    @MainActor
+    struct ChatStreamTests {
+        @Test func streamsTextAndShowsTools() {
+            let chat = ChatStore()
+            chat.handle(["type": "system", "subtype": "init", "session_id": "s1"])
+            chat.handle(["type": "stream_event", "event": ["type": "message_start", "message": ["id": "m1"]]])
+            chat.handle(["type": "stream_event", "event": ["type": "content_block_delta", "delta": ["type": "text_delta", "text": "페이지를 "]]])
+            chat.handle(["type": "stream_event", "event": ["type": "content_block_delta", "delta": ["type": "text_delta", "text": "읽을게요."]]])
+            chat.handle(["type": "assistant", "message": ["id": "m1", "content": [
+                ["type": "text", "text": "페이지를 읽을게요."],
+                ["type": "tool_use", "name": "mcp__changmun__read_page", "input": [:]],
+            ]]])
+            chat.handle(["type": "stream_event", "event": ["type": "message_start", "message": ["id": "m2"]]])
+            chat.handle(["type": "stream_event", "event": ["type": "content_block_delta", "delta": ["type": "text_delta", "text": "요약입니다."]]])
+            #expect(chat.items.map(\.kind) == [.assistant, .tool, .assistant])
+            #expect(chat.items.map(\.text) == ["페이지를 읽을게요.", "Read page", "요약입니다."])
+            #expect(chat.items[1].symbol == "doc.text")
+        }
 
-    @Test func showsFullTextWhenNothingStreamed() {
-        let chat = ChatStore()
-        chat.handle(["type": "assistant", "message": ["id": "m9", "content": [["type": "text", "text": "안녕하세요"]]]])
-        #expect(chat.items.map(\.text) == ["안녕하세요"])
-    }
+        @Test func showsFullTextWhenNothingStreamed() {
+            let chat = ChatStore()
+            chat.handle(["type": "assistant", "message": ["id": "m9", "content": [["type": "text", "text": "안녕하세요"]]]])
+            #expect(chat.items.map(\.text) == ["안녕하세요"])
+        }
 
-    @Test func errorResultsAreShown() {
-        let chat = ChatStore()
-        chat.handle(["type": "result", "is_error": true, "result": "rate limited", "session_id": "s2"])
-        #expect(chat.items.last?.kind == .error)
+        @Test func errorResultsAreShown() {
+            let chat = ChatStore()
+            chat.handle(["type": "result", "is_error": true, "result": "rate limited", "session_id": "s2"])
+            #expect(chat.items.last?.kind == .error)
+        }
     }
 }
 
@@ -1656,42 +1658,44 @@ struct RecentTabTests {
     }
 }
 
-@MainActor
-struct PopupTests {
-    @Test func sitesAllowedForPopupsCoverTheirSubdomains() {
-        #expect(Preferences.matches("pay.example.com", ["example.com"]))
-        #expect(Preferences.matches("EXAMPLE.com", ["example.com"]))
-        #expect(!Preferences.matches("badexample.com", ["example.com"]))
-        #expect(!Preferences.matches(nil, ["example.com"]))
-    }
+extension SharedAgentState {
+    @MainActor
+    struct PopupTests {
+        @Test func sitesAllowedForPopupsCoverTheirSubdomains() {
+            #expect(Preferences.matches("pay.example.com", ["example.com"]))
+            #expect(Preferences.matches("EXAMPLE.com", ["example.com"]))
+            #expect(!Preferences.matches("badexample.com", ["example.com"]))
+            #expect(!Preferences.matches(nil, ["example.com"]))
+        }
 
-    @Test func allowedSitesOpenOnePopupASecondAndOnlyTakeTheEyeWhenShown() throws {
-        let prefs = Preferences.shared
-        let saved = prefs.popupHosts
-        defer { prefs.popupHosts = saved }
-        prefs.allowPopups(from: "www.allowed.test")
-        #expect(prefs.allowsPopups(from: "pay.allowed.test"))
-        let b = Browser()
-        let shown = b.openTab(url: URL(string: "https://allowed.test/"))
-        let background = b.openTab(url: URL(string: "https://allowed.test/other"), activate: false)
-        background.popupBlocked(try #require(URL(string: "https://allowed.test/one")))
-        #expect(b.tabs.count == 3 && b.activeID == shown.id)
-        shown.popupBlocked(try #require(URL(string: "https://allowed.test/two")))
-        #expect(b.tabs.count == 3)
-        #expect(background.blockedPopup == nil)
-    }
+        @Test func allowedSitesOpenOnePopupASecondAndOnlyTakeTheEyeWhenShown() throws {
+            let prefs = Preferences.shared
+            let saved = prefs.popupHosts
+            defer { prefs.popupHosts = saved }
+            prefs.allowPopups(from: "www.allowed.test")
+            #expect(prefs.allowsPopups(from: "pay.allowed.test"))
+            let b = Browser()
+            let shown = b.openTab(url: URL(string: "https://allowed.test/"))
+            let background = b.openTab(url: URL(string: "https://allowed.test/other"), activate: false)
+            background.popupBlocked(try #require(URL(string: "https://allowed.test/one")))
+            #expect(b.tabs.count == 3 && b.activeID == shown.id)
+            shown.popupBlocked(try #require(URL(string: "https://allowed.test/two")))
+            #expect(b.tabs.count == 3)
+            #expect(background.blockedPopup == nil)
+        }
 
-    @Test func aPopupOpenedWithoutAClickIsOfferedInABar() async throws {
-        let b = Browser()
-        b.focused()
-        defer { b.windowClosed() }
-        let tab = b.openTab(url: nil)
-        let view = tab.wake()
-        let window = OffscreenWindow(view)
-        defer { window.close() }
-        view.loadHTMLString("<script>setTimeout(() => window.open('/next'), 50)</script>", baseURL: URL(string: "https://popup.test/page"))
-        for _ in 0..<60 where tab.blockedPopup == nil { try await Task.sleep(for: .milliseconds(50)) }
-        #expect(tab.blockedPopup?.absoluteString == "https://popup.test/next")
+        @Test func aPopupOpenedWithoutAClickIsOfferedInABar() async throws {
+            let b = Browser()
+            b.focused()
+            defer { b.windowClosed() }
+            let tab = b.openTab(url: nil)
+            let view = tab.wake()
+            let window = OffscreenWindow(view)
+            defer { window.close() }
+            view.loadHTMLString("<script>setTimeout(() => window.open('/next'), 50)</script>", baseURL: URL(string: "https://popup.test/page"))
+            for _ in 0..<60 where tab.blockedPopup == nil { try await Task.sleep(for: .milliseconds(50)) }
+            #expect(tab.blockedPopup?.absoluteString == "https://popup.test/next")
+        }
     }
 }
 
