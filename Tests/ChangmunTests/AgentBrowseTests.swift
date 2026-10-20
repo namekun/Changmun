@@ -74,7 +74,7 @@ extension SharedAgentState {
                 ("select_option", ["element_id": 1]), ("select_option", ["option": "A"]), ("select_option", ["element_id": 1, "option": ""]),
                 ("hover", [:]), ("hover", ["element_id": "x"]),
                 ("click_at", [:]), ("click_at", ["x": 5]), ("click_at", ["x": -1, "y": 5]), ("click_at", ["x": "a", "y": 5]), ("click_at", ["x": 1e30, "y": 5]),
-                ("wait_for", ["text": ""]), ("wait_for", ["gone": true]), ("wait_for", ["text": "a", "timeout": 0]), ("wait_for", ["text": "a", "timeout": "soon"]), ("wait_for", ["text": "a", "gone": "yes"]),
+                ("wait_for", ["text": ""]), ("wait_for", ["text": "  \n "]), ("wait_for", ["gone": true]), ("wait_for", ["text": "a", "timeout": 0]), ("wait_for", ["text": "a", "timeout": "soon"]), ("wait_for", ["text": "a", "gone": "yes"]),
                 ("drag", [:]), ("drag", ["from_element_id": 1]), ("drag", ["from_element_id": 1, "from_x": 1, "from_y": 2, "to_element_id": 3]), ("drag", ["from_x": 1, "to_x": 3, "to_y": 4]),
                 ("hover", ["element_id": 1e20]), ("select_option", ["element_id": 1e20, "option": "a"]), ("drag", ["from_element_id": 1e20, "to_element_id": 2]),
             ]
@@ -1295,6 +1295,253 @@ extension SharedAgentState {
             _ = await evaluate(tab, "document.getElementById('cart').replaceWith(document.getElementById('cart').cloneNode(true)); return 1")
             let gone = await call(tab, "click", ["element_id": cart])
             #expect(gone.failed && gone.text.contains("gone"))
+        }
+
+        /// Runs one of the app's page scripts as a tool does, in its own world.
+        private func script(_ tab: Tab, _ source: String, _ arguments: [String: Any]) async -> String {
+            guard let view = tab.webView else { return "" }
+            return (try? await view.callAsyncJavaScript(source, arguments: arguments, in: nil, contentWorld: .defaultClient)).flatMap { "\($0)" } ?? ""
+        }
+
+        @Test func anActionStopsWhenWhatTheApprovalWasBasedOnChangedNotOnlyTheNames() async throws {
+            let html = """
+                <body><div id=step><button id=go type=button onclick="document.title='went'">Continue</button></div>
+                <form id=f action="/next" onsubmit="document.title='sent';return false"><input placeholder="Name"><button id=sub>Continue</button></form>
+                <select id=sel onchange="document.title='picked'"><option>Profile</option><option>Archive</option></select></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            let lines = read.split(separator: "\n").filter { $0.contains("\"Continue\"") }
+            let go = try #require(lines.first.flatMap(number)), sub = try #require(lines.last.flatMap(number))
+            func facts(_ element: Int) async throws -> [String: Any] {
+                let text = await script(tab, PageScripts.inspect, ["args": ["id": element]])
+                return try #require((try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any], "\(text)")
+            }
+            func click(_ element: Int, expecting facts: [String: Any]) async -> String {
+                await script(tab, PageScripts.click, ["args": ["id": element, "expect": ["origin": facts["origin"] ?? "", "fp": facts["fp"] ?? ""]]])
+            }
+            // The step becomes the payment step under the same button, while the user thinks.
+            var before = try await facts(go)
+            _ = await evaluate(tab, "const f = document.createElement('form'); f.action = '/pay'; f.innerHTML = '<input autocomplete=cc-number>'; document.body.append(f); f.append(document.getElementById('go')); return 1")
+            var answer = await click(go, expecting: before)
+            #expect(answer.contains("changed"), "a button that now sits in a payment form: \(answer)")
+            #expect(await evaluate(tab, "return document.title") != "went")
+            // A form whose address changes under a button that submits it.
+            before = try await facts(sub)
+            #expect(before["submits"] as? Bool == true)
+            _ = await evaluate(tab, "document.getElementById('f').action = '/account/delete'; return 1")
+            answer = await click(sub, expecting: before)
+            #expect(answer.contains("changed"), "\(answer)")
+            #expect(await evaluate(tab, "return document.title") != "sent")
+            // The same button, unchanged, is clicked.
+            before = try await facts(sub)
+            #expect(await click(sub, expecting: before) == "ok")
+            // A list that did not submit its form when it changed, and now does.
+            let select = try #require(id(ofKind: "select", in: read))
+            let resolved = await script(tab, PageScripts.selectOption, ["args": ["id": select, "option": "Archive", "stage": "resolve", "open": false]])
+            let option = try #require((try? JSONSerialization.jsonObject(with: Data(resolved.utf8))) as? [String: Any], "\(resolved)")
+            _ = await evaluate(tab, "const s = document.getElementById('sel'); const f = document.createElement('form'); f.action = '/checkout'; document.body.append(f); f.append(s); return 1")
+            let chosen = await script(tab, PageScripts.selectOption, ["args": ["id": select, "option": "Archive", "stage": "choose", "expectFp": option["fp"] ?? ""]])
+            #expect(chosen.contains("changed"), "\(chosen)")
+            #expect(await evaluate(tab, "return document.getElementById('sel').value") == "Profile")
+        }
+
+        @Test func aListIsChosenFromOnlyWithSelectOptionNotByTypingOrArrowKeys() async throws {
+            let html = """
+                <body><select id=bulk onchange="document.title='ran ' + this.value"><option>Archive</option><option>Delete account</option></select>
+                <input id=q placeholder="Fruit"></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            let select = try #require(id(ofKind: "select", in: read)), field = try #require(id(of: "Fruit", in: read))
+            let typed = await call(tab, "type_text", ["element_id": select, "text": "Delete account"])
+            #expect(typed.failed && typed.text.contains("select_option"))
+            for key in ["ArrowDown", "ArrowRight", "End", "Home", "ArrowUp"] {
+                let pressed = await call(tab, "press_key", ["key": key, "element_id": select])
+                #expect(pressed.failed && pressed.text.contains("select_option"), "\(key): \(pressed.text)")
+            }
+            // The list in focus without being named is the same.
+            _ = await evaluate(tab, "document.getElementById('bulk').focus(); return 1")
+            let focused = await call(tab, "press_key", ["key": "ArrowDown"])
+            #expect(focused.failed && focused.text.contains("select_option"))
+            #expect(await evaluate(tab, "return document.getElementById('bulk').value + '|' + document.title") == "Archive|Lab" || tab.title != "ran Delete account")
+            #expect(await evaluate(tab, "return document.getElementById('bulk').value") == "Archive")
+            #expect(!(await call(tab, "type_text", ["element_id": field, "text": "pear"])).failed, "a text field is typed into as ever")
+        }
+
+        @Test func aKeyPressedOnAnElementGoesToThatElementNotToWhateverElseHasTheFocus() async throws {
+            let html = """
+                <body><button id=buy onclick="document.title='bought'">Buy now</button>
+                <div id=decoy onclick="document.title='decoy'" style="width:80px;height:20px">Details</div>
+                <div id=trap tabindex=0 role=link onfocus="document.getElementById('buy').focus()" style="width:80px;height:20px" onclick="document.title='trap'">Trap</div>
+                <div id=host><span id=inner tabindex=0 onclick="document.title='inner'">Inner</span></div></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ _ in .deny }) { stand in
+                let read = await call(tab, "read_page").text
+                let decoy = try #require(id(of: "Details", in: read)), trap = try #require(id(of: "Trap", in: read))
+                // The focus is on the buy button; the decoy can't take it. Enter must not press the button.
+                _ = await evaluate(tab, "document.getElementById('buy').focus(); return 1")
+                let first = await call(tab, "press_key", ["key": "Enter", "element_id": decoy])
+                #expect(!first.failed, "\(first.text)")
+                #expect(await evaluate(tab, "return document.title") != "bought")
+                #expect(guarded(stand).isEmpty)
+                // A focus handler that sends the focus to the button as soon as the named element takes it.
+                _ = await evaluate(tab, "document.title = 'Lab'; return 1")
+                let second = await call(tab, "press_key", ["key": "Space", "element_id": trap])
+                #expect(!second.failed, "\(second.text)")
+                #expect(await evaluate(tab, "return document.title") != "bought")
+                #expect(guarded(stand).isEmpty)
+                // The element that really has the focus after its own click is still the one pressed, and judged.
+                let buy = try #require(id(of: "Buy now", in: read))
+                let third = await call(tab, "press_key", ["key": "Enter", "element_id": buy])
+                #expect(third.failed && guarded(stand).count == 1 && guarded(stand)[0].message.contains("Buy now"))
+                #expect(await evaluate(tab, "return document.title") != "bought")
+            }
+        }
+
+        @Test func enterTypedWithSubmitIsOneSubmissionWhateverTheLegacyHandlersDo() async throws {
+            let html = """
+                <body>
+                <form onsubmit="window.n1=(window.n1||0)+1;return false"><input placeholder="Legacy" onkeypress="if (event.which == 13) { window.legacy = (window.legacy||0)+1; return false; }"></form>
+                <form onsubmit="window.n2=(window.n2||0)+1;return false"><input placeholder="Plain"></form>
+                <form onsubmit="window.n3=(window.n3||0)+1;return false"><input placeholder="Own" onkeydown="if (event.key === 'Enter') { event.preventDefault(); this.form.requestSubmit() }"></form>
+                <form onsubmit="window.n4=(window.n4||0)+1;return false"><input placeholder="Cancelled" onkeydown="if (event.key === 'Enter') event.preventDefault()"></form>
+                <form onsubmit="window.n5=(window.n5||0)+1;return false"><input placeholder="Button"><button onclick="window.n5b=(window.n5b||0)+1">Search</button></form>
+                </body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            for label in ["Legacy", "Plain", "Own", "Cancelled", "Button"] {
+                let typed = await call(tab, "type_text", ["element_id": try #require(id(of: label, in: read)), "text": "x", "submit": true])
+                #expect(!typed.failed, "\(label): \(typed.text)")
+            }
+            func count(_ name: String) async -> String { await evaluate(tab, "return String(window.\(name) ?? 0)") }
+            #expect(await count("n1") == "0", "a handler that took the key in keypress sends nothing more")
+            #expect(await count("legacy") == "1")
+            #expect(await count("n2") == "1", "a plain field is submitted once")
+            #expect(await count("n3") == "1", "a page that took the key and sent the form itself is not sent again")
+            #expect(await count("n4") == "0", "a keydown that was cancelled sends nothing")
+            #expect(await count("n5b") == "1", "the form's button is pressed, once")
+            #expect(await count("n5") == "1")
+        }
+
+        @Test func aCallThatRanOutOfTimeWhileTheUserThoughtDoesNothing() async throws {
+            var session = Session(caller: "test-deadline")
+            #expect(!session.stopped)
+            session.deadline = Date(timeIntervalSinceNow: -1)
+            #expect(session.stopped)
+            let (tab, window, browser) = try await page(Self.form)
+            defer { window.close(); browser.windowClosed() }
+            let before = Session.lifetime
+            defer { Session.lifetime = before }
+            try await asking({ _ in .once }) { stand in
+                let read = await call(tab, "read_page", caller: "test-deadline").text
+                let buy = try #require(id(of: "Buy now", in: read))
+                // The caller gives up on a call after a while; a yes that comes later must not run it.
+                Session.lifetime = 0.4
+                stand.holds = true
+                async let result = call(tab, "click", ["element_id": buy], caller: "test-deadline")
+                #expect(await waitUntil { !guarded(stand).isEmpty })
+                try await Task.sleep(for: .milliseconds(600))
+                Approvals.release(.once)
+                let answer = await result
+                #expect(answer.failed && answer.text.contains("Stopped"), "\(answer.text)")
+                #expect(await evaluate(tab, "return document.title") != "bought")
+            }
+        }
+
+        @Test func everyPasswordFieldIsKnownAsOneFromTheFirstToolOnEvenIfItIsShownLater() async throws {
+            let html = """
+                <body style="margin:0"><button style="position:absolute;left:10px;top:10px;width:80px;height:30px" onclick="document.title='ok'">OK</button>
+                <input id=pw type=password value="hunter2" style="position:absolute;left:10px;top:60px"></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            // A tool that never looked at the field itself is the first to run; later a "show" button turns the field into plain text.
+            #expect(!(await call(tab, "click_at", ["x": 20, "y": 20])).failed)
+            _ = await evaluate(tab, "const f = document.getElementById('pw'); f.type = 'text'; f.focus(); return 1")
+            let pressed = await call(tab, "press_key", ["key": "ArrowLeft"])
+            #expect(pressed.failed && pressed.text.contains("password"), "\(pressed.text)")
+        }
+
+        @Test func enterOnACheckboxSubmitsItsFormAsAnyFieldDoesAndIsJudgedAsThat() async throws {
+            let html = """
+                <body><form action="/x" onsubmit="document.title='sent';return false"><label><input type=checkbox id=c> Remember me</label><button>Send it</button></form>
+                <label><input type=checkbox id=d onclick="window.clicked = 1"> Plain</label></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ _ in .once }) { stand in
+                let read = await call(tab, "read_page").text
+                let box = try #require(id(of: "Remember me", in: read))
+                let pressed = await call(tab, "press_key", ["key": "Enter", "element_id": box])
+                #expect(!pressed.failed, "\(pressed.text)")
+                #expect(guarded(stand).count == 1 && guarded(stand)[0].message.contains("Send it"), "judged as the form's button, not as the box")
+                let off = await evaluate(tab, "return document.getElementById('c').checked")
+                #expect(off == "0" || off == "false", "Enter did not toggle it")
+                #expect(await waitUntil { tab.title == "sent" })
+                // Space toggles it, as ever.
+                _ = await call(tab, "press_key", ["key": "Space", "element_id": box])
+                let on = await evaluate(tab, "return document.getElementById('c').checked")
+                #expect(on == "1" || on == "true")
+            }
+        }
+
+        @Test func stoppingEndsAnActionThatWasApprovedAndIsAboutToRun() async throws {
+            let (tab, window, browser) = try await page(Self.form)
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            let cart = try #require(id(of: "Add to cart", in: read))
+            let facts = await script(tab, PageScripts.inspect, ["args": ["id": cart]])
+            let json = try #require((try? JSONSerialization.jsonObject(with: Data(facts.utf8))) as? [String: Any])
+            async let running = script(tab, PageScripts.click, ["args": ["id": cart, "expect": ["origin": json["origin"] ?? "", "fp": json["fp"] ?? ""]]])
+            // The pause after the outline is where the stop lands.
+            try await Task.sleep(for: .milliseconds(30))
+            _ = await script(tab, PageScripts.clearMarks, [:])
+            let answer = await running
+            #expect(answer.contains("stopped") || answer == "ok", "\(answer)")
+            if answer != "ok" { #expect(tab.title != "carted") }
+        }
+
+        @Test func aSliderIsMovedByItsValueAndAFieldTypedInAFrameOfTheSameSiteLands() async throws {
+            let html = """
+                <body><input id=r type=range min=0 max=100 step=1 value=10 style="width:200px" oninput="document.title='slid ' + this.value">
+                <iframe id=fr style="width:300px;height:100px" srcdoc="<div id=ce contenteditable=true style='width:200px;height:30px'>old</div>"></iframe></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            var read = ""
+            for _ in 0..<100 where !read.contains("contenteditable") && !read.contains("(in a frame)") {
+                read = await call(tab, "read_page").text
+                if !read.contains("(in a frame)") { try await Task.sleep(for: .milliseconds(50)) }
+            }
+            let slider = try #require(id(ofKind: "input[range]", in: read))
+            let dragged = await call(tab, "drag", ["from_element_id": slider, "to_x": 150, "to_y": 20])
+            #expect(!dragged.failed && dragged.text.contains("set the slider"), "\(dragged.text)")
+            let value = Int(await evaluate(tab, "return document.getElementById('r').value")) ?? 0
+            #expect(value > 60 && value < 90, "\(value)")
+            let editable = try #require(read.split(separator: "\n").first { $0.contains("(in a frame)") && $0.contains("old") }.flatMap(number), "\(read)")
+            let typed = await call(tab, "type_text", ["element_id": editable, "text": "new words"])
+            #expect(!typed.failed)
+            #expect(await evaluate(tab, "return document.getElementById('fr').contentDocument.getElementById('ce').textContent") == "new words")
+        }
+
+        @Test func waitingLooksInFramesOfOtherSitesThatNoReadNamedAndSaysWhenItCannotLook() async throws {
+            let inner = "<p>Processing payment...</p>"
+            let (tab, window, browser) = try await page("<body><p>Outer</p><iframe sandbox='allow-scripts' style='width:300px;height:80px' srcdoc='\(inner)'></iframe></body>", host: "outer.test")
+            defer { window.close(); browser.windowClosed() }
+            // No read_page was made, so no read has named the frame.
+            let there = await call(tab, "wait_for", ["text": "Processing payment", "timeout": 8])
+            #expect(!there.failed && there.text.contains("is on the page"), "\(there.text)")
+            let stillThere = await call(tab, "wait_for", ["text": "Processing payment", "gone": true, "timeout": 2])
+            #expect(stillThere.failed && stillThere.text.contains("still on the page"), "text that shows in the frame is not gone: \(stillThere.text)")
+            let never = await call(tab, "wait_for", ["text": "Order complete", "gone": true, "timeout": 2])
+            #expect(!never.failed && never.text.contains("is gone"), "text that is nowhere is gone: \(never.text)")
         }
 
         @Test func aPasswordFieldIsOffLimitsToEveryTool() async throws {

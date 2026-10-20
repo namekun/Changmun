@@ -54,7 +54,7 @@ enum ToolCatalog {
         tool("drag", "Drag from an element or point to another and drop there: HTML5 drag and drop when the source is draggable, otherwise pointer and mouse events along the way (sliders, sortable lists). Both ends must be in the same frame.",
              ["from_element_id": ["type": "integer"], "from_x": ["type": "number"], "from_y": ["type": "number"],
               "to_element_id": ["type": "integer"], "to_x": ["type": "number"], "to_y": ["type": "number"]]),
-        tool("wait_for", "Wait until the given text is on the page (or, with gone, no longer there), or, without text, until the page stops loading. Gives up after timeout seconds (default 10, at most 30). Use it instead of reading the page over and over.",
+        tool("wait_for", "Wait until the given text is on the page (or, with gone, no longer there), or, without text, until the page stops loading. Frames from other sites are searched too. Gives up after timeout seconds (default 10, at most 30). Use it instead of reading the page over and over.",
              ["text": ["type": "string"], "gone": ["type": "boolean", "description": "Wait for the text to disappear"], "timeout": ["type": "number", "description": "Seconds, default 10, at most 30"]]),
         tool("scroll", "Scroll the page.", ["direction": ["type": "string", "enum": ["down", "up", "top", "bottom"]]], required: ["direction"]),
         tool("screenshot", "Take a screenshot of the visible part of the page. Its note says how its pixels relate to the CSS pixels click_at takes."),

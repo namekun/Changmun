@@ -53,6 +53,9 @@ extension PageScripts {
       if (depth < 4) for (const host of root.querySelectorAll('*')) if (host.shadowRoot) deepAll(host.shadowRoot, selector, out, depth + 1);
       return out;
     }
+    // Every password field there is, also in web components, is known as one from the start: it stays secret when a button
+    // makes it show its text.
+    for (const e of docs()) for (const x of deepAll(e.doc, 'input[type=password]')) seenPasswords.add(x);
     const byId = id => {
       const ref = registry.get(id), el = ref && ref.deref();
       return el && el.isConnected ? el : null;
@@ -351,7 +354,9 @@ extension PageScripts {
     const settle = () => { const m = globalThis.changmunMark; if (m) { clearTimeout(m.timer); m.timer = setTimeout(clearMark, 600); } };
     // Outlines the targets, waits a moment, and says whether they are still what the AI looked at.
     async function aimAt(pairs, hold) {
+      const stops = globalThis.changmunStops || 0;
       await mark(pairs.map(p => p.el), hold);
+      if ((globalThis.changmunStops || 0) !== stops) return 'Error: stopped by the user.';
       for (const p of pairs) { const bad = stale(p.el, p.args); if (bad) return bad; }
       return null;
     }
@@ -391,7 +396,6 @@ extension PageScripts {
     static let read = lib + #"""
 
     registry.clear();
-    for (const e of docs()) for (const x of e.doc.querySelectorAll('input[type=password]')) seenPasswords.add(x);
     const selector = 'a[href],button,input,textarea,select,summary,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=radio],[role=option],[role=switch],[role=combobox],[role=listbox],[role=textbox],[draggable=true],[contenteditable=""],[contenteditable=true],[onclick]';
     const lines = [], frames = [];
     let n = start, capped = false;
@@ -480,8 +484,9 @@ extension PageScripts {
 
     const p = pick(args);
     if (p.error) return 'Error: ' + p.error;
-    const el = p.el, text = args.text;
+    const el = p.el, text = args.text, doc = el.ownerDocument;
     if (isSecret(el)) return 'Error: Changmun does not let the AI type into password fields. Ask the user to.';
+    if (el.localName === 'select') return 'Error: this is a list. Choose its option with select_option, which asks about the option.';
     let bad = stale(el, args);
     if (bad) return bad;
     el.scrollIntoView({block: 'center'});
@@ -489,13 +494,8 @@ extension PageScripts {
     if (bad) return bad;
     el.focus();
     if (el.isContentEditable) {
-      document.execCommand('selectAll', false);
-      document.execCommand('insertText', false, text);
-    } else if (el.localName === 'select') {
-      const option = Array.from(el.options).find(o => o.text.trim() === text || o.value === text);
-      if (!option) return 'Error: no option "' + text + '". Options: ' + Array.from(el.options).map(o => o.text.trim()).join(', ');
-      el.value = option.value;
-      el.dispatchEvent(new Event('change', {bubbles: true}));
+      doc.execCommand('selectAll', false);
+      doc.execCommand('insertText', false, text);
     } else {
       const proto = el.localName === 'textarea' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
       Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, text);
@@ -504,12 +504,23 @@ extension PageScripts {
     }
     if (args.submit) {
       const key = {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true};
-      const handled = !el.dispatchEvent(new KeyboardEvent('keydown', key));
-      el.dispatchEvent(new KeyboardEvent('keypress', key));
+      // As a browser does it: the form is sent only if the page left the key alone (a keydown or a keypress it cancelled stops
+      // that) and didn't click or submit anything itself because of it.
+      let mine = false, browser = false;
+      const watch = () => { if (!mine) browser = true; };
+      doc.addEventListener('click', watch, true);
+      doc.addEventListener('submit', watch, true);
+      let go = el.dispatchEvent(new KeyboardEvent('keydown', key));
+      if (go) go = el.dispatchEvent(new KeyboardEvent('keypress', {...key, charCode: 13}));
+      if (go && !browser) {
+        // The same rule the approvals judged: the form's default button is pressed, or any form around the field is submitted.
+        mine = true;
+        const effect = enterEffect(el, true);
+        if (effect.button) effect.button.click(); else if (effect.submit) submitForm(el.form);
+      }
       el.dispatchEvent(new KeyboardEvent('keyup', key));
-      // The same rule the approvals judged: any form around the field is submitted.
-      const effect = enterEffect(el, true);
-      if (!handled && (effect.submit || effect.button)) submitForm(el.form);
+      doc.removeEventListener('click', watch, true);
+      doc.removeEventListener('submit', watch, true);
     }
     settle();
     return 'ok';
@@ -663,6 +674,15 @@ extension PageScripts {
       if (accepts) dragEvent('drop', dst, to, dt); else dragEvent('dragleave', dst, to, dt);
       dragEvent('dragend', src, from, dt);
       how = accepts ? 'dropped' : 'let go, but the target does not accept drops';
+    } else if (src.localName === 'input' && src.type === 'range') {
+      // Mouse events don't move a native slider: its value is set from where the drag ends along it.
+      const r = src.getBoundingClientRect(), min = Number(src.min) || 0, max = src.max === '' ? 100 : Number(src.max);
+      const t = Math.min(1, Math.max(0, (to[0] - r.left) / Math.max(r.width, 1)));
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(src, String(min + t * (max - min)));
+      src.dispatchEvent(new Event('input', {bubbles: true}));
+      src.dispatchEvent(new Event('change', {bubbles: true}));
+      pointerUp(src, to[0], to[1]);
+      how = 'set the slider to ' + src.value;
     } else {
       // Pointer and mouse events along the way, for scripts that follow the pointer (sliders, sortable lists, maps).
       const steps = 8;
@@ -687,7 +707,8 @@ extension PageScripts {
     return JSON.stringify({found, origin: String(window.origin || 'null')});
     """#
 
-    static let clearMarks = lib + "\nclearMark();\nreturn 'ok';"
+    /// Takes the marks off, and ends what is waiting to act (the pause after an outline): the user pressed stop.
+    static let clearMarks = lib + "\nglobalThis.changmunStops = (globalThis.changmunStops || 0) + 1;\nclearMark();\nreturn 'ok';"
 
     /// The frames of other sites that a picture of the page shows, greeted so that the app can ask each where it really is:
     /// also those in web components, and the documents of <object> and <embed>.
@@ -741,12 +762,19 @@ extension PageScripts {
     let bad = stale(target, args);
     if (bad) return bad;
     const doc = target.ownerDocument, view = doc.defaultView;
+    // A list is chosen from with select_option, which judges the option; the arrows would choose one unjudged.
+    const selects = el => el.localName === 'select' && /^(ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Home|End)$/.test(name);
+    if (selects(target)) return 'Error: a list is chosen from with select_option, which asks about the option.';
     if (args.id != null) {
       target.scrollIntoView({block: 'center'});
       const f = focusable(target);
       f.focus();
-      target = doc.activeElement && doc.activeElement !== doc.body ? doc.activeElement : f;
+      // The key goes to what was judged: the element itself, or what inside it took the focus. Whatever else has the focus (an
+      // autofocused button, a dialog's focus trap) is not what the AI named and not what was judged.
+      const a = doc.activeElement;
+      target = a && a !== f && f.contains(a) && controlOf(a) === controlOf(p.el) ? a : f;
       if (isSecret(target)) return 'Error: Changmun does not let the AI press keys in password fields. Ask the user to.';
+      if (selects(target)) return 'Error: a list is chosen from with select_option, which asks about the option.';
     }
     if (target !== doc.body && target !== doc.documentElement) {
       bad = await aimAt([{el: p.el, args}]);
@@ -848,17 +876,7 @@ extension PageScripts {
               Home: ['backward', 'lineboundary'], End: ['forward', 'lineboundary']}[name];
             if (move) { view.getSelection().modify(mods.shift ? 'extend' : 'move', move[0], move[1]); return 'moved the cursor'; }
           }
-          if (local === 'select' && !el.multiple) {
-            const last = el.options.length - 1;
-            const to = {ArrowUp: el.selectedIndex - 1, ArrowLeft: el.selectedIndex - 1, ArrowDown: el.selectedIndex + 1, ArrowRight: el.selectedIndex + 1, Home: 0, End: last}[name];
-            if (to != null && to >= 0 && to <= last && to !== el.selectedIndex) {
-              el.selectedIndex = to;
-              el.dispatchEvent(new view.Event('input', {bubbles: true}));
-              el.dispatchEvent(new view.Event('change', {bubbles: true}));
-              return 'changed the selection to "' + el.options[to].text.trim() + '"';
-            }
-            return 'nothing';
-          }
+          if (local === 'select') return 'nothing';
           const page = view.innerHeight * 0.875;
           const by = {ArrowUp: [0, -40], ArrowDown: [0, 40], ArrowLeft: [-40, 0], ArrowRight: [40, 0], PageUp: [0, -page], PageDown: [0, page]}[name];
           if (by) return scroll(...by);

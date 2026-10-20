@@ -462,20 +462,26 @@ struct ToolFailure: Error {
 /// One tool call of one caller, and the stop count of the caller when it began: after every wait for the user, a call
 /// that was stopped in the meantime goes no further.
 struct Session {
+    /// A call goes no further after this long: the client that asked gives up on it (120 s), and what it was told then is that
+    /// the call failed, so nothing may be done after that, whatever the user answered.
+    static var lifetime: TimeInterval = 110
+
     var caller: String
     var token: Int
+    var deadline: Date
 
     @MainActor init(caller: String) {
         self.caller = caller
         token = AgentActivity.shared.stopCount(for: caller)
+        deadline = Date().addingTimeInterval(Self.lifetime)
     }
 
-    @MainActor var stopped: Bool { AgentActivity.shared.stopCount(for: caller) != token }
+    @MainActor var stopped: Bool { AgentActivity.shared.stopCount(for: caller) != token || Date() > deadline }
 }
 
 extension ToolCatalog {
     static let unreachableFrame = ToolResult.text("Error: that part of the page is a frame from another site that Changmun couldn't reach. Use the rest of the page, or tell the user.", error: true)
-    static let stopped = ToolResult.text("Stopped by the user.", error: true)
+    static let stopped = ToolResult.text("Stopped: the user stopped it, or it took too long.", error: true)
 
     static func number(_ value: Any?) -> Double? {
         let number: Double?
@@ -512,7 +518,7 @@ extension ToolCatalog {
         case "click_at":
             guard hasPoint("") else { return "x and y are required: CSS pixels from the top left of the visible page, as in a screenshot." }
         case "wait_for":
-            if let text = args["text"], (text as? String)?.isEmpty != false { return "text must be a non-empty string." }
+            if let text = args["text"], (text as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false { return "text must be a non-empty string." }
             if args["gone"] != nil && args["gone"] as? Bool == nil { return "gone must be true or false." }
             if args["gone"] as? Bool == true && args["text"] == nil { return "gone needs the text to wait for to disappear." }
             if args["timeout"] != nil && number(args["timeout"]).map({ $0 > 0 }) != true { return "timeout must be a number of seconds." }
@@ -582,7 +588,8 @@ extension ToolCatalog {
                 }
                 // The site is the one the frame says it is in, from inside: where it was when it greeted may be another by now.
                 let host = Self.host(ofOrigin: part.origin)
-                hosts.insert(host.isEmpty ? Approvals.unknownFrame : host)
+                // A frame that showed nothing (a tracking pixel, an empty box) gave nothing from its site.
+                if !part.lines.isEmpty || part.text.trimmingCharacters(in: .whitespacesAndNewlines).count >= 20 { hosts.insert(host.isEmpty ? Approvals.unknownFrame : host) }
                 lines += part.lines.map { $0 + " (in a frame of \(host.isEmpty ? "another site" : host))" }
                 if part.count > count { tab.agent.ranges.append((count + 1...part.count, ref.slot)) }
                 count = max(count, part.count)
@@ -956,7 +963,9 @@ extension ToolCatalog {
             AgentActivity.shared.step(String(localized: "Waiting for the page to load"), caller: session.caller)
         }
         let started = Date()
-        var unknown = false
+        // No look at the page ever got an answer: the last one may have been cut short by the end of the wait.
+        var unknown = true
+        var unreachable: [String: Date] = [:]
         func seconds() -> String { String(format: "%.1f", Date().timeIntervalSince(started)) }
         // A page that has just been told to load hasn't started yet.
         try? await Task.sleep(for: .milliseconds(250))
@@ -964,9 +973,9 @@ extension ToolCatalog {
         while true {
             if session.stopped || Task.isCancelled { return stopped }
             if let text {
-                let has = await pageHas(text, tab: tab, webView: webView, caller: session.caller, until: started.addingTimeInterval(timeout))
+                let has = await pageHas(text, tab: tab, webView: webView, caller: session.caller, until: started.addingTimeInterval(timeout), unreachable: &unreachable)
                 if session.stopped || Task.isCancelled { return stopped }
-                unknown = has == nil
+                if has != nil { unknown = false }
                 if waitIsOver(has: has, gone: gone) {
                     return .text(gone ? "“\(text)” is gone (after \(seconds()) s). \(now(tab, caller: session.caller))" : "“\(text)” is on the page (after \(seconds()) s). \(now(tab, caller: session.caller))")
                 }
@@ -974,7 +983,8 @@ extension ToolCatalog {
                 return .text("The page has loaded (after \(seconds()) s). \(now(tab, caller: session.caller))")
             }
             if Date().timeIntervalSince(started) >= timeout {
-                let what = text.map { gone ? (unknown ? "the page did not answer, so “\($0)” could not be checked" : "“\($0)” was still on the page") : "“\($0)” did not appear" } ?? "the page was still loading"
+                let what = text.map { gone ? (unknown ? "the page did not answer, so “\($0)” could not be checked" : "“\($0)” was still on the page")
+                    : (unknown ? "“\($0)” did not appear where Changmun could look (a frame from another site could not be reached)" : "“\($0)” did not appear") } ?? "the page was still loading"
                 return .text("Timed out after \(Int(timeout)) s: \(what). \(now(tab, caller: session.caller))", error: true)
             }
             try? await Task.sleep(for: .milliseconds(pause))
@@ -992,12 +1002,47 @@ extension ToolCatalog {
         min(frameTimeout, max(end.timeIntervalSince(now), 1))
     }
 
-    /// Whether the text is on the page, in a frame of its site, or in a frame of another site the latest read named; nil
-    /// when a place that might hold it did not answer. The looks are over by `end` (one frame that hangs can't hold the
-    /// wait past it), and a frame that is gone or can't be asked is not asked again.
+    /// Greets the frames of other sites that the page shows now (those a read has not named too), so that a look at the page can
+    /// include them; says whether every one of them answered. A frame that did not answer (it may still be loading) is not waited
+    /// for again until a moment has passed (`unreachable` says when each was tried).
     @MainActor
-    private static func pageHas(_ text: String, tab: Tab, webView: WKWebView, caller: String, until end: Date) async -> Bool? {
-        var unanswered = false
+    private static func greetShownFrames(_ tab: Tab, _ webView: WKWebView, unreachable: inout [String: Date]) async -> Bool {
+        var all = true
+        func visit(_ frame: WKFrameInfo?, depth: Int) async {
+            let result = await run(PageScripts.visibleFrames, [:], in: webView, frame: frame, timeout: 3)
+            guard let shown = shownFrames(from: result.isError ? nil : result.content.first?["text"] as? String) else {
+                all = false
+                return
+            }
+            if shown.more { all = false }
+            for ref in shown.refs {
+                if tab.agent.frames.frame(for: ref.slot) == nil {
+                    if let tried = unreachable[ref.slot], Date().timeIntervalSince(tried) < 1.5 {
+                        all = false
+                        continue
+                    }
+                    tab.agent.frames.expect(slot: ref.slot, nonce: ref.nonce)
+                    guard await tab.frame(named: ref.slot) != nil else {
+                        unreachable[ref.slot] = Date()
+                        all = false
+                        continue
+                    }
+                    unreachable[ref.slot] = nil
+                }
+                if depth < 2, let info = tab.agent.frames.frame(for: ref.slot) { await visit(info, depth: depth + 1) }
+            }
+        }
+        await visit(nil, depth: 0)
+        return all
+    }
+
+    /// Whether the text is on the page, in a frame of its site, or in a frame of another site (greeted first, so that a frame the
+    /// latest read did not name is looked in too); nil when a place that might hold it did not answer or could not be reached.
+    /// The looks are over by `end` (one frame that hangs can't hold the wait past it), and a frame that is gone or can't be
+    /// asked is not asked again.
+    @MainActor
+    private static func pageHas(_ text: String, tab: Tab, webView: WKWebView, caller: String, until end: Date, unreachable: inout [String: Date]) async -> Bool? {
+        var unanswered = await !greetShownFrames(tab, webView, unreachable: &unreachable)
         let places: [(slot: String?, frame: WKFrameInfo?)] = [(nil, nil)] + tab.agent.frames.known.map { ($0.slot, $0.frame) }
         for place in places {
             if place.frame != nil, end.timeIntervalSinceNow <= 0 {
