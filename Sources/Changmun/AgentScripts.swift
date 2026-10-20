@@ -119,13 +119,37 @@ extension PageScripts {
     // Something made to be used: a control, or what shows the hand cursor. Anything else is a part of the page's own layout,
     // and what is inside it (a button somewhere in the body) isn't what clicking it does.
     const isReal = ctl => ctl.matches(CONTROL) || viewOf(ctl).getComputedStyle(ctl).cursor === 'pointer';
+    // What only holds a value or a state (a field, a list, a checkbox, a label for one) does nothing by being used on its own
+    // but take the focus or flip: what it is called says what it holds, not what it does. A click handler of the page's own
+    // makes it an action again.
+    const passive = ctl => {
+      if (ctl.hasAttribute('onclick')) return false;
+      const t = ctl.localName === 'label' ? ctl.control : ctl;
+      if (!t || t.hasAttribute('onclick')) return false;
+      return /^(textarea|select)$/.test(t.localName) || (t.localName === 'input' && /^(text|search|url|tel|email|password|number|date|datetime-local|month|week|time|color|range|file|checkbox|radio|)$/.test(t.type));
+    };
     // What says a lot even in a long sentence ("I agree to the terms and place my order"): a button, whole. A link around a
     // card of text says little of what it does, so only its first words count.
     const WORDY = 'button,input,summary,[role=button],[role=menuitem],[role=menuitemcheckbox],[role=option],[role=tab],[role=switch]';
+    const isNavLink = ctl => ctl.localName === 'a' && !ctl.hasAttribute('onclick') && !/^(#|javascript:|$)/i.test((attr(ctl, 'href') || '').trim());
+    // The words of an element that aren't those of a control inside it: a card's title, not the "Save" button on it.
+    const ownText = el => {
+      let out = '';
+      for (const c of el.childNodes) {
+        if (out.length > 2000) break;
+        if (c.nodeType === 3) out += c.data;
+        else if (c.nodeType === 1 && !c.matches(CONTROL)) out += ' ' + ownText(c) + ' ';
+      }
+      return out;
+    };
+    // The beginning of a long text: its first three words, or its first characters when it has no spaces.
+    const lead = text => { const w = text.split(' '); return w.length > 1 ? w.slice(0, 3).join(' ') : text.slice(0, 4); };
     function namesOf(ctl) {
       const out = [];
+      if (passive(ctl)) return out;
       const add = s => { s = squash(s); if (s) out.push(s.slice(0, 1000)); };
       const doc = docOf(ctl);
+      const acts = ctl.matches(WORDY);
       add(attr(ctl, 'aria-label'));
       for (const id of (attr(ctl, 'aria-labelledby') || '').split(/\s+/)) if (id) { const n = Document.prototype.getElementById.call(doc, id); if (n) add(n.textContent); }
       add(attr(ctl, 'title'));
@@ -133,29 +157,58 @@ extension PageScripts {
       if (ctl.localName === 'input' && /^(submit|button|reset|image)$/.test(ctl.type)) add(ctl.value);
       if (ctl.labels && ctl.labels.length) add(ctl.labels[0].textContent);
       if (!/^(input|textarea|select)$/.test(ctl.localName)) {
-        const text = squash(ctl.innerText || ctl.textContent);
-        if (text && text.length <= (ctl.matches(WORDY) ? 1000 : ctl.matches(CONTROL) ? 160 : (ctl.childElementCount <= 2 ? 40 : 0))) add(text);
+        const text = squash(ctl.matches(WORDY) ? ctl.innerText || ctl.textContent : ownText(ctl));
+        const room = acts ? 1000 : isNavLink(ctl) ? 40 : ctl.matches(CONTROL) ? 160 : (ctl.childElementCount <= 2 ? 40 : 0);
+        if (text && text.length <= room) add(text);
+        else if (text && room) add(lead(text));
         // A web component's own words are in its shadow tree.
         if (ctl.shadowRoot) add(clip(ctl.shadowRoot.textContent, 160));
       }
-      if (isReal(ctl)) for (const n of Array.from(ctl.querySelectorAll('img[alt],svg title,[aria-label],[title]')).slice(0, 6)) add(attr(n, 'alt') || attr(n, 'aria-label') || attr(n, 'title') || n.textContent);
+      // What is inside is called what it is called by itself (a button in a card is not the card), except for an icon with no
+      // words of its own, and a button, whose picture says what it does.
+      if (isReal(ctl) && (!out.length || acts)) {
+        for (const n of Array.from(ctl.querySelectorAll('img[alt],svg title,[aria-label],[title]')).slice(0, 6)) {
+          const own = n.closest(CONTROL);
+          if (own && own !== ctl) continue;
+          add(attr(n, 'alt') || attr(n, 'aria-label') || attr(n, 'title') || n.textContent);
+        }
+      }
       return out;
     }
-    // A control with no words at all (an icon) is told by its markup: class, id, name and data names, and where it goes.
+    // A control with no words at all (an icon) is told by its markup: class, id, name and data names, and the picture it shows.
     // What a drag drops onto is told by it too when it is no control (`force`): a bare div called "trash", and the element around it (`parent`).
     const words = s => String(s || '').slice(0, 200).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[^A-Za-zÀ-￿]+/g, ' ').trim().toLowerCase();
+    const fileWords = (raw, node) => { if (/^data:/i.test(raw)) return ''; try { return words(new URL(raw, baseOf(node)).pathname.split('/').pop().replace(/\.[a-z0-9]+$/i, '')); } catch (e) { return ''; } };
     function hintsOf(ctl, force = false, parent = false) {
-      if (!force && (!isReal(ctl) || namesOf(ctl).length)) return [];
+      if (!force && (!isReal(ctl) || passive(ctl) || namesOf(ctl).length)) return [];
       const out = [];
       const nodes = [ctl, ...Array.from(ctl.querySelectorAll('*')).slice(0, 8)];
       if (parent && ctl.parentElement && ctl.parentElement !== docOf(ctl).body) nodes.push(ctl.parentElement);
+      const view = viewOf(ctl);
       for (const n of nodes) {
         out.push(words(attr(n, 'class')), words(attr(n, 'id')), words(attr(n, 'name')));
         for (const a of Array.from(n.attributes)) if (a.name.startsWith('data-')) out.push(words(a.name.slice(5) + ' ' + a.value));
+        // The picture of an icon: a sprite symbol (<use href="#trash">), an image file (trash.svg), a background image.
+        if (n.localName === 'use') out.push(words((attr(n, 'href') || attr(n, 'xlink:href') || '').replace(/^.*#/, '')));
+        if (n.localName === 'img' && attr(n, 'src')) out.push(fileWords(attr(n, 'src'), n));
+        const back = /url\(["']?([^"')]+)/.exec(view.getComputedStyle(n).backgroundImage || '');
+        if (back) out.push(fileWords(back[1], n));
       }
       const href = attr(ctl, 'href') || attr(ctl, 'formaction');
       if (href) { try { out.push(words(new URL(href, baseOf(ctl)).pathname)); } catch (e) {} }
       return out.filter(Boolean).slice(0, 30);
+    }
+    // Where a control goes, whatever it is called: the path and query of its address (a link, a formaction) and a button's name and
+    // value (<button name=action value=delete>). A query value counts when it is one short word.
+    function destsOf(ctl) {
+      const out = [];
+      const url = raw => { try { const u = new URL(raw, baseOf(ctl)); return u.pathname + ' ' + Array.from(u.searchParams).map(([k, v]) => k + (/^[\w-]{1,20}$/.test(v) ? ' ' + v : '')).join(' '); } catch (e) { return ''; } };
+      for (const name of ['href', 'formaction']) {
+        const raw = (attr(ctl, name) || '').trim();
+        if (raw && !/^#/.test(raw)) out.push(/^javascript:/i.test(raw) ? raw.slice(0, 300) : url(raw).slice(0, 300));
+      }
+      if (ctl.localName === 'button' || (ctl.localName === 'input' && /^(submit|button|image)$/.test(ctl.type))) out.push(clip(attr(ctl, 'name'), 80), clip(attr(ctl, 'value'), 80));
+      return out.filter(Boolean);
     }
 
     const PAY = '[autocomplete^="cc-"],[name*="card" i],[name*="cvc" i],[name*="cvv" i],[name*="iban" i],[name*="securitycode" i],[id*="card-number" i],[id*="cardnumber" i],[data-stripe]';
@@ -171,25 +224,30 @@ extension PageScripts {
       const role = attr(ctl, 'role') || '';
       const activates = /^(button|a|summary|label)$/.test(ctl.localName) || /^(submit|button|reset|image|checkbox|radio)$/.test(ctl.type || '')
         || /^(button|link|menuitem|menuitemcheckbox|option|tab|switch|checkbox)$/.test(role) || ctl.hasAttribute('onclick');
-      let names = namesOf(ctl), hints = hintsOf(ctl, !!args.drop, !!args.drop), label = labelOf(ctl);
+      // A browser doesn't toggle a checkbox or a radio button on Enter: it submits the form around it, as from any field.
+      const toggles = /^(checkbox|radio)$/.test(ctl.type || '') && !ctl.hasAttribute('onclick');
+      let names = namesOf(ctl), hints = hintsOf(ctl, !!args.drop, !!args.drop), dests = destsOf(ctl), label = labelOf(ctl);
       let submits = ctl.type === 'submit' || ctl.type === 'image', sends = false, submitter = submits ? ctl : null;
       if (args.key) {
         // The tool types into anything it is pointed at and then presses Enter itself, so a button or a checkbox is a field here.
-        if (!activates || args.typing) {
+        if (!activates || args.typing || (toggles && args.key === 'Enter')) {
           // Enter in a field sends what it holds: by the form's default button, or by submitting the form.
-          names = []; hints = []; submits = false; submitter = null;
+          names = []; hints = []; dests = []; submits = false; submitter = null;
           if (args.key === 'Enter' && (args.typing || ctl.localName !== 'select')) {
             const effect = enterEffect(args.typing ? el : ctl, !!args.typing);
-            if (effect.button) { submits = true; submitter = effect.button; names = namesOf(submitter); hints = hintsOf(submitter); label = labelOf(submitter); }
+            if (effect.button) { submits = true; submitter = effect.button; names = namesOf(submitter); hints = hintsOf(submitter); dests = destsOf(submitter); label = labelOf(submitter); }
             else if (effect.submit) submits = true;
           }
-        } else if (args.key !== 'Enter' && args.key !== 'Space') { names = []; hints = []; }
+        } else if (args.key !== 'Enter' && args.key !== 'Space') { names = []; hints = []; dests = []; }
         // A message box sends on Enter, whatever the form says: typed there by the tool or pressed by the AI.
         if (args.key === 'Enter' && isRich(ctl)) sends = true;
       }
-      return {label, names, hints, submits, sends, payment: !!form && hasPayment(form),
-        action: form ? actionOf(form, submitter) : '', secret: isSecret(ctl) || isSecret(el), description: describe(el), origin: originOf(el),
-        fp: JSON.stringify([ctl.localName, role, ctl.type || '', names.join('|').replace(/\d+/g, '#').slice(0, 400), hints.join('|').slice(0, 200)])};
+      const action = form ? actionOf(form, submitter) : '', payment = !!form && hasPayment(form);
+      // Everything the approvals judged on is in the fingerprint: what the page may change while the user thinks (a checkout
+      // step that appears under the same "Continue") must make the action stop.
+      return {label, names, hints, dests, submits, sends, payment, action, secret: isSecret(ctl) || isSecret(el), description: describe(el), origin: originOf(el),
+        fp: JSON.stringify([ctl.localName, role, ctl.type || '', names.join('|').replace(/\d+/g, '#').slice(0, 400), hints.join('|').slice(0, 200),
+          dests.join('|').replace(/\d+/g, '#').slice(0, 300), submits, sends, payment, action.replace(/[?#].*$/, '').replace(/\d+/g, '#').slice(0, 300), !!form])};
     }
     // The page may change between looking and acting (and the user takes their time to answer): the action goes ahead
     // only on what was looked at.
@@ -499,10 +557,14 @@ extension PageScripts {
     // native list that submits its form when it changes (an onchange handler) takes the form's payment and address along.
     const wordsOf = o => isNative ? [o.text, o.label, attr(o, 'title'), o.value] : [...namesOf(o), attr(o, 'data-value') ?? attr(o, 'value')];
     const optionNames = o => wordsOf(o).map(squash).filter(Boolean).map(w => w.slice(0, 1000));
-    const optionFp = o => JSON.stringify([isNative, isNative ? o.index : listOf(true).indexOf(o), optionNames(o).join('|').replace(/\d+/g, '#').slice(0, 400)]);
+    // A native list inside a form is a field of it, whatever its options are called: the form's own button is judged when it is
+    // pressed. One that submits the form when it changes, or that belongs to no form (a menu for the page's own scripts), acts.
+    const auto = isNative && !!el.form && el.hasAttribute('onchange');
+    const judged = !isNative || auto || !el.form;
+    const optionAction = auto ? actionOf(el.form, null).replace(/[?#].*$/, '').replace(/\d+/g, '#').slice(0, 300) : '';
+    const optionFp = o => JSON.stringify([isNative, isNative ? o.index : listOf(true).indexOf(o), optionNames(o).join('|').replace(/\d+/g, '#').slice(0, 400), judged, auto, auto && hasPayment(el.form), optionAction]);
     function optionFacts(o, label) {
-      const auto = isNative && !!el.form && el.hasAttribute('onchange');
-      return {label, role: isNative ? 'option' : (attr(o, 'role') || 'option'), native: isNative, names: [label, ...optionNames(o)], hints: hintsOf(o, true),
+      return {label, role: isNative ? 'option' : (attr(o, 'role') || 'option'), native: isNative, names: judged ? [label, ...optionNames(o)] : [], hints: judged ? hintsOf(o, true) : [],
         submits: auto, payment: auto && hasPayment(el.form), action: auto ? actionOf(el.form, null) : '', fp: optionFp(o)};
     }
     const missing = f => 'Error: no option "' + args.option + '". Options: ' + f.options.map(o => clip(isNative ? o.text : ariaText(o), 40)).join(', ');
@@ -713,12 +775,14 @@ extension PageScripts {
       const editable = textControl || el.isContentEditable;
       const button = /^(button|a|summary)$/.test(local) || /^(submit|button|reset|image|checkbox|radio)$/.test(type)
         || /^(button|link|menuitem|menuitemcheckbox|option|tab|switch|checkbox)$/.test(attr(el, 'role') || '');
+      // A browser doesn't toggle a checkbox or a radio button on Enter; it submits the form around it.
+      const toggle = /^(checkbox|radio)$/.test(type);
       const edit = (command, value) => doc.execCommand(command, false, value);
       const scroll = (dx, dy) => { view.scrollBy(dx, dy); return 'scrolled the page'; };
       if (!plain && !(mods.shift && !mods.alt && !mods.ctrl && !mods.meta)) return 'nothing else (the page did not handle this combination)';
       switch (name) {
         case 'Enter':
-          if (button || (local === 'a' && el.href)) { el.click(); return 'activated it'; }
+          if ((button && !toggle) || (local === 'a' && el.href)) { el.click(); return 'activated it'; }
           if (editable && !textControl) { edit('insertLineBreak'); return 'inserted a line break'; }
           if (local === 'textarea') { edit('insertText', '\n'); return 'inserted a line break'; }
           if (local === 'input') {

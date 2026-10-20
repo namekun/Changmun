@@ -30,18 +30,21 @@ enum AgentKey {
 
 /// Whether a click or key press looks like it pays, orders, sends, posts, deletes, transfers or confirms something.
 /// It goes by what the page shows: every name the control has (what it says, its accessible name, a picture's alt text,
-/// its title), the words in the markup of a control that has none (an icon), and a submit button in a form that asks
-/// for card details or posts to a checkout. It errs toward asking: a page can name a button anything, so a
-/// harmless-looking name proves nothing, and a name that merely contains a keyword (a "Post office" link) is asked
-/// about too. Generic words of agreement ("OK", "확인") are not enough to ask.
+/// its title), the words in the markup of a control that has none (an icon), where it goes (the address of a link, the
+/// address, name and value of a button), and a submit button in a form that asks for card details or posts to a checkout
+/// or the like. It errs toward asking: a page can name a button anything, so a harmless-looking name proves nothing, and a
+/// name that merely contains a keyword (a "Post office" link) is asked about too. Generic words of agreement ("OK",
+/// "확인") are not enough to ask.
 enum IrreversibleAction {
     struct Facts: Equatable {
         /// The name to show for what is activated.
         var label = ""
         /// Every name it has, and every name that could be (Enter in a field presses the form's default button).
         var names: [String] = []
-        /// What the markup of a control with no words says: class, id, data names, where it goes.
+        /// What the markup of a control with no words says: class, id, data names, the picture it shows.
         var hints: [String] = []
+        /// Where it goes, for any control: the path and query of its address (link or formaction), a button's name and value.
+        var dests: [String] = []
         /// It submits a form.
         var submits = false
         /// The form asks for card or bank details.
@@ -51,10 +54,11 @@ enum IrreversibleAction {
         /// It sends a message: Enter in a message box.
         var sends = false
 
-        init(label: String = "", names: [String] = [], hints: [String] = [], submits: Bool = false, payment: Bool = false, action: String = "", sends: Bool = false) {
+        init(label: String = "", names: [String] = [], hints: [String] = [], dests: [String] = [], submits: Bool = false, payment: Bool = false, action: String = "", sends: Bool = false) {
             self.label = label
             self.names = names
             self.hints = hints
+            self.dests = dests
             self.submits = submits
             self.payment = payment
             self.action = action
@@ -63,13 +67,14 @@ enum IrreversibleAction {
 
         init(_ json: [String: Any]) {
             self.init(label: json["label"] as? String ?? "", names: json["names"] as? [String] ?? [], hints: json["hints"] as? [String] ?? [],
-                      submits: json["submits"] as? Bool ?? false, payment: json["payment"] as? Bool ?? false, action: json["action"] as? String ?? "",
+                      dests: json["dests"] as? [String] ?? [], submits: json["submits"] as? Bool ?? false, payment: json["payment"] as? Bool ?? false, action: json["action"] as? String ?? "",
                       sends: json["sends"] as? Bool ?? false)
         }
     }
 
     static func looksIrreversible(_ facts: Facts) -> Bool {
-        facts.sends || (facts.names + facts.hints).contains(where: matches) || (facts.submits && (facts.payment || postsToCheckout(facts.action)))
+        facts.sends || (facts.names + facts.hints).contains(where: matches) || facts.dests.contains(where: goesToIrreversible)
+            || (facts.submits && (facts.payment || postsToCheckout(facts.action)))
     }
 
     /// The name to show the user: the one that looked risky, else the control's own.
@@ -86,20 +91,30 @@ enum IrreversibleAction {
         "submit", "submitting", "save", "saving", "share", "sharing", "comment", "tweet", "merge", "merging", "approve", "approving",
         "authorize", "authorise", "authorizing", "withdraw", "withdrawing", "book", "reserve", "reserving", "subscribe", "subscribing", "unsubscribe",
         "trash", "bin", "recycle", "discard", "erase", "revoke", "deactivate", "terminate",
+        "allow", "allowing", "accept", "accepting", "agree", "agreeing", "grant", "granting", "connect", "connecting", "sell", "selling", "bid", "bidding",
+        "invest", "investing", "trade", "trading", "invite", "inviting", "upload", "uploading", "install", "installing", "enable", "enabling",
+        "disable", "disabling", "disconnect", "disconnecting", "unlink", "reset", "resetting", "clear", "clearing", "wipe", "wiping", "empty", "emptying",
+        "ban", "banning", "block", "blocking", "complete", "completing", "finish", "finishing",
         // Spanish
         "comprar", "compra", "pagar", "pago", "pedir", "pedido", "enviar", "envia", "publicar", "eliminar", "borrar", "transferir", "transferencia",
         "confirmar", "donar", "responder",
         "guardar", "compartir", "comentar", "aprobar", "autorizar", "retirar", "reservar", "suscribirse", "suscribir", "papelera", "descartar", "revocar",
+        "permitir", "acepto", "conceder", "otorgar", "conectar", "vender", "pujar", "invertir", "invitar", "subir", "instalar", "activar", "desactivar",
+        "desconectar", "desvincular", "restablecer", "vaciar", "bloquear", "completar", "finalizar",
         // German
         "kaufen", "kauf", "bezahlen", "zahlen", "zahlungspflichtig", "bestellen", "bestellung", "senden", "absenden", "abschicken", "versenden",
         "posten", "veröffentlichen", "löschen", "entfernen", "überweisen", "bestätigen", "spenden", "antworten",
         "speichern", "teilen", "kommentieren", "genehmigen", "autorisieren", "abheben", "buchen", "reservieren", "abonnieren", "abbestellen", "einreichen",
         "papierkorb", "verwerfen", "widerrufen",
+        "erlauben", "zulassen", "akzeptieren", "zustimmen", "gewähren", "verbinden", "verkaufen", "bieten", "investieren", "handeln", "einladen", "hochladen",
+        "installieren", "aktivieren", "deaktivieren", "trennen", "zurücksetzen", "leeren", "sperren", "blockieren", "abschließen", "beenden", "fertigstellen",
         // French
         "acheter", "achat", "payer", "régler", "commander", "commande", "valider", "envoyer", "publier", "supprimer", "retirer", "virer", "virement",
         "transférer", "confirmer", "répondre",
         "enregistrer", "sauvegarder", "partager", "commenter", "approuver", "autoriser", "réserver", "abonner", "soumettre", "corbeille", "poubelle",
         "résilier", "désabonner",
+        "accepter", "accorder", "vendre", "enchérir", "investir", "inviter", "téléverser", "installer", "activer", "désactiver", "dissocier",
+        "réinitialiser", "vider", "effacer", "bannir", "bloquer", "terminer", "finaliser", "compléter",
     ].map(fold))
 
     private static let phrases = ["check out", "place order", "passer la commande", "finalizar compra", "realizar pedido", "zur kasse"].map(fold)
@@ -116,11 +131,27 @@ enum IrreversibleAction {
     private static let characters = [
         "구매", "결제", "주문", "보내", "전송", "게시", "삭제", "송금", "발송", "이체", "제거", "발행", "후원", "답글",
         "탈퇴", "해지", "제출", "신청", "구독", "휴지통",
+        "저장", "공유", "등록", "댓글", "승인", "출금", "허용", "동의", "수락", "연결", "판매", "입찰", "투자", "초대", "업로드", "설치", "활성화", "비활성화",
+        "초기화", "차단", "완료",
         "購入", "支払", "決済", "注文", "送信", "投稿", "削除", "送金", "公開", "振込", "寄付", "返信",
         "退会", "申し込み", "申込", "予約", "解約", "ゴミ箱",
+        "保存", "共有", "登録", "コメント", "承認", "出金", "許可", "同意", "承諾", "接続", "売却", "入札", "投資", "招待", "アップロード", "インストール",
+        "有効化", "無効化", "切断", "リセット", "クリア", "ブロック", "完了",
         "购买", "購買", "支付", "付款", "下单", "下單", "发送", "發送", "发布", "發佈", "發布", "删除", "刪除", "转账", "轉帳", "结算", "結算", "订购", "訂購", "提交订单", "提交訂單",
         "捐款", "回复", "回覆", "确认订单", "確認訂單",
         "提交", "注销", "註銷", "预订", "預訂", "预约", "預約", "订阅", "訂閱", "取消订阅", "取消订单", "取消訂單", "垃圾桶", "垃圾箱", "回收站", "废纸篓",
+        "保存", "分享", "评论", "評論", "批准", "提现", "提現", "允许", "允許", "同意", "接受", "授权", "授權", "连接", "連接", "出售", "竞拍", "競拍", "投资", "投資",
+        "邀请", "邀請", "上传", "上傳", "安装", "安裝", "启用", "啟用", "禁用", "断开", "斷開", "重置", "清空", "封禁", "屏蔽", "完成",
+    ]
+
+    /// Ordinary words that contain one of those: pages and lists a link goes to (a board, a history of orders), not what they
+    /// would do. They are taken out before looking for the words above.
+    private static let ordinaryCompounds = [
+        "게시판", "게시글", "게시물", "구매후기", "구매 후기", "구매내역", "구매 내역", "주문내역", "주문 내역", "주문조회", "주문 조회", "주문목록", "주문 목록",
+        "결제내역", "결제 내역", "결제수단", "결제 수단", "등록일", "신청내역", "신청 내역",
+        "投稿一覧", "投稿者", "投稿日", "公開日", "公開中", "注文履歴", "注文一覧", "注文番号", "購入履歴", "支払い方法", "支払方法", "決済方法", "送信者", "予約一覧", "申込一覧", "保存済み",
+        "发布会", "發佈會", "发布时间", "發布時間", "发布日期", "发布者", "最新发布", "新闻发布", "新聞發布", "订单查询", "訂單查詢", "订单列表", "訂單列表", "购买记录", "購買記錄",
+        "购买须知", "购买指南", "支付方式", "付款方式", "已完成", "保存的",
     ]
 
     /// Without the characters that can split a word without showing (zero-width spaces and joiners, soft hyphens,
@@ -134,7 +165,8 @@ enum IrreversibleAction {
     }
 
     static func matches(_ text: String) -> Bool {
-        let cleaned = clean(text)
+        var cleaned = clean(text)
+        for compound in ordinaryCompounds { cleaned = cleaned.replacingOccurrences(of: compound, with: " ") }
         if characters.contains(where: cleaned.contains) { return true }
         let tokens = fold(text).split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init)
         if tokens.contains(where: words.contains) { return true }
@@ -143,12 +175,48 @@ enum IrreversibleAction {
         return phrases.contains { spaced.contains(" \($0) ") }
     }
 
-    private static let checkoutWords: Set<String> = ["checkout", "payment", "payments", "pay", "purchase", "buy", "order", "orders", "billing", "charge"]
+    /// Where a link, a button or a form goes that pays or gives something up, in the words of an address.
+    private static let destinationWords: Set<String> = [
+        "checkout", "payment", "payments", "pay", "purchase", "buy", "delete", "remove", "destroy", "erase", "purge", "trash", "transfer", "withdraw",
+        "send", "cancel", "unsubscribe", "confirm", "revoke", "deactivate", "terminate",
+    ]
 
-    /// A form that posts to /checkout or /pay is the last step of a purchase whatever its button says.
+    /// A form posts to places that read like these as the last step of something, whatever its button says.
+    private static let checkoutWords: Set<String> = destinationWords.union([
+        "order", "orders", "billing", "charge", "publish", "comment", "comments", "reply", "message", "messages", "subscribe", "donate", "transfers",
+    ])
+
+    /// The words of an address, a name or a value: split at everything that is not a letter and where a capital follows a small
+    /// letter ("deleteAccount").
+    private static func pieces(_ text: String) -> [String] {
+        var out: [String] = [], word = "", afterSmall = false
+        for character in text.prefix(300) {
+            guard character.isLetter else {
+                if !word.isEmpty { out.append(word) }
+                word = ""
+                afterSmall = false
+                continue
+            }
+            if character.isUppercase && afterSmall {
+                out.append(word)
+                word = ""
+            }
+            word.append(character)
+            afterSmall = character.isLowercase
+        }
+        if !word.isEmpty { out.append(word) }
+        return out.map(fold)
+    }
+
+    /// A form that posts to /checkout or /pay, or to /delete or /send, is the last step of a purchase or a loss whatever its button says.
     static func postsToCheckout(_ action: String) -> Bool {
         guard let path = URL(string: action)?.path else { return false }
-        return path.lowercased().split(whereSeparator: { !$0.isLetter }).contains { checkoutWords.contains(String($0)) }
+        return pieces(path).contains(where: checkoutWords.contains)
+    }
+
+    /// Whether the address, name or value a control goes by says it pays, deletes, sends or cancels.
+    static func goesToIrreversible(_ destination: String) -> Bool {
+        pieces(destination).contains(where: destinationWords.contains)
     }
 }
 

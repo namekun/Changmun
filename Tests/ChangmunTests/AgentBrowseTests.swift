@@ -174,6 +174,48 @@ extension SharedAgentState {
             for name in asked { #expect(risky(name), "\(name)") }
         }
 
+        @Test func consentAndGivingUpControlsAreCaughtInSevenLanguages() {
+            let asked = [
+                "Allow", "Accept", "I agree", "Grant access", "Connect", "Sell", "Place bid", "Invest", "Trade", "Invite", "Upload", "Install", "Enable", "Disable", "Disconnect",
+                "Unlink account", "Reset", "Clear all", "Wipe", "Empty cart", "Ban user", "Block", "Complete", "Finish",
+                "Permitir", "Conceder acceso", "Vender", "Instalar", "Restablecer", "Bloquear", "Pujar",
+                "Erlauben", "Zustimmen", "Akzeptieren", "Verkaufen", "Hochladen", "Zurücksetzen", "Sperren",
+                "Accepter", "Autoriser", "Vendre", "Installer", "Réinitialiser", "Bloquer", "Terminer",
+                "허용", "동의하고 계속", "수락", "저장", "공유", "댓글", "승인", "출금", "연결", "차단", "초기화", "설치", "등록",
+                "許可", "同意する", "保存", "共有", "登録", "承認", "出金", "接続", "ブロック", "リセット", "インストール", "コメント",
+                "允许", "接受", "保存", "分享", "批准", "提现", "连接", "屏蔽", "重置", "安装", "完成", "评论",
+            ]
+            for name in asked { #expect(risky(name), "\(name)") }
+        }
+
+        @Test func pagesAndListsThatMerelyContainAWordAreNotAskedAbout() {
+            let quiet = [
+                "게시판", "구매후기", "주문조회", "주문 내역", "결제수단", "投稿一覧", "公開日", "注文履歴", "支払い方法", "发布会", "新闻发布", "订单查询", "支付方式", "购买须知",
+                "Aceptar", "Se connecter", "Log out", "Sign out", "Continue", "Learn how", "Orders placed this year",
+            ]
+            for name in quiet { #expect(risky(name) == (name == "Orders placed this year"), "\(name)") }
+            #expect(risky("게시판 글 삭제") && risky("注文履歴を削除") && risky("发布会 发布"))
+        }
+
+        @Test func whereAControlGoesAsksWhateverItIsCalled() {
+            func goes(_ destinations: String..., names: [String] = ["Continue"]) -> Bool {
+                IrreversibleAction.looksIrreversible(.init(label: names[0], names: names, dests: destinations))
+            }
+            #expect(goes("/account/delete/confirm ") && goes("/settings action delete") && goes("action delete") && goes("/api/deleteAccount") && goes("javascript:confirmDelete()"))
+            #expect(goes("/cart/checkout") && goes("/pay/now") && goes("/messages/send") && goes("/subscriptions/42/cancel") && goes("/transfer") && goes("delete"))
+            #expect(!goes("/products/shoes", "/search q best shoes") && !goes("/borders") && !goes("/sender") && !goes("/account/settings") && !goes("sort price") && !goes())
+            #expect(IrreversibleAction.Facts(["dests": ["/x/delete"]]).dests == ["/x/delete"])
+        }
+
+        @Test func formsPostingToPlacesThatDeleteSendTransferOrCancelAreAsked() {
+            for action in ["/account/delete", "https://bank.example/transfer", "/messages/send", "/orders/123/cancel", "/api/remove-item", "/api/deleteAll", "/unsubscribe", "/comments"] {
+                #expect(IrreversibleAction.postsToCheckout(action), "\(action)")
+            }
+            for action in ["/search", "/sender", "/borders", "/post", "/login", "/account/profile", ""] { #expect(!IrreversibleAction.postsToCheckout(action), "\(action)") }
+            #expect(IrreversibleAction.looksIrreversible(.init(label: "Go", names: ["Go"], submits: true, action: "/account/delete")))
+            #expect(!IrreversibleAction.looksIrreversible(.init(label: "Go", names: ["Go"], submits: false, action: "/account/delete")))
+        }
+
         @Test func ordinaryControlsAreNotAskedAbout() {
             let quiet = [
                 "Search", "Next", "Learn more", "Read more", "Close", "Sign in", "Log in", "Add to cart", "Cancel", "Open menu", "Menu", "Back", "Show details", "Posts", "Sender", "Ordinary",
@@ -237,8 +279,8 @@ extension SharedAgentState {
         }
 
         @Test func factsComeFromThePagesAnswer() {
-            let facts = IrreversibleAction.Facts(["label": "Place order", "names": ["Place order"], "hints": ["x"], "submits": true, "payment": true, "action": "https://x/pay", "sends": true])
-            #expect(facts == .init(label: "Place order", names: ["Place order"], hints: ["x"], submits: true, payment: true, action: "https://x/pay", sends: true))
+            let facts = IrreversibleAction.Facts(["label": "Place order", "names": ["Place order"], "hints": ["x"], "dests": ["/y"], "submits": true, "payment": true, "action": "https://x/pay", "sends": true])
+            #expect(facts == .init(label: "Place order", names: ["Place order"], hints: ["x"], dests: ["/y"], submits: true, payment: true, action: "https://x/pay", sends: true))
             #expect(IrreversibleAction.Facts([:]) == .init())
             #expect(!IrreversibleAction.looksIrreversible(.init()))
         }
@@ -1086,6 +1128,63 @@ extension SharedAgentState {
                     asked.append(guarded(stand).count > before)
                 }
                 #expect(asked == [true, true, true, true, true, false, false, true, true], "\(asked)")
+            }
+        }
+
+        @Test func ordinaryLinksLabelsAndFieldsAreNotAskedAboutButWhereAControlGoesIs() async throws {
+            let box = "display:inline-block;width:12px;height:12px;background:red"
+            let html = """
+                <body style="margin:0">
+                <a href="https://lab.test/#a">Best way to save money on your next order of books and more</a>
+                <a href="https://lab.test/#b">게시판</a>
+                <a href="https://lab.test/#c"><b>Card title</b> <button type=button onclick="document.title='saved'">Save</button></a>
+                <label><input type=checkbox> Save my info</label>
+                <label for=on>Order number</label><input id=on>
+                <form><select id=sel><option>Orders</option><option>Order by price</option></select></form>
+                <a href="https://lab.test/#d">Orders</a>
+                <a href="/account/delete/confirm">Continue</a>
+                <button type=button name=action value=delete>Go</button>
+                <form action="/account/delete" onsubmit="return false"><button>Next</button></form>
+                <button type=button><svg width=12 height=12><use href="#trash"/></svg></button>
+                <button type=button><img width=12 height=12 src="https://lab.test/icons/trash.svg"></button>
+                <button type=button style="width:12px;height:12px;background:url(https://lab.test/img/bin-icon.png)"></button>
+                <button type=button>Allow</button>
+                <button type=button>Accept</button>
+                <button type=button><span style="\(box)"></span></button>
+                </body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ _ in .deny }) { stand in
+                let read = await call(tab, "read_page").text
+                let lines = read.split(separator: "\n").filter { $0.hasPrefix("[") && !$0.contains("--- ") }
+                @MainActor func asks(_ line: Substring) async -> Bool {
+                    let before = guarded(stand).count
+                    if line.contains("] select ") {
+                        _ = await call(tab, "select_option", ["element_id": number(of: line) ?? 0, "option": "Orders"])
+                        _ = await call(tab, "select_option", ["element_id": number(of: line) ?? 0, "option": "Order by price"])
+                    } else {
+                        _ = await call(tab, "click", ["element_id": number(of: line) ?? 0])
+                    }
+                    return guarded(stand).count > before
+                }
+                var results: [(line: String, asked: Bool)] = []
+                for line in lines { results.append((String(line.drop { $0 != " " }), await asks(line))) }
+                func asked(_ part: String) -> Bool? { results.first { $0.line.contains(part) }?.asked }
+                #expect(asked("Best way to save") == false, "a headline link is judged by its first words: \(results)")
+                #expect(asked("게시판") == false)
+                #expect(asked("Card title") == false, "a card is not named after the button on it")
+                #expect(asked("\"Save\"") == true, "the button on it is")
+                #expect(asked("Save my info") == false, "a checkbox is named by what it holds")
+                #expect(asked("Order number") == false)
+                #expect(asked("select") == false, "the options of a field in a form")
+                #expect(asked(" a \"Orders\"") == true, "a link called Orders is still asked about")
+                #expect(asked("Continue") == true, "where the link goes")
+                #expect(asked("\"Go\"") == true, "a button's name and value")
+                #expect(asked("\"Next\"") == true, "the form it submits")
+                #expect(asked("\"Allow\"") == true && asked("\"Accept\"") == true)
+                let icons = results.filter { $0.line.hasPrefix(" button \"\"") }.map(\.asked)
+                #expect(icons == [true, true, true, false], "the three icons by the picture they show, not the one with nothing: \(results)")
             }
         }
 
