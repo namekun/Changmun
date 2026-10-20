@@ -68,6 +68,8 @@ HEADLESS="$WORK/Changmun Headless.app"
 ditto "$APP" "$HEADLESS"
 plutil -replace CFBundleIdentifier -string io.github.namekun.Changmun.headless "$HEADLESS/Contents/Info.plist"
 plutil -replace LSBackgroundOnly -bool true "$HEADLESS/Contents/Info.plist"
+plutil -remove CFBundleURLTypes "$HEADLESS/Contents/Info.plist"
+plutil -remove CFBundleDocumentTypes "$HEADLESS/Contents/Info.plist"
 codesign --force --sign - "$HEADLESS" >/dev/null
 rm -f "$ENDPOINT"
 "$HEADLESS/Contents/MacOS/Changmun" >"$WORK/run.log" 2>&1 &

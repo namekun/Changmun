@@ -31,6 +31,9 @@ start)
     plutil -replace CFBundleIdentifier -string io.github.namekun.Changmun.headless "$PLIST"
     plutil -replace CFBundleName -string "Changmun Headless" "$PLIST"
     plutil -replace LSBackgroundOnly -bool true "$PLIST"
+    # Not a browser to macOS, so it never shows up among the default browsers or gets sent links.
+    plutil -remove CFBundleURLTypes "$PLIST"
+    plutil -remove CFBundleDocumentTypes "$PLIST"
     xattr -cr "$WORK/Changmun Headless.app"
     codesign --force --sign - "$WORK/Changmun Headless.app" >/dev/null
     rm -rf "$APP"
