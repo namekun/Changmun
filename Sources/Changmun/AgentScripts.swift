@@ -22,13 +22,15 @@ extension PageScripts {
 
     // A field that holds a secret: a password (also after a "show password" button made it plain text), a code sent to the
     // user, or card details. The AI never gets such a value, and never types or presses keys in it.
-    const SECRET_WORDS = /pass(?:word|wd|code|phrase)|(?:^|[^a-z0-9])(?:pwd|otp|pin|cvc|cvv|ssn)(?:[^a-z0-9]|$)|card[-_ ]?(?:number|num|no)(?:[^a-z0-9]|$)/i;
+    const SECRET_WORDS = /pass(?:word|wd|code|phrase)|(?:^|[^a-z0-9])(?:pwd|otp|pin|cvc|cvv|ssn)(?:[^a-z0-9]|$)|pin[-_ ]?code|card[-_ ]?(?:number|num|no)(?:[^a-z0-9]|$)/i;
+    // A name is told in words before it is looked at: "otpCode", "userPin" and "cvv2" are an otp, a pin and a cvv, "Shipping" is not a pin.
+    const spaced = v => String(v || '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').replace(/([a-zA-Z])(\d)|(\d)([a-zA-Z])/g, '$1$3 $2$4');
     const SECRET_AUTOCOMPLETE = /one-time-code|(?:^|\s)cc-|current-password|new-password/i;
     const isSecret = el => {
       if (!el || el.nodeType !== 1) return false;
       if (el.localName === 'input' && el.type === 'password') { seenPasswords.add(el); return true; }
       if (seenPasswords.has(el) || el.hasAttribute('data-cm-secret') || SECRET_AUTOCOMPLETE.test(attr(el, 'autocomplete') || '')) return true;
-      return /^(input|textarea)$/.test(el.localName) && [el.name, el.id, attr(el, 'aria-label'), attr(el, 'placeholder')].some(v => SECRET_WORDS.test(v || ''));
+      return /^(input|textarea)$/.test(el.localName) && [el.name, el.id, attr(el, 'aria-label'), attr(el, 'placeholder')].some(v => SECRET_WORDS.test(spaced(v)));
     };
 
     // This document and the frames of the same site in it. dx, dy and s say where a frame's top left sits in this
@@ -45,21 +47,33 @@ extension PageScripts {
       }
       return out;
     }
+    // Everything that matches, also inside the (open) shadow trees of web components.
+    function deepAll(root, selector, out = [], depth = 0) {
+      out.push(...root.querySelectorAll(selector));
+      if (depth < 4) for (const host of root.querySelectorAll('*')) if (host.shadowRoot) deepAll(host.shadowRoot, selector, out, depth + 1);
+      return out;
+    }
     const byId = id => {
       const ref = registry.get(id), el = ref && ref.deref();
       return el && el.isConnected ? el : null;
     };
     const where = el => docs().find(e => e.doc === el.ownerDocument) || {dx: 0, dy: 0, s: 1};
     const focusable = el => el.closest('a[href],button,input,select,summary,textarea,[tabindex],[contenteditable]') || el;
-    const originOf = el => String(el.ownerDocument.defaultView.origin || 'null');
+    // A form, or the document, with a field named "ownerDocument", "baseURI" or "defaultView" has that field there instead:
+    // what the approvals rely on is read through the prototypes.
+    const protoGet = (cls, name, node) => Object.getOwnPropertyDescriptor(cls.prototype, name).get.call(node);
+    const docOf = node => protoGet(Node, 'ownerDocument', node);
+    const baseOf = node => protoGet(Node, 'baseURI', node);
+    const viewOf = node => protoGet(Document, 'defaultView', docOf(node));
+    const originOf = el => String(viewOf(el).origin || 'null');
 
     // Forms: the properties a field of that name would replace are read from the prototypes.
     const formEls = f => Array.from(Object.getOwnPropertyDescriptor(HTMLFormElement.prototype, 'elements').get.call(f));
     const submitForm = f => HTMLFormElement.prototype.requestSubmit.call(f);
     const defaultButton = f => formEls(f).find(b => b.type === 'submit' || b.type === 'image');
     const textInputs = f => formEls(f).filter(x => x.localName === 'input' && /^(text|search|url|tel|email|password|number|date|)$/.test(x.type));
-    const resolveUrl = (raw, doc) => { try { return new URL(raw, doc.baseURI).href; } catch (e) { return ''; } };
-    const actionOf = (f, submitter) => resolveUrl((submitter && attr(submitter, 'formaction')) ?? attr(f, 'action') ?? '', f.ownerDocument);
+    const resolveUrl = (raw, node) => { try { return new URL(raw, baseOf(node)).href; } catch (e) { return ''; } };
+    const actionOf = (f, submitter) => resolveUrl((submitter && attr(submitter, 'formaction')) ?? attr(f, 'action') ?? '', f);
     // What Enter in a field does when the page leaves it alone: press the form's default button, or submit the form
     // (with no button: when it has one text field, or when text is typed into it by the tool).
     function enterEffect(el, typing) {
@@ -87,79 +101,94 @@ extension PageScripts {
     // sees, the accessible name, the picture's alt, the title), whole. A big container's text is the page's, not a name.
     const CONTROL = 'button,a[href],input,select,textarea,summary,label,[onclick],[contenteditable=true],[contenteditable=""],[role=button],[role=link],[role=menuitem],[role=menuitemcheckbox],[role=option],[role=tab],[role=switch],[role=checkbox],[role=combobox],[role=listbox],[role=textbox]';
     function controlOf(el) {
-      const c = el.closest(CONTROL);
-      if (c) return c;
+      // Up from the element, out of a shadow tree into the element that holds it, to the nearest control.
+      for (let n = el; n; ) {
+        const c = n.closest(CONTROL);
+        if (c) return c;
+        const root = n.getRootNode();
+        n = root && root.host ? root.host : null;
+      }
       // A div or span the page made clickable: the outermost element up from here that shows the hand cursor.
-      const view = el.ownerDocument.defaultView;
+      const view = viewOf(el);
       let best = null;
-      for (let n = el, i = 0; n && n.nodeType === 1 && n !== el.ownerDocument.body && i < 6; n = n.parentElement, i++) {
+      for (let n = el, i = 0; n && n.nodeType === 1 && n !== docOf(el).body && i < 6; n = n.parentElement, i++) {
         if (view.getComputedStyle(n).cursor === 'pointer') best = n; else if (best) break;
       }
       return best || el;
     }
     // Something made to be used: a control, or what shows the hand cursor. Anything else is a part of the page's own layout,
     // and what is inside it (a button somewhere in the body) isn't what clicking it does.
-    const isReal = ctl => ctl.matches(CONTROL) || ctl.ownerDocument.defaultView.getComputedStyle(ctl).cursor === 'pointer';
+    const isReal = ctl => ctl.matches(CONTROL) || viewOf(ctl).getComputedStyle(ctl).cursor === 'pointer';
+    // What says a lot even in a long sentence ("I agree to the terms and place my order"): a button, whole. A link around a
+    // card of text says little of what it does, so only its first words count.
+    const WORDY = 'button,input,summary,[role=button],[role=menuitem],[role=menuitemcheckbox],[role=option],[role=tab],[role=switch]';
     function namesOf(ctl) {
       const out = [];
-      const add = s => { s = squash(s); if (s) out.push(s.slice(0, 300)); };
-      const doc = ctl.ownerDocument;
+      const add = s => { s = squash(s); if (s) out.push(s.slice(0, 1000)); };
+      const doc = docOf(ctl);
       add(attr(ctl, 'aria-label'));
-      for (const id of (attr(ctl, 'aria-labelledby') || '').split(/\s+/)) if (id) { const n = doc.getElementById(id); if (n) add(n.textContent); }
+      for (const id of (attr(ctl, 'aria-labelledby') || '').split(/\s+/)) if (id) { const n = Document.prototype.getElementById.call(doc, id); if (n) add(n.textContent); }
       add(attr(ctl, 'title'));
       add(attr(ctl, 'alt'));
       if (ctl.localName === 'input' && /^(submit|button|reset|image)$/.test(ctl.type)) add(ctl.value);
       if (ctl.labels && ctl.labels.length) add(ctl.labels[0].textContent);
       if (!/^(input|textarea|select)$/.test(ctl.localName)) {
         const text = squash(ctl.innerText || ctl.textContent);
-        if (text && text.length <= (ctl.matches(CONTROL) ? 160 : (ctl.childElementCount <= 2 ? 40 : 0))) add(text);
+        if (text && text.length <= (ctl.matches(WORDY) ? 1000 : ctl.matches(CONTROL) ? 160 : (ctl.childElementCount <= 2 ? 40 : 0))) add(text);
+        // A web component's own words are in its shadow tree.
+        if (ctl.shadowRoot) add(clip(ctl.shadowRoot.textContent, 160));
       }
       if (isReal(ctl)) for (const n of Array.from(ctl.querySelectorAll('img[alt],svg title,[aria-label],[title]')).slice(0, 6)) add(attr(n, 'alt') || attr(n, 'aria-label') || attr(n, 'title') || n.textContent);
       return out;
     }
     // A control with no words at all (an icon) is told by its markup: class, id, name and data names, and where it goes.
+    // What a drag drops onto is told by it too when it is no control (`force`): a bare div called "trash", and the element around it (`parent`).
     const words = s => String(s || '').slice(0, 200).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[^A-Za-zÀ-￿]+/g, ' ').trim().toLowerCase();
-    function hintsOf(ctl) {
-      if (!isReal(ctl) || namesOf(ctl).length) return [];
+    function hintsOf(ctl, force = false, parent = false) {
+      if (!force && (!isReal(ctl) || namesOf(ctl).length)) return [];
       const out = [];
-      for (const n of [ctl, ...Array.from(ctl.querySelectorAll('*')).slice(0, 8)]) {
+      const nodes = [ctl, ...Array.from(ctl.querySelectorAll('*')).slice(0, 8)];
+      if (parent && ctl.parentElement && ctl.parentElement !== docOf(ctl).body) nodes.push(ctl.parentElement);
+      for (const n of nodes) {
         out.push(words(attr(n, 'class')), words(attr(n, 'id')), words(attr(n, 'name')));
         for (const a of Array.from(n.attributes)) if (a.name.startsWith('data-')) out.push(words(a.name.slice(5) + ' ' + a.value));
       }
       const href = attr(ctl, 'href') || attr(ctl, 'formaction');
-      if (href) { try { out.push(words(new URL(href, ctl.ownerDocument.baseURI).pathname)); } catch (e) {} }
+      if (href) { try { out.push(words(new URL(href, baseOf(ctl)).pathname)); } catch (e) {} }
       return out.filter(Boolean).slice(0, 30);
     }
 
     const PAY = '[autocomplete^="cc-"],[name*="card" i],[name*="cvc" i],[name*="cvv" i],[name*="iban" i],[name*="securitycode" i],[id*="card-number" i],[id*="cardnumber" i],[data-stripe]';
+    const hasPayment = form => formEls(form).some(e => e.matches(PAY)) || !!Element.prototype.querySelector.call(form, PAY);
     const isRich = el => el.localName === 'textarea' || el.isContentEditable || attr(el, 'role') === 'textbox';
 
-    // Aims like the tools will, and says what the action would do. `key` is the key about to be pressed on it, and
-    // `typing` says the text is typed by the tool (whose Enter submits any form around the field).
+    // Aims like the tools will, and says what the action would do. `key` is the key about to be pressed on it, `typing` says
+    // the text is typed by the tool (which sets the value, whatever the element is, then presses Enter and submits any
+    // form around it), and `drop` that it is what a drag drops onto.
     function factsOf(el, args) {
       const ctl = controlOf(el);
       const form = ctl.form || el.closest('form');
       const role = attr(ctl, 'role') || '';
       const activates = /^(button|a|summary|label)$/.test(ctl.localName) || /^(submit|button|reset|image|checkbox|radio)$/.test(ctl.type || '')
         || /^(button|link|menuitem|menuitemcheckbox|option|tab|switch|checkbox)$/.test(role) || ctl.hasAttribute('onclick');
-      let names = namesOf(ctl), hints = hintsOf(ctl), label = labelOf(ctl);
+      let names = namesOf(ctl), hints = hintsOf(ctl, !!args.drop, !!args.drop), label = labelOf(ctl);
       let submits = ctl.type === 'submit' || ctl.type === 'image', sends = false, submitter = submits ? ctl : null;
       if (args.key) {
-        if (!activates) {
+        // The tool types into anything it is pointed at and then presses Enter itself, so a button or a checkbox is a field here.
+        if (!activates || args.typing) {
           // Enter in a field sends what it holds: by the form's default button, or by submitting the form.
-          names = []; hints = []; submits = false;
-          if (args.key === 'Enter' && ctl.localName !== 'select') {
-            const effect = enterEffect(ctl, !!args.typing);
+          names = []; hints = []; submits = false; submitter = null;
+          if (args.key === 'Enter' && (args.typing || ctl.localName !== 'select')) {
+            const effect = enterEffect(args.typing ? el : ctl, !!args.typing);
             if (effect.button) { submits = true; submitter = effect.button; names = namesOf(submitter); hints = hintsOf(submitter); label = labelOf(submitter); }
             else if (effect.submit) submits = true;
-            // A message box sends on Enter, whatever the form says.
-            if (args.typing && isRich(ctl)) sends = true;
           }
         } else if (args.key !== 'Enter' && args.key !== 'Space') { names = []; hints = []; }
+        // A message box sends on Enter, whatever the form says: typed there by the tool or pressed by the AI.
+        if (args.key === 'Enter' && isRich(ctl)) sends = true;
       }
-      const kind = el.localName === 'select' ? 'select' : (['combobox', 'listbox', 'option'].includes(attr(el, 'role')) ? attr(el, 'role') : 'other');
-      return {label, names, hints, submits, sends, payment: !!form && (formEls(form).some(e => e.matches(PAY)) || !!Element.prototype.querySelector.call(form, PAY)),
-        action: form ? actionOf(form, submitter) : '', secret: isSecret(ctl) || isSecret(el), description: describe(el), kind, origin: originOf(el),
+      return {label, names, hints, submits, sends, payment: !!form && hasPayment(form),
+        action: form ? actionOf(form, submitter) : '', secret: isSecret(ctl) || isSecret(el), description: describe(el), origin: originOf(el),
         fp: JSON.stringify([ctl.localName, role, ctl.type || '', names.join('|').replace(/\d+/g, '#').slice(0, 400), hints.join('|').slice(0, 200)])};
     }
     // The page may change between looking and acting (and the user takes their time to answer): the action goes ahead
@@ -203,8 +232,14 @@ extension PageScripts {
         return {error: 'the point (' + x + ', ' + y + ') is outside the visible page, which is ' + innerWidth + 'x' + innerHeight + ' CSS pixels'};
       }
       for (let depth = 0; depth < 5; depth++) {
-        const el = doc.elementFromPoint(x, y);
+        let el = doc.elementFromPoint(x, y);
         if (!el) return {error: 'there is nothing at (' + args.x + ', ' + args.y + ')'};
+        // The element in a web component's (open) shadow tree, not the element that holds the tree.
+        for (let i = 0; i < 8 && el.shadowRoot; i++) {
+          const inner = el.shadowRoot.elementFromPoint(x, y);
+          if (!inner || inner === el) break;
+          el = inner;
+        }
         if (!/^i?frame$/.test(el.localName)) return {el, x, y};
         const r = el.getBoundingClientRect();
         const k = el.clientWidth ? r.width / el.clientWidth : 1;
@@ -423,8 +458,8 @@ extension PageScripts {
     """#
 
     /// Chooses an option in stages, so that the app can judge the option itself before anything is changed: `resolve`
-    /// says which option the words name (opening a list first, when `open` says it may), and `choose` picks it, but only
-    /// if it is still the one that was judged.
+    /// says which option the words name (opening a list first, when `open` says it may) and what it is called and does,
+    /// and `choose` picks it, but only if it is still the very option that was judged.
     static let selectOption = lib + #"""
 
     const p = pick(args);
@@ -460,6 +495,16 @@ extension PageScripts {
       const o = isNative ? pickBy(options, o => o.text, o => o.value) : pickBy(options, ariaText, o => attr(o, 'data-value') ?? attr(o, 'value'));
       return {options, o, label: o ? squash(isNative ? o.text : ariaText(o)) : ''};
     };
+    // What the option is called, by every name its markup gives it (not only the words it shows), and what choosing it does: a
+    // native list that submits its form when it changes (an onchange handler) takes the form's payment and address along.
+    const wordsOf = o => isNative ? [o.text, o.label, attr(o, 'title'), o.value] : [...namesOf(o), attr(o, 'data-value') ?? attr(o, 'value')];
+    const optionNames = o => wordsOf(o).map(squash).filter(Boolean).map(w => w.slice(0, 1000));
+    const optionFp = o => JSON.stringify([isNative, isNative ? o.index : listOf(true).indexOf(o), optionNames(o).join('|').replace(/\d+/g, '#').slice(0, 400)]);
+    function optionFacts(o, label) {
+      const auto = isNative && !!el.form && el.hasAttribute('onchange');
+      return {label, role: isNative ? 'option' : (attr(o, 'role') || 'option'), native: isNative, names: [label, ...optionNames(o)], hints: hintsOf(o, true),
+        submits: auto, payment: auto && hasPayment(el.form), action: auto ? actionOf(el.form, null) : '', fp: optionFp(o)};
+    }
     const missing = f => 'Error: no option "' + args.option + '". Options: ' + f.options.map(o => clip(isNative ? o.text : ariaText(o), 40)).join(', ');
 
     if (args.stage === 'resolve') {
@@ -476,11 +521,11 @@ extension PageScripts {
       }
       if (!f.options.length) return 'Error: this element has no options Changmun can see. If it is a custom menu, click it and read the page again.';
       if (!f.o) return missing(f);
-      return JSON.stringify({label: f.label});
+      return JSON.stringify(optionFacts(f.o, f.label));
     }
 
     const f = find(true);
-    if (!f.o || f.label !== args.expectLabel) return 'Error: the options changed since Changmun looked at them. Try again.';
+    if (!f.o || optionFp(f.o) !== args.expectFp) return 'Error: the options changed since Changmun looked at them. Try again.';
     if (isNative) {
       el.scrollIntoView({block: 'center'});
       bad = await aimAt([{el, args}]);
@@ -582,11 +627,12 @@ extension PageScripts {
 
     static let clearMarks = lib + "\nclearMark();\nreturn 'ok';"
 
-    /// The frames of other sites that a picture of the page shows, greeted so that the app can ask each where it really is.
+    /// The frames of other sites that a picture of the page shows, greeted so that the app can ask each where it really is:
+    /// also those in web components, and the documents of <object> and <embed>.
     static let visibleFrames = lib + #"""
 
     const out = [];
-    for (const e of docs()) for (const f of e.doc.querySelectorAll('iframe,frame')) {
+    for (const e of docs()) for (const f of deepAll(e.doc, 'iframe,frame,object,embed')) {
       const r = f.getBoundingClientRect();
       if (sameSite(f) || r.width < 20 || r.height < 20 || e.doc.defaultView.getComputedStyle(f).visibility === 'hidden') continue;
       out.push(tagFrame(f));
@@ -600,7 +646,7 @@ extension PageScripts {
     static let maskSecrets = lib + #"""
 
     const masked = globalThis.changmunMasked || (globalThis.changmunMasked = []);
-    for (const e of docs()) for (const el of e.doc.querySelectorAll('input,textarea')) {
+    for (const e of docs()) for (const el of deepAll(e.doc, 'input,textarea')) {
       if (!isSecret(el) || masked.some(m => m.el === el)) continue;
       masked.push({el, value: el.style.getPropertyValue('-webkit-text-security'), priority: el.style.getPropertyPriority('-webkit-text-security')});
       el.style.setProperty('-webkit-text-security', 'disc', 'important');

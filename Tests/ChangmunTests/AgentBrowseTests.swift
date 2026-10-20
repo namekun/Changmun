@@ -312,6 +312,19 @@ extension SharedAgentState {
             #expect(ToolCatalog.lookTimeout(until: now.addingTimeInterval(-3), now: now) == 1)
         }
 
+        @Test func theListOfShownFramesIsCappedAndAnythingMissingCountsAsMore() {
+            func list(_ count: Int) -> String {
+                "[" + (0..<count).map { "{\"slot\":\"s\($0)\",\"nonce\":\"n\"}" }.joined(separator: ",") + "]"
+            }
+            #expect(ToolCatalog.shownFrames(from: nil) == nil && ToolCatalog.shownFrames(from: "not json") == nil && ToolCatalog.shownFrames(from: "{}") == nil)
+            #expect(ToolCatalog.shownFrames(from: "[]")?.refs.isEmpty == true && ToolCatalog.shownFrames(from: "[]")?.more == false)
+            let few = ToolCatalog.shownFrames(from: list(ToolCatalog.maxShownFrames))
+            #expect(few?.refs.count == ToolCatalog.maxShownFrames && few?.more == false)
+            let many = ToolCatalog.shownFrames(from: list(ToolCatalog.maxShownFrames + 1))
+            #expect(many?.refs.count == ToolCatalog.maxShownFrames && many?.more == true, "the frames beyond the cap are not skipped silently")
+            #expect(ToolCatalog.shownFrames(from: "[{\"slot\":\"s\"}]")?.more == true, "a frame that can't be named is one more unknown")
+        }
+
         @Test func whatIsKeptIsCappedAndOldOffersGo() {
             var frames = FrameRegistry<Int>()
             let start = Date()
@@ -340,6 +353,13 @@ func asking(_ answer: @escaping (Approvals.Prompt) -> Approvals.Choice, _ body: 
 extension SharedAgentState {
     @MainActor @Suite
     struct ApprovalTests {
+        @Test func aLongNameKeepsItsBeginningAndItsEnd() {
+            #expect(Approvals.abbreviated("Delete") == "Delete")
+            let long = String(repeating: "word ", count: 40) + "Place my order"
+            let shown = Approvals.abbreviated(long)
+            #expect(shown.count <= 80 && shown.hasPrefix("word word") && shown.hasSuffix("Place my order"))
+        }
+
         private func open(_ addresses: [String]) -> (Browser, [Tab]) {
             let browser = Browser()
             browser.focused()
@@ -1272,6 +1292,217 @@ extension SharedAgentState {
             #expect(read.contains("Only the first 250 elements are listed"), "\(read.prefix(300))")
             #expect(!read.contains("could not be read"))
             #expect(read.contains("[250] button") && !read.contains("[251] button"))
+        }
+
+        @Test func aLongButtonIsJudgedByAllItsWordsNotJustTheFirstOnes() async throws {
+            let long = String(repeating: "I have read every word of the terms and conditions. ", count: 5) + "Place my order"
+            let (tab, window, browser) = try await page("<body><button onclick=\"document.title='ordered'\">\(long)</button><a href=\"#\" onclick=\"document.title='read'\">\(long)</a></body>")
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ _ in .deny }) { stand in
+                let read = await call(tab, "read_page").text
+                let button = try #require(read.split(separator: "\n").first { $0.contains("] button ") }.flatMap(number))
+                let refused = await call(tab, "click", ["element_id": button])
+                #expect(refused.failed && guarded(stand).count == 1)
+                #expect(guarded(stand).first?.message.contains("Place my order") == true)
+                #expect(tab.title != "ordered")
+                // A link round a card of text isn't named after every word in it.
+                let link = try #require(read.split(separator: "\n").first { $0.contains("] a ") }.flatMap(number))
+                #expect(!(await call(tab, "click", ["element_id": link])).failed && guarded(stand).count == 1)
+            }
+        }
+
+        @Test func aFormThatClobbersItsOwnOwnerDocumentStillShowsWhereItGoes() async throws {
+            let html = """
+                <body><form action="/checkout" onsubmit="document.title='clobbered-sent';return false"><input name=ownerDocument placeholder="Own A"><input name=ownerDocument placeholder="Own B"></form>
+                <form action="/checkout" onsubmit="document.title='base-sent';return false"><img name=baseURI width=1 height=1><input placeholder="Base"></form></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ _ in .deny }) { stand in
+                let read = await call(tab, "read_page").text
+                for label in ["Own A", "Base"] {
+                    let before = guarded(stand).count
+                    let result = await call(tab, "type_text", ["element_id": try #require(id(of: label, in: read)), "text": "x", "submit": true])
+                    #expect(result.failed && guarded(stand).count == before + 1, "\(label): \(result.text)")
+                }
+                #expect(!["clobbered-sent", "base-sent"].contains(await evaluate(tab, "return document.title")))
+            }
+        }
+
+        @Test func typingWithSubmitIntoAnythingInAPaymentFormIsJudgedLikeTheSubmissionItIs() async throws {
+            let html = """
+                <body><form action="/checkout" onsubmit="document.title='sent';return false">
+                <input type=checkbox aria-label="Agree"><select aria-label="Size"><option>S</option><option>M</option></select><input type=button aria-label="Tick" value="tick" onclick="void 0"></form></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ _ in .deny }) { stand in
+                let read = await call(tab, "read_page").text
+                for (label, text) in [("Agree", "on"), ("Size", "M"), ("Tick", "x")] {
+                    let before = guarded(stand).count
+                    let result = await call(tab, "type_text", ["element_id": try #require(id(of: label, in: read)), "text": text, "submit": true])
+                    #expect(result.failed && guarded(stand).count == before + 1, "\(label): \(result.text)")
+                }
+                #expect(tab.title != "sent")
+            }
+        }
+
+        @Test func enterPressedInAMessageBoxIsAskedAboutLikeTypingItsWayThere() async throws {
+            let html = """
+                <body><textarea id=t placeholder="Message" onkeydown="if (event.key === 'Enter') { event.preventDefault(); document.title = 'sent' }"></textarea></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ _ in .deny }) { stand in
+                let read = await call(tab, "read_page").text
+                let area = try #require(id(of: "Message", in: read))
+                #expect(!(await call(tab, "type_text", ["element_id": area, "text": "hello"])).failed && guarded(stand).isEmpty)
+                let sent = await call(tab, "press_key", ["key": "Enter", "element_id": area])
+                #expect(sent.failed && guarded(stand).count == 1 && tab.title != "sent")
+                #expect(!(await call(tab, "press_key", ["key": "ArrowLeft"])).failed && guarded(stand).count == 1, "other keys are only keys")
+            }
+        }
+
+        @Test func aNativeOptionIsJudgedByItsValueToo() async throws {
+            let html = """
+                <body><select aria-label="Plan" onchange="document.title='plan ' + this.value"><option value="delete_account">Continue</option><option value="stay">Stay</option></select></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ prompt in prompt.message.contains("press") ? .deny : .once }) { stand in
+                let read = await call(tab, "read_page").text
+                let select = try #require(id(of: "Plan", in: read))
+                let refused = await call(tab, "select_option", ["element_id": select, "option": "Continue"])
+                #expect(refused.failed && guarded(stand).count == 1)
+                #expect(tab.title != "plan delete_account")
+                #expect(!(await call(tab, "select_option", ["element_id": select, "option": "Stay"])).failed && guarded(stand).count == 1)
+            }
+        }
+
+        @Test func aNativeListThatSubmitsItsFormWhenChangedTakesTheFormsCardAlong() async throws {
+            let html = """
+                <body><form action="/next" onsubmit="document.title='submitted';return false"><input autocomplete="cc-number" placeholder="Card">
+                <select aria-label="Size" onchange="this.form.requestSubmit()"><option>Small</option><option>Large</option></select>
+                <select aria-label="Colour"><option>Red</option><option>Blue</option></select></form></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ prompt in prompt.message.contains("press") ? .deny : .once }) { stand in
+                let read = await call(tab, "read_page").text
+                let size = try #require(id(of: "Size", in: read)), colour = try #require(id(of: "Colour", in: read))
+                let refused = await call(tab, "select_option", ["element_id": size, "option": "Large"])
+                #expect(refused.failed && guarded(stand).count == 1 && tab.title != "submitted")
+                #expect(!(await call(tab, "select_option", ["element_id": colour, "option": "Blue"])).failed && guarded(stand).count == 1, "a list that only changes is only a list")
+            }
+        }
+
+        @Test func twoOptionsWithTheSameWordsAreNotTakenForEachOther() async throws {
+            let html = """
+                <body><div role=listbox aria-label="Choices"><div id=a role=option data-value=a onclick="document.title='chose a'">Delete it</div><div id=b role=option data-value=b onclick="document.title='chose b'">Delete it</div></div></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            // The page puts the other option first while the user thinks: same words, not the option that was judged.
+            try await asking({ prompt in
+                if prompt.message.contains("press") { tab.webView?.evaluateJavaScript("document.getElementById('a').before(document.getElementById('b'))") }
+                return .once
+            }) { stand in
+                let read = await call(tab, "read_page").text
+                let list = try #require(id(of: "Choices", in: read))
+                let result = await call(tab, "select_option", ["element_id": list, "option": "Delete it"])
+                #expect(guarded(stand).count == 1)
+                #expect(result.failed && result.text.contains("changed") && !tab.title.hasPrefix("chose"), "\(result.text)")
+            }
+        }
+
+        @Test func aDropZoneWithNoWordsIsToldByItsMarkup() async throws {
+            let html = """
+                <body style="margin:0"><div id=item draggable=true style="position:absolute;left:10px;top:10px;width:60px;height:30px" ondragstart="event.dataTransfer.setData('text','x')">Item</div>
+                <div id=trash class="bin" style="position:absolute;left:10px;top:100px;width:60px;height:30px"></div>
+                <div id=plain style="position:absolute;left:200px;top:100px;width:60px;height:30px"></div>
+                <script>document.getElementById('trash').ondragover = e => e.preventDefault(); document.getElementById('trash').ondrop = () => document.title = 'dropped in the bin';
+                document.getElementById('plain').ondragover = e => e.preventDefault(); document.getElementById('plain').ondrop = () => document.title = 'dropped';</script></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ _ in .deny }) { stand in
+                let read = await call(tab, "read_page").text
+                let item = try #require(id(of: "Item", in: read))
+                let refused = await call(tab, "drag", ["from_element_id": item, "to_x": 30, "to_y": 110])
+                #expect(refused.failed && guarded(stand).count == 1 && tab.title != "dropped in the bin")
+                stand.answer = { _ in .once }
+                let fine = await call(tab, "drag", ["from_element_id": item, "to_x": 220, "to_y": 110])
+                #expect(!fine.failed && guarded(stand).count == 1)
+                #expect(await waitUntil { tab.title == "dropped" })
+            }
+        }
+
+        @Test func aClickInsideAWebComponentIsJudgedByWhatIsInsideIt() async throws {
+            let html = """
+                <body style="margin:0"><x-card></x-card><script>
+                const root = document.querySelector('x-card').attachShadow({mode: 'open'});
+                root.innerHTML = '<button style="position:absolute;left:100px;top:50px;width:160px;height:40px" onclick="document.title=\\'deleted\\'">Delete account</button>'
+                  + '<button style="position:absolute;left:100px;top:150px;width:160px;height:40px" onclick="document.title=\\'details\\'">Details</button>';
+                </script></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ _ in .deny }) { stand in
+                let refused = await call(tab, "click_at", ["x": 150, "y": 70])
+                #expect(refused.failed && guarded(stand).count == 1 && guarded(stand)[0].message.contains("Delete account"), "\(refused.text)")
+                #expect(tab.title != "deleted")
+                let fine = await call(tab, "click_at", ["x": 150, "y": 170])
+                #expect(!fine.failed && fine.text.contains("Details") && guarded(stand).count == 1, "\(fine.text)")
+                #expect(await waitUntil { tab.title == "details" })
+            }
+        }
+
+        @Test func secretsAreToldByTheirNamesInAnyWritingOfThem() async throws {
+            let names = ["otpCode", "userPin", "cvv2", "ssn4", "currentPwd", "pincode", "OTPCode", "card_number", "newPassword"]
+            let html = "<body>" + names.enumerated().map { "<input name=\"\($1)\" value=\"secret\($0)x\" placeholder=\"field \($0)\">" }.joined()
+                + "<input name=shipping value=\"visible-ship\"><input name=opinion value=\"visible-opinion\"><input name=spinner value=\"visible-spin\"></body>"
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            for index in names.indices { #expect(!read.contains("secret\(index)x"), "\(names[index])") }
+            #expect(read.contains("visible-ship") && read.contains("visible-opinion") && read.contains("visible-spin"))
+        }
+
+        @Test func aFieldInAFrameOfAnotherSiteIsMaskedInThePictureToo() async throws {
+            let inner = "<input id=card autocomplete=cc-number value=4242 style=&#39;-webkit-text-security:none&#39;><input id=plain value=fruit>"
+            let (tab, window, browser) = try await page("<body><iframe sandbox='allow-scripts' style='width:300px;height:100px' srcdoc='\(inner)'></iframe></body>", host: "outer.test")
+            defer { window.close(); browser.windowClosed() }
+            var read = ""
+            for _ in 0..<100 where !read.contains("fruit") {
+                read = await call(tab, "read_page").text
+                if !read.contains("fruit") { try await Task.sleep(for: .milliseconds(50)) }
+            }
+            let view = try #require(tab.webView), frame = try #require(tab.agent.frames.known.first?.frame)
+            func security(_ id: String) async -> String {
+                await ToolCatalog.run("return getComputedStyle(document.getElementById('\(id)')).webkitTextSecurity", [:], in: view, frame: frame, timeout: 5).content.first?["text"] as? String ?? ""
+            }
+            #expect(await security("card") == "none")
+            await ToolCatalog.runInPageAndFrames(PageScripts.maskSecrets, tab, view)
+            let masked = (await security("card"), await security("plain"))
+            #expect(masked.0 == "disc" && masked.1 == "none")
+            await ToolCatalog.runInPageAndFrames(PageScripts.unmaskSecrets, tab, view)
+            #expect(await security("card") == "none")
+        }
+
+        @Test func aPictureNotesTheFramesItShowsAsReadAndAFrameThatCantBeAskedCountsAsUnknown() async throws {
+            let (tab, window, browser) = try await page("<body><button id=go onclick=\"document.title='went'\">Go</button><iframe sandbox='allow-scripts' style='width:200px;height:80px' srcdoc='<p>Ad</p>'></iframe></body>", host: "outer.test")
+            defer { window.close(); browser.windowClosed() }
+            let panel = ChatStore.caller
+            Approvals.forgetReads(caller: panel)
+            defer { Approvals.forgetReads(caller: panel) }
+            try await asking({ _ in .once }) { stand in
+                let shot = await call(tab, "screenshot", caller: panel)
+                #expect(!shot.failed)
+                let go = try #require(id(of: "Go", in: (await call(tab, "read_page")).text))
+                _ = await call(tab, "click", ["element_id": go], caller: panel)
+                let asked = stand.asked.filter { $0.message.contains("use outer.test") }
+                #expect(asked.count == 1 && asked[0].detail.contains("a frame of an unknown site"), "\(stand.asked.map(\.detail))")
+            }
         }
 
         @Test func aFrameThatIsGoneDoesNotStopAWaitForItsTextToGoAway() async throws {

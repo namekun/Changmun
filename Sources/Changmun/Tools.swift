@@ -41,7 +41,7 @@ enum ToolCatalog {
              ["tab_ids": ["type": "array", "items": ["type": "integer"], "description": "Tab ids from list_tabs (at most \(maxTabsPerRead))"],
               "max_chars": ["type": "integer", "description": "Maximum characters of text per tab (default 6000)"]], required: ["tab_ids"]),
         tool("click", "Click an element by its number from the latest read_page. If it looks like it pays, orders, sends, posts, deletes or confirms something, Changmun asks the user first. After the page you are working on has read other sites, Changmun asks the user before every click, key press, hover, drag, typed text and chosen option (once per site when the user allows the site for the chat).", ["element_id": ["type": "integer"]], required: ["element_id"]),
-        tool("click_at", "Click the element at a point of the visible page, for things read_page doesn't list (a canvas, a map, a custom control). x and y are CSS pixels from the top left of the visible page, which is exactly what a screenshot shows when its note says 1 pixel = 1 CSS pixel (otherwise divide the screenshot's pixels by the scale it names; page zoom and the screen's pixel density don't matter). Says which element was hit. Points in frames work too, and it reaches elements inside shadow DOM that read_page doesn't list.",
+        tool("click_at", "Click the element at a point of the visible page, for things read_page doesn't list (a canvas, a map, a custom control). x and y are CSS pixels from the top left of the visible page, which is exactly what a screenshot shows when its note says 1 pixel = 1 CSS pixel (otherwise divide the screenshot's pixels by the scale it names; page zoom and the screen's pixel density don't matter). Says which element was hit. Points in frames work too, and it reaches elements inside open shadow DOM that read_page doesn't list.",
              ["x": ["type": "number", "description": "CSS pixels from the left edge of the visible page"], "y": ["type": "number", "description": "CSS pixels from the top edge of the visible page"]], required: ["x", "y"]),
         tool("type_text", "Replace the text of an input, text area or editable element (by number from read_page). Set submit to press Enter afterwards.",
              ["element_id": ["type": "integer"], "text": ["type": "string"], "submit": ["type": "boolean"]], required: ["element_id", "text"]),
@@ -159,7 +159,7 @@ enum ToolCatalog {
             Approvals.noteRead(tab, caller: caller)
             // A picture shows the frames of other sites on the page too.
             for frameHost in await shownFrameHosts(tab, webView) { Approvals.noteRead(tab, readHost: frameHost, caller: caller) }
-            return await screenshot(webView)
+            return await screenshot(tab, webView)
         default:
             return .text("Unknown tool \(name).", error: true)
         }
@@ -305,17 +305,18 @@ enum ToolCatalog {
     /// The picture is made as wide as the visible page is in CSS pixels (up to 1280), so a point of it is a point for
     /// click_at whatever the page zoom or the screen's pixel density; a wider page is scaled down, and the note says by how much.
     @MainActor
-    private static func screenshot(_ webView: WKWebView) async -> ToolResult {
+    private static func screenshot(_ tab: Tab, _ webView: WKWebView) async -> ToolResult {
         let size = await run("return JSON.stringify([innerWidth, innerHeight]);", [:], in: webView, timeout: 5).content.first?["text"] as? String
         let viewport = size.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [Double] }.flatMap { $0.count == 2 && $0[0] >= 1 && $0[1] >= 1 ? $0 : nil }
         let configuration = WKSnapshotConfiguration()
         if let viewport { configuration.snapshotWidth = NSNumber(value: min(viewport[0], 1280)) }
-        // What a field holds that is secret (a password shown by a "show" button) isn't in the picture.
-        _ = await run(PageScripts.maskSecrets, [:], in: webView, timeout: 5)
+        // What a field holds that is secret (a password shown by a "show" button) isn't in the picture, also in the frames of
+        // other sites that were greeted (a card or code field in a payment frame).
+        await runInPageAndFrames(PageScripts.maskSecrets, tab, webView)
         let image: NSImage? = await withTimeout(seconds: 10, fallback: nil) { finish in
             webView.takeSnapshot(with: configuration) { image, _ in finish(image) }
         }
-        _ = await run(PageScripts.unmaskSecrets, [:], in: webView, timeout: 5)
+        await runInPageAndFrames(PageScripts.unmaskSecrets, tab, webView)
         guard let image, let jpeg = jpegData(image, maxWidth: 1280) else { return .text("Error: the page could not be captured.", error: true) }
         var content: [[String: Any]] = [["type": "image", "data": jpeg.base64EncodedString(), "mimeType": "image/jpeg"]]
         if let viewport {
@@ -324,6 +325,16 @@ enum ToolCatalog {
                 : "Screenshot: \(Int(pixels)) pixels wide for a page \(Int(viewport[0])) x \(Int(viewport[1])) CSS pixels: for click_at, divide a point's x and y by \(String(format: "%.3f", scale))."])
         }
         return ToolResult(content: content)
+    }
+
+    /// Runs a script in the page and in every frame of another site the app can reach, all at once.
+    @MainActor
+    static func runInPageAndFrames(_ script: String, _ tab: Tab, _ webView: WKWebView) async {
+        await withTaskGroup(of: Void.self) { group in
+            for frame in [nil] + tab.agent.frames.known.map({ Optional($0.frame) }) {
+                group.addTask { @MainActor in _ = await run(script, [:], in: webView, frame: frame, timeout: 3) }
+            }
+        }
     }
 
     private static func jpegData(_ image: NSImage, maxWidth: CGFloat) -> Data? {
@@ -534,9 +545,16 @@ enum Approvals {
     static func allowIrreversible(_ name: String, on tab: Tab, caller: String, site: String? = nil) async -> Bool {
         let host = site ?? tab.url?.host()?.lowercased() ?? ""
         let site = host.isEmpty ? String(localized: "this page") : host
-        return await choose(String(localized: "The AI wants to press “\(String(name.prefix(80)))” on \(site)"),
+        return await choose(String(localized: "The AI wants to press “\(abbreviated(name))” on \(site)"),
                             String(localized: "This looks like it pays, orders, sends, posts, deletes or confirms something, and that can’t be undone.\n\nAllow it only if you asked for this."),
                             [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))], caller: caller) != .deny
+    }
+
+    /// A long name keeps its beginning and its end, where a button says what it does.
+    static func abbreviated(_ name: String, to length: Int = 80) -> String {
+        guard name.count > length else { return name }
+        let part = (length - 3) / 2
+        return String(name.prefix(part)) + " … " + String(name.suffix(part))
     }
 
     /// A new chat starts without anything read or allowed; other callers keep theirs.

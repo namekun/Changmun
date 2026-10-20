@@ -48,7 +48,7 @@ enum IrreversibleAction {
         var payment = false
         /// Where the form posts to.
         var action = ""
-        /// It sends a message: Enter after typing into a message box.
+        /// It sends a message: Enter in a message box.
         var sends = false
 
         init(label: String = "", names: [String] = [], hints: [String] = [], submits: Bool = false, payment: Bool = false, action: String = "", sends: Bool = false) {
@@ -538,23 +538,43 @@ extension ToolCatalog {
         return .success(frame)
     }
 
-    /// The sites of the frames a picture of the page shows, each asked where it really is: those that can't be reached or
-    /// have no site count as an unknown frame, which is a site of its own for the approvals.
+    /// The frames a picture shows, from the answer of the script that lists them: nil when it gave none, and `more` when there
+    /// are more than the app asks about.
+    static func shownFrames(from answer: String?) -> (refs: [(slot: String, nonce: String)], more: Bool)? {
+        guard let answer, let list = (try? JSONSerialization.jsonObject(with: Data(answer.utf8))) as? [[String: String]] else { return nil }
+        let first = list.prefix(maxShownFrames)
+        let refs = first.compactMap { ref in ref["slot"].flatMap { slot in ref["nonce"].map { (slot, $0) } } }
+        return (refs, list.count > first.count || refs.count < first.count)
+    }
+
+    static let maxShownFrames = 8
+
+    /// The sites of the frames a picture of the page shows (also those inside frames of other sites), each asked where it
+    /// really is. A frame that can't be reached or has no site, one beyond the first few, and a list that could not be had
+    /// all count as an unknown frame, which is a site of its own for the approvals: the picture may show anything there.
     @MainActor
     static func shownFrameHosts(_ tab: Tab, _ webView: WKWebView) async -> Set<String> {
         var hosts = Set<String>()
-        let result = await run(PageScripts.visibleFrames, [:], in: webView, timeout: 5)
-        guard let text = result.content.first?["text"] as? String, let refs = (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [[String: String]] else { return hosts }
-        for ref in refs.prefix(8) {
-            guard let slot = ref["slot"], let nonce = ref["nonce"] else { continue }
-            tab.agent.frames.expect(slot: slot, nonce: nonce)
-            var host = Approvals.unknownFrame
-            if let info = await tab.frame(named: slot) {
-                let origin = await run(PageScripts.origin, [:], in: webView, frame: info, timeout: 3)
-                if !origin.isError, let origin = origin.content.first?["text"] as? String, !Self.host(ofOrigin: origin).isEmpty { host = Self.host(ofOrigin: origin) }
+        func visit(_ frame: WKFrameInfo?, depth: Int) async {
+            let result = await run(PageScripts.visibleFrames, [:], in: webView, frame: frame, timeout: 5)
+            guard let shown = shownFrames(from: result.isError ? nil : result.content.first?["text"] as? String) else {
+                hosts.insert(Approvals.unknownFrame)
+                return
             }
-            hosts.insert(host)
+            // Frames in frames in frames are not followed any further.
+            if shown.more || (depth >= 3 && !shown.refs.isEmpty) { hosts.insert(Approvals.unknownFrame) }
+            for ref in shown.refs where depth < 3 {
+                tab.agent.frames.expect(slot: ref.slot, nonce: ref.nonce)
+                var host = Approvals.unknownFrame
+                if let info = await tab.frame(named: ref.slot) {
+                    let origin = await run(PageScripts.origin, [:], in: webView, frame: info, timeout: 3)
+                    if !origin.isError, let origin = origin.content.first?["text"] as? String, !Self.host(ofOrigin: origin).isEmpty { host = Self.host(ofOrigin: origin) }
+                    await visit(info, depth: depth + 1)
+                }
+                hosts.insert(host)
+            }
         }
+        await visit(nil, depth: 0)
         return hosts
     }
 
@@ -568,8 +588,6 @@ extension ToolCatalog {
         /// What was asked of the page to find it (an element number, a point, the focus, the key to be pressed).
         var args: [String: Any]
         var facts: IrreversibleAction.Facts
-        /// select, combobox, listbox, option or other.
-        var kind: String
         var secret: Bool
         var description: String
         /// The origin of the document it is in, as that document says: "null" for a sandboxed frame or a data: page.
@@ -597,9 +615,9 @@ extension ToolCatalog {
 
     /// Finds the target (an element number, a point, or what has the focus), following a point or the focus into
     /// frames of other sites, without acting on it. `key` is the key about to be pressed on it, if any; `typing` says the
-    /// tool types the text itself, with Enter after it when `key` is Enter.
+    /// tool types the text itself, with Enter after it when `key` is Enter; `drop` says a drag ends on it.
     @MainActor
-    static func aim(_ wanted: [String: Any], key: String? = nil, typing: Bool = false, tab: Tab, in webView: WKWebView, session: Session) async throws -> Aim {
+    static func aim(_ wanted: [String: Any], key: String? = nil, typing: Bool = false, drop: Bool = false, tab: Tab, in webView: WKWebView, session: Session) async throws -> Aim {
         var target = wanted, frame: WKFrameInfo?, slot: String?
         if let id = target["id"] as? Int {
             switch await Self.frame(ofElement: id, in: tab) {
@@ -613,6 +631,7 @@ extension ToolCatalog {
             var args = target
             if let key { args["key"] = key }
             if typing { args["typing"] = true }
+            if drop { args["drop"] = true }
             let result = await run(PageScripts.inspect, ["args": args], in: webView, frame: frame)
             if result.isError { throw ToolFailure(result: result) }
             guard let text = result.content.first?["text"] as? String,
@@ -635,7 +654,7 @@ extension ToolCatalog {
             }
             var facts = IrreversibleAction.Facts(json)
             if facts.label.isEmpty, let x = target["x"] as? Double, let y = target["y"] as? Double { facts.label = "\(Int(x)), \(Int(y))" }
-            let aim = Aim(frame: frame, slot: slot, args: args, facts: facts, kind: json["kind"] as? String ?? "other", secret: json["secret"] as? Bool ?? false,
+            let aim = Aim(frame: frame, slot: slot, args: args, facts: facts, secret: json["secret"] as? Bool ?? false,
                           description: json["description"] as? String ?? "", origin: json["origin"] as? String ?? "null", fingerprint: json["fp"] as? String ?? "")
             // The site is the one the document says it is, from inside it. What it showed of the target counts as read from
             // there; and a frame of another site is another site: using it from a tab the user isn't looking at is asked
@@ -756,7 +775,7 @@ extension ToolCatalog {
             if aim.secret { return .text("Error: Changmun does not let the AI press keys in password fields. Ask the user to.", error: true) }
             let step = String(localized: "Pressing \(key)")
             AgentActivity.shared.step(step, caller: session.caller)
-            // A key carries nothing the AI chose, but what Enter or Space does to a button or a form is a click's doing.
+            // Enter or Space on a button or in a form does what a click does, and Enter in a message box sends it.
             try await approve(.act(step), aims: [aim], irreversible: [aim], tab: tab, session: session)
             let result = await act(PageScripts.pressKey, aim.script(["mods": modifiers]), aim: aim, tab: tab, webView: webView)
             if result.isError { return result }
@@ -780,9 +799,9 @@ extension ToolCatalog {
             // The option is the AI's own text, picked from a list the page wrote, and a page can write a list to read it back from.
             try await approve(.choose(option), aims: [aim], tab: tab, session: session)
 
-            func ask(_ stage: String, open: Bool = false, expectLabel: String? = nil) async -> ToolResult {
+            func ask(_ stage: String, open: Bool = false, expect: String? = nil) async -> ToolResult {
                 var extra: [String: Any] = ["stage": stage, "option": option, "open": open]
-                if let expectLabel { extra["expectLabel"] = expectLabel }
+                if let expect { extra["expectFp"] = expect }
                 return await act(PageScripts.selectOption, aim.script(extra), aim: aim, tab: tab, webView: webView, waits: stage == "choose")
             }
             func answer(_ result: ToolResult) -> [String: Any]? {
@@ -796,10 +815,14 @@ extension ToolCatalog {
                 resolved = await ask("resolve", open: true)
                 if resolved.isError { return resolved }
             }
-            guard let label = answer(resolved)?["label"] as? String else { return .text("Error: the page did not answer.", error: true) }
-            // A menu item named "Delete" is a button by another name, and so is the option of a list that acts when it changes.
-            try await approve(nil, aims: [aim], irreversible: [aim.judged(as: .init(label: label, names: [label]))], tab: tab, session: session)
-            let result = await ask("choose", expectLabel: label)
+            guard let chosen = answer(resolved), chosen["label"] is String, let fingerprint = chosen["fp"] as? String else {
+                return .text("Error: the page did not answer.", error: true)
+            }
+            // A menu item named "Delete" is a button by another name, and so is the option of a list that acts when it changes
+            // (a native list that submits its form takes the form's card details and address along). It is judged by every
+            // name its markup gives it, and chosen only if it is still that very option.
+            try await approve(nil, aims: [aim], irreversible: [aim.judged(as: .init(chosen))], tab: tab, session: session)
+            let result = await ask("choose", expect: fingerprint)
             if result.isError { return result }
             return .text("Selected in [\(id)]: \(said(result)). \(now(tab)). Element numbers may have changed; read the page again before using them.")
         } catch let failure as ToolFailure {
@@ -836,7 +859,7 @@ extension ToolCatalog {
         guard let fromTarget = wanted("from_"), let toTarget = wanted("to_") else { return .text("Say where to drag from and where to drop.", error: true) }
         do {
             let from = try await Self.aim(fromTarget, tab: tab, in: webView, session: session)
-            let to = try await Self.aim(toTarget, tab: tab, in: webView, session: session)
+            let to = try await Self.aim(toTarget, drop: true, tab: tab, in: webView, session: session)
             if from.secret || to.secret { return .text("Error: Changmun does not let the AI use password fields. Ask the user to.", error: true) }
             guard from.slot == to.slot else { return .text("Error: dragging from one frame to another isn't supported.", error: true) }
             let step = String(localized: "Dragging “\(from.label)” to “\(to.label)”")
