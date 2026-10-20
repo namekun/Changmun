@@ -17,8 +17,10 @@
 "'%@' is updating and asks for more permissions" = "'%@'이(가) 업데이트되며 권한을 더 요청해요";
 "'%@' wants to access this site" = "'%@'이(가) 이 사이트에 접근하려고 해요";
 "(No username)" = "(아이디 없음)";
+"a frame of an unknown site" = "알 수 없는 사이트의 프레임";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "전체 주소는 그 자리에서 바로 고칠 수 있어요 (⌘L). 사이트와 제목은 ⌘L로 검색 창에서 고쳐요.";
 "About Changmun" = "Changmun 정보";
+"Action:\n%@\n\nSites read earlier in this conversation: %@\nA page can hide instructions for the AI. Deny if this isn’t what you asked for." = "동작:\n%@\n\n이 대화에서 앞서 읽은 사이트: %@\n페이지에 AI를 향한 지시가 숨어 있을 수 있어요. 요청한 일이 아니라면 거부하세요.";
 "Active" = "적용 중";
 "Actual Size" = "실제 크기";
 "Ad Blocking" = "광고 차단";
@@ -49,6 +51,8 @@
 "All Open Tabs" = "열린 탭 모두";
 "All Time" = "전체";
 "Allow" = "허용";
+"Allow on %@ for This Chat" = "이 대화에서 %@ 허용";
+"Allow Once" = "한 번만 허용";
 "Allow pop-ups" = "팝업 허용";
 "Always Allow for This Site" = "이 사이트는 항상 허용";
 "Archive tabs you haven’t viewed in a while" = "오래 안 본 탭 보관";
@@ -56,7 +60,7 @@
 "Ask" = "묻기";
 "Ask about this page, or give it a task" = "이 페이지에 대해 묻거나, 할 일을 시켜 보세요";
 "Ask AI" = "AI에게 묻기";
-"Ask before using other tabs, opening new addresses, or typing" = "다른 탭을 쓰거나, 새 주소를 열거나, 입력하기 전에 묻기";
+"Ask before using other tabs, opening new addresses, or using a page after reading other sites" = "다른 탭을 쓰거나, 새 주소를 열거나, 다른 사이트를 읽은 뒤 페이지를 쓰기 전에 묻기";
 "Ask where to save each download" = "다운로드할 때마다 저장 위치 묻기";
 "Authentication is required to copy the saved password" = "저장된 비밀번호를 복사하려면 확인이 필요해요";
 "Automatically put new tabs in the right group" = "새 탭을 맞는 그룹에 자동으로 넣기";
@@ -88,7 +92,9 @@
 "Check for Updates" = "업데이트 확인";
 "Check tab list" = "탭 목록 확인";
 "Checking…" = "확인하는 중…";
+"Choose" = "선택";
 "Choose an extension folder that contains manifest.json" = "manifest.json이 들어 있는 확장 폴더를 고르세요";
+"Choosing “%@”" = "“%@” 선택 중";
 "Chrome Web Store" = "Chrome 웹 스토어";
 "Chrome Web Store URL or extension ID" = "Chrome 웹 스토어 주소 또는 확장 ID";
 "Chrome-style" = "Chrome식";
@@ -101,8 +107,11 @@
 "Cleared: %@" = "지웠어요: %@";
 "Clear…" = "지우기…";
 "Click" = "클릭";
+"Click at %lld, %lld" = "%lld, %lld 클릭";
 "Click to open it. You can drag it into another app." = "누르면 열려요. 끌어서 다른 앱에 넣을 수 있어요.";
 "Click to show it in Finder. You can drag it into another app." = "누르면 Finder에서 보여 줘요. 끌어서 다른 앱에 넣을 수 있어요.";
+"Clicking at %lld, %lld" = "%lld, %lld 클릭 중";
+"Clicking “%@”" = "“%@” 클릭 중";
 "Close" = "닫기";
 "Close (esc)" = "닫기 (esc)";
 "Close (⌘E)" = "닫기 (⌘E)";
@@ -149,6 +158,7 @@
 "Developer Mode" = "개발자 모드";
 "Done" = "완료";
 "Done · %@" = "완료 · %@";
+"Don’t Allow" = "허용 안 함";
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "두 번 클릭하면 새 탭에서 열려요. 기간별로 지우기는 설정 › 개인정보에서 할 수 있어요.";
 "Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "두 번 클릭하면 다시 열려요. 보관할 때까지의 시간은 설정 › 탭에서 정해요.";
 "Download" = "다운로드";
@@ -157,14 +167,17 @@
 "Downloading · %@" = "받는 중 · %@";
 "Downloads" = "다운로드";
 "Downloads Folder" = "다운로드 폴더";
+"Drag" = "드래그";
 "Drag to resize the sidebar · double-click for default width" = "끌어서 사이드바 폭 조절 · 더블클릭하면 기본 폭";
 "Drag to resize · double-click to split evenly" = "끌어서 폭 나누기 · 더블클릭하면 반반";
+"Dragging “%@” to “%@”" = "“%@”을(를) “%@”(으)로 끄는 중";
 "e.g. music.youtube.com" = "예: music.youtube.com";
 "Each browser locks passwords and login state in the Keychain, so macOS will ask for permission. Enter your login password and click 'Allow'. Imported passwords are stored only in this Mac's Keychain." = "비밀번호와 로그인 상태는 각 브라우저가 키체인에 잠가 둬서, macOS가 접근 허용을 물어봐요. 로그인 암호를 넣고 '허용'을 눌러 주세요. 가져온 비밀번호는 이 Mac의 키체인에만 저장돼요.";
 "EasyList (ads)" = "EasyList (광고)";
 "EasyPrivacy (tracking)" = "EasyPrivacy (추적)";
 "Edit" = "편집";
 "Edit Address (⌘L)" = "주소 편집 (⌘L)";
+"Either way, it asks before something that looks like it pays, orders, sends, posts or deletes." = "어느 쪽이든 결제, 주문, 전송, 게시, 삭제처럼 보이는 일은 먼저 물어봐요.";
 "Element hiding" = "요소 숨김";
 "End Split View" = "분할 보기 끝내기";
 "Enter Address" = "주소 입력";
@@ -204,6 +217,7 @@
 "History" = "방문 기록";
 "History %@" = "기록 %@";
 "History: %@" = "방문 기록: %@";
+"Hover" = "가리키기";
 "How can I help?" = "무엇을 도와드릴까요?";
 "I can read the page you're viewing, click, type and open tabs." = "보고 있는 페이지를 읽고, 클릭하고, 입력하고, 탭을 열 수 있어요.";
 "If you allow it, you won't be asked again while this tab stays on this site." = "허용하면 이 탭이 이 사이트에 있는 동안은 다시 묻지 않아요.";
@@ -229,6 +243,7 @@
 "Load from Folder…" = "폴더에서 불러오기…";
 "Login info saved" = "로그인 정보를 저장했어요";
 "Login state (cookies)" = "로그인 상태(쿠키)";
+"Looking at the page" = "페이지 보는 중";
 "Make Default Browser" = "기본 브라우저로 설정";
 "Manage…" = "관리…";
 "Match developer mode (currently: %@)" = "개발자 모드에 맞춤 (지금: %@)";
@@ -283,6 +298,8 @@
 "Open in New Tab" = "새 탭에서 열기";
 "Open Location" = "주소 열기";
 "Open new tab · %@" = "새 탭 열기 · %@";
+"Opening %@" = "%@ 여는 중";
+"Option to choose:\n%@\n\nSites read earlier in this conversation: %@\nDeny if content from there is mixed in." = "고를 옵션:\n%@\n\n이 대화에서 앞서 읽은 사이트: %@\n그곳의 내용이 섞여 있다면 거부하세요.";
 "Opus (smartest, slower)" = "Opus (가장 똑똑함, 느림)";
 "Other" = "기타";
 "Other Bookmarks" = "기타 북마크";
@@ -300,11 +317,14 @@
 "Picture in Picture (⌃⌘P)" = "화면 속 화면 (⌃⌘P)";
 "Pin to Favorites" = "즐겨찾기에 고정";
 "Play video in Picture in Picture when you switch to another tab" = "다른 탭으로 가면 재생 중인 영상을 화면 속 화면으로";
+"Pointing at “%@”" = "“%@” 가리키는 중";
 "Pop-up blocked" = "팝업을 막았어요";
 "Pop-ups" = "팝업";
 "Pop-ups allowed" = "팝업 허용";
 "Pop-ups that a site opens without a click are blocked, and you’re told about it over the page. Sites you chose “Always allow for this site” on stay here." = "사이트가 클릭 없이 여는 팝업은 막고 페이지 위에 알려 줘요. '이 사이트는 항상 허용'을 고른 사이트는 여기에 남아요.";
 "Preparing…" = "준비 중…";
+"Press %@" = "%@ 누르기";
+"Pressing %@" = "%@ 누르는 중";
 "Previous (⌘⇧G)" = "이전 (⌘⇧G)";
 "Previous Tab" = "이전 탭";
 "Print…" = "인쇄…";
@@ -315,7 +335,9 @@
 "Reader Mode" = "읽기 모드";
 "Reader Mode (%@)" = "읽기 모드 (%@)";
 "Read tabs" = "탭 읽기";
+"Reading %@" = "%@ 읽는 중";
 "Reading rules…" = "규칙을 읽는 중…";
+"Reading the page" = "페이지 읽는 중";
 "Reads the rules saved by the blocker app. The first time you turn one on, macOS asks whether Changmun may access another app’s data. If you change the rules in the blocker app, they take effect the next time you launch Changmun." = "차단기 앱이 저장해 둔 규칙을 읽어 와요. 처음 켤 때 macOS가 다른 앱의 데이터에 접근해도 되는지 물어요. 차단기 앱에서 규칙을 바꾸면 Changmun을 다시 켤 때 반영돼요.";
 "Recent Tab" = "최근 탭";
 "Redo" = "실행 복귀";
@@ -346,6 +368,7 @@
 "Saved %@. The page was too large to fit, so only its top left part is included." = "%@ 저장했어요. 페이지가 너무 커서 왼쪽 위 부분만 담았어요.";
 "Saved Passwords" = "저장된 비밀번호";
 "Scroll · %@" = "스크롤 · %@";
+"Scrolling" = "스크롤 중";
 "Search" = "검색";
 "Search Archived Tabs" = "보관한 탭 검색";
 "Search Engine" = "검색 엔진";
@@ -397,8 +420,11 @@
 "The AI panel uses the Claude Code login (subscription) on this Mac." = "AI 패널은 이 Mac의 Claude Code 로그인(구독)을 써요.";
 "The AI request failed." = "AI 요청이 실패했어요.";
 "The AI response didn't finish (exit code %lld).\n%@" = "AI 응답이 끝나지 않았어요 (종료 코드 %lld).\n%@";
+"The AI wants to choose an option on %@" = "AI가 %@에서 옵션을 고르려고 해요";
 "The AI wants to open this address" = "AI가 이 주소를 열려고 해요";
+"The AI wants to press “%@” on %@" = "AI가 %2$@에서 “%1$@”을(를) 누르려고 해요";
 "The AI wants to type into %@" = "AI가 %@에 입력하려고 해요";
+"The AI wants to use %@" = "AI가 %@에서 작업을 하려고 해요";
 "The AI wants to use a tab you aren't looking at" = "AI가 지금 보고 있지 않은 탭을 쓰려고 해요";
 "The archive contains an item that points outside the extension folder" = "압축 파일 안에 확장 폴더 밖을 가리키는 항목이 있어요";
 "The extension file is too large" = "확장 파일이 너무 커요";
@@ -409,6 +435,7 @@
 "This extension is installed in Changmun" = "Changmun에 설치된 확장이에요";
 "This folder has no manifest.json" = "manifest.json이 없는 폴더예요";
 "This language can’t be translated" = "이 언어는 번역할 수 없어요";
+"This looks like it pays, orders, sends, posts, deletes or confirms something, and that can’t be undone.\n\nAllow it only if you asked for this." = "결제, 주문, 전송, 게시, 삭제, 확인처럼 되돌릴 수 없는 일로 보여요.\n\n직접 요청한 일일 때만 허용하세요.";
 "This page" = "이 페이지";
 "this page" = "이 페이지";
 "Tidied %lld tab" = "탭 %lld개를 정리했어요";
@@ -426,6 +453,7 @@
 "Turn on ad blocking for this site" = "이 사이트에서 광고 차단 켜기";
 "Turned off" = "꺼져 있어요";
 "Type" = "입력";
+"Typing into “%@”" = "“%@”에 입력 중";
 "Undo" = "실행 취소";
 "Ungroup" = "그룹 풀기";
 "Unmute" = "소리 켜기";
@@ -436,7 +464,11 @@
 "User Name" = "아이디";
 "View" = "보기";
 "View screen" = "화면 보기";
+"Wait" = "기다리기";
 "Waiting for %@ Keychain access…" = "%@ 키체인 허용을 기다리는 중…";
+"Waiting for the page to load" = "페이지 로딩을 기다리는 중";
+"Waiting for “%@”" = "“%@” 기다리는 중";
+"Waiting for “%@” to go away" = "“%@”이(가) 사라지길 기다리는 중";
 "Web extensions are available on macOS 15.4 or later." = "웹 확장은 macOS 15.4 이상에서 쓸 수 있어요.";
 "Web Inspector (Network)" = "웹 인스펙터 (네트워크)";
 "WebKit didn't accept the rules: %@" = "WebKit이 규칙을 받아들이지 않았어요: %@";

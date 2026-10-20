@@ -16,7 +16,14 @@ enum CLI {
       changmun read [--tab N] [--max N]      the page's text and its numbered elements
       changmun read-tabs <tab>… [--max N]    several tabs' text in one call
       changmun click <element> [--tab N]     click an element numbered by `read`
+      changmun click-at <x> <y> [--tab N]    click a point of the visible page (CSS pixels, as in `screenshot`)
       changmun type <element> <text> [--submit] [--tab N]
+      changmun press <key> [--element N] [--shift] [--alt] [--ctrl] [--meta] [--tab N]
+                                             Enter, Escape, Tab, Backspace, Delete, Space, arrows, Home, End, PageUp, PageDown
+      changmun select <element> <option>     choose an option of a select list
+      changmun hover <element> [--tab N]
+      changmun drag <from> <to> [--tab N]    each an element number or x,y
+      changmun wait [text] [--gone] [--timeout N] [--tab N]   until the text shows (or goes), else until the page has loaded
       changmun scroll down|up|top|bottom [--tab N]
       changmun screenshot [--tab N] [-o file.jpg]
       changmun call <tool> [json]            any tool by name, with JSON arguments
@@ -57,12 +64,24 @@ enum CLI {
         case call(String, [String: AnyHashable], output: String?)
     }
 
+    /// The commands each flag is for.
+    private static let appliesTo: [String: Set<String>] = {
+        let onATab: Set<String> = ["show", "close", "go", "back", "forward", "reload", "read", "click", "click-at", "type", "press", "select", "hover", "drag", "wait", "scroll", "screenshot", "call"]
+        var table: [String: Set<String>] = ["--tab": onATab, "--max": ["read", "read-tabs"], "-o": ["screenshot", "call"], "--output": ["screenshot", "call"],
+                                            "--submit": ["type"], "--gone": ["wait"], "--timeout": ["wait"], "--element": ["press"]]
+        for modifier in AgentKey.modifierNames { table["--" + modifier] = ["press"] }
+        return table
+    }()
+
     /// The command line as a tool call. Flags may come anywhere after the command.
     static func parse(_ arguments: [String]) throws -> Command {
         var words: [String] = []
-        var tab: Int?, max: Int?, output: String?, submit = false
+        var tab: Int?, max: Int?, output: String?, submit = false, gone = false, element: Int?, timeout: Double?
+        var modifiers: [String] = []
+        var flags: [String] = []
         var rest = arguments.makeIterator()
         while let word = rest.next() {
+            if word.hasPrefix("-"), word.count > 1, appliesTo[word] != nil { flags.append(word) }
             switch word {
             case "--tab":
                 guard let value = rest.next(), let id = Int(value.trimmingCharacters(in: CharacterSet(charactersIn: "#"))) else { throw UsageError(message: "--tab needs a tab number") }
@@ -75,11 +94,25 @@ enum CLI {
                 output = value
             case "--submit":
                 submit = true
+            case "--gone":
+                gone = true
+            case "--shift", "--alt", "--ctrl", "--meta":
+                modifiers.append(String(word.dropFirst(2)))
+            case "--element":
+                guard let value = rest.next(), let id = Int(value.trimmingCharacters(in: CharacterSet(charactersIn: "#"))) else { throw UsageError(message: "--element needs an element number") }
+                element = id
+            case "--timeout":
+                guard let value = rest.next(), let seconds = Double(value), seconds > 0 else { throw UsageError(message: "--timeout needs a number of seconds") }
+                timeout = seconds
             default:
                 words.append(word)
             }
         }
         guard let name = words.first else { return .help }
+        // A flag a command has no use for is a mistake (a --submit that did nothing is a form not sent), not something to skip.
+        for flag in flags where appliesTo[flag]?.contains(name) == false {
+            throw UsageError(message: "\(flag) doesn't apply to \(name)")
+        }
         let operands = Array(words.dropFirst())
         var args: [String: AnyHashable] = [:]
         if let tab { args["tab_id"] = tab }
@@ -126,6 +159,50 @@ enum CLI {
             args["text"] = try text(from: 1, "the text to type")
             if submit { args["submit"] = true }
             return .call("type_text", args, output: nil)
+        case "click-at":
+            guard operands.count == 2, let x = Double(operands[0]), let y = Double(operands[1]), x >= 0, y >= 0 else {
+                throw UsageError(message: "click-at needs x and y, in CSS pixels from the top left of the visible page")
+            }
+            args["x"] = x
+            args["y"] = y
+            return .call("click_at", args, output: nil)
+        case "press":
+            guard operands.count == 1, let key = AgentKey.name(operands[0]) else {
+                throw UsageError(message: "press needs one key: " + AgentKey.names.joined(separator: ", "))
+            }
+            args["key"] = key
+            if !modifiers.isEmpty { args["modifiers"] = modifiers }
+            if let element { args["element_id"] = element }
+            return .call("press_key", args, output: nil)
+        case "select":
+            args["element_id"] = try number(0, "an element number and an option")
+            args["option"] = try text(from: 1, "the option's text or value")
+            return .call("select_option", args, output: nil)
+        case "hover":
+            args["element_id"] = try number(0, "an element number from `changmun read`")
+            return .call("hover", args, output: nil)
+        case "drag":
+            guard operands.count == 2 else { throw UsageError(message: "drag needs where from and where to: an element number or x,y for each") }
+            for (prefix, operand) in zip(["from_", "to_"], operands) {
+                let parts = operand.split(separator: ",", omittingEmptySubsequences: false).map { Double($0) }
+                if parts.count == 2, let x = parts[0], let y = parts[1], x >= 0, y >= 0 {
+                    args[prefix + "x"] = x
+                    args[prefix + "y"] = y
+                } else if parts.count == 1, let id = Int(operand.trimmingCharacters(in: CharacterSet(charactersIn: "#"))) {
+                    args[prefix + "element_id"] = id
+                } else {
+                    throw UsageError(message: "drag needs an element number or x,y, not “\(operand)”")
+                }
+            }
+            return .call("drag", args, output: nil)
+        case "wait":
+            if !operands.isEmpty { args["text"] = operands.joined(separator: " ") }
+            if gone {
+                guard args["text"] != nil else { throw UsageError(message: "--gone needs the text to wait for to disappear") }
+                args["gone"] = true
+            }
+            if let timeout { args["timeout"] = timeout }
+            return .call("wait_for", args, output: nil)
         case "scroll":
             guard let direction = operands.first, ["down", "up", "top", "bottom"].contains(direction) else {
                 throw UsageError(message: "scroll needs down, up, top or bottom")

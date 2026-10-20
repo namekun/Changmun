@@ -51,6 +51,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     private var audioWatcher: AudioWatcher?
     private var zoomHost: String?
     @Published private(set) var webView: WKWebView?
+    /// What the AI's tools know about this tab's frames.
+    var agent = AgentState()
     var lastShown = Date()
     /// The host that shows the page now (see PageOwner).
     var pageOwner = PageOwner<WebViewHost.Container>()
@@ -126,6 +128,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         isPlayingAudio = false
         loginOffer = nil
         forgetPage()
+        agent.reset()
         self.webView = nil
         isLoading = false
         progress = 0
@@ -288,6 +291,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
 
 extension Tab: WKNavigationDelegate {
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, preferences: WKWebpagePreferences) async -> (WKNavigationActionPolicy, WKWebpagePreferences) {
+        // A frame that is about to show another document is no longer the one the AI's tools were told about.
+        if action.targetFrame?.isMainFrame == false { agent.reset() }
         if action.shouldPerformDownload { return (.download, preferences) }
         if let url = action.request.url, let scheme = url.scheme?.lowercased(),
            !["http", "https", "about", "data", "blob", "file", "javascript"].contains(scheme) {
@@ -369,6 +374,7 @@ extension Tab: WKNavigationDelegate {
         // Sign-ins often land on another host of the same site (login.example.com → www.example.com).
         if let offer = loginOffer, !Self.sameSite(offer.host, host) { loginOffer = nil }
         forgetPage()
+        agent.reset()
         if let host = webView.url?.host(), let cached = Browser.favicons[host] { favicon = cached }
     }
 

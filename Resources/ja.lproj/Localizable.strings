@@ -17,8 +17,10 @@
 "'%@' is updating and asks for more permissions" = "「%@」はアップデート中で、追加の権限を要求しています";
 "'%@' wants to access this site" = "「%@」がこのサイトにアクセスしようとしています";
 "(No username)" = "(ユーザ名なし)";
+"a frame of an unknown site" = "不明なサイトのフレーム";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "完全なアドレスはその場で編集できます (⌘L)。サイトとタイトルを表示している場合は、⌘Lで検索フィールドを開いて編集します。";
 "About Changmun" = "Changmunについて";
+"Action:\n%@\n\nSites read earlier in this conversation: %@\nA page can hide instructions for the AI. Deny if this isn’t what you asked for." = "操作:\n%@\n\nこの会話でこれまでに読み取ったサイト: %@\nページにAI宛ての指示が隠されていることがあります。ご自身で依頼した内容でなければ拒否してください。";
 "Active" = "有効";
 "Actual Size" = "実際のサイズ";
 "Ad Blocking" = "広告ブロック";
@@ -49,6 +51,8 @@
 "All Open Tabs" = "開いているタブすべて";
 "All Time" = "すべて";
 "Allow" = "許可";
+"Allow on %@ for This Chat" = "この会話中は%@で許可";
+"Allow Once" = "1回だけ許可";
 "Allow pop-ups" = "ポップアップを許可";
 "Always Allow for This Site" = "このサイトでは常に許可";
 "Archive tabs you haven’t viewed in a while" = "しばらく見ていないタブをアーカイブ";
@@ -56,7 +60,7 @@
 "Ask" = "確認";
 "Ask about this page, or give it a task" = "このページについて質問、または作業を依頼";
 "Ask AI" = "AIに質問";
-"Ask before using other tabs, opening new addresses, or typing" = "ほかのタブの使用、新しいアドレスを開く操作、入力の前に確認";
+"Ask before using other tabs, opening new addresses, or using a page after reading other sites" = "ほかのタブの使用、新しいアドレスを開く操作、ほかのサイトを読み取ったあとのページ操作の前に確認";
 "Ask where to save each download" = "ダウンロードごとに保存先を確認";
 "Authentication is required to copy the saved password" = "保存されたパスワードをコピーするには認証が必要です";
 "Automatically put new tabs in the right group" = "新しいタブを適切なグループに自動で追加";
@@ -88,7 +92,9 @@
 "Check for Updates" = "アップデートを確認";
 "Check tab list" = "タブ一覧を確認";
 "Checking…" = "確認中…";
+"Choose" = "選択";
 "Choose an extension folder that contains manifest.json" = "manifest.jsonを含む機能拡張のフォルダを選択してください";
+"Choosing “%@”" = "「%@」を選択中";
 "Chrome Web Store" = "Chrome ウェブストア";
 "Chrome Web Store URL or extension ID" = "Chrome ウェブストアのURLまたは機能拡張ID";
 "Chrome-style" = "Chrome方式";
@@ -101,8 +107,11 @@
 "Cleared: %@" = "消去しました: %@";
 "Clear…" = "消去…";
 "Click" = "クリック";
+"Click at %lld, %lld" = "%lld, %lld をクリック";
 "Click to open it. You can drag it into another app." = "クリックして開きます。ドラッグしてほかのAppに入れることもできます。";
 "Click to show it in Finder. You can drag it into another app." = "クリックするとFinderで表示します。ドラッグしてほかのAppに入れることもできます。";
+"Clicking at %lld, %lld" = "%lld, %lld をクリック中";
+"Clicking “%@”" = "「%@」をクリック中";
 "Close" = "閉じる";
 "Close (esc)" = "閉じる (esc)";
 "Close (⌘E)" = "閉じる (⌘E)";
@@ -149,6 +158,7 @@
 "Developer Mode" = "デベロッパモード";
 "Done" = "完了";
 "Done · %@" = "完了 · %@";
+"Don’t Allow" = "許可しない";
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "ダブルクリックで新規タブに開きます。期間を指定して履歴を消去するには、設定 › プライバシーを開いてください。";
 "Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "ダブルクリックで開き直します。タブをアーカイブするまでの時間は、設定 › タブで設定できます。";
 "Download" = "ダウンロード";
@@ -157,14 +167,17 @@
 "Downloading · %@" = "ダウンロード中 · %@";
 "Downloads" = "ダウンロード";
 "Downloads Folder" = "ダウンロードフォルダ";
+"Drag" = "ドラッグ";
 "Drag to resize the sidebar · double-click for default width" = "ドラッグしてサイドバーの幅を変更 · ダブルクリックでデフォルトの幅";
 "Drag to resize · double-click to split evenly" = "ドラッグして幅を変更 · ダブルクリックで均等に分割";
+"Dragging “%@” to “%@”" = "「%@」を「%@」へドラッグ中";
 "e.g. music.youtube.com" = "例: music.youtube.com";
 "Each browser locks passwords and login state in the Keychain, so macOS will ask for permission. Enter your login password and click 'Allow'. Imported passwords are stored only in this Mac's Keychain." = "パスワードとログイン状態は各ブラウザがキーチェーンで保護しているため、macOSがアクセスの許可を求めます。ログインパスワードを入力して「許可」をクリックしてください。読み込んだパスワードは、このMacのキーチェーンにのみ保存されます。";
 "EasyList (ads)" = "EasyList (広告)";
 "EasyPrivacy (tracking)" = "EasyPrivacy (トラッキング)";
 "Edit" = "編集";
 "Edit Address (⌘L)" = "アドレスを編集 (⌘L)";
+"Either way, it asks before something that looks like it pays, orders, sends, posts or deletes." = "どちらの設定でも、支払い・注文・送信・投稿・削除に見える操作の前には必ず確認します。";
 "Element hiding" = "要素の非表示";
 "End Split View" = "スプリットビューを終了";
 "Enter Address" = "アドレスを入力";
@@ -204,6 +217,7 @@
 "History" = "履歴";
 "History %@" = "履歴 %@";
 "History: %@" = "履歴: %@";
+"Hover" = "ポインタを重ねる";
 "How can I help?" = "何をお手伝いしましょうか？";
 "I can read the page you're viewing, click, type and open tabs." = "表示中のページを読み取り、クリックや入力、タブを開く操作ができます。";
 "If you allow it, you won't be asked again while this tab stays on this site." = "許可すると、このタブがこのサイトにある間は再度確認されません。";
@@ -229,6 +243,7 @@
 "Load from Folder…" = "フォルダから読み込む…";
 "Login info saved" = "ログイン情報を保存しました";
 "Login state (cookies)" = "ログイン状態 (Cookie)";
+"Looking at the page" = "ページを見ています";
 "Make Default Browser" = "デフォルトのブラウザに設定";
 "Manage…" = "管理…";
 "Match developer mode (currently: %@)" = "デベロッパモードに合わせる (現在: %@)";
@@ -283,6 +298,8 @@
 "Open in New Tab" = "新規タブで開く";
 "Open Location" = "場所を開く";
 "Open new tab · %@" = "新規タブを開く · %@";
+"Opening %@" = "%@を開いています";
+"Option to choose:\n%@\n\nSites read earlier in this conversation: %@\nDeny if content from there is mixed in." = "選ぶオプション:\n%@\n\nこの会話でこれまでに読み取ったサイト: %@\nそれらの内容が混ざっている場合は拒否してください。";
 "Opus (smartest, slower)" = "Opus (最も高性能、低速)";
 "Other" = "その他";
 "Other Bookmarks" = "その他のブックマーク";
@@ -300,11 +317,14 @@
 "Picture in Picture (⌃⌘P)" = "ピクチャインピクチャ (⌃⌘P)";
 "Pin to Favorites" = "お気に入りに固定";
 "Play video in Picture in Picture when you switch to another tab" = "別のタブに切り替えたときに、動画をピクチャインピクチャで再生";
+"Pointing at “%@”" = "「%@」にポインタを合わせ中";
 "Pop-up blocked" = "ポップアップをブロックしました";
 "Pop-ups" = "ポップアップ";
 "Pop-ups allowed" = "ポップアップを許可";
 "Pop-ups that a site opens without a click are blocked, and you’re told about it over the page. Sites you chose “Always allow for this site” on stay here." = "サイトがクリックなしで開くポップアップはブロックされ、ページ上に通知されます。「このサイトでは常に許可」を選んだサイトはここに残ります。";
 "Preparing…" = "準備中…";
+"Press %@" = "%@を押す";
+"Pressing %@" = "%@を押しています";
 "Previous (⌘⇧G)" = "前へ (⌘⇧G)";
 "Previous Tab" = "前のタブ";
 "Print…" = "プリント…";
@@ -315,7 +335,9 @@
 "Reader Mode" = "リーダーモード";
 "Reader Mode (%@)" = "リーダーモード (%@)";
 "Read tabs" = "タブを読み取る";
+"Reading %@" = "%@を読み取り中";
 "Reading rules…" = "ルールを読み込み中…";
+"Reading the page" = "ページを読み取り中";
 "Reads the rules saved by the blocker app. The first time you turn one on, macOS asks whether Changmun may access another app’s data. If you change the rules in the blocker app, they take effect the next time you launch Changmun." = "ブロッカAppが保存したルールを読み込みます。初めてオンにするとき、ChangmunがほかのアプリケーションのデータにアクセスしてよいかをmacOSが確認します。ブロッカAppでルールを変更した場合は、Changmunを次回起動したときに反映されます。";
 "Recent Tab" = "最近のタブ";
 "Redo" = "やり直す";
@@ -346,6 +368,7 @@
 "Saved %@. The page was too large to fit, so only its top left part is included." = "%@を保存しました。ページが大きすぎるため、左上の部分のみ含まれています。";
 "Saved Passwords" = "保存済みのパスワード";
 "Scroll · %@" = "スクロール · %@";
+"Scrolling" = "スクロール中";
 "Search" = "検索";
 "Search Archived Tabs" = "アーカイブしたタブを検索";
 "Search Engine" = "検索エンジン";
@@ -397,8 +420,11 @@
 "The AI panel uses the Claude Code login (subscription) on this Mac." = "AIパネルは、このMacのClaude Codeのログイン (サブスクリプション) を使用します。";
 "The AI request failed." = "AIのリクエストに失敗しました。";
 "The AI response didn't finish (exit code %lld).\n%@" = "AIの応答が完了しませんでした (終了コード %lld)。\n%@";
+"The AI wants to choose an option on %@" = "AIが%@でオプションを選ぼうとしています";
 "The AI wants to open this address" = "AIがこのアドレスを開こうとしています";
+"The AI wants to press “%@” on %@" = "AIが%2$@で「%1$@」を押そうとしています";
 "The AI wants to type into %@" = "AIが%@に入力しようとしています";
+"The AI wants to use %@" = "AIが%@を操作しようとしています";
 "The AI wants to use a tab you aren't looking at" = "AIが表示していないタブを使用しようとしています";
 "The archive contains an item that points outside the extension folder" = "アーカイブに、機能拡張のフォルダの外を指す項目が含まれています";
 "The extension file is too large" = "機能拡張のファイルが大きすぎます";
@@ -409,6 +435,7 @@
 "This extension is installed in Changmun" = "この機能拡張はChangmunにインストールされています";
 "This folder has no manifest.json" = "このフォルダにはmanifest.jsonがありません";
 "This language can’t be translated" = "この言語は翻訳できません";
+"This looks like it pays, orders, sends, posts, deletes or confirms something, and that can’t be undone.\n\nAllow it only if you asked for this." = "支払い、注文、送信、投稿、削除、確認など、元に戻せない操作のようです。\n\nご自身で依頼した場合にのみ許可してください。";
 "This page" = "このページ";
 "this page" = "このページ";
 "Tidied %lld tab" = "%lld個のタブを整理しました";
@@ -426,6 +453,7 @@
 "Turn on ad blocking for this site" = "このサイトの広告ブロックをオンにする";
 "Turned off" = "オフ";
 "Type" = "入力";
+"Typing into “%@”" = "「%@」に入力中";
 "Undo" = "取り消す";
 "Ungroup" = "グループを解除";
 "Unmute" = "ミュート解除";
@@ -436,7 +464,11 @@
 "User Name" = "ユーザ名";
 "View" = "表示";
 "View screen" = "画面を表示";
+"Wait" = "待機";
 "Waiting for %@ Keychain access…" = "%@のキーチェーンへのアクセス許可を待機中…";
+"Waiting for the page to load" = "ページの読み込みを待っています";
+"Waiting for “%@”" = "「%@」を待っています";
+"Waiting for “%@” to go away" = "「%@」が消えるのを待っています";
 "Web extensions are available on macOS 15.4 or later." = "Web機能拡張はmacOS 15.4以降で利用できます。";
 "Web Inspector (Network)" = "Webインスペクタ (ネットワーク)";
 "WebKit didn't accept the rules: %@" = "WebKitがルールを受け付けませんでした: %@";

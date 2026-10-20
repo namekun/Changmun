@@ -17,8 +17,10 @@
 "'%@' is updating and asks for more permissions" = "“%@”正在更新，并请求更多权限";
 "'%@' wants to access this site" = "“%@”想要访问此网站";
 "(No username)" = "（无用户名）";
+"a frame of an unknown site" = "来源不明的框架";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "完整地址可以直接在原位编辑（⌘L）。若显示网站和标题，按 ⌘L 会打开搜索栏进行编辑。";
 "About Changmun" = "关于 Changmun";
+"Action:\n%@\n\nSites read earlier in this conversation: %@\nA page can hide instructions for the AI. Deny if this isn’t what you asked for." = "操作：\n%@\n\n此对话中先前读取过的网站：%@\n网页可能藏有针对 AI 的指令。如果这不是你要求的，请拒绝。";
 "Active" = "已启用";
 "Actual Size" = "实际大小";
 "Ad Blocking" = "广告拦截";
@@ -49,6 +51,8 @@
 "All Open Tabs" = "所有已打开的标签页";
 "All Time" = "全部时间";
 "Allow" = "允许";
+"Allow on %@ for This Chat" = "在此对话中允许 %@";
+"Allow Once" = "允许一次";
 "Allow pop-ups" = "允许弹出式窗口";
 "Always Allow for This Site" = "始终允许此网站";
 "Archive tabs you haven’t viewed in a while" = "归档一段时间未查看的标签页";
@@ -56,7 +60,7 @@
 "Ask" = "询问";
 "Ask about this page, or give it a task" = "询问此页面，或交给它一项任务";
 "Ask AI" = "询问 AI";
-"Ask before using other tabs, opening new addresses, or typing" = "使用其他标签页、打开新地址或输入内容前先询问";
+"Ask before using other tabs, opening new addresses, or using a page after reading other sites" = "使用其他标签页、打开新地址，或在读取其他网站后操作页面前先询问";
 "Ask where to save each download" = "每次下载时询问存储位置";
 "Authentication is required to copy the saved password" = "需要验证身份才能拷贝已存储的密码";
 "Automatically put new tabs in the right group" = "自动将新标签页放入合适的群组";
@@ -88,7 +92,9 @@
 "Check for Updates" = "检查更新";
 "Check tab list" = "检查标签页列表";
 "Checking…" = "正在检查…";
+"Choose" = "选择";
 "Choose an extension folder that contains manifest.json" = "选择包含 manifest.json 的扩展文件夹";
+"Choosing “%@”" = "正在选择“%@”";
 "Chrome Web Store" = "Chrome 网上应用店";
 "Chrome Web Store URL or extension ID" = "Chrome 网上应用店网址或扩展 ID";
 "Chrome-style" = "Chrome 风格";
@@ -101,8 +107,11 @@
 "Cleared: %@" = "已清除：%@";
 "Clear…" = "清除…";
 "Click" = "点按";
+"Click at %lld, %lld" = "点按 %lld, %lld";
 "Click to open it. You can drag it into another app." = "点按即可打开。可拖到其他 App 中。";
 "Click to show it in Finder. You can drag it into another app." = "点按即可在访达中显示。可拖到其他 App 中。";
+"Clicking at %lld, %lld" = "正在点按 %lld, %lld";
+"Clicking “%@”" = "正在点按“%@”";
 "Close" = "关闭";
 "Close (esc)" = "关闭 (esc)";
 "Close (⌘E)" = "关闭 (⌘E)";
@@ -149,6 +158,7 @@
 "Developer Mode" = "开发者模式";
 "Done" = "完成";
 "Done · %@" = "完成 · %@";
+"Don’t Allow" = "不允许";
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "双击可在新标签页中打开。如需按时间范围清除历史记录，请前往“设置 › 隐私”。";
 "Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "双击可重新打开。归档前的等待时间可在“设置 › 标签页”中设定。";
 "Download" = "下载";
@@ -157,14 +167,17 @@
 "Downloading · %@" = "正在下载 · %@";
 "Downloads" = "下载";
 "Downloads Folder" = "“下载”文件夹";
+"Drag" = "拖移";
 "Drag to resize the sidebar · double-click for default width" = "拖移以调整边栏宽度 · 双击恢复默认宽度";
 "Drag to resize · double-click to split evenly" = "拖移以调整宽度 · 双击均分";
+"Dragging “%@” to “%@”" = "正在将“%@”拖到“%@”";
 "e.g. music.youtube.com" = "例如：music.youtube.com";
 "Each browser locks passwords and login state in the Keychain, so macOS will ask for permission. Enter your login password and click 'Allow'. Imported passwords are stored only in this Mac's Keychain." = "各浏览器会将密码和登录状态锁定在钥匙串中，因此 macOS 会请求访问许可。请输入登录密码并点按“允许”。导入的密码仅存储在这台 Mac 的钥匙串中。";
 "EasyList (ads)" = "EasyList（广告）";
 "EasyPrivacy (tracking)" = "EasyPrivacy（追踪）";
 "Edit" = "编辑";
 "Edit Address (⌘L)" = "编辑地址 (⌘L)";
+"Either way, it asks before something that looks like it pays, orders, sends, posts or deletes." = "无论如何设置，遇到看起来像付款、下单、发送、发布或删除的操作，都会先询问。";
 "Element hiding" = "元素隐藏";
 "End Split View" = "结束分屏浏览";
 "Enter Address" = "输入地址";
@@ -204,6 +217,7 @@
 "History" = "历史记录";
 "History %@" = "历史记录 %@";
 "History: %@" = "历史记录：%@";
+"Hover" = "悬停";
 "How can I help?" = "需要我帮你做什么？";
 "I can read the page you're viewing, click, type and open tabs." = "我可以读取你正在查看的页面、点按、输入以及打开标签页。";
 "If you allow it, you won't be asked again while this tab stays on this site." = "如果允许，只要此标签页停留在该网站，就不会再次询问。";
@@ -229,6 +243,7 @@
 "Load from Folder…" = "从文件夹载入…";
 "Login info saved" = "登录信息已存储";
 "Login state (cookies)" = "登录状态（Cookie）";
+"Looking at the page" = "正在查看页面";
 "Make Default Browser" = "设为默认浏览器";
 "Manage…" = "管理…";
 "Match developer mode (currently: %@)" = "与开发者模式一致（当前：%@）";
@@ -283,6 +298,8 @@
 "Open in New Tab" = "在新标签页中打开";
 "Open Location" = "打开位置";
 "Open new tab · %@" = "打开新标签页 · %@";
+"Opening %@" = "正在打开 %@";
+"Option to choose:\n%@\n\nSites read earlier in this conversation: %@\nDeny if content from there is mixed in." = "要选择的选项：\n%@\n\n此对话中先前读取过的网站：%@\n如果混入了这些网站的内容，请拒绝。";
 "Opus (smartest, slower)" = "Opus（最聪明，较慢）";
 "Other" = "其他";
 "Other Bookmarks" = "其他书签";
@@ -300,11 +317,14 @@
 "Picture in Picture (⌃⌘P)" = "画中画 (⌃⌘P)";
 "Pin to Favorites" = "固定到个人收藏";
 "Play video in Picture in Picture when you switch to another tab" = "切换到其他标签页时，以画中画播放视频";
+"Pointing at “%@”" = "正在指向“%@”";
 "Pop-up blocked" = "已拦截弹出式窗口";
 "Pop-ups" = "弹出式窗口";
 "Pop-ups allowed" = "已允许弹出式窗口";
 "Pop-ups that a site opens without a click are blocked, and you’re told about it over the page. Sites you chose “Always allow for this site” on stay here." = "网站未经点按而打开的弹出式窗口会被拦截，并在页面上方提示你。你选择了“始终允许此网站”的网站会保留在这里。";
 "Preparing…" = "正在准备…";
+"Press %@" = "按下 %@";
+"Pressing %@" = "正在按下 %@";
 "Previous (⌘⇧G)" = "上一个 (⌘⇧G)";
 "Previous Tab" = "上一个标签页";
 "Print…" = "打印…";
@@ -315,7 +335,9 @@
 "Reader Mode" = "阅读模式";
 "Reader Mode (%@)" = "阅读模式 (%@)";
 "Read tabs" = "读取标签页";
+"Reading %@" = "正在读取 %@";
 "Reading rules…" = "正在读取规则…";
+"Reading the page" = "正在读取页面";
 "Reads the rules saved by the blocker app. The first time you turn one on, macOS asks whether Changmun may access another app’s data. If you change the rules in the blocker app, they take effect the next time you launch Changmun." = "读取拦截器 App 存储的规则。首次开启时，macOS 会询问 Changmun 是否可以访问其他 App 的数据。如果在拦截器 App 中更改了规则，将在下次启动 Changmun 时生效。";
 "Recent Tab" = "最近的标签页";
 "Redo" = "重做";
@@ -346,6 +368,7 @@
 "Saved %@. The page was too large to fit, so only its top left part is included." = "已存储 %@。页面过大，仅包含左上部分。";
 "Saved Passwords" = "已存储的密码";
 "Scroll · %@" = "滚动 · %@";
+"Scrolling" = "正在滚动";
 "Search" = "搜索";
 "Search Archived Tabs" = "搜索已归档的标签页";
 "Search Engine" = "搜索引擎";
@@ -397,8 +420,11 @@
 "The AI panel uses the Claude Code login (subscription) on this Mac." = "AI 面板使用这台 Mac 上的 Claude Code 登录（订阅）。";
 "The AI request failed." = "AI 请求失败。";
 "The AI response didn't finish (exit code %lld).\n%@" = "AI 响应未完成（退出代码 %lld）。\n%@";
+"The AI wants to choose an option on %@" = "AI 想要在 %@ 上选择一个选项";
 "The AI wants to open this address" = "AI 想要打开此地址";
+"The AI wants to press “%@” on %@" = "AI 想要在 %2$@ 上点按“%1$@”";
 "The AI wants to type into %@" = "AI 想要在 %@ 中输入内容";
+"The AI wants to use %@" = "AI 想要操作 %@";
 "The AI wants to use a tab you aren't looking at" = "AI 想要使用你当前没有查看的标签页";
 "The archive contains an item that points outside the extension folder" = "压缩文件中有指向扩展文件夹之外的项目";
 "The extension file is too large" = "扩展文件太大";
@@ -409,6 +435,7 @@
 "This extension is installed in Changmun" = "此扩展已安装在 Changmun 中";
 "This folder has no manifest.json" = "此文件夹中没有 manifest.json";
 "This language can’t be translated" = "无法翻译此语言";
+"This looks like it pays, orders, sends, posts, deletes or confirms something, and that can’t be undone.\n\nAllow it only if you asked for this." = "这看起来像是付款、下单、发送、发布、删除或确认等无法撤销的操作。\n\n只有在你自己要求时才允许。";
 "This page" = "此页面";
 "this page" = "此页面";
 "Tidied %lld tab" = "已整理 %lld 个标签页";
@@ -426,6 +453,7 @@
 "Turn on ad blocking for this site" = "为此网站开启广告拦截";
 "Turned off" = "已关闭";
 "Type" = "输入";
+"Typing into “%@”" = "正在“%@”中输入";
 "Undo" = "撤销";
 "Ungroup" = "取消分组";
 "Unmute" = "取消静音";
@@ -436,7 +464,11 @@
 "User Name" = "用户名";
 "View" = "显示";
 "View screen" = "查看屏幕";
+"Wait" = "等待";
 "Waiting for %@ Keychain access…" = "正在等待 %@ 钥匙串访问许可…";
+"Waiting for the page to load" = "正在等待页面载入";
+"Waiting for “%@”" = "正在等待“%@”";
+"Waiting for “%@” to go away" = "正在等待“%@”消失";
 "Web extensions are available on macOS 15.4 or later." = "网页扩展需要 macOS 15.4 或更高版本。";
 "Web Inspector (Network)" = "网页检查器（网络）";
 "WebKit didn't accept the rules: %@" = "WebKit 未接受这些规则：%@";

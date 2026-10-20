@@ -18,6 +18,17 @@ struct PageOwnerTests {
         #expect(owner.owns(new))
     }
 
+    @Test func aPageIsInFrontUnlessItsHostSaysItIsKeptBehind() {
+        let host = NSObject()
+        var owner = PageOwner<NSObject>()
+        owner.claim(host)
+        #expect(owner.place == .front)
+        owner.claim(host, as: .behind)
+        #expect(owner.owns(host) && owner.place == .behind)
+        owner.claim(host)
+        #expect(owner.place == .front)
+    }
+
     @Test func aHostThatIsGoneOwnsNothing() {
         var owner = PageOwner<NSObject>()
         var gone: NSObject? = NSObject()

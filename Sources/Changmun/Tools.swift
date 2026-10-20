@@ -35,16 +35,29 @@ enum ToolCatalog {
         tool("go_back", "Go back in the tab's history."),
         tool("go_forward", "Go forward in the tab's history."),
         tool("reload", "Reload the tab."),
-        tool("read_page", "Read the page: title, URL, scroll position, a numbered list of interactive elements, and the visible text. Use the element numbers with click and type_text.",
+        tool("read_page", "Read the page: title, URL, scroll position, a numbered list of interactive elements, and the visible text, frames included (the content of a frame from another site is read when Changmun can reach it, and the page says so when it can't). Elements inside shadow DOM (web components) aren't listed: use click_at for those. Use the element numbers with click, type_text, press_key, select_option, hover and drag.",
              ["max_chars": ["type": "integer", "description": "Maximum characters of page text (default 12000)"]]),
         tool("read_tabs", "Read several tabs at once: each one's title, URL and visible text, without the numbered elements. Use it to compare or combine tabs instead of switching between them; use read_page on a tab before clicking in it.",
              ["tab_ids": ["type": "array", "items": ["type": "integer"], "description": "Tab ids from list_tabs (at most \(maxTabsPerRead))"],
               "max_chars": ["type": "integer", "description": "Maximum characters of text per tab (default 6000)"]], required: ["tab_ids"]),
-        tool("click", "Click an element by its number from the latest read_page.", ["element_id": ["type": "integer"]], required: ["element_id"]),
+        tool("click", "Click an element by its number from the latest read_page. If it looks like it pays, orders, sends, posts, deletes or confirms something, Changmun asks the user first. After the page you are working on has read other sites, Changmun asks the user before every click, key press, hover, drag, typed text and chosen option (once per site when the user allows the site for the chat).", ["element_id": ["type": "integer"]], required: ["element_id"]),
+        tool("click_at", "Click the element at a point of the visible page, for things read_page doesn't list (a canvas, a map, a custom control). x and y are CSS pixels from the top left of the visible page, which is exactly what a screenshot shows when its note says 1 pixel = 1 CSS pixel (otherwise divide the screenshot's pixels by the scale it names; page zoom and the screen's pixel density don't matter). Says which element was hit. Points in frames work too, and it reaches elements inside shadow DOM that read_page doesn't list.",
+             ["x": ["type": "number", "description": "CSS pixels from the left edge of the visible page"], "y": ["type": "number", "description": "CSS pixels from the top edge of the visible page"]], required: ["x", "y"]),
         tool("type_text", "Replace the text of an input, text area or editable element (by number from read_page). Set submit to press Enter afterwards.",
              ["element_id": ["type": "integer"], "text": ["type": "string"], "submit": ["type": "boolean"]], required: ["element_id", "text"]),
+        tool("press_key", "Press a key, with keydown, keypress and keyup events like a keyboard, on the element in focus or on the one given by element_id (focused first). Only these keys: \(AgentKey.names.joined(separator: ", ")); with any of the modifiers \(AgentKey.modifierNames.joined(separator: ", ")). Use type_text for text. What the page doesn't handle itself is done as a browser would: Enter activates a button or link and submits a form, Tab moves focus, Escape closes a dialog, arrows and Home/End move the cursor, change a select or scroll, Backspace and Delete edit a text field, Space activates a button or scrolls. Combinations with alt, ctrl or meta only reach the page's own handlers.",
+             ["key": ["type": "string", "enum": AgentKey.names], "modifiers": ["type": "array", "items": ["type": "string", "enum": AgentKey.modifierNames]],
+              "element_id": ["type": "integer", "description": "Focus this element first (number from read_page)"]], required: ["key"]),
+        tool("select_option", "Choose an option of a select list by its visible text or its value (also for custom listboxes and comboboxes, whose options are then clicked). Fires input and change.",
+             ["element_id": ["type": "integer"], "option": ["type": "string", "description": "The option's text or value"]], required: ["element_id", "option"]),
+        tool("hover", "Move the pointer over an element so that menus and tooltips open (pointer and mouse over, enter and move events). Then read the page again.", ["element_id": ["type": "integer"]], required: ["element_id"]),
+        tool("drag", "Drag from an element or point to another and drop there: HTML5 drag and drop when the source is draggable, otherwise pointer and mouse events along the way (sliders, sortable lists). Both ends must be in the same frame.",
+             ["from_element_id": ["type": "integer"], "from_x": ["type": "number"], "from_y": ["type": "number"],
+              "to_element_id": ["type": "integer"], "to_x": ["type": "number"], "to_y": ["type": "number"]]),
+        tool("wait_for", "Wait until the given text is on the page (or, with gone, no longer there), or, without text, until the page stops loading. Gives up after timeout seconds (default 10, at most 30). Use it instead of reading the page over and over.",
+             ["text": ["type": "string"], "gone": ["type": "boolean", "description": "Wait for the text to disappear"], "timeout": ["type": "number", "description": "Seconds, default 10, at most 30"]]),
         tool("scroll", "Scroll the page.", ["direction": ["type": "string", "enum": ["down", "up", "top", "bottom"]]], required: ["direction"]),
-        tool("screenshot", "Take a screenshot of the visible part of the page."),
+        tool("screenshot", "Take a screenshot of the visible part of the page. Its note says how its pixels relate to the CSS pixels click_at takes."),
     ]
 
     @MainActor
@@ -57,7 +70,11 @@ enum ToolCatalog {
         }
         if name == "open_tab" {
             guard let url = webURL(args["url"]) else { return .text("Give an http(s) URL, a domain, or search words.", error: true) }
-            guard await Approvals.allowNavigation(url) else { return declined }
+            AgentActivity.shared.step(String(localized: "Opening \(url.host() ?? "")"), caller: caller)
+            defer { AgentActivity.shared.step(nil, caller: caller) }
+            let session = Session(caller: caller)
+            guard await Approvals.allowNavigation(url, caller: caller) else { return declined }
+            if session.stopped { return stopped }
             let tab = (Browser.recent ?? BrowserWindow.open()).openTab(url: url)
             defer { Approvals.noteRead(tab, caller: caller) }
             await waitForLoad(tab)
@@ -65,6 +82,8 @@ enum ToolCatalog {
         }
         if name == "read_tabs" { return await readTabs(args, caller: caller) }
         if args["tab_id"] != nil && int(args["tab_id"]) == nil { return .text("tab_id must be a number.", error: true) }
+        if let problem = validate(name, args) { return .text(problem, error: true) }
+        let session = Session(caller: caller)
         // Tab ids are unique across windows: one listed earlier is found even after another window came to the front.
         let tab = int(args["tab_id"]).map(findTab) ?? Browser.recent?.active
         guard let tab, let browser = tab.browser else {
@@ -73,12 +92,15 @@ enum ToolCatalog {
         // Only the tab in front of the user goes without asking.
         let needsApproval = (tab.id != browser.activeID || browser !== Browser.recent) && name != "close_tab"
         if needsApproval {
-            guard await Approvals.allowTab(tab, caller: caller, reading: name == "read_page" || name == "screenshot") else { return declined }
+            guard await Approvals.allowTab(tab, caller: caller, reading: ["read_page", "screenshot", "wait_for"].contains(name)) else { return declined }
+            if session.stopped { return stopped }
         }
         let approvedHost = tab.url?.host()?.lowercased()
         // Every answer below carries the tab's title, address or content.
         defer { if name != "close_tab" { Approvals.noteRead(tab, caller: caller) } }
         let webView = tab.wake()
+        if name != "switch_tab" && name != "close_tab" { AgentActivity.shared.use(tab, caller: caller) }
+        defer { AgentActivity.shared.step(nil, caller: caller) }
         switch name {
         case "switch_tab":
             browser.activate(tab.id)
@@ -88,7 +110,9 @@ enum ToolCatalog {
             return .text("Closed tab #\(tab.id).")
         case "navigate":
             guard let url = webURL(args["url"]) else { return .text("Give an http(s) URL, a domain, or search words.", error: true) }
-            guard await Approvals.allowNavigation(url) else { return declined }
+            AgentActivity.shared.step(String(localized: "Opening \(url.host() ?? "")"), caller: caller)
+            guard await Approvals.allowNavigation(url, caller: caller) else { return declined }
+            if session.stopped { return stopped }
             tab.load(url)
             await waitForLoad(tab)
             return .text("Now at: \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")")
@@ -97,30 +121,44 @@ enum ToolCatalog {
             await waitForLoad(tab)
             return .text("Now at: \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")")
         case "read_page":
-            let result = await run(PageScripts.read, ["maxChars": int(args["max_chars"]) ?? 12000], in: webView)
+            AgentActivity.shared.step(tab.url?.host().map { String(localized: "Reading \($0)") } ?? String(localized: "Reading the page"), caller: caller)
+            let (result, frameHosts) = await readPage(tab, webView, maxChars: int(args["max_chars"]) ?? 12000, session: session)
             let host = readHost(result)
             if needsApproval, !(await Approvals.allowRead(tab, approvedHost: approvedHost, readHost: host, caller: caller)) { return declined }
+            if session.stopped { return stopped }
             Approvals.noteRead(tab, readHost: host, caller: caller)
+            // What a frame of another site showed was read from that site, not from the page around it.
+            for frameHost in frameHosts { Approvals.noteRead(tab, readHost: frameHost, caller: caller) }
             return result
         case "click":
             guard let id = int(args["element_id"]) else { return .text("element_id is required.", error: true) }
-            let before = webView.url
-            let result = await run(PageScripts.click, ["id": id], in: webView)
-            if result.isError { return result }
-            await waitForLoad(tab, expectingChangeFrom: before)
-            return .text("Clicked [\(id)]. Now at: \(tab.displayTitle) — \(tab.url?.absoluteString ?? ""). Element numbers may have changed; read the page again before using them.")
+            return await clickElement(id, tab: tab, webView: webView, session: session)
+        case "click_at":
+            return await clickAt(args, tab: tab, webView: webView, session: session)
         case "type_text":
             guard let id = int(args["element_id"]), let text = args["text"] as? String else { return .text("element_id and text are required.", error: true) }
-            guard await Approvals.allowTyping(text, into: tab, caller: caller) else { return declined }
-            let before = webView.url
-            let result = await run(PageScripts.type, ["id": id, "text": text, "submit": args["submit"] as? Bool ?? false], in: webView)
-            if result.isError || args["submit"] as? Bool != true { return result }
-            await waitForLoad(tab, expectingChangeFrom: before)
-            return .text("Typed into [\(id)] and pressed Enter. Now at: \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")")
+            return await typeText(id, text: text, submit: args["submit"] as? Bool ?? false, tab: tab, webView: webView, session: session)
+        case "press_key":
+            return await pressKey(args, tab: tab, webView: webView, session: session)
+        case "select_option":
+            return await selectOption(args, tab: tab, webView: webView, session: session)
+        case "hover":
+            guard let id = int(args["element_id"]) else { return .text("element_id is required.", error: true) }
+            return await hover(id, tab: tab, webView: webView, session: session)
+        case "drag":
+            return await drag(args, tab: tab, webView: webView, session: session)
+        case "wait_for":
+            return await waitFor(args, tab: tab, webView: webView, session: session)
         case "scroll":
+            // Free of the questions the other ways of using a page are asked: it moves what is in view and nothing else, and
+            // can neither press nor carry anything the AI chose.
+            AgentActivity.shared.step(String(localized: "Scrolling"), caller: caller)
             return await run(PageScripts.scroll, ["direction": args["direction"] as? String ?? "down"], in: webView)
         case "screenshot":
+            AgentActivity.shared.step(String(localized: "Looking at the page"), caller: caller)
             Approvals.noteRead(tab, caller: caller)
+            // A picture shows the frames of other sites on the page too.
+            for frameHost in await shownFrameHosts(tab, webView) { Approvals.noteRead(tab, readHost: frameHost, caller: caller) }
             return await screenshot(webView)
         default:
             return .text("Unknown tool \(name).", error: true)
@@ -141,6 +179,7 @@ enum ToolCatalog {
         let ids = values.compactMap(int).reduce(into: [Int]()) { if !$0.contains($1) { $0.append($1) } }
         guard ids.count <= maxTabsPerRead else { return .text("Read at most \(maxTabsPerRead) tabs at a time.", error: true) }
         let maxChars = min(max(int(args["max_chars"]) ?? 6000, 200), 30000)
+        let session = Session(caller: caller)
         let deadline = Date().addingTimeInterval(readDeadline)
         var sections: [Int: String] = [:]
         var reads: [(tab: Tab, approvedHost: String?, inFront: Bool, wasShown: Date?)] = []
@@ -159,6 +198,7 @@ enum ToolCatalog {
                 sections[id] = "The user declined this tab. Don't retry it."
                 continue
             }
+            if session.stopped { break }
             // A tab woken only to be read goes back to sleep, looking as if nobody had shown it.
             reads.append((tab, tab.url?.host()?.lowercased(), inFront, tab.isAsleep ? tab.lastShown : nil))
             tab.wake()
@@ -177,6 +217,7 @@ enum ToolCatalog {
                 sections[tab.id] = "The user declined this tab. Don't retry it."
                 continue
             }
+            if session.stopped { break }
             Approvals.noteRead(tab, readHost: host, caller: caller)
             sections[tab.id] = result.content.first?["text"] as? String ?? ""
         }
@@ -186,6 +227,7 @@ enum ToolCatalog {
                 read.tab.lastShown = shown
             }
         }
+        if session.stopped { return stopped }
         return .text(ids.map { "=== Tab #\($0) ===\n" + (sections[$0] ?? "") }.joined(separator: "\n\n"))
     }
 
@@ -195,7 +237,7 @@ enum ToolCatalog {
         return text.split(separator: "\n").first { $0.hasPrefix("URL: ") }.flatMap { URL(string: String($0.dropFirst(5)))?.host()?.lowercased() }
     }
 
-    private static let declined = ToolResult.text("The user declined this in Changmun. Don't retry it; tell the user what you wanted to do.", error: true)
+    static let declined = ToolResult.text("The user declined this in Changmun. Don't retry it; tell the user what you wanted to do.", error: true)
 
     /// The AI only ever opens web pages: never file:, data: or other schemes a page could talk it into.
     static func webURL(_ value: Any?) -> URL? {
@@ -207,7 +249,7 @@ enum ToolCatalog {
     static func int(_ value: Any?) -> Int? {
         switch value {
         case let v as Int: return v
-        case let v as Double where v == v.rounded(): return Int(v)
+        case let v as Double where v == v.rounded(): return Int(exactly: v)
         case let v as String: return Int(v.trimmingCharacters(in: .whitespaces))
         default: return nil
         }
@@ -227,10 +269,11 @@ enum ToolCatalog {
         return .text("Tabs (* = the one the user is looking at):\n" + lines.joined(separator: "\n"))
     }
 
+    /// Runs a script in the page, or in `frame` (a frame of another site, which the page's own scripts can't enter).
     @MainActor
-    private static func run(_ script: String, _ arguments: [String: Any], in webView: WKWebView, timeout: Double = 20) async -> ToolResult {
+    static func run(_ script: String, _ arguments: [String: Any], in webView: WKWebView, frame: WKFrameInfo? = nil, timeout: Double = 20) async -> ToolResult {
         await withTimeout(seconds: timeout, fallback: .text("Error: the page did not answer in time (a dialog may be open).", error: true)) { finish in
-            webView.callAsyncJavaScript(script, arguments: arguments, in: nil, in: .defaultClient) { result in
+            webView.callAsyncJavaScript(script, arguments: arguments, in: frame, in: .defaultClient) { result in
                 switch result {
                 case .success(let value):
                     let text = value as? String ?? "\(value)"
@@ -259,13 +302,28 @@ enum ToolCatalog {
         }
     }
 
+    /// The picture is made as wide as the visible page is in CSS pixels (up to 1280), so a point of it is a point for
+    /// click_at whatever the page zoom or the screen's pixel density; a wider page is scaled down, and the note says by how much.
     @MainActor
     private static func screenshot(_ webView: WKWebView) async -> ToolResult {
+        let size = await run("return JSON.stringify([innerWidth, innerHeight]);", [:], in: webView, timeout: 5).content.first?["text"] as? String
+        let viewport = size.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [Double] }.flatMap { $0.count == 2 && $0[0] >= 1 && $0[1] >= 1 ? $0 : nil }
+        let configuration = WKSnapshotConfiguration()
+        if let viewport { configuration.snapshotWidth = NSNumber(value: min(viewport[0], 1280)) }
+        // What a field holds that is secret (a password shown by a "show" button) isn't in the picture.
+        _ = await run(PageScripts.maskSecrets, [:], in: webView, timeout: 5)
         let image: NSImage? = await withTimeout(seconds: 10, fallback: nil) { finish in
-            webView.takeSnapshot(with: nil) { image, _ in finish(image) }
+            webView.takeSnapshot(with: configuration) { image, _ in finish(image) }
         }
+        _ = await run(PageScripts.unmaskSecrets, [:], in: webView, timeout: 5)
         guard let image, let jpeg = jpegData(image, maxWidth: 1280) else { return .text("Error: the page could not be captured.", error: true) }
-        return ToolResult(content: [["type": "image", "data": jpeg.base64EncodedString(), "mimeType": "image/jpeg"]])
+        var content: [[String: Any]] = [["type": "image", "data": jpeg.base64EncodedString(), "mimeType": "image/jpeg"]]
+        if let viewport {
+            let pixels = min(image.size.width, 1280).rounded(), scale = pixels / viewport[0]
+            content.append(["type": "text", "text": scale == 1 ? "Screenshot: \(Int(pixels)) x \(Int((image.size.height * min(1, 1280 / image.size.width)).rounded())) pixels, 1 pixel = 1 CSS pixel, so a point in it is the x and y for click_at."
+                : "Screenshot: \(Int(pixels)) pixels wide for a page \(Int(viewport[0])) x \(Int(viewport[1])) CSS pixels: for click_at, divide a point's x and y by \(String(format: "%.3f", scale))."])
+        }
+        return ToolResult(content: content)
     }
 
     private static func jpegData(_ image: NSImage, maxWidth: CGFloat) -> Data? {
@@ -294,18 +352,22 @@ enum ToolCatalog {
 /// What the AI may do without asking. A page that injects instructions could otherwise have the AI carry what it
 /// read elsewhere (another tab, an earlier page in the chat) to the attacker: in a URL it opens, or typed into the
 /// attacker's own page. So the AI acts freely only on the tab the user is looking at, opens only addresses that carry
-/// nothing new, and types freely only where it has read nothing from another site. The rest is asked in the app,
-/// for every caller (the chat panel and MCP clients alike).
+/// nothing new, and uses a page freely only where it has read nothing from another site. The rest is asked in the
+/// app, for every caller (the chat panel and MCP clients alike). What looks like it pays, orders, sends, posts or
+/// deletes is asked about every time, whatever else was allowed.
 @MainActor
 enum Approvals {
-    /// Tabs the user let the AI use, each together with the site it was on then.
-    private static var tabs = Set<String>()
+    /// Per caller, the tabs the user let it use, each together with the site it was on then.
+    private static var tabs: [String: Set<String>] = [:]
     /// Tabs the user attached in the chat panel, each with the site it was on then; the panel may read them there.
     private static var attached: [Int: String] = [:]
-    private static var urls = Set<String>()
+    private static var urls: [String: Set<String>] = [:]
     /// Per caller, the sites whose titles, addresses or content the AI has been given since its chat started.
     private static var readHosts: [String: Set<String>] = [:]
     static var timeout: TimeInterval = 90
+
+    /// Stands for a frame that has no site to name (a sandboxed frame, one that could not be asked): a site of its own.
+    static let unknownFrame = "\u{1}unknown-frame"
 
     /// A tab and the site it is on, or the site given when that is where its content came from.
     private static func key(_ tab: Tab, host: String? = nil) -> String {
@@ -329,10 +391,11 @@ enum Approvals {
     static func allowTab(_ tab: Tab, caller: String, reading: Bool = false, host: String? = nil) async -> Bool {
         guard Preferences.shared.aiApprovals else { return true }
         let key = key(tab, host: host)
-        if tabs.contains(key) || (reading && caller == ChatStore.caller && attached[tab.id] == (host ?? tab.url?.host()?.lowercased() ?? "")) { return true }
+        if tabs[caller]?.contains(key) == true || (reading && caller == ChatStore.caller && attached[tab.id] == (host ?? tab.url?.host()?.lowercased() ?? "")) { return true }
         let allowed = await ask(String(localized: "The AI wants to use a tab you aren't looking at"),
-                                "#\(tab.id) \(tab.displayTitle.prefix(80))\n\(host ?? tab.url?.host() ?? "")\n\n" + String(localized: "If you allow it, you won't be asked again while this tab stays on this site."))
-        if allowed { tabs.insert(key) }
+                                "#\(tab.id) \(tab.displayTitle.prefix(80))\n\(host ?? tab.url?.host() ?? "")\n\n" + String(localized: "If you allow it, you won't be asked again while this tab stays on this site."),
+                                caller: caller)
+        if allowed { tabs[caller, default: []].insert(key) }
         return allowed
     }
 
@@ -345,12 +408,13 @@ enum Approvals {
         return await allowTab(tab, caller: caller, reading: true, host: host)
     }
 
-    static func allowNavigation(_ url: URL) async -> Bool {
+    static func allowNavigation(_ url: URL, caller: String) async -> Bool {
         guard Preferences.shared.aiApprovals else { return true }
-        if isFree(url, knownURL: knownURL, knownHost: Library.shared.knowsHost) || urls.contains(url.absoluteString) { return true }
+        if isFree(url, knownURL: knownURL, knownHost: Library.shared.knowsHost) || urls[caller]?.contains(url.absoluteString) == true { return true }
         let allowed = await ask(String(localized: "The AI wants to open this address"),
-                                "\(url.host() ?? "")\n\n\(url.absoluteString.prefix(300))\n\n" + String(localized: "Deny if the address carries content from another page or from the conversation."))
-        if allowed { urls.insert(url.absoluteString) }
+                                "\(url.host() ?? "")\n\n\(url.absoluteString.prefix(300))\n\n" + String(localized: "Deny if the address carries content from another page or from the conversation."),
+                                caller: caller)
+        if allowed { urls[caller, default: []].insert(url.absoluteString) }
         return allowed
     }
 
@@ -386,51 +450,171 @@ enum Approvals {
         if let host = readHost ?? tab.url?.host()?.lowercased() { readHosts[caller, default: []].insert(host) }
     }
 
-    /// Typing hands text to the page; after reading other sites, the user sees what would be typed and says yes.
-    static func allowTyping(_ text: String, into tab: Tab, caller: String) async -> Bool {
-        guard Preferences.shared.aiApprovals else { return true }
-        let host = tab.url?.host()?.lowercased() ?? ""
-        let others = readHosts[caller, default: []].subtracting([host])
-        if others.isEmpty { return true }
-        let target = host.isEmpty ? String(localized: "this page") : host
-        let typed = String(text.prefix(300))
-        let sites = others.sorted().prefix(5).joined(separator: ", ")
-        return await ask(String(localized: "The AI wants to type into \(target)"),
-                         String(localized: "Text to type:\n\(typed)\n\nSites read earlier in this conversation: \(sites)\nDeny if content from there is mixed in."))
+    /// How an approval was answered. Only a chat panel can allow a site for as long as the chat lasts.
+    enum Choice {
+        case deny, once, site
     }
 
-    /// A new chat starts without anything read; other callers keep theirs.
+    struct Prompt {
+        var message: String
+        var detail: String
+        var choices: [Choice]
+    }
+
+    /// Answers questions in place of the window, and keeps what was asked, newest last.
+    final class Stand {
+        var answer: (Prompt) -> Choice
+        var asked: [Prompt] = []
+        /// Holds each question until it is withdrawn or released, as a window would while the user thinks.
+        var holds = false
+
+        init(_ answer: @escaping (Prompt) -> Choice) {
+            self.answer = answer
+        }
+    }
+
+    /// Stands in for the user in the code run inside `$stand.withValue`: the tests, each for itself.
+    @TaskLocal static var stand: Stand?
+    /// Changmun Headless has nobody to ask, and its own profile holds nothing of the user's to leak; its tests set the answers.
+    static let headless = Stand { _ in .once }
+    /// Per caller and site, the sites the AI had read when the user allowed it to use that site for the rest of the chat.
+    private static var allowances: [String: [String: Set<String>]] = [:]
+
+    /// What the AI does to a page.
+    enum Interaction {
+        /// Text typed into a field.
+        case type(String)
+        /// An option chosen from a list.
+        case choose(String)
+        /// Anything else (a click, a key, a hover, a drop), in the words of the progress line.
+        case act(String)
+    }
+
+    /// Using a page hands it something the AI chose, or lets it see what the AI does; after reading other sites, the user
+    /// is asked for each of those, and says yes: once, or for the site until the chat is cleared, but only for as long as
+    /// the sites read are those it was allowed with (reading another site takes it back). Typing and choosing show what
+    /// is typed or chosen. `site` is where it happens when that isn't the tab's own site: a frame of another site, or "" for
+    /// a document with no site, which no allowance covers.
+    static func allowInteraction(_ interaction: Interaction, on tab: Tab, caller: String, site: String? = nil) async -> Bool {
+        guard Preferences.shared.aiApprovals else { return true }
+        let host = site ?? tab.url?.host()?.lowercased() ?? ""
+        let read = readHosts[caller, default: []]
+        let others = read.subtracting([host])
+        if others.isEmpty { return true }
+        if !host.isEmpty, let granted = allowances[caller]?[host], others.isSubset(of: granted) { return true }
+        let target = host.isEmpty ? String(localized: "this page") : host
+        let sites = others.sorted().prefix(5).map(display).joined(separator: ", ")
+        let message: String, detail: String
+        switch interaction {
+        case .type(let text):
+            message = String(localized: "The AI wants to type into \(target)")
+            detail = String(localized: "Text to type:\n\(String(text.prefix(300)))\n\nSites read earlier in this conversation: \(sites)\nDeny if content from there is mixed in.")
+        case .choose(let option):
+            message = String(localized: "The AI wants to choose an option on \(target)")
+            detail = String(localized: "Option to choose:\n\(String(option.prefix(300)))\n\nSites read earlier in this conversation: \(sites)\nDeny if content from there is mixed in.")
+        case .act(let step):
+            message = String(localized: "The AI wants to use \(target)")
+            detail = String(localized: "Action:\n\(String(step.prefix(300)))\n\nSites read earlier in this conversation: \(sites)\nA page can hide instructions for the AI. Deny if this isn’t what you asked for.")
+        }
+        let forChat = caller == ChatStore.caller && !host.isEmpty
+        let answer = await choose(message, detail,
+                                  [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))]
+                                  + (forChat ? [(.site, String(localized: "Allow on \(host) for This Chat"))] : []), caller: caller)
+        if answer == .site, forChat { allowances[caller, default: [:]][host] = read }
+        return answer != .deny
+    }
+
+    private static func display(_ host: String) -> String {
+        host == unknownFrame ? String(localized: "a frame of an unknown site") : host
+    }
+
+    /// Anything that looks like it pays, orders, sends, posts, deletes or confirms is asked about every time, whatever
+    /// else the user allowed (and whether or not the other questions are asked): what it does can't be taken back, and
+    /// a page can name a button anything.
+    static func allowIrreversible(_ name: String, on tab: Tab, caller: String, site: String? = nil) async -> Bool {
+        let host = site ?? tab.url?.host()?.lowercased() ?? ""
+        let site = host.isEmpty ? String(localized: "this page") : host
+        return await choose(String(localized: "The AI wants to press “\(String(name.prefix(80)))” on \(site)"),
+                            String(localized: "This looks like it pays, orders, sends, posts, deletes or confirms something, and that can’t be undone.\n\nAllow it only if you asked for this."),
+                            [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))], caller: caller) != .deny
+    }
+
+    /// A new chat starts without anything read or allowed; other callers keep theirs.
     static func forgetReads(caller: String) {
         readHosts[caller] = nil
+        allowances[caller] = nil
     }
 
     private final class Once {
         var done = false
     }
 
-    /// Asks on the browser window; no answer within `timeout` counts as no, so a late yes never runs a stale request.
-    private static func ask(_ message: String, _ detail: String) async -> Bool {
-        // Headless has nobody to ask, and its own profile holds nothing of the user's to leak.
-        if Headless.isOn { return true }
-        guard let window = Browser.recent?.window else { return false }
+    /// A question waiting for the user, which the stop button can withdraw.
+    private struct Pending {
+        var id: UUID
+        var caller: String
+        var resolve: (Choice) -> Void
+    }
+
+    private static var pending: [Pending] = []
+
+    /// The caller was stopped: what it is waiting to be answered is answered no, and the question taken off the window.
+    static func cancelPending(caller: String) {
+        for question in pending where question.caller == caller { question.resolve(.deny) }
+    }
+
+    /// Answers the questions a held stand has waiting (for tests: the headless app's `/approvals`).
+    static func release(_ choice: Choice) {
+        for question in pending { question.resolve(choice) }
+    }
+
+    private static func ask(_ message: String, _ detail: String, caller: String) async -> Bool {
+        await choose(message, detail, [(.deny, String(localized: "Deny")), (.once, String(localized: "Allow"))], caller: caller) != .deny
+    }
+
+    /// Asks on the browser window, the first button being the one Return presses; no answer within `timeout` counts as
+    /// no, so a late yes never runs a stale request.
+    private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], caller: String) async -> Choice {
+        let prompt = Prompt(message: message, detail: detail, choices: buttons.map(\.0))
+        let standing = stand ?? (Headless.isOn ? headless : nil)
+        if let standing {
+            if standing.asked.count > 100 { standing.asked.removeFirst(standing.asked.count - 100) }
+            standing.asked.append(prompt)
+            if !standing.holds { return standing.answer(prompt) }
+        }
+        guard standing != nil || Browser.recent?.window != nil else { return .deny }
         let alert = NSAlert()
-        alert.messageText = message
-        alert.informativeText = detail
-        alert.addButton(withTitle: String(localized: "Deny"))
-        alert.addButton(withTitle: String(localized: "Allow"))
-        NSApp.requestUserAttention(.informationalRequest)
+        if standing == nil {
+            alert.messageText = message
+            alert.informativeText = detail
+            for (_, title) in buttons { alert.addButton(withTitle: title) }
+            NSApp.requestUserAttention(.informationalRequest)
+        }
         return await withCheckedContinuation { continuation in
             let once = Once()
-            let finish = { (allowed: Bool) in
+            let id = UUID()
+            let finish = { (choice: Choice) in
                 guard !once.done else { return }
                 once.done = true
-                continuation.resume(returning: allowed)
+                pending.removeAll { $0.id == id }
+                continuation.resume(returning: choice)
             }
-            alert.beginSheetModal(for: window) { finish($0 == .alertSecondButtonReturn) }
+            var end: () -> Void = {}
+            if standing == nil, let window = Browser.recent?.window {
+                alert.beginSheetModal(for: window) { response in
+                    let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+                    finish(buttons.indices.contains(index) ? buttons[index].0 : .deny)
+                }
+                end = { window.endSheet(alert.window) }
+            }
+            pending.append(Pending(id: id, caller: caller) { choice in
+                finish(choice)
+                end()
+            })
             DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
                 guard !once.done else { return }
-                finish(false)
-                window.endSheet(alert.window)
+                finish(.deny)
+                end()
             }
         }
     }
@@ -438,95 +622,10 @@ enum Approvals {
 
 /// Scripts run in an isolated JavaScript world: they share the page's DOM but not its variables.
 enum PageScripts {
-    /// A field holding a password, even after a "show password" button turned it into a text field.
-    static let secretTest = "const isSecret = el => el.type === 'password' || el.hasAttribute('data-cm-secret') || /password/i.test(el.autocomplete || '');"
-
-    static let read = secretTest + """
-
-    document.querySelectorAll('[data-cm-id]').forEach(e => e.removeAttribute('data-cm-id'));
-    const selector = 'a[href],button,input,textarea,select,summary,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=radio],[role=option],[role=switch],[role=combobox],[role=textbox],[contenteditable=""],[contenteditable=true],[onclick]';
-    const lines = [];
-    let n = 0;
-    for (const el of document.querySelectorAll(selector)) {
-      const r = el.getBoundingClientRect();
-      if (r.width < 1 || r.height < 1) continue;
-      const style = getComputedStyle(el);
-      if (style.visibility === 'hidden' || style.display === 'none' || el.type === 'hidden') continue;
-      el.setAttribute('data-cm-id', ++n);
-      const tag = el.tagName.toLowerCase();
-      const isButtonInput = tag === 'input' && /^(submit|button|reset)$/.test(el.type);
-      const raw = el.getAttribute('aria-label') || (tag === 'input' || tag === 'textarea' || tag === 'select' ? '' : el.innerText)
-        || (isButtonInput ? el.value : '') || el.placeholder || el.title || el.alt || el.name || '';
-      const label = raw.trim().replace(/\\s+/g, ' ').slice(0, 80);
-      let kind = el.getAttribute('role') || tag;
-      if (tag === 'input') kind = 'input[' + (el.type || 'text') + ']';
-      let extra = '';
-      if (tag === 'a') extra = ' -> ' + el.href.slice(0, 120);
-      if ((tag === 'input' || tag === 'textarea') && !isSecret(el) && !isButtonInput && el.value) extra = ' value="' + el.value.slice(0, 60) + '"';
-      if (isSecret(el)) extra = ' (password field)';
-      if (tag === 'select' && el.selectedOptions[0]) extra = ' selected="' + el.selectedOptions[0].text.slice(0, 40) + '"';
-      if (el.type === 'checkbox' || el.type === 'radio') extra = el.checked ? ' (checked)' : ' (unchecked)';
-      const inView = r.bottom > 0 && r.top < innerHeight ? '' : ' (off screen)';
-      lines.push('[' + n + '] ' + kind + ' "' + label + '"' + extra + inView);
-      if (n >= 250) break;
-    }
-    const text = (document.body ? document.body.innerText : '').replace(/\\n{3,}/g, '\\n\\n');
-    const cut = text.length > maxChars ? text.slice(0, maxChars) + '\\n…(truncated)' : text;
-    return 'Title: ' + document.title + '\\nURL: ' + location.href +
-      '\\nScroll: ' + Math.round(scrollY) + ' of ' + document.documentElement.scrollHeight + ' (viewport ' + innerHeight + ')' +
-      '\\n\\n--- Interactive elements ---\\n' + (lines.join('\\n') || '(none)') + '\\n\\n--- Page text ---\\n' + cut;
-    """
-
     static let readText = """
     const text = (document.body ? document.body.innerText : '').replace(/\\n{3,}/g, '\\n\\n');
     const cut = text.length > maxChars ? text.slice(0, maxChars) + '\\n…(truncated)' : text;
     return 'Title: ' + document.title + '\\nURL: ' + location.href + '\\n\\n' + cut;
-    """
-
-    static let click = """
-    const el = document.querySelector('[data-cm-id="' + id + '"]');
-    if (!el) return 'Error: element ' + id + ' is gone. Read the page again.';
-    el.scrollIntoView({block: 'center', inline: 'center'});
-    const r = el.getBoundingClientRect();
-    const at = {bubbles: true, cancelable: true, view: window, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2};
-    el.dispatchEvent(new PointerEvent('pointerdown', at));
-    el.dispatchEvent(new MouseEvent('mousedown', at));
-    if (el.focus) el.focus();
-    el.dispatchEvent(new PointerEvent('pointerup', at));
-    el.dispatchEvent(new MouseEvent('mouseup', at));
-    el.click();
-    return 'ok';
-    """
-
-    static let type = secretTest + """
-
-    const el = document.querySelector('[data-cm-id="' + id + '"]');
-    if (!el) return 'Error: element ' + id + ' is gone. Read the page again.';
-    if (isSecret(el)) return 'Error: Changmun does not let the AI type into password fields. Ask the user to.';
-    el.scrollIntoView({block: 'center'});
-    el.focus();
-    if (el.isContentEditable) {
-      document.execCommand('selectAll', false);
-      document.execCommand('insertText', false, text);
-    } else if (el instanceof HTMLSelectElement) {
-      const option = [...el.options].find(o => o.text.trim() === text || o.value === text);
-      if (!option) return 'Error: no option "' + text + '". Options: ' + [...el.options].map(o => o.text.trim()).join(', ');
-      el.value = option.value;
-      el.dispatchEvent(new Event('change', {bubbles: true}));
-    } else {
-      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-      Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, text);
-      el.dispatchEvent(new Event('input', {bubbles: true}));
-      el.dispatchEvent(new Event('change', {bubbles: true}));
-    }
-    if (submit) {
-      const key = {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true};
-      const handled = !el.dispatchEvent(new KeyboardEvent('keydown', key));
-      el.dispatchEvent(new KeyboardEvent('keypress', key));
-      el.dispatchEvent(new KeyboardEvent('keyup', key));
-      if (!handled && el.form) { el.form.requestSubmit ? el.form.requestSubmit() : el.form.submit(); }
-    }
-    return 'ok';
     """
 
     static let scroll = """

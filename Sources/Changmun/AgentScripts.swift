@@ -1,0 +1,768 @@
+import Foundation
+
+/// The page scripts of the AI's tools that act on elements. They run in the isolated world like the others and share
+/// `lib`: finding an element by its number or its place on the screen (also in frames of the same site), the pointer
+/// and key events a real visit would produce, what an action would do (`factsOf`, which the approvals judge), and the
+/// AI's mark drawn around what it is about to use.
+///
+/// What the page can't be allowed to change lives in the isolated world's memory, not in the page's DOM: the element
+/// numbers (a map of weak references), the frame names, and the fields seen as passwords. Form properties are read
+/// through the prototypes, because a field named "action" or "elements" replaces them on the form itself.
+extension PageScripts {
+    static let lib = #"""
+    const registry = globalThis.changmunIds || (globalThis.changmunIds = new Map());
+    const seenPasswords = globalThis.changmunPasswords || (globalThis.changmunPasswords = new WeakSet());
+    const frameTags = globalThis.changmunFrames || (globalThis.changmunFrames = new WeakMap());
+    const attr = (el, name) => Element.prototype.getAttribute.call(el, name);
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const norm = s => (s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const squash = s => (s || '').replace(/\s+/g, ' ').trim();
+    const clip = (s, n) => squash(s).slice(0, n);
+    const token = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => b.toString(16).padStart(2, '0')).join('');
+
+    // A field that holds a secret: a password (also after a "show password" button made it plain text), a code sent to the
+    // user, or card details. The AI never gets such a value, and never types or presses keys in it.
+    const SECRET_WORDS = /pass(?:word|wd|code|phrase)|(?:^|[^a-z0-9])(?:pwd|otp|pin|cvc|cvv|ssn)(?:[^a-z0-9]|$)|card[-_ ]?(?:number|num|no)(?:[^a-z0-9]|$)/i;
+    const SECRET_AUTOCOMPLETE = /one-time-code|(?:^|\s)cc-|current-password|new-password/i;
+    const isSecret = el => {
+      if (!el || el.nodeType !== 1) return false;
+      if (el.localName === 'input' && el.type === 'password') { seenPasswords.add(el); return true; }
+      if (seenPasswords.has(el) || el.hasAttribute('data-cm-secret') || SECRET_AUTOCOMPLETE.test(attr(el, 'autocomplete') || '')) return true;
+      return /^(input|textarea)$/.test(el.localName) && [el.name, el.id, attr(el, 'aria-label'), attr(el, 'placeholder')].some(v => SECRET_WORDS.test(v || ''));
+    };
+
+    // This document and the frames of the same site in it. dx, dy and s say where a frame's top left sits in this
+    // document's viewport and how much a pixel of the frame is worth there (frames can be scaled).
+    function docs(root = document, frame = null, dx = 0, dy = 0, s = 1, depth = 0, out = []) {
+      out.push({doc: root, frame, dx, dy, s});
+      if (depth < 4) for (const f of root.querySelectorAll('iframe,frame')) {
+        let d = null;
+        try { d = f.contentDocument; } catch (e) {}
+        if (!d || !d.documentElement) continue;
+        const r = f.getBoundingClientRect();
+        const k = f.clientWidth ? r.width / f.clientWidth : 1;
+        docs(d, f, dx + s * (r.left + f.clientLeft * k), dy + s * (r.top + f.clientTop * k), s * k, depth + 1, out);
+      }
+      return out;
+    }
+    const byId = id => {
+      const ref = registry.get(id), el = ref && ref.deref();
+      return el && el.isConnected ? el : null;
+    };
+    const where = el => docs().find(e => e.doc === el.ownerDocument) || {dx: 0, dy: 0, s: 1};
+    const focusable = el => el.closest('a[href],button,input,select,summary,textarea,[tabindex],[contenteditable]') || el;
+    const originOf = el => String(el.ownerDocument.defaultView.origin || 'null');
+
+    // Forms: the properties a field of that name would replace are read from the prototypes.
+    const formEls = f => Array.from(Object.getOwnPropertyDescriptor(HTMLFormElement.prototype, 'elements').get.call(f));
+    const submitForm = f => HTMLFormElement.prototype.requestSubmit.call(f);
+    const defaultButton = f => formEls(f).find(b => b.type === 'submit' || b.type === 'image');
+    const textInputs = f => formEls(f).filter(x => x.localName === 'input' && /^(text|search|url|tel|email|password|number|date|)$/.test(x.type));
+    const resolveUrl = (raw, doc) => { try { return new URL(raw, doc.baseURI).href; } catch (e) { return ''; } };
+    const actionOf = (f, submitter) => resolveUrl((submitter && attr(submitter, 'formaction')) ?? attr(f, 'action') ?? '', f.ownerDocument);
+    // What Enter in a field does when the page leaves it alone: press the form's default button, or submit the form
+    // (with no button: when it has one text field, or when text is typed into it by the tool).
+    function enterEffect(el, typing) {
+      const f = el.form;
+      if (!f) return {};
+      const b = defaultButton(f);
+      if (b) return b.disabled ? {} : {button: b};
+      return typing || textInputs(f).length <= 1 ? {submit: true} : {};
+    }
+
+    function labelOf(el) {
+      const tag = el.localName;
+      const isButtonInput = tag === 'input' && /^(submit|button|reset)$/.test(el.type);
+      const raw = attr(el, 'aria-label') || (tag === 'input' || tag === 'textarea' || tag === 'select' ? '' : el.innerText)
+        || (isButtonInput ? el.value : '') || (el.labels && el.labels[0] ? el.labels[0].innerText : '') || attr(el, 'placeholder') || attr(el, 'title') || attr(el, 'alt') || attr(el, 'name') || '';
+      return clip(raw, 80);
+    }
+    const describe = el => {
+      const tag = el.localName;
+      const kind = attr(el, 'role') || (tag === 'input' ? 'input[' + (el.type || 'text') + ']' : tag);
+      return isSecret(el) ? kind + ' (password field)' : kind + ' "' + labelOf(el) + '"';
+    };
+
+    // What an action on an element is called by the page, for the approvals: every name it has (the label the user
+    // sees, the accessible name, the picture's alt, the title), whole. A big container's text is the page's, not a name.
+    const CONTROL = 'button,a[href],input,select,textarea,summary,label,[onclick],[contenteditable=true],[contenteditable=""],[role=button],[role=link],[role=menuitem],[role=menuitemcheckbox],[role=option],[role=tab],[role=switch],[role=checkbox],[role=combobox],[role=listbox],[role=textbox]';
+    function controlOf(el) {
+      const c = el.closest(CONTROL);
+      if (c) return c;
+      // A div or span the page made clickable: the outermost element up from here that shows the hand cursor.
+      const view = el.ownerDocument.defaultView;
+      let best = null;
+      for (let n = el, i = 0; n && n.nodeType === 1 && n !== el.ownerDocument.body && i < 6; n = n.parentElement, i++) {
+        if (view.getComputedStyle(n).cursor === 'pointer') best = n; else if (best) break;
+      }
+      return best || el;
+    }
+    // Something made to be used: a control, or what shows the hand cursor. Anything else is a part of the page's own layout,
+    // and what is inside it (a button somewhere in the body) isn't what clicking it does.
+    const isReal = ctl => ctl.matches(CONTROL) || ctl.ownerDocument.defaultView.getComputedStyle(ctl).cursor === 'pointer';
+    function namesOf(ctl) {
+      const out = [];
+      const add = s => { s = squash(s); if (s) out.push(s.slice(0, 300)); };
+      const doc = ctl.ownerDocument;
+      add(attr(ctl, 'aria-label'));
+      for (const id of (attr(ctl, 'aria-labelledby') || '').split(/\s+/)) if (id) { const n = doc.getElementById(id); if (n) add(n.textContent); }
+      add(attr(ctl, 'title'));
+      add(attr(ctl, 'alt'));
+      if (ctl.localName === 'input' && /^(submit|button|reset|image)$/.test(ctl.type)) add(ctl.value);
+      if (ctl.labels && ctl.labels.length) add(ctl.labels[0].textContent);
+      if (!/^(input|textarea|select)$/.test(ctl.localName)) {
+        const text = squash(ctl.innerText || ctl.textContent);
+        if (text && text.length <= (ctl.matches(CONTROL) ? 160 : (ctl.childElementCount <= 2 ? 40 : 0))) add(text);
+      }
+      if (isReal(ctl)) for (const n of Array.from(ctl.querySelectorAll('img[alt],svg title,[aria-label],[title]')).slice(0, 6)) add(attr(n, 'alt') || attr(n, 'aria-label') || attr(n, 'title') || n.textContent);
+      return out;
+    }
+    // A control with no words at all (an icon) is told by its markup: class, id, name and data names, and where it goes.
+    const words = s => String(s || '').slice(0, 200).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[^A-Za-zÀ-￿]+/g, ' ').trim().toLowerCase();
+    function hintsOf(ctl) {
+      if (!isReal(ctl) || namesOf(ctl).length) return [];
+      const out = [];
+      for (const n of [ctl, ...Array.from(ctl.querySelectorAll('*')).slice(0, 8)]) {
+        out.push(words(attr(n, 'class')), words(attr(n, 'id')), words(attr(n, 'name')));
+        for (const a of Array.from(n.attributes)) if (a.name.startsWith('data-')) out.push(words(a.name.slice(5) + ' ' + a.value));
+      }
+      const href = attr(ctl, 'href') || attr(ctl, 'formaction');
+      if (href) { try { out.push(words(new URL(href, ctl.ownerDocument.baseURI).pathname)); } catch (e) {} }
+      return out.filter(Boolean).slice(0, 30);
+    }
+
+    const PAY = '[autocomplete^="cc-"],[name*="card" i],[name*="cvc" i],[name*="cvv" i],[name*="iban" i],[name*="securitycode" i],[id*="card-number" i],[id*="cardnumber" i],[data-stripe]';
+    const isRich = el => el.localName === 'textarea' || el.isContentEditable || attr(el, 'role') === 'textbox';
+
+    // Aims like the tools will, and says what the action would do. `key` is the key about to be pressed on it, and
+    // `typing` says the text is typed by the tool (whose Enter submits any form around the field).
+    function factsOf(el, args) {
+      const ctl = controlOf(el);
+      const form = ctl.form || el.closest('form');
+      const role = attr(ctl, 'role') || '';
+      const activates = /^(button|a|summary|label)$/.test(ctl.localName) || /^(submit|button|reset|image|checkbox|radio)$/.test(ctl.type || '')
+        || /^(button|link|menuitem|menuitemcheckbox|option|tab|switch|checkbox)$/.test(role) || ctl.hasAttribute('onclick');
+      let names = namesOf(ctl), hints = hintsOf(ctl), label = labelOf(ctl);
+      let submits = ctl.type === 'submit' || ctl.type === 'image', sends = false, submitter = submits ? ctl : null;
+      if (args.key) {
+        if (!activates) {
+          // Enter in a field sends what it holds: by the form's default button, or by submitting the form.
+          names = []; hints = []; submits = false;
+          if (args.key === 'Enter' && ctl.localName !== 'select') {
+            const effect = enterEffect(ctl, !!args.typing);
+            if (effect.button) { submits = true; submitter = effect.button; names = namesOf(submitter); hints = hintsOf(submitter); label = labelOf(submitter); }
+            else if (effect.submit) submits = true;
+            // A message box sends on Enter, whatever the form says.
+            if (args.typing && isRich(ctl)) sends = true;
+          }
+        } else if (args.key !== 'Enter' && args.key !== 'Space') { names = []; hints = []; }
+      }
+      const kind = el.localName === 'select' ? 'select' : (['combobox', 'listbox', 'option'].includes(attr(el, 'role')) ? attr(el, 'role') : 'other');
+      return {label, names, hints, submits, sends, payment: !!form && (formEls(form).some(e => e.matches(PAY)) || !!Element.prototype.querySelector.call(form, PAY)),
+        action: form ? actionOf(form, submitter) : '', secret: isSecret(ctl) || isSecret(el), description: describe(el), kind, origin: originOf(el),
+        fp: JSON.stringify([ctl.localName, role, ctl.type || '', names.join('|').replace(/\d+/g, '#').slice(0, 400), hints.join('|').slice(0, 200)])};
+    }
+    // The page may change between looking and acting (and the user takes their time to answer): the action goes ahead
+    // only on what was looked at.
+    function stale(el, args) {
+      if (!el.isConnected) return 'Error: the element is gone. Read the page again.';
+      if (!args.expect) return null;
+      const f = factsOf(el, args);
+      return f.origin === args.expect.origin && f.fp === args.expect.fp ? null : 'Error: the page changed since Changmun looked at it (' + f.description + '). Read the page again.';
+    }
+
+    // A frame of another site can't be reached from here. It gets a name the app uses to find it again, and is asked
+    // (by a message only the app's own script in that frame understands) to report itself to the app, with a number
+    // used once that only this script and the app know.
+    function tagFrame(f) {
+      let slot = frameTags.get(f);
+      if (!slot) { slot = 'f' + token(6); frameTags.set(f, slot); }
+      const nonce = token(16);
+      try { f.contentWindow.postMessage({changmunFrame: slot, nonce}, '*'); } catch (e) {}
+      return {slot, nonce};
+    }
+    const sameSite = f => { try { return !!(f.contentDocument && f.contentDocument.documentElement); } catch (e) { return false; } };
+
+    // What a tool aims at: an element by its number, the one in focus, or the topmost one at a point of the viewport.
+    // A point (or the focus) inside a frame of another site is handed over as {relay, x, y}, in that frame's pixels.
+    function pick(args) {
+      if (args.id != null) {
+        const el = byId(args.id);
+        return el ? {el} : {error: 'element ' + args.id + ' is gone. Read the page again.'};
+      }
+      if (args.active) {
+        let d = document, a = d.activeElement;
+        for (let depth = 0; depth < 5 && a && /^i?frame$/.test(a.localName); depth++) {
+          if (!sameSite(a)) return {relay: tagFrame(a), active: true};
+          d = a.contentDocument; a = d.activeElement;
+        }
+        return {el: a || d.body};
+      }
+      let doc = document, x = args.x, y = args.y;
+      if (!(x >= 0 && y >= 0 && x < innerWidth && y < innerHeight)) {
+        return {error: 'the point (' + x + ', ' + y + ') is outside the visible page, which is ' + innerWidth + 'x' + innerHeight + ' CSS pixels'};
+      }
+      for (let depth = 0; depth < 5; depth++) {
+        const el = doc.elementFromPoint(x, y);
+        if (!el) return {error: 'there is nothing at (' + args.x + ', ' + args.y + ')'};
+        if (!/^i?frame$/.test(el.localName)) return {el, x, y};
+        const r = el.getBoundingClientRect();
+        const k = el.clientWidth ? r.width / el.clientWidth : 1;
+        x = (x - r.left - el.clientLeft * k) / k;
+        y = (y - r.top - el.clientTop * k) / k;
+        if (!sameSite(el)) return {relay: tagFrame(el), x, y};
+        doc = el.contentDocument;
+      }
+      return {error: 'frames are nested too deeply there'};
+    }
+
+    // The AI's mark: an outline with a small "AI" label around what it is about to use, drawn into a closed shadow
+    // tree the page's own scripts and styles can't reach, never taking the pointer. It goes by itself soon after.
+    function clearMark() {
+      const m = globalThis.changmunMark;
+      if (m) { clearTimeout(m.timer); m.host.remove(); globalThis.changmunMark = null; }
+    }
+    async function mark(els, hold = 350) {
+      clearMark();
+      if (document.visibilityState !== 'visible') return;
+      const host = document.createElement('div');
+      for (const [name, value] of [['all', 'initial'], ['position', 'fixed'], ['inset', '0'], ['pointer-events', 'none'], ['z-index', '2147483647']]) host.style.setProperty(name, value, 'important');
+      const shadow = host.attachShadow({mode: 'closed'});
+      const sheet = new CSSStyleSheet();
+      const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      sheet.replaceSync('.box { position: fixed; box-sizing: border-box; border: 2px solid #7c5cff; border-radius: 6px; background: rgba(124, 92, 255, .12);'
+        + ' box-shadow: 0 0 0 3px rgba(124, 92, 255, .25);' + (calm ? '' : ' animation: pop .3s ease-out;') + ' }'
+        + ' .tag { position: absolute; left: -2px; top: -22px; padding: 0 6px; border-radius: 4px; background: #7c5cff; color: #fff;'
+        + ' font: 600 11px/18px -apple-system, system-ui, sans-serif; }'
+        + ' @keyframes pop { from { transform: scale(1.08); } to { transform: none; } }');
+      shadow.adoptedStyleSheets = [sheet];
+      for (const el of els) {
+        const r = el.getBoundingClientRect(), w = where(el);
+        const box = document.createElement('div');
+        box.className = 'box';
+        box.style.left = (w.dx + w.s * r.left - 2) + 'px';
+        box.style.top = (w.dy + w.s * r.top - 2) + 'px';
+        box.style.width = Math.max(w.s * r.width, 6) + 'px';
+        box.style.height = Math.max(w.s * r.height, 6) + 'px';
+        const tag = document.createElement('div');
+        tag.className = 'tag';
+        tag.textContent = 'AI';
+        if (w.dy + w.s * r.top < 26) tag.style.top = 'calc(100% + 2px)';
+        box.append(tag);
+        shadow.append(box);
+      }
+      document.documentElement.append(host);
+      globalThis.changmunMark = {host, timer: setTimeout(clearMark, 3000)};
+      await sleep(hold);
+    }
+    const settle = () => { const m = globalThis.changmunMark; if (m) { clearTimeout(m.timer); m.timer = setTimeout(clearMark, 600); } };
+    // Outlines the targets, waits a moment, and says whether they are still what the AI looked at.
+    async function aimAt(pairs, hold) {
+      await mark(pairs.map(p => p.el), hold);
+      for (const p of pairs) { const bad = stale(p.el, p.args); if (bad) return bad; }
+      return null;
+    }
+
+    function fire(el, type, x, y, extra = {}) {
+      const view = el.ownerDocument.defaultView;
+      const pointer = type.startsWith('pointer');
+      const init = {bubbles: !/enter$|leave$/.test(type), cancelable: !/enter$|leave$/.test(type), composed: true, view, clientX: x, clientY: y,
+        screenX: x + (view.screenX || 0), screenY: y + (view.screenY || 0), button: 0, ...extra};
+      if (pointer) Object.assign(init, {pointerId: 1, pointerType: 'mouse', isPrimary: true});
+      return el.dispatchEvent(new (pointer ? view.PointerEvent : view.MouseEvent)(type, init));
+    }
+    function center(el) {
+      const r = el.getBoundingClientRect();
+      return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)];
+    }
+    // The pointer going down on an element, as a mouse does it, and coming up again; `native` ends with the element's own
+    // click (links and buttons then do exactly what a click does), else with a click event at the point.
+    function pointerDown(el, x, y) {
+      fire(el, 'pointerdown', x, y, {buttons: 1});
+      fire(el, 'mousedown', x, y, {buttons: 1});
+      focusable(el).focus({preventScroll: true});
+    }
+    function pointerUp(el, x, y) {
+      fire(el, 'pointerup', x, y);
+      fire(el, 'mouseup', x, y);
+    }
+    function pointerClick(el, x, y, native) {
+      pointerDown(el, x, y);
+      pointerUp(el, x, y);
+      if (native) el.click(); else fire(el, 'click', x, y);
+    }
+    """#
+
+    /// The page's title, address, numbered interactive elements and text, as data. Also run in a frame of another site
+    /// (by `start`, which numbers its elements on from the page's). The frames it can't enter are listed for the app.
+    static let read = lib + #"""
+
+    registry.clear();
+    for (const e of docs()) for (const x of e.doc.querySelectorAll('input[type=password]')) seenPasswords.add(x);
+    const selector = 'a[href],button,input,textarea,select,summary,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=radio],[role=option],[role=switch],[role=combobox],[role=listbox],[role=textbox],[draggable=true],[contenteditable=""],[contenteditable=true],[onclick]';
+    const lines = [], frames = [];
+    let n = start, capped = false;
+    for (const e of docs()) {
+      const view = e.doc.defaultView;
+      for (const el of e.doc.querySelectorAll(selector)) {
+        const r = el.getBoundingClientRect();
+        if (r.width < 1 || r.height < 1) continue;
+        const style = view.getComputedStyle(el);
+        if (style.visibility === 'hidden' || style.display === 'none' || el.type === 'hidden') continue;
+        if (n - start >= limit) { capped = true; break; }
+        registry.set(++n, new WeakRef(el));
+        const tag = el.localName;
+        const isButtonInput = tag === 'input' && /^(submit|button|reset)$/.test(el.type);
+        let kind = attr(el, 'role') || tag;
+        if (tag === 'input') kind = 'input[' + (el.type || 'text') + ']';
+        let extra = '';
+        if (tag === 'a') extra = ' -> ' + el.href.slice(0, 120);
+        const secret = isSecret(el);
+        if ((tag === 'input' || tag === 'textarea') && !secret && !isButtonInput && el.value) extra = ' value="' + el.value.slice(0, 60) + '"';
+        if (secret) extra = ' (password field)';
+        if (tag === 'select' && el.selectedOptions[0]) {
+          extra = ' selected="' + el.selectedOptions[0].text.slice(0, 40) + '" options=[' + Array.from(el.options).slice(0, 20).map(o => clip(o.text, 30)).join(' | ') + ']';
+        }
+        if (el.type === 'checkbox' || el.type === 'radio') extra = el.checked ? ' (checked)' : ' (unchecked)';
+        const inView = r.bottom > 0 && r.top < view.innerHeight ? '' : ' (off screen)';
+        lines.push('[' + n + '] ' + kind + ' "' + labelOf(el) + '"' + extra + inView + (e.frame ? ' (in a frame)' : ''));
+      }
+      for (const f of e.doc.querySelectorAll('iframe,frame')) {
+        const r = f.getBoundingClientRect();
+        if (sameSite(f) || r.width < 20 || r.height < 20 || e.doc.defaultView.getComputedStyle(f).visibility === 'hidden') continue;
+        frames.push({...tagFrame(f), src: f.src || attr(f, 'src') || '', title: f.title || f.name || ''});
+      }
+    }
+    const textOf = d => (d.body ? d.body.innerText : '').replace(/\n{3,}/g, '\n\n');
+    let text = textOf(document);
+    if (text.length > maxChars) text = text.slice(0, maxChars) + '\n…(truncated)';
+    for (const e of docs().slice(1)) {
+      text += '\n\n--- Frame: ' + e.doc.URL + ' ---\n' + clip(textOf(e.doc), 3000);
+    }
+    return JSON.stringify({title: document.title, url: location.href, origin: String(window.origin || 'null'), scroll: Math.round(scrollY), height: document.documentElement.scrollHeight,
+      viewport: innerHeight, lines, count: n, capped, text, frames});
+    """#
+
+    /// Aims like the tool will, and says what the action would do, without doing it: the element's name for the
+    /// approvals and the AI's progress line, and what decides whether it looks irreversible.
+    static let inspect = lib + #"""
+
+    const p = pick(args);
+    if (p.relay) return JSON.stringify({relay: p.relay.slot, nonce: p.relay.nonce, x: p.x, y: p.y, active: !!p.active});
+    if (p.error) return 'Error: ' + p.error;
+    return JSON.stringify(factsOf(p.el, args));
+    """#
+
+    static let click = lib + #"""
+
+    const p = pick(args);
+    if (p.error) return 'Error: ' + p.error;
+    const el = p.el;
+    let bad = stale(el, args);
+    if (bad) return bad;
+    el.scrollIntoView({block: 'center', inline: 'center'});
+    bad = await aimAt([{el, args}]);
+    if (bad) return bad;
+    const [x, y] = center(el);
+    pointerClick(el, x, y, true);
+    settle();
+    return 'ok';
+    """#
+
+    static let clickAt = lib + #"""
+
+    const p = pick(args);
+    if (p.error) return 'Error: ' + p.error;
+    const el = p.el;
+    let bad = stale(el, args);
+    if (bad) return bad;
+    bad = await aimAt([{el, args}]);
+    if (bad) return bad;
+    pointerClick(el, p.x, p.y, false);
+    settle();
+    return 'ok: ' + describe(el);
+    """#
+
+    static let type = lib + #"""
+
+    const p = pick(args);
+    if (p.error) return 'Error: ' + p.error;
+    const el = p.el, text = args.text;
+    if (isSecret(el)) return 'Error: Changmun does not let the AI type into password fields. Ask the user to.';
+    let bad = stale(el, args);
+    if (bad) return bad;
+    el.scrollIntoView({block: 'center'});
+    bad = await aimAt([{el, args}]);
+    if (bad) return bad;
+    el.focus();
+    if (el.isContentEditable) {
+      document.execCommand('selectAll', false);
+      document.execCommand('insertText', false, text);
+    } else if (el.localName === 'select') {
+      const option = Array.from(el.options).find(o => o.text.trim() === text || o.value === text);
+      if (!option) return 'Error: no option "' + text + '". Options: ' + Array.from(el.options).map(o => o.text.trim()).join(', ');
+      el.value = option.value;
+      el.dispatchEvent(new Event('change', {bubbles: true}));
+    } else {
+      const proto = el.localName === 'textarea' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, text);
+      el.dispatchEvent(new Event('input', {bubbles: true}));
+      el.dispatchEvent(new Event('change', {bubbles: true}));
+    }
+    if (args.submit) {
+      const key = {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true};
+      const handled = !el.dispatchEvent(new KeyboardEvent('keydown', key));
+      el.dispatchEvent(new KeyboardEvent('keypress', key));
+      el.dispatchEvent(new KeyboardEvent('keyup', key));
+      // The same rule the approvals judged: any form around the field is submitted.
+      const effect = enterEffect(el, true);
+      if (!handled && (effect.submit || effect.button)) submitForm(el.form);
+    }
+    settle();
+    return 'ok';
+    """#
+
+    /// Chooses an option in stages, so that the app can judge the option itself before anything is changed: `resolve`
+    /// says which option the words name (opening a list first, when `open` says it may), and `choose` picks it, but only
+    /// if it is still the one that was judged.
+    static let selectOption = lib + #"""
+
+    const p = pick(args);
+    if (p.error) return 'Error: ' + p.error;
+    const el = p.el;
+    if (isSecret(el)) return 'Error: Changmun does not let the AI use password fields. Ask the user to.';
+    let bad = stale(el, args);
+    if (bad) return bad;
+    const want = norm(args.option);
+    const isNative = el.localName === 'select', role = attr(el, 'role');
+    const openable = !isNative && role !== 'option' && (role === 'combobox' || role === 'listbox' || el.hasAttribute('aria-haspopup'));
+    const pickBy = (items, textOf, valueOf) => {
+      const live = items.filter(o => !o.disabled && attr(o, 'aria-disabled') !== 'true');
+      const exact = live.filter(o => norm(textOf(o)) === want || (valueOf(o) != null && String(valueOf(o)) === args.option));
+      const part = live.filter(o => norm(textOf(o)).includes(want));
+      return exact[0] || (part.length === 1 ? part[0] : null);
+    };
+    const ariaText = o => attr(o, 'aria-label') || o.innerText || o.textContent;
+    const visible = list => list.filter(o => o.getBoundingClientRect().height > 0);
+    // ARIA: an option itself, a listbox, or a combobox whose list (aria-controls/aria-owns) may need opening first.
+    const listOf = (anywhere) => {
+      if (role === 'option') return [el];
+      let box = el;
+      if (role === 'combobox') {
+        const ids = (attr(el, 'aria-controls') || attr(el, 'aria-owns') || '').split(/\s+/).filter(Boolean);
+        box = ids.map(i => el.ownerDocument.getElementById(i)).find(Boolean) || null;
+      }
+      const own = box ? visible(Array.from(box.querySelectorAll('[role=option]'))) : [];
+      return own.length || !anywhere ? own : visible(Array.from(el.ownerDocument.querySelectorAll('[role=listbox] [role=option]')));
+    };
+    const find = anywhere => {
+      const options = isNative ? Array.from(el.options) : listOf(anywhere);
+      const o = isNative ? pickBy(options, o => o.text, o => o.value) : pickBy(options, ariaText, o => attr(o, 'data-value') ?? attr(o, 'value'));
+      return {options, o, label: o ? squash(isNative ? o.text : ariaText(o)) : ''};
+    };
+    const missing = f => 'Error: no option "' + args.option + '". Options: ' + f.options.map(o => clip(isNative ? o.text : ariaText(o), 40)).join(', ');
+
+    if (args.stage === 'resolve') {
+      let f = find(false);
+      if (!f.options.length && openable) {
+        if (!args.open) return JSON.stringify({needsOpen: true});
+        el.scrollIntoView({block: 'center'});
+        bad = await aimAt([{el, args}]);
+        if (bad) return bad;
+        const [x, y] = center(el);
+        pointerClick(el, x, y, false);
+        await sleep(250);
+        f = find(true);
+      }
+      if (!f.options.length) return 'Error: this element has no options Changmun can see. If it is a custom menu, click it and read the page again.';
+      if (!f.o) return missing(f);
+      return JSON.stringify({label: f.label});
+    }
+
+    const f = find(true);
+    if (!f.o || f.label !== args.expectLabel) return 'Error: the options changed since Changmun looked at them. Try again.';
+    if (isNative) {
+      el.scrollIntoView({block: 'center'});
+      bad = await aimAt([{el, args}]);
+      if (bad) return bad;
+      el.focus();
+      if (el.multiple) f.o.selected = true; else el.selectedIndex = f.o.index;
+      el.dispatchEvent(new Event('input', {bubbles: true}));
+      el.dispatchEvent(new Event('change', {bubbles: true}));
+      settle();
+      return 'ok: selected "' + f.label + '"' + (el.multiple ? ' (added to the selection)' : '');
+    }
+    f.o.scrollIntoView({block: 'nearest'});
+    const [x, y] = center(f.o);
+    pointerClick(f.o, x, y, false);
+    settle();
+    return 'ok: chose "' + clip(f.label, 60) + '"';
+    """#
+
+    static let hover = lib + #"""
+
+    const p = pick(args);
+    if (p.error) return 'Error: ' + p.error;
+    const el = p.el;
+    let bad = stale(el, args);
+    if (bad) return bad;
+    el.scrollIntoView({block: 'center', inline: 'center'});
+    bad = await aimAt([{el, args}]);
+    if (bad) return bad;
+    const [x, y] = center(el);
+    const chain = e => { const out = []; for (let n = e; n; n = n.parentElement) out.unshift(n); return out; };
+    const before = globalThis.changmunHover;
+    const now = chain(el);
+    // Leave what the pointer was over and isn't over now, innermost first; then enter what is new, outermost first.
+    if (before && before.isConnected && before !== el) {
+      fire(before, 'pointerout', x, y); fire(before, 'mouseout', x, y);
+      for (const n of chain(before).reverse()) if (!now.includes(n)) { fire(n, 'pointerleave', x, y); fire(n, 'mouseleave', x, y); }
+    }
+    const was = before && before.isConnected ? chain(before) : [];
+    fire(el, 'pointerover', x, y); fire(el, 'mouseover', x, y);
+    for (const n of now) if (!was.includes(n)) { fire(n, 'pointerenter', x, y); fire(n, 'mouseenter', x, y); }
+    fire(el, 'pointermove', x, y); fire(el, 'mousemove', x, y);
+    globalThis.changmunHover = el;
+    settle();
+    return 'ok: ' + describe(el);
+    """#
+
+    static let drag = lib + #"""
+
+    const a = pick(args.from), b = pick(args.to);
+    if (a.error || b.error) return 'Error: ' + (a.error || b.error);
+    const src = a.el, dst = b.el;
+    if (isSecret(src) || isSecret(dst)) return 'Error: Changmun does not let the AI use password fields. Ask the user to.';
+    let bad = stale(src, args.from) || stale(dst, args.to);
+    if (bad) return bad;
+    // A point is a place on the screen as it is now, so the page isn't moved for it.
+    if (a.x == null) src.scrollIntoView({block: 'nearest', inline: 'nearest'});
+    if (b.x == null) dst.scrollIntoView({block: 'nearest', inline: 'nearest'});
+    bad = await aimAt([{el: src, args: args.from}, {el: dst, args: args.to}], 400);
+    if (bad) return bad;
+    const from = a.x == null ? center(src) : [a.x, a.y], to = b.x == null ? center(dst) : [b.x, b.y];
+    const view = src.ownerDocument.defaultView;
+    const dragEvent = (type, target, point, dt) => target.dispatchEvent(new view.DragEvent(type, {bubbles: true, cancelable: true, composed: true, view,
+      clientX: point[0], clientY: point[1], dataTransfer: dt}));
+    pointerDown(src, from[0], from[1]);
+    let how;
+    if (src.draggable && view.DataTransfer) {
+      // HTML5 drag and drop: while it runs, browsers send no mouse events.
+      const dt = new view.DataTransfer();
+      if (!dragEvent('dragstart', src, from, dt)) { dragEvent('dragend', src, from, dt); settle(); return 'Error: the page cancelled the drag.'; }
+      dragEvent('drag', src, from, dt);
+      dragEvent('dragenter', dst, to, dt);
+      const accepts = !dragEvent('dragover', dst, to, dt);
+      if (accepts) dragEvent('drop', dst, to, dt); else dragEvent('dragleave', dst, to, dt);
+      dragEvent('dragend', src, from, dt);
+      how = accepts ? 'dropped' : 'let go, but the target does not accept drops';
+    } else {
+      // Pointer and mouse events along the way, for scripts that follow the pointer (sliders, sortable lists, maps).
+      const steps = 8;
+      for (let i = 1; i <= steps; i++) {
+        const x = Math.round(from[0] + (to[0] - from[0]) * i / steps), y = Math.round(from[1] + (to[1] - from[1]) * i / steps);
+        const over = i === steps ? dst : (src.ownerDocument.elementFromPoint(x, y) || src);
+        fire(over, 'pointermove', x, y, {buttons: 1}); fire(over, 'mousemove', x, y, {buttons: 1});
+        await sleep(20);
+      }
+      pointerUp(dst, to[0], to[1]);
+      how = 'moved the pointer across and let go';
+    }
+    settle();
+    return 'ok: ' + how;
+    """#
+
+    /// Whether the text is on the page (visible, in this document or a frame of the same site).
+    static let hasText = lib + #"""
+
+    const want = norm(args.text);
+    const found = docs().some(e => norm(e.doc.body ? e.doc.body.innerText : '').includes(want));
+    return JSON.stringify({found, origin: String(window.origin || 'null')});
+    """#
+
+    static let clearMarks = lib + "\nclearMark();\nreturn 'ok';"
+
+    /// The frames of other sites that a picture of the page shows, greeted so that the app can ask each where it really is.
+    static let visibleFrames = lib + #"""
+
+    const out = [];
+    for (const e of docs()) for (const f of e.doc.querySelectorAll('iframe,frame')) {
+      const r = f.getBoundingClientRect();
+      if (sameSite(f) || r.width < 20 || r.height < 20 || e.doc.defaultView.getComputedStyle(f).visibility === 'hidden') continue;
+      out.push(tagFrame(f));
+    }
+    return JSON.stringify(out);
+    """#
+
+    static let origin = "return String(window.origin || 'null');"
+
+    /// Hides the values of secret fields for the picture: a password shown by a "show" button, or a code, never gets out in it.
+    static let maskSecrets = lib + #"""
+
+    const masked = globalThis.changmunMasked || (globalThis.changmunMasked = []);
+    for (const e of docs()) for (const el of e.doc.querySelectorAll('input,textarea')) {
+      if (!isSecret(el) || masked.some(m => m.el === el)) continue;
+      masked.push({el, value: el.style.getPropertyValue('-webkit-text-security'), priority: el.style.getPropertyPriority('-webkit-text-security')});
+      el.style.setProperty('-webkit-text-security', 'disc', 'important');
+    }
+    await Promise.race([new Promise(resolve => requestAnimationFrame(() => resolve())), sleep(150)]);
+    return String(masked.length);
+    """#
+
+    static let unmaskSecrets = lib + #"""
+
+    const masked = globalThis.changmunMasked || [];
+    for (const m of masked) {
+      if (m.value) m.el.style.setProperty('-webkit-text-security', m.value, m.priority); else m.el.style.removeProperty('-webkit-text-security');
+    }
+    globalThis.changmunMasked = [];
+    return 'ok';
+    """#
+
+    static let pressKey = lib + #"""
+
+    const KEYS = {Enter: 13, Escape: 27, Tab: 9, Backspace: 8, Delete: 46, Space: 32, ArrowUp: 38, ArrowDown: 40, ArrowLeft: 37, ArrowRight: 39,
+      Home: 36, End: 35, PageUp: 33, PageDown: 34};
+    const name = args.key, code = KEYS[name];
+    if (!code) return 'Error: ' + name + ' is not a key the AI may press.';
+    const mods = args.mods;
+    const p = pick(args);
+    if (p.error) return 'Error: ' + p.error;
+    let target = p.el;
+    if (isSecret(target)) return 'Error: Changmun does not let the AI press keys in password fields. Ask the user to.';
+    let bad = stale(target, args);
+    if (bad) return bad;
+    const doc = target.ownerDocument, view = doc.defaultView;
+    if (args.id != null) {
+      target.scrollIntoView({block: 'center'});
+      const f = focusable(target);
+      f.focus();
+      target = doc.activeElement && doc.activeElement !== doc.body ? doc.activeElement : f;
+      if (isSecret(target)) return 'Error: Changmun does not let the AI press keys in password fields. Ask the user to.';
+    }
+    if (target !== doc.body && target !== doc.documentElement) {
+      bad = await aimAt([{el: p.el, args}]);
+      if (bad) return bad;
+    }
+
+    const init = {key: name === 'Space' ? ' ' : name, code: name === 'Space' ? 'Space' : name, keyCode: code, which: code,
+      shiftKey: !!mods.shift, altKey: !!mods.alt, ctrlKey: !!mods.ctrl, metaKey: !!mods.meta, bubbles: true, cancelable: true, composed: true, view};
+    const plain = !mods.alt && !mods.ctrl && !mods.meta;
+    // WebKit itself submits a form, or clicks a button or link, for a keypress of Enter that the page leaves alone. What
+    // it does is seen here, so that the same is not done twice.
+    let mine = false, browser = null;
+    const watch = e => { if (!mine) browser = browser || e.type; };
+    doc.addEventListener('click', watch, true);
+    doc.addEventListener('submit', watch, true);
+    const down = new view.KeyboardEvent('keydown', init);
+    let go = target.dispatchEvent(down);
+    const types = name === 'Enter' || name === 'Space';
+    if (go && types) go = target.dispatchEvent(new view.KeyboardEvent('keypress', {...init, charCode: code}));
+    let did = 'the page handled it';
+    if (go && browser) did = 'the browser did its default (' + browser + ')';
+    else if (go) did = ((el) => {
+      mine = true;
+      const local = el.localName, type = el.type || '';
+      const textControl = local === 'textarea' || (local === 'input' && /^(text|search|url|tel|email|number|password|)$/.test(type));
+      const editable = textControl || el.isContentEditable;
+      const button = /^(button|a|summary)$/.test(local) || /^(submit|button|reset|image|checkbox|radio)$/.test(type)
+        || /^(button|link|menuitem|menuitemcheckbox|option|tab|switch|checkbox)$/.test(attr(el, 'role') || '');
+      const edit = (command, value) => doc.execCommand(command, false, value);
+      const scroll = (dx, dy) => { view.scrollBy(dx, dy); return 'scrolled the page'; };
+      if (!plain && !(mods.shift && !mods.alt && !mods.ctrl && !mods.meta)) return 'nothing else (the page did not handle this combination)';
+      switch (name) {
+        case 'Enter':
+          if (button || (local === 'a' && el.href)) { el.click(); return 'activated it'; }
+          if (editable && !textControl) { edit('insertLineBreak'); return 'inserted a line break'; }
+          if (local === 'textarea') { edit('insertText', '\n'); return 'inserted a line break'; }
+          if (local === 'input') {
+            // What was judged: the form's own default button, or the form itself when it has no button and one text field.
+            const effect = enterEffect(el, false);
+            if (effect.button) { effect.button.click(); return 'clicked the form\'s submit button'; }
+            if (effect.submit) { submitForm(el.form); return 'submitted the form'; }
+            return el.form ? 'nothing (the form has no submit button)' : 'nothing (no form around the field)';
+          }
+          return 'nothing';
+        case 'Escape': {
+          const dialog = el.closest('dialog[open]') || doc.querySelector('dialog[open]');
+          if (dialog && dialog.dispatchEvent(new view.Event('cancel', {cancelable: true}))) { dialog.close(); return 'closed the dialog'; }
+          return 'nothing (no open dialog)';
+        }
+        case 'Tab': {
+          const sel = 'a[href],button,input,select,textarea,summary,[tabindex],[contenteditable=""],[contenteditable=true]';
+          const usable = Array.from(doc.querySelectorAll(sel)).filter(e => {
+            if (e.disabled || e.tabIndex < 0 || e.type === 'hidden') return false;
+            const r = e.getBoundingClientRect(), s = view.getComputedStyle(e);
+            return r.width >= 1 && r.height >= 1 && s.visibility !== 'hidden' && s.display !== 'none';
+          });
+          const order = usable.filter(e => e.tabIndex > 0).sort((a, b) => a.tabIndex - b.tabIndex).concat(usable.filter(e => e.tabIndex === 0));
+          if (!order.length) return 'nothing (nothing to focus)';
+          const at = order.indexOf(el);
+          const next = order[(at < 0 ? (mods.shift ? order.length - 1 : 0) : at + (mods.shift ? -1 : 1) + order.length) % order.length];
+          next.focus();
+          next.scrollIntoView({block: 'nearest'});
+          return 'moved focus to ' + describe(next);
+        }
+        case 'Backspace': case 'Delete':
+          if (!editable) return 'nothing (not in a text field)';
+          edit(name === 'Backspace' ? 'delete' : 'forwardDelete');
+          return 'deleted';
+        case 'Space':
+          if (textControl || el.isContentEditable) { edit('insertText', ' '); return 'typed a space'; }
+          if (button) { el.click(); return 'activated it'; }
+          if (local === 'select') return 'nothing';
+          return scroll(0, (mods.shift ? -1 : 1) * view.innerHeight * 0.875);
+        default: {
+          if (textControl && el.selectionStart != null) {
+            const v = el.value, a = el.selectionStart, b = el.selectionEnd, back = el.selectionDirection === 'backward';
+            const focus = back ? a : b, anchor = back ? b : a;
+            const lineStart = i => v.lastIndexOf('\n', i - 1) + 1;
+            const lineEnd = i => { const j = v.indexOf('\n', i); return j < 0 ? v.length : j; };
+            let to = focus;
+            if (!mods.shift && a !== b && (name === 'ArrowLeft' || name === 'ArrowRight')) to = name === 'ArrowLeft' ? a : b;
+            else if (name === 'ArrowLeft') to = Math.max(0, focus - 1);
+            else if (name === 'ArrowRight') to = Math.min(v.length, focus + 1);
+            else if (name === 'Home') to = lineStart(focus);
+            else if (name === 'End') to = lineEnd(focus);
+            else if (name === 'ArrowUp' || name === 'ArrowDown') {
+              if (local !== 'textarea') to = name === 'ArrowUp' ? 0 : v.length;
+              else if (name === 'ArrowUp') { const s = lineStart(focus); to = s === 0 ? 0 : Math.min(lineStart(s - 1) + focus - s, s - 1); }
+              else { const e = lineEnd(focus); to = e >= v.length ? v.length : Math.min(e + 1 + focus - lineStart(focus), lineEnd(e + 1)); }
+            } else return scroll(0, (name === 'PageUp' ? -1 : 1) * view.innerHeight * 0.875);
+            if (mods.shift) el.setSelectionRange(Math.min(anchor, to), Math.max(anchor, to), to < anchor ? 'backward' : 'forward');
+            else el.setSelectionRange(to, to);
+            return 'moved the cursor';
+          }
+          if (el.isContentEditable && view.getSelection().modify) {
+            const move = {ArrowLeft: ['left', 'character'], ArrowRight: ['right', 'character'], ArrowUp: ['backward', 'line'], ArrowDown: ['forward', 'line'],
+              Home: ['backward', 'lineboundary'], End: ['forward', 'lineboundary']}[name];
+            if (move) { view.getSelection().modify(mods.shift ? 'extend' : 'move', move[0], move[1]); return 'moved the cursor'; }
+          }
+          if (local === 'select' && !el.multiple) {
+            const last = el.options.length - 1;
+            const to = {ArrowUp: el.selectedIndex - 1, ArrowLeft: el.selectedIndex - 1, ArrowDown: el.selectedIndex + 1, ArrowRight: el.selectedIndex + 1, Home: 0, End: last}[name];
+            if (to != null && to >= 0 && to <= last && to !== el.selectedIndex) {
+              el.selectedIndex = to;
+              el.dispatchEvent(new view.Event('input', {bubbles: true}));
+              el.dispatchEvent(new view.Event('change', {bubbles: true}));
+              return 'changed the selection to "' + el.options[to].text.trim() + '"';
+            }
+            return 'nothing';
+          }
+          const page = view.innerHeight * 0.875;
+          const by = {ArrowUp: [0, -40], ArrowDown: [0, 40], ArrowLeft: [-40, 0], ArrowRight: [40, 0], PageUp: [0, -page], PageDown: [0, page]}[name];
+          if (by) return scroll(...by);
+          view.scrollTo(0, name === 'Home' ? 0 : doc.documentElement.scrollHeight);
+          return 'scrolled the page';
+        }
+      }
+    })(target);
+    mine = false;
+    target.dispatchEvent(new view.KeyboardEvent('keyup', init));
+    doc.removeEventListener('click', watch, true);
+    doc.removeEventListener('submit', watch, true);
+    if (go && browser && did === 'the page handled it') did = 'the browser did its default (' + browser + ')';
+    settle();
+    return 'ok: ' + did;
+    """#
+}

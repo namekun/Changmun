@@ -198,6 +198,7 @@ final class Browser: ObservableObject {
         LinkHover.install(in: config.userContentController)
         PopupWatcher.install(in: config.userContentController)
         PictureInPictureWatcher.install(in: config.userContentController)
+        FrameWatcher.install(in: config.userContentController)
         ReaderWatcher.install(in: config.userContentController)
         if !Headless.isOn { LoginCapture.install(in: config.userContentController) }
         AdBlocker.shared.attach(config.userContentController)
@@ -1164,7 +1165,7 @@ final class Browser: ObservableObject {
         let now = Date()
         let neverSleep = Preferences.shared.neverSleepHosts
         for tab in tabs where !isShown(tab) && now.timeIntervalSince(tab.lastShown) >= age
-            && Preferences.canSleep(host: tab.url?.host(), neverSleep: neverSleep) {
+            && Preferences.canSleep(host: tab.url?.host(), neverSleep: neverSleep) && !AgentActivity.shared.holds(tab) {
             guard let webView = tab.webView, webView.cameraCaptureState == .none, webView.microphoneCaptureState == .none else { continue }
             webView.requestMediaPlaybackState { [weak self, weak tab] state in
                 Task { @MainActor in
@@ -1182,14 +1183,14 @@ final class Browser: ObservableObject {
     }
 
     /// Closes the tabs not looked at for `age` into the archive, but not those on screen, favorites and bookmarks, or
-    /// ones playing, floating, or using the camera or microphone. A private window keeps nothing.
+    /// ones playing, floating, in use by the AI, or using the camera or microphone. A private window keeps nothing.
     func archiveIdleTabs(olderThan age: TimeInterval, to archive: TabArchive? = nil) {
         guard !isPrivate else { return }
         let archive = archive ?? .shared
         let now = Date()
         let idle = tabs.filter { tab in
             !isShown(tab) && tab.bookmarkKey == nil && tab.url != nil && now.timeIntervalSince(tab.lastShown) >= age
-                && !tab.isLoading && !tab.isPlayingAudio && !tab.isInPictureInPicture
+                && !tab.isLoading && !tab.isPlayingAudio && !tab.isInPictureInPicture && !AgentActivity.shared.holds(tab)
                 && tab.webView.map { $0.cameraCaptureState == .none && $0.microphoneCaptureState == .none } != false
         }
         guard !idle.isEmpty else { return }

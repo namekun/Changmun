@@ -17,8 +17,10 @@
 "'%@' is updating and asks for more permissions" = "« %@ » est en cours de mise à jour et demande des autorisations supplémentaires";
 "'%@' wants to access this site" = "« %@ » souhaite accéder à ce site";
 "(No username)" = "(Aucun nom d’utilisateur)";
+"a frame of an unknown site" = "un cadre d’un site inconnu";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "Une adresse complète peut être modifiée directement sur place (⌘L). Avec le site et le titre, ⌘L ouvre le champ de recherche pour la modifier.";
 "About Changmun" = "À propos de Changmun";
+"Action:\n%@\n\nSites read earlier in this conversation: %@\nA page can hide instructions for the AI. Deny if this isn’t what you asked for." = "Action :\n%@\n\nSites lus plus tôt dans cette conversation : %@\nUne page peut cacher des instructions pour l’IA. Refusez si ce n’est pas ce que vous avez demandé.";
 "Active" = "Actif";
 "Actual Size" = "Taille réelle";
 "Ad Blocking" = "Blocage des publicités";
@@ -49,6 +51,8 @@
 "All Open Tabs" = "Tous les onglets ouverts";
 "All Time" = "Depuis toujours";
 "Allow" = "Autoriser";
+"Allow on %@ for This Chat" = "Autoriser sur %@ pour ce chat";
+"Allow Once" = "Autoriser une fois";
 "Allow pop-ups" = "Autoriser les pop-ups";
 "Always Allow for This Site" = "Toujours autoriser pour ce site";
 "Archive tabs you haven’t viewed in a while" = "Archiver les onglets non consultés depuis un moment";
@@ -56,7 +60,7 @@
 "Ask" = "Demander";
 "Ask about this page, or give it a task" = "Posez une question sur cette page ou confiez-lui une tâche";
 "Ask AI" = "Demander à l’IA";
-"Ask before using other tabs, opening new addresses, or typing" = "Demander avant d’utiliser d’autres onglets, d’ouvrir de nouvelles adresses ou de saisir du texte";
+"Ask before using other tabs, opening new addresses, or using a page after reading other sites" = "Demander avant d’utiliser d’autres onglets, d’ouvrir de nouvelles adresses ou d’utiliser une page après la lecture d’autres sites";
 "Ask where to save each download" = "Demander où enregistrer chaque téléchargement";
 "Authentication is required to copy the saved password" = "Une authentification est requise pour copier le mot de passe enregistré";
 "Automatically put new tabs in the right group" = "Placer automatiquement les nouveaux onglets dans le bon groupe";
@@ -88,7 +92,9 @@
 "Check for Updates" = "Rechercher des mises à jour";
 "Check tab list" = "Vérifier la liste des onglets";
 "Checking…" = "Vérification…";
+"Choose" = "Choisir";
 "Choose an extension folder that contains manifest.json" = "Choisissez un dossier d’extension contenant manifest.json";
+"Choosing “%@”" = "Choix de « %@ »";
 "Chrome Web Store" = "Chrome Web Store";
 "Chrome Web Store URL or extension ID" = "URL du Chrome Web Store ou ID de l’extension";
 "Chrome-style" = "Style Chrome";
@@ -101,8 +107,11 @@
 "Cleared: %@" = "Effacé : %@";
 "Clear…" = "Effacer…";
 "Click" = "Clic";
+"Click at %lld, %lld" = "Clic en %lld, %lld";
 "Click to open it. You can drag it into another app." = "Cliquez pour l’ouvrir. Vous pouvez le faire glisser dans une autre app.";
 "Click to show it in Finder. You can drag it into another app." = "Cliquez pour l’afficher dans le Finder. Vous pouvez le faire glisser dans une autre app.";
+"Clicking at %lld, %lld" = "Clic en %lld, %lld";
+"Clicking “%@”" = "Clic sur « %@ »";
 "Close" = "Fermer";
 "Close (esc)" = "Fermer (échap)";
 "Close (⌘E)" = "Fermer (⌘E)";
@@ -149,6 +158,7 @@
 "Developer Mode" = "Mode développeur";
 "Done" = "Terminé";
 "Done · %@" = "Terminé · %@";
+"Don’t Allow" = "Ne pas autoriser";
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "Double-cliquez pour ouvrir dans un nouvel onglet. Pour effacer l’historique par période, accédez à Réglages › Confidentialité.";
 "Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "Double-cliquez pour rouvrir. Définissez le délai avant l’archivage des onglets dans Réglages › Onglets.";
 "Download" = "Télécharger";
@@ -157,14 +167,17 @@
 "Downloading · %@" = "Téléchargement · %@";
 "Downloads" = "Téléchargements";
 "Downloads Folder" = "Dossier Téléchargements";
+"Drag" = "Glisser";
 "Drag to resize the sidebar · double-click for default width" = "Faites glisser pour redimensionner la barre latérale · double-cliquez pour la largeur par défaut";
 "Drag to resize · double-click to split evenly" = "Faites glisser pour redimensionner · double-cliquez pour répartir à parts égales";
+"Dragging “%@” to “%@”" = "Glisser « %@ » vers « %@ »";
 "e.g. music.youtube.com" = "p. ex. music.youtube.com";
 "Each browser locks passwords and login state in the Keychain, so macOS will ask for permission. Enter your login password and click 'Allow'. Imported passwords are stored only in this Mac's Keychain." = "Chaque navigateur verrouille les mots de passe et l’état de connexion dans le Trousseau ; macOS vous demandera donc l’autorisation. Saisissez le mot de passe de votre session, puis cliquez sur « Autoriser ». Les mots de passe importés sont stockés uniquement dans le Trousseau de ce Mac.";
 "EasyList (ads)" = "EasyList (publicités)";
 "EasyPrivacy (tracking)" = "EasyPrivacy (suivi)";
 "Edit" = "Édition";
 "Edit Address (⌘L)" = "Modifier l’adresse (⌘L)";
+"Either way, it asks before something that looks like it pays, orders, sends, posts or deletes." = "Dans tous les cas, l’IA demande avant ce qui ressemble à un paiement, une commande, un envoi, une publication ou une suppression.";
 "Element hiding" = "Masquage d’éléments";
 "End Split View" = "Quitter l’écran partagé";
 "Enter Address" = "Saisir l’adresse";
@@ -204,6 +217,7 @@
 "History" = "Historique";
 "History %@" = "Historique %@";
 "History: %@" = "Historique : %@";
+"Hover" = "Survoler";
 "How can I help?" = "Comment puis-je vous aider ?";
 "I can read the page you're viewing, click, type and open tabs." = "Je peux lire la page que vous consultez, cliquer, saisir du texte et ouvrir des onglets.";
 "If you allow it, you won't be asked again while this tab stays on this site." = "Si vous l’autorisez, la question ne vous sera plus posée tant que cet onglet reste sur ce site.";
@@ -229,6 +243,7 @@
 "Load from Folder…" = "Charger depuis un dossier…";
 "Login info saved" = "Identifiants enregistrés";
 "Login state (cookies)" = "État de connexion (cookies)";
+"Looking at the page" = "Examen de la page";
 "Make Default Browser" = "Définir comme navigateur par défaut";
 "Manage…" = "Gérer…";
 "Match developer mode (currently: %@)" = "Suivre le mode développeur (actuellement : %@)";
@@ -283,6 +298,8 @@
 "Open in New Tab" = "Ouvrir dans un nouvel onglet";
 "Open Location" = "Ouvrir l’adresse";
 "Open new tab · %@" = "Ouvrir un nouvel onglet · %@";
+"Opening %@" = "Ouverture de %@";
+"Option to choose:\n%@\n\nSites read earlier in this conversation: %@\nDeny if content from there is mixed in." = "Option à choisir :\n%@\n\nSites lus plus tôt dans cette conversation : %@\nRefusez si du contenu provenant de ces sites y est mélangé.";
 "Opus (smartest, slower)" = "Opus (le plus performant, plus lent)";
 "Other" = "Autre";
 "Other Bookmarks" = "Autres signets";
@@ -300,11 +317,14 @@
 "Picture in Picture (⌃⌘P)" = "Image dans l’image (⌃⌘P)";
 "Pin to Favorites" = "Épingler aux favoris";
 "Play video in Picture in Picture when you switch to another tab" = "Lire la vidéo en image dans l’image lorsque vous passez à un autre onglet";
+"Pointing at “%@”" = "Survol de « %@ »";
 "Pop-up blocked" = "Pop-up bloqué";
 "Pop-ups" = "Pop-ups";
 "Pop-ups allowed" = "Pop-ups autorisés";
 "Pop-ups that a site opens without a click are blocked, and you’re told about it over the page. Sites you chose “Always allow for this site” on stay here." = "Les pop-ups qu’un site ouvre sans clic sont bloqués, et vous en êtes informé au-dessus de la page. Les sites pour lesquels vous avez choisi « Toujours autoriser pour ce site » restent ici.";
 "Preparing…" = "Préparation…";
+"Press %@" = "Appuyer sur %@";
+"Pressing %@" = "Appui sur %@";
 "Previous (⌘⇧G)" = "Précédent (⌘⇧G)";
 "Previous Tab" = "Onglet précédent";
 "Print…" = "Imprimer…";
@@ -315,7 +335,9 @@
 "Reader Mode" = "Mode lecture";
 "Reader Mode (%@)" = "Mode lecture (%@)";
 "Read tabs" = "Lire les onglets";
+"Reading %@" = "Lecture de %@";
 "Reading rules…" = "Lecture des règles…";
+"Reading the page" = "Lecture de la page";
 "Reads the rules saved by the blocker app. The first time you turn one on, macOS asks whether Changmun may access another app’s data. If you change the rules in the blocker app, they take effect the next time you launch Changmun." = "Lit les règles enregistrées par l’app de blocage. La première fois que vous en activez une, macOS demande si Changmun peut accéder aux données d’une autre app. Si vous modifiez les règles dans l’app de blocage, elles prennent effet au prochain lancement de Changmun.";
 "Recent Tab" = "Onglet récent";
 "Redo" = "Rétablir";
@@ -346,6 +368,7 @@
 "Saved %@. The page was too large to fit, so only its top left part is included." = "%@ enregistré. La page était trop grande : seule sa partie supérieure gauche est incluse.";
 "Saved Passwords" = "Mots de passe enregistrés";
 "Scroll · %@" = "Défilement · %@";
+"Scrolling" = "Défilement";
 "Search" = "Rechercher";
 "Search Archived Tabs" = "Rechercher dans les onglets archivés";
 "Search Engine" = "Moteur de recherche";
@@ -397,8 +420,11 @@
 "The AI panel uses the Claude Code login (subscription) on this Mac." = "Le panneau IA utilise la connexion Claude Code (abonnement) de ce Mac.";
 "The AI request failed." = "La requête IA a échoué.";
 "The AI response didn't finish (exit code %lld).\n%@" = "La réponse de l’IA ne s’est pas terminée (code de sortie %lld).\n%@";
+"The AI wants to choose an option on %@" = "L’IA souhaite choisir une option sur %@";
 "The AI wants to open this address" = "L’IA souhaite ouvrir cette adresse";
+"The AI wants to press “%@” on %@" = "L’IA souhaite appuyer sur « %1$@ » sur %2$@";
 "The AI wants to type into %@" = "L’IA souhaite saisir du texte dans %@";
+"The AI wants to use %@" = "L’IA souhaite utiliser %@";
 "The AI wants to use a tab you aren't looking at" = "L’IA souhaite utiliser un onglet que vous ne consultez pas";
 "The archive contains an item that points outside the extension folder" = "L’archive contient un élément qui pointe en dehors du dossier de l’extension";
 "The extension file is too large" = "Le fichier d’extension est trop volumineux";
@@ -409,6 +435,7 @@
 "This extension is installed in Changmun" = "Cette extension est installée dans Changmun";
 "This folder has no manifest.json" = "Ce dossier ne contient pas de fichier manifest.json";
 "This language can’t be translated" = "Cette langue ne peut pas être traduite";
+"This looks like it pays, orders, sends, posts, deletes or confirms something, and that can’t be undone.\n\nAllow it only if you asked for this." = "Cela ressemble à un paiement, une commande, un envoi, une publication, une suppression ou une confirmation, ce qui est irréversible.\n\nN’autorisez que si vous l’avez demandé.";
 "This page" = "Cette page";
 "this page" = "cette page";
 "Tidied %lld tab" = "%lld onglet rangé";
@@ -426,6 +453,7 @@
 "Turn on ad blocking for this site" = "Activer le blocage des publicités pour ce site";
 "Turned off" = "Désactivé";
 "Type" = "Saisie";
+"Typing into “%@”" = "Saisie dans « %@ »";
 "Undo" = "Annuler";
 "Ungroup" = "Dissocier";
 "Unmute" = "Réactiver le son";
@@ -436,7 +464,11 @@
 "User Name" = "Nom d’utilisateur";
 "View" = "Présentation";
 "View screen" = "Voir l’écran";
+"Wait" = "Attendre";
 "Waiting for %@ Keychain access…" = "En attente de l’accès au Trousseau de %@…";
+"Waiting for the page to load" = "Attente du chargement de la page";
+"Waiting for “%@”" = "Attente de « %@ »";
+"Waiting for “%@” to go away" = "Attente de la disparition de « %@ »";
 "Web extensions are available on macOS 15.4 or later." = "Les extensions web sont disponibles sur macOS 15.4 ou version ultérieure.";
 "Web Inspector (Network)" = "Inspecteur web (Réseau)";
 "WebKit didn't accept the rules: %@" = "WebKit n’a pas accepté les règles : %@";

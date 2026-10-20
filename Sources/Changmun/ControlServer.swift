@@ -70,7 +70,8 @@ final class ControlServer {
     }
 
     private func handle(_ request: HTTPRequest, on connection: NWConnection) {
-        if request.method == "POST", request.path == "/window-image" {
+        // Tests only: a picture of the front window, sidebar and all.
+        if Headless.isOn, request.method == "POST", request.path == "/window-image" {
             Task { @MainActor in
                 guard let window = Browser.current?.window, let png = await WindowImage.png(of: window) else {
                     return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
@@ -167,6 +168,29 @@ final class ControlServer {
                             "inWindow": view?.window != nil, "width": Int(view?.frame.width ?? 0), "height": Int(view?.frame.height ?? 0)]
                 }
                 self.respond(connection, status: "200 OK", body: ["shown": report, "active": browser.activeID ?? -1, "split": browser.shownSplit != nil])
+            }
+            return
+        }
+        // Tests only: how the AI's approvals are answered ("answer": allow, site or deny; any other value goes back to
+        // allowing), whether questions wait for an answer instead ("hold"), the answer given to those waiting ("release":
+        // allow, site or deny), a caller's stop button ("stop": the caller's name), the chat started over ("newChat", as
+        // the New Chat button does), what a caller has read forgotten ("forget": the caller's name), and what was asked,
+        // newest last ("clear" empties that list).
+        if Headless.isOn, request.method == "POST", request.path == "/approvals",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                if let answer = body["answer"] as? String {
+                    let wanted = ["allow": Approvals.Choice.once, "site": .site, "deny": .deny][answer]
+                    Approvals.headless.answer = wanted.map { wanted in { prompt in prompt.choices.contains(wanted) ? wanted : (wanted == .site ? .once : .deny) } } ?? { _ in .once }
+                }
+                if let hold = body["hold"] as? Bool { Approvals.headless.holds = hold }
+                if let release = body["release"] as? String { Approvals.release(["allow": .once, "site": .site][release] ?? .deny) }
+                if let caller = body["stop"] as? String { AgentActivity.shared.cancel(caller: caller) }
+                if let caller = body["forget"] as? String { Approvals.forgetReads(caller: caller) }
+                if body["newChat"] as? Bool == true { ChatStore.shared.reset() }
+                let asked = Approvals.headless.asked.map { ["message": $0.message, "detail": $0.detail, "choices": $0.choices.map { "\($0)" }] as [String: Any] }
+                if body["clear"] as? Bool == true { Approvals.headless.asked = [] }
+                self.respond(connection, status: "200 OK", body: ["asked": asked])
             }
             return
         }
