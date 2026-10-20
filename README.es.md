@@ -21,15 +21,15 @@
   <img src="docs/images/window.png" width="760" alt="Ventana de Changmun con pestañas verticales en la barra lateral y una tarjeta de página">
 </p>
 
-*Changmun* (창문) significa *ventana* en coreano. Es gratuito, de código abierto y no tiene cuentas ni rastreo. La app está disponible en inglés, coreano, japonés, chino simplificado, español, alemán y francés.
+*Changmun* (창문) significa *ventana* en coreano; como nombre de navegador, más claro, agua. Es gratuito, de código abierto y no tiene cuentas ni rastreo. La app está disponible en inglés, coreano, japonés, chino simplificado, español, alemán y francés.
 
 ## Por qué Changmun
 
-- **Ligero.** Changmun usa el motor WebKit que viene con macOS, el mismo que usa Safari, en lugar de incluir Chromium. La descarga pesa unos 3 MB (el DMG de la 0.4.1 son 2,6 MB), cuida la batería y las correcciones de seguridad del motor llegan con las actualizaciones de macOS y de Safari.
-- **Una barra lateral como la de Arc y Dia.** Pestañas verticales, favoritos como mosaicos, carpetas de marcadores, grupos de pestañas y espacios.
-- **Una IA que usa el navegador.** El panel de Claude lee páginas y hace clic y escribe por ti con la CLI `claude` que ya tienes, y pregunta antes de hacer algo arriesgado.
-- **Privado por defecto.** Sin cuenta, servidor ni analíticas, y con bloqueo de anuncios y rastreadores incluido.
-- **Viene con tus cosas.** Importa marcadores, historial, contraseñas e inicios de sesión de Safari y de los navegadores Chromium.
+- **Ligero.** Cada navegador Chromium trae su propia copia de Chromium. Changmun usa en cambio el motor WebKit que ya viene con macOS, el mismo que usa Safari, así que la descarga pesa unos 3 MB (el DMG de la 0.4.1 son 2,6 MB). Cuida la batería y las correcciones de seguridad del motor llegan con las actualizaciones de macOS y de Safari.
+- **Una barra lateral como la de Arc y Dia.** Pestañas verticales, con espacio de sobra para los títulos, favoritos como mosaicos, carpetas de marcadores, grupos de pestañas y espacios.
+- **Una IA que usa el navegador.** El panel de Claude lee páginas y hace clic y escribe por ti con la CLI `claude` que ya tienes. Le presta las manos, pero no le da carta blanca: antes de hacer algo arriesgado, pregunta.
+- **Privado por defecto.** Sin cuenta, servidor ni analíticas, así que no hay nada en lo que registrarse. El bloqueo de anuncios y rastreadores viene incluido.
+- **Mudanza con muebles incluidos.** Importa marcadores e historial de Safari y de los navegadores Chromium, y de estos últimos también contraseñas e inicios de sesión. Las contraseñas de Safari se quedan donde están: macOS no se las entrega a otras apps.
 
 ## Instalar
 
@@ -39,7 +39,7 @@ brew install --cask namekun/tap/changmun
 
 Necesitas [Homebrew](https://brew.sh), macOS 14 Sonoma o posterior y un Mac con Apple silicon. La app está firmada con un Developer ID y notarizada por Apple, así que se abre directamente. Para actualizar, ejecuta `brew update && brew upgrade --cask changmun`.
 
-En el primer arranque, Changmun te ofrece traer los marcadores, el historial, las contraseñas y los inicios de sesión del navegador que usas ahora.
+En el primer arranque, Changmun te ofrece traer los marcadores y el historial del navegador que usas ahora y, si es un navegador Chromium, también las contraseñas y los inicios de sesión.
 
 ### Compilar desde el código fuente
 
@@ -58,25 +58,25 @@ Si solo tienes instaladas las Command Line Tools, los scripts compilan con el SD
 
 ### Barra lateral y pestañas
 
-- **Barra lateral.** Reúne tus favoritos, marcadores y pestañas abiertas en una columna a la izquierda. Favoritos como mosaicos, carpetas de marcadores y pestañas verticales. Arrastra las pestañas para reordenarlas, o suéltalas sobre los favoritos para fijarlas. Los favoritos y los marcadores tienen cada uno su propia pestaña, como en Dia y Arc: al hacer clic en uno, vas a su pestaña en lugar de reemplazar la que estás leyendo (⌘-clic abre una pestaña nueva). Arrastra un enlace de una página a la barra lateral para abrirlo como pestaña, guardarlo como favorito o archivarlo en una carpeta. El menú de una pestaña también la recarga, la duplica, la mueve a una ventana nueva, la comparte o la abre en otro navegador. Cerrar las pestañas de un grupo o eliminar un marcador se puede deshacer durante unos segundos.
-- **La barra de direcciones donde prefieras.** Elige la disposición que te resulte más cómoda. Arriba de la barra lateral, bajo atrás y adelante, como en Arc, o sobre la página, como en Dia: Ajustes › Aspecto › Posición de la barra de direcciones. Solo muestra el sitio; el escudo y la estrella aparecen al pasar el puntero. En una página favorita la estrella se queda: haz clic en ella para quitarla de favoritos.
-- **Carpetas de marcadores.** Mantiene tus marcadores ordenados como estaban y a mano. Las carpetas importadas conservan su anidación, como en el navegador del que vienen. Fija las que uses en la barra lateral (clic derecho o … › Fijar en la barra lateral, o arrastra la carpeta debajo de los favoritos) y ábrelas ahí mismo. Arrastra un marcador a otra carpeta o a los favoritos, o usa Mover a en su menú. El resto de tus marcadores está tras el botón de marcadores, abajo en la barra lateral, con un campo de búsqueda; el … de al lado abre el Historial, las Pestañas archivadas, el Modo concentración y los Ajustes.
+- **Barra lateral.** Reúne tus favoritos, marcadores y pestañas abiertas en una columna a la izquierda: favoritos como mosaicos, carpetas de marcadores y pestañas verticales. Arrastra las pestañas para reordenarlas, o suéltalas sobre los favoritos para fijarlas. Los favoritos y los marcadores tienen cada uno su propia pestaña, como en Dia y Arc: al hacer clic en uno, vas a su pestaña en lugar de reemplazar la que estás leyendo (⌘-clic abre una pestaña nueva). Arrastra un enlace de una página a la barra lateral para abrirlo como pestaña, guardarlo como favorito o archivarlo en una carpeta. El menú de una pestaña también la recarga, la duplica, la mueve a una ventana nueva, la comparte o la abre en otro navegador. Cerrar las pestañas de un grupo o eliminar un marcador se puede deshacer durante unos segundos, que es justo cuando suele llegar el arrepentimiento.
+- **La barra de direcciones donde prefieras.** Ponla donde la busca tu mano: arriba de la barra lateral, bajo atrás y adelante, como en Arc, o sobre la página, como en Dia (Ajustes › Aspecto › Posición de la barra de direcciones). Solo muestra el sitio; el escudo y la estrella aparecen al pasar el puntero. En una página favorita la estrella se queda: haz clic en ella para quitarla de favoritos.
+- **Carpetas de marcadores.** Tus marcadores conservan el orden que les diste y siguen a mano. Las carpetas importadas conservan su anidación, como en el navegador del que vienen. Fija las que uses en la barra lateral (clic derecho o … › Fijar en la barra lateral, o arrastra la carpeta debajo de los favoritos) y ábrelas ahí mismo. Arrastra un marcador a otra carpeta o a los favoritos, o usa Mover a en su menú. El resto de tus marcadores está tras el botón de marcadores, abajo en la barra lateral, con un campo de búsqueda; el … de al lado abre el Historial, las Pestañas archivadas, el Modo concentración y los Ajustes.
 - **Grupos de pestañas.** Mantiene juntas las pestañas relacionadas y las quita de en medio. Clic derecho en una pestaña › Añadir a un grupo nuevo, ponle nombre y pliégalo. Las pestañas que se abren desde la pestaña de un grupo se unen a él; una pestaña reabierta (⌘⇧T) vuelve a su grupo.
-- **Ordenar pestañas.** Agrupa un montón de pestañas sueltas con un solo clic. La varita junto a "Nueva pestaña" (Ventana › Ordenar pestañas) agrupa las pestañas sueltas. Con Apple Intelligence activada (macOS 26), el modelo de tu Mac las agrupa por tema y pone nombre a los grupos; nada sobre tus pestañas sale del Mac. Sin ella, se agrupan las pestañas abiertas unas desde otras y las de un mismo sitio. "Deshacer" lo devuelve todo a su sitio durante unos segundos. Las pestañas nuevas que abres desde la barra de direcciones se unen por sí solas a un grupo que encaje (desactívalo en Ajustes › Pestañas).
-- **Archivar pestañas antiguas** (desactivado por defecto). Aparta las pestañas que ya no miras sin perderlas. Las pestañas que no has mirado durante un tiempo determinado (de 12 horas a 30 días, contado solo mientras Changmun está abierto) se cierran en Historial › Pestañas archivadas, listas para volver a abrirse en su grupo. Las pestañas visibles, con reproducción, en imagen en imagen, con cámara o micrófono, las favoritas y las privadas nunca se archivan.
-- **Pestañas suspendidas.** Ahorra memoria dejando descansar las pestañas en segundo plano. Las pestañas en segundo plano que no has visto en 20 minutos, y todas las pestañas en segundo plano cuando hay poca memoria, devuelven su proceso web y vuelven con su historial cuando regresas a ellas.
-- **Barra de comandos** (⌘T). Un solo cuadro para buscar, escribir direcciones, cambiar a pestañas abiertas, marcadores e historial, y preguntar a la IA.
+- **Ordenar pestañas.** Convierte un montón de pestañas sueltas en grupos con un solo clic. Un toque de la varita junto a "Nueva pestaña" (Ventana › Ordenar pestañas) y las pestañas sueltas quedan agrupadas. Con Apple Intelligence activada (macOS 26), el modelo de tu Mac las agrupa por tema y pone nombre a los grupos; nada sobre tus pestañas sale del Mac. Sin ella, se agrupan las pestañas abiertas unas desde otras y las de un mismo sitio. "Deshacer" lo devuelve todo a su sitio durante unos segundos. Las pestañas nuevas que abres desde la barra de direcciones se unen por sí solas a un grupo que encaje (desactívalo en Ajustes › Pestañas).
+- **Archivar pestañas antiguas** (desactivado por defecto). Aparta las pestañas que ya no miras, pero sin tirarlas. Las pestañas que no has mirado durante un tiempo determinado (de 12 horas a 30 días, contado solo mientras Changmun está abierto) se cierran en Historial › Pestañas archivadas, listas para volver a abrirse en su grupo. Las pestañas visibles, con reproducción, en imagen en imagen, con cámara o micrófono, las favoritas y las privadas nunca se archivan.
+- **Pestañas suspendidas.** Deja que las pestañas en segundo plano echen una siesta y te devuelvan la memoria. Las pestañas en segundo plano que no has visto en 20 minutos, y todas las pestañas en segundo plano cuando hay poca memoria, devuelven su proceso web y vuelven con su historial cuando regresas a ellas.
+- **Barra de comandos** (⌘T). Un solo cuadro para todo: buscar, escribir direcciones, cambiar a pestañas abiertas, marcadores e historial, y preguntar a la IA.
 
 ### Espacios y perfiles
 
-- **Espacios.** Mantiene conjuntos separados de pestañas, grupos de pestañas y favoritos para distintos tipos de navegación. La fila de la parte inferior de la barra lateral cambia de espacio: haz clic en un punto, pulsa ⌃1–⌃9 o desliza dos dedos hacia un lado sobre la barra lateral (Ventana › Espacio siguiente, Espacio anterior, Nuevo espacio…). Cada espacio tiene sus propias pestañas, grupos de pestañas, favoritos y carpetas fijadas, y tiñe la barra lateral con su color. La biblioteca de marcadores, el historial y las contraseñas guardadas se comparten. Activa «Separar inicios de sesión y cookies (perfil)» al crear un espacio para que tenga también sus propias cookies y datos de sitios, y así un mismo sitio pueda tener dos cuentas abiertas a la vez; después no se puede cambiar, y al eliminar un perfil se borran sus cookies y datos de sitios. Tu primer espacio se crea con lo que ya tenías. Las ventanas privadas no tienen espacios. La IA ve las pestañas de los espacios normales (con el nombre del espacio), pero las de un espacio con perfil solo mientras estás en él.
+- **Espacios.** Separa pestañas, grupos de pestañas y favoritos según el tipo de navegación, para que el trabajo no se cuele en tu fin de semana. La fila de la parte inferior de la barra lateral cambia de espacio: haz clic en un punto, pulsa ⌃1–⌃9 o desliza dos dedos hacia un lado sobre la barra lateral (Ventana › Espacio siguiente, Espacio anterior, Nuevo espacio…). Cada espacio tiene sus propias pestañas, grupos de pestañas, favoritos y carpetas fijadas, y tiñe la barra lateral con su color. La biblioteca de marcadores, el historial y las contraseñas guardadas se comparten. Activa «Separar inicios de sesión y cookies (perfil)» al crear un espacio para que tenga también sus propias cookies y datos de sitios, y así un mismo sitio pueda tener dos cuentas abiertas a la vez; después no se puede cambiar, y al eliminar un perfil se borran sus cookies y datos de sitios. Tu primer espacio se crea con lo que ya tenías. Las ventanas privadas no tienen espacios. La IA ve las pestañas de los espacios normales (con el nombre del espacio), pero las de un espacio con perfil solo mientras estás en él.
 
 ### Leer y ver
 
 - **Modo lectura.** Lee un artículo como texto limpio y legible. ⇧⌘R (o ⌥⌘R con los atajos al estilo de Chrome) lo muestra sobre la página. Cuando la página parece un artículo, aparece un botón en la barra de direcciones. Esc, la × o la misma tecla devuelven la página tal como estaba. Lo hace un pequeño script de la página: las imágenes del artículo se cargan desde los mismos sitios desde los que las carga la página, y no se descarga ni se envía nada más.
-- **Traduce páginas.** Lee una página en otro idioma sin salir de ella. Se traduce en el sitio con la traducción en el dispositivo de macOS (⌥⌘T, macOS 26 o posterior). Los enlaces y el diseño se mantienen; el texto nunca sale del Mac.
-- **Vista dividida** (⌥⌘\\). Mantiene dos páginas a la vista a la vez: muestra dos pestañas una junto a otra.
-- **Modo concentración** (⌘⇧F). Te deja leer o trabajar sin distracciones: oculta todo menos la página.
+- **Traducción de páginas.** Lee una página en otro idioma sin salir de ella. Se traduce en el sitio con la traducción en el dispositivo de macOS (⌥⌘T, macOS 26 o posterior). Los enlaces y el diseño se mantienen; el texto nunca sale del Mac.
+- **Vista dividida** (⌥⌘\\). Para cuando una página no basta: dos pestañas una junto a otra.
+- **Modo concentración** (⌘⇧F). Oculta todo menos la página. Concentrarte ya es cosa tuya.
 - **Vista previa de enlaces.** Echa un vistazo a un enlace sin salir de la página en la que estás. ⇧-clic en un enlace para abrirlo en una tarjeta flotante, ⌘↩ para conservarlo como pestaña.
 - **Imagen en imagen** (⌃⌘P). Mantiene un vídeo a la vista cuando sales de su pestaña. Se activa sola cuando sales de una pestaña con un vídeo en reproducción. ⌃⌘← / ⌃⌘→ saltan 5 segundos incluso mientras estás en otra app, y "Volver a la pestaña" trae la pestaña al frente.
 
@@ -84,8 +84,8 @@ Si solo tienes instaladas las Command Line Tools, los scripts compilan con el SD
 
 - **Ventanas privadas.** Navega sin dejar rastro. Las ventanas privadas guardan sus cookies y datos de sitios web en memoria y los olvidan al cerrarse; nada va al historial, a la sesión ni a la IA.
 - **Ajustes del sitio.** Muestra y cambia en un solo lugar lo que Changmun recuerda de un sitio. Haz clic en el candado, a la izquierda de la barra de direcciones, para ver un panel pequeño con lo que Changmun guarda de ese sitio: bloqueo de anuncios, zoom, ventanas emergentes, cámara y micrófono, y si sus pestañas pueden suspenderse. Haz clic en cualquier otra parte de la barra, incluido el nombre del sitio, para editar la dirección, como siempre.
-- **Contraseñas.** Inicia sesión sin volver a escribirlas. Las contraseñas se guardan en el llavero después de iniciar sesión (solo https) y se rellenan desde la llave de la barra de direcciones. Para copiar una se pide Touch ID o la contraseña de tu Mac.
-- **Ventanas emergentes.** Evita que las páginas abran ventanas por su cuenta. Las que se abren sin un clic se bloquean, con "Abrir" y "Permitir siempre en este sitio" justo encima de la página.
+- **Contraseñas.** Recordarlas es cosa del llavero. Las contraseñas se guardan en el llavero después de iniciar sesión (solo https) y se rellenan desde la llave de la barra de direcciones. Para copiar una se pide Touch ID o la contraseña de tu Mac.
+- **Ventanas emergentes.** Las páginas no abren ventanas sin que se lo pidas. Las que se abren sin un clic se bloquean, con "Abrir" y "Permitir siempre en este sitio" justo encima de la página.
 
 El bloqueo de anuncios y rastreadores se explica en [Bloqueo de anuncios](#bloqueo-de-anuncios), y lo que se queda en tu Mac y lo que se envía, en [Privacidad](#privacidad).
 
@@ -93,8 +93,8 @@ El bloqueo de anuncios y rastreadores se explica en [Bloqueo de anuncios](#bloqu
 
 - **Guardar una página.** Conserva una página para después como PDF o como imagen. Guárdala como un PDF largo de una sola hoja (Archivo › Guardar como PDF…) o como una imagen de la página entera, no solo de lo que se ve en pantalla (Archivo › Capturar página completa…). Ambas están también en el menú de una pestaña, se guardan en Descargas salvo que elijas otra carpeta y funcionan en ventanas privadas. Las páginas que se desplazan dentro de un panel interno y las imágenes que cargan al desplazarse pueden no capturarse por completo.
 - **Descargas.** Mira cómo va una descarga, con una comprobación de seguridad la primera vez que se abre. Las descargas muestran su progreso en la parte inferior de la barra lateral y reciben la marca de cuarentena de Safari, así que Gatekeeper las comprueba la primera vez que se abren. Las apps, los scripts y los instaladores se muestran en el Finder en lugar de ejecutarse. Una descarga interrumpida continúa desde donde se quedó con Reintentar en su fila.
-- **Zoom de página.** Ajusta el zoom de un sitio una vez y se queda así: el zoom de página se recuerda por sitio.
-- **Sesión guardada.** Un cierre inesperado cuesta casi nada: las pestañas abiertas se guardan cada 15 segundos.
+- **Zoom de página.** Ajusta el zoom de un sitio una vez y se queda así. El zoom de página se recuerda por sitio, así que solo tendrás que entrecerrar los ojos una vez.
+- **Sesión guardada.** Hasta los navegadores se cierran de golpe. Las pestañas abiertas se guardan cada 15 segundos, así que un cierre inesperado cuesta casi nada.
 
 ### Actualizaciones
 
@@ -174,7 +174,7 @@ Elige estilo Safari o estilo Chrome en Ajustes (⌘,). Solo cambian las teclas e
 
 ## Bloqueo de anuncios
 
-Changmun convierte EasyList (anuncios) y EasyPrivacy (rastreadores) en reglas de bloqueo de contenido de WebKit y las actualiza cada 4 días. En Ajustes › Privacidad puedes desactivar listas o añadir otras por su dirección (una lista de anuncios coreana está a un clic). Si un sitio se rompe, el escudo de la barra de direcciones desactiva el bloqueo para ese sitio. Las reglas que WebKit no puede expresar (expresiones regulares, `$redirect`, scriptlets, `:has-text` y otros selectores extendidos) se omiten en lugar de adivinarse.
+Changmun convierte EasyList (anuncios) y EasyPrivacy (rastreadores) en reglas de bloqueo de contenido de WebKit y las actualiza cada 4 días. En Ajustes › Privacidad puedes desactivar listas o añadir otras por su dirección (una lista de anuncios coreana está a un clic). Si un sitio se rompe, el escudo de la barra de direcciones desactiva el bloqueo para ese sitio. Las reglas que WebKit no puede expresar (expresiones regulares, `$redirect`, scriptlets, `:has-text` y otros selectores extendidos) se omiten en lugar de adivinarse: es mejor perder un anuncio que romper una página.
 
 ## Extensiones
 

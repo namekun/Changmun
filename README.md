@@ -29,7 +29,7 @@
 - **A sidebar like Arc and Dia.** Vertical tabs, which give titles room to breathe, plus favorites as tiles, bookmark folders, tab groups and spaces.
 - **An AI that uses the browser.** The Claude panel reads pages and clicks and types for you through your existing `claude` CLI. It gets hands, not a free pass: it asks before anything risky.
 - **Private by default.** No account, server or analytics, so there's nothing to sign up for. Ad and tracker blocking is built in.
-- **Comes with your stuff.** Imports bookmarks, history, passwords and sign-ins from Safari and Chromium browsers. Moving in, furniture included.
+- **Comes with your stuff.** Imports bookmarks and history from Safari and Chromium browsers, plus passwords and sign-ins from the Chromium ones. Moving in, furniture included, except Safari's passwords, which macOS won't hand over.
 
 ## Install
 
@@ -39,7 +39,7 @@ brew install --cask namekun/tap/changmun
 
 Needs [Homebrew](https://brew.sh), macOS 14 Sonoma or later and an Apple silicon Mac. The app is signed with a Developer ID and notarized by Apple, so it opens right away. To update, run `brew update && brew upgrade --cask changmun`.
 
-On first launch Changmun offers to bring over bookmarks, history, passwords and sign-ins from the browser you use now.
+On first launch Changmun offers to bring over bookmarks and history from the browser you use now, plus passwords and sign-ins if it's a Chromium browser.
 
 ### Build from source
 

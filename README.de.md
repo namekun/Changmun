@@ -21,15 +21,15 @@
   <img src="docs/images/window.png" width="760" alt="Changmun-Fenster mit vertikalen Tabs in der Seitenleiste und einer Seitenkarte">
 </p>
 
-*Changmun* (창문) ist Koreanisch für *Fenster*. Der Browser ist kostenlos und Open Source, braucht kein Konto und trackt nichts. Die App spricht Englisch, Koreanisch, Japanisch, vereinfachtes Chinesisch, Spanisch, Deutsch und Französisch.
+*Changmun* (창문) ist Koreanisch für *Fenster*. Ehrlicher kann man einen Browser kaum nennen. Er ist kostenlos und Open Source, braucht kein Konto und trackt nichts. Die App spricht Englisch, Koreanisch, Japanisch, vereinfachtes Chinesisch, Spanisch, Deutsch und Französisch.
 
 ## Warum Changmun
 
-- **Leicht.** Changmun nutzt die WebKit-Engine, die mit macOS kommt und die auch Safari verwendet, statt Chromium mitzubringen. Der Download ist etwa 3 MB groß (das DMG von 0.4.1 hat 2,6 MB), schont den Akku, und Sicherheitskorrekturen der Engine kommen mit den Updates von macOS und Safari.
-- **Eine Seitenleiste wie bei Arc und Dia.** Vertikale Tabs, Favoriten als Kacheln, Lesezeichenordner, Tab-Gruppen und Spaces.
-- **Eine KI, die den Browser bedient.** Das Claude-Panel liest Seiten und klickt und tippt für dich, über deine vorhandene `claude`-CLI, und fragt nach, bevor etwas riskant wird.
-- **Standardmäßig privat.** Kein Konto, kein Server, keine Analyse, und Werbe- und Tracker-Blocker sind eingebaut.
-- **Bringt deine Sachen mit.** Importiert Lesezeichen, Verlauf, Passwörter und Anmeldungen aus Safari und Chromium-Browsern.
+- **Leicht.** Chromium-Browser bringen jeweils ihr eigenes Chromium mit. Changmun leiht sich stattdessen die WebKit-Engine, die ohnehin auf deinem Mac liegt und die auch Safari verwendet. Der Download ist etwa 3 MB groß (das DMG von 0.4.1 hat 2,6 MB). Das schont den Akku, und Sicherheitskorrekturen der Engine kommen mit den Updates von macOS und Safari.
+- **Eine Seitenleiste wie bei Arc und Dia.** Vertikale Tabs, deren Titel genug Platz haben, dazu Favoriten als Kacheln, Lesezeichenordner, Tab-Gruppen und Spaces.
+- **Eine KI, die den Browser bedient.** Das Claude-Panel liest Seiten und klickt und tippt für dich, über deine vorhandene `claude`-CLI. Es bekommt Hände, aber keinen Freifahrtschein: Bevor etwas riskant wird, fragt es nach.
+- **Standardmäßig privat.** Kein Konto, kein Server, keine Analyse, also nichts, wofür du dich anmelden müsstest. Werbe- und Tracker-Blocker sind eingebaut.
+- **Zieht mit Sack und Pack um.** Importiert Lesezeichen und Verlauf aus Safari und Chromium-Browsern, aus Chromium-Browsern auch Passwörter und Anmeldungen. Die Passwörter von Safari bleiben zurück: macOS gibt sie an keine andere App heraus.
 
 ## Installieren
 
@@ -39,7 +39,7 @@ brew install --cask namekun/tap/changmun
 
 Du brauchst [Homebrew](https://brew.sh), macOS 14 Sonoma oder neuer und einen Mac mit Apple Chip. Die App ist mit einer Developer ID signiert und von Apple notarisiert, sodass sie sich sofort öffnet. Aktualisieren mit `brew update && brew upgrade --cask changmun`.
 
-Beim ersten Start bietet Changmun an, Lesezeichen, Verlauf, Passwörter und Anmeldungen aus deinem bisherigen Browser zu übernehmen.
+Beim ersten Start bietet Changmun an, Lesezeichen und Verlauf aus deinem bisherigen Browser zu übernehmen, aus Chromium-Browsern auch Passwörter und Anmeldungen.
 
 ### Aus dem Quellcode bauen
 
@@ -58,25 +58,25 @@ Sind nur die Command Line Tools installiert, bauen die Skripte gegen das macOS-2
 
 ### Seitenleiste und Tabs
 
-- **Seitenleiste.** Hält Favoriten, Lesezeichen und offene Tabs in einer Spalte links beisammen. Favoriten als Kacheln, Lesezeichenordner, vertikale Tabs. Zieh Tabs, um sie umzusortieren, oder auf die Favoriten, um sie anzuheften. Favoriten und Lesezeichen behalten wie bei Dia und Arc jeweils ihren eigenen Tab: Ein Klick springt zu diesem Tab, statt den Tab zu ersetzen, den du gerade liest (⌘-Klick öffnet einen neuen Tab). Zieh einen Link von einer Seite in die Seitenleiste, um ihn als Tab zu öffnen, als Favorit zu behalten oder in einem Ordner abzulegen. Im Menü eines Tabs kannst du ihn außerdem neu laden, duplizieren, in ein neues Fenster bewegen, teilen oder in einem anderen Browser öffnen. Das Schließen aller Tabs einer Gruppe oder das Löschen eines Lesezeichens lässt sich ein paar Sekunden lang widerrufen.
-- **Adressleiste, wo du willst.** Du wählst das Layout, das dir vertraut ist. Oben in der Seitenleiste unter Zurück und Vor wie bei Arc oder über der Seite wie bei Dia: Einstellungen › Darstellung › Position der Adressleiste. Sie zeigt nur die Website; Schild und Stern erscheinen, wenn der Zeiger darüber ist. Bei einem Favoriten bleibt der Stern stehen: Klick darauf nimmt die Seite aus den Favoriten.
-- **Lesezeichenordner.** Hält deine Lesezeichen so geordnet, wie sie waren, und griffbereit. Importierte Ordner bleiben verschachtelt wie im Browser, aus dem sie kommen. Fixier die, die du brauchst, in der Seitenleiste (Rechtsklick oder … › In der Seitenleiste fixieren, oder den Ordner unter die Favoriten ziehen) und öffne sie direkt dort. Zieh ein Lesezeichen auf einen anderen Ordner oder auf die Favoriten, oder nimm Bewegen nach in seinem Menü. Alle übrigen Lesezeichen liegen hinter der Lesezeichen-Taste unten in der Seitenleiste, mit Suchfeld; das … daneben öffnet Verlauf, archivierte Tabs, Fokusmodus und Einstellungen.
+- **Seitenleiste.** Hält Favoriten, Lesezeichen und offene Tabs in einer Spalte links beisammen: Favoriten als Kacheln, Lesezeichenordner, vertikale Tabs. Zieh Tabs, um sie umzusortieren, oder auf die Favoriten, um sie anzuheften. Favoriten und Lesezeichen behalten wie bei Dia und Arc jeweils ihren eigenen Tab: Ein Klick springt zu diesem Tab, statt den Tab zu ersetzen, den du gerade liest (⌘-Klick öffnet einen neuen Tab). Zieh einen Link von einer Seite in die Seitenleiste, um ihn als Tab zu öffnen, als Favorit zu behalten oder in einem Ordner abzulegen. Im Menü eines Tabs kannst du ihn außerdem neu laden, duplizieren, in ein neues Fenster bewegen, teilen oder in einem anderen Browser öffnen. Das Schließen aller Tabs einer Gruppe oder das Löschen eines Lesezeichens lässt sich ein paar Sekunden lang widerrufen, erfahrungsgemäß genau die Zeitspanne, in der die Reue kommt.
+- **Adressleiste, wo du willst.** Du setzt sie dorthin, wo deine Hand sie sucht: oben in der Seitenleiste unter Zurück und Vor wie bei Arc oder über der Seite wie bei Dia (Einstellungen › Darstellung › Position der Adressleiste). Sie zeigt nur die Website; Schild und Stern erscheinen, wenn der Zeiger darüber ist. Bei einem Favoriten bleibt der Stern stehen: Klick darauf nimmt die Seite aus den Favoriten.
+- **Lesezeichenordner.** Deine Lesezeichen behalten die Ordnung, die du ihnen gegeben hast, und bleiben griffbereit. Importierte Ordner bleiben verschachtelt wie im Browser, aus dem sie kommen. Fixier die, die du brauchst, in der Seitenleiste (Rechtsklick oder … › In der Seitenleiste fixieren, oder den Ordner unter die Favoriten ziehen) und öffne sie direkt dort. Zieh ein Lesezeichen auf einen anderen Ordner oder auf die Favoriten, oder nimm Bewegen nach in seinem Menü. Alle übrigen Lesezeichen liegen hinter der Lesezeichen-Taste unten in der Seitenleiste, mit Suchfeld; das … daneben öffnet Verlauf, archivierte Tabs, Fokusmodus und Einstellungen.
 - **Tab-Gruppen.** Hält zusammengehörige Tabs beisammen und aus dem Weg. Rechtsklick auf einen Tab › Zu neuer Gruppe hinzufügen, benennen, einklappen. Tabs, die du aus dem Tab einer Gruppe öffnest, gehören zur Gruppe; ein erneut geöffneter Tab (⌘⇧T) kehrt in seine Gruppe zurück.
-- **Tabs aufräumen.** Sortiert einen Haufen loser Tabs mit einem Klick in Gruppen. Der Zauberstab neben „Neuer Tab“ (Fenster › Tabs aufräumen) gruppiert die losen Tabs. Mit aktivierter Apple Intelligence (macOS 26) gruppiert das Modell auf deinem Mac die Tabs nach Thema und benennt die Gruppen; nichts über deine Tabs verlässt den Mac. Ohne Apple Intelligence kommen Tabs, die auseinander geöffnet wurden, und Tabs derselben Website zusammen. „Widerrufen“ stellt den alten Zustand ein paar Sekunden lang wieder her. Neue Tabs, die du über die Adressleiste öffnest, landen von selbst in einer passenden Gruppe (ausschalten unter Einstellungen › Tabs).
-- **Alte Tabs archivieren** (standardmäßig aus). Räumt Tabs weg, die du nicht mehr ansiehst, ohne sie zu verlieren. Tabs, die du eine bestimmte Zeit nicht angesehen hast (12 Stunden bis 30 Tage, nur gezählt, solange Changmun läuft), werden geschlossen und landen unter Verlauf › Archivierte Tabs, bereit zum erneuten Öffnen in ihrer Gruppe. Sichtbare Tabs, Tabs mit Wiedergabe, Bild-in-Bild, Kamera/Mikrofon sowie Favoriten und private Tabs werden nie archiviert.
-- **Tabs im Ruhezustand.** Spart Speicher, indem Hintergrund-Tabs ruhen. Hintergrund-Tabs, die du 20 Minuten nicht gesehen hast, und bei knappem Speicher alle Hintergrund-Tabs geben ihren Webprozess frei und kommen samt Verlauf zurück, sobald du zu ihnen wechselst.
-- **Befehlsleiste** (⌘T). Ein Feld für Suche, Adressen, den Wechsel zu offenen Tabs, Lesezeichen und Verlauf sowie Fragen an die KI.
+- **Tabs aufräumen.** Macht aus einem Haufen loser Tabs mit einem Klick Gruppen. Ein Schwung mit dem Zauberstab neben „Neuer Tab“ (Fenster › Tabs aufräumen), und die losen Tabs sind gruppiert. Mit aktivierter Apple Intelligence (macOS 26) gruppiert das Modell auf deinem Mac die Tabs nach Thema und benennt die Gruppen; nichts über deine Tabs verlässt den Mac. Ohne Apple Intelligence kommen Tabs, die auseinander geöffnet wurden, und Tabs derselben Website zusammen. „Widerrufen“ stellt den alten Zustand ein paar Sekunden lang wieder her. Neue Tabs, die du über die Adressleiste öffnest, landen von selbst in einer passenden Gruppe (ausschalten unter Einstellungen › Tabs).
+- **Alte Tabs archivieren** (standardmäßig aus). Räumt Tabs weg, die du nicht mehr ansiehst, statt sie wegzuwerfen. Tabs, die du eine bestimmte Zeit nicht angesehen hast (12 Stunden bis 30 Tage, nur gezählt, solange Changmun läuft), werden geschlossen und landen unter Verlauf › Archivierte Tabs, bereit zum erneuten Öffnen in ihrer Gruppe. Sichtbare Tabs, Tabs mit Wiedergabe, Bild-in-Bild, Kamera/Mikrofon sowie Favoriten und private Tabs werden nie archiviert.
+- **Tabs im Ruhezustand.** Lässt Hintergrund-Tabs ein Nickerchen machen und gibt dafür Speicher frei. Hintergrund-Tabs, die du 20 Minuten nicht gesehen hast, und bei knappem Speicher alle Hintergrund-Tabs geben ihren Webprozess frei und kommen samt Verlauf zurück, sobald du zu ihnen wechselst.
+- **Befehlsleiste** (⌘T). Ein Feld für alles: Suche, Adressen, den Wechsel zu offenen Tabs, Lesezeichen und Verlauf sowie Fragen an die KI.
 
 ### Spaces und Profile
 
-- **Spaces.** Hält getrennte Sätze von Tabs, Tab-Gruppen und Favoriten für unterschiedliche Arten des Surfens bereit. Die Zeile ganz unten in der Seitenleiste wechselt zwischen Spaces: auf einen Punkt klicken, ⌃1–⌃9 drücken oder mit zwei Fingern seitlich über die Seitenleiste wischen (Fenster › Nächster Space, Vorheriger Space, Neuer Space …). Jeder Space hat eigene Tabs, Tab-Gruppen, Favoriten und angeheftete Ordner und färbt die Seitenleiste leicht in seiner Farbe ein. Die Lesezeichen-Bibliothek, der Verlauf und gesicherte Passwörter werden geteilt. Schalte beim Erstellen „Anmeldungen und Cookies trennen (Profil)“ ein, damit ein Space auch eigene Cookies und Websitedaten bekommt – so kannst du bei einer Website mit zwei Konten gleichzeitig angemeldet sein. Das lässt sich danach nicht mehr ändern, und beim Löschen eines Profils werden seine Cookies und Websitedaten gelöscht. Dein erster Space entsteht aus dem, was du schon hattest. Private Fenster haben keine Spaces. Die KI sieht die Tabs normaler Spaces (mit dem Namen des Spaces), die eines Profil-Spaces aber nur, solange du darin bist.
+- **Spaces.** Trennt Tabs, Tab-Gruppen und Favoriten nach Art des Surfens, damit die Arbeit am Wochenende draußen bleibt. Die Zeile ganz unten in der Seitenleiste wechselt zwischen Spaces: auf einen Punkt klicken, ⌃1–⌃9 drücken oder mit zwei Fingern seitlich über die Seitenleiste wischen (Fenster › Nächster Space, Vorheriger Space, Neuer Space …). Jeder Space hat eigene Tabs, Tab-Gruppen, Favoriten und angeheftete Ordner und färbt die Seitenleiste leicht in seiner Farbe ein. Die Lesezeichen-Bibliothek, der Verlauf und gesicherte Passwörter werden geteilt. Schalte beim Erstellen „Anmeldungen und Cookies trennen (Profil)“ ein, damit ein Space auch eigene Cookies und Websitedaten bekommt – so kannst du bei einer Website mit zwei Konten gleichzeitig angemeldet sein. Das lässt sich danach nicht mehr ändern, und beim Löschen eines Profils werden seine Cookies und Websitedaten gelöscht. Dein erster Space entsteht aus dem, was du schon hattest. Private Fenster haben keine Spaces. Die KI sieht die Tabs normaler Spaces (mit dem Namen des Spaces), die eines Profil-Spaces aber nur, solange du darin bist.
 
 ### Lesen und Ansehen
 
 - **Lesemodus.** Lies einen Artikel als aufgeräumten, gut lesbaren Text. ⇧⌘R (mit Chrome-Tastenkürzeln ⌥⌘R) zeigt ihn über der Seite. Wirkt die Seite wie ein Artikel, erscheint in der Adressleiste ein Knopf. Esc, das × oder dasselbe Kürzel bringt die Seite unverändert zurück. Das erledigt ein kleines Skript auf der Seite: Die Bilder des Artikels werden von denselben Stellen geladen wie auf der Seite selbst, sonst wird nichts geladen oder gesendet.
 - **Seiten übersetzen.** Lies eine Seite in einer anderen Sprache, ohne sie zu verlassen. Die Übersetzung geschieht direkt an Ort und Stelle mit der Übersetzung von macOS auf dem Gerät (⌥⌘T, ab macOS 26). Links und Layout bleiben erhalten; der Text verlässt den Mac nie.
-- **Split View** (⌥⌘\\). Hält zwei Seiten gleichzeitig im Blick: Es zeigt zwei Tabs nebeneinander.
-- **Fokusmodus** (⌘⇧F). Lässt dich ohne Ablenkung lesen oder arbeiten: Er blendet alles außer der Seite aus.
+- **Split View** (⌥⌘\\). Für die Fälle, in denen eine Seite nicht reicht: zwei Tabs nebeneinander.
+- **Fokusmodus** (⌘⇧F). Blendet alles außer der Seite aus. Konzentrieren musst du dich selbst.
 - **Link-Vorschau.** Wirf einen Blick auf einen Link, ohne die aktuelle Seite zu verlassen. ⇧-Klick auf einen Link öffnet ihn in einer schwebenden Karte, ⌘↩ behält ihn als Tab.
 - **Bild-in-Bild** (⌃⌘P). Hält ein Video im Blick, auch wenn du seinen Tab verlässt. Es startet von selbst, wenn du einen Tab mit laufendem Video verlässt. ⌃⌘← / ⌃⌘→ springen 5 Sekunden, sogar während du in einer anderen App bist, und „Zurück zum Tab“ holt den Tab wieder nach vorn.
 
@@ -84,8 +84,8 @@ Sind nur die Command Line Tools installiert, bauen die Skripte gegen das macOS-2
 
 - **Private Fenster.** Surfen, ohne Spuren zu hinterlassen. Private Fenster halten Cookies und Websitedaten nur im Arbeitsspeicher und vergessen sie beim Schließen; nichts landet im Verlauf, in der Sitzung oder bei der KI.
 - **Website-Einstellungen.** Zeigt und ändert an einer Stelle, was Changmun sich für eine Website merkt. Ein Klick auf das Schloss links in der Adressleiste öffnet ein kleines Fenster mit allem, was Changmun für diese Website merkt: Werbeblocker, Zoom, Pop-ups, Kamera und Mikrofon und ob ihre Tabs in den Ruhezustand dürfen. Ein Klick auf eine andere Stelle der Adressleiste, auch auf den Namen der Website, bearbeitet wie bisher die Adresse.
-- **Passwörter.** Melde dich an, ohne alles neu einzutippen. Passwörter werden nach der Anmeldung im Schlüsselbund gesichert (nur https) und über die Schlüssel-Taste in der Adressleiste eingesetzt. Zum Kopieren eines Passworts brauchst du Touch ID oder dein Mac-Passwort.
-- **Pop-ups.** Verhindert, dass Seiten von selbst Fenster aufmachen. Pop-ups, die ohne Klick aufgehen, werden blockiert; „Öffnen“ und „Für diese Website immer erlauben“ erscheinen direkt oberhalb der Seite.
+- **Passwörter.** Das Merken übernimmt der Schlüsselbund. Passwörter werden nach der Anmeldung im Schlüsselbund gesichert (nur https) und über die Schlüssel-Taste in der Adressleiste eingesetzt. Zum Kopieren eines Passworts brauchst du Touch ID oder dein Mac-Passwort.
+- **Pop-ups.** Seiten dürfen nicht ungefragt Fenster aufreißen. Pop-ups, die ohne Klick aufgehen, werden blockiert; „Öffnen“ und „Für diese Website immer erlauben“ erscheinen direkt oberhalb der Seite.
 
 Werbe- und Tracker-Blocker werden unter [Werbeblocker](#werbeblocker) beschrieben, was auf deinem Mac bleibt und was gesendet wird, unter [Datenschutz](#datenschutz).
 
@@ -93,8 +93,8 @@ Werbe- und Tracker-Blocker werden unter [Werbeblocker](#werbeblocker) beschriebe
 
 - **Seite sichern.** Heb eine Seite als PDF oder als Bild auf. Du kannst sie als ein langes PDF sichern (Ablage › Als PDF sichern …) oder als Bild der ganzen Seite, nicht nur des sichtbaren Ausschnitts (Ablage › Ganze Seite aufnehmen …). Beides gibt es auch im Menü eines Tabs; es landet im Downloads-Ordner, sofern du keinen anderen wählst, und funktioniert auch in privaten Fenstern. Seiten, die in einem inneren Bereich scrollen, und Bilder, die erst beim Scrollen laden, werden womöglich nicht vollständig erfasst.
 - **Downloads.** Du siehst, wie ein Download vorankommt, und er wird beim ersten Öffnen geprüft. Der Fortschritt steht unten in der Seitenleiste, und Downloads erhalten das Quarantäne-Flag von Safari, sodass Gatekeeper sie beim ersten Öffnen prüft. Apps, Skripte und Installer werden im Finder angezeigt statt ausgeführt. Ein abgebrochener Download macht mit „Erneut versuchen“ in seiner Zeile dort weiter, wo er aufgehört hat.
-- **Seitenzoom.** Stell eine Website einmal ein, und der Zoom bleibt: Der Seitenzoom wird pro Website gemerkt.
-- **Sitzung sichern.** Ein Absturz kostet fast nichts: Offene Tabs werden alle 15 Sekunden gesichert.
+- **Seitenzoom.** Stell eine Website einmal ein, und der Zoom bleibt. Der Seitenzoom wird pro Website gemerkt, du musst also nur einmal die Augen zusammenkneifen.
+- **Sitzung sichern.** Auch Browser stürzen ab. Offene Tabs werden alle 15 Sekunden gesichert, ein Absturz kostet also fast nichts.
 
 ### Updates
 
@@ -174,7 +174,7 @@ Wähle in den Einstellungen (⌘,) „Wie in Safari“ oder „Wie in Chrome“.
 
 ## Werbeblocker
 
-Changmun macht aus EasyList (Werbung) und EasyPrivacy (Tracker) Inhaltsblockierregeln für WebKit und aktualisiert sie alle 4 Tage. Unter Einstellungen › Datenschutz kannst du Listen ausschalten oder weitere per Adresse hinzufügen (eine koreanische Werbeliste ist nur einen Klick entfernt). Wenn eine Website nicht richtig funktioniert, schaltet die Schild-Taste in der Adressleiste das Blockieren für diese Website aus. Regeln, die WebKit nicht ausdrücken kann (reguläre Ausdrücke, `$redirect`, Scriptlets, `:has-text` und andere erweiterte Selektoren), werden übersprungen, statt sie zu raten.
+Changmun macht aus EasyList (Werbung) und EasyPrivacy (Tracker) Inhaltsblockierregeln für WebKit und aktualisiert sie alle 4 Tage. Unter Einstellungen › Datenschutz kannst du Listen ausschalten oder weitere per Adresse hinzufügen (eine koreanische Werbeliste ist nur einen Klick entfernt). Wenn eine Website nicht richtig funktioniert, schaltet die Schild-Taste in der Adressleiste das Blockieren für diese Website aus. Regeln, die WebKit nicht ausdrücken kann (reguläre Ausdrücke, `$redirect`, Scriptlets, `:has-text` und andere erweiterte Selektoren), werden übersprungen, statt sie zu raten: Eine übersehene Anzeige ist besser als eine kaputte Seite.
 
 ## Erweiterungen
 
