@@ -273,10 +273,13 @@ struct LibraryTests {
     @Test func favoritesMoveWhereTheyAreDropped() {
         let lib = library()
         for name in ["a", "b", "c", "d"] { _ = lib.toggleBookmark(url: "https://\(name).com/", title: name) }
+        // Just before the one it is dropped on, where the drop line shows, in both directions.
         lib.moveFavorite("https://a.com/", to: "https://c.com/")
-        #expect(lib.favorites().map(\.title) == ["b", "c", "a", "d"])
+        #expect(lib.favorites().map(\.title) == ["b", "a", "c", "d"])
         lib.moveFavorite("https://d.com/", to: "https://b.com/")
-        #expect(lib.favorites().map(\.title) == ["d", "b", "c", "a"])
+        #expect(lib.favorites().map(\.title) == ["d", "b", "a", "c"])
+        lib.moveFavorite("https://d.com/", to: "https://b.com/")
+        #expect(lib.favorites().map(\.title) == ["d", "b", "a", "c"])
     }
 
     @Test func bookmarksMoveBetweenFoldersAndFavorites() throws {

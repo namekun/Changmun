@@ -248,8 +248,8 @@ final class Library: @unchecked Sendable {
         guard let from = original.firstIndex(of: url), url != target else { return }
         var order = original
         order.remove(at: from)
-        if let target, let to = order.firstIndex(of: target), let was = original.firstIndex(of: target) {
-            order.insert(url, at: was > from ? to + 1 : to)
+        if let target, let to = order.firstIndex(of: target) {
+            order.insert(url, at: to)
         } else {
             order.append(url)
         }
