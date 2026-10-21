@@ -511,3 +511,7 @@
 "· tints the sidebar glass" = "· 사이드바 유리에 은은하게 입혀져요";
 "Its tabs are closed. Its favorites move to “%@”. Bookmarks stay in the library." = "탭이 닫혀요. 즐겨찾기는 “%@”(으)로 옮겨져요. 북마크는 보관함에 남아요.";
 "Its tabs are closed, and the cookies, logins and site data it kept are erased. Its favorites move to “%@”. Bookmarks stay in the library." = "탭은 닫히고, 이 스페이스가 보관한 쿠키·로그인·사이트 데이터는 지워져요. 즐겨찾기는 “%@”(으)로 옮겨져요. 북마크는 보관함에 남아요.";
+"Save as Bookmark Folder" = "북마크 폴더로 저장";
+"Saved the group as a bookmark folder" = "그룹을 북마크 폴더로 저장했어요";
+"Added the group to Favorites" = "그룹을 즐겨찾기에 넣었어요";
+"The group has no pages to save" = "저장할 페이지가 그룹에 없어요";

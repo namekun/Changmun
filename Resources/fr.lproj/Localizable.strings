@@ -511,3 +511,7 @@
 "· tints the sidebar glass" = "· teinte légèrement le verre de la barre latérale";
 "Its tabs are closed. Its favorites move to “%@”. Bookmarks stay in the library." = "Ses onglets sont fermés. Ses favoris passent dans « %@ ». Les signets restent dans la bibliothèque.";
 "Its tabs are closed, and the cookies, logins and site data it kept are erased. Its favorites move to “%@”. Bookmarks stay in the library." = "Ses onglets sont fermés et les cookies, connexions et données de sites qu’il conservait sont effacés. Ses favoris passent dans « %@ ». Les signets restent dans la bibliothèque.";
+"Save as Bookmark Folder" = "Enregistrer comme dossier de signets";
+"Saved the group as a bookmark folder" = "Groupe enregistré comme dossier de signets";
+"Added the group to Favorites" = "Groupe ajouté aux favoris";
+"The group has no pages to save" = "Le groupe n’a aucune page à enregistrer";

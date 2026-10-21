@@ -778,6 +778,32 @@ final class Browser: ObservableObject {
         objectWillChange.send()
     }
 
+    /// Moves a group, all its tabs together, to just above a tab (above that tab's group when it is in one), or to
+    /// the end. The tabs keep their order, and the group stays open or folded as it was. Dropped on a tab of its own
+    /// or of another space, it stays.
+    func moveGroup(_ id: UUID, before target: Int?) {
+        let members = tabs.filter { $0.groupID == id }
+        guard let space = members.first?.spaceID else { return }
+        var anchor: Tab?
+        if let target {
+            guard let tab = tab(target), tab.spaceID == space, tab.groupID != id else { return }
+            anchor = tab.groupID.flatMap { other in tabs.first { $0.groupID == other } } ?? tab
+        }
+        let was = tabs.map(\.id)
+        tabs.removeAll { $0.groupID == id }
+        tabs.insert(contentsOf: members, at: anchor.flatMap { anchor in tabs.firstIndex { $0 === anchor } } ?? tabs.count)
+        guard #available(macOS 15.4, *) else { return }
+        for tab in members {
+            if let from = was.firstIndex(of: tab.id), tabs.firstIndex(where: { $0 === tab }) != from { ExtensionHost.shared.tabMoved(tab, from: from) }
+        }
+    }
+
+    /// A group dropped on another group's header goes just above that group.
+    func dropGroup(_ id: UUID, onGroup target: UUID) {
+        guard let first = tabs.first(where: { $0.groupID == target }) else { return }
+        moveGroup(id, before: first.id)
+    }
+
     func toggleGroup(_ id: UUID) {
         guard let index = groups.firstIndex(where: { $0.id == id }) else { return }
         groups[index].isOpen.toggle()
@@ -809,6 +835,89 @@ final class Browser: ObservableObject {
             guard let self, top != nil, closedTabs.last?.id == top else { return }
             for _ in 0..<min(count, closedTabs.count) { reopenClosedTab() }
         }
+    }
+
+    /// Where a group dragged up onto the bookmarks goes: a new folder pinned to the sidebar (above the pinned folder
+    /// `before`, or last), a new folder inside a bookmark folder, or each of its pages as a favorite (above `before`, or last).
+    enum GroupDestination: Equatable {
+        case pinned(before: String?)
+        case folder(String)
+        case favorites(before: String?)
+
+        var makesFolder: Bool { if case .favorites = self { false } else { true } }
+    }
+
+    /// Keeps a group's pages as bookmarks and ends the group. Its tabs become those bookmarks' tabs, so nothing
+    /// reloads; a tab with no web page, or on a page already open as a bookmark, stays a plain tab. Offers to undo it.
+    @discardableResult
+    func saveGroup(_ id: UUID, to destination: GroupDestination, library: Library = .shared) -> Bool {
+        guard let group = groups.first(where: { $0.id == id }) else { return false }
+        let members = tabs.filter { $0.groupID == id && $0.spaceID == spaceID }
+        var seen = Set<String>()
+        let pages = members.compactMap { tab -> (tab: Tab, url: String)? in
+            guard let url = tab.url, ["http", "https"].contains(url.scheme?.lowercased()), seen.insert(url.absoluteString).inserted else { return nil }
+            return (tab, url.absoluteString)
+        }
+        guard !pages.isEmpty else {
+            flashStatus(String(localized: "The group has no pages to save"))
+            return false
+        }
+        let space = spaceID
+        let folder: String
+        switch destination {
+        case .pinned: folder = newFolderKey(for: group.name, in: nil, library)
+        case .folder(let parent): folder = newFolderKey(for: group.name, in: parent, library)
+        case .favorites: folder = favoritesFolder
+        }
+        let added = pages.filter { !library.isFavorite($0.url, in: folder) }
+        for page in added { library.addBookmark(url: page.url, title: page.tab.title.isEmpty ? (page.tab.url?.host() ?? page.url) : page.tab.title, folder: folder) }
+        var bound: [Int: String] = [:]
+        for page in pages {
+            let key = Self.bookmarkKey(url: page.url, folder: folder)
+            bind(page.tab, to: key)
+            if page.tab.bookmarkKey == key { bound[page.tab.id] = key }
+        }
+        ungroup(id)
+        switch destination {
+        case .pinned(let before):
+            spaces.pinFolder(folder, before: before, in: space)
+            if group.isOpen, !spaces.space(space).openFolders.contains("pin:" + folder) { spaces.toggleOpen("pin:" + folder, in: space) }
+        case .folder(let parent):
+            if !spaces.space(space).openFolders.contains("pin:" + parent) { spaces.toggleOpen("pin:" + parent, in: space) }
+        case .favorites(let before):
+            library.placeFavorites(pages.map(\.url), before: before, in: folder)
+        }
+        offerUndo(destination.makesFolder ? String(localized: "Saved the group as a bookmark folder") : String(localized: "Added the group to Favorites")) { [weak self] in
+            if destination.makesFolder {
+                library.removeFolder(folder)
+                self?.spaces.unpinFolder(folder, in: space)
+                if let spaces = self?.spaces, spaces.space(space).openFolders.contains("pin:" + folder) { spaces.toggleOpen("pin:" + folder, in: space) }
+            } else {
+                for page in added { library.removeBookmark(url: page.url, folder: folder) }
+            }
+            guard let self else { return }
+            if !groups.contains(where: { $0.id == group.id }) { groups.append(group) }
+            for member in members where tabs.contains(where: { $0 === member }) {
+                if let key = bound[member.id], member.bookmarkKey == key { member.bookmarkKey = nil }
+                member.groupID = group.id
+            }
+            objectWillChange.send()
+        }
+        return true
+    }
+
+    /// The name of a folder made for a group: under "Changmun", the way imported folders are under their browser's
+    /// name, or inside another folder; numbered when a folder has that name already.
+    private func newFolderKey(for name: String, in parent: String?, _ library: Library) -> String {
+        let name = name.replacingOccurrences(of: " / ", with: " - ")
+        let base = parent.map { $0 + " / " + name } ?? "Changmun " + name
+        let taken = Set(library.folders().map(\.name))
+        var key = base, number = 2
+        while taken.contains(key) {
+            key = base + " \(number)"
+            number += 1
+        }
+        return key
     }
 
     /// A second tab on the same page, right after it, in its group.

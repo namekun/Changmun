@@ -262,6 +262,19 @@ final class Library: @unchecked Sendable {
         changed()
     }
 
+    /// Puts these favorites, in this order, just above another favorite, or at the end.
+    func placeFavorites(_ urls: [String], before target: String?, in folder: String = Library.favoritesFolder) {
+        var order = favorites(in: folder).map(\.url).filter { !urls.contains($0) }
+        order.insert(contentsOf: urls, at: target.flatMap { order.firstIndex(of: $0) } ?? order.count)
+        guard let db else { return }
+        try? db.transaction {
+            for (position, item) in order.enumerated() {
+                try db.run("UPDATE bookmarks SET added = ? WHERE url = ? AND folder = ?", [Double(position), item, folder])
+            }
+        }
+        changed()
+    }
+
     /// Moves every favorite of one space to another, as one change, leaving out those already there. Returns whether it worked.
     @discardableResult
     func moveFavorites(from: String, to: String) -> Bool {

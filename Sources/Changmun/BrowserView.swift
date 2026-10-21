@@ -521,6 +521,8 @@ struct Sidebar: View {
                         case .group(let group, let tabs):
                             TabGroupHeader(group: group, count: tabs.count, browser: browser,
                                            target: dropTarget == "group:\(group.id)" && SidebarDrag.carriesTab)
+                                .dropLine(groupLands(above: group.id))
+                                .draggable(SidebarDrag.group(group.id))
                                 .dropDestination(for: SidebarDrop.self) { items, _ in
                                     SidebarDrag.drop(items.texts, onGroup: group.id, browser: browser)
                                 } isTargeted: { target("group:\(group.id)", $0) }
@@ -531,7 +533,7 @@ struct Sidebar: View {
                     }
                     // Below the last tab: a tab dropped here goes to the end of the list.
                     SectionGap()
-                        .dropLine(dropTarget == "tabs:end" && SidebarDrag.carriesTab)
+                        .dropLine(dropTarget == "tabs:end" && (SidebarDrag.carriesTab || SidebarDrag.dragging == .group))
                         .dropDestination(for: SidebarDrop.self) { items, _ in
                             SidebarDrag.dropAtEnd(items.texts, browser: browser)
                         } isTargeted: { target("tabs:end", $0) }
@@ -633,7 +635,7 @@ struct Sidebar: View {
             treeRow(row)
         }
         SectionGap()
-            .dropLine(dropTarget == "pin:end" && SidebarDrag.dragging == .folder)
+            .dropLine(dropTarget == "pin:end" && (SidebarDrag.dragging == .folder || SidebarDrag.dragging == .group))
             .dropDestination(for: SidebarDrop.self) { items, _ in
                 SidebarDrag.pin(items.texts, before: nil, in: browser)
             } isTargeted: { target("pin:end", $0) }
@@ -757,11 +759,13 @@ struct Sidebar: View {
         let openKey = scope + folder.key
         let isPinned = browser.space.pinnedFolders.contains(folder.key)
         let targetKey = scope + "folder:" + folder.key
-        // Pinned folders reorder when a folder is dropped on one; a bookmark dropped on any folder moves in.
+        // Pinned folders reorder when a folder is dropped on one, and a group is pinned above it as a new folder;
+        // a bookmark dropped on any folder moves in, and a group becomes a folder inside it.
         let reorders = pinned && depth == 0
         let over = dropTarget == targetKey
+        let places = reorders && (SidebarDrag.dragging == .folder || SidebarDrag.dragging == .group)
         return FolderRow(name: folder.label, count: folder.count, isOpen: browser.space.openFolders.contains(openKey), showCount: false,
-                         target: over && SidebarDrag.dragging != .tab && SidebarDrag.dragging != .folder) {
+                         target: over && !places && SidebarDrag.dragging != .tab && SidebarDrag.dragging != .folder) {
             browser.spaces.toggleOpen(openKey, in: browser.spaceID)
         } menu: {
             if isPinned {
@@ -782,11 +786,11 @@ struct Sidebar: View {
         }
         .padding(.leading, CGFloat(depth) * Metrics.indent)
         .help(folder.key)
-        .dropLine(reorders && over && SidebarDrag.dragging == .folder)
+        .dropLine(places && over)
         .draggable(SidebarDrag.folder(folder.key))
         .dropDestination(for: SidebarDrop.self) { items, _ in
             if reorders, SidebarDrag.pin(items.texts, before: folder.key, in: browser) { return true }
-            return SidebarDrag.drop(items.texts, onFolder: folder.key)
+            return SidebarDrag.drop(items.texts, onFolder: folder.key, browser: browser)
         } isTargeted: { target(targetKey, $0) }
     }
 
@@ -798,7 +802,7 @@ struct Sidebar: View {
         }
         .padding(.leading, CGFloat(depth) * Metrics.indent)
         .id("tab:\(tab.id)")
-        .dropLine(dropTarget == "tab:\(tab.id)" && SidebarDrag.carriesTab)
+        .dropLine(dropTarget == "tab:\(tab.id)" && (SidebarDrag.carriesTab || (SidebarDrag.dragging == .group && tab.groupID == nil)))
         .draggable(SidebarDrag.tab(tab.id))
         .dropDestination(for: SidebarDrop.self) { items, _ in
             SidebarDrag.drop(items.texts, onTab: tab.id, browser: browser)
@@ -866,6 +870,14 @@ struct Sidebar: View {
         }
     }
 
+    /// A dragged group lands just above another group when it is dropped on that group's header or on one of its tabs.
+    private func groupLands(above group: UUID) -> Bool {
+        guard SidebarDrag.dragging == .group, SidebarDrag.draggingGroup != group, let over = dropTarget else { return false }
+        if over == "group:\(group)" { return true }
+        guard over.hasPrefix("tab:"), let id = Int(over.dropFirst("tab:".count)) else { return false }
+        return browser.tab(id)?.groupID == group
+    }
+
     private func target(_ key: String, _ inside: Bool) {
         if inside { dropTarget = key } else if dropTarget == key { dropTarget = nil }
     }
@@ -927,16 +939,24 @@ extension Array where Element == SidebarDrop {
     var texts: [String] { map(\.text) }
 }
 
-/// Dragging tabs and favorites around the sidebar: the payload names what is dragged.
+/// Dragging tabs, groups and favorites around the sidebar: the payload names what is dragged.
 @MainActor
 enum SidebarDrag {
-    enum Kind { case tab, bookmark, folder }
+    enum Kind { case tab, bookmark, folder, group }
     /// What the latest drag from the sidebar carries: set when the drag starts, so drop targets can show where it lands.
-    private(set) static var dragging: Kind?
+    private(set) static var dragging: Kind? { didSet { if dragging != .group { draggingGroup = nil } } }
+    /// The group being dragged, so its own header and tabs show no line.
+    private(set) static var draggingGroup: UUID?
 
     static func tab(_ id: Int) -> String { dragging = .tab; return "changmun-tab:\(id)" }
     static func bookmark(_ url: String, in folder: String) -> String { dragging = .bookmark; return "changmun-bookmark:" + folder + "\n" + url }
     static func folder(_ key: String) -> String { dragging = .folder; return "changmun-folder:" + key }
+    static func group(_ id: UUID) -> String { dragging = .group; draggingGroup = id; return "changmun-group:\(id.uuidString)" }
+
+    static func groupID(_ items: [String]) -> UUID? {
+        guard let item = items.first, item.hasPrefix("changmun-group:") else { return nil }
+        return UUID(uuidString: String(item.dropFirst("changmun-group:".count)))
+    }
 
     /// A web address dragged in from a page or another app.
     static func link(_ items: [String]) -> URL? {
@@ -953,11 +973,16 @@ enum SidebarDrag {
         return String(item.dropFirst("changmun-folder:".count))
     }
 
-    /// A folder dropped among the pinned ones is pinned there (before `target`, or at the end).
+    /// A folder dropped among the pinned ones is pinned there (before `target`, or at the end); a group becomes a
+    /// folder pinned there.
     @discardableResult
     static func pin(_ items: [String], before target: String?, in browser: Browser) -> Bool {
+        defer { dragging = nil }
+        if let group = groupID(items) {
+            _ = withAnimation(Motion.standard) { browser.saveGroup(group, to: .pinned(before: target)) }
+            return true
+        }
         guard let key = folderKey(items) else { return false }
-        dragging = nil
         withAnimation(Motion.standard) { browser.spaces.pinFolder(key, before: target, in: browser.spaceID) }
         return true
     }
@@ -967,6 +992,10 @@ enum SidebarDrag {
         defer { dragging = nil }
         if let url = link(items) {
             withAnimation(Motion.standard) { browser.moveTab(browser.openTab(url: url).id, to: nil) }
+            return true
+        }
+        if let group = groupID(items) {
+            withAnimation(Motion.standard) { browser.moveGroup(group, before: nil) }
             return true
         }
         guard let id = tabID(items) else { return false }
@@ -986,11 +1015,15 @@ enum SidebarDrag {
         return (String(rest[rest.index(after: newline)...]), String(rest[..<newline]))
     }
 
-    /// A bookmark or favorite dropped on a folder moves into it.
-    static func drop(_ items: [String], onFolder folder: String) -> Bool {
+    /// A bookmark or favorite dropped on a folder moves into it; a group becomes a folder inside it.
+    static func drop(_ items: [String], onFolder folder: String, browser: Browser) -> Bool {
         defer { dragging = nil }
         if let url = link(items) {
             Library.shared.addBookmark(url: url.absoluteString, title: url.host() ?? url.absoluteString, folder: folder)
+            return true
+        }
+        if let group = groupID(items) {
+            _ = withAnimation(Motion.standard) { browser.saveGroup(group, to: .folder(folder)) }
             return true
         }
         guard let (url, from) = bookmark(items), from != folder else { return false }
@@ -1009,6 +1042,10 @@ enum SidebarDrag {
             }
             return true
         }
+        if let group = groupID(items) {
+            withAnimation(Motion.standard) { browser.moveGroup(group, before: target) }
+            return true
+        }
         guard let id = tabID(items) else { return false }
         withAnimation(Motion.standard) { browser.dropTab(id, on: target) }
         return true
@@ -1018,6 +1055,10 @@ enum SidebarDrag {
         defer { dragging = nil }
         if let url = link(items) {
             withAnimation(Motion.standard) { browser.addTab(browser.openTab(url: url).id, to: group) }
+            return true
+        }
+        if let dragged = groupID(items) {
+            withAnimation(Motion.standard) { browser.dropGroup(dragged, onGroup: group) }
             return true
         }
         guard let id = tabID(items) else { return false }
@@ -1039,6 +1080,10 @@ enum SidebarDrag {
             let address = url.absoluteString
             if !Library.shared.isFavorite(address, in: favorites) { _ = Library.shared.toggleBookmark(url: address, title: url.host() ?? address, in: favorites) }
             Library.shared.moveFavorite(address, to: target, in: favorites)
+            return true
+        }
+        if let group = groupID(items) {
+            _ = withAnimation(Motion.standard) { browser.saveGroup(group, to: .favorites(before: target)) }
             return true
         }
         if let (url, folder) = bookmark(items) {
@@ -1649,7 +1694,7 @@ struct BookmarkRow<MenuItems: View>: View {
     }
 }
 
-/// A tab group in the tab list: click to fold it; its menu renames, ungroups or closes it. A tab dropped on it joins.
+/// A tab group in the tab list: click to fold it, drag to move it; its menu renames, ungroups, saves or closes it. A tab dropped on it joins.
 struct TabGroupHeader: View {
     let group: Browser.TabGroup
     let count: Int
@@ -1710,6 +1755,7 @@ struct TabGroupHeader: View {
     @ViewBuilder private var menu: some View {
         Button("Rename") { browser.renamingGroup = group.id }
         Button("Ungroup") { withAnimation(Motion.standard) { browser.ungroup(group.id) } }
+        Button("Save as Bookmark Folder") { _ = withAnimation(Motion.standard) { browser.saveGroup(group.id, to: .pinned(before: nil)) } }
         Divider()
         Button("Close All Tabs in Group") { withAnimation(Motion.standard) { browser.closeGroup(group.id) } }
     }
