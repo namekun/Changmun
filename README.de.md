@@ -112,8 +112,9 @@ Damit in einer Seite versteckte Anweisungen sie nicht dazu bringen, Gelesenes an
 
 - bevor sie einen Tab verwendet, den du gerade nicht ansiehst, einmal pro Tab und Website;
 - bevor sie eine Adresse öffnet, außer es ist eine Suche, eine bereits geöffnete, besuchte oder als Lesezeichen gesicherte Adresse oder die Startseite einer bekannten Website;
-- vor jedem Klick, Tastendruck, Darüberfahren, Ziehen, eingegebenen Text und jeder gewählten Option, sobald der Chat eine andere Website gelesen hat, mit Anzeige dessen, was sie tun will. Du kannst es einmal erlauben oder für diese Website, bis der Chat endet. Nur Scrollen fragt nicht. Ein neuer Chat (⌘⇧E) beginnt von vorn.
-- vor allem, was nach Bezahlen, Bestellen, Senden, Veröffentlichen oder Löschen aussieht, jedes Mal, was auch immer du erlaubt hast.
+- vor jedem Klick, Tastendruck, Darüberfahren, Ziehen, eingegebenen Text und jeder gewählten Option, sobald der Chat eine andere Website gelesen hat, mit Anzeige dessen, was sie tun will. Du kannst es einmal erlauben oder für diese Website, bis der Chat endet. Nicht gefragt wird beim Scrollen, beim Ansehen der vorderen Seite (Lesen, Screenshot, Warten, Tab-Liste) und bei Zurück, Vor und Neu laden. Ein neuer Chat (⌘⇧E) beginnt von vorn.
+- vor allem, was nach Bezahlen, Bestellen, Senden, Veröffentlichen, Kommentieren, Teilen, Hochladen, Zugriff gewähren (Erlauben, Verbinden, Autorisieren), Löschen, Stornieren oder Kündigen aussieht, jedes Mal, was auch immer du erlaubt hast (nur „Einmal erlauben“ oder „Nicht erlauben“). Ebenso Eingabe in einem Nachrichtenfeld, ein Formular, das an eine andere Website sendet, und Entf oder Rücktaste außerhalb eines Textfelds.
+- vor allem, was nach Akzeptieren oder Erlauben in einem Cookie-Banner oder nach einer Einstellung (Speichern, Löschen, Zurücksetzen, Blockieren) aussieht, einmal pro Website. Im KI-Bereich kannst du es für diese Website bis zum Ende des Chats erlauben, andere Agenten werden jedes Mal gefragt.
 
 Andere Agenten wie Claude Code können dieselben Werkzeuge über MCP nutzen, mit denselben Rückfragen:
 
