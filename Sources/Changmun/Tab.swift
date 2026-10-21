@@ -211,23 +211,15 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     }
 
     /// Hosts under the same registrable name, roughly: the last two labels, or three for names like example.co.kr.
+    /// Only for the sign-in offer, where a false match costs nothing; the AI's approvals use the exact host (Approvals.site).
     nonisolated static func sameSite(_ a: String?, _ b: String?) -> Bool {
         guard let a = a?.lowercased(), let b = b?.lowercased() else { return false }
-        return registrableName(a) == registrableName(b)
-    }
-
-    /// Hosts whose subdomains belong to different people: each of those is a site of its own.
-    private nonisolated static let sharedHosting = ["github.io", "gitlab.io", "vercel.app", "netlify.app", "herokuapp.com", "pages.dev", "workers.dev", "web.app",
-                                        "firebaseapp.com", "appspot.com", "blogspot.com", "wordpress.com", "azurewebsites.net", "cloudfront.net", "amazonaws.com"]
-
-    /// The name a site is known by: the host's last two labels (three for names like example.co.kr or a shared hosting
-    /// service's), and an address as it is.
-    nonisolated static func registrableName(_ host: String) -> String {
-        let labels = host.split(separator: ".")
-        if host.contains(":") || labels.allSatisfy({ $0.allSatisfy(\.isNumber) }) { return host }
-        let shared = sharedHosting.contains { host == $0 || host.hasSuffix("." + $0) }
-        let keep = shared || (labels.count >= 3 && labels[labels.count - 2].count <= 3 && labels.last!.count == 2) ? 3 : 2
-        return labels.suffix(keep).joined(separator: ".")
+        func site(_ host: String) -> String {
+            let labels = host.split(separator: ".")
+            let keep = labels.count >= 3 && labels[labels.count - 2].count <= 3 && labels.last!.count == 2 ? 3 : 2
+            return labels.suffix(keep).joined(separator: ".")
+        }
+        return site(a) == site(b)
     }
 
     @discardableResult

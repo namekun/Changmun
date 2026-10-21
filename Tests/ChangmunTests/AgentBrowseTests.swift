@@ -74,7 +74,7 @@ extension SharedAgentState {
                 ("select_option", ["element_id": 1]), ("select_option", ["option": "A"]), ("select_option", ["element_id": 1, "option": ""]),
                 ("hover", [:]), ("hover", ["element_id": "x"]),
                 ("click_at", [:]), ("click_at", ["x": 5]), ("click_at", ["x": -1, "y": 5]), ("click_at", ["x": "a", "y": 5]), ("click_at", ["x": 1e30, "y": 5]),
-                ("wait_for", ["text": ""]), ("wait_for", ["text": "  \n "]), ("wait_for", ["gone": true]), ("wait_for", ["text": "a", "timeout": 0]), ("wait_for", ["text": "a", "timeout": "soon"]), ("wait_for", ["text": "a", "gone": "yes"]),
+                ("wait_for", ["text": ""]), ("wait_for", ["text": "  \n "]), ("wait_for", ["text": "\u{FEFF}"]), ("wait_for", ["text": "\u{00A0}\u{3000}\u{2028}"]), ("wait_for", ["text": 5]), ("wait_for", ["gone": true]), ("wait_for", ["text": "a", "timeout": 0]), ("wait_for", ["text": "a", "timeout": "soon"]), ("wait_for", ["text": "a", "gone": "yes"]),
                 ("drag", [:]), ("drag", ["from_element_id": 1]), ("drag", ["from_element_id": 1, "from_x": 1, "from_y": 2, "to_element_id": 3]), ("drag", ["from_x": 1, "to_x": 3, "to_y": 4]),
                 ("hover", ["element_id": 1e20]), ("select_option", ["element_id": 1e20, "option": "a"]), ("drag", ["from_element_id": 1e20, "to_element_id": 2]),
             ]
@@ -642,9 +642,9 @@ extension SharedAgentState {
             await asking({ _ in .site }) { stand in
                 Approvals.noteRead(tabs[0], readHost: nil, caller: panel)
                 // A short text is shown as it is; the line breaks and look-alikes that could push the warning off are made visible.
-                #expect(await Approvals.allowInteraction(.type("one\ntwo\n\n\n\n\n\n\n\n\u{202E}three"), on: tabs[1], caller: panel))
+                #expect(await Approvals.allowInteraction(.type("one\ntwo\n\n\n\n\n\n\n\nthree"), on: tabs[1], caller: panel))
                 let detail = stand.asked[0].detail
-                #expect(detail.contains("one⏎two⏎⏎") && detail.contains("▯three") && !detail.contains("\u{202E}"))
+                #expect(detail.contains("one⏎two⏎⏎") && detail.contains("⏎three"))
                 #expect(detail.components(separatedBy: "\n").count == 5, "only the question's own lines: \(detail)")
                 #expect(!detail.contains("more characters"))
                 #expect(stand.asked[0].choices == [.deny, .once, .site])
@@ -663,6 +663,50 @@ extension SharedAgentState {
             }
         }
 
+        @Test func invisibleAndLookAlikeCharactersAreMadeVisibleCountedByScalarsAndNeverAllowedForTheChat() async {
+            func shown(_ text: String, limit: Int = 500) -> (text: String, cut: Int, altered: Bool) { Approvals.shown(text, limit: limit) }
+            #expect(shown("plain text 한글 e\u{301}").altered == false && shown("plain text 한글 e\u{301}").text == "plain text 한글 e\u{301}")
+            #expect(shown("a\nb\tc") == ("a⏎b⇥c", 0, false), "breaks are made visible and are what they seem")
+            for scalar in [0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF, 0x202E, 0x2066, 0x200F, 0x061C, 0xFE0F, 0xFE00, 0xE0100, 0xE0041, 0xE0001, 0x3164, 0x115F, 0x1160, 0xFFA0, 0x2800, 0x034F, 0x00AD, 0x0000, 0x0085, 0x2028] {
+                let result = shown("pay\(Unicode.Scalar(scalar)!)now")
+                #expect(result.text == "pay▯now" && result.altered && result.cut == 0, "U+\(String(scalar, radix: 16)) is made visible")
+            }
+            // Counted and cut by scalars, not by characters: one character of many marks is many scalars.
+            let zalgo = "a" + String(repeating: "\u{301}", count: 600) + "b"
+            let result = shown(zalgo, limit: 500)
+            #expect(result.altered && result.cut == 0 && result.text.unicodeScalars.count == 6 && result.text.hasSuffix("b"), "a pile of marks is capped, and the cap is visible")
+            let marks = shown("e" + String(repeating: "\u{301}", count: 10) + "x")
+            #expect(marks.text.unicodeScalars.filter { $0 == "\u{301}" }.count == 3 && marks.text.contains("▯") && marks.altered && marks.text.hasSuffix("x"))
+            #expect(shown("e\u{301}\u{302}\u{303}x").altered == false, "three marks are allowed")
+            let flags = String(repeating: "🇰🇷", count: 300)
+            let cut = shown(flags, limit: 500)
+            #expect(flags.count == 300 && cut.text.unicodeScalars.count == 500 && cut.cut == 100 && !cut.altered, "counted in scalars: a flag is two")
+            let rest = shown(String(repeating: "x", count: 600) + "\u{200B}", limit: 500)
+            #expect(rest.cut == 101 && rest.text.count == 500)
+            #expect(Approvals.abbreviated(String(repeating: "\u{301}", count: 400)).unicodeScalars.count <= 80)
+
+            let (browser, tabs) = open(["https://a.example/", "https://evil.example/"])
+            defer { browser.windowClosed() }
+            let panel = ChatStore.caller
+            Approvals.forgetReads(caller: panel)
+            defer { Approvals.forgetReads(caller: panel) }
+            await asking({ _ in .site }) { stand in
+                Approvals.noteRead(tabs[0], readHost: nil, caller: panel)
+                #expect(await Approvals.allowInteraction(.type("one\u{202E}two"), on: tabs[1], caller: panel))
+                #expect(stand.asked[0].detail.contains("one▯two") && stand.asked[0].choices == [.deny, .once], "no allowance for this chat for a text that was changed")
+                #expect(await Approvals.allowInteraction(.type("one\u{3164}two"), on: tabs[1], caller: panel))
+                #expect(stand.asked.count == 2, "and it is asked about each time")
+                #expect(await Approvals.allowInteraction(.choose("fine"), on: tabs[1], caller: panel))
+                #expect(stand.asked[2].choices == [.deny, .once, .site])
+            }
+            // An address carries a hidden character as an escape, which is plain to see.
+            await asking({ _ in .once }) { stand in
+                let sneaky = URL(string: "https://elsewhere.example/a%E2%80%AEb")!
+                for _ in 1...2 { #expect(await Approvals.allowNavigation(sneaky, caller: "mcp-hidden")) }
+                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("a%E2%80%AEb"), "an address shows what it hides as escapes, and is remembered")
+            }
+        }
+
         @Test func anAddressWhoseEndIsNotShownIsAskedAboutEachTime() async {
             let long = URL(string: "https://elsewhere.example/" + String(repeating: "a", count: 700) + "?secret=1")!
             let short = URL(string: "https://elsewhere.example/page?x=1")!
@@ -676,10 +720,11 @@ extension SharedAgentState {
             }
         }
 
-        @Test func sitesAreToldByTheirRegistrableNameAndPort() {
+        @Test func sitesAreToldByTheirExactHostAndPort() {
             func site(_ address: String) -> String? { Approvals.site(of: URL(string: address)) }
-            #expect(site("https://www.example.com/a") == "example.com" && site("https://checkout.shop.example.com:443/") == "example.com")
-            #expect(site("https://shop.example.co.uk/") == "example.co.uk" && site("http://Example.COM:80/") == "example.com")
+            #expect(site("https://www.example.com/a") == "www.example.com" && site("https://checkout.shop.example.com:443/") == "checkout.shop.example.com")
+            #expect(site("https://shop.example.co.uk/") == "shop.example.co.uk" && site("http://Example.COM:80/") == "example.com")
+            #expect(site("https://www.example.com/") != site("https://shop.example.com/") && site("https://example.com/") != site("https://www.example.com/"), "no host stands for another")
             #expect(site("http://localhost:18401/") == "localhost:18401" && site("http://localhost:18402/") == "localhost:18402" && site("http://localhost/") == "localhost")
             #expect(site("http://127.0.0.1:18401/") == "127.0.0.1:18401" && site("http://[::1]:18401/") == "[::1]:18401" && site("http://[::1]/") == "::1")
             #expect(site("https://a.github.io/") == "a.github.io" && site("https://b.github.io/") != site("https://a.github.io/"), "people sharing a host are not one site")
@@ -709,19 +754,22 @@ extension SharedAgentState {
             }
         }
 
-        @Test func pagesOfOneSiteDoNotCountAsOtherSitesForEachOther() async {
-            let (browser, tabs) = open(["https://www.shop.example/", "https://checkout.shop.example/pay", "https://other.example/"])
+        @Test func otherHostsOfOneDomainAreOtherSites() async {
+            let (browser, tabs) = open(["https://alice.hosting.example/", "https://bob.hosting.example/", "https://www.shop.example/", "https://checkout.shop.example/pay"])
             defer { browser.windowClosed() }
             let panel = ChatStore.caller
             Approvals.forgetReads(caller: panel)
             defer { Approvals.forgetReads(caller: panel) }
             await asking({ _ in .once }) { stand in
-                Approvals.noteRead(tabs[0], readHost: nil, caller: panel)
-                Approvals.noteRead(tabs[0], readHost: Approvals.site(of: URL(string: "https://cdn.shop.example/")), caller: panel)
+                Approvals.noteRead(tabs[0], caller: panel)
+                #expect(await Approvals.allowInteraction(.type("x"), on: tabs[0], caller: panel))
+                #expect(stand.asked.isEmpty, "the page that was read is free to use")
                 #expect(await Approvals.allowInteraction(.type("x"), on: tabs[1], caller: panel))
-                #expect(stand.asked.isEmpty, "a hop between hosts of one site asks nothing")
-                #expect(await Approvals.allowInteraction(.type("x"), on: tabs[2], caller: panel))
-                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("shop.example"))
+                #expect(stand.asked.count == 1 && stand.asked[0].message.contains("bob.hosting.example") && stand.asked[0].detail.contains("alice.hosting.example"))
+                Approvals.forgetReads(caller: panel)
+                Approvals.noteRead(tabs[2], caller: panel)
+                #expect(await Approvals.allowInteraction(.type("x"), on: tabs[3], caller: panel))
+                #expect(stand.asked.count == 2, "www and checkout are two sites: what is read on one is another site's to the other")
             }
         }
 
@@ -749,17 +797,29 @@ extension SharedAgentState {
             }
         }
 
-        @Test func listingTabsTellsOnlyTitlesAndAddressesAndAsksNothingLater() async {
-            let (browser, tabs) = open(["https://a.example/", "https://b.example/"])
+        @Test func listingTabsNamesOnlyTheSiteOfTabsTheCallerMayNotUseAndRecordsNothingForThem() async {
+            let (browser, tabs) = open(["https://a.example/private-path?token=1", "https://b.example/front", "https://c.example/allowed-path"])
             defer { browser.windowClosed() }
+            browser.activate(tabs[1].id)
             let caller = "mcp-list"
             Approvals.forgetReads(caller: caller)
             defer { Approvals.forgetReads(caller: caller) }
             await asking({ _ in .once }) { stand in
+                #expect(await Approvals.allowTab(tabs[2], caller: caller))
                 let listed = await ToolCatalog.call("list_tabs", [:], caller: caller)
-                #expect(!listed.isError && (listed.content.first?["text"] as? String)?.contains("a.example") == true)
+                let text = listed.content.first?["text"] as? String ?? ""
+                #expect(!listed.isError && text.contains("b.example/front") && text.contains("c.example/allowed-path"), "the tab in front and the one allowed are told")
+                #expect(text.contains("#\(tabs[0].id)") && text.contains("a.example") && !text.contains("private-path") && !text.contains("token"), "another tab is named by its site only")
+                stand.asked.removeAll()
+                // The tabs that were told are read; the one that was only named is not.
                 #expect(await Approvals.allowInteraction(.type("x"), on: tabs[1], caller: caller))
-                #expect(stand.asked.isEmpty, "a list of titles is not a read of the tabs")
+                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("c.example") && !stand.asked[0].detail.contains("a.example"))
+                Approvals.forgetReads(caller: caller)
+                Approvals.noteRead(tabs[1], caller: caller)
+                _ = await ToolCatalog.call("list_tabs", [:], caller: caller)
+                stand.asked.removeAll()
+                #expect(await Approvals.allowInteraction(.type("x"), on: tabs[0], caller: caller))
+                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("b.example") && !stand.asked[0].detail.contains("a.example"))
             }
         }
 
@@ -1135,7 +1195,7 @@ extension SharedAgentState {
             let box = "display:inline-block;width:12px;height:12px;background:red"
             let html = """
                 <body style="margin:0">
-                <a href="https://lab.test/#a">Best way to save money on your next order of books and more</a>
+                <a href="https://lab.test/#a">Best way to save money on your next order of books and more, with tips from readers across the country about cheap shelves, used bookshops, library sales, swaps, and the very best second-hand finds of the year</a>
                 <a href="https://lab.test/#b">게시판</a>
                 <a href="https://lab.test/#c"><b>Card title</b> <button type=button onclick="document.title='saved'">Save</button></a>
                 <label><input type=checkbox> Save my info</label>
@@ -1177,7 +1237,7 @@ extension SharedAgentState {
                 #expect(asked("\"Save\"") == true, "the button on it is")
                 #expect(asked("Save my info") == false, "a checkbox is named by what it holds")
                 #expect(asked("Order number") == false)
-                #expect(asked("select") == false, "the options of a field in a form")
+                #expect(asked("select") == true, "the options of a list in a form are judged by their names too")
                 #expect(asked(" a \"Orders\"") == true, "a link called Orders is still asked about")
                 #expect(asked("Continue") == true, "where the link goes")
                 #expect(asked("\"Go\"") == true, "a button's name and value")
@@ -1868,8 +1928,90 @@ extension SharedAgentState {
                 let size = try #require(id(of: "Size", in: read)), colour = try #require(id(of: "Colour", in: read))
                 let refused = await call(tab, "select_option", ["element_id": size, "option": "Large"])
                 #expect(refused.failed && guarded(stand).count == 1 && tab.title != "submitted")
-                #expect(!(await call(tab, "select_option", ["element_id": colour, "option": "Blue"])).failed && guarded(stand).count == 1, "a list that only changes is only a list")
+                // Whether a page makes a list submit its form can't always be seen (a listener, the form's own handler): in a form
+                // that asks for card details, any list is taken to.
+                let other = await call(tab, "select_option", ["element_id": colour, "option": "Blue"])
+                #expect(other.failed && guarded(stand).count == 2 && tab.title != "submitted", "\(other.text)")
             }
+        }
+
+        @Test func aNativeListInAFormThatIsOnlyAFormIsOnlyAListButItsOptionsAreStillJudgedByName() async throws {
+            let html = """
+                <body><form action="/search"><select aria-label="Colour"><option>Red</option><option>Blue</option><option>Remove all</option></select>
+                <select aria-label="Shipping"><option value="delete_account">Express</option><option value="ground">Ground</option></select></form>
+                <form action="/checkout/pay"><select aria-label="Quantity"><option>1</option><option>2</option></select></form>
+                <select aria-label="Loose"><option>Red</option></select></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ prompt in prompt.message.contains("press") ? .deny : .once }) { stand in
+                let read = await call(tab, "read_page").text
+                let colour = try #require(id(of: "Colour", in: read)), shipping = try #require(id(of: "Shipping", in: read))
+                let quantity = try #require(id(of: "Quantity", in: read)), loose = try #require(id(of: "Loose", in: read))
+                #expect(!(await call(tab, "select_option", ["element_id": colour, "option": "Blue"])).failed && guarded(stand).isEmpty, "an ordinary option of an ordinary form")
+                #expect((await call(tab, "select_option", ["element_id": colour, "option": "Remove all"])).failed && guarded(stand).count == 1, "its name is judged though the form is not submitted by it")
+                #expect((await call(tab, "select_option", ["element_id": shipping, "option": "Express"])).failed && guarded(stand).count == 2, "and so is its value")
+                #expect((await call(tab, "select_option", ["element_id": quantity, "option": "2"])).failed && guarded(stand).count == 3, "a list in a form that posts to a checkout")
+                #expect(!(await call(tab, "select_option", ["element_id": loose, "option": "Red"])).failed && guarded(stand).count == 3)
+            }
+        }
+
+        @Test func theNamesOfAControlAreFingerprintedWhole() async throws {
+            let padding = String(repeating: "x", count: 1500)
+            let html = "<body><button id=b aria-label=\"\(padding)A\">Menu</button><a id=l href=\"#top\">Go</a></body>"
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let view = try #require(tab.webView)
+            func facts() async -> [String: Any] {
+                let text = await ToolCatalog.run(PageScripts.lib + "\nreturn JSON.stringify(factsOf(document.getElementById('b'), {}));", [:], in: view).content.first?["text"] as? String ?? ""
+                return (try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]) ?? [:]
+            }
+            let before = await facts()
+            _ = await evaluate(tab, "document.getElementById('b').setAttribute('aria-label', '\(padding)B'); return 1")
+            let after = await facts()
+            #expect((before["fp"] as? String)?.count == 64 && before["fp"] as? String != after["fp"] as? String, "a change a thousand characters in is a change")
+            _ = await evaluate(tab, "document.getElementById('b').setAttribute('aria-label', '\(padding) pay'); return 1")
+            let named = (await facts())["names"] as? [String] ?? []
+            let judgedFacts = IrreversibleAction.Facts(await facts())
+            #expect(named.contains { $0.hasSuffix(" pay") } && IrreversibleAction.looksIrreversible(judgedFacts), "a word past a thousand characters of a name is judged")
+            let hint = await ToolCatalog.run(PageScripts.lib + "\nreturn [digest(''), digest('abc'), digest('a'.repeat(1000))].join(' ');", [:], in: view).content.first?["text"] as? String
+            #expect(hint == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad "
+                    + "41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3", "\(hint ?? "")")
+        }
+
+        @Test func aLinkIsJudgedByUpToAHundredAndSixtyCharactersOfItsText() async throws {
+            let long = "Our local bakery has opened a second shop downtown with fresh bread every morning, seasonal pastries, a small garden for guests, live music on weekends, and a loyalty card, and customers can pay by card or cash"
+            let html = """
+                <body><a id=a href="/terms" onclick="document.title='a';return false">I agree to the terms and confirm and pay now</a>
+                <a id=b href="/cart" onclick="document.title='b';return false">Review the items in your cart one last time before you pay</a>
+                <a id=c href="/story" onclick="document.title='c';return false">\(long)</a>
+                <a id=d href="/story2" onclick="document.title='d';return false">Read the story of the bakery and its neighbours</a></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ prompt in prompt.message.contains("press") ? .deny : .once }) { stand in
+                let read = await call(tab, "read_page").text
+                @MainActor func link(_ start: String) -> Int? { read.split(separator: "\n").first { $0.contains("\"\(start)") }.flatMap { number(of: $0) } }
+                let agree = try #require(link("I agree to the terms")), review = try #require(link("Review the items"))
+                let bakery = try #require(link("Our local bakery")), story = try #require(link("Read the story"))
+                #expect((await call(tab, "click", ["element_id": agree])).failed && guarded(stand).count == 1)
+                #expect((await call(tab, "click", ["element_id": review])).failed && guarded(stand).count == 2, "a word late in a short sentence")
+                #expect(!(await call(tab, "click", ["element_id": bakery])).failed && guarded(stand).count == 2, "a long card of text is judged by its first words")
+                #expect(!(await call(tab, "click", ["element_id": story])).failed && guarded(stand).count == 2)
+            }
+        }
+
+        @Test func aKeyGoesToTheControlThatWasJudgedNotToALinkAroundIt() async throws {
+            let html = """
+                <body><a id=link href="#top" onkeydown="document.title='key on ' + event.target.id"><span id=inner role=button>Menu</span></a></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            let menu = try #require(id(ofKind: "button", in: read), "\(read)")
+            let pressed = await call(tab, "press_key", ["key": "Enter", "element_id": menu])
+            #expect(!pressed.failed, "\(pressed.text)")
+            #expect(await evaluate(tab, "return document.title") == "key on inner", "\(read) \(pressed.text)")
         }
 
         @Test func twoOptionsWithTheSameWordsAreNotTakenForEachOther() async throws {
@@ -1934,7 +2076,7 @@ extension SharedAgentState {
         }
 
         @Test func secretsAreToldByTheirNamesInAnyWritingOfThem() async throws {
-            let names = ["otpCode", "userPin", "cvv2", "ssn4", "currentPwd", "pincode", "OTPCode", "card_number", "newPassword"]
+            let names = ["otpCode", "userPin", "cvv2", "ssn4", "currentPwd", "pincode", "OTPCode", "card_number", "newPassword", "passWord", "PassCode", "passPhrase", "Pass-Phrase", "pass_word", "user.passWd", "loginPassCode2"]
             let html = "<body>" + names.enumerated().map { "<input name=\"\($1)\" value=\"secret\($0)x\" placeholder=\"field \($0)\">" }.joined()
                 + "<input name=shipping value=\"visible-ship\"><input name=opinion value=\"visible-opinion\"><input name=spinner value=\"visible-spin\"></body>"
             let (tab, window, browser) = try await page(html)
@@ -1978,6 +2120,39 @@ extension SharedAgentState {
                 _ = await call(tab, "click", ["element_id": go], caller: panel)
                 let asked = stand.asked.filter { $0.message.contains("use outer.test") }
                 #expect(asked.count == 1 && asked[0].detail.contains("a frame of an unknown site"), "\(stand.asked.map(\.detail))")
+            }
+        }
+
+        @Test func whatAFrameSendsToTheModelIsRecordedAsReadFromItAndAFrameThatShowedNothingSendsNothing() async throws {
+            let html = "<body><p>Outer</p><iframe sandbox='allow-scripts' style='width:30px;height:30px' srcdoc='<p>hi</p>'></iframe>"
+                + "<iframe sandbox='allow-scripts' style='width:30px;height:30px' srcdoc='<body></body>'></iframe></body>"
+            let (tab, window, browser) = try await page(html, host: "outer.test")
+            defer { window.close(); browser.windowClosed() }
+            let panel = ChatStore.caller
+            Approvals.forgetReads(caller: panel)
+            defer { Approvals.forgetReads(caller: panel) }
+            try await asking({ _ in .once }) { stand in
+                var read = ""
+                for _ in 0..<100 where !read.contains("--- Frame: about:srcdoc ---") {
+                    read = await call(tab, "read_page", caller: panel).text
+                    if !read.contains("--- Frame: about:srcdoc ---") { try await Task.sleep(for: .milliseconds(50)) }
+                }
+                #expect(read.components(separatedBy: "--- Frame: about:srcdoc ---").count == 2 && read.contains("hi"), "only the frame with something in it is sent: \(read)")
+                // The frame's two letters came from a site of its own, which the page around it is not.
+                #expect(await Approvals.allowInteraction(.act("Clicking “Go”"), on: tab, caller: panel))
+                #expect(stand.asked.filter { $0.detail.contains("a frame of an unknown site") }.count == 1, "\(stand.asked.map(\.detail))")
+            }
+            Approvals.forgetReads(caller: panel)
+            let (empty, emptyWindow, emptyBrowser) = try await page("<body><p>Outer</p><iframe sandbox='allow-scripts' style='width:30px;height:30px' srcdoc='<body></body>'></iframe></body>", host: "outer.test")
+            defer { emptyWindow.close(); emptyBrowser.windowClosed() }
+            try await asking({ _ in .once }) { stand in
+                for _ in 0..<20 {
+                    let read = await call(empty, "read_page", caller: panel).text
+                    #expect(!read.contains("--- Frame: about:srcdoc ---"), "a frame that showed nothing sends nothing")
+                    try await Task.sleep(for: .milliseconds(50))
+                }
+                #expect(await Approvals.allowInteraction(.act("Clicking “Go”"), on: empty, caller: panel))
+                #expect(stand.asked.isEmpty, "and is not a site that was read")
             }
         }
 

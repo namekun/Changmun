@@ -18,19 +18,49 @@ extension PageScripts {
     const norm = s => (s || '').replace(/\s+/g, ' ').trim().toLowerCase();
     const squash = s => (s || '').replace(/\s+/g, ' ').trim();
     const clip = (s, n) => squash(s).slice(0, n);
+    // The fingerprint of what was judged is a hash of all of it, so that nothing past a cut can change unseen (SHA-256, in hex).
+    const digest = text => {
+      const bytes = new TextEncoder().encode(text), n = bytes.length;
+      const w = new Uint32Array(((n + 9 + 63) >> 6) << 4);
+      for (let i = 0; i < n; i++) w[i >> 2] |= bytes[i] << (24 - (i & 3) * 8);
+      w[n >> 2] |= 0x80 << (24 - (n & 3) * 8);
+      w[w.length - 2] = Math.floor(n * 8 / 4294967296);
+      w[w.length - 1] = (n * 8) >>> 0;
+      const primes = [];
+      for (let q = 2; primes.length < 64; q++) if (primes.every(r => q % r)) primes.push(q);
+      const fraction = x => Math.floor((x % 1) * 4294967296);
+      const K = primes.map(r => fraction(Math.cbrt(r))), H = primes.slice(0, 8).map(r => fraction(Math.sqrt(r)));
+      const rotr = (x, k) => (x >>> k) | (x << (32 - k));
+      for (let o = 0; o < w.length; o += 16) {
+        const x = new Uint32Array(64);
+        x.set(w.subarray(o, o + 16));
+        for (let i = 16; i < 64; i++) {
+          const a = x[i - 15], b = x[i - 2];
+          x[i] = x[i - 16] + (rotr(a, 7) ^ rotr(a, 18) ^ (a >>> 3)) + x[i - 7] + (rotr(b, 17) ^ rotr(b, 19) ^ (b >>> 10));
+        }
+        let [a, b, c, d, e, f, g, h] = H;
+        for (let i = 0; i < 64; i++) {
+          const t1 = h + (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + x[i];
+          const t2 = (rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c));
+          h = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+        }
+        [a, b, c, d, e, f, g, h].forEach((v, i) => { H[i] = (H[i] + v) >>> 0; });
+      }
+      return H.map(v => v.toString(16).padStart(8, '0')).join('');
+    };
     const token = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => b.toString(16).padStart(2, '0')).join('');
 
     // A field that holds a secret: a password (also after a "show password" button made it plain text), a code sent to the
     // user, or card details. The AI never gets such a value, and never types or presses keys in it.
-    const SECRET_WORDS = /pass(?:word|wd|code|phrase)|(?:^|[^a-z0-9])(?:pwd|otp|pin|cvc|cvv|ssn)(?:[^a-z0-9]|$)|pin[-_ ]?code|card[-_ ]?(?:number|num|no)(?:[^a-z0-9]|$)/i;
-    // A name is told in words before it is looked at: "otpCode", "userPin" and "cvv2" are an otp, a pin and a cvv, "Shipping" is not a pin.
+    const SECRET_WORDS = /pass[-_ ]?(?:word|wd|code|phrase)|(?:^|[^a-z0-9])(?:pwd|otp|pin|cvc|cvv|ssn)(?:[^a-z0-9]|$)|pin[-_ ]?code|card[-_ ]?(?:number|num|no)(?:[^a-z0-9]|$)/i;
+    // A name is looked at as it is written ("passWord", "PassCode") and told in words ("otpCode", "userPin" and "cvv2" are an otp, a pin and a cvv; "Shipping" is not a pin).
     const spaced = v => String(v || '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').replace(/([a-zA-Z])(\d)|(\d)([a-zA-Z])/g, '$1$3 $2$4');
     const SECRET_AUTOCOMPLETE = /one-time-code|(?:^|\s)cc-|current-password|new-password/i;
     const isSecret = el => {
       if (!el || el.nodeType !== 1) return false;
       if (el.localName === 'input' && el.type === 'password') { seenPasswords.add(el); return true; }
       if (seenPasswords.has(el) || el.hasAttribute('data-cm-secret') || SECRET_AUTOCOMPLETE.test(attr(el, 'autocomplete') || '')) return true;
-      return /^(input|textarea)$/.test(el.localName) && [el.name, el.id, attr(el, 'aria-label'), attr(el, 'placeholder')].some(v => SECRET_WORDS.test(spaced(v)));
+      return /^(input|textarea)$/.test(el.localName) && [el.name, el.id, attr(el, 'aria-label'), attr(el, 'placeholder')].some(v => SECRET_WORDS.test(String(v || '')) || SECRET_WORDS.test(spaced(v)));
     };
 
     // This document and the frames of the same site in it. dx, dy and s say where a frame's top left sits in this
@@ -132,9 +162,8 @@ extension PageScripts {
       return /^(textarea|select)$/.test(t.localName) || (t.localName === 'input' && /^(text|search|url|tel|email|password|number|date|datetime-local|month|week|time|color|range|file|checkbox|radio|)$/.test(t.type));
     };
     // What says a lot even in a long sentence ("I agree to the terms and place my order"): a button, whole. A link around a
-    // card of text says little of what it does, so only its first words count.
+    // card of text (a link of more than 160 characters) says little of what it does, so only its first words count.
     const WORDY = 'button,input,summary,[role=button],[role=menuitem],[role=menuitemcheckbox],[role=option],[role=tab],[role=switch]';
-    const isNavLink = ctl => ctl.localName === 'a' && !ctl.hasAttribute('onclick') && !/^(#|javascript:|$)/i.test((attr(ctl, 'href') || '').trim());
     // The words of an element that aren't those of a control inside it: a card's title, not the "Save" button on it.
     const ownText = el => {
       let out = '';
@@ -150,7 +179,7 @@ extension PageScripts {
     function namesOf(ctl) {
       const out = [];
       if (passive(ctl)) return out;
-      const add = s => { s = squash(s); if (s) out.push(s.slice(0, 1000)); };
+      const add = s => { s = squash(s); if (s) out.push(s.slice(0, 20000)); };
       const doc = docOf(ctl);
       const acts = ctl.matches(WORDY);
       add(attr(ctl, 'aria-label'));
@@ -161,7 +190,7 @@ extension PageScripts {
       if (ctl.labels && ctl.labels.length) add(ctl.labels[0].textContent);
       if (!/^(input|textarea|select)$/.test(ctl.localName)) {
         const text = squash(ctl.matches(WORDY) ? ctl.innerText || ctl.textContent : ownText(ctl));
-        const room = acts ? 1000 : isNavLink(ctl) ? 40 : ctl.matches(CONTROL) ? 160 : (ctl.childElementCount <= 2 ? 40 : 0);
+        const room = acts ? 1000 : ctl.matches(CONTROL) ? 160 : (ctl.childElementCount <= 2 ? 40 : 0);
         if (text && text.length <= room) add(text);
         else if (text && room) add(lead(text));
         // A web component's own words are in its shadow tree.
@@ -249,8 +278,8 @@ extension PageScripts {
       // Everything the approvals judged on is in the fingerprint: what the page may change while the user thinks (a checkout
       // step that appears under the same "Continue") must make the action stop.
       return {label, names, hints, dests, submits, sends, payment, action, secret: isSecret(ctl) || isSecret(el), description: describe(el), origin: originOf(el),
-        fp: JSON.stringify([ctl.localName, role, ctl.type || '', names.join('|').replace(/\d+/g, '#').slice(0, 400), hints.join('|').slice(0, 200),
-          dests.join('|').replace(/\d+/g, '#').slice(0, 300), submits, sends, payment, action.replace(/[?#].*$/, '').replace(/\d+/g, '#').slice(0, 300), !!form])};
+        fp: digest(JSON.stringify([ctl.localName, role, ctl.type || '', names.join('|').replace(/\d+/g, '#'), hints.join('|'),
+          dests.join('|').replace(/\d+/g, '#'), submits, sends, payment, action.replace(/[?#].*$/, '').replace(/\d+/g, '#'), !!form]))};
     }
     // The page may change between looking and acting (and the user takes their time to answer): the action goes ahead
     // only on what was looked at.
@@ -567,16 +596,16 @@ extension PageScripts {
     // What the option is called, by every name its markup gives it (not only the words it shows), and what choosing it does: a
     // native list that submits its form when it changes (an onchange handler) takes the form's payment and address along.
     const wordsOf = o => isNative ? [o.text, o.label, attr(o, 'title'), o.value] : [...namesOf(o), attr(o, 'data-value') ?? attr(o, 'value')];
-    const optionNames = o => wordsOf(o).map(squash).filter(Boolean).map(w => w.slice(0, 1000));
-    // A native list inside a form is a field of it, whatever its options are called: the form's own button is judged when it is
-    // pressed. One that submits the form when it changes, or that belongs to no form (a menu for the page's own scripts), acts.
-    const auto = isNative && !!el.form && el.hasAttribute('onchange');
-    const judged = !isNative || auto || !el.form;
-    const optionAction = auto ? actionOf(el.form, null).replace(/[?#].*$/, '').replace(/\d+/g, '#').slice(0, 300) : '';
-    const optionFp = o => JSON.stringify([isNative, isNative ? o.index : listOf(true).indexOf(o), optionNames(o).join('|').replace(/\d+/g, '#').slice(0, 400), judged, auto, auto && hasPayment(el.form), optionAction]);
+    const optionNames = o => wordsOf(o).map(squash).filter(Boolean).map(w => w.slice(0, 20000));
+    // The option is always judged by every name it has. A native list in a form is taken to submit it when it changes: a page can
+    // make it so in more ways than one (an onchange handler, a listener, the form's own), so the form's card details and
+    // checkout-like address decide, as for a submit button. A list in no form (a menu for the page's own scripts) just acts.
+    const submits = isNative && !!el.form;
+    const optionAction = submits ? actionOf(el.form, null).replace(/[?#].*$/, '').replace(/\d+/g, '#') : '';
+    const optionFp = o => digest(JSON.stringify([isNative, isNative ? o.index : listOf(true).indexOf(o), optionNames(o).join('|').replace(/\d+/g, '#'), submits, submits && hasPayment(el.form), optionAction]));
     function optionFacts(o, label) {
-      return {label, role: isNative ? 'option' : (attr(o, 'role') || 'option'), native: isNative, names: judged ? [label, ...optionNames(o)] : [], hints: judged ? hintsOf(o, true) : [],
-        submits: auto, payment: auto && hasPayment(el.form), action: auto ? actionOf(el.form, null) : '', fp: optionFp(o)};
+      return {label, role: isNative ? 'option' : (attr(o, 'role') || 'option'), native: isNative, names: [label, ...optionNames(o)], hints: hintsOf(o, true),
+        submits, payment: submits && hasPayment(el.form), action: submits ? actionOf(el.form, null) : '', fp: optionFp(o)};
     }
     const missing = f => 'Error: no option "' + args.option + '". Options: ' + f.options.map(o => clip(isNative ? o.text : ariaText(o), 40)).join(', ');
 
@@ -767,7 +796,10 @@ extension PageScripts {
     if (selects(target)) return 'Error: a list is chosen from with select_option, which asks about the option.';
     if (args.id != null) {
       target.scrollIntoView({block: 'center'});
-      const f = focusable(target);
+      // Not a link around it that was not judged: the key goes to the control that was.
+      const judged = controlOf(p.el);
+      let f = focusable(target);
+      if (controlOf(f) !== judged) f = judged;
       f.focus();
       // The key goes to what was judged: the element itself, or what inside it took the focus. Whatever else has the focus (an
       // autofocused button, a dialog's focus trap) is not what the AI named and not what was judged.

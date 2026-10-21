@@ -518,7 +518,8 @@ extension ToolCatalog {
         case "click_at":
             guard hasPoint("") else { return "x and y are required: CSS pixels from the top left of the visible page, as in a screenshot." }
         case "wait_for":
-            if let text = args["text"], (text as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false { return "text must be a non-empty string." }
+            // Text made only of what the page's own search treats as space (JavaScript's \s: also U+FEFF) is found everywhere.
+            if let text = args["text"], (text as? String)?.unicodeScalars.contains(where: { !$0.properties.isWhitespace && $0 != "\u{FEFF}" }) != true { return "text must be a non-empty string." }
             if args["gone"] != nil && args["gone"] as? Bool == nil { return "gone must be true or false." }
             if args["gone"] as? Bool == true && args["text"] == nil { return "gone needs the text to wait for to disappear." }
             if args["timeout"] != nil && number(args["timeout"]).map({ $0 > 0 }) != true { return "timeout must be a number of seconds." }
@@ -588,8 +589,13 @@ extension ToolCatalog {
                 }
                 // The site is the one the frame says it is in, from inside: where it was when it greeted may be another by now.
                 let host = Self.host(ofOrigin: part.origin)
-                // A frame that showed nothing (a tracking pixel, an empty box) gave nothing from its site.
-                if !part.lines.isEmpty || part.text.trimmingCharacters(in: .whitespacesAndNewlines).count >= 20 { hosts.insert(host.isEmpty ? Approvals.unknownFrame : host) }
+                // Whatever of a frame goes to the model (its address, a word of its text, an element) is read from its site and
+                // recorded as such; a frame that showed nothing at all (a tracking pixel, an empty box) sends nothing and records nothing.
+                if part.lines.isEmpty && part.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    await readFrames(part.frames, depth: depth + 1)
+                    continue
+                }
+                hosts.insert(host.isEmpty ? Approvals.unknownFrame : host)
                 lines += part.lines.map { $0 + " (in a frame of \(host.isEmpty ? "another site" : host))" }
                 if part.count > count { tab.agent.ranges.append((count + 1...part.count, ref.slot)) }
                 count = max(count, part.count)

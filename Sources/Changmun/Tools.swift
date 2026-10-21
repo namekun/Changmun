@@ -27,7 +27,7 @@ enum ToolCatalog {
     static let readDeadline: TimeInterval = 60
 
     static let definitions: [[String: Any]] = [
-        tool("list_tabs", "List the open tabs of every space with their ids, titles and URLs (and the space's name in brackets when there are several spaces), and which one is active."),
+        tool("list_tabs", "List the open tabs of every space with their ids (and the space's name in brackets when there are several spaces), and which one is active. The tab in front and the tabs the user allowed you to use have their titles and URLs; any other tab is named by its site only."),
         tool("open_tab", "Open a new tab with a URL or a search query and show it.", ["url": ["type": "string", "description": "URL, domain, or search words"]], required: ["url"]),
         tool("switch_tab", "Show a tab to the user.", required: ["tab_id"]),
         tool("close_tab", "Close a tab.", required: ["tab_id"]),
@@ -65,7 +65,7 @@ enum ToolCatalog {
     static func call(_ name: String, _ args: [String: Any], caller: String) async -> ToolResult {
         if name == "list_tabs" {
             guard let browser = Browser.recent else { return .text("No tabs are open.") }
-            return listTabs(browser)
+            return listTabs(browser, caller: caller)
         }
         if name == "open_tab" {
             guard let url = webURL(args["url"]) else { return .text("Give an http(s) URL, a domain, or search words.", error: true) }
@@ -263,8 +263,11 @@ enum ToolCatalog {
         }
     }
 
+    /// The tabs, each with its title and address if the caller may be told them (the tab in front, or one it was allowed to use on
+    /// the site it is on); any other tab is named only by its site, and nothing is recorded as read for it, since nothing of it was
+    /// given. What was told of the others is recorded, as every answer with a tab's title or address is.
     @MainActor
-    private static func listTabs(_ browser: Browser) -> ToolResult {
+    private static func listTabs(_ browser: Browser, caller: String) -> ToolResult {
         // The tabs of every space but another profile's, which keeps its logins apart.
         let visible = browser.tabs.filter { browser.isVisibleToAI($0) }
         if visible.isEmpty { return .text("No tabs are open.") }
@@ -272,7 +275,13 @@ enum ToolCatalog {
         let named = browser.spaces.spaces.count > 1 && !browser.isPrivate
         let lines = visible.map { tab in
             let space = named ? " [\(browser.spaces.space(tab.spaceID).name)]" : ""
-            return "\(tab.id == browser.activeID ? "*" : " ") #\(tab.id)\(space) \(tab.displayTitle) — \(tab.url?.absoluteString ?? "about:blank")\(tab.isAsleep ? " (asleep)" : "")"
+            let mark = "\(tab.id == browser.activeID ? "*" : " ") #\(tab.id)\(space)"
+            guard Approvals.mayShow(tab, caller: caller) else {
+                let site = Approvals.site(of: tab.url).map { Approvals.shown($0, limit: 100).text } ?? "no page"
+                return "\(mark) (a tab on \(site); its title and address are shown once you use it and the user allows it)\(tab.isAsleep ? " (asleep)" : "")"
+            }
+            Approvals.noteRead(tab, caller: caller)
+            return "\(mark) \(tab.displayTitle) — \(tab.url?.absoluteString ?? "about:blank")\(tab.isAsleep ? " (asleep)" : "")"
         }
         return .text("Tabs (* = the one the user is looking at):\n" + lines.joined(separator: "\n"))
     }
@@ -388,16 +397,16 @@ enum Approvals {
     /// Stands for a frame that has no site to name (a sandboxed frame, one that could not be asked): a site of its own.
     static let unknownFrame = "\u{1}unknown-frame"
 
-    /// The site an address is on, as what was read and allowed is remembered: the registrable name of its host (www.example.com and
-    /// shop.example.com are one site), with the port when it isn't the scheme's own (another port is another site); a page
-    /// with no host (a file:, data: or blob: page) is a site by its scheme; nil for a blank page.
+    /// The site an address is on, as what was read and allowed is remembered: its exact host, lowercased (www.example.com and
+    /// shop.example.com are two sites, so are two sites on one hosting service), with the port when it isn't the scheme's own
+    /// (another port is another site); a page with no host (a file:, data: or blob: page) is a site by its scheme; nil for a
+    /// blank page.
     nonisolated static func site(of url: URL?) -> String? {
         guard let url else { return nil }
         let scheme = url.scheme?.lowercased() ?? ""
         guard let host = url.host()?.lowercased(), !host.isEmpty else { return scheme.isEmpty || scheme == "about" ? nil : scheme + ":" }
-        let name = Tab.registrableName(host)
-        guard let port = url.port, !(port == 443 && scheme == "https"), !(port == 80 && scheme == "http") else { return name }
-        return "\(name.contains(":") ? "[\(name)]" : name):\(port)"
+        guard let port = url.port, !(port == 443 && scheme == "https"), !(port == 80 && scheme == "http") else { return host }
+        return "\(host.contains(":") ? "[\(host)]" : host):\(port)"
     }
 
     /// The site an origin names ("https://example.com:8443"): "" for an origin that has none (a sandboxed frame, a data: page).
@@ -423,27 +432,49 @@ enum Approvals {
         return tabs[caller]?.contains(key(tab)) == true
     }
 
-    /// What the AI chose (or a page named), as a question shows it: line breaks and the characters that hide or move text are
-    /// made visible, and what doesn't fit is said to be left out, with how much, so that nothing goes unseen without the user
-    /// being told. `cut` is how many characters are not shown.
-    nonisolated static func shown(_ text: String, limit: Int = 500) -> (text: String, cut: Int) {
-        var clean = ""
+    /// What the AI chose (or a page named), as a question shows it, counted and cut by unicode scalars: line breaks and every
+    /// character that is invisible or lets text pass for other text (controls, format and default-ignorable characters,
+    /// variation selectors, tag characters, bidi controls, the Hangul fillers, the blank braille pattern) are made visible as a
+    /// box, and a base character keeps at most `maxMarks` combining marks. What doesn't fit is said to be left out, with how
+    /// much. `cut` is how many scalars are not shown, and `altered` is whether anything shown was replaced or left out of a
+    /// run of marks: the user then sees something other than what the text is, which is as good as cut.
+    nonisolated static func shown(_ text: String, limit: Int = 500) -> (text: String, cut: Int, altered: Bool) {
+        let maxMarks = 3
+        var clean: [Unicode.Scalar] = [], altered = false, marks = 0
         for scalar in text.unicodeScalars {
-            let category = scalar.properties.generalCategory
-            if category == .control || category == .lineSeparator || category == .paragraphSeparator || (category == .format && scalar.value != 0x200C && scalar.value != 0x200D) {
-                clean += scalar == "\n" || scalar == "\r" ? "⏎" : scalar == "\t" ? "⇥" : "▯"
+            let properties = scalar.properties
+            let category = properties.generalCategory
+            if scalar == "\n" || scalar == "\r" || scalar == "\t" {
+                marks = 0
+                clean.append(scalar == "\t" ? "⇥" : "⏎")
+            } else if category == .control || category == .lineSeparator || category == .paragraphSeparator || category == .format
+                        || properties.isDefaultIgnorableCodePoint || properties.isVariationSelector || properties.isBidiControl
+                        || [0x115F, 0x1160, 0x3164, 0xFFA0, 0x2800].contains(scalar.value) {
+                marks = 0
+                altered = true
+                clean.append("▯")
+            } else if category == .nonspacingMark || category == .spacingMark || category == .enclosingMark {
+                marks += 1
+                if marks <= maxMarks {
+                    clean.append(scalar)
+                } else {
+                    if marks == maxMarks + 1 { clean.append("▯") }
+                    altered = true
+                }
             } else {
-                clean.unicodeScalars.append(scalar)
+                marks = 0
+                clean.append(scalar)
             }
         }
-        let head = clean.prefix(limit)
-        return (String(head), clean.count - head.count)
+        var head = String.UnicodeScalarView()
+        head.append(contentsOf: clean.prefix(limit))
+        return (String(head), max(clean.count - limit, 0), altered)
     }
 
     /// `shown`, with the note about what was left out at its end.
-    nonisolated static func shownWithNote(_ text: String, limit: Int = 500) -> (text: String, cut: Int) {
-        let (head, cut) = shown(text, limit: limit)
-        return (cut > 0 ? head + " " + String(localized: "…(\(cut) more characters are not shown)") : head, cut)
+    nonisolated static func shownWithNote(_ text: String, limit: Int = 500) -> (text: String, cut: Int, altered: Bool) {
+        let (head, cut, altered) = shown(text, limit: limit)
+        return (cut > 0 ? head + " " + String(localized: "…(\(cut) more characters are not shown)") : head, cut, altered)
     }
 
     /// Attaching records the tab's site once; attaching or detaching others never renews it, so a tab that has since
@@ -489,7 +520,7 @@ enum Approvals {
                                 "\(shown(url.host() ?? "", limit: 100).text)\n\n\(address.text)\n\n" + String(localized: "Deny if the address carries content from another page or from the conversation."),
                                 caller: caller)
         // An address whose end was not shown is asked about each time.
-        if allowed && address.cut == 0 { urls[caller, default: []].insert(url.absoluteString) }
+        if allowed && address.cut == 0 && !address.altered { urls[caller, default: []].insert(url.absoluteString) }
         return allowed
     }
 
@@ -577,11 +608,11 @@ enum Approvals {
         let others = read.subtracting([host])
         if others.isEmpty { return true }
         // What is typed or chosen is shown whole, or said to be cut: text whose end the user can't see is asked about each time.
-        let text: (text: String, cut: Int)
+        let text: (text: String, cut: Int, altered: Bool)
         switch interaction {
         case .type(let value), .choose(let value), .act(let value): text = shownWithNote(value, limit: 500)
         }
-        let allowable = text.cut == 0 && hasSite(host)
+        let allowable = text.cut == 0 && !text.altered && hasSite(host)
         if allowable, let granted = allowances[caller]?[host], others.isSubset(of: granted) { return true }
         let target = host.isEmpty ? String(localized: "this page") : display(host)
         let sites = others.sorted().prefix(5).map(display).joined(separator: ", ")
@@ -622,9 +653,14 @@ enum Approvals {
 
     /// A long name keeps its beginning and its end, where a button says what it does.
     static func abbreviated(_ name: String, to length: Int = 80) -> String {
-        guard name.count > length else { return name }
+        let scalars = Array(name.unicodeScalars)
+        guard scalars.count > length else { return name }
         let part = (length - 3) / 2
-        return String(name.prefix(part)) + " … " + String(name.suffix(part))
+        var result = String.UnicodeScalarView()
+        result.append(contentsOf: scalars.prefix(part))
+        result.append(contentsOf: " … ".unicodeScalars)
+        result.append(contentsOf: scalars.suffix(part))
+        return String(result)
     }
 
     /// A new chat starts without anything read or allowed; other callers keep theirs.
