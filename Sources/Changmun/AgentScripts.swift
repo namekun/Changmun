@@ -466,38 +466,78 @@ extension PageScripts {
     }
     """#
 
+    /// What read_page lists and how: the elements a person can use, each with its kind, name, value and states. Shared by the
+    /// scripts that number elements.
+    static let listing = #"""
+
+    const selector = 'a[href],button,input,textarea,select,summary,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=radio],[role=option],[role=switch],[role=combobox],[role=listbox],[role=textbox],[draggable=true],[contenteditable=""],[contenteditable=true],[onclick]';
+    // Whether the element is one to list: it takes room on the page and is not hidden.
+    const listed = (el, view) => {
+      const r = el.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) return false;
+      const style = view.getComputedStyle(el);
+      return style.visibility !== 'hidden' && style.display !== 'none' && el.type !== 'hidden';
+    };
+    // What an element shows of itself: its kind, its name, its value (never a secret's) and its states, as words.
+    // A secret field shows no value and only the states that say nothing about what it holds.
+    function infoOf(el) {
+      const tag = el.localName, type = el.type || '', role = attr(el, 'role') || '', secret = isSecret(el);
+      const isButtonInput = tag === 'input' && /^(submit|button|reset|image)$/.test(type);
+      let kind = role || tag;
+      if (tag === 'input') kind = 'input[' + (type || 'text') + ']';
+      let value = null, options = null;
+      if (!secret) {
+        if ((tag === 'input' || tag === 'textarea') && !isButtonInput && !/^(checkbox|radio|file)$/.test(type) && el.value) value = clip(el.value, 60);
+        if (tag === 'select' && el.selectedOptions[0]) {
+          value = clip(el.selectedOptions[0].text, 40);
+          options = Array.from(el.options).slice(0, 20).map(o => clip(o.text, 30));
+        }
+      }
+      const states = [];
+      const aria = name => attr(el, name);
+      if (tag === 'input' && (type === 'checkbox' || type === 'radio')) states.push(el.indeterminate ? 'mixed' : el.checked ? 'checked' : 'unchecked');
+      else if (/^(checkbox|radio|switch|menuitemcheckbox|menuitemradio)$/.test(role)) states.push(aria('aria-checked') === 'true' ? 'checked' : aria('aria-checked') === 'mixed' ? 'mixed' : 'unchecked');
+      if (aria('aria-selected') === 'true') states.push('selected');
+      if (aria('aria-expanded') === 'true') states.push('expanded');
+      else if (aria('aria-expanded') === 'false') states.push('collapsed');
+      else if (tag === 'summary' && el.parentElement && el.parentElement.localName === 'details') states.push(el.parentElement.open ? 'expanded' : 'collapsed');
+      if (el.matches(':disabled') || aria('aria-disabled') === 'true') states.push('disabled');
+      if (docOf(el).activeElement === el) states.push('focused');
+      if (aria('aria-pressed') === 'true') states.push('pressed');
+      if (el.required === true || aria('aria-required') === 'true') states.push('required');
+      if (!secret) {
+        const v = el.validity;
+        if ((aria('aria-invalid') && aria('aria-invalid') !== 'false') || (el.willValidate && v && (v.badInput || v.typeMismatch || v.patternMismatch || v.rangeOverflow || v.rangeUnderflow || v.stepMismatch || v.tooLong || v.tooShort || v.customError))) states.push('invalid');
+      }
+      return {kind, label: labelOf(el), value, options, secret, states: secret ? states.filter(s => /^(disabled|focused|required)$/.test(s)) : states,
+        href: tag === 'a' ? el.href.slice(0, 120) : null};
+    }
+    // The line the AI reads for an element: its number, kind and name, then its address or value, then its states.
+    function lineOf(n, info, offscreen, framed) {
+      let extra = '';
+      if (info.href) extra = ' -> ' + info.href;
+      if (info.secret) extra = ' (password field)';
+      else if (info.options) extra = ' selected="' + info.value + '" options=[' + info.options.join(' | ') + ']';
+      else if (info.value != null) extra = ' value="' + info.value + '"';
+      return '[' + n + '] ' + info.kind + ' "' + info.label + '"' + extra + info.states.map(s => ' [' + s + ']').join('') + (offscreen ? ' (off screen)' : '') + (framed ? ' (in a frame)' : '');
+    }
+    """#
+
     /// The page's title, address, numbered interactive elements and text, as data. Also run in a frame of another site
     /// (by `start`, which numbers its elements on from the page's). The frames it can't enter are listed for the app.
-    static let read = lib + #"""
+    static let read = lib + listing + #"""
 
     registry.clear();
-    const selector = 'a[href],button,input,textarea,select,summary,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=radio],[role=option],[role=switch],[role=combobox],[role=listbox],[role=textbox],[draggable=true],[contenteditable=""],[contenteditable=true],[onclick]';
     const lines = [], frames = [];
     let n = start, capped = false;
     for (const e of docs()) {
       const view = e.doc.defaultView;
       for (const el of e.doc.querySelectorAll(selector)) {
-        const r = el.getBoundingClientRect();
-        if (r.width < 1 || r.height < 1) continue;
-        const style = view.getComputedStyle(el);
-        if (style.visibility === 'hidden' || style.display === 'none' || el.type === 'hidden') continue;
+        if (!listed(el, view)) continue;
         if (n - start >= limit) { capped = true; break; }
         registry.set(++n, new WeakRef(el));
-        const tag = el.localName;
-        const isButtonInput = tag === 'input' && /^(submit|button|reset)$/.test(el.type);
-        let kind = attr(el, 'role') || tag;
-        if (tag === 'input') kind = 'input[' + (el.type || 'text') + ']';
-        let extra = '';
-        if (tag === 'a') extra = ' -> ' + el.href.slice(0, 120);
-        const secret = isSecret(el);
-        if ((tag === 'input' || tag === 'textarea') && !secret && !isButtonInput && el.value) extra = ' value="' + el.value.slice(0, 60) + '"';
-        if (secret) extra = ' (password field)';
-        if (tag === 'select' && el.selectedOptions[0]) {
-          extra = ' selected="' + el.selectedOptions[0].text.slice(0, 40) + '" options=[' + Array.from(el.options).slice(0, 20).map(o => clip(o.text, 30)).join(' | ') + ']';
-        }
-        if (el.type === 'checkbox' || el.type === 'radio') extra = el.checked ? ' (checked)' : ' (unchecked)';
-        const inView = r.bottom > 0 && r.top < view.innerHeight ? '' : ' (off screen)';
-        lines.push('[' + n + '] ' + kind + ' "' + labelOf(el) + '"' + extra + inView + (e.frame ? ' (in a frame)' : ''));
+        const r = el.getBoundingClientRect();
+        lines.push(lineOf(n, infoOf(el), !(r.bottom > 0 && r.top < view.innerHeight), !!e.frame));
       }
       for (const f of e.doc.querySelectorAll('iframe,frame')) {
         const r = f.getBoundingClientRect();

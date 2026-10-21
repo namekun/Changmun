@@ -1346,6 +1346,44 @@ extension SharedAgentState {
             #expect((await call(tab, "read_page")).text.contains("change b"))
         }
 
+        @Test func readPageShowsTheStatesAndValuesOfElementsButNeverASecretsValue() async throws {
+            let html = """
+                <body><input type=checkbox id=c1 checked aria-label="Bacon"><input type=checkbox aria-label="Cheese"><input type=radio aria-label="Small">
+                <div role=switch aria-checked=true tabindex=0 aria-label="Dark mode">x</div>
+                <details><summary>More</summary>text</details><details open><summary>Less</summary>text</details>
+                <button disabled>Wait</button><button aria-disabled=true>Nope</button>
+                <input id=name value="Ann   Lee" required aria-label="Name"><input type=email value="not an email" aria-label="Mail">
+                <input type=text aria-invalid=true aria-label="Odd"><button aria-pressed=true>Bold</button><button aria-pressed=false>Italic</button>
+                <div role=tab aria-selected=true tabindex=0>Tab one</div><div role=tab aria-selected=false tabindex=0>Tab two</div>
+                <div role=button aria-expanded=false tabindex=0>Menu</div><div role=button aria-expanded=true tabindex=0>Open menu</div>
+                <input type=password value="hunter2" required pattern="[a-z]{20}" placeholder="Secret">
+                <textarea aria-label="Notes">first
+                second</textarea><input type=range value=7 aria-label="Level"><button>Plain</button>
+                <script>document.getElementById('name').focus()</script></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            func line(_ needle: String) -> String { read.split(separator: "\n").first { $0.contains(needle) }.map(String.init) ?? "" }
+            #expect(line("\"Bacon\"").contains("[checked]") && !line("\"Bacon\"").contains("value="))
+            #expect(line("\"Cheese\"").hasSuffix("[unchecked]") && line("\"Small\"").hasSuffix("[unchecked]"))
+            #expect(line("\"Dark mode\"").contains("[checked]"))
+            #expect(line("\"More\"").contains("[collapsed]") && line("\"Less\"").contains("[expanded]"))
+            #expect(line("\"Wait\"").contains("[disabled]") && line("\"Nope\"").contains("[disabled]"))
+            #expect(line("\"Name\"").contains("value=\"Ann Lee\"") && line("\"Name\"").contains("[focused]") && line("\"Name\"").contains("[required]"), "\(line("\"Name\""))")
+            #expect(line("\"Mail\"").contains("[invalid]") && line("\"Odd\"").contains("[invalid]") && !line("\"Name\"").contains("[invalid]"))
+            #expect(line("\"Bold\"").contains("[pressed]") && !line("\"Italic\"").contains("[pressed]"))
+            #expect(line("Tab one").contains("[selected]") && !line("Tab two").contains("[selected]"))
+            #expect(line("\"Menu\"").contains("[collapsed]") && line("\"Open menu\"").contains("[expanded]"))
+            let secret = line("(password field)")
+            #expect(secret.contains("[required]") && !secret.contains("[invalid]") && !secret.contains("hunter2") && !secret.contains("value="), "\(secret)")
+            #expect(line("\"Notes\"").contains("value=\"first second\""), "a value is kept to one line")
+            #expect(line("\"Level\"").contains("value=\"7\"") && line("\"Plain\"").hasSuffix("\"Plain\""))
+            _ = await call(tab, "click", ["element_id": try #require(id(of: "Cheese", in: read))])
+            #expect(line("\"Cheese\"").hasSuffix("[unchecked]"), "the first read is unchanged")
+            #expect((await call(tab, "read_page")).text.contains("\"Cheese\" [checked]"))
+        }
+
         @Test func anOptionIsJudgedByWhatItResolvesToNotByTheWordsAskedFor() async throws {
             let html = """
                 <body><select id=acct onchange="document.title='changed ' + this.value"><option>Profile</option><option>Delete account</option></select>
