@@ -2461,7 +2461,7 @@ extension SharedAgentState {
 
         @Test func consentAndSettingsAreAskedAboutAsSuchAndHeadlinesNever() async throws {
             let html = """
-                <body><div id=banner>We use cookies. <button id=a onclick="document.title='accepted'">Accept all</button></div>
+                <body><div id="onetrust-banner-sdk">We use cookies. <button id=a onclick="document.title='accepted'">Accept all</button></div>
                 <button id=b onclick="document.title='ordered'">Place order</button>
                 <a href="https://lab.test/#long">Why we should send fewer emails in the workplace today, a long read from our editors</a>
                 <a href="https://lab.test/#promo">Save 20% on shoes</a>
@@ -2491,8 +2491,29 @@ extension SharedAgentState {
             }
         }
 
+        @Test func onlyAKnownConsentManagersBannerOrACookieNamedButtonMakesAConsentLowTier() async throws {
+            let html = """
+                <body><div id="onetrust-banner-sdk"><button onclick="document.title='cmp'">Accept</button></div>
+                <div class="banner"><button onclick="document.title='named'">Accept cookies</button></div>
+                <div id=comments>Great cookie recipe! You are invited to the cookie club.<button onclick="document.title='invited'">Accept invitation</button></div>
+                <div id=cookie-banner class=cookie-banner aria-label="Cookie notice">We use cookies.<button onclick="document.title='plain'">Accept</button></div></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ _ in .once }) { stand in
+                let read = await call(tab, "read_page").text
+                let lines = read.split(separator: "\n").filter { $0.contains("] button ") }.compactMap(number)
+                #expect(lines.count == 4)
+                for element in lines { _ = await call(tab, "click", ["element_id": element]) }
+                // Consent manager and button named for cookies: low tier. UGC text and a page's own look-alike banner: asked every time.
+                #expect(consent(stand).count == 2 && consent(stand).map(\.detail).allSatisfy { $0.contains("“Accept”") || $0.contains("“Accept cookies”") })
+                #expect(guarded(stand).count == 2)
+                #expect(guarded(stand).contains { $0.detail.contains("“Accept invitation”") } && guarded(stand).contains { $0.detail.contains("“Accept”") })
+            }
+        }
+
         @Test func aLowTierActionIsAskedOncePerSiteForTheChatByThePanelAndEachTimeByOthers() async throws {
-            let html = "<body><div class=cookie-banner><button onclick=\"document.title='accepted'\">Accept all</button></div><button onclick=\"document.title='saved'\">Save</button><button onclick=\"document.title='ordered'\">Place order</button></body>"
+            let html = "<body><div id=onetrust-banner-sdk><button onclick=\"document.title='accepted'\">Accept all</button></div><button onclick=\"document.title='saved'\">Save</button><button onclick=\"document.title='ordered'\">Place order</button></body>"
             let (tab, window, browser) = try await page(html)
             defer { window.close(); browser.windowClosed() }
             let panel = ChatStore.caller

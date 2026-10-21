@@ -265,14 +265,20 @@ extension PageScripts {
     // Somewhere the keyboard types or chooses: a text field, a text area, an editable element, a list.
     const editableKind = e => !!e && (e.localName === 'textarea' || e.localName === 'select' || e.isContentEditable || attr(e, 'role') === 'textbox'
       || (e.localName === 'input' && /^(text|search|url|tel|email|password|number|date|datetime-local|month|week|time|)$/.test(e.type)));
-    // A cookie banner: the control, or a short stretch of the page around it, speaks of cookies. That is what makes "Accept" and
-    // "Allow" a consent to a banner and not a permission to something.
+    // A cookie banner: the control's own name speaks of cookies, or it sits in the container of a known consent manager. That is
+    // what makes "Accept" and "Allow" a consent to a banner and not a permission to something. The text around the control does not
+    // count: anyone can write "cookie" next to an "Accept invitation" button.
     const COOKIE = /cookie|쿠키|クッキー|galleta|kekse|témoin|temoin/i;
+    const CMP = '#onetrust-banner-sdk,#onetrust-consent-sdk,#CybotCookiebotDialog,#CybotCookiebotDialogBodyUnderlay,#didomi-host,#didomi-popup,.didomi-popup-container,'
+      + '.qc-cmp2-container,#qc-cmp2-ui,#truste-consent-track,#teconsent,#consent_blackbar,.osano-cm-window,.osano-cm-dialog,.cky-consent-container,.cky-consent-bar,'
+      + '#iubenda-cs-banner,.iubenda-cs-container,#usercentrics-root,#uc-center-container,[id^=sp_message_container],.cmpbox,#cmpbox';
     function inCookieBanner(ctl) {
-      let n = ctl;
-      for (let i = 0; n && n.nodeType === 1 && n !== docOf(ctl).body && i < 5; i++, n = n.parentElement) {
-        if (COOKIE.test([attr(n, 'id'), attr(n, 'class'), attr(n, 'aria-label'), attr(n, 'data-testid')].join(' '))) return true;
-        if (i > 0) { const t = n.innerText || ''; if (t.length <= 800 && COOKIE.test(t)) return true; }
+      if ([labelOf(ctl), ...namesOf(ctl)].some(t => COOKIE.test(t))) return true;
+      // Up out of shadow trees too (a consent manager draws its banner in one).
+      for (let n = ctl, i = 0; n && i < 60; i++) {
+        if (n.nodeType === 1 && n.matches(CMP)) return true;
+        const root = n.getRootNode && n.getRootNode();
+        n = n.parentElement || (root && root.host) || null;
       }
       return false;
     }
