@@ -554,15 +554,15 @@ struct BrowserTabTests {
         #expect(b.tabs.count == left)
     }
 
-    @Test func movingATabPutsItWhereItWasDropped() {
+    @Test func movingATabPutsItJustAboveTheTabItWasDroppedOn() {
         let b = browser(4)
         let (one, two, three, four) = (b.tabs[0].id, b.tabs[1].id, b.tabs[2].id, b.tabs[3].id)
         b.moveTab(one, to: three)
-        #expect(ids(b) == [two, three, one, four])
+        #expect(ids(b) == [two, one, three, four])
         b.moveTab(four, to: two)
-        #expect(ids(b) == [four, two, three, one])
+        #expect(ids(b) == [four, two, one, three])
         b.moveTab(four, to: nil)
-        #expect(ids(b) == [two, three, one, four])
+        #expect(ids(b) == [two, one, three, four])
     }
 
     @Test func closingTheShownTabGoesBackToThePreviousOne() {
@@ -1466,7 +1466,7 @@ struct TabGroupTests {
         #expect(b.tab(four)?.groupID == group)
         b.dropTab(one, on: three)
         #expect(b.tab(one)?.groupID == nil)
-        #expect(shown(b) == ["G[\(four) \(two)]", "\(three)", "\(one)"])
+        #expect(shown(b) == ["G[\(four) \(two)]", "\(one)", "\(three)"])
     }
 
     @Test func emptyGroupsGoAway() throws {

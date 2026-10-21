@@ -484,16 +484,14 @@ final class Browser: ObservableObject {
         commandBar = nil
     }
 
-    /// Moves a tab to where another one is (dropping it on that tab), or to the end.
+    /// Moves a tab to just above another one (dropping it on that tab, where the drop line shows), or to the end.
     func moveTab(_ id: Int, to target: Int?) {
         guard let from = tabs.firstIndex(where: { $0.id == id }), id != target else { return }
         let tab = tabs.remove(at: from)
-        if let target, let to = tabs.firstIndex(where: { $0.id == target }) {
-            tabs.insert(tab, at: from <= to ? to + 1 : to)
-        } else {
-            tabs.append(tab)
-        }
-        if #available(macOS 15.4, *) { ExtensionHost.shared.tabMoved(tab, from: from) }
+        let to: Int
+        if let target, let above = tabs.firstIndex(where: { $0.id == target }) { to = above } else { to = tabs.count }
+        tabs.insert(tab, at: to)
+        if to != from, #available(macOS 15.4, *) { ExtensionHost.shared.tabMoved(tab, from: from) }
     }
 
     // MARK: Find in page
@@ -770,10 +768,11 @@ final class Browser: ObservableObject {
         objectWillChange.send()
     }
 
-    /// A tab dropped on another moves there and joins that tab's group, or leaves its own.
+    /// A tab dropped on another moves just above it and joins that tab's group, or leaves its own. Tabs of
+    /// another space stay where they are.
     func dropTab(_ id: Int, on target: Int) {
+        guard let tab = tab(id), let other = self.tab(target), tab.spaceID == other.spaceID else { return }
         moveTab(id, to: target)
-        guard let tab = tab(id), let other = self.tab(target) else { return }
         tab.groupID = other.groupID
         pruneGroups()
         objectWillChange.send()
