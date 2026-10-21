@@ -513,5 +513,4 @@
 "Its tabs are closed, and the cookies, logins and site data it kept are erased. Its favorites move to “%@”. Bookmarks stay in the library." = "其标签页会被关闭，它保存的 Cookie、登录信息和网站数据会被清除。其个人收藏会移到“%@”。书签仍保留在资料库中。";
 "Save as Bookmark Folder" = "存储为书签文件夹";
 "Saved the group as a bookmark folder" = "已将群组存储为书签文件夹";
-"Added the group to Favorites" = "已将群组加入个人收藏";
 "The group has no pages to save" = "群组中没有可存储的页面";

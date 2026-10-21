@@ -1091,7 +1091,9 @@ enum SidebarDrag {
             return true
         }
         if let group = groupID(items) {
-            _ = withAnimation(Motion.standard) { browser.saveGroup(group, to: .favorites(before: target)) }
+            // Kept together as one folder, the first of the pinned ones, just below the favorites.
+            let first = browser.spaces.space(browser.spaceID).pinnedFolders.first
+            _ = withAnimation(Motion.standard) { browser.saveGroup(group, to: .pinned(before: first)) }
             return true
         }
         if let (url, folder) = bookmark(items) {

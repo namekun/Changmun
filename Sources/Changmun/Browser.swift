@@ -838,13 +838,10 @@ final class Browser: ObservableObject {
     }
 
     /// Where a group dragged up onto the bookmarks goes: a new folder pinned to the sidebar (above the pinned folder
-    /// `before`, or last), a new folder inside a bookmark folder, or each of its pages as a favorite (above `before`, or last).
+    /// `before`, or last), or a new folder inside a bookmark folder. Either way the group stays together.
     enum GroupDestination: Equatable {
         case pinned(before: String?)
         case folder(String)
-        case favorites(before: String?)
-
-        var makesFolder: Bool { if case .favorites = self { false } else { true } }
     }
 
     /// Keeps a group's pages as bookmarks and ends the group. Its tabs become those bookmarks' tabs, so nothing
@@ -867,10 +864,8 @@ final class Browser: ObservableObject {
         switch destination {
         case .pinned: folder = newFolderKey(for: group.name, in: nil, library)
         case .folder(let parent): folder = newFolderKey(for: group.name, in: parent, library)
-        case .favorites: folder = favoritesFolder
         }
         let added = pages.filter { !library.isFavorite($0.url, in: folder) }
-        let order = library.favorites(in: folder).map(\.url)
         for page in added { library.addBookmark(url: page.url, title: page.tab.title.isEmpty ? (page.tab.url?.host() ?? page.url) : page.tab.title, folder: folder) }
         var bound: [Int: String] = [:]
         for page in pages {
@@ -887,21 +882,15 @@ final class Browser: ObservableObject {
             if group.isOpen, !spaces.space(space).openFolders.contains("pin:" + folder) { opened = "pin:" + folder }
         case .folder(let parent):
             if !spaces.space(space).openFolders.contains("pin:" + parent) { opened = "pin:" + parent }
-        case .favorites(let before):
-            library.placeFavorites(pages.map(\.url), before: before, in: folder)
         }
         if let opened { spaces.toggleOpen(opened, in: space) }
-        offerUndo(destination.makesFolder ? String(localized: "Saved the group as a bookmark folder") : String(localized: "Added the group to Favorites")) { [weak self] in
-            // Only what the save did: the bookmarks it added (not what was put in the folder since), the pin and the
-            // opening it made, and the order the favorites had.
+        offerUndo(String(localized: "Saved the group as a bookmark folder")) { [weak self] in
+            // Only what the save did: the bookmarks it added (not what was put in the folder since), and the pin and
+            // the opening it made.
             for page in added { library.removeBookmark(url: page.url, folder: folder) }
             if let spaces = self?.spaces {
                 if pinned { spaces.unpinFolder(folder, in: space) }
                 if let opened, spaces.space(space).openFolders.contains(opened) { spaces.toggleOpen(opened, in: space) }
-            }
-            if !destination.makesFolder {
-                let extras = library.favorites(in: folder).map(\.url).filter { !order.contains($0) }
-                library.placeFavorites(order, before: extras.first, in: folder)
             }
             guard let self else { return }
             if !groups.contains(where: { $0.id == group.id }) { groups.append(group) }
