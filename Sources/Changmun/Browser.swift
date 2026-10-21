@@ -199,6 +199,7 @@ final class Browser: ObservableObject {
         PopupWatcher.install(in: config.userContentController)
         PictureInPictureWatcher.install(in: config.userContentController)
         FrameWatcher.install(in: config.userContentController)
+        PasswordWatcher.install(in: config.userContentController)
         ReaderWatcher.install(in: config.userContentController)
         if !Headless.isOn { LoginCapture.install(in: config.userContentController) }
         AdBlocker.shared.attach(config.userContentController)
@@ -1169,7 +1170,7 @@ final class Browser: ObservableObject {
             guard let webView = tab.webView, webView.cameraCaptureState == .none, webView.microphoneCaptureState == .none else { continue }
             webView.requestMediaPlaybackState { [weak self, weak tab] state in
                 Task { @MainActor in
-                    guard let self, let tab, !self.isShown(tab), state != .playing else { return }
+                    guard let self, let tab, !self.isShown(tab), state != .playing, !AgentActivity.shared.holds(tab) else { return }
                     tab.sleep()
                 }
             }

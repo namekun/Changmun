@@ -1,5 +1,7 @@
 import AppKit
+import Combine
 import Foundation
+import Network
 import Testing
 import WebKit
 @testable import Changmun
@@ -18,6 +20,55 @@ func waitUntil(_ seconds: Double = 5, _ condition: @MainActor () -> Bool) async 
         try? await Task.sleep(for: .milliseconds(20))
     }
     return condition()
+}
+
+/// A page server on the loopback address, for the tests of what only a real load can show.
+final class TinyServer: @unchecked Sendable {
+    private let listener: NWListener
+    private let respond: @Sendable (String, String) -> String
+    private let lock = NSLock()
+    private var seen: [String] = []
+    private(set) var port: UInt16 = 0
+
+    init(_ respond: @escaping @Sendable (String, String) -> String) async throws {
+        self.respond = respond
+        listener = try NWListener(using: .tcp, on: .any)
+        listener.newConnectionHandler = { [unowned self] connection in
+            connection.start(queue: .global())
+            connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [unowned self] data, _, _, _ in
+                let head = String(decoding: data ?? Data(), as: UTF8.self).split(separator: "\r\n").first.map(String.init) ?? ""
+                let parts = head.split(separator: " ").map(String.init)
+                let method = parts.first ?? "", path = parts.count > 1 ? String(parts[1].split(separator: "?").first ?? "") : ""
+                lock.lock(); seen.append(method); lock.unlock()
+                let body = respond(method, path)
+                let reply = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \(body.utf8.count)\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n" + body
+                connection.send(content: Data(reply.utf8), completion: .contentProcessed { _ in connection.cancel() })
+            }
+        }
+        port = try await withCheckedThrowingContinuation { continuation in
+            let once = NSLock()
+            var done = false
+            listener.stateUpdateHandler = { [unowned self] state in
+                once.lock(); defer { once.unlock() }
+                guard !done else { return }
+                switch state {
+                case .ready: done = true; continuation.resume(returning: listener.port?.rawValue ?? 0)
+                case .failed(let error): done = true; continuation.resume(throwing: error)
+                default: break
+                }
+            }
+            listener.start(queue: .global())
+        }
+    }
+
+    func url(_ path: String) -> URL { URL(string: "http://127.0.0.1:\(port)\(path)")! }
+
+    func count(_ method: String) -> Int {
+        lock.lock(); defer { lock.unlock() }
+        return seen.filter { $0 == method }.count
+    }
+
+    func stop() { listener.cancel() }
 }
 
 extension SharedAgentState {
@@ -116,6 +167,9 @@ extension SharedAgentState {
                         ["drag", "1"], ["drag", "1", "x,y"], ["drag", "1", "2,3,4"], ["wait", "--gone"], ["wait", "x", "--timeout", "0"], ["press", "Enter", "--element"]] {
                 #expect(throws: CLI.UsageError.self, "\(bad)") { try CLI.parse(bad) }
             }
+            for bad in [["click-at", "inf", "5"], ["click-at", "5", "nan"], ["click-at", "1e999", "2"], ["wait", "x", "--timeout", "inf"], ["wait", "x", "--timeout", "nan"], ["drag", "1", "inf,2"], ["drag", "nan,1", "2"]] {
+                #expect(throws: CLI.UsageError.self, "\(bad)") { try CLI.parse(bad) }
+            }
             for word in ["click-at", "press", "select", "hover", "drag", "wait"] { #expect(CLI.usage.contains("changmun \(word)")) }
         }
 
@@ -144,67 +198,83 @@ extension SharedAgentState {
     }
 
     struct IrreversibleActionTests {
-        private func risky(_ names: String..., hints: [String] = [], submits: Bool = false, payment: Bool = false, action: String = "", sends: Bool = false) -> Bool {
-            IrreversibleAction.looksIrreversible(.init(label: names.first ?? "", names: names, hints: hints, submits: submits, payment: payment, action: action, sends: sends))
+        private typealias Tier = IrreversibleAction.Tier
+
+        private func tier(_ names: String..., hints: [String] = [], submits: Bool = false, payment: Bool = false, action: String = "", sends: Bool = false, link: Bool = false, keyRisk: Bool = false) -> Tier {
+            IrreversibleAction.tier(of: .init(label: names.first ?? "", names: names, hints: hints, submits: submits, payment: payment, action: action, sends: sends, link: link, keyRisk: keyRisk))
         }
 
-        @Test func buttonsThatPayOrderSendPostDeleteTransferOrConfirmAreCaughtInSevenLanguages() {
+        private func high(_ names: String...) -> Bool { names.allSatisfy { tier($0) == .high } }
+        private func low(_ names: String...) -> Bool { names.allSatisfy { tier($0) == .low } }
+        private func none(_ names: String...) -> Bool { names.allSatisfy { tier($0) == .none } }
+
+        @Test func buttonsThatPayOrderSendPostDeleteTransferOrCancelAreTheHighTierInSevenLanguages() {
             let asked = [
-                "Buy now", "Pay $19.99", "Place order", "Place Order", "Proceed to checkout", "Check out", "Send", "Send message", "Post", "Publish", "Delete account", "Remove", "Transfer funds",
-                "Confirm", "CONFIRM PAYMENT", "Donate", "Reply",
-                "구매하기", "결제하기", "주문 완료", "보내기", "전송", "게시", "삭제", "송금",
-                "購入する", "お支払い", "注文を確定する", "送信", "投稿", "削除", "送金",
-                "立即购买", "去支付", "提交订单", "发送", "发布", "删除", "转账", "确认订单", "下單", "結算",
-                "Comprar ahora", "Pagar", "Realizar pedido", "Finalizar compra", "Enviar", "Publicar", "Eliminar", "Transferir", "Confirmar",
-                "Jetzt kaufen", "Zahlungspflichtig bestellen", "Bestellung abschicken", "Senden", "Veröffentlichen", "Löschen", "Überweisen", "Bestätigen", "Zur Kasse",
-                "Acheter", "Payer maintenant", "Passer la commande", "Envoyer", "Publier", "Supprimer", "Virement", "Confirmer", "Valider",
+                "Buy now", "Pay $19.99", "Place order", "Place Order", "Proceed to checkout", "Check out", "Send", "Send message", "Post", "Publish", "Delete account", "Transfer funds",
+                "Confirm", "CONFIRM PAYMENT", "Donate", "Tweet", "Repost", "Retweet", "Withdraw", "Deposit", "Wire transfer", "Merge pull request", "Approve",
+                "Unsubscribe", "Cancel subscription", "Cancel my order", "Cancel membership", "Cancel booking", "Close account", "Close my account", "Deactivate", "Terminate", "Revoke access",
+                "Move to Trash", "Empty trash", "Empty the bin", "Erase", "Wipe", "Delete forever", "Remove permanently", "Make a payment", "Sell", "Place bid", "Invest", "Trade",
+                "구매하기", "결제하기", "주문 완료", "보내기", "전송", "게시", "삭제", "송금", "탈퇴", "해지하기", "휴지통으로 이동", "출금", "입금", "계정 삭제",
+                "購入する", "お支払い", "注文を確定する", "送信", "投稿", "削除", "送金", "退会する", "解約", "ゴミ箱", "出金", "入金",
+                "立即购买", "去支付", "提交订单", "发送", "发布", "删除", "转账", "确认订单", "下單", "結算", "注销账户", "取消订阅", "垃圾桶", "提现", "汇款",
+                "Comprar ahora", "Pagar", "Realizar pedido", "Finalizar compra", "Enviar", "Publicar", "Eliminar", "Transferir", "Confirmar", "Papelera",
+                "Jetzt kaufen", "Zahlungspflichtig bestellen", "Bestellung abschicken", "Senden", "Veröffentlichen", "Löschen", "Überweisen", "Bestätigen", "Zur Kasse", "Papierkorb",
+                "Acheter", "Payer maintenant", "Passer la commande", "Envoyer", "Publier", "Supprimer", "Virement", "Confirmer", "Valider", "Résilier",
             ]
-            for name in asked { #expect(risky(name), "\(name)") }
+            for name in asked { #expect(tier(name) == .high, "\(name)") }
         }
 
-        @Test func theWordsAddedAfterReviewAreCaught() {
+        @Test func consentAndSettingsAreTheLowTierInSevenLanguages() {
             let asked = [
-                "Submit", "Save", "Save changes", "Share", "Comment", "Tweet", "Merge pull request", "Approve", "Authorize", "Withdraw", "Book", "Reserve", "Subscribe", "Unsubscribe",
-                "Move to Trash", "Discard", "Erase", "Revoke access", "Deactivate", "Terminate", "Empty the bin", "Cancel subscription", "Cancel my order", "Cancel membership", "Cancel booking",
-                "탈퇴", "해지하기", "제출", "신청하기", "구독", "휴지통으로 이동",
-                "退会する", "申し込み", "予約する", "解約", "ゴミ箱",
-                "提交", "注销账户", "预订", "取消订阅", "垃圾桶",
-                "Guardar", "Compartir", "Reservar", "Suscribirse", "Speichern", "Teilen", "Buchen", "Abonnieren", "Enregistrer", "Partager", "Réserver", "Soumettre",
+                "Allow", "Accept", "Accept all", "I agree", "Grant access", "Authorize", "Connect", "Disconnect", "Unlink account", "Invite", "Upload", "Install", "Enable", "Disable",
+                "Reset", "Clear all", "Empty cart", "Block", "Ban user", "Complete", "Finish", "Save", "Save changes", "Share", "Comment", "Reply", "Submit", "Remove", "Subscribe",
+                "Discard", "Book", "Book now", "Reserve", "Cookie settings: Reject and save",
+                "Permitir", "Conceder acceso", "Instalar", "Restablecer", "Bloquear", "Guardar", "Compartir", "Comentar", "Reservar", "Suscribirse", "Responder",
+                "Erlauben", "Zustimmen", "Akzeptieren", "Hochladen", "Zurücksetzen", "Sperren", "Speichern", "Teilen", "Buchen", "Abonnieren", "Entfernen",
+                "Accepter", "Autoriser", "Installer", "Réinitialiser", "Bloquer", "Terminer", "Enregistrer", "Partager", "Réserver", "Commenter",
+                "허용", "동의하고 계속", "수락", "저장", "공유", "댓글", "연결", "차단", "초기화", "설치", "등록", "예약", "완료", "구독", "제출", "신청하기",
+                "許可", "同意する", "保存", "共有", "登録", "接続", "ブロック", "リセット", "インストール", "コメント", "予約する", "完了", "返信", "申し込み",
+                "允许", "接受", "保存", "分享", "连接", "屏蔽", "重置", "安装", "完成", "评论", "预订", "订阅", "提交", "清空",
             ]
-            for name in asked { #expect(risky(name), "\(name)") }
+            for name in asked { #expect(tier(name) == .low, "\(name)") }
         }
 
-        @Test func consentAndGivingUpControlsAreCaughtInSevenLanguages() {
-            let asked = [
-                "Allow", "Accept", "I agree", "Grant access", "Connect", "Sell", "Place bid", "Invest", "Trade", "Invite", "Upload", "Install", "Enable", "Disable", "Disconnect",
-                "Unlink account", "Reset", "Clear all", "Wipe", "Empty cart", "Ban user", "Block", "Complete", "Finish",
-                "Permitir", "Conceder acceso", "Vender", "Instalar", "Restablecer", "Bloquear", "Pujar",
-                "Erlauben", "Zustimmen", "Akzeptieren", "Verkaufen", "Hochladen", "Zurücksetzen", "Sperren",
-                "Accepter", "Autoriser", "Vendre", "Installer", "Réinitialiser", "Bloquer", "Terminer",
-                "허용", "동의하고 계속", "수락", "저장", "공유", "댓글", "승인", "출금", "연결", "차단", "초기화", "설치", "등록",
-                "許可", "同意する", "保存", "共有", "登録", "承認", "出金", "接続", "ブロック", "リセット", "インストール", "コメント",
-                "允许", "接受", "保存", "分享", "批准", "提现", "连接", "屏蔽", "重置", "安装", "完成", "评论",
-            ]
-            for name in asked { #expect(risky(name), "\(name)") }
+        @Test func promotionsAndHeadlinesThatMerelyHaveAWordAreNotAsked() {
+            #expect(none("Save 20%", "Save $5 today", "Save up to 50%", "Saving 30"))
+            #expect(low("Save", "Save changes", "Save your seat"))
+            #expect(none("My orders", "Purchases", "Orders placed this year"))
         }
 
         @Test func pagesAndListsThatMerelyContainAWordAreNotAskedAbout() {
             let quiet = [
                 "게시판", "구매후기", "주문조회", "주문 내역", "결제수단", "投稿一覧", "公開日", "注文履歴", "支払い方法", "发布会", "新闻发布", "订单查询", "支付方式", "购买须知",
-                "Aceptar", "Se connecter", "Log out", "Sign out", "Continue", "Learn how", "Orders placed this year",
+                "Aceptar", "Se connecter", "Log out", "Sign out", "Continue", "Learn how",
             ]
-            for name in quiet { #expect(risky(name) == (name == "Orders placed this year"), "\(name)") }
-            #expect(risky("게시판 글 삭제") && risky("注文履歴を削除") && risky("发布会 发布"))
+            for name in quiet { #expect(tier(name) == .none, "\(name)") }
+            #expect(high("게시판 글 삭제", "注文履歴を削除", "发布会 发布"))
         }
 
-        @Test func whereAControlGoesAsksWhateverItIsCalled() {
-            func goes(_ destinations: String..., names: [String] = ["Continue"]) -> Bool {
-                IrreversibleAction.looksIrreversible(.init(label: names[0], names: names, dests: destinations))
+        @Test func whereAControlGoesIsJudgedByTheWordsOfItsAddress() {
+            func goes(_ destinations: String..., names: [String] = ["Continue"], link: Bool = false) -> Tier {
+                IrreversibleAction.tier(of: .init(label: names[0], names: names, dests: destinations, link: link))
             }
-            #expect(goes("/account/delete/confirm ") && goes("/settings action delete") && goes("action delete") && goes("/api/deleteAccount") && goes("javascript:confirmDelete()"))
-            #expect(goes("/cart/checkout") && goes("/pay/now") && goes("/messages/send") && goes("/subscriptions/42/cancel") && goes("/transfer") && goes("delete"))
-            #expect(!goes("/products/shoes", "/search q best shoes") && !goes("/borders") && !goes("/sender") && !goes("/account/settings") && !goes("sort price") && !goes())
+            #expect(goes("/account/delete/confirm ") == .high && goes("/settings action delete") == .high && goes("action delete") == .high && goes("/api/deleteAccount") == .high && goes("javascript:confirmDelete()") == .high)
+            #expect(goes("/cart/checkout") == .high && goes("/pay/now") == .high && goes("/messages/send") == .high && goes("/subscriptions/42/cancel") == .high && goes("/transfer") == .high && goes("delete") == .high)
+            #expect(goes("/products/shoes", "/search q best shoes") == .none && goes("/borders") == .none && goes("/sender") == .none && goes("/account/settings") == .none && goes("sort price") == .none && goes() == .none)
             #expect(IrreversibleAction.Facts(["dests": ["/x/delete"]]).dests == ["/x/delete"])
+        }
+
+        @Test func aLinkIsJudgedByWholeSegmentsOfItsPathNotByTheWordsOfASlug() {
+            func link(_ path: String) -> Tier { IrreversibleAction.tier(of: .init(label: "Continue", names: ["Continue"], dests: [path], link: true)) }
+            #expect(link("/checkout") == .high && link("/cart/checkout") == .high && link("/pay") == .high && link("/account/delete") == .high && link("/Checkout/") == .high && link("/api/send") == .high)
+            #expect(link("/news/why-we-should-delete-our-old-emails") == .none && link("/blog/how-to-send-a-letter") == .none && link("/2024/12/pay-gap-report") == .none)
+            #expect(link("/deleted") == .none && link("/payments-faq") == .none && link("/senders") == .none && link("/shop/shoes") == .none && link("/cancel") == .none && link("/remove") == .none && link("") == .none)
+            #expect(IrreversibleAction.linkGoesToHigh("/a/b/purchase") && !IrreversibleAction.linkGoesToHigh("/a/b/purchases") && !IrreversibleAction.linkGoesToHigh("/a/purchase-history"))
+        }
+
+        @Test func aKeyThatActsByItselfOrAMessageBoxSendingIsTheHighTier() {
+            #expect(tier("Page", keyRisk: true) == .high && tier("Message", sends: true) == .high)
+            #expect(tier("Message") == .none)
         }
 
         @Test func formsPostingToPlacesThatDeleteSendTransferOrCancelAreAsked() {
@@ -212,8 +282,8 @@ extension SharedAgentState {
                 #expect(IrreversibleAction.postsToCheckout(action), "\(action)")
             }
             for action in ["/search", "/sender", "/borders", "/post", "/login", "/account/profile", ""] { #expect(!IrreversibleAction.postsToCheckout(action), "\(action)") }
-            #expect(IrreversibleAction.looksIrreversible(.init(label: "Go", names: ["Go"], submits: true, action: "/account/delete")))
-            #expect(!IrreversibleAction.looksIrreversible(.init(label: "Go", names: ["Go"], submits: false, action: "/account/delete")))
+            #expect(tier("Go", submits: true, action: "/account/delete") == .high)
+            #expect(tier("Go", submits: false, action: "/account/delete") == .none)
         }
 
         @Test func ordinaryControlsAreNotAskedAbout() {
@@ -223,66 +293,60 @@ extension SharedAgentState {
                 "검색", "다음", "로그인", "더 보기", "장바구니 담기", "닫기", "확인", "취소",
                 "検索", "次へ", "ログイン", "詳細を見る", "カートに入れる", "確認", "確定", "キャンセル",
                 "搜索", "下一页", "登录", "了解更多", "加入购物车", "确认", "確定", "取消",
-                "Buscar", "Siguiente", "Iniciar sesión", "Añadir al carrito", "Cancelar", "Aceptar",
+                "Buscar", "Siguiente", "Iniciar sesión", "Añadir al carrito", "Cancelar",
                 "Suchen", "Weiter", "Anmelden", "In den Warenkorb", "Abbrechen",
                 "Rechercher", "Suivant", "Se connecter", "Ajouter au panier", "Annuler",
                 "", "   ",
             ]
-            for name in quiet { #expect(!risky(name), "\(name)") }
+            for name in quiet { #expect(tier(name) == .none, "\(name)") }
         }
 
         @Test func accentsWidthAndCaseDontHideAKeyword() {
-            #expect(risky("ÜBERWEISEN") && risky("uberweisen") && risky("Veuillez ENVOYER") && risky("ＢＵＹ"))
-            #expect(risky("Pay") && risky("pay") && risky("  PAY  ") && risky("Buy-now") && risky("Delete…"))
+            #expect(high("ÜBERWEISEN", "uberweisen", "Veuillez ENVOYER", "ＢＵＹ"))
+            #expect(high("Pay", "pay", "  PAY  ", "Buy-now", "Delete…"))
         }
 
         @Test func invisibleCharactersDontSplitAKeyword() {
-            #expect(risky("Bu\u{200B}y now") && risky("De\u{200C}le\u{200D}te") && risky("Pa\u{00AD}y") && risky("Se\u{2060}nd") && risky("\u{FEFF}Buy") && risky("Del\u{202E}ete"))
-            #expect(risky("삭\u{200B}제") && risky("購\u{200B}入"))
-            #expect(!risky("Sear\u{200B}ch"))
+            #expect(high("Bu\u{200B}y now", "De\u{200C}le\u{200D}te", "Pa\u{00AD}y", "Se\u{2060}nd", "\u{FEFF}Buy", "Del\u{202E}ete", "삭\u{200B}제", "購\u{200B}入"))
+            #expect(none("Sear\u{200B}ch"))
         }
 
-        @Test func aControlIsJudgedByEveryNameItHas() {
-            // The visible words are harmless, the accessible name (or the picture's alt text, or the title) is not.
-            #expect(risky("Close", "Delete everything"))
-            #expect(risky("", "Delete") && risky("Menu", "Pay now") && risky("Go", "Send message"))
-            #expect(!risky("Close", "Dismiss the notice"))
+        @Test func aControlIsJudgedByEveryNameItHasAndTheHighestTierWins() {
+            #expect(tier("Close", "Delete everything") == .high)
+            #expect(tier("", "Delete") == .high && tier("Menu", "Pay now") == .high && tier("Go", "Send message") == .high)
+            #expect(tier("Close", "Dismiss the notice") == .none)
+            #expect(tier("Accept", "Pay now") == .high && tier("Close", "Accept cookies") == .low)
         }
 
         @Test func aControlWithNoWordsIsToldByItsMarkup() {
-            #expect(risky("", hints: ["fa fa trash o"]) && risky("", hints: ["btn delete"]) && risky("", hints: ["checkout"]) && risky("", hints: ["action send"]))
-            #expect(!risky("", hints: ["btn primary", "icon chevron"]) && !risky("", hints: []))
-        }
-
-        @Test func aMessageBoxSendsWhateverTheFormSays() {
-            #expect(risky("Message", sends: true))
-            #expect(!risky("Message", sends: false))
+            #expect(tier("", hints: ["fa fa trash o"]) == .high && tier("", hints: ["btn delete"]) == .high && tier("", hints: ["checkout"]) == .high && tier("", hints: ["action send"]) == .high)
+            #expect(tier("", hints: ["btn primary", "icon save"]) == .low)
+            #expect(tier("", hints: ["btn primary", "icon chevron"]) == .none && tier("", hints: []) == .none)
         }
 
         @Test func aSubmitButtonOfAPaymentFormIsAskedAboutWhateverItSays() {
-            #expect(risky("Continue", submits: true, payment: true))
-            #expect(risky("Next", submits: true, action: "https://shop.example/checkout/confirm"))
-            #expect(risky("Go", submits: true, action: "/orders/pay"))
-            #expect(!risky("Continue", submits: false, payment: true), "a button that doesn't submit")
-            #expect(!risky("Search", submits: true, action: "https://shop.example/search"))
-            #expect(!risky("Search", submits: true, action: "https://shop.example/borders"))
-            #expect(!risky("Continue", submits: true))
+            #expect(tier("Continue", submits: true, payment: true) == .high)
+            #expect(tier("Next", submits: true, action: "https://shop.example/checkout/confirm") == .high)
+            #expect(tier("Go", submits: true, action: "/orders/pay") == .high)
+            #expect(tier("Continue", submits: false, payment: true) == .none, "a button that doesn't submit")
+            #expect(tier("Search", submits: true, action: "https://shop.example/search") == .none)
+            #expect(tier("Search", submits: true, action: "https://shop.example/borders") == .none)
+            #expect(tier("Continue", submits: true) == .none)
         }
 
-        @Test func aNameAmongSeveralMakesItRisky() {
-            #expect(risky("Message", "Send"), "Enter in a field beside a Send button")
-            #expect(!risky("Search", "Filters", "Sort"))
+        @Test func theNameShownIsTheOneThatPutTheActionInItsTier() {
             #expect(IrreversibleAction.name(of: .init(label: "Message", names: ["Message", "Send"])) == "Send")
             #expect(IrreversibleAction.name(of: .init(label: "Go", names: ["Go"])) == "Go")
             #expect(IrreversibleAction.name(of: .init(label: "", hints: ["btn delete"])) == "btn delete")
             #expect(IrreversibleAction.name(of: .init(label: "Icon", hints: ["btn delete"])) == "Icon")
+            #expect(IrreversibleAction.name(of: .init(label: "Close", names: ["Close", "Accept cookies", "Pay"]), tier: .low) == "Accept cookies")
         }
 
         @Test func factsComeFromThePagesAnswer() {
-            let facts = IrreversibleAction.Facts(["label": "Place order", "names": ["Place order"], "hints": ["x"], "dests": ["/y"], "submits": true, "payment": true, "action": "https://x/pay", "sends": true])
-            #expect(facts == .init(label: "Place order", names: ["Place order"], hints: ["x"], dests: ["/y"], submits: true, payment: true, action: "https://x/pay", sends: true))
+            let facts = IrreversibleAction.Facts(["label": "Place order", "names": ["Place order"], "hints": ["x"], "dests": ["/y"], "submits": true, "payment": true, "action": "https://x/pay", "sends": true, "link": true, "keyRisk": true])
+            #expect(facts == .init(label: "Place order", names: ["Place order"], hints: ["x"], dests: ["/y"], submits: true, payment: true, action: "https://x/pay", sends: true, link: true, keyRisk: true))
             #expect(IrreversibleAction.Facts([:]) == .init())
-            #expect(!IrreversibleAction.looksIrreversible(.init()))
+            #expect(IrreversibleAction.tier(of: .init()) == .none)
         }
 
         @Test func checkoutAddressesAreRecognisedByWholeWordsOfThePath() {
@@ -365,6 +429,69 @@ extension SharedAgentState {
             let many = ToolCatalog.shownFrames(from: list(ToolCatalog.maxShownFrames + 1))
             #expect(many?.refs.count == ToolCatalog.maxShownFrames && many?.more == true, "the frames beyond the cap are not skipped silently")
             #expect(ToolCatalog.shownFrames(from: "[{\"slot\":\"s\"}]")?.more == true, "a frame that can't be named is one more unknown")
+        }
+
+        @Test func theFirstOfferOfANameWithANumberIsTheOneKept() {
+            var frames = FrameRegistry<String>()
+            frames.expect(slot: "f1", nonce: "n1")
+            frames.offer(slot: "f1", nonce: "n1", frame: "first")
+            frames.offer(slot: "f1", nonce: "n1", frame: "second")
+            #expect(frames.frame(for: "f1") == "first" && frames.offers.count == 1)
+        }
+
+        @Test func aFloodOfOffersNobodyAskedForCantPushOutTheFramesTheReadsWaitFor() {
+            var frames = FrameRegistry<Int>()
+            for i in 0..<5 { frames.expect(slot: "real\(i)", nonce: "n") }
+            for i in 0..<5 { frames.offer(slot: "real\(i)", nonce: "n", frame: i) }
+            for i in 0..<500 { frames.offer(slot: "junk\(i)", nonce: "j\(i)", frame: -1) }
+            #expect(frames.offers.count == FrameRegistry<Int>.maxOffers)
+            let found = (0..<5).map { index in frames.frame(for: "real\(index)") }
+            #expect(found == [0, 1, 2, 3, 4], "every frame that answered is still found")
+            // Even when the room is all taken by frames the reads wait for, one more is left out and nothing that answered goes.
+            var full = FrameRegistry<Int>()
+            for i in 0..<FrameRegistry<Int>.maxOffers { full.expect(slot: "s\(i)", nonce: "n") }
+            for i in 0..<FrameRegistry<Int>.maxOffers { full.offer(slot: "s\(i)", nonce: "n", frame: i) }
+            full.offer(slot: "extra", nonce: "n", frame: -1)
+            #expect(full.offers.count == FrameRegistry<Int>.maxOffers && full.offers.first?.frame == 0 && !full.offers.contains { $0.slot == "extra" })
+        }
+
+        @Test func aFrameOfThePageNavigatingLetsGoOfTheHandlesButKeepsWhatTheReadGreetedAndTheNumbersOfTheFrames() {
+            var frames = FrameRegistry<String>()
+            frames.expect(slot: "f1", nonce: "n1")
+            frames.offer(slot: "f1", nonce: "n1", frame: "one")
+            frames.frameNavigated()
+            #expect(frames.offers.isEmpty && frames.known.isEmpty && frames.frame(for: "f1") == nil, "no handle is used for what may be another document now")
+            #expect(frames.expected == ["f1": "n1"], "a read under way still knows what it greeted")
+            frames.offer(slot: "f1", nonce: "n1", frame: "answered again")
+            #expect(frames.frame(for: "f1") == "answered again", "a frame that didn't navigate is found again when greeted")
+            var state = AgentState()
+            state.frames.expect(slot: "f1", nonce: "n1")
+            state.ranges = [(5...9, "f1")]
+            state.frameNavigated()
+            #expect(state.frames.expected == ["f1": "n1"] && state.ranges.count == 1 && state.ranges[0].slot == "f1", "the numbers of the other frames' elements are not dropped mid-read")
+            state.reset()
+            #expect(state.frames.expected.isEmpty && state.ranges.isEmpty)
+        }
+
+        @Test func aLookThatCouldNotRunIsAFrameGoneAndOneThatGotNoAnswerInTimeIsNotAnswer() {
+            #expect(ToolCatalog.look(.text("{\"found\":true,\"origin\":\"https://a.example\"}")) == .answered(["found": true, "origin": "https://a.example"]))
+            #expect(ToolCatalog.look(.text(ToolCatalog.didNotAnswer, error: true)) == .hung, "a frame that hangs may still hold the text")
+            #expect(ToolCatalog.look(.text("Error: A JavaScript exception occurred", error: true)) == .gone)
+            #expect(ToolCatalog.look(.text("Error: WKErrorDomain Code=4", error: true)) == .gone)
+            #expect(ToolCatalog.look(.text("not json")) == .hung && ToolCatalog.look(.text("[1]")) == .hung)
+        }
+
+        @Test func aReadWaitingForItsTurnEndsWhenItsTaskIsCancelled() async {
+            let gate = ReadGate()
+            let first = Task { @MainActor in await gate.run { try? await Task.sleep(for: .seconds(2)); return 1 } }
+            try? await Task.sleep(for: .milliseconds(100))
+            let waiting = Task { @MainActor in await gate.run { 2 } }
+            try? await Task.sleep(for: .milliseconds(100))
+            waiting.cancel()
+            let started = Date()
+            #expect(await waiting.value == nil && Date().timeIntervalSince(started) < 1, "it gives up instead of waiting its turn again and again")
+            #expect(await first.value == 1)
+            #expect(await gate.run { 3 } == 3, "and the gate is free after")
         }
 
         @Test func whatIsKeptIsCappedAndOldOffersGo() {
@@ -569,16 +696,16 @@ extension SharedAgentState {
                 #expect(await Approvals.allowInteraction(.type("hi"), on: tabs[1], caller: panel))
                 let typed = stand.asked.count
                 for round in 1...3 {
-                    #expect(await Approvals.allowIrreversible("Buy now", on: tabs[1], caller: panel))
+                    #expect(await Approvals.allowAction(.high, "Buy now", on: tabs[1], caller: panel))
                     #expect(stand.asked.count == typed + round, "asked in round \(round)")
                 }
                 let last = stand.asked.last
                 #expect(last?.choices == [.deny, .once], "no way to allow it for the chat")
-                #expect(last?.message.contains("Buy now") == true && last?.message.contains("shop.example") == true)
+                #expect(last?.detail.contains("“Buy now”") == true && last?.detail.hasPrefix("shop.example\n\n") == true, "the site on a line of its own, first")
             }
             await asking({ _ in .deny }) { stand in
-                #expect(!(await Approvals.allowIrreversible("Pay", on: tabs[1], caller: panel)))
-                #expect(!(await Approvals.allowIrreversible("Pay", on: tabs[1], caller: panel)))
+                #expect(!(await Approvals.allowAction(.high, "Pay", on: tabs[1], caller: panel)))
+                #expect(!(await Approvals.allowAction(.high, "Pay", on: tabs[1], caller: panel)))
                 #expect(stand.asked.count == 2)
             }
         }
@@ -609,9 +736,9 @@ extension SharedAgentState {
                 #expect(await Approvals.allowInteraction(.type("hi"), on: tabs[1], caller: "test-off"))
                 #expect(await Approvals.allowInteraction(.act("Clicking “Go”"), on: tabs[1], caller: "test-off"))
                 #expect(stand.asked.isEmpty)
-                #expect(!(await Approvals.allowIrreversible("Buy", on: tabs[1], caller: "test-off")), "what can't be undone is asked about whatever the setting says")
+                #expect(!(await Approvals.allowAction(.high, "Buy", on: tabs[1], caller: "test-off")), "what can't be undone is asked about whatever the setting says")
             }
-            #expect(stand.asked.count == 1 && stand.asked[0].message.contains("Buy"))
+            #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("Buy"))
             Approvals.forgetReads(caller: "test-off")
         }
 
@@ -645,7 +772,7 @@ extension SharedAgentState {
                 #expect(await Approvals.allowInteraction(.type("one\ntwo\n\n\n\n\n\n\n\nthree"), on: tabs[1], caller: panel))
                 let detail = stand.asked[0].detail
                 #expect(detail.contains("one⏎two⏎⏎") && detail.contains("⏎three"))
-                #expect(detail.components(separatedBy: "\n").count == 5, "only the question's own lines: \(detail)")
+                #expect(detail.components(separatedBy: "\n").count == 7, "only the question's own lines: \(detail)")
                 #expect(!detail.contains("more characters"))
                 #expect(stand.asked[0].choices == [.deny, .once, .site])
                 // A long text is said to be cut, with how much; it is asked about every time and can't be allowed for the chat.
@@ -720,18 +847,35 @@ extension SharedAgentState {
             }
         }
 
-        @Test func sitesAreToldByTheirExactHostAndPort() {
+        @Test func sitesAreToldByTheirExactHostPortAndWhetherTheyAreEncrypted() {
             func site(_ address: String) -> String? { Approvals.site(of: URL(string: address)) }
             #expect(site("https://www.example.com/a") == "www.example.com" && site("https://checkout.shop.example.com:443/") == "checkout.shop.example.com")
-            #expect(site("https://shop.example.co.uk/") == "shop.example.co.uk" && site("http://Example.COM:80/") == "example.com")
+            #expect(site("https://shop.example.co.uk/") == "shop.example.co.uk" && site("http://Example.COM:80/") == "http://example.com")
             #expect(site("https://www.example.com/") != site("https://shop.example.com/") && site("https://example.com/") != site("https://www.example.com/"), "no host stands for another")
-            #expect(site("http://localhost:18401/") == "localhost:18401" && site("http://localhost:18402/") == "localhost:18402" && site("http://localhost/") == "localhost")
-            #expect(site("http://127.0.0.1:18401/") == "127.0.0.1:18401" && site("http://[::1]:18401/") == "[::1]:18401" && site("http://[::1]/") == "::1")
+            #expect(site("http://example.com/") != site("https://example.com/") && site("http://example.com:8080/") == "http://example.com:8080", "http and https are two sites")
+            #expect(site("http://localhost:18401/") == "http://localhost:18401" && site("http://localhost:18402/") == "http://localhost:18402" && site("http://localhost/") == "http://localhost")
+            #expect(site("http://127.0.0.1:18401/") == "http://127.0.0.1:18401" && site("http://[::1]:18401/") == "http://[::1]:18401" && site("http://[::1]/") == "http://[::1]")
             #expect(site("https://a.github.io/") == "a.github.io" && site("https://b.github.io/") != site("https://a.github.io/"), "people sharing a host are not one site")
             #expect(site("file:///Users/me/secret.html") == "file:" && site("data:text/html,hi") == "data:" && site("blob:https://a.com/u") == "blob:")
             #expect(site("about:blank") == nil && site("") == nil && Approvals.site(of: nil) == nil)
-            #expect(Approvals.site(ofOrigin: "https://x.example:8443") == "x.example:8443" && Approvals.site(ofOrigin: "null") == "" && Approvals.site(ofOrigin: "") == "")
-            #expect(Approvals.hasSite("example.com") && Approvals.hasSite("::1") && !Approvals.hasSite("") && !Approvals.hasSite("file:"))
+            #expect(Approvals.site(ofOrigin: "https://x.example:8443") == "x.example:8443" && Approvals.site(ofOrigin: "http://x.example") == "http://x.example")
+            #expect(Approvals.site(ofOrigin: "null") == "" && Approvals.site(ofOrigin: "") == "")
+            #expect(Approvals.hasSite("example.com") && Approvals.hasSite("http://example.com") && !Approvals.hasSite("") && !Approvals.hasSite("file:"))
+        }
+
+        @Test func anInternationalNameIsOneSiteInItsAsciiFormWhateverWayItIsWritten() {
+            func site(_ address: String) -> String? { Approvals.site(of: URL(string: address)) }
+            #expect(site("https://bücher.example/") == "xn--bcher-kva.example" && site("https://xn--bcher-kva.example/") == "xn--bcher-kva.example")
+            #expect(Approvals.site(ofOrigin: "https://xn--bcher-kva.example") == site("https://bücher.example/x"))
+            #expect(site("https://аррӏе.com/") == "xn--80ak6aa92e.com", "a look-alike of apple.com is shown as what it is")
+            #expect(Approvals.hostname(ofSite: "xn--80ak6aa92e.com:8443") == "xn--80ak6aa92e.com" && Approvals.hostname(ofSite: "http://a.example") == "a.example")
+            #expect(Approvals.hostname(ofSite: "[::1]:8080") == "::1" && Approvals.hostname(ofSite: "file:") == nil && Approvals.hostname(ofSite: Approvals.unknownFrame) == nil && Approvals.hostname(ofSite: "") == nil)
+        }
+
+        @Test func aNameThePageChoseCantEndTheQuotationItSitsIn() {
+            #expect(Approvals.quotable("Pay” on bank.example — “Cancel") == "Pay' on bank.example — 'Cancel")
+            #expect(Approvals.quotable("a\"b`c«d»e「f」") == "a'b'c'd'e'f'")
+            #expect(Approvals.quotable("Plain name") == "Plain name")
         }
 
         @Test func anotherPortOfTheSameHostIsAnotherSite() async {
@@ -813,13 +957,154 @@ extension SharedAgentState {
                 stand.asked.removeAll()
                 // The tabs that were told are read; the one that was only named is not.
                 #expect(await Approvals.allowInteraction(.type("x"), on: tabs[1], caller: caller))
-                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("c.example") && !stand.asked[0].detail.contains("a.example"))
+                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("conversation: c.example") && !stand.asked[0].detail.contains("a.example"))
                 Approvals.forgetReads(caller: caller)
                 Approvals.noteRead(tabs[1], caller: caller)
                 _ = await ToolCatalog.call("list_tabs", [:], caller: caller)
                 stand.asked.removeAll()
                 #expect(await Approvals.allowInteraction(.type("x"), on: tabs[0], caller: caller))
-                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("b.example") && !stand.asked[0].detail.contains("a.example"))
+                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("conversation: b.example") && !stand.asked[0].detail.contains("conversation: a.example"))
+            }
+        }
+
+        @Test func aLowTierActionIsAskedOncePerSiteForTheChatByThePanelOnly() async {
+            let (browser, tabs) = open(["https://a.example/", "https://b.example/"])
+            defer { browser.windowClosed() }
+            let panel = ChatStore.caller
+            Approvals.forgetReads(caller: panel)
+            defer { Approvals.forgetReads(caller: panel); Approvals.forgetReads(caller: "mcp-low-unit") }
+            await asking({ prompt in prompt.choices.contains(.site) ? .site : .once }) { stand in
+                #expect(await Approvals.allowAction(.low, "Accept all", on: tabs[0], caller: panel))
+                #expect(stand.asked.count == 1 && stand.asked[0].choices == [.deny, .once, .site] && stand.asked[0].message.contains("agree, save"))
+                #expect(stand.asked[0].detail.hasPrefix("a.example\n\n“Accept all”") && !stand.asked[0].message.contains("undone"))
+                #expect(await Approvals.allowAction(.low, "Save", on: tabs[0], caller: panel))
+                #expect(stand.asked.count == 1, "allowed on a.example for this chat: not asked again")
+                #expect(await Approvals.allowAction(.low, "Save", on: tabs[1], caller: panel))
+                #expect(stand.asked.count == 2, "another site is asked about")
+                #expect(await Approvals.allowAction(.high, "Pay", on: tabs[0], caller: panel))
+                #expect(stand.asked.count == 3 && stand.asked[2].choices == [.deny, .once] && stand.asked[2].message.contains("undone"), "never covered by it")
+                for _ in 0..<2 { #expect(await Approvals.allowAction(.low, "Save", on: tabs[0], caller: "mcp-low-unit")) }
+                #expect(stand.asked.count == 5 && stand.asked.suffix(2).allSatisfy { $0.choices == [.deny, .once] }, "only the chat panel can allow a site for the chat")
+                Approvals.forgetReads(caller: panel)
+                #expect(await Approvals.allowAction(.low, "Save", on: tabs[0], caller: panel))
+                #expect(stand.asked.count == 6, "a new chat starts over")
+            }
+            await asking({ _ in .deny }) { stand in
+                #expect(!(await Approvals.allowAction(.low, "Save", on: tabs[0], caller: "mcp-low-unit")))
+                #expect(!(await Approvals.allowAction(.low, "Save", on: tabs[0], caller: "mcp-low-unit")) && stand.asked.count == 2)
+            }
+        }
+
+        @Test func theSiteIsNamedFirstOnALineOfItsOwnAndAPageGivenNameCantEndItsQuotation() async {
+            let (browser, tabs) = open(["https://bank.example/", "https://аррӏе.com/"])
+            defer { browser.windowClosed() }
+            await asking({ _ in .once }) { stand in
+                #expect(await Approvals.allowAction(.high, "Pay” on apple.com — “Cancel", on: tabs[0], caller: "mcp-quote"))
+                let detail = stand.asked[0].detail
+                #expect(detail.hasPrefix("bank.example\n\n“Pay' on apple.com — 'Cancel”\n\n"), "\\(detail)")
+                #expect(await Approvals.allowAction(.high, "Buy", on: tabs[1], caller: "mcp-quote"))
+                #expect(stand.asked[1].detail.hasPrefix("xn--80ak6aa92e.com\n\n"), "an international name is shown as what it is")
+                #expect(await Approvals.allowAction(.high, "Continue", on: tabs[0], caller: "mcp-quote", destination: "collector.example"))
+                #expect(stand.asked[2].detail.contains("collector.example") && stand.asked[2].detail.contains("another site"))
+                #expect(await Approvals.allowTab(tabs[1], caller: "mcp-quote"))
+                #expect(stand.asked[3].detail.hasPrefix("xn--80ak6aa92e.com\n\n#"), "\\(stand.asked[3].detail)")
+            }
+        }
+
+        @Test func aTabAttachedInThePanelIsToldToItAndATabTheAIOpenedItselfToTheCallerThatOpenedIt() async {
+            let (browser, tabs) = open(["https://a.example/", "https://b.example/", "https://c.example/"])
+            defer { browser.windowClosed(); Approvals.detachAll() }
+            browser.activate(tabs[0].id)
+            let panel = ChatStore.caller
+            #expect(!Approvals.mayShow(tabs[1], caller: panel))
+            Approvals.attach(tabs[1])
+            #expect(Approvals.mayShow(tabs[1], caller: panel) && !Approvals.mayShow(tabs[1], caller: "mcp-attach"))
+            tabs[1].url = URL(string: "https://elsewhere.example/")
+            #expect(!Approvals.mayShow(tabs[1], caller: panel), "an attached tab that moved to another site is not told")
+            Approvals.detachAll()
+            await asking({ _ in .deny }) { stand in
+                #expect(!Approvals.mayShow(tabs[2], caller: "mcp-open"))
+                Approvals.allowOpened(tabs[2], at: URL(string: "https://c.example/start")!, caller: "mcp-open")
+                #expect(Approvals.mayShow(tabs[2], caller: "mcp-open") && !Approvals.mayShow(tabs[2], caller: "mcp-other"))
+                #expect(await Approvals.allowTab(tabs[2], caller: "mcp-open") && stand.asked.isEmpty, "the caller that opened it is not asked about it")
+                tabs[2].url = URL(string: "https://redirected.example/")
+                #expect(!Approvals.mayShow(tabs[2], caller: "mcp-open"), "a site it was not opened on is asked about")
+            }
+        }
+
+        @Test func closingATabTheCallerMayNotUseAsksFirst() async {
+            let (browser, tabs) = open(["https://a.example/", "https://b.example/", "https://c.example/"])
+            defer { browser.windowClosed() }
+            browser.activate(tabs[0].id)
+            await asking({ _ in .deny }) { stand in
+                let refused = await ToolCatalog.call("close_tab", ["tab_id": tabs[1].id], caller: "mcp-close")
+                #expect(refused.isError && stand.asked.count == 1 && stand.asked[0].detail.hasPrefix("b.example\n\n"))
+                #expect(browser.tabs.contains { $0.id == tabs[1].id }, "still open")
+            }
+            await asking({ _ in .once }) { stand in
+                let closed = await ToolCatalog.call("close_tab", ["tab_id": tabs[2].id], caller: "mcp-close-2")
+                let gone = !browser.tabs.contains { $0.id == tabs[2].id }
+                #expect(!closed.isError && stand.asked.count == 1 && gone)
+                let own = await ToolCatalog.call("close_tab", ["tab_id": tabs[0].id], caller: "mcp-close-2")
+                #expect(!own.isError && stand.asked.count == 1, "the tab in front is the user's to see being closed")
+            }
+        }
+
+        @Test func anAddressVisitedBeforeIsFreeOnlyIfItsSiteWasNotReadInThisChatAndTheVisitIsOlderThanTheChat() async {
+            let (browser, tabs) = open(["https://old.example/page", "https://fresh.example/"])
+            defer { browser.windowClosed() }
+            let caller = "mcp-known"
+            let old = URL(string: "https://old.example/page?a=1")!, recent = URL(string: "https://fresh.example/page?b=2")!
+            Library.shared.recordVisit(url: old.absoluteString, title: "old", at: Date(timeIntervalSinceNow: -7200))
+            Approvals.forgetReads(caller: caller)
+            defer { Approvals.forgetReads(caller: caller) }
+            Library.shared.recordVisit(url: recent.absoluteString, title: "recent", at: Date(timeIntervalSinceNow: 60))
+            await asking({ _ in .once }) { stand in
+                #expect(await Approvals.allowNavigation(old, caller: caller))
+                #expect(stand.asked.isEmpty, "visited long before the chat, on a site it has not read")
+                #expect(await Approvals.allowNavigation(recent, caller: caller))
+                #expect(stand.asked.count == 1, "a visit since the chat began is not 'visited before'")
+                Approvals.noteRead(tabs[0], caller: caller)
+                #expect(await Approvals.allowNavigation(old, caller: caller))
+                #expect(stand.asked.count == 2, "the AI read old.example in this chat: what it read could be in the address")
+            }
+        }
+
+        @Test func theFrontTabsTitleAndAddressSentWithAMessageCountAsRead() async {
+            let (browser, tabs) = open(["https://front.example/", "https://other.example/"])
+            defer { browser.windowClosed(); Approvals.forgetReads(caller: ChatStore.caller) }
+            browser.activate(tabs[0].id)
+            let panel = ChatStore.caller
+            Approvals.forgetReads(caller: panel)
+            let chat = ChatStore()
+            chat.noteAttachedRead()
+            await asking({ _ in .once }) { stand in
+                #expect(await Approvals.allowInteraction(.type("x"), on: tabs[1], caller: panel))
+                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("conversation: front.example"))
+            }
+        }
+
+        @Test func aFrameOfASiteTheAdBlockerBlocksIsNoSiteReadFrom() async {
+            let (browser, tabs) = open(["https://news.example/"])
+            defer { browser.windowClosed() }
+            let before = AdBlocker.shared.blockedHosts
+            AdBlocker.shared.blockedHosts = ["adserver.example", "tracker.test"]
+            defer { AdBlocker.shared.blockedHosts = before; Approvals.forgetReads(caller: "mcp-ads") }
+            #expect(AdBlocker.shared.blocks("adserver.example", onPage: "news.example") && AdBlocker.shared.blocks("ads.eu.adserver.example", onPage: "news.example"))
+            #expect(!AdBlocker.shared.blocks("example", onPage: "news.example") && !AdBlocker.shared.blocks("notadserver.example", onPage: nil) && !AdBlocker.shared.blocks("pay.example", onPage: nil))
+            let off = Preferences.shared.adBlockAllowlist
+            Preferences.shared.adBlockAllowlist = ["news.example"]
+            #expect(!AdBlocker.shared.blocks("adserver.example", onPage: "news.example"), "blocking is off for the page's own site: its frames load")
+            Preferences.shared.adBlockAllowlist = off
+            await asking({ _ in .once }) { stand in
+                Approvals.noteFrameRead(tabs[0], readHost: "adserver.example", caller: "mcp-ads")
+                Approvals.noteFrameRead(tabs[0], readHost: "tracker.test:8443", caller: "mcp-ads")
+                #expect(await Approvals.allowInteraction(.act("Clicking “Go”"), on: tabs[0], caller: "mcp-ads"))
+                #expect(stand.asked.isEmpty, "advertisements and trackers are not a site the AI read from")
+                Approvals.noteFrameRead(tabs[0], readHost: "pay.example", caller: "mcp-ads")
+                Approvals.noteFrameRead(tabs[0], readHost: Approvals.unknownFrame, caller: "mcp-ads")
+                #expect(await Approvals.allowInteraction(.act("Clicking “Go”"), on: tabs[0], caller: "mcp-ads"))
+                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("pay.example"), "any other frame is")
             }
         }
 
@@ -829,12 +1114,12 @@ extension SharedAgentState {
             await asking({ _ in .once }) { stand in
                 stand.holds = true
                 // The stop of another caller leaves it alone.
-                async let answer = Approvals.allowIrreversible("Buy", on: tabs[0], caller: "mcp-hold")
+                async let answer = Approvals.allowAction(.high, "Buy", on: tabs[0], caller: "mcp-hold")
                 #expect(await waitUntil { stand.asked.count == 1 })
                 AgentActivity.shared.cancel(caller: "mcp-someone-else")
                 Approvals.release(.once)
                 #expect(await answer, "released with yes by the user")
-                async let stopped = Approvals.allowIrreversible("Buy", on: tabs[0], caller: "mcp-hold")
+                async let stopped = Approvals.allowAction(.high, "Buy", on: tabs[0], caller: "mcp-hold")
                 #expect(await waitUntil { stand.asked.count == 2 })
                 AgentActivity.shared.cancel(caller: "mcp-hold")
                 #expect(!(await stopped), "withdrawn as no")
@@ -908,16 +1193,16 @@ extension SharedAgentState {
             #expect(!AgentActivity.shared.holds(tabs[0]), "back to normal when the run ends")
         }
 
-        @Test func atMostThreeTabsAreKeptDrawingTheMostRecentlyUsed() {
+        @Test func theTabsInUseAreListedTheMostRecentlyUsedFirstAndAllKeptAwake() {
             let (b, tabs) = browser(tabs: (0..<5).map { "https://held\($0).example/" })
             defer { b.windowClosed() }
             AgentActivity.shared.runStarted()
             defer { AgentActivity.shared.runEnded() }
             for tab in tabs { AgentActivity.shared.use(tab, caller: ChatStore.caller) }
-            #expect(AgentActivity.shared.held == tabs.suffix(3).reversed().map(\.id), "the three used last, the latest first")
-            #expect(tabs.allSatisfy { AgentActivity.shared.holds($0) }, "all of them are still kept awake")
+            #expect(AgentActivity.shared.held == tabs.reversed().map(\.id), "all of them, the latest first: the view that keeps them takes the first few left after the page in front")
+            #expect(tabs.allSatisfy { AgentActivity.shared.holds($0) }, "all of them are kept awake")
             AgentActivity.shared.use(tabs[0], caller: ChatStore.caller)
-            #expect(AgentActivity.shared.held.first == tabs[0].id && AgentActivity.shared.held.count == AgentActivity.maxHeld)
+            #expect(AgentActivity.shared.held.first == tabs[0].id && AgentActivity.shared.held.count == tabs.count)
         }
 
         @Test func aTabInUseIsNeitherArchivedNorPutToSleep() async throws {
@@ -1030,7 +1315,10 @@ extension SharedAgentState {
         }
 
         /// The question the guard asks before something that can't be undone, apart from the others about using a tab.
-        private func guarded(_ stand: Approvals.Stand) -> [Approvals.Prompt] { stand.asked.filter { $0.message.contains("press") } }
+        private nonisolated static func isHigh(_ prompt: Approvals.Prompt) -> Bool { prompt.message.contains("undone") }
+        private nonisolated static func isLow(_ prompt: Approvals.Prompt) -> Bool { prompt.message.contains("agree, save") }
+        private func guarded(_ stand: Approvals.Stand) -> [Approvals.Prompt] { stand.asked.filter(Self.isHigh) }
+        private func consent(_ stand: Approvals.Stand) -> [Approvals.Prompt] { stand.asked.filter(Self.isLow) }
 
         private static let form = """
             <body><h1>Lab</h1>
@@ -1074,13 +1362,13 @@ extension SharedAgentState {
                 """
             let (tab, window, browser) = try await page(html)
             defer { window.close(); browser.windowClosed() }
-            try await asking({ prompt in prompt.message.contains("press") ? .deny : .once }) { stand in
+            try await asking({ prompt in Self.isHigh(prompt) ? .deny : .once }) { stand in
                 let read = await call(tab, "read_page").text
                 let select = try #require(id(ofKind: "select", in: read))
                 // "Account" names one option, whose text is "Delete account": asked about by that, and refused.
                 let refused = await call(tab, "select_option", ["element_id": select, "option": "Account"])
                 #expect(refused.failed && refused.text.contains("declined"))
-                #expect(guarded(stand).count == 1 && guarded(stand)[0].message.contains("Delete account"))
+                #expect(guarded(stand).count == 1 && guarded(stand)[0].detail.contains("Delete account"))
                 #expect(await evaluate(tab, "return document.getElementById('acct').value") == "Profile", "nothing was chosen")
                 // An option that is only an option is chosen without the guard.
                 #expect(!(await call(tab, "select_option", ["element_id": select, "option": "Profile"])).failed)
@@ -1090,7 +1378,7 @@ extension SharedAgentState {
                 let combo = try #require(id(of: "Actions", in: read))
                 let wipe = await call(tab, "select_option", ["element_id": combo, "option": "Erase"])
                 #expect(wipe.failed && wipe.text.contains("declined"))
-                #expect(guarded(stand).count == 2 && guarded(stand)[1].message.contains("Erase it"))
+                #expect(guarded(stand).count == 2 && guarded(stand)[1].detail.contains("Erase it"))
                 #expect(await evaluate(tab, "return document.title") != "wiped")
                 let keep = await call(tab, "select_option", ["element_id": combo, "option": "Keep"])
                 #expect(!keep.failed)
@@ -1098,7 +1386,7 @@ extension SharedAgentState {
 
                 let menu = try #require(id(of: "Delete menu", in: read))
                 let opening = await call(tab, "select_option", ["element_id": menu, "option": "Fine"])
-                #expect(opening.failed && guarded(stand).count == 3 && guarded(stand)[2].message.contains("Delete menu"))
+                #expect(opening.failed && guarded(stand).count == 3 && guarded(stand)[2].detail.contains("Delete menu"))
                 #expect(await evaluate(tab, "return document.getElementById('lb2').style.display") != "block", "the refused opening click didn't happen")
             }
         }
@@ -1112,13 +1400,13 @@ extension SharedAgentState {
             defer { window.close(); browser.windowClosed() }
             // The option is asked about as the destructive thing it says it is; while the user thinks, the page swaps its words.
             try await asking({ prompt in
-                if prompt.message.contains("press") { tab.webView?.evaluateJavaScript("document.getElementById('opt').textContent='Keep it'") }
+                if Self.isHigh(prompt) { tab.webView?.evaluateJavaScript("document.getElementById('opt').textContent='Keep it'") }
                 return .once
             }) { stand in
                 let read = await call(tab, "read_page").text
                 let combo = try #require(id(of: "Actions", in: read))
                 let result = await call(tab, "select_option", ["element_id": combo, "option": "Erase"])
-                #expect(guarded(stand).count == 1 && guarded(stand)[0].message.contains("Erase it"))
+                #expect(guarded(stand).count == 1 && guarded(stand)[0].detail.contains("Erase it"))
                 #expect(result.failed && result.text.contains("changed"), "\(result.text)")
                 #expect(!tab.title.hasPrefix("chosen"), "the option was not clicked")
             }
@@ -1146,7 +1434,7 @@ extension SharedAgentState {
                 let buy = try #require(id(of: "Buy now", in: read)), cart = try #require(id(of: "Add to cart", in: read))
                 let refused = await call(tab, "press_key", ["key": "Enter", "element_id": buy])
                 #expect(refused.failed && refused.text.contains("declined"))
-                #expect(guarded(stand).count == 1 && guarded(stand)[0].message.contains("Buy now"))
+                #expect(guarded(stand).count == 1 && guarded(stand)[0].detail.contains("Buy now"))
                 let clickRefused = await call(tab, "click", ["element_id": buy])
                 #expect(clickRefused.failed && guarded(stand).count == 2)
 
@@ -1187,7 +1475,8 @@ extension SharedAgentState {
                     _ = await call(tab, "click", ["element_id": element])
                     asked.append(guarded(stand).count > before)
                 }
-                #expect(asked == [true, true, true, true, true, false, false, true, true], "\(asked)")
+                #expect(asked == [true, true, true, true, true, false, false, false, true], "\(asked)")
+                #expect(consent(stand).count == 1 && consent(stand)[0].detail.contains("Remove everything"), "a name by aria-labelledby is a consent or a setting, not a loss")
             }
         }
 
@@ -1218,33 +1507,33 @@ extension SharedAgentState {
             try await asking({ _ in .deny }) { stand in
                 let read = await call(tab, "read_page").text
                 let lines = read.split(separator: "\n").filter { $0.hasPrefix("[") && !$0.contains("--- ") }
-                @MainActor func asks(_ line: Substring) async -> Bool {
-                    let before = guarded(stand).count
+                @MainActor func asks(_ line: Substring) async -> IrreversibleAction.Tier {
+                    let before = (guarded(stand).count, consent(stand).count)
                     if line.contains("] select ") {
                         _ = await call(tab, "select_option", ["element_id": number(of: line) ?? 0, "option": "Orders"])
                         _ = await call(tab, "select_option", ["element_id": number(of: line) ?? 0, "option": "Order by price"])
                     } else {
                         _ = await call(tab, "click", ["element_id": number(of: line) ?? 0])
                     }
-                    return guarded(stand).count > before
+                    return guarded(stand).count > before.0 ? .high : consent(stand).count > before.1 ? .low : .none
                 }
-                var results: [(line: String, asked: Bool)] = []
+                var results: [(line: String, asked: IrreversibleAction.Tier)] = []
                 for line in lines { results.append((String(line.drop { $0 != " " }), await asks(line))) }
-                func asked(_ part: String) -> Bool? { results.first { $0.line.contains(part) }?.asked }
-                #expect(asked("Best way to save") == false, "a headline link is judged by its first words: \(results)")
-                #expect(asked("게시판") == false)
-                #expect(asked("Card title") == false, "a card is not named after the button on it")
-                #expect(asked("\"Save\"") == true, "the button on it is")
-                #expect(asked("Save my info") == false, "a checkbox is named by what it holds")
-                #expect(asked("Order number") == false)
-                #expect(asked("select") == true, "the options of a list in a form are judged by their names too")
-                #expect(asked(" a \"Orders\"") == true, "a link called Orders is still asked about")
-                #expect(asked("Continue") == true, "where the link goes")
-                #expect(asked("\"Go\"") == true, "a button's name and value")
-                #expect(asked("\"Next\"") == true, "the form it submits")
-                #expect(asked("\"Allow\"") == true && asked("\"Accept\"") == true)
+                func asked(_ part: String) -> IrreversibleAction.Tier? { results.first { $0.line.contains(part) }?.asked }
+                #expect(asked("Best way to save") == IrreversibleAction.Tier.none, "a headline link is never asked about: \(results)")
+                #expect(asked("게시판") == IrreversibleAction.Tier.none)
+                #expect(asked("Card title") == IrreversibleAction.Tier.none, "a card is not named after the button on it")
+                #expect(asked("\"Save\"") == .low, "the button on it is, as a save")
+                #expect(asked("Save my info") == IrreversibleAction.Tier.none, "a checkbox is named by what it holds")
+                #expect(asked("Order number") == IrreversibleAction.Tier.none)
+                #expect(asked("select") == .high, "the options of a list in a form are judged by their names too")
+                #expect(asked(" a \"Orders\"") == IrreversibleAction.Tier.none, "a link to the orders is a navigation")
+                #expect(asked("Continue") == .high, "where the link goes: a whole segment of its path")
+                #expect(asked("\"Go\"") == .high, "a button's name and value")
+                #expect(asked("\"Next\"") == .high, "the form it submits")
+                #expect(asked("\"Allow\"") == .low && asked("\"Accept\"") == .low)
                 let icons = results.filter { $0.line.hasPrefix(" button \"\"") }.map(\.asked)
-                #expect(icons == [true, true, true, false], "the three icons by the picture they show, not the one with nothing: \(results)")
+                #expect(icons == [.high, .high, .high, .none], "the three icons by the picture they show, not the one with nothing: \(results)")
             }
         }
 
@@ -1258,7 +1547,7 @@ extension SharedAgentState {
             defer { window.close(); browser.windowClosed() }
             await asking({ _ in .deny }) { stand in
                 let refused = await call(tab, "click_at", ["x": 150, "y": 70])
-                #expect(refused.failed && guarded(stand).count == 1 && guarded(stand)[0].message.contains("Place order"))
+                #expect(refused.failed && guarded(stand).count == 1 && guarded(stand)[0].detail.contains("Place order"))
                 #expect(tab.title != "ordered")
                 let text = await call(tab, "click_at", ["x": 150, "y": 160])
                 #expect(!text.failed && guarded(stand).count == 1, "a box of text is not a button named after its words")
@@ -1306,7 +1595,7 @@ extension SharedAgentState {
                 let cont = guarded(stand).count
                 _ = await call(tab, "click", ["element_id": try #require(id(of: "Continue", in: read))])
                 #expect(guarded(stand).count == cont + 1)
-                #expect(guarded(stand).last?.message.contains("Continue") == true)
+                #expect(guarded(stand).last?.detail.contains("Continue") == true)
                 #expect(!["checkout-sent", "two-sent", "clobbered-sent", "card-sent", "area-sent", "elements-sent"].contains(await evaluate(tab, "return document.title")))
             }
         }
@@ -1339,7 +1628,7 @@ extension SharedAgentState {
             defer { window.close(); browser.windowClosed() }
             // The button is what was asked about. While the question is open the page swaps its meaning.
             try await asking({ prompt in
-                if prompt.message.contains("press") { tab.webView?.evaluateJavaScript("document.getElementById('buy').setAttribute('aria-label', 'Something else'); document.getElementById('buy').textContent = 'Something else'") }
+                if Self.isHigh(prompt) { tab.webView?.evaluateJavaScript("document.getElementById('buy').setAttribute('aria-label', 'Something else'); document.getElementById('buy').textContent = 'Something else'") }
                 return .once
             }) { stand in
                 let read = await call(tab, "read_page").text
@@ -1458,7 +1747,7 @@ extension SharedAgentState {
                 // The element that really has the focus after its own click is still the one pressed, and judged.
                 let buy = try #require(id(of: "Buy now", in: read))
                 let third = await call(tab, "press_key", ["key": "Enter", "element_id": buy])
-                #expect(third.failed && guarded(stand).count == 1 && guarded(stand)[0].message.contains("Buy now"))
+                #expect(third.failed && guarded(stand).count == 1 && guarded(stand)[0].detail.contains("Buy now"))
                 #expect(await evaluate(tab, "return document.title") != "bought")
             }
         }
@@ -1541,7 +1830,7 @@ extension SharedAgentState {
                 let box = try #require(id(of: "Remember me", in: read))
                 let pressed = await call(tab, "press_key", ["key": "Enter", "element_id": box])
                 #expect(!pressed.failed, "\(pressed.text)")
-                #expect(guarded(stand).count == 1 && guarded(stand)[0].message.contains("Send it"), "judged as the form's button, not as the box")
+                #expect(guarded(stand).count == 1 && guarded(stand)[0].detail.contains("Send it"), "judged as the form's button, not as the box")
                 let off = await evaluate(tab, "return document.getElementById('c').checked")
                 #expect(off == "0" || off == "false", "Enter did not toggle it")
                 #expect(await waitUntil { tab.title == "sent" })
@@ -1607,7 +1896,7 @@ extension SharedAgentState {
         @Test func aPasswordFieldIsOffLimitsToEveryTool() async throws {
             let (tab, window, browser) = try await page(Self.form)
             defer { window.close(); browser.windowClosed() }
-            try await asking({ prompt in prompt.message.contains("press") ? .deny : .once }) { _ in
+            try await asking({ prompt in Self.isHigh(prompt) ? .deny : .once }) { _ in
                 let read = await call(tab, "read_page").text
                 #expect(read.contains("(password field)") && !read.contains("hunter2"))
                 let field = try #require(id(of: "Secret", in: read))
@@ -1741,7 +2030,7 @@ extension SharedAgentState {
                 let go = try #require(id(of: "Go", in: read)), name = try #require(id(of: "Name", in: read)), drag = try #require(id(of: "Drag", in: read))
                 let place = await evaluate(tab, "const r = document.getElementById('z').getBoundingClientRect(); return JSON.stringify([r.left + 5, r.top + 5])")
                 let zone = try #require((try? JSONSerialization.jsonObject(with: Data(place.utf8))) as? [Double])
-                func uses() -> Int { stand.asked.filter { $0.message.contains("lab.test") && !$0.message.contains("press") }.count }
+                func uses() -> Int { stand.asked.filter { $0.message.contains("lab.test") && !Self.isHigh($0) }.count }
                 // Nothing read from another site yet: nothing to ask.
                 #expect(!(await call(tab, "click", ["element_id": go], caller: panel)).failed && uses() == 0)
                 // Another site was read.
@@ -1798,7 +2087,7 @@ extension SharedAgentState {
                 // The user allows the use of the page; the call is stopped while the second question (the guard's) is open.
                 Approvals.noteRead(tab, readHost: "elsewhere.example", caller: caller)
                 stand.answer = { prompt in
-                    if prompt.message.contains("press") { AgentActivity.shared.cancel(caller: caller) }
+                    if Self.isHigh(prompt) { AgentActivity.shared.cancel(caller: caller) }
                     return .once
                 }
                 let result = await call(tab, "click", ["element_id": buy], caller: caller)
@@ -1839,7 +2128,7 @@ extension SharedAgentState {
                 let button = try #require(read.split(separator: "\n").first { $0.contains("] button ") }.flatMap(number))
                 let refused = await call(tab, "click", ["element_id": button])
                 #expect(refused.failed && guarded(stand).count == 1)
-                #expect(guarded(stand).first?.message.contains("Place my order") == true)
+                #expect(guarded(stand).first?.detail.contains("Place my order") == true)
                 #expect(tab.title != "ordered")
                 // A link round a card of text isn't named after every word in it.
                 let link = try #require(read.split(separator: "\n").first { $0.contains("] a ") }.flatMap(number))
@@ -1905,7 +2194,7 @@ extension SharedAgentState {
                 """
             let (tab, window, browser) = try await page(html)
             defer { window.close(); browser.windowClosed() }
-            try await asking({ prompt in prompt.message.contains("press") ? .deny : .once }) { stand in
+            try await asking({ prompt in Self.isHigh(prompt) ? .deny : .once }) { stand in
                 let read = await call(tab, "read_page").text
                 let select = try #require(id(of: "Plan", in: read))
                 let refused = await call(tab, "select_option", ["element_id": select, "option": "Continue"])
@@ -1923,7 +2212,7 @@ extension SharedAgentState {
                 """
             let (tab, window, browser) = try await page(html)
             defer { window.close(); browser.windowClosed() }
-            try await asking({ prompt in prompt.message.contains("press") ? .deny : .once }) { stand in
+            try await asking({ prompt in Self.isHigh(prompt) ? .deny : .once }) { stand in
                 let read = await call(tab, "read_page").text
                 let size = try #require(id(of: "Size", in: read)), colour = try #require(id(of: "Colour", in: read))
                 let refused = await call(tab, "select_option", ["element_id": size, "option": "Large"])
@@ -1937,19 +2226,19 @@ extension SharedAgentState {
 
         @Test func aNativeListInAFormThatIsOnlyAFormIsOnlyAListButItsOptionsAreStillJudgedByName() async throws {
             let html = """
-                <body><form action="/search"><select aria-label="Colour"><option>Red</option><option>Blue</option><option>Remove all</option></select>
+                <body><form action="/search"><select aria-label="Colour"><option>Red</option><option>Blue</option><option>Delete all</option></select>
                 <select aria-label="Shipping"><option value="delete_account">Express</option><option value="ground">Ground</option></select></form>
                 <form action="/checkout/pay"><select aria-label="Quantity"><option>1</option><option>2</option></select></form>
                 <select aria-label="Loose"><option>Red</option></select></body>
                 """
             let (tab, window, browser) = try await page(html)
             defer { window.close(); browser.windowClosed() }
-            try await asking({ prompt in prompt.message.contains("press") ? .deny : .once }) { stand in
+            try await asking({ prompt in Self.isHigh(prompt) ? .deny : .once }) { stand in
                 let read = await call(tab, "read_page").text
                 let colour = try #require(id(of: "Colour", in: read)), shipping = try #require(id(of: "Shipping", in: read))
                 let quantity = try #require(id(of: "Quantity", in: read)), loose = try #require(id(of: "Loose", in: read))
                 #expect(!(await call(tab, "select_option", ["element_id": colour, "option": "Blue"])).failed && guarded(stand).isEmpty, "an ordinary option of an ordinary form")
-                #expect((await call(tab, "select_option", ["element_id": colour, "option": "Remove all"])).failed && guarded(stand).count == 1, "its name is judged though the form is not submitted by it")
+                #expect((await call(tab, "select_option", ["element_id": colour, "option": "Delete all"])).failed && guarded(stand).count == 1, "its name is judged though the form is not submitted by it")
                 #expect((await call(tab, "select_option", ["element_id": shipping, "option": "Express"])).failed && guarded(stand).count == 2, "and so is its value")
                 #expect((await call(tab, "select_option", ["element_id": quantity, "option": "2"])).failed && guarded(stand).count == 3, "a list in a form that posts to a checkout")
                 #expect(!(await call(tab, "select_option", ["element_id": loose, "option": "Red"])).failed && guarded(stand).count == 3)
@@ -1973,7 +2262,7 @@ extension SharedAgentState {
             _ = await evaluate(tab, "document.getElementById('b').setAttribute('aria-label', '\(padding) pay'); return 1")
             let named = (await facts())["names"] as? [String] ?? []
             let judgedFacts = IrreversibleAction.Facts(await facts())
-            #expect(named.contains { $0.hasSuffix(" pay") } && IrreversibleAction.looksIrreversible(judgedFacts), "a word past a thousand characters of a name is judged")
+            #expect(named.contains { $0.hasSuffix(" pay") } && IrreversibleAction.tier(of: judgedFacts) == .high, "a word past a thousand characters of a name is judged")
             let hint = await ToolCatalog.run(PageScripts.lib + "\nreturn [digest(''), digest('abc'), digest('a'.repeat(1000))].join(' ');", [:], in: view).content.first?["text"] as? String
             #expect(hint == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad "
                     + "41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3", "\(hint ?? "")")
@@ -1989,7 +2278,7 @@ extension SharedAgentState {
                 """
             let (tab, window, browser) = try await page(html)
             defer { window.close(); browser.windowClosed() }
-            try await asking({ prompt in prompt.message.contains("press") ? .deny : .once }) { stand in
+            try await asking({ prompt in Self.isHigh(prompt) ? .deny : .once }) { stand in
                 let read = await call(tab, "read_page").text
                 @MainActor func link(_ start: String) -> Int? { read.split(separator: "\n").first { $0.contains("\"\(start)") }.flatMap { number(of: $0) } }
                 let agree = try #require(link("I agree to the terms")), review = try #require(link("Review the items"))
@@ -2022,7 +2311,7 @@ extension SharedAgentState {
             defer { window.close(); browser.windowClosed() }
             // The page puts the other option first while the user thinks: same words, not the option that was judged.
             try await asking({ prompt in
-                if prompt.message.contains("press") { tab.webView?.evaluateJavaScript("document.getElementById('a').before(document.getElementById('b'))") }
+                if Self.isHigh(prompt) { tab.webView?.evaluateJavaScript("document.getElementById('a').before(document.getElementById('b'))") }
                 return .once
             }) { stand in
                 let read = await call(tab, "read_page").text
@@ -2067,7 +2356,7 @@ extension SharedAgentState {
             defer { window.close(); browser.windowClosed() }
             await asking({ _ in .deny }) { stand in
                 let refused = await call(tab, "click_at", ["x": 150, "y": 70])
-                #expect(refused.failed && guarded(stand).count == 1 && guarded(stand)[0].message.contains("Delete account"), "\(refused.text)")
+                #expect(refused.failed && guarded(stand).count == 1 && guarded(stand)[0].detail.contains("Delete account"), "\(refused.text)")
                 #expect(tab.title != "deleted")
                 let fine = await call(tab, "click_at", ["x": 150, "y": 170])
                 #expect(!fine.failed && fine.text.contains("Details") && guarded(stand).count == 1, "\(fine.text)")
@@ -2174,6 +2463,261 @@ extension SharedAgentState {
             #expect(!gone.failed && gone.text.contains("is gone"), "\(gone.text)")
             #expect(Date().timeIntervalSince(start) < 12, "not after the whole wait")
             #expect(tab.agent.frames.known.isEmpty, "the frame that is gone is not asked again")
+        }
+
+        @Test func consentAndSettingsAreAskedAboutAsSuchAndHeadlinesNever() async throws {
+            let html = """
+                <body><button id=a onclick="document.title='accepted'">Accept all</button>
+                <button id=b onclick="document.title='ordered'">Place order</button>
+                <a href="https://lab.test/#long">Why we should send fewer emails in the workplace today, a long read from our editors</a>
+                <a href="https://lab.test/#promo">Save 20% on shoes</a>
+                <a href="https://lab.test/#short">Send feedback</a>
+                <button id=c onclick="document.title='saved'">Save</button></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ prompt in Self.isHigh(prompt) ? .deny : .once }) { stand in
+                let read = await call(tab, "read_page").text
+                let accept = try #require(id(of: "Accept all", in: read)), order = try #require(id(of: "Place order", in: read))
+                let headline = try #require(read.split(separator: "\n").first { $0.contains("Why we should send fewer emails") }.flatMap(number))
+                let promo = try #require(id(of: "Save 20% on shoes", in: read)), feedback = try #require(id(of: "Send feedback", in: read)), save = try #require(id(of: "Save", in: read))
+                #expect(!(await call(tab, "click", ["element_id": accept])).failed)
+                #expect(consent(stand).count == 1 && consent(stand)[0].detail.contains("“Accept all”") && consent(stand)[0].choices == [.deny, .once], "a consent: asked, never as a loss")
+                #expect(consent(stand)[0].detail.hasPrefix("lab.test\n\n") && guarded(stand).isEmpty)
+                #expect(await waitUntil { tab.title == "accepted" })
+                let refused = await call(tab, "click", ["element_id": order])
+                #expect(refused.failed && refused.text.contains("declined") && guarded(stand).count == 1 && tab.title != "ordered")
+                #expect(guarded(stand)[0].message.contains("undone") && guarded(stand)[0].detail.contains("“Place order”"))
+                for link in [headline, promo] { _ = await call(tab, "click", ["element_id": link]) }
+                #expect(guarded(stand).count == 1 && consent(stand).count == 1, "a long headline and a promotion are no questions")
+                _ = await call(tab, "click", ["element_id": feedback])
+                #expect(guarded(stand).count == 2, "a short link called Send is")
+                #expect(!(await call(tab, "click", ["element_id": save])).failed)
+                #expect(consent(stand).count == 2)
+            }
+        }
+
+        @Test func aLowTierActionIsAskedOncePerSiteForTheChatByThePanelAndEachTimeByOthers() async throws {
+            let html = "<body><button onclick=\"document.title='accepted'\">Accept all</button><button onclick=\"document.title='saved'\">Save</button><button onclick=\"document.title='ordered'\">Place order</button></body>"
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let panel = ChatStore.caller
+            Approvals.forgetReads(caller: panel)
+            defer { Approvals.forgetReads(caller: panel) }
+            try await asking({ prompt in prompt.choices.contains(.site) ? .site : .once }) { stand in
+                let read = await call(tab, "read_page", caller: panel).text
+                let accept = try #require(id(of: "Accept all", in: read)), save = try #require(id(of: "Save", in: read)), order = try #require(id(of: "Place order", in: read))
+                #expect(!(await call(tab, "click", ["element_id": accept], caller: panel)).failed)
+                #expect(consent(stand).count == 1 && consent(stand)[0].choices == [.deny, .once, .site])
+                #expect(!(await call(tab, "click", ["element_id": save], caller: panel)).failed)
+                #expect(consent(stand).count == 1, "allowed on lab.test for this chat: not asked again")
+                for _ in 0..<2 { _ = await call(tab, "click", ["element_id": order], caller: panel) }
+                #expect(guarded(stand).count == 2 && guarded(stand).allSatisfy { $0.choices == [.deny, .once] }, "what can't be undone is asked every time")
+                let others = await call(tab, "click", ["element_id": save], caller: "mcp-low")
+                _ = await call(tab, "click", ["element_id": save], caller: "mcp-low")
+                #expect(!others.failed && consent(stand).count == 3 && consent(stand).suffix(2).allSatisfy { $0.choices == [.deny, .once] }, "other callers are asked each time")
+                Approvals.forgetReads(caller: panel)
+                _ = await call(tab, "click", ["element_id": save], caller: panel)
+                #expect(consent(stand).count == 4, "a new chat starts over")
+            }
+        }
+
+        @Test func aFormThatChangesWhenTheTextIsTypedIsNotSubmittedOnTheOldApproval() async throws {
+            let html = """
+                <body><form action="/post" onsubmit="document.title='posted';return false"><input id=t oninput="document.getElementById('b').disabled = !this.value" placeholder="Say">
+                <button id=b disabled>Post</button></form></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ _ in .once }) { stand in
+                let read = await call(tab, "read_page").text
+                let field = try #require(id(of: "Say", in: read))
+                let first = await call(tab, "type_text", ["element_id": field, "text": "hello", "submit": true])
+                #expect(first.failed && first.text.contains("did not press Enter") && guarded(stand).isEmpty, "\(first.text)")
+                let typed = await evaluate(tab, "return document.getElementById('t').value")
+                #expect(tab.title != "posted" && typed == "hello")
+                let again = await call(tab, "type_text", ["element_id": field, "text": "hello", "submit": true])
+                #expect(!again.failed && guarded(stand).count == 1 && guarded(stand)[0].detail.contains("“Post”"), "the button is there now, and is asked about: \(again.text)")
+                #expect(await waitUntil { tab.title == "posted" })
+            }
+        }
+
+        @Test func aKeyOutsideATextFieldKeepsTheNamesOfWhatItIsPressedOnAndDeleteAsksEveryTime() async throws {
+            let html = """
+                <body><div id=row role=button tabindex=0 aria-label="Mail 1" onkeydown="if (event.key === 'Delete') document.title = 'deleted'">Mail</div>
+                <div id=card role=button tabindex=0 aria-label="Send now" onkeydown="if (event.key === 'Enter') document.title = 'sent'">Card</div>
+                <div id=nav role=button tabindex=0 aria-label="Menu bar" onkeydown="document.title = 'key ' + event.key">Menu</div>
+                <input id=t placeholder="Note"></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ prompt in Self.isHigh(prompt) ? .deny : .once }) { stand in
+                let read = await call(tab, "read_page").text
+                let row = try #require(id(of: "Mail 1", in: read)), card = try #require(id(of: "Send now", in: read)), menu = try #require(id(of: "Menu bar", in: read)), note = try #require(id(of: "Note", in: read))
+                #expect((await call(tab, "press_key", ["key": "Delete", "element_id": row])).failed && guarded(stand).count == 1 && tab.title != "deleted", "Delete outside a text field acts by itself")
+                #expect((await call(tab, "press_key", ["key": "Enter", "element_id": card])).failed && guarded(stand).count == 2 && guarded(stand)[1].detail.contains("Send now") && tab.title != "sent")
+                #expect(!(await call(tab, "press_key", ["key": "ArrowDown", "element_id": menu])).failed && guarded(stand).count == 2, "an arrow is nothing")
+                #expect((await call(tab, "press_key", ["key": "ArrowDown", "modifiers": ["meta"], "element_id": menu])).failed && guarded(stand).count == 3, "a combination with meta acts by itself")
+                let deleted = await call(tab, "press_key", ["key": "Delete", "element_id": note]), backspaced = await call(tab, "press_key", ["key": "Backspace", "element_id": note])
+                #expect(!deleted.failed && !backspaced.failed)
+                #expect(guarded(stand).count == 3, "in a text field Delete and Backspace only edit")
+            }
+        }
+
+        @Test func anAmountOrCountOnWhatAsksEveryTimeIsPartOfWhatWasApproved() async throws {
+            let html = "<body><button id=pay onclick=\"document.title='paid'\">Pay $10</button><button id=cart>Cart (3)</button></body>"
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ prompt in
+                if Self.isHigh(prompt) { tab.webView?.evaluateJavaScript("document.getElementById('pay').textContent = 'Pay $1000'") }
+                return .once
+            }) { stand in
+                let read = await call(tab, "read_page").text
+                let pay = try #require(id(of: "Pay $10", in: read)), cart = try #require(id(of: "Cart (3)", in: read))
+                let result = await call(tab, "click", ["element_id": pay])
+                #expect(result.failed && result.text.contains("changed") && tab.title != "paid", "\(result.text)")
+                func facts(_ element: Int) async throws -> [String: Any] {
+                    let text = await script(tab, PageScripts.inspect, ["args": ["id": element]])
+                    return try #require((try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any], "\(text)")
+                }
+                let before = try await facts(cart)
+                _ = await evaluate(tab, "document.getElementById('cart').textContent = 'Cart (4)'; return 1")
+                let after = try await facts(cart)
+                #expect(before["fp"] as? String == after["fp"] as? String, "a count that changes by itself doesn't stop an action")
+                #expect(before["fpExact"] as? String != after["fpExact"] as? String)
+            }
+        }
+
+        @Test func aPasswordFieldIsKnownFromTheStartEvenIfThePageTurnsItIntoTextBeforeAnythingLooks() async throws {
+            let html = "<body><script>const i = document.createElement('input'); i.id = 'p'; i.placeholder = 'Word'; i.type = 'password'; document.body.append(i); i.type = 'text'; i.value = 'hunter2';</script></body>"
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            #expect(read.contains("(password field)") && !read.contains("hunter2"), "\(read)")
+            let field = try #require(id(ofKind: "input[text]", in: read))
+            let typed = await call(tab, "type_text", ["element_id": field, "text": "x"])
+            #expect(typed.failed && typed.text.contains("password"))
+        }
+
+        @Test func fieldsCalledPasswordsByTheirLabelsOrDrawnAsDotsOrNamedPwAreSecretButACheckboxIsNot() async throws {
+            let html = """
+                <body><label for=x>Your password</label><input id=x>
+                <input id=y style="-webkit-text-security: disc" placeholder="Word">
+                <input name=pw1 placeholder="Again"><input name=passwd placeholder="Old"><input placeholder="Plain">
+                <label><input type=checkbox id=rm> Remember my password</label></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            let lines = read.split(separator: "\n").filter { $0.hasPrefix("[") && $0.contains("input[") }
+            let secrets = lines.filter { $0.contains("(password field)") }.count
+            #expect(secrets == 4 && lines.count == 6, "\(read)")
+            #expect(!lines.first { $0.contains("\"Plain\"") }!.contains("(password field)"))
+            let box = try #require(lines.first { $0.contains("input[checkbox]") }.flatMap(number))
+            let facts = await script(tab, PageScripts.inspect, ["args": ["id": box]])
+            #expect(facts.contains("\"secret\":false"), "\(facts)")
+        }
+
+        @Test func aFormThatSendsItsDataToAnotherSiteIsAskedAboutEveryTimeWithWhereItGoes() async throws {
+            let html = """
+                <body><form action="https://collector.example/take" onsubmit="document.title='sent';return false"><input placeholder="Name"><button type=submit>Continue</button></form>
+                <form action="/local" onsubmit="document.title='local';return false"><input placeholder="City"><button type=submit>Go on</button></form></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ _ in .deny }) { stand in
+                let read = await call(tab, "read_page").text
+                let away = try #require(id(of: "Continue", in: read)), here = try #require(id(of: "Go on", in: read))
+                let refused = await call(tab, "click", ["element_id": away])
+                #expect(refused.failed && guarded(stand).count == 1 && guarded(stand)[0].detail.contains("collector.example") && tab.title != "sent")
+                #expect(guarded(stand)[0].detail.hasPrefix("lab.test\n\n"))
+                _ = await call(tab, "click", ["element_id": away])
+                #expect(guarded(stand).count == 2, "asked every time")
+                stand.answer = { _ in .once }
+                #expect(!(await call(tab, "click", ["element_id": here])).failed && guarded(stand).count == 2, "a form to its own site is only asked about when its words say so")
+            }
+        }
+
+        @Test func aTabApprovedOnOneSiteIsAskedAboutAgainForTheSiteTheDocumentIsOn() async throws {
+            let (tab, window, browser) = try await page("<body><button id=go>Go</button></body>")
+            defer { window.close(); browser.windowClosed() }
+            let behind = browser.openTab(url: URL(string: "https://elsewhere.example/"), activate: true)
+            #expect(behind.id != tab.id && browser.activeID != tab.id)
+            let webView = try #require(tab.webView)
+            let read = await call(tab, "read_page").text
+            let go = try #require(id(of: "Go", in: read))
+            await asking({ _ in .deny }) { stand in
+                do {
+                    _ = try await ToolCatalog.aim(["id": go], tab: tab, in: webView, session: Session(caller: "mcp-site", approved: "lab.test"))
+                    #expect(stand.asked.isEmpty, "the site the tab was approved for")
+                } catch { Issue.record("\(error)") }
+                do {
+                    _ = try await ToolCatalog.aim(["id": go], tab: tab, in: webView, session: Session(caller: "mcp-site", approved: "other.test"))
+                    Issue.record("the document is on another site than the one approved")
+                } catch let failure as ToolFailure {
+                    #expect(failure.result.isError && stand.asked.count == 1 && stand.asked[0].detail.hasPrefix("lab.test\n\n"))
+                } catch { Issue.record("\(error)") }
+            }
+        }
+
+        @Test func goingBackToAPageThatCameFromASubmittedFormIsNotDoneForTheAI() async throws {
+            let server = try await TinyServer { method, path in
+                switch (method, path) {
+                case ("GET", "/form"): return "<body><form method=post action=/take><input name=a value=1><button>Go</button></form></body>"
+                case ("POST", "/take"): return "<body><p>Posted once</p></body>"
+                default: return "<body><p>Elsewhere</p></body>"
+                }
+            }
+            defer { server.stop() }
+            let browser = Browser()
+            browser.focused()
+            defer { browser.windowClosed() }
+            let tab = browser.openTab(url: nil)
+            let view = tab.wake()
+            let window = OffscreenWindow(view)
+            defer { window.close() }
+            view.load(URLRequest(url: server.url("/form")))
+            #expect(await waitUntil { !view.isLoading && view.url?.path == "/form" })
+            _ = try? await view.callAsyncJavaScript("document.forms[0].submit()", contentWorld: .page)
+            #expect(await waitUntil { !view.isLoading && view.url?.path == "/take" })
+            view.load(URLRequest(url: server.url("/elsewhere")))
+            #expect(await waitUntil { !view.isLoading && view.url?.path == "/elsewhere" })
+            #expect(server.count("POST") == 1)
+            let result = await ToolCatalog.call("go_back", ["tab_id": tab.id], caller: "mcp-resubmit")
+            let text = result.content.first?["text"] as? String ?? ""
+            #expect(result.isError && text.contains("submitted form"), "\(text)")
+            try await Task.sleep(for: .milliseconds(300))
+            #expect(server.count("POST") == 1 && view.url?.path == "/elsewhere", "the form was not sent again, and the tab did not go there")
+            #expect(!tab.agentHistoryMove)
+        }
+
+        @Test func whatAFrameThatCouldNotBeReadIsToldAsIsCutAndItsSiteCountsAsRead() async throws {
+            let long = "https://tracker-free.example/" + String(repeating: "a", count: 600)
+            let (tab, window, browser) = try await page("<body><p>Outer</p><iframe style='width:200px;height:80px' src='\(long)'></iframe></body>", host: "outer.test")
+            defer { window.close(); browser.windowClosed() }
+            let panel = ChatStore.caller
+            Approvals.forgetReads(caller: panel)
+            defer { Approvals.forgetReads(caller: panel) }
+            try await asking({ _ in .once }) { stand in
+                let read = await call(tab, "read_page", caller: panel).text
+                let line = try #require(read.split(separator: "\n").first { $0.contains("--- Frame: https://tracker-free.example/") })
+                #expect(line.count < 320 && line.contains("…") && line.contains("could not be read"), "\(line.count): the address is cut")
+                #expect(await Approvals.allowInteraction(.act("Clicking “Go”"), on: tab, caller: panel))
+                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("conversation: tracker-free.example"), "the address it was told is a site it was told of: \(stand.asked.map(\.detail))")
+            }
+        }
+
+        @Test func aPictureCountsOnlyTheFramesThatShowSomethingAndAreNotAdsTheBlockerBlocks() async throws {
+            let html = "<body><p>Outer</p><iframe sandbox='allow-scripts' style='width:200px;height:80px' srcdoc='<p>Shown</p>'></iframe>"
+                + "<iframe sandbox='allow-scripts' style='width:200px;height:80px' srcdoc='<body></body>'></iframe>"
+                + "<iframe sandbox style='width:200px;height:80px' src='https://adserver.example/slot'></iframe></body>"
+            let (tab, window, browser) = try await page(html, host: "outer.test")
+            defer { window.close(); browser.windowClosed() }
+            let before = AdBlocker.shared.blockedHosts
+            AdBlocker.shared.blockedHosts = ["adserver.example"]
+            defer { AdBlocker.shared.blockedHosts = before }
+            let hosts = await ToolCatalog.shownFrameHosts(tab, try #require(tab.webView))
+            #expect(hosts == [Approvals.unknownFrame], "one unknown (the frame with words), not the empty box and not the advertisement: \(hosts)")
         }
 
         @Test func aFrameIsGreetedByTheAppAndOnlyThatFrameAnswersForItsName() async throws {
@@ -2396,6 +2940,48 @@ extension SharedAgentState {
             #expect(r.tabs[1].isHeldBehind)
             r.tabs[1].sleep()
             #expect(!r.tabs[1].isHeldBehind)
+        }
+
+        @Test func thePageInFrontNeverTakesAPlaceFromAnotherInUse() throws {
+            let r = rig(6)
+            defer { finish(r) }
+            use(Array(r.tabs.dropFirst()))
+            AgentActivity.shared.use(r.tabs[0], caller: ChatStore.caller)
+            #expect(AgentActivity.shared.held.first == r.tabs[0].id, "the page in front was used last")
+            host(r.tabs[0], r).update(r.container)
+            let held = r.container.subviews.compactMap { $0 as? WebViewHost.PassiveHost }
+            #expect(held.count == AgentActivity.maxHeld)
+            #expect(Set(held.compactMap { $0.page }.map(ObjectIdentifier.init)) == Set(r.tabs[3...5].compactMap { $0.webView }.map(ObjectIdentifier.init)), "three behind it, not two")
+        }
+
+        @Test func aHeldPageThatSleepsAndWakesTellsTheViewThatHoldsIt() async throws {
+            let r = rig()
+            defer { finish(r) }
+            use([r.tabs[1]])
+            host(r.tabs[0], r).update(r.container)
+            var changes = 0
+            let sink = AgentActivity.shared.objectWillChange.sink { changes += 1 }
+            defer { sink.cancel() }
+            r.tabs[2].sleep()
+            r.tabs[1].sleep()
+            #expect(await waitUntil { changes > 0 })
+            changes = 0
+            let woken = r.tabs[1].wake()
+            #expect(await waitUntil { changes > 0 })
+            host(r.tabs[0], r).update(r.container)
+            #expect(woken.superview is WebViewHost.PassiveHost, "held again, in its new page")
+        }
+
+        @Test func aTabThatGetsUsedWhileItsMediaIsBeingCheckedIsNotPutToSleep() async throws {
+            let r = rig()
+            defer { finish(r) }
+            r.tabs[1].lastShown = .distantPast
+            r.tabs[2].lastShown = .distantPast
+            r.browser.sleepIdleTabs(olderThan: 0)
+            use([r.tabs[1]])
+            #expect(await waitUntil { r.tabs[2].webView == nil }, "an idle one goes to sleep")
+            try await Task.sleep(for: .milliseconds(300))
+            #expect(r.tabs[1].webView != nil, "the one the AI started to use meanwhile stays")
         }
 
         @Test func atMostThreeAreHeldAtOnce() throws {

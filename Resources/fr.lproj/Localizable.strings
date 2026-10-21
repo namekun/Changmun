@@ -177,7 +177,13 @@
 "EasyPrivacy (tracking)" = "EasyPrivacy (suivi)";
 "Edit" = "Édition";
 "Edit Address (⌘L)" = "Modifier l’adresse (⌘L)";
-"Either way, it asks before something that looks like it pays, orders, sends, posts or deletes." = "Dans tous les cas, l’IA demande avant ce qui ressemble à un paiement, une commande, un envoi, une publication ou une suppression.";
+"Either way, it asks every time before something that looks like it pays, orders, sends, posts, deletes or cancels." = "Dans tous les cas, l’IA demande à chaque fois avant ce qui ressemble à un paiement, une commande, un envoi, une publication, une suppression ou une annulation.";
+"It also asks before something that looks like accepting, saving, sharing or changing a setting, which you can allow for a site until the chat is cleared." = "Elle demande aussi avant ce qui ressemble à accepter, enregistrer, partager ou modifier un réglage ; vous pouvez l’autoriser pour un site jusqu’à l’effacement du chat.";
+"The AI wants to do something that can’t be undone" = "L’IA souhaite faire quelque chose d’irréversible";
+"The form sends what is typed in it to %@, another site than this page." = "Le formulaire envoie ce qui y est saisi à %@, un autre site que cette page.";
+"This looks like it pays, orders, sends, posts, deletes, cancels or gives something up, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this." = "Cela ressemble à un paiement, une commande, un envoi, une publication, une suppression, une annulation ou un renoncement, ce qui est irréversible. La question est posée à chaque fois.\n\nN’autorisez que si vous l’avez demandé.";
+"The AI wants to agree, save or change a setting" = "L’IA souhaite accepter, enregistrer ou modifier un réglage";
+"This looks like accepting, agreeing, saving, sharing or changing a setting, not like paying or sending. You can allow it once, or on this site for the rest of the chat." = "Cela ressemble à accepter, consentir, enregistrer, partager ou modifier un réglage, pas à payer ou envoyer. Vous pouvez autoriser une fois, ou sur ce site pour le reste du chat.";
 "Element hiding" = "Masquage d’éléments";
 "End Split View" = "Quitter l’écran partagé";
 "Enter Address" = "Saisir l’adresse";
@@ -422,7 +428,6 @@
 "The AI response didn't finish (exit code %lld).\n%@" = "La réponse de l’IA ne s’est pas terminée (code de sortie %lld).\n%@";
 "The AI wants to choose an option on %@" = "L’IA souhaite choisir une option sur %@";
 "The AI wants to open this address" = "L’IA souhaite ouvrir cette adresse";
-"The AI wants to press “%@” on %@" = "L’IA souhaite appuyer sur « %1$@ » sur %2$@";
 "The AI wants to type into %@" = "L’IA souhaite saisir du texte dans %@";
 "The AI wants to use %@" = "L’IA souhaite utiliser %@";
 "The AI wants to use a tab you aren't looking at" = "L’IA souhaite utiliser un onglet que vous ne consultez pas";
@@ -435,7 +440,6 @@
 "This extension is installed in Changmun" = "Cette extension est installée dans Changmun";
 "This folder has no manifest.json" = "Ce dossier ne contient pas de fichier manifest.json";
 "This language can’t be translated" = "Cette langue ne peut pas être traduite";
-"This looks like it pays, orders, sends, posts, deletes or confirms something, and that can’t be undone.\n\nAllow it only if you asked for this." = "Cela ressemble à un paiement, une commande, un envoi, une publication, une suppression ou une confirmation, ce qui est irréversible.\n\nN’autorisez que si vous l’avez demandé.";
 "This page" = "Cette page";
 "this page" = "cette page";
 "Tidied %lld tab" = "%lld onglet rangé";

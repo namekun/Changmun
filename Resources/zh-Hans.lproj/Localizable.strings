@@ -177,7 +177,13 @@
 "EasyPrivacy (tracking)" = "EasyPrivacy（追踪）";
 "Edit" = "编辑";
 "Edit Address (⌘L)" = "编辑地址 (⌘L)";
-"Either way, it asks before something that looks like it pays, orders, sends, posts or deletes." = "无论如何设置，遇到看起来像付款、下单、发送、发布或删除的操作，都会先询问。";
+"Either way, it asks every time before something that looks like it pays, orders, sends, posts, deletes or cancels." = "无论如何设置，遇到看起来像付款、下单、发送、发布、删除或取消的操作，每次都会先询问。";
+"It also asks before something that looks like accepting, saving, sharing or changing a setting, which you can allow for a site until the chat is cleared." = "遇到看起来像接受、保存、分享或更改设置的操作也会先询问，你可以对某个网站允许，直到清除对话。";
+"The AI wants to do something that can’t be undone" = "AI 想要执行无法撤销的操作";
+"The form sends what is typed in it to %@, another site than this page." = "此表单会把填写的内容发送到 %@，这是与当前页面不同的网站。";
+"This looks like it pays, orders, sends, posts, deletes, cancels or gives something up, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this." = "这看起来像是付款、下单、发送、发布、删除、取消或放弃某些东西，无法收回。每次都会询问。\n\n只有在你自己要求时才允许。";
+"The AI wants to agree, save or change a setting" = "AI 想要同意、保存或更改设置";
+"This looks like accepting, agreeing, saving, sharing or changing a setting, not like paying or sending. You can allow it once, or on this site for the rest of the chat." = "这看起来像是接受、同意、保存、分享或更改设置，而不是付款或发送。你可以只允许一次，或在此对话的剩余时间内允许此网站。";
 "Element hiding" = "元素隐藏";
 "End Split View" = "结束分屏浏览";
 "Enter Address" = "输入地址";
@@ -422,7 +428,6 @@
 "The AI response didn't finish (exit code %lld).\n%@" = "AI 响应未完成（退出代码 %lld）。\n%@";
 "The AI wants to choose an option on %@" = "AI 想要在 %@ 上选择一个选项";
 "The AI wants to open this address" = "AI 想要打开此地址";
-"The AI wants to press “%@” on %@" = "AI 想要在 %2$@ 上点按“%1$@”";
 "The AI wants to type into %@" = "AI 想要在 %@ 中输入内容";
 "The AI wants to use %@" = "AI 想要操作 %@";
 "The AI wants to use a tab you aren't looking at" = "AI 想要使用你当前没有查看的标签页";
@@ -435,7 +440,6 @@
 "This extension is installed in Changmun" = "此扩展已安装在 Changmun 中";
 "This folder has no manifest.json" = "此文件夹中没有 manifest.json";
 "This language can’t be translated" = "无法翻译此语言";
-"This looks like it pays, orders, sends, posts, deletes or confirms something, and that can’t be undone.\n\nAllow it only if you asked for this." = "这看起来像是付款、下单、发送、发布、删除或确认等无法撤销的操作。\n\n只有在你自己要求时才允许。";
 "This page" = "此页面";
 "this page" = "此页面";
 "Tidied %lld tab" = "已整理 %lld 个标签页";

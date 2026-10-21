@@ -2558,9 +2558,9 @@ struct WebViewHost: NSViewRepresentable {
         func holdWhatIsInUse() {
             var held: [Tab] = []
             if isMain, let browser {
-                held = AgentActivity.shared.held.compactMap { id in browser.tabs.first { $0.id == id } }.filter { candidate in
+                held = Array(AgentActivity.shared.held.compactMap { id in browser.tabs.first { $0.id == id } }.filter { candidate in
                     candidate !== tab && !browser.isShown(candidate) && browser.peek !== candidate && candidate.webView != nil
-                }
+                }.prefix(AgentActivity.maxHeld))
             }
             keep(held)
             for candidate in held { candidate.pageOwner.claim(self, as: .behind) }

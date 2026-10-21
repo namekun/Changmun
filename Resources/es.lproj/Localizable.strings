@@ -177,7 +177,13 @@
 "EasyPrivacy (tracking)" = "EasyPrivacy (rastreo)";
 "Edit" = "Editar";
 "Edit Address (⌘L)" = "Editar dirección (⌘L)";
-"Either way, it asks before something that looks like it pays, orders, sends, posts or deletes." = "Pase lo que pase, pregunta antes de algo que parezca pagar, pedir, enviar, publicar o eliminar.";
+"Either way, it asks every time before something that looks like it pays, orders, sends, posts, deletes or cancels." = "Pase lo que pase, pregunta siempre antes de algo que parezca pagar, pedir, enviar, publicar, eliminar o cancelar.";
+"It also asks before something that looks like accepting, saving, sharing or changing a setting, which you can allow for a site until the chat is cleared." = "También pregunta antes de algo que parezca aceptar, guardar, compartir o cambiar un ajuste, y puedes permitirlo para un sitio hasta que borres el chat.";
+"The AI wants to do something that can’t be undone" = "La IA quiere hacer algo que no se puede deshacer";
+"The form sends what is typed in it to %@, another site than this page." = "El formulario envía lo que se escribe en él a %@, otro sitio distinto de esta página.";
+"This looks like it pays, orders, sends, posts, deletes, cancels or gives something up, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this." = "Parece que paga, pide, envía, publica, elimina, cancela o renuncia a algo, y eso no se puede recuperar. Se pregunta siempre.\n\nPermítelo solo si lo has pedido tú.";
+"The AI wants to agree, save or change a setting" = "La IA quiere aceptar, guardar o cambiar un ajuste";
+"This looks like accepting, agreeing, saving, sharing or changing a setting, not like paying or sending. You can allow it once, or on this site for the rest of the chat." = "Parece que acepta, está de acuerdo, guarda, comparte o cambia un ajuste, no que pague o envíe. Puedes permitirlo una vez, o en este sitio durante el resto del chat.";
 "Element hiding" = "Ocultación de elementos";
 "End Split View" = "Finalizar vista dividida";
 "Enter Address" = "Introducir dirección";
@@ -422,7 +428,6 @@
 "The AI response didn't finish (exit code %lld).\n%@" = "La respuesta de la IA no ha terminado (código de salida %lld).\n%@";
 "The AI wants to choose an option on %@" = "La IA quiere elegir una opción en %@";
 "The AI wants to open this address" = "La IA quiere abrir esta dirección";
-"The AI wants to press “%@” on %@" = "La IA quiere pulsar «%1$@» en %2$@";
 "The AI wants to type into %@" = "La IA quiere escribir en %@";
 "The AI wants to use %@" = "La IA quiere usar %@";
 "The AI wants to use a tab you aren't looking at" = "La IA quiere usar una pestaña que no estás viendo";
@@ -435,7 +440,6 @@
 "This extension is installed in Changmun" = "Esta extensión está instalada en Changmun";
 "This folder has no manifest.json" = "Esta carpeta no tiene manifest.json";
 "This language can’t be translated" = "Este idioma no se puede traducir";
-"This looks like it pays, orders, sends, posts, deletes or confirms something, and that can’t be undone.\n\nAllow it only if you asked for this." = "Parece que paga, pide, envía, publica, elimina o confirma algo, y eso no se puede deshacer.\n\nPermítelo solo si lo has pedido tú.";
 "This page" = "Esta página";
 "this page" = "esta página";
 "Tidied %lld tab" = "Se ha ordenado %lld pestaña";

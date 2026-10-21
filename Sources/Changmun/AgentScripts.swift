@@ -52,7 +52,7 @@ extension PageScripts {
 
     // A field that holds a secret: a password (also after a "show password" button made it plain text), a code sent to the
     // user, or card details. The AI never gets such a value, and never types or presses keys in it.
-    const SECRET_WORDS = /pass[-_ ]?(?:word|wd|code|phrase)|(?:^|[^a-z0-9])(?:pwd|otp|pin|cvc|cvv|ssn)(?:[^a-z0-9]|$)|pin[-_ ]?code|card[-_ ]?(?:number|num|no)(?:[^a-z0-9]|$)/i;
+    const SECRET_WORDS = /pass[-_ ]?(?:word|wd|code|phrase)|(?:^|[^a-z0-9])(?:pwd|pw|otp|pin|cvc|cvv|ssn)(?:[^a-z0-9]|$)|pin[-_ ]?code|card[-_ ]?(?:number|num|no)(?:[^a-z0-9]|$)|비밀번호|密码|密碼|パスワード|contrase[ñn]a|mot de passe|passwort|kennwort/i;
     // A name is looked at as it is written ("passWord", "PassCode") and told in words ("otpCode", "userPin" and "cvv2" are an otp, a pin and a cvv; "Shipping" is not a pin).
     const spaced = v => String(v || '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').replace(/([a-zA-Z])(\d)|(\d)([a-zA-Z])/g, '$1$3 $2$4');
     const SECRET_AUTOCOMPLETE = /one-time-code|(?:^|\s)cc-|current-password|new-password/i;
@@ -60,7 +60,14 @@ extension PageScripts {
       if (!el || el.nodeType !== 1) return false;
       if (el.localName === 'input' && el.type === 'password') { seenPasswords.add(el); return true; }
       if (seenPasswords.has(el) || el.hasAttribute('data-cm-secret') || SECRET_AUTOCOMPLETE.test(attr(el, 'autocomplete') || '')) return true;
-      return /^(input|textarea)$/.test(el.localName) && [el.name, el.id, attr(el, 'aria-label'), attr(el, 'placeholder')].some(v => SECRET_WORDS.test(String(v || '')) || SECRET_WORDS.test(spaced(v)));
+      // Whatever the page draws as dots is a secret to it, whatever the field is called.
+      const hidden = viewOf(el).getComputedStyle(el).getPropertyValue('-webkit-text-security');
+      if (hidden && hidden !== 'none') return true;
+      if (!/^(input|textarea)$/.test(el.localName)) return false;
+      if ([el.name, el.id, attr(el, 'aria-label'), attr(el, 'placeholder')].some(v => SECRET_WORDS.test(String(v || '')) || SECRET_WORDS.test(spaced(v)))) return true;
+      // Called a password by its label (the words beside it), for a field that takes text.
+      return el.localName === 'textarea' || !/^(checkbox|radio|button|submit|reset|image|file|hidden|range|color)$/.test(el.type)
+        ? Array.from(el.labels || []).some(l => SECRET_WORDS.test(String(l.textContent || '').slice(0, 200)) || SECRET_WORDS.test(spaced(String(l.textContent || '').slice(0, 200)))) : false;
     };
 
     // This document and the frames of the same site in it. dx, dy and s say where a frame's top left sits in this
@@ -161,8 +168,13 @@ extension PageScripts {
       if (!t || t.hasAttribute('onclick')) return false;
       return /^(textarea|select)$/.test(t.localName) || (t.localName === 'input' && /^(text|search|url|tel|email|password|number|date|datetime-local|month|week|time|color|range|file|checkbox|radio|)$/.test(t.type));
     };
+    // A link that only goes somewhere: a navigation, named by its short text and nothing longer (a headline is not a name), and
+    // judged by whole segments of its path. One with a handler of its own, or no address of its own, is a button by another name.
+    const LINK_MAX = 40;
+    const plainLink = ctl => ctl.localName === 'a' && !ctl.hasAttribute('onclick') && !/^(button|menuitem|menuitemcheckbox|option|tab|switch|checkbox)$/.test(attr(ctl, 'role') || '')
+      && !/^(#|javascript:|$)/i.test((attr(ctl, 'href') || '').trim());
     // What says a lot even in a long sentence ("I agree to the terms and place my order"): a button, whole. A link around a
-    // card of text (a link of more than 160 characters) says little of what it does, so only its first words count.
+    // card of text says little of what it does: only its short names count.
     const WORDY = 'button,input,summary,[role=button],[role=menuitem],[role=menuitemcheckbox],[role=option],[role=tab],[role=switch]';
     // The words of an element that aren't those of a control inside it: a card's title, not the "Save" button on it.
     const ownText = el => {
@@ -179,7 +191,8 @@ extension PageScripts {
     function namesOf(ctl) {
       const out = [];
       if (passive(ctl)) return out;
-      const add = s => { s = squash(s); if (s) out.push(s.slice(0, 20000)); };
+      const link = plainLink(ctl);
+      const add = s => { s = squash(s); if (s && !(link && s.length > LINK_MAX)) out.push(s.slice(0, 20000)); };
       const doc = docOf(ctl);
       const acts = ctl.matches(WORDY);
       add(attr(ctl, 'aria-label'));
@@ -190,9 +203,9 @@ extension PageScripts {
       if (ctl.labels && ctl.labels.length) add(ctl.labels[0].textContent);
       if (!/^(input|textarea|select)$/.test(ctl.localName)) {
         const text = squash(ctl.matches(WORDY) ? ctl.innerText || ctl.textContent : ownText(ctl));
-        const room = acts ? 1000 : ctl.matches(CONTROL) ? 160 : (ctl.childElementCount <= 2 ? 40 : 0);
+        const room = link ? LINK_MAX : acts ? 1000 : ctl.matches(CONTROL) ? 160 : (ctl.childElementCount <= 2 ? 40 : 0);
         if (text && text.length <= room) add(text);
-        else if (text && room) add(lead(text));
+        else if (text && room && !link) add(lead(text));
         // A web component's own words are in its shadow tree.
         if (ctl.shadowRoot) add(clip(ctl.shadowRoot.textContent, 160));
       }
@@ -226,8 +239,9 @@ extension PageScripts {
         const back = /url\(["']?([^"')]+)/.exec(view.getComputedStyle(n).backgroundImage || '');
         if (back) out.push(fileWords(back[1], n));
       }
+      // Where a plain link goes is judged by its path, whole segment by segment, not by the words of a slug.
       const href = attr(ctl, 'href') || attr(ctl, 'formaction');
-      if (href) { try { out.push(words(new URL(href, baseOf(ctl)).pathname)); } catch (e) {} }
+      if (href && !plainLink(ctl)) { try { out.push(words(new URL(href, baseOf(ctl)).pathname)); } catch (e) {} }
       return out.filter(Boolean).slice(0, 30);
     }
     // Where a control goes, whatever it is called: the path and query of its address (a link, a formaction) and a button's name and
@@ -235,9 +249,11 @@ extension PageScripts {
     function destsOf(ctl) {
       const out = [];
       const url = raw => { try { const u = new URL(raw, baseOf(ctl)); return u.pathname + ' ' + Array.from(u.searchParams).map(([k, v]) => k + (/^[\w-]{1,20}$/.test(v) ? ' ' + v : '')).join(' '); } catch (e) { return ''; } };
+      // A plain link is a navigation: only the path of its address says where it goes.
+      const pathOf = raw => { try { return new URL(raw, baseOf(ctl)).pathname; } catch (e) { return ''; } };
       for (const name of ['href', 'formaction']) {
         const raw = (attr(ctl, name) || '').trim();
-        if (raw && !/^#/.test(raw)) out.push(/^javascript:/i.test(raw) ? raw.slice(0, 300) : url(raw).slice(0, 300));
+        if (raw && !/^#/.test(raw)) out.push(/^javascript:/i.test(raw) ? raw.slice(0, 300) : (name === 'href' && plainLink(ctl) ? pathOf(raw) : url(raw)).slice(0, 300));
       }
       if (ctl.localName === 'button' || (ctl.localName === 'input' && /^(submit|button|image)$/.test(ctl.type))) out.push(clip(attr(ctl, 'name'), 80), clip(attr(ctl, 'value'), 80));
       return out.filter(Boolean);
@@ -246,10 +262,15 @@ extension PageScripts {
     const PAY = '[autocomplete^="cc-"],[name*="card" i],[name*="cvc" i],[name*="cvv" i],[name*="iban" i],[name*="securitycode" i],[id*="card-number" i],[id*="cardnumber" i],[data-stripe]';
     const hasPayment = form => formEls(form).some(e => e.matches(PAY)) || !!Element.prototype.querySelector.call(form, PAY);
     const isRich = el => el.localName === 'textarea' || el.isContentEditable || attr(el, 'role') === 'textbox';
+    // Somewhere the keyboard types or chooses: a text field, a text area, an editable element, a list.
+    const editableKind = e => !!e && (e.localName === 'textarea' || e.localName === 'select' || e.isContentEditable || attr(e, 'role') === 'textbox'
+      || (e.localName === 'input' && /^(text|search|url|tel|email|password|number|date|datetime-local|month|week|time|)$/.test(e.type)));
+    // The digits of a name are a count or a price that changes by itself on a page; for what asks every time they are kept.
+    const mask = (text, exact) => exact ? text : text.replace(/\d+/g, '#');
 
-    // Aims like the tools will, and says what the action would do. `key` is the key about to be pressed on it, `typing` says
-    // the text is typed by the tool (which sets the value, whatever the element is, then presses Enter and submits any
-    // form around it), and `drop` that it is what a drag drops onto.
+    // Aims like the tools will, and says what the action would do. `key` is the key about to be pressed on it (with the modifiers
+    // `mods`), `typing` says the text is typed by the tool (which sets the value, whatever the element is, then presses Enter and
+    // submits any form around it), and `drop` that it is what a drag drops onto.
     function factsOf(el, args) {
       const ctl = controlOf(el);
       const form = ctl.form || el.closest('form');
@@ -258,28 +279,35 @@ extension PageScripts {
         || /^(button|link|menuitem|menuitemcheckbox|option|tab|switch|checkbox)$/.test(role) || ctl.hasAttribute('onclick');
       // A browser doesn't toggle a checkbox or a radio button on Enter: it submits the form around it, as from any field.
       const toggles = /^(checkbox|radio)$/.test(ctl.type || '') && !ctl.hasAttribute('onclick');
+      const mods = args.mods || {};
+      const editable = editableKind(el) || editableKind(ctl);
       let names = namesOf(ctl), hints = hintsOf(ctl, !!args.drop, !!args.drop), dests = destsOf(ctl), label = labelOf(ctl);
-      let submits = ctl.type === 'submit' || ctl.type === 'image', sends = false, submitter = submits ? ctl : null;
+      let submits = ctl.type === 'submit' || ctl.type === 'image', sends = false, keyRisk = false, submitter = submits ? ctl : null;
       if (args.key) {
+        const key = args.key;
         // The tool types into anything it is pointed at and then presses Enter itself, so a button or a checkbox is a field here.
-        if (!activates || args.typing || (toggles && args.key === 'Enter')) {
+        if (args.typing || editable || (toggles && key === 'Enter')) {
           // Enter in a field sends what it holds: by the form's default button, or by submitting the form.
           names = []; hints = []; dests = []; submits = false; submitter = null;
-          if (args.key === 'Enter' && (args.typing || ctl.localName !== 'select')) {
+          if (key === 'Enter' && (args.typing || ctl.localName !== 'select')) {
             const effect = enterEffect(args.typing ? el : ctl, !!args.typing);
             if (effect.button) { submits = true; submitter = effect.button; names = namesOf(submitter); hints = hintsOf(submitter); dests = destsOf(submitter); label = labelOf(submitter); }
             else if (effect.submit) submits = true;
           }
-        } else if (args.key !== 'Enter' && args.key !== 'Space') { names = []; hints = []; dests = []; }
-        // A message box sends on Enter, whatever the form says: typed there by the tool or pressed by the AI.
-        if (args.key === 'Enter' && isRich(ctl)) sends = true;
+        } else if (key !== 'Enter' && key !== 'Space' && key !== 'Delete' && key !== 'Backspace') { names = []; hints = []; dests = []; }
+        // A message box sends on Enter, whatever the form says: typed there by the tool or pressed by the AI (also with ctrl or meta).
+        if (key === 'Enter' && (isRich(ctl) || (editable && (mods.ctrl || mods.meta)))) sends = true;
+        // Delete and Backspace outside a text field, and any combination with ctrl or meta there, are for the page's own handlers
+        // (delete this mail, undo, send): they act by themselves.
+        if (!editable && (key === 'Delete' || key === 'Backspace' || mods.ctrl || mods.meta)) keyRisk = true;
       }
-      const action = form ? actionOf(form, submitter) : '', payment = !!form && hasPayment(form);
+      const action = form ? actionOf(form, submitter) : '', payment = !!form && hasPayment(form), link = plainLink(ctl);
       // Everything the approvals judged on is in the fingerprint: what the page may change while the user thinks (a checkout
       // step that appears under the same "Continue") must make the action stop.
-      return {label, names, hints, dests, submits, sends, payment, action, secret: isSecret(ctl) || isSecret(el), description: describe(el), origin: originOf(el),
-        fp: digest(JSON.stringify([ctl.localName, role, ctl.type || '', names.join('|').replace(/\d+/g, '#'), hints.join('|'),
-          dests.join('|').replace(/\d+/g, '#'), submits, sends, payment, action.replace(/[?#].*$/, '').replace(/\d+/g, '#'), !!form]))};
+      const print = exact => digest(JSON.stringify([ctl.localName, role, ctl.type || '', mask(names.join('|'), exact), hints.join('|'),
+        mask(dests.join('|'), exact), submits, sends, payment, mask(action.replace(/[?#].*$/, ''), exact), !!form, link, keyRisk]));
+      return {label, names, hints, dests, submits, sends, payment, action, link, keyRisk, secret: isSecret(ctl) || isSecret(el), description: describe(el), origin: originOf(el),
+        fp: print(false), fpExact: print(true)};
     }
     // The page may change between looking and acting (and the user takes their time to answer): the action goes ahead
     // only on what was looked at.
@@ -287,7 +315,8 @@ extension PageScripts {
       if (!el.isConnected) return 'Error: the element is gone. Read the page again.';
       if (!args.expect) return null;
       const f = factsOf(el, args);
-      return f.origin === args.expect.origin && f.fp === args.expect.fp ? null : 'Error: the page changed since Changmun looked at it (' + f.description + '). Read the page again.';
+      // Only that it changed: what it changed into is the page's to say, and may be from another site.
+      return f.origin === args.expect.origin && (args.expect.exact ? f.fpExact : f.fp) === args.expect.fp ? null : 'Error: the page changed since Changmun looked at it. Read the page again.';
     }
 
     // A frame of another site can't be reached from here. It gets a name the app uses to find it again, and is asked
@@ -532,6 +561,13 @@ extension PageScripts {
       el.dispatchEvent(new Event('change', {bubbles: true}));
     }
     if (args.submit) {
+      // The page may have answered the typing by changing the form (a disabled Post button that is enabled now): what was approved
+      // was what the form was before, so nothing is sent.
+      const f = factsOf(el, args);
+      if (f.origin !== args.expect.origin || (args.expect.exact ? f.fpExact : f.fp) !== args.expect.fp) {
+        settle();
+        return 'Error: the page changed after the text was typed, so Changmun did not press Enter. Read the page again to see what it is now.';
+      }
       const key = {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true};
       // As a browser does it: the form is sent only if the page left the key alone (a keydown or a keypress it cancelled stops
       // that) and didn't click or submit anything itself because of it.
@@ -602,10 +638,10 @@ extension PageScripts {
     // checkout-like address decide, as for a submit button. A list in no form (a menu for the page's own scripts) just acts.
     const submits = isNative && !!el.form;
     const optionAction = submits ? actionOf(el.form, null).replace(/[?#].*$/, '').replace(/\d+/g, '#') : '';
-    const optionFp = o => digest(JSON.stringify([isNative, isNative ? o.index : listOf(true).indexOf(o), optionNames(o).join('|').replace(/\d+/g, '#'), submits, submits && hasPayment(el.form), optionAction]));
+    const optionFp = (o, exact) => digest(JSON.stringify([isNative, isNative ? o.index : listOf(true).indexOf(o), mask(optionNames(o).join('|'), exact), submits, submits && hasPayment(el.form), optionAction]));
     function optionFacts(o, label) {
       return {label, role: isNative ? 'option' : (attr(o, 'role') || 'option'), native: isNative, names: [label, ...optionNames(o)], hints: hintsOf(o, true),
-        submits, payment: submits && hasPayment(el.form), action: submits ? actionOf(el.form, null) : '', fp: optionFp(o)};
+        submits, payment: submits && hasPayment(el.form), action: submits ? actionOf(el.form, null) : '', fp: optionFp(o, false), fpExact: optionFp(o, true)};
     }
     const missing = f => 'Error: no option "' + args.option + '". Options: ' + f.options.map(o => clip(isNative ? o.text : ariaText(o), 40)).join(', ');
 
@@ -627,7 +663,7 @@ extension PageScripts {
     }
 
     const f = find(true);
-    if (!f.o || optionFp(f.o) !== args.expectFp) return 'Error: the options changed since Changmun looked at them. Try again.';
+    if (!f.o || optionFp(f.o, !!args.expectExact) !== args.expectFp) return 'Error: the options changed since Changmun looked at them. Try again.';
     if (isNative) {
       el.scrollIntoView({block: 'center'});
       bad = await aimAt([{el, args}]);
@@ -733,7 +769,7 @@ extension PageScripts {
 
     const want = norm(args.text);
     const found = docs().some(e => norm(e.doc.body ? e.doc.body.innerText : '').includes(want));
-    return JSON.stringify({found, origin: String(window.origin || 'null')});
+    return JSON.stringify({found, blank: !docs().some(e => (e.doc.body ? e.doc.body.innerText : '').trim()), origin: String(window.origin || 'null')});
     """#
 
     /// Takes the marks off, and ends what is waiting to act (the pause after an outline): the user pressed stop.
@@ -747,12 +783,47 @@ extension PageScripts {
     for (const e of docs()) for (const f of deepAll(e.doc, 'iframe,frame,object,embed')) {
       const r = f.getBoundingClientRect();
       if (sameSite(f) || r.width < 20 || r.height < 20 || e.doc.defaultView.getComputedStyle(f).visibility === 'hidden') continue;
-      out.push(tagFrame(f));
+      out.push({...tagFrame(f), src: (f.src || f.data || attr(f, 'src') || attr(f, 'data') || '').slice(0, 300)});
     }
     return JSON.stringify(out);
     """#
 
     static let origin = "return String(window.origin || 'null');"
+
+    /// Where a frame says it is and whether it shows nothing at all: no text, and nothing that could be seen of a size (a tracking
+    /// pixel, an empty box).
+    static let frameFacts = lib + #"""
+
+    const text = (document.body ? document.body.innerText : '').trim();
+    const shown = Array.from(document.querySelectorAll('img,video,canvas,svg,input,textarea,select,button,iframe,frame,object,embed')).some(e => {
+      const r = e.getBoundingClientRect();
+      return r.width >= 20 && r.height >= 20;
+    });
+    return JSON.stringify({origin: String(window.origin || 'null'), blank: !text && !shown});
+    """#
+
+    /// Makes every password field known as one from the moment its document begins to exist, in the isolated world like the other
+    /// scripts: also one that is added later, and one the page turns into a plain text field before anything else looks.
+    static let watchPasswords = #"""
+    (() => {
+      const seen = globalThis.changmunPasswords || (globalThis.changmunPasswords = new WeakSet());
+      const take = node => {
+        if (!node || node.nodeType !== 1) return;
+        if (node.localName === 'input' && node.type === 'password') seen.add(node);
+        for (const x of node.querySelectorAll('input[type=password]')) seen.add(x);
+        if (node.shadowRoot) for (const x of node.shadowRoot.querySelectorAll('input[type=password]')) seen.add(x);
+      };
+      new MutationObserver(records => {
+        for (const r of records) {
+          if (r.type === 'attributes') {
+            if (String(r.oldValue || '').toLowerCase() === 'password' && r.target.localName === 'input') seen.add(r.target);
+            take(r.target);
+          } else for (const n of r.addedNodes) take(n);
+        }
+      }).observe(document, {childList: true, subtree: true, attributes: true, attributeFilter: ['type'], attributeOldValue: true});
+      take(document.documentElement);
+    })();
+    """#
 
     /// Hides the values of secret fields for the picture: a password shown by a "show" button, or a code, never gets out in it.
     static let maskSecrets = lib + #"""

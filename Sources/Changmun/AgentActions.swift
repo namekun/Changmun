@@ -28,14 +28,21 @@ enum AgentKey {
     }
 }
 
-/// Whether a click or key press looks like it pays, orders, sends, posts, deletes, transfers or confirms something.
-/// It goes by what the page shows: every name the control has (what it says, its accessible name, a picture's alt text,
-/// its title), the words in the markup of a control that has none (an icon), where it goes (the address of a link, the
-/// address, name and value of a button), and a submit button in a form that asks for card details or posts to a checkout
-/// or the like. It errs toward asking: a page can name a button anything, so a harmless-looking name proves nothing, and a
-/// name that merely contains a keyword (a "Post office" link) is asked about too. Generic words of agreement ("OK",
+/// How much asking an action calls for, judged by what the page shows of it. It goes by every name the control has (what it
+/// says, its accessible name, a picture's alt text, its title), the words in the markup of a control that has none (an icon),
+/// where it goes (the path of a link, the address, name and value of a button), and a submit button in a form that asks for card
+/// details or posts to a checkout. It errs toward asking: a page can name a button anything. Generic words of agreement ("OK",
 /// "확인") are not enough to ask.
+///
+/// `high` is what can't be taken back or gives something away (paying, ordering, sending, posting, deleting, cancelling,
+/// transferring): asked about every time. `low` is consent and settings (accept, agree, allow, save, share, clear, reset, connect,
+/// upload ...): asked about once per site for a chat.
 enum IrreversibleAction {
+    enum Tier: Int, Comparable {
+        case none, low, high
+        static func < (a: Tier, b: Tier) -> Bool { a.rawValue < b.rawValue }
+    }
+
     struct Facts: Equatable {
         /// The name to show for what is activated.
         var label = ""
@@ -43,7 +50,8 @@ enum IrreversibleAction {
         var names: [String] = []
         /// What the markup of a control with no words says: class, id, data names, the picture it shows.
         var hints: [String] = []
-        /// Where it goes, for any control: the path and query of its address (link or formaction), a button's name and value.
+        /// Where it goes, for any control: the path and query of its address (a formaction), a button's name and value; for a
+        /// plain link, the path only.
         var dests: [String] = []
         /// It submits a form.
         var submits = false
@@ -53,8 +61,13 @@ enum IrreversibleAction {
         var action = ""
         /// It sends a message: Enter in a message box.
         var sends = false
+        /// It is a plain link: a navigation, named by its short text only, and judged by whole segments of its path.
+        var link = false
+        /// The key pressed is one that acts by itself: Delete or Backspace outside a text field, or a combination with ctrl or meta.
+        var keyRisk = false
 
-        init(label: String = "", names: [String] = [], hints: [String] = [], dests: [String] = [], submits: Bool = false, payment: Bool = false, action: String = "", sends: Bool = false) {
+        init(label: String = "", names: [String] = [], hints: [String] = [], dests: [String] = [], submits: Bool = false, payment: Bool = false, action: String = "", sends: Bool = false,
+             link: Bool = false, keyRisk: Bool = false) {
             self.label = label
             self.names = names
             self.hints = hints
@@ -63,61 +76,76 @@ enum IrreversibleAction {
             self.payment = payment
             self.action = action
             self.sends = sends
+            self.link = link
+            self.keyRisk = keyRisk
         }
 
         init(_ json: [String: Any]) {
             self.init(label: json["label"] as? String ?? "", names: json["names"] as? [String] ?? [], hints: json["hints"] as? [String] ?? [],
                       dests: json["dests"] as? [String] ?? [], submits: json["submits"] as? Bool ?? false, payment: json["payment"] as? Bool ?? false, action: json["action"] as? String ?? "",
-                      sends: json["sends"] as? Bool ?? false)
+                      sends: json["sends"] as? Bool ?? false, link: json["link"] as? Bool ?? false, keyRisk: json["keyRisk"] as? Bool ?? false)
         }
     }
 
-    static func looksIrreversible(_ facts: Facts) -> Bool {
-        facts.sends || (facts.names + facts.hints).contains(where: matches) || facts.dests.contains(where: goesToIrreversible)
-            || (facts.submits && (facts.payment || postsToCheckout(facts.action)))
+    static func tier(of facts: Facts) -> Tier {
+        if facts.sends || facts.keyRisk || (facts.submits && (facts.payment || postsToCheckout(facts.action))) { return .high }
+        if facts.dests.contains(where: { facts.link ? linkGoesToHigh($0) : goesToIrreversible($0) }) { return .high }
+        return (facts.names + facts.hints).reduce(Tier.none) { max($0, tier(ofText: $1)) }
     }
 
-    /// The name to show the user: the one that looked risky, else the control's own.
-    static func name(of facts: Facts) -> String {
-        facts.names.first(where: matches) ?? (facts.label.isEmpty ? facts.hints.first(where: matches) ?? "" : facts.label)
+    /// The name to show the user: the one that put the action in its tier, else the control's own.
+    static func name(of facts: Facts, tier wanted: Tier = .high) -> String {
+        facts.names.first(where: { tier(ofText: $0) >= wanted }) ?? (facts.label.isEmpty ? facts.hints.first(where: { tier(ofText: $0) >= wanted }) ?? "" : facts.label)
     }
 
     /// Words (whole words only, accents and case ignored) of the Latin-script languages.
-    private static let words: Set<String> = Set([
+    private static func fold(all words: [String]) -> Set<String> { Set(words.map(fold)) }
+
+    private static let highWords: Set<String> = fold(all: [
         // English
-        "buy", "buys", "buying", "purchase", "purchases", "purchasing", "pay", "pays", "paying", "order", "orders", "ordering", "checkout",
-        "send", "sends", "sending", "post", "posting", "publish", "publishing", "delete", "deleting", "remove", "removing",
-        "transfer", "transferring", "confirm", "confirming", "donate", "donating", "reply",
-        "submit", "submitting", "save", "saving", "share", "sharing", "comment", "tweet", "merge", "merging", "approve", "approving",
-        "authorize", "authorise", "authorizing", "withdraw", "withdrawing", "book", "reserve", "reserving", "subscribe", "subscribing", "unsubscribe",
-        "trash", "bin", "recycle", "discard", "erase", "revoke", "deactivate", "terminate",
-        "allow", "allowing", "accept", "accepting", "agree", "agreeing", "grant", "granting", "connect", "connecting", "sell", "selling", "bid", "bidding",
-        "invest", "investing", "trade", "trading", "invite", "inviting", "upload", "uploading", "install", "installing", "enable", "enabling",
-        "disable", "disabling", "disconnect", "disconnecting", "unlink", "reset", "resetting", "clear", "clearing", "wipe", "wiping", "empty", "emptying",
-        "ban", "banning", "block", "blocking", "complete", "completing", "finish", "finishing",
+        "buy", "buys", "buying", "purchase", "purchasing", "pay", "pays", "paying", "order", "ordering", "checkout",
+        "send", "sends", "sending", "post", "posting", "publish", "publishing", "delete", "deleting", "transfer", "transferring",
+        "confirm", "confirming", "donate", "donating", "tweet", "retweet", "repost", "merge", "merging", "approve", "approving",
+        "withdraw", "withdrawing", "deposit", "depositing", "wire", "unsubscribe",
+        "trash", "bin", "recycle", "erase", "erasing", "wipe", "wiping", "revoke", "deactivate", "terminate",
+        "sell", "selling", "bid", "bidding", "invest", "investing", "trade", "trading",
         // Spanish
         "comprar", "compra", "pagar", "pago", "pedir", "pedido", "enviar", "envia", "publicar", "eliminar", "borrar", "transferir", "transferencia",
-        "confirmar", "donar", "responder",
-        "guardar", "compartir", "comentar", "aprobar", "autorizar", "retirar", "reservar", "suscribirse", "suscribir", "papelera", "descartar", "revocar",
-        "permitir", "acepto", "conceder", "otorgar", "conectar", "vender", "pujar", "invertir", "invitar", "subir", "instalar", "activar", "desactivar",
-        "desconectar", "desvincular", "restablecer", "vaciar", "bloquear", "completar", "finalizar",
+        "confirmar", "donar", "aprobar", "retirar", "depositar", "papelera", "revocar", "vender", "pujar", "invertir",
         // German
         "kaufen", "kauf", "bezahlen", "zahlen", "zahlungspflichtig", "bestellen", "bestellung", "senden", "absenden", "abschicken", "versenden",
-        "posten", "veröffentlichen", "löschen", "entfernen", "überweisen", "bestätigen", "spenden", "antworten",
-        "speichern", "teilen", "kommentieren", "genehmigen", "autorisieren", "abheben", "buchen", "reservieren", "abonnieren", "abbestellen", "einreichen",
-        "papierkorb", "verwerfen", "widerrufen",
-        "erlauben", "zulassen", "akzeptieren", "zustimmen", "gewähren", "verbinden", "verkaufen", "bieten", "investieren", "handeln", "einladen", "hochladen",
-        "installieren", "aktivieren", "deaktivieren", "trennen", "zurücksetzen", "leeren", "sperren", "blockieren", "abschließen", "beenden", "fertigstellen",
+        "posten", "veröffentlichen", "löschen", "überweisen", "bestätigen", "spenden", "genehmigen", "abheben", "einzahlen",
+        "abbestellen", "papierkorb", "widerrufen", "verkaufen", "bieten", "investieren", "handeln",
         // French
-        "acheter", "achat", "payer", "régler", "commander", "commande", "valider", "envoyer", "publier", "supprimer", "retirer", "virer", "virement",
-        "transférer", "confirmer", "répondre",
-        "enregistrer", "sauvegarder", "partager", "commenter", "approuver", "autoriser", "réserver", "abonner", "soumettre", "corbeille", "poubelle",
-        "résilier", "désabonner",
-        "accepter", "accorder", "vendre", "enchérir", "investir", "inviter", "téléverser", "installer", "activer", "désactiver", "dissocier",
-        "réinitialiser", "vider", "effacer", "bannir", "bloquer", "terminer", "finaliser", "compléter",
-    ].map(fold))
+        "acheter", "achat", "payer", "régler", "commander", "commande", "valider", "envoyer", "publier", "supprimer", "virer", "virement",
+        "transférer", "confirmer", "approuver", "désabonner", "corbeille", "poubelle", "résilier", "vendre", "enchérir", "investir",
+    ])
 
-    private static let phrases = ["check out", "place order", "passer la commande", "finalizar compra", "realizar pedido", "zur kasse"].map(fold)
+    private static let lowWords: Set<String> = fold(all: [
+        // English
+        "reply", "book", "reserve", "reserving", "submit", "submitting", "save", "saving", "share", "sharing", "comment", "remove", "removing", "subscribe", "subscribing",
+        "authorize", "authorise", "authorizing", "allow", "allowing", "accept", "accepting", "agree", "agreeing", "grant", "granting",
+        "connect", "connecting", "disconnect", "disconnecting", "unlink", "invite", "inviting", "upload", "uploading", "install", "installing",
+        "enable", "enabling", "disable", "disabling", "reset", "resetting", "clear", "clearing", "empty", "emptying", "discard", "ban", "banning",
+        "block", "blocking", "complete", "completing", "finish", "finishing",
+        // Spanish
+        "responder", "reservar", "guardar", "compartir", "comentar", "autorizar", "suscribirse", "suscribir", "descartar", "permitir", "acepto", "conceder", "otorgar",
+        "conectar", "invitar", "subir", "instalar", "activar", "desactivar", "desconectar", "desvincular", "restablecer", "vaciar", "bloquear", "completar", "finalizar",
+        // German
+        "antworten", "buchen", "reservieren", "entfernen", "speichern", "teilen", "kommentieren", "autorisieren", "abonnieren", "einreichen", "verwerfen", "erlauben", "zulassen",
+        "akzeptieren", "zustimmen", "gewähren", "verbinden", "einladen", "hochladen", "installieren", "aktivieren", "deaktivieren", "trennen",
+        "zurücksetzen", "leeren", "sperren", "blockieren", "abschließen", "beenden", "fertigstellen",
+        // French
+        "répondre", "réserver", "retirer", "enregistrer", "sauvegarder", "partager", "commenter", "autoriser", "abonner", "soumettre", "accepter", "accorder", "inviter",
+        "téléverser", "installer", "activer", "désactiver", "dissocier", "réinitialiser", "vider", "effacer", "bannir", "bloquer", "terminer", "finaliser", "compléter",
+    ])
+
+    private static let highPhrases = ["check out", "place order", "passer la commande", "finalizar compra", "realizar pedido", "zur kasse", "remove permanently", "permanently remove",
+                                      "delete forever", "empty trash", "empty the trash", "empty bin", "empty the bin", "close account", "close my account", "wire transfer",
+                                      "make payment", "make a payment", "authorize payment", "authorise payment"].map(fold)
+
+    /// "Save 20%" and "Save up to $5" are promotions, not a save.
+    private static let promotional: Set<String> = fold(all: ["save", "saving", "savings"])
 
     /// Cancelling is ordinary (a dialog's Cancel button), except for a subscription, an order, a booking or the like.
     private static let cancelWords: Set<String> = Set(["cancel", "cancels", "cancelling", "canceling", "cancellation", "cancelar", "annuler", "stornieren", "kündigen"].map(fold))
@@ -128,20 +156,19 @@ enum IrreversibleAction {
     ].map(fold))
 
     /// Korean, Japanese and Chinese have no spaces between words, so these are looked for anywhere in the text.
-    private static let characters = [
-        "구매", "결제", "주문", "보내", "전송", "게시", "삭제", "송금", "발송", "이체", "제거", "발행", "후원", "답글",
-        "탈퇴", "해지", "제출", "신청", "구독", "휴지통",
-        "저장", "공유", "등록", "댓글", "승인", "출금", "허용", "동의", "수락", "연결", "판매", "입찰", "투자", "초대", "업로드", "설치", "활성화", "비활성화",
-        "초기화", "차단", "완료",
-        "購入", "支払", "決済", "注文", "送信", "投稿", "削除", "送金", "公開", "振込", "寄付", "返信",
-        "退会", "申し込み", "申込", "予約", "解約", "ゴミ箱",
-        "保存", "共有", "登録", "コメント", "承認", "出金", "許可", "同意", "承諾", "接続", "売却", "入札", "投資", "招待", "アップロード", "インストール",
-        "有効化", "無効化", "切断", "リセット", "クリア", "ブロック", "完了",
+    private static let highCharacters = [
+        "구매", "결제", "주문", "보내", "전송", "게시", "삭제", "송금", "발송", "이체", "발행", "후원", "탈퇴", "해지", "휴지통", "출금", "입금", "판매", "입찰", "투자", "승인",
+        "購入", "支払", "決済", "注文", "送信", "投稿", "削除", "送金", "公開", "振込", "寄付", "退会", "解約", "ゴミ箱", "出金", "入金", "売却", "入札", "投資", "承認",
         "购买", "購買", "支付", "付款", "下单", "下單", "发送", "發送", "发布", "發佈", "發布", "删除", "刪除", "转账", "轉帳", "结算", "結算", "订购", "訂購", "提交订单", "提交訂單",
-        "捐款", "回复", "回覆", "确认订单", "確認訂單",
-        "提交", "注销", "註銷", "预订", "預訂", "预约", "預約", "订阅", "訂閱", "取消订阅", "取消订单", "取消訂單", "垃圾桶", "垃圾箱", "回收站", "废纸篓",
-        "保存", "分享", "评论", "評論", "批准", "提现", "提現", "允许", "允許", "同意", "接受", "授权", "授權", "连接", "連接", "出售", "竞拍", "競拍", "投资", "投資",
-        "邀请", "邀請", "上传", "上傳", "安装", "安裝", "启用", "啟用", "禁用", "断开", "斷開", "重置", "清空", "封禁", "屏蔽", "完成",
+        "捐款", "确认订单", "確認訂單", "注销", "註銷", "取消订阅", "取消订单", "取消訂單", "垃圾桶", "垃圾箱", "回收站", "废纸篓",
+        "批准", "提现", "提現", "出售", "竞拍", "競拍", "投资", "投資", "汇款", "匯款", "存款",
+    ]
+
+    private static let lowCharacters = [
+        "답글", "예약", "제거", "제출", "신청", "구독", "저장", "공유", "등록", "댓글", "허용", "동의", "수락", "연결", "초대", "업로드", "설치", "활성화", "비활성화", "초기화", "차단", "완료",
+        "返信", "予約", "申し込み", "申込", "保存", "共有", "登録", "コメント", "許可", "同意", "承諾", "接続", "招待", "アップロード", "インストール", "有効化", "無効化", "切断", "リセット", "クリア", "ブロック", "完了",
+        "回复", "回覆", "预订", "預訂", "预约", "預約", "提交", "订阅", "訂閱", "分享", "评论", "評論", "允许", "允許", "接受", "授权", "授權", "连接", "連接", "邀请", "邀請", "上传", "上傳", "安装", "安裝",
+        "启用", "啟用", "禁用", "断开", "斷開", "重置", "清空", "封禁", "屏蔽", "完成",
     ]
 
     /// Ordinary words that contain one of those: pages and lists a link goes to (a board, a history of orders), not what they
@@ -164,21 +191,42 @@ enum IrreversibleAction {
         clean(text).folding(options: [.diacriticInsensitive, .caseInsensitive, .widthInsensitive], locale: nil)
     }
 
-    static func matches(_ text: String) -> Bool {
+    static func tier(ofText text: String) -> Tier {
         var cleaned = clean(text)
         for compound in ordinaryCompounds { cleaned = cleaned.replacingOccurrences(of: compound, with: " ") }
-        if characters.contains(where: cleaned.contains) { return true }
+        if highCharacters.contains(where: cleaned.contains) { return .high }
         let tokens = fold(text).split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init)
-        if tokens.contains(where: words.contains) { return true }
-        if tokens.contains(where: cancelWords.contains) && tokens.contains(where: cancelContext.contains) { return true }
+        if tokens.contains(where: highWords.contains) { return .high }
+        if tokens.contains(where: cancelWords.contains) && tokens.contains(where: cancelContext.contains) { return .high }
         let spaced = " " + tokens.joined(separator: " ") + " "
-        return phrases.contains { spaced.contains(" \($0) ") }
+        if highPhrases.contains(where: { spaced.contains(" \($0) ") }) { return .high }
+        if lowCharacters.contains(where: cleaned.contains) { return .low }
+        for (index, token) in tokens.enumerated() where lowWords.contains(token) {
+            if promotional.contains(token), isAmount(tokens.dropFirst(index + 1)) { continue }
+            return .low
+        }
+        return .none
     }
 
-    /// Where a link, a button or a form goes that pays or gives something up, in the words of an address.
+    /// Whether the words that follow "save" are an amount ("20", "up to 50", "$5").
+    private static func isAmount(_ rest: ArraySlice<String>) -> Bool {
+        var rest = rest
+        if rest.first == "up", rest.dropFirst().first == "to" { rest = rest.dropFirst(2) }
+        return rest.first?.first?.isNumber == true
+    }
+
+    /// Whether a text puts an action in a tier of at least `wanted`.
+    static func matches(_ text: String, tier wanted: Tier = .high) -> Bool { tier(ofText: text) >= wanted }
+
+    /// Where a form, a button or a script goes that pays or gives something up, in the words of an address.
     private static let destinationWords: Set<String> = [
         "checkout", "payment", "payments", "pay", "purchase", "buy", "delete", "remove", "destroy", "erase", "purge", "trash", "transfer", "withdraw",
         "send", "cancel", "unsubscribe", "confirm", "revoke", "deactivate", "terminate",
+    ]
+
+    /// A link is a navigation: only a whole segment of its path that is one of these says it goes to the last step of something.
+    private static let linkSegments: Set<String> = [
+        "checkout", "payment", "pay", "purchase", "buy", "delete", "destroy", "erase", "purge", "transfer", "withdraw", "send", "unsubscribe", "revoke", "deactivate", "terminate",
     ]
 
     /// A form posts to places that read like these as the last step of something, whatever its button says.
@@ -218,6 +266,11 @@ enum IrreversibleAction {
     static func goesToIrreversible(_ destination: String) -> Bool {
         pieces(destination).contains(where: destinationWords.contains)
     }
+
+    /// Whether the path of a link has a whole segment that is "checkout", "pay", "delete" and the like (a hyphenated slug is not one).
+    static func linkGoesToHigh(_ path: String) -> Bool {
+        path.prefix(300).split(separator: "/").contains { linkSegments.contains(fold(String($0))) }
+    }
 }
 
 /// What the AI is doing now: the line the panel shows, the tabs it is using (which must keep running while the user
@@ -230,7 +283,8 @@ final class AgentActivity: ObservableObject {
     /// So many tabs at most are kept drawing behind the page shown; the rest of those in use are only kept awake.
     static let maxHeld = 3
 
-    /// The tabs in use that are kept drawing, the most recently used first, for the views that keep them.
+    /// The tabs in use, the most recently used first. The view that keeps them leaves out the page in front and the ones shown
+    /// elsewhere and holds the first `maxHeld` of the rest, so a page in use that is in front doesn't take a place from another.
     @Published private(set) var held: [Int] = []
     private var stops: [String: Int] = [:]
     /// Per tab and caller, when the tab was last used.
@@ -274,8 +328,14 @@ final class AgentActivity: ObservableObject {
             uses[id] = live.isEmpty ? nil : live
         }
         let newest = uses.sorted { ($0.value.values.max() ?? .distantPast) > ($1.value.values.max() ?? .distantPast) }.map(\.key)
-        let now = Array(newest.filter { ToolCatalog.findTab($0) != nil }.prefix(Self.maxHeld))
+        let now = newest.filter { ToolCatalog.findTab($0) != nil }
         if now != held { held = now }
+    }
+
+    /// A tab in use got another page (it woke up, or went to sleep): the view that holds it behind the page in front takes the new one.
+    func pageChanged(_ tab: Tab) {
+        // Not within the update of a view that woke the tab.
+        if held.contains(tab.id) { DispatchQueue.main.async { [weak self] in self?.objectWillChange.send() } }
     }
 
     /// One timer for all the leases: it wakes when the first one runs out.
@@ -320,8 +380,12 @@ final class AgentActivity: ObservableObject {
 final class ReadGate {
     private var busy = false
 
-    @MainActor func run<T>(_ body: () async -> T) async -> T {
-        while busy { try? await Task.sleep(for: .milliseconds(50)) }
+    /// nil when the task was cancelled while waiting for its turn.
+    @MainActor func run<T>(_ body: () async -> T) async -> T? {
+        while busy {
+            if Task.isCancelled { return nil }
+            do { try await Task.sleep(for: .milliseconds(50)) } catch { return nil }
+        }
         busy = true
         defer { busy = false }
         return await body()
@@ -347,11 +411,18 @@ struct FrameRegistry<Frame> {
     /// The frames of the latest read (or aim), each with the number the page script gave the greeting.
     private(set) var expected: [String: String] = [:]
 
-    /// A frame says where it is. It is kept for a moment, since it can answer before the read that greets it is over.
+    /// A frame says where it is. It is kept for a moment, since it can answer before the read that greets it is over. The first
+    /// offer of a name with a number is the one kept: the same words again change nothing. When there is no room, what the
+    /// reads are waiting for (a name with the number it was greeted with) stays and the oldest of the rest goes, so a flood of
+    /// offers nobody asked for can't push out the frames that answered; with nothing else to remove, the new offer is left out.
     mutating func offer(slot: String, nonce: String, frame: Frame, now: Date = Date()) {
         offers.removeAll { now.timeIntervalSince($0.at) > Self.offerLife }
+        guard !offers.contains(where: { $0.slot == slot && $0.nonce == nonce }) else { return }
+        if offers.count >= Self.maxOffers {
+            guard let oldest = offers.firstIndex(where: { expected[$0.slot] != $0.nonce }) else { return }
+            offers.remove(at: oldest)
+        }
         offers.append(Offer(slot: slot, nonce: nonce, frame: frame, at: now))
-        if offers.count > Self.maxOffers { offers.removeFirst(offers.count - Self.maxOffers) }
     }
 
     /// The read greeted this frame with this number.
@@ -389,6 +460,13 @@ struct FrameRegistry<Frame> {
         offers = []
         expected = [:]
     }
+
+    /// A frame of the page navigated, and which one can't be told (a frame handle has no identity to compare): every handle is
+    /// let go, so none is used for what may be another document now, but the names and numbers the latest read greeted the frames
+    /// with stay, so the frames that didn't navigate answer again when greeted and a read under way still knows its frames.
+    mutating func frameNavigated() {
+        offers = []
+    }
 }
 
 /// What the app knows about the frames of one tab, for the AI's tools.
@@ -404,6 +482,10 @@ struct AgentState {
     }
 
     mutating func endRead() { frames.endRead() }
+
+    /// A frame of the page navigated: see `FrameRegistry.frameNavigated`. The element numbers of the frames' contents stay, and a
+    /// number in a frame whose handle is gone is answered as a frame that can't be reached, never taken for the page's own.
+    mutating func frameNavigated() { frames.frameNavigated() }
 
     mutating func reset() {
         frames.reset()
@@ -453,6 +535,23 @@ extension Tab {
         }
         return nil
     }
+
+    /// Several frames, each given its moment at the same time: the ones that answered, by their names.
+    func frames(named slots: [String]) async -> [String: WKFrameInfo] {
+        await withTaskGroup(of: (String, WKFrameInfo?).self) { group in
+            for slot in slots { group.addTask { @MainActor in (slot, await self.frame(named: slot)) } }
+            var found: [String: WKFrameInfo] = [:]
+            for await (slot, info) in group { if let info { found[slot] = info } }
+            return found
+        }
+    }
+}
+
+/// Every password field is known to the AI's scripts as one from the moment its page begins, not only from the first tool call.
+enum PasswordWatcher {
+    static func install(in controller: WKUserContentController) {
+        controller.addUserScript(WKUserScript(source: PageScripts.watchPasswords, injectionTime: .atDocumentStart, forMainFrameOnly: false, in: .defaultClient))
+    }
 }
 
 struct ToolFailure: Error {
@@ -469,9 +568,12 @@ struct Session {
     var caller: String
     var token: Int
     var deadline: Date
+    /// The site the tab was approved for when it wasn't the page in front; the pages and frames the call reaches are checked against it.
+    var approved: String?
 
-    @MainActor init(caller: String) {
+    @MainActor init(caller: String, approved: String? = nil) {
         self.caller = caller
+        self.approved = approved
         token = AgentActivity.shared.stopCount(for: caller)
         deadline = Date().addingTimeInterval(Self.lifetime)
     }
@@ -564,7 +666,7 @@ extension ToolCatalog {
     /// the frames of other sites (each read by the script run inside it), so every number works with the tools.
     @MainActor
     static func readPage(_ tab: Tab, _ webView: WKWebView, maxChars: Int, session: Session) async -> (ToolResult, frameHosts: Set<String>) {
-        await tab.agent.gate.run { await readPageAlone(tab, webView, maxChars: maxChars, session: session) }
+        await tab.agent.gate.run { await readPageAlone(tab, webView, maxChars: maxChars, session: session) } ?? (stopped, [])
     }
 
     @MainActor
@@ -578,13 +680,19 @@ extension ToolCatalog {
         }
         var lines = page.lines, count = page.count, capped = page.capped, framesText = "", hosts = Set<String>()
         func readFrames(_ frames: [(slot: String, nonce: String, src: String, title: String)], depth: Int) async {
-            for ref in frames.prefix(8) {
-                let name = ref.src.isEmpty ? ref.title : ref.src
-                tab.agent.frames.expect(slot: ref.slot, nonce: ref.nonce)
-                guard depth < 2, Date() < deadline, !session.stopped, let info = await tab.frame(named: ref.slot),
+            let refs = Array(frames.prefix(8))
+            for ref in refs { tab.agent.frames.expect(slot: ref.slot, nonce: ref.nonce) }
+            // The frames are given their moment to answer the greeting all at once, not one after the other.
+            let infos = depth < 2 && Date() < deadline && !session.stopped ? await tab.frames(named: refs.map(\.slot)) : [:]
+            for ref in refs {
+                // What is told of a frame that couldn't be read (its address or title, which its page chose) is cut, and its address is
+                // a site the model was told of.
+                let name = Approvals.shown(ref.src.isEmpty ? ref.title : ref.src, limit: 200)
+                guard depth < 2, Date() < deadline, !session.stopped, let info = infos[ref.slot],
                       let part = await readPart(["maxChars": min(maxChars, 4000), "start": count, "limit": max(maxElements - count, 0)], frame: info, in: webView,
                                                 timeout: min(frameTimeout, max(deadline.timeIntervalSinceNow, 1))) else {
-                    framesText += "\n\n--- Frame: \(name) (from another site; its content could not be read) ---"
+                    framesText += "\n\n--- Frame: \(name.text)\(name.cut > 0 ? "…" : "") (from another site; its content could not be read) ---"
+                    if !ref.src.isEmpty, let site = Approvals.site(of: URL(string: ref.src)), Approvals.hasSite(site) { hosts.insert(site) }
                     continue
                 }
                 // The site is the one the frame says it is in, from inside: where it was when it greeted may be another by now.
@@ -600,7 +708,8 @@ extension ToolCatalog {
                 if part.count > count { tab.agent.ranges.append((count + 1...part.count, ref.slot)) }
                 count = max(count, part.count)
                 capped = capped || part.capped
-                framesText += "\n\n--- Frame: \(part.url) ---\n" + part.text
+                let address = Approvals.shown(part.url, limit: 300)
+                framesText += "\n\n--- Frame: \(address.text)\(address.cut > 0 ? "…" : "") ---\n" + part.text
                 await readFrames(part.frames, depth: depth + 1)
             }
         }
@@ -621,10 +730,10 @@ extension ToolCatalog {
 
     /// The frames a picture shows, from the answer of the script that lists them: nil when it gave none, and `more` when there
     /// are more than the app asks about.
-    static func shownFrames(from answer: String?) -> (refs: [(slot: String, nonce: String)], more: Bool)? {
+    static func shownFrames(from answer: String?) -> (refs: [(slot: String, nonce: String, src: String)], more: Bool)? {
         guard let answer, let list = (try? JSONSerialization.jsonObject(with: Data(answer.utf8))) as? [[String: String]] else { return nil }
         let first = list.prefix(maxShownFrames)
-        let refs = first.compactMap { ref in ref["slot"].flatMap { slot in ref["nonce"].map { (slot, $0) } } }
+        let refs = first.compactMap { ref in ref["slot"].flatMap { slot in ref["nonce"].map { (slot, $0, ref["src"] ?? "") } } }
         return (refs, list.count > first.count || refs.count < first.count)
     }
 
@@ -632,7 +741,9 @@ extension ToolCatalog {
 
     /// The sites of the frames a picture of the page shows (also those inside frames of other sites), each asked where it
     /// really is. A frame that can't be reached or has no site, one beyond the first few, and a list that could not be had
-    /// all count as an unknown frame, which is a site of its own for the approvals: the picture may show anything there.
+    /// all count as an unknown frame, which is a site of its own for the approvals: the picture may show anything there. A frame
+    /// that shows nothing (an empty box, a tracking pixel), and one that can't be reached but is of a site the ad blocker's lists
+    /// block, is no site the picture showed.
     @MainActor
     static func shownFrameHosts(_ tab: Tab, _ webView: WKWebView) async -> Set<String> {
         var hosts = Set<String>()
@@ -644,13 +755,19 @@ extension ToolCatalog {
             }
             // Frames in frames in frames are not followed any further.
             if shown.more || (depth >= 3 && !shown.refs.isEmpty) { hosts.insert(Approvals.unknownFrame) }
-            for ref in shown.refs where depth < 3 {
-                tab.agent.frames.expect(slot: ref.slot, nonce: ref.nonce)
+            guard depth < 3 else { return }
+            for ref in shown.refs { tab.agent.frames.expect(slot: ref.slot, nonce: ref.nonce) }
+            let infos = await tab.frames(named: shown.refs.map(\.slot))
+            for ref in shown.refs {
                 var host = Approvals.unknownFrame
-                if let info = await tab.frame(named: ref.slot) {
-                    let origin = await run(PageScripts.origin, [:], in: webView, frame: info, timeout: 3)
-                    if !origin.isError, let origin = origin.content.first?["text"] as? String, !Self.host(ofOrigin: origin).isEmpty { host = Self.host(ofOrigin: origin) }
+                if let info = infos[ref.slot] {
+                    let facts = await run(PageScripts.frameFacts, [:], in: webView, frame: info, timeout: 3)
+                    let json = facts.isError ? nil : (facts.content.first?["text"] as? String).flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] }
+                    if let origin = json?["origin"] as? String, !Self.host(ofOrigin: origin).isEmpty { host = Self.host(ofOrigin: origin) }
                     await visit(info, depth: depth + 1)
+                    if json?["blank"] as? Bool == true { continue }
+                } else if let site = Approvals.site(of: URL(string: ref.src)), let name = Approvals.hostname(ofSite: site), AdBlocker.shared.blocks(name, onPage: tab.url?.host()) {
+                    continue
                 }
                 hosts.insert(host)
             }
@@ -675,6 +792,8 @@ extension ToolCatalog {
         var origin: String
         /// What the page showed of it, so that the action can tell it is still the same thing.
         var fingerprint: String
+        /// The fingerprint keeps the digits of the names (an amount or a count that changes is another thing): what asks every time.
+        var exact: Bool
         /// The site it is in, by what the document says: "" when it has none (a frame with no site). The page of the tab itself,
         /// when it has none (a file: page), is the site of its scheme.
         var host: String
@@ -682,7 +801,7 @@ extension ToolCatalog {
 
         /// The arguments the script that acts looks at: where, what it must still be, and anything the action needs.
         func scriptArgs(_ extra: [String: Any] = [:]) -> [String: Any] {
-            args.merging(["expect": ["origin": origin, "fp": fingerprint]]) { $1 }.merging(extra) { $1 }
+            args.merging(["expect": ["origin": origin, "fp": fingerprint, "exact": exact]]) { $1 }.merging(extra) { $1 }
         }
 
         func script(_ extra: [String: Any] = [:]) -> [String: Any] { ["args": scriptArgs(extra)] }
@@ -696,10 +815,10 @@ extension ToolCatalog {
     }
 
     /// Finds the target (an element number, a point, or what has the focus), following a point or the focus into
-    /// frames of other sites, without acting on it. `key` is the key about to be pressed on it, if any; `typing` says the
+    /// frames of other sites, without acting on it. `key` is the key about to be pressed on it, if any, with the modifiers held in `mods`; `typing` says the
     /// tool types the text itself, with Enter after it when `key` is Enter; `drop` says a drag ends on it.
     @MainActor
-    static func aim(_ wanted: [String: Any], key: String? = nil, typing: Bool = false, drop: Bool = false, tab: Tab, in webView: WKWebView, session: Session) async throws -> Aim {
+    static func aim(_ wanted: [String: Any], key: String? = nil, mods: [String: Bool]? = nil, typing: Bool = false, drop: Bool = false, tab: Tab, in webView: WKWebView, session: Session) async throws -> Aim {
         var target = wanted, frame: WKFrameInfo?, slot: String?
         if let id = target["id"] as? Int {
             switch await Self.frame(ofElement: id, in: tab) {
@@ -712,6 +831,7 @@ extension ToolCatalog {
         for _ in 0..<5 {
             var args = target
             if let key { args["key"] = key }
+            if let mods { args["mods"] = mods }
             if typing { args["typing"] = true }
             if drop { args["drop"] = true }
             let result = await run(PageScripts.inspect, ["args": args], in: webView, frame: frame)
@@ -740,19 +860,24 @@ extension ToolCatalog {
             let origin = json["origin"] as? String ?? "null"
             var host = ToolCatalog.host(ofOrigin: origin)
             if host.isEmpty && frame == nil { host = tabHost }
+            // What asks every time is fingerprinted with its digits (an amount, a quantity); the rest without, since a count on a
+            // page changes by itself.
+            let exact = IrreversibleAction.tier(of: facts) == .high
             let aim = Aim(frame: frame, slot: slot, args: args, facts: facts, secret: json["secret"] as? Bool ?? false,
-                          description: json["description"] as? String ?? "", origin: origin, fingerprint: json["fp"] as? String ?? "", host: host)
+                          description: json["description"] as? String ?? "", origin: origin, fingerprint: json[exact ? "fpExact" : "fp"] as? String ?? "", exact: exact, host: host)
             // The site is the one the document says it is, from inside it. What it showed of the target counts as read from
-            // there; and a frame of another site is another site: using it from a tab the user isn't looking at is asked
-            // about for that site.
-            if frame != nil || aim.host != tabHost {
+            // there; and a site other than the one the tab was approved for (a frame of another site, or the tab having gone to
+            // another site since) is another site: using it from a tab the user isn't looking at is asked about for that site.
+            let approvedSite = session.approved ?? tabHost
+            if frame != nil || aim.host != tabHost || aim.host != approvedSite {
                 let inFront = tab.browser.map { tab.id == $0.activeID && $0 === Browser.recent } ?? false
-                if !aim.host.isEmpty, aim.host != tabHost, !inFront {
+                if !aim.host.isEmpty, aim.host != approvedSite, !inFront {
                     let allowed = await Approvals.allowTab(tab, caller: session.caller, host: aim.host)
                     if session.stopped { throw ToolFailure(result: stopped) }
                     if !allowed { throw ToolFailure(result: declined) }
                 }
-                Approvals.noteRead(tab, readHost: aim.host.isEmpty ? Approvals.unknownFrame : aim.host, caller: session.caller)
+                let read = aim.host.isEmpty ? Approvals.unknownFrame : aim.host
+                if frame != nil { Approvals.noteFrameRead(tab, readHost: read, caller: session.caller) } else { Approvals.noteRead(tab, readHost: read, caller: session.caller) }
             }
             return aim
         }
@@ -770,12 +895,23 @@ extension ToolCatalog {
             if session.stopped { throw ToolFailure(result: stopped) }
             if !allowed { throw ToolFailure(result: declined) }
         }
-        for aim in irreversible where IrreversibleAction.looksIrreversible(aim.facts) {
-            let name = IrreversibleAction.name(of: aim.facts)
-            let allowed = await Approvals.allowIrreversible(name.isEmpty ? aim.label : name, on: tab, caller: session.caller, site: aim.host)
+        for aim in irreversible {
+            // A form that sends what is typed in it to another site is asked about every time, whatever the button says.
+            let destination = foreignDestination(of: aim)
+            let tier = destination == nil ? IrreversibleAction.tier(of: aim.facts) : .high
+            guard tier != .none else { continue }
+            let name = IrreversibleAction.name(of: aim.facts, tier: tier)
+            let allowed = await Approvals.allowAction(tier, name.isEmpty ? aim.label : name, on: tab, caller: session.caller, site: aim.host, destination: destination)
             if session.stopped { throw ToolFailure(result: stopped) }
             if !allowed { throw ToolFailure(result: declined) }
         }
+    }
+
+    /// The site a form is sent to, when the action submits one to a site other than the one it is on.
+    static func foreignDestination(of aim: Aim) -> String? {
+        guard aim.facts.submits, let url = URL(string: aim.facts.action), ["http", "https"].contains(url.scheme?.lowercased()),
+              let destination = Approvals.site(of: url), destination != aim.host else { return nil }
+        return destination
     }
 
     private static func said(_ result: ToolResult) -> String {
@@ -851,7 +987,7 @@ extension ToolCatalog {
         guard let key = AgentKey.name(args["key"]), let modifiers = AgentKey.modifiers(args["modifiers"]) else { return .text("Invalid key.", error: true) }
         let wanted: [String: Any] = int(args["element_id"]).map { ["id": $0] } ?? ["active": true]
         do {
-            let aim = try await Self.aim(wanted, key: key, tab: tab, in: webView, session: session)
+            let aim = try await Self.aim(wanted, key: key, mods: modifiers, tab: tab, in: webView, session: session)
             if aim.secret { return .text("Error: Changmun does not let the AI press keys in password fields. Ask the user to.", error: true) }
             let step = String(localized: "Pressing \(key)")
             AgentActivity.shared.step(step, caller: session.caller)
@@ -879,8 +1015,8 @@ extension ToolCatalog {
             // The option is the AI's own text, picked from a list the page wrote, and a page can write a list to read it back from.
             try await approve(.choose(option), aims: [aim], tab: tab, session: session)
 
-            func ask(_ stage: String, open: Bool = false, expect: String? = nil) async -> ToolResult {
-                var extra: [String: Any] = ["stage": stage, "option": option, "open": open]
+            func ask(_ stage: String, open: Bool = false, expect: String? = nil, exact: Bool = false) async -> ToolResult {
+                var extra: [String: Any] = ["stage": stage, "option": option, "open": open, "expectExact": exact]
                 if let expect { extra["expectFp"] = expect }
                 return await act(PageScripts.selectOption, aim.script(extra), aim: aim, tab: tab, webView: webView, waits: stage == "choose")
             }
@@ -895,14 +1031,17 @@ extension ToolCatalog {
                 resolved = await ask("resolve", open: true)
                 if resolved.isError { return resolved }
             }
-            guard let chosen = answer(resolved), chosen["label"] is String, let fingerprint = chosen["fp"] as? String else {
+            guard let chosen = answer(resolved), chosen["label"] is String, let fingerprint = chosen["fp"] as? String, let exactFingerprint = chosen["fpExact"] as? String else {
                 return .text("Error: the page did not answer.", error: true)
             }
+            // An option that asks every time is fingerprinted with its digits (a quantity, an amount).
+            let optionFacts = IrreversibleAction.Facts(chosen)
+            let exact = IrreversibleAction.tier(of: optionFacts) == .high
             // A menu item named "Delete" is a button by another name, and so is the option of a list that acts when it changes
             // (a native list that submits its form takes the form's card details and address along). It is judged by every
             // name its markup gives it, and chosen only if it is still that very option.
-            try await approve(nil, aims: [aim], irreversible: [aim.judged(as: .init(chosen))], tab: tab, session: session)
-            let result = await ask("choose", expect: fingerprint)
+            try await approve(nil, aims: [aim], irreversible: [aim.judged(as: optionFacts)], tab: tab, session: session)
+            let result = await ask("choose", expect: exact ? exactFingerprint : fingerprint, exact: exact)
             if result.isError { return result }
             return .text("Selected in [\(id)]: \(said(result)). \(now(tab, caller: session.caller)). Element numbers may have changed; read the page again before using them.")
         } catch let failure as ToolFailure {
@@ -1003,6 +1142,27 @@ extension ToolCatalog {
         has.map { $0 != gone } ?? false
     }
 
+    /// What a look at one place of the page came to: its answer, a script that could not be run there at all (the frame is gone), or
+    /// no answer (the place is busy, or hung, or the answer was not one).
+    enum Look: Equatable {
+        case answered([String: Any]), gone, hung
+
+        static func == (a: Look, b: Look) -> Bool {
+            switch (a, b) {
+            case (.gone, .gone), (.hung, .hung): return true
+            case (.answered(let x), .answered(let y)): return NSDictionary(dictionary: x).isEqual(to: y)
+            default: return false
+            }
+        }
+    }
+
+    static func look(_ result: ToolResult) -> Look {
+        let text = result.content.first?["text"] as? String
+        if result.isError { return text == didNotAnswer ? .hung : .gone }
+        guard let text, let json = (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any] else { return .hung }
+        return .answered(json)
+    }
+
     /// How long one frame is given to answer a look at the page, when the wait it belongs to ends at `end`.
     static func lookTimeout(until end: Date, now: Date = Date()) -> Double {
         min(frameTimeout, max(end.timeIntervalSince(now), 1))
@@ -1010,7 +1170,7 @@ extension ToolCatalog {
 
     /// Greets the frames of other sites that the page shows now (those a read has not named too), so that a look at the page can
     /// include them; says whether every one of them answered. A frame that did not answer (it may still be loading) is not waited
-    /// for again until a moment has passed (`unreachable` says when each was tried).
+    /// for again until a moment has passed (`unreachable` says when each was tried). The frames of one document are greeted at the same time.
     @MainActor
     private static func greetShownFrames(_ tab: Tab, _ webView: WKWebView, unreachable: inout [String: Date]) async -> Bool {
         var all = true
@@ -1021,21 +1181,26 @@ extension ToolCatalog {
                 return
             }
             if shown.more { all = false }
-            for ref in shown.refs {
-                if tab.agent.frames.frame(for: ref.slot) == nil {
-                    if let tried = unreachable[ref.slot], Date().timeIntervalSince(tried) < 1.5 {
-                        all = false
-                        continue
-                    }
-                    tab.agent.frames.expect(slot: ref.slot, nonce: ref.nonce)
-                    guard await tab.frame(named: ref.slot) != nil else {
-                        unreachable[ref.slot] = Date()
-                        all = false
-                        continue
-                    }
-                    unreachable[ref.slot] = nil
+            var waiting: [String] = []
+            for ref in shown.refs where tab.agent.frames.frame(for: ref.slot) == nil {
+                if let tried = unreachable[ref.slot], Date().timeIntervalSince(tried) < 1.5 {
+                    all = false
+                    continue
                 }
-                if depth < 2, let info = tab.agent.frames.frame(for: ref.slot) { await visit(info, depth: depth + 1) }
+                tab.agent.frames.expect(slot: ref.slot, nonce: ref.nonce)
+                waiting.append(ref.slot)
+            }
+            let answered = await tab.frames(named: waiting)
+            for slot in waiting {
+                if answered[slot] == nil {
+                    unreachable[slot] = Date()
+                    all = false
+                } else {
+                    unreachable[slot] = nil
+                }
+            }
+            for ref in shown.refs where depth < 2 {
+                if let info = tab.agent.frames.frame(for: ref.slot) { await visit(info, depth: depth + 1) }
             }
         }
         await visit(nil, depth: 0)
@@ -1057,19 +1222,24 @@ extension ToolCatalog {
             }
             let timeout = lookTimeout(until: end)
             let result = await run(PageScripts.hasText, ["args": ["text": text]], in: webView, frame: place.frame, timeout: timeout)
-            guard !result.isError, let answer = result.content.first?["text"] as? String,
-                  let json = (try? JSONSerialization.jsonObject(with: Data(answer.utf8))) as? [String: Any] else {
-                // A frame that had its whole time and still said nothing is gone (or hung); one cut short may only be slow.
-                if let slot = place.slot, timeout >= frameTimeout {
+            guard case .answered(let json) = look(result) else {
+                // A frame the page script could not be run in is gone: it is not asked again. One that did not answer in time is
+                // slow or hung, which says nothing about its text: the wait goes on without an answer from it.
+                if let slot = place.slot, look(result) == .gone {
                     tab.agent.frames.drop(slot: slot)
                 } else {
                     unanswered = true
                 }
                 continue
             }
-            // The answer says something about what the frame shows, so it was read from where it is.
+            // The answer says something about what the frame shows, so it was read from where it is (but a frame that shows nothing
+            // told nothing).
             let host = host(ofOrigin: json["origin"] as? String ?? "")
-            Approvals.noteRead(tab, readHost: place.frame == nil && host.isEmpty ? nil : (host.isEmpty ? Approvals.unknownFrame : host), caller: caller)
+            if place.frame == nil {
+                Approvals.noteRead(tab, readHost: host.isEmpty ? nil : host, caller: caller)
+            } else if json["blank"] as? Bool != true {
+                Approvals.noteFrameRead(tab, readHost: host.isEmpty ? Approvals.unknownFrame : host, caller: caller)
+            }
             if json["found"] as? Bool == true { return true }
         }
         return unanswered ? nil : false

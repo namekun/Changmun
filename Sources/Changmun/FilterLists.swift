@@ -110,6 +110,31 @@ enum FilterConverter {
         return ["trigger": trigger, "action": ["type": action]]
     }
 
+    /// The hosts a list blocks outright, whatever page they are on: its `||host^` rules with no more to them than being third-party
+    /// or a frame (a rule for scripts or images only, or for some pages only, doesn't block the host's frames), less the hosts an
+    /// exception rule (`@@||host^`) lets through.
+    nonisolated static func blockedHosts(in text: String) -> Set<String> {
+        var blocked = Set<String>(), allowed = Set<String>()
+        let frameOptions: Set<String> = ["third-party", "3p", "important", "all", "document", "subdocument", "frame"]
+        for raw in text.split(whereSeparator: \.isNewline) {
+            var line = Substring(raw)
+            let exception = line.hasPrefix("@@")
+            if exception { line = line.dropFirst(2) }
+            guard line.hasPrefix("||") else { continue }
+            line = line.dropFirst(2)
+            var options: [Substring] = []
+            if let dollar = line.firstIndex(of: "$") {
+                options = line[line.index(after: dollar)...].split(separator: ",")
+                line = line[..<dollar]
+            }
+            guard line.hasSuffix("^"), options.allSatisfy({ frameOptions.contains($0.lowercased()) }) else { continue }
+            let host = line.dropLast().lowercased()
+            guard !host.isEmpty, host.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "." || $0 == "-") }), host.contains(".") else { continue }
+            if exception { allowed.insert(host) } else { blocked.insert(host) }
+        }
+        return blocked.subtracting(allowed)
+    }
+
     /// ABP pattern → the regex subset WebKit accepts (no alternation or counted repetition).
     static func urlFilter(_ pattern: String) -> String {
         if pattern.isEmpty { return ".*" }
@@ -175,6 +200,8 @@ final class AdBlocker: ObservableObject {
     @Published private(set) var lastUpdated: Date? = UserDefaults.standard.object(forKey: "filtersUpdated") as? Date
 
     private var applied: [WKContentRuleList] = []
+    /// The hosts the lists in use block outright (see `blocks`).
+    var blockedHosts = Set<String>()
     /// The ordinary configuration's and each private window's; a private window's goes when the window does.
     private let controllers = NSHashTable<WKUserContentController>.weakObjects()
 
@@ -297,6 +324,7 @@ final class AdBlocker: ObservableObject {
         working = false
         ruleCount = converted.2
         if Preferences.shared.blockTrackers { install(lists) }
+        await readBlockedHosts()
         status = errors.isEmpty ? String(localized: "\(ruleCount.formatted()) rules active") : "[ERROR] " + String(localized: "Couldn't build the \(errors.joined(separator: ", ")) rules")
     }
 
@@ -309,6 +337,7 @@ final class AdBlocker: ObservableObject {
         guard !lists.isEmpty else { return false }
         install(lists)
         status = String(localized: "Active")
+        await readBlockedHosts()
         return true
     }
 
@@ -341,6 +370,29 @@ final class AdBlocker: ObservableObject {
 
     nonisolated static func allowlist(_ list: [String], blocking: Bool, host: String) -> [String] {
         blocking ? Preferences.removing(host, from: list) : Preferences.adding(host, to: list)
+    }
+
+    /// Whether the ad blocker blocks a host that a page shows a frame of: it is on, the lists block the host (or a domain above it)
+    /// outright, and blocking is not turned off for the page's own site.
+    func blocks(_ host: String, onPage page: String?) -> Bool {
+        guard Preferences.shared.blockTrackers, !isAllowed(page) else { return false }
+        var name = Substring(host.lowercased())
+        while name.contains(".") {
+            if blockedHosts.contains(String(name)) { return true }
+            guard let dot = name.firstIndex(of: ".") else { break }
+            name = name[name.index(after: dot)...]
+        }
+        return false
+    }
+
+    /// The hosts the saved lists (and the built-in tracker hosts) block, read in the background.
+    private func readBlockedHosts() async {
+        let files = enabledLists.map { Self.folder.appendingPathComponent($0.id + ".txt") }
+        blockedHosts = await Task.detached(priority: .utility) {
+            var text = ContentBlocker.hosts.map { "||\($0)^$third-party" }.joined(separator: "\n")
+            for file in files { if let content = try? String(contentsOf: file, encoding: .utf8) { text += "\n" + content } }
+            return FilterConverter.blockedHosts(in: text)
+        }.value
     }
 
     func isAllowed(_ host: String?) -> Bool {

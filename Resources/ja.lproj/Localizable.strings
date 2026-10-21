@@ -177,7 +177,13 @@
 "EasyPrivacy (tracking)" = "EasyPrivacy (トラッキング)";
 "Edit" = "編集";
 "Edit Address (⌘L)" = "アドレスを編集 (⌘L)";
-"Either way, it asks before something that looks like it pays, orders, sends, posts or deletes." = "どちらの設定でも、支払い・注文・送信・投稿・削除に見える操作の前には必ず確認します。";
+"Either way, it asks every time before something that looks like it pays, orders, sends, posts, deletes or cancels." = "どちらの設定でも、支払い・注文・送信・投稿・削除・キャンセルに見える操作の前には毎回確認します。";
+"It also asks before something that looks like accepting, saving, sharing or changing a setting, which you can allow for a site until the chat is cleared." = "同意・保存・共有・設定の変更に見える操作の前にも確認します。会話をクリアするまでサイト単位で許可できます。";
+"The AI wants to do something that can’t be undone" = "AIが元に戻せない操作をしようとしています";
+"The form sends what is typed in it to %@, another site than this page." = "このフォームは、入力した内容をこのページとは別のサイト（%@）に送信します。";
+"This looks like it pays, orders, sends, posts, deletes, cancels or gives something up, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this." = "支払い、注文、送信、投稿、削除、キャンセルなど、元に戻せない、または何かを手放す操作のようです。毎回確認します。\n\nご自身で依頼した場合にのみ許可してください。";
+"The AI wants to agree, save or change a setting" = "AIが同意・保存・設定の変更をしようとしています";
+"This looks like accepting, agreeing, saving, sharing or changing a setting, not like paying or sending. You can allow it once, or on this site for the rest of the chat." = "支払いや送信ではなく、承諾・同意・保存・共有・設定の変更のようです。1回だけ許可するか、この会話の間このサイトで許可できます。";
 "Element hiding" = "要素の非表示";
 "End Split View" = "スプリットビューを終了";
 "Enter Address" = "アドレスを入力";
@@ -422,7 +428,6 @@
 "The AI response didn't finish (exit code %lld).\n%@" = "AIの応答が完了しませんでした (終了コード %lld)。\n%@";
 "The AI wants to choose an option on %@" = "AIが%@でオプションを選ぼうとしています";
 "The AI wants to open this address" = "AIがこのアドレスを開こうとしています";
-"The AI wants to press “%@” on %@" = "AIが%2$@で「%1$@」を押そうとしています";
 "The AI wants to type into %@" = "AIが%@に入力しようとしています";
 "The AI wants to use %@" = "AIが%@を操作しようとしています";
 "The AI wants to use a tab you aren't looking at" = "AIが表示していないタブを使用しようとしています";
@@ -435,7 +440,6 @@
 "This extension is installed in Changmun" = "この機能拡張はChangmunにインストールされています";
 "This folder has no manifest.json" = "このフォルダにはmanifest.jsonがありません";
 "This language can’t be translated" = "この言語は翻訳できません";
-"This looks like it pays, orders, sends, posts, deletes or confirms something, and that can’t be undone.\n\nAllow it only if you asked for this." = "支払い、注文、送信、投稿、削除、確認など、元に戻せない操作のようです。\n\nご自身で依頼した場合にのみ許可してください。";
 "This page" = "このページ";
 "this page" = "このページ";
 "Tidied %lld tab" = "%lld個のタブを整理しました";

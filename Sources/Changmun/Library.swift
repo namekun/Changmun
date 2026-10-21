@@ -187,6 +187,12 @@ final class Library: @unchecked Sendable {
         !((try? db?.query("SELECT 1 FROM history WHERE url = ? UNION ALL SELECT 1 FROM bookmarks WHERE url = ? LIMIT 1", [url, url])) ?? []).isEmpty
     }
 
+    /// Whether the address was visited, or bookmarked, before `date` (a page visited again since then was not only visited before).
+    func knowsURL(_ url: String, before date: Date) -> Bool {
+        let time = date.timeIntervalSince1970
+        return !((try? db?.query("SELECT 1 FROM history WHERE url = ? AND last_visit < ? UNION ALL SELECT 1 FROM bookmarks WHERE url = ? AND added < ? LIMIT 1", [url, time, url, time])) ?? []).isEmpty
+    }
+
     /// Whether the user has been to, or bookmarked, a page on this host.
     func knowsHost(_ host: String) -> Bool {
         let escaped = host.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "%", with: "\\%").replacingOccurrences(of: "_", with: "\\_")

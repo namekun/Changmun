@@ -177,7 +177,13 @@
 "EasyPrivacy (tracking)" = "EasyPrivacy (Tracking)";
 "Edit" = "Bearbeiten";
 "Edit Address (⌘L)" = "Adresse bearbeiten (⌘L)";
-"Either way, it asks before something that looks like it pays, orders, sends, posts or deletes." = "In beiden Fällen fragt die KI nach, bevor etwas bezahlt, bestellt, gesendet, gepostet oder gelöscht zu werden scheint.";
+"Either way, it asks every time before something that looks like it pays, orders, sends, posts, deletes or cancels." = "In beiden Fällen fragt die KI jedes Mal nach, bevor etwas bezahlt, bestellt, gesendet, gepostet, gelöscht oder storniert zu werden scheint.";
+"It also asks before something that looks like accepting, saving, sharing or changing a setting, which you can allow for a site until the chat is cleared." = "Sie fragt auch nach, bevor etwas akzeptiert, gespeichert, geteilt oder eine Einstellung geändert zu werden scheint; das kannst du für eine Website erlauben, bis der Chat geleert wird.";
+"The AI wants to do something that can’t be undone" = "Die KI möchte etwas tun, das sich nicht rückgängig machen lässt";
+"The form sends what is typed in it to %@, another site than this page." = "Das Formular sendet das Eingegebene an %@, eine andere Website als diese Seite.";
+"This looks like it pays, orders, sends, posts, deletes, cancels or gives something up, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this." = "Das sieht danach aus, als würde etwas bezahlt, bestellt, gesendet, gepostet, gelöscht, storniert oder aufgegeben – und das lässt sich nicht zurücknehmen. Hier wird jedes Mal gefragt.\n\nErlaube es nur, wenn du das verlangt hast.";
+"The AI wants to agree, save or change a setting" = "Die KI möchte zustimmen, speichern oder eine Einstellung ändern";
+"This looks like accepting, agreeing, saving, sharing or changing a setting, not like paying or sending. You can allow it once, or on this site for the rest of the chat." = "Das sieht danach aus, als würde etwas akzeptiert, zugestimmt, gespeichert, geteilt oder eine Einstellung geändert – nicht bezahlt oder gesendet. Du kannst es einmal erlauben oder auf dieser Website für den Rest des Chats.";
 "Element hiding" = "Elemente ausblenden";
 "End Split View" = "Split View beenden";
 "Enter Address" = "Adresse eingeben";
@@ -422,7 +428,6 @@
 "The AI response didn't finish (exit code %lld).\n%@" = "Die KI-Antwort wurde nicht abgeschlossen (Exit-Code %lld).\n%@";
 "The AI wants to choose an option on %@" = "Die KI möchte in %@ eine Option wählen";
 "The AI wants to open this address" = "Die KI möchte diese Adresse öffnen";
-"The AI wants to press “%@” on %@" = "Die KI möchte auf %2$@ „%1$@“ drücken";
 "The AI wants to type into %@" = "Die KI möchte in %@ tippen";
 "The AI wants to use %@" = "Die KI möchte %@ bedienen";
 "The AI wants to use a tab you aren't looking at" = "Die KI möchte einen Tab verwenden, den du gerade nicht ansiehst";
@@ -435,7 +440,6 @@
 "This extension is installed in Changmun" = "Diese Erweiterung ist in Changmun installiert";
 "This folder has no manifest.json" = "Dieser Ordner enthält keine manifest.json";
 "This language can’t be translated" = "Diese Sprache kann nicht übersetzt werden";
-"This looks like it pays, orders, sends, posts, deletes or confirms something, and that can’t be undone.\n\nAllow it only if you asked for this." = "Das sieht danach aus, als würde etwas bezahlt, bestellt, gesendet, gepostet, gelöscht oder bestätigt – und das lässt sich nicht rückgängig machen.\n\nErlaube es nur, wenn du das verlangt hast.";
 "This page" = "Diese Seite";
 "this page" = "diese Seite";
 "Tidied %lld tab" = "%lld Tab aufgeräumt";

@@ -102,7 +102,7 @@ enum CLI {
                 guard let value = rest.next(), let id = Int(value.trimmingCharacters(in: CharacterSet(charactersIn: "#"))) else { throw UsageError(message: "--element needs an element number") }
                 element = id
             case "--timeout":
-                guard let value = rest.next(), let seconds = Double(value), seconds > 0 else { throw UsageError(message: "--timeout needs a number of seconds") }
+                guard let value = rest.next(), let seconds = Double(value), seconds > 0, seconds.isFinite else { throw UsageError(message: "--timeout needs a number of seconds") }
                 timeout = seconds
             default:
                 words.append(word)
@@ -160,7 +160,7 @@ enum CLI {
             if submit { args["submit"] = true }
             return .call("type_text", args, output: nil)
         case "click-at":
-            guard operands.count == 2, let x = Double(operands[0]), let y = Double(operands[1]), x >= 0, y >= 0 else {
+            guard operands.count == 2, let x = Double(operands[0]), let y = Double(operands[1]), x >= 0, y >= 0, x.isFinite, y.isFinite else {
                 throw UsageError(message: "click-at needs x and y, in CSS pixels from the top left of the visible page")
             }
             args["x"] = x
@@ -185,7 +185,7 @@ enum CLI {
             guard operands.count == 2 else { throw UsageError(message: "drag needs where from and where to: an element number or x,y for each") }
             for (prefix, operand) in zip(["from_", "to_"], operands) {
                 let parts = operand.split(separator: ",", omittingEmptySubsequences: false).map { Double($0) }
-                if parts.count == 2, let x = parts[0], let y = parts[1], x >= 0, y >= 0 {
+                if parts.count == 2, let x = parts[0], let y = parts[1], x >= 0, y >= 0, x.isFinite, y.isFinite {
                     args[prefix + "x"] = x
                     args[prefix + "y"] = y
                 } else if parts.count == 1, let id = Int(operand.trimmingCharacters(in: CharacterSet(charactersIn: "#"))) {

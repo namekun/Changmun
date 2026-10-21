@@ -56,6 +56,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     @Published private(set) var webView: WKWebView?
     /// What the AI's tools know about this tab's frames.
     var agent = AgentState()
+    /// The AI is going back, forward or reloading: a page that would send a form again is not loaded.
+    var agentHistoryMove = false
+    /// Such a load was refused.
+    var resubmitBlocked = false
     var lastShown = Date()
     /// The host that shows the page now (see PageOwner).
     var pageOwner = PageOwner<WebViewHost.Container>()
@@ -116,6 +120,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         }
         finishedState = savedState
         savedState = nil
+        AgentActivity.shared.pageChanged(self)
         return view
     }
 
@@ -136,6 +141,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         self.webView = nil
         isLoading = false
         progress = 0
+        AgentActivity.shared.pageChanged(self)
     }
 
     /// The local file the user asked for (Open File, the address bar, a bookmark); only it and its folder may load from file:.
@@ -304,7 +310,11 @@ final class Tab: NSObject, ObservableObject, Identifiable {
 extension Tab: WKNavigationDelegate {
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, preferences: WKWebpagePreferences) async -> (WKNavigationActionPolicy, WKWebpagePreferences) {
         // A frame that is about to show another document is no longer the one the AI's tools were told about.
-        if action.targetFrame?.isMainFrame == false { agent.reset() }
+        if action.targetFrame?.isMainFrame == false { agent.frameNavigated() }
+        if action.navigationType == .formResubmitted, agentHistoryMove {
+            resubmitBlocked = true
+            return (.cancel, preferences)
+        }
         if action.shouldPerformDownload { return (.download, preferences) }
         if let url = action.request.url, let scheme = url.scheme?.lowercased(),
            !["http", "https", "about", "data", "blob", "file", "javascript"].contains(scheme) {

@@ -177,7 +177,13 @@
 "EasyPrivacy (tracking)" = "EasyPrivacy (추적)";
 "Edit" = "편집";
 "Edit Address (⌘L)" = "주소 편집 (⌘L)";
-"Either way, it asks before something that looks like it pays, orders, sends, posts or deletes." = "어느 쪽이든 결제, 주문, 전송, 게시, 삭제처럼 보이는 일은 먼저 물어봐요.";
+"Either way, it asks every time before something that looks like it pays, orders, sends, posts, deletes or cancels." = "어느 쪽이든 결제, 주문, 전송, 게시, 삭제, 취소처럼 보이는 일은 매번 먼저 물어봐요.";
+"It also asks before something that looks like accepting, saving, sharing or changing a setting, which you can allow for a site until the chat is cleared." = "동의, 저장, 공유, 설정 변경처럼 보이는 일도 먼저 물어보고, 사이트별로 대화를 지울 때까지 허용할 수 있어요.";
+"The AI wants to do something that can’t be undone" = "AI가 되돌릴 수 없는 일을 하려고 해요";
+"The form sends what is typed in it to %@, another site than this page." = "이 양식은 입력한 내용을 이 페이지가 아닌 다른 사이트 %@(으)로 보내요.";
+"This looks like it pays, orders, sends, posts, deletes, cancels or gives something up, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this." = "결제, 주문, 전송, 게시, 삭제, 취소처럼 되돌릴 수 없거나 무언가를 내주는 일로 보여요. 매번 물어봐요.\n\n직접 요청한 일일 때만 허용하세요.";
+"The AI wants to agree, save or change a setting" = "AI가 동의하거나 저장하거나 설정을 바꾸려고 해요";
+"This looks like accepting, agreeing, saving, sharing or changing a setting, not like paying or sending. You can allow it once, or on this site for the rest of the chat." = "결제나 전송이 아니라 수락, 동의, 저장, 공유, 설정 변경처럼 보여요. 한 번만 허용하거나, 대화가 끝날 때까지 이 사이트에서 허용할 수 있어요.";
 "Element hiding" = "요소 숨김";
 "End Split View" = "분할 보기 끝내기";
 "Enter Address" = "주소 입력";
@@ -422,7 +428,6 @@
 "The AI response didn't finish (exit code %lld).\n%@" = "AI 응답이 끝나지 않았어요 (종료 코드 %lld).\n%@";
 "The AI wants to choose an option on %@" = "AI가 %@에서 옵션을 고르려고 해요";
 "The AI wants to open this address" = "AI가 이 주소를 열려고 해요";
-"The AI wants to press “%@” on %@" = "AI가 %2$@에서 “%1$@”을(를) 누르려고 해요";
 "The AI wants to type into %@" = "AI가 %@에 입력하려고 해요";
 "The AI wants to use %@" = "AI가 %@에서 작업을 하려고 해요";
 "The AI wants to use a tab you aren't looking at" = "AI가 지금 보고 있지 않은 탭을 쓰려고 해요";
@@ -435,7 +440,6 @@
 "This extension is installed in Changmun" = "Changmun에 설치된 확장이에요";
 "This folder has no manifest.json" = "manifest.json이 없는 폴더예요";
 "This language can’t be translated" = "이 언어는 번역할 수 없어요";
-"This looks like it pays, orders, sends, posts, deletes or confirms something, and that can’t be undone.\n\nAllow it only if you asked for this." = "결제, 주문, 전송, 게시, 삭제, 확인처럼 되돌릴 수 없는 일로 보여요.\n\n직접 요청한 일일 때만 허용하세요.";
 "This page" = "이 페이지";
 "this page" = "이 페이지";
 "Tidied %lld tab" = "탭 %lld개를 정리했어요";

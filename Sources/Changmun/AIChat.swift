@@ -43,9 +43,9 @@ final class ChatStore: ObservableObject {
         }
     }
 
-    /// The attached tabs' titles and addresses go to the AI with each message, so they count as read.
+    /// The titles and addresses of the tab in front and of the attached tabs go to the AI with each message, so they count as read.
     func noteAttachedRead() {
-        for tab in attachedTabs { Approvals.noteRead(tab, caller: Self.caller) }
+        for tab in attachedTabs + [Browser.recent?.active].compactMap({ $0 }) { Approvals.noteRead(tab, caller: Self.caller) }
     }
 
     func detach(_ id: Int) {
