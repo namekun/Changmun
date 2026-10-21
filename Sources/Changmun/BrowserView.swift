@@ -522,7 +522,6 @@ struct Sidebar: View {
                             TabGroupHeader(group: group, count: tabs.count, browser: browser,
                                            target: dropTarget == "group:\(group.id)" && SidebarDrag.carriesTab)
                                 .dropLine(groupLands(above: group.id))
-                                .draggable(SidebarDrag.group(group.id))
                                 .dropDestination(for: SidebarDrop.self) { items, _ in
                                     SidebarDrag.drop(items.texts, onGroup: group.id, browser: browser)
                                 } isTargeted: { target("group:\(group.id)", $0) }
@@ -604,26 +603,35 @@ struct Sidebar: View {
 
     private var favorites: some View {
         // As many tiles a row as the sidebar's width holds: four at the default width, up to seven when wide.
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 40), spacing: 4)], spacing: 4) {
-            ForEach(library.favorites(in: browser.favoritesFolder), id: \.url) { entry in
-                let key = Browser.bookmarkKey(url: entry.url, folder: browser.favoritesFolder)
-                FavoriteTile(entry: entry, state: BookmarkTabState(key, browser)) {
-                    browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
-                } menu: {
-                    bookmarkMenu(url: entry.url, title: entry.title, folder: browser.favoritesFolder, key: key)
+        VStack(spacing: 0) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 40), spacing: 4)], spacing: 4) {
+                ForEach(library.favorites(in: browser.favoritesFolder), id: \.url) { entry in
+                    let key = Browser.bookmarkKey(url: entry.url, folder: browser.favoritesFolder)
+                    FavoriteTile(entry: entry, state: BookmarkTabState(key, browser)) {
+                        browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
+                    } menu: {
+                        bookmarkMenu(url: entry.url, title: entry.title, folder: browser.favoritesFolder, key: key)
+                    }
+                    .dropLine(dropTarget == "fav:" + entry.url && SidebarDrag.dragging != .folder, edge: .leading)
+                    .draggable(SidebarDrag.bookmark(entry.url, in: browser.favoritesFolder))
+                    .dropDestination(for: SidebarDrop.self) { items, _ in
+                        SidebarDrag.drop(items.texts, onFavorite: entry.url, browser: browser)
+                    } isTargeted: { target("fav:" + entry.url, $0) }
                 }
-                .dropLine(dropTarget == "fav:" + entry.url && SidebarDrag.dragging != .folder, edge: .leading)
-                .draggable(SidebarDrag.bookmark(entry.url, in: browser.favoritesFolder))
-                .dropDestination(for: SidebarDrop.self) { items, _ in
-                    SidebarDrag.drop(items.texts, onFavorite: entry.url, browser: browser)
-                } isTargeted: { target("fav:" + entry.url, $0) }
             }
+            // Between the tiles: dropped there, it goes to the end of the favorites.
+            .dropDestination(for: SidebarDrop.self) { items, _ in
+                SidebarDrag.drop(items.texts, onFavorite: nil, browser: browser)
+            }
+            // Below the last tile, in the gap before the tabs, also when the last row is full.
+            Color.clear
+                .frame(height: Metrics.section - Metrics.rowGap)
+                .contentShape(Rectangle())
+                .dropLine(dropTarget == "fav:end" && SidebarDrag.dragging != .folder)
+                .dropDestination(for: SidebarDrop.self) { items, _ in
+                    SidebarDrag.drop(items.texts, onFavorite: nil, browser: browser)
+                } isTargeted: { target("fav:end", $0) }
         }
-        // Between and after the tiles: dropped there, it goes to the end of the favorites.
-        .dropDestination(for: SidebarDrop.self) { items, _ in
-            SidebarDrag.drop(items.texts, onFavorite: nil, browser: browser)
-        }
-        .padding(.bottom, Metrics.section - Metrics.rowGap)
     }
 
     /// Folders kept under the favorites, opened where they are, then a gap before the tabs. A folder dropped in
@@ -1706,7 +1714,7 @@ struct TabGroupHeader: View {
 
     var body: some View {
         HStack(spacing: Metrics.iconGap) {
-            Image(systemName: "square.on.square").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondary).frame(width: Metrics.icon)
+            grab(Image(systemName: "square.on.square").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondary).frame(width: Metrics.icon))
             if browser.renamingGroup == group.id {
                 TextField("Group name", text: $name)
                     .textFieldStyle(.plain)
@@ -1725,19 +1733,19 @@ struct TabGroupHeader: View {
                         return .handled
                     }
             } else {
-                Text(group.name).font(.row).foregroundStyle(Theme.secondary).lineLimit(1)
+                grab(Text(group.name).font(.row).foregroundStyle(Theme.secondary).lineLimit(1))
             }
-            Spacer(minLength: 0)
-            ZStack(alignment: .trailing) {
+            grab(Color.clear.frame(maxWidth: .infinity).contentShape(Rectangle()))
+            grab(ZStack(alignment: .trailing) {
                 Text("\(count)").font(.caption.monospacedDigit()).foregroundStyle(Theme.faint).opacity(hover ? 0 : 1)
                 if hover && browser.renamingGroup != group.id { MoreButton { menu } }
             }
-            .frame(minWidth: Metrics.action, alignment: .trailing)
-            Image(systemName: "chevron.right")
+            .frame(minWidth: Metrics.action, alignment: .trailing))
+            grab(Image(systemName: "chevron.right")
                 .font(.system(size: 8, weight: .bold))
                 .foregroundStyle(Theme.faint)
                 .rotationEffect(.degrees(group.isOpen ? 90 : 0))
-                .frame(width: Metrics.icon)
+                .frame(width: Metrics.icon))
         }
         .padding(.leading, Metrics.rowPadding)
         .padding(.trailing, 4)
@@ -1750,6 +1758,18 @@ struct TabGroupHeader: View {
         }
         .contextMenu { menu }
         .help(group.isOpen ? String(localized: "Collapse") : String(localized: "Expand"))
+    }
+
+    /// The header is dragged by everything but the name field, so selecting text while renaming does not move the group.
+    private func grab<Content: View>(_ content: Content) -> some View {
+        content.draggable(SidebarDrag.group(group.id)) {
+            Text(group.name)
+                .font(.row)
+                .foregroundStyle(Theme.primary)
+                .padding(.horizontal, Metrics.rowPadding)
+                .frame(height: Metrics.row)
+                .background(Theme.hoverTab, in: RoundedRectangle(cornerRadius: Metrics.rowRadius))
+        }
     }
 
     @ViewBuilder private var menu: some View {
