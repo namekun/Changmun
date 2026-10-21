@@ -200,8 +200,8 @@ extension SharedAgentState {
     struct IrreversibleActionTests {
         private typealias Tier = IrreversibleAction.Tier
 
-        private func tier(_ names: String..., hints: [String] = [], submits: Bool = false, payment: Bool = false, action: String = "", sends: Bool = false, link: Bool = false, keyRisk: Bool = false) -> Tier {
-            IrreversibleAction.tier(of: .init(label: names.first ?? "", names: names, hints: hints, submits: submits, payment: payment, action: action, sends: sends, link: link, keyRisk: keyRisk))
+        private func tier(_ names: String..., hints: [String] = [], submits: Bool = false, payment: Bool = false, action: String = "", sends: Bool = false, link: Bool = false, keyRisk: Bool = false, cookie: Bool = false) -> Tier {
+            IrreversibleAction.tier(of: .init(label: names.first ?? "", names: names, hints: hints, submits: submits, payment: payment, action: action, sends: sends, link: link, keyRisk: keyRisk, cookie: cookie))
         }
 
         private func high(_ names: String...) -> Bool { names.allSatisfy { tier($0) == .high } }
@@ -224,19 +224,35 @@ extension SharedAgentState {
             for name in asked { #expect(tier(name) == .high, "\(name)") }
         }
 
-        @Test func consentAndSettingsAreTheLowTierInSevenLanguages() {
+        @Test func publishingSharingGrantingAndSendingDataAreTheHighTierInSevenLanguages() {
             let asked = [
-                "Allow", "Accept", "Accept all", "I agree", "Grant access", "Authorize", "Connect", "Disconnect", "Unlink account", "Invite", "Upload", "Install", "Enable", "Disable",
-                "Reset", "Clear all", "Empty cart", "Block", "Ban user", "Complete", "Finish", "Save", "Save changes", "Share", "Comment", "Reply", "Submit", "Remove", "Subscribe",
-                "Discard", "Book", "Book now", "Reserve", "Cookie settings: Reject and save",
-                "Permitir", "Conceder acceso", "Instalar", "Restablecer", "Bloquear", "Guardar", "Compartir", "Comentar", "Reservar", "Suscribirse", "Responder",
-                "Erlauben", "Zustimmen", "Akzeptieren", "Hochladen", "Zurücksetzen", "Sperren", "Speichern", "Teilen", "Buchen", "Abonnieren", "Entfernen",
-                "Accepter", "Autoriser", "Installer", "Réinitialiser", "Bloquer", "Terminer", "Enregistrer", "Partager", "Réserver", "Commenter",
-                "허용", "동의하고 계속", "수락", "저장", "공유", "댓글", "연결", "차단", "초기화", "설치", "등록", "예약", "완료", "구독", "제출", "신청하기",
-                "許可", "同意する", "保存", "共有", "登録", "接続", "ブロック", "リセット", "インストール", "コメント", "予約する", "完了", "返信", "申し込み",
-                "允许", "接受", "保存", "分享", "连接", "屏蔽", "重置", "安装", "完成", "评论", "预订", "订阅", "提交", "清空",
+                "Reply", "Comment", "Submit", "Share", "Upload", "Authorize", "Grant access", "Connect", "Invite", "Subscribe", "Book", "Book now", "Reserve",
+                "Allow", "Accept", "I agree", "Allow access", "Link account", "Link your account", "Accept invitation",
+                "Permitir", "Conceder acceso", "Autorizar", "Conectar", "Compartir", "Comentar", "Responder", "Subir", "Suscribirse", "Reservar", "Invitar",
+                "Erlauben", "Zustimmen", "Akzeptieren", "Teilen", "Hochladen", "Verbinden", "Einladen", "Antworten", "Abonnieren", "Buchen", "Autorisieren", "Einreichen",
+                "Accepter", "Autoriser", "Partager", "Commenter", "Téléverser", "Répondre", "Réserver", "Soumettre", "Inviter",
+                "허용", "동의하고 계속", "수락", "공유", "댓글", "등록", "예약", "제출", "신청하기", "구독", "연결", "업로드", "초대", "답글",
+                "許可", "同意する", "共有", "登録", "コメント", "接続", "アップロード", "返信", "予約する", "申し込み", "招待",
+                "允许", "接受", "分享", "评论", "授权", "连接", "上传", "回复", "预订", "提交", "订阅", "邀请",
             ]
-            for name in asked { #expect(tier(name) == .low, "\(name)") }
+            for name in asked { #expect(tier(name) == .high, "\(name)") }
+        }
+
+        @Test func aCookieBannersConsentAndSettingsAreTheLowTierInSevenLanguages() {
+            let settings = [
+                "Save", "Save changes", "Remove", "Disconnect", "Unlink account", "Install", "Enable", "Disable", "Reset", "Clear all", "Empty cart", "Block", "Ban user",
+                "Complete", "Finish", "Discard", "Cookie settings: Reject and save",
+                "Guardar", "Instalar", "Restablecer", "Bloquear", "Desactivar", "Speichern", "Zurücksetzen", "Sperren", "Entfernen", "Installieren",
+                "Enregistrer", "Installer", "Réinitialiser", "Bloquer", "Terminer",
+                "저장", "설치", "초기화", "차단", "완료", "제거", "保存", "インストール", "リセット", "ブロック", "完了", "保存", "安装", "重置", "屏蔽", "完成", "清空",
+            ]
+            for name in settings { #expect(tier(name) == .low, "\(name)") }
+            let banner = ["Accept all", "Allow all", "I agree", "Accept", "Permitir", "Zustimmen", "Accepter", "허용", "同意する", "允许", "接受"]
+            for name in banner { #expect(tier(name, cookie: true) == .low && tier(name) == .high, "\(name)") }
+            let said = ["Accept all cookies", "Allow cookies", "Alle Cookies akzeptieren", "Aceptar galletas, permitir", "쿠키 허용", "クッキーを許可", "Accepter les témoins"]
+            for name in said { #expect(tier(name) == .low, "\(name)") }
+            #expect(tier("Accept all cookies and pay now", cookie: true) == .high, "a banner's words don't make a payment a consent")
+            #expect(IrreversibleAction.mentionsCookies("We use Cookies") && IrreversibleAction.mentionsCookies("쿠키 설정") && !IrreversibleAction.mentionsCookies("Allow access to your files"))
         }
 
         @Test func promotionsAndHeadlinesThatMerelyHaveAWordAreNotAsked() {
@@ -315,7 +331,7 @@ extension SharedAgentState {
             #expect(tier("Close", "Delete everything") == .high)
             #expect(tier("", "Delete") == .high && tier("Menu", "Pay now") == .high && tier("Go", "Send message") == .high)
             #expect(tier("Close", "Dismiss the notice") == .none)
-            #expect(tier("Accept", "Pay now") == .high && tier("Close", "Accept cookies") == .low)
+            #expect(tier("Accept", "Pay now", cookie: true) == .high && tier("Close", "Accept cookies") == .low && tier("Close", "Accept") == .high)
         }
 
         @Test func aControlWithNoWordsIsToldByItsMarkup() {
@@ -340,11 +356,13 @@ extension SharedAgentState {
             #expect(IrreversibleAction.name(of: .init(label: "", hints: ["btn delete"])) == "btn delete")
             #expect(IrreversibleAction.name(of: .init(label: "Icon", hints: ["btn delete"])) == "Icon")
             #expect(IrreversibleAction.name(of: .init(label: "Close", names: ["Close", "Accept cookies", "Pay"]), tier: .low) == "Accept cookies")
+            #expect(IrreversibleAction.name(of: .init(label: "Close", names: ["Close", "Accept", "Pay"], cookie: true), tier: .low) == "Accept")
         }
 
         @Test func factsComeFromThePagesAnswer() {
-            let facts = IrreversibleAction.Facts(["label": "Place order", "names": ["Place order"], "hints": ["x"], "dests": ["/y"], "submits": true, "payment": true, "action": "https://x/pay", "sends": true, "link": true, "keyRisk": true])
-            #expect(facts == .init(label: "Place order", names: ["Place order"], hints: ["x"], dests: ["/y"], submits: true, payment: true, action: "https://x/pay", sends: true, link: true, keyRisk: true))
+            let facts = IrreversibleAction.Facts(["label": "Place order", "names": ["Place order"], "hints": ["x"], "dests": ["/y"], "submits": true, "payment": true, "action": "https://x/pay", "sends": true, "link": true, "keyRisk": true, "cookie": true])
+            #expect(facts == .init(label: "Place order", names: ["Place order"], hints: ["x"], dests: ["/y"], submits: true, payment: true, action: "https://x/pay", sends: true, link: true, keyRisk: true, cookie: true))
+            #expect(IrreversibleAction.Facts(["cookie": true]).cookie && !IrreversibleAction.Facts([:]).cookie)
             #expect(IrreversibleAction.Facts([:]) == .init())
             #expect(IrreversibleAction.tier(of: .init()) == .none)
         }
@@ -975,7 +993,7 @@ extension SharedAgentState {
             defer { Approvals.forgetReads(caller: panel); Approvals.forgetReads(caller: "mcp-low-unit") }
             await asking({ prompt in prompt.choices.contains(.site) ? .site : .once }) { stand in
                 #expect(await Approvals.allowAction(.low, "Accept all", on: tabs[0], caller: panel))
-                #expect(stand.asked.count == 1 && stand.asked[0].choices == [.deny, .once, .site] && stand.asked[0].message.contains("agree, save"))
+                #expect(stand.asked.count == 1 && stand.asked[0].choices == [.deny, .once, .site] && stand.asked[0].message.contains("accept cookies"))
                 #expect(stand.asked[0].detail.hasPrefix("a.example\n\n“Accept all”") && !stand.asked[0].message.contains("undone"))
                 #expect(await Approvals.allowAction(.low, "Save", on: tabs[0], caller: panel))
                 #expect(stand.asked.count == 1, "allowed on a.example for this chat: not asked again")
@@ -1081,30 +1099,6 @@ extension SharedAgentState {
             await asking({ _ in .once }) { stand in
                 #expect(await Approvals.allowInteraction(.type("x"), on: tabs[1], caller: panel))
                 #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("conversation: front.example"))
-            }
-        }
-
-        @Test func aFrameOfASiteTheAdBlockerBlocksIsNoSiteReadFrom() async {
-            let (browser, tabs) = open(["https://news.example/"])
-            defer { browser.windowClosed() }
-            let before = AdBlocker.shared.blockedHosts
-            AdBlocker.shared.blockedHosts = ["adserver.example", "tracker.test"]
-            defer { AdBlocker.shared.blockedHosts = before; Approvals.forgetReads(caller: "mcp-ads") }
-            #expect(AdBlocker.shared.blocks("adserver.example", onPage: "news.example") && AdBlocker.shared.blocks("ads.eu.adserver.example", onPage: "news.example"))
-            #expect(!AdBlocker.shared.blocks("example", onPage: "news.example") && !AdBlocker.shared.blocks("notadserver.example", onPage: nil) && !AdBlocker.shared.blocks("pay.example", onPage: nil))
-            let off = Preferences.shared.adBlockAllowlist
-            Preferences.shared.adBlockAllowlist = ["news.example"]
-            #expect(!AdBlocker.shared.blocks("adserver.example", onPage: "news.example"), "blocking is off for the page's own site: its frames load")
-            Preferences.shared.adBlockAllowlist = off
-            await asking({ _ in .once }) { stand in
-                Approvals.noteFrameRead(tabs[0], readHost: "adserver.example", caller: "mcp-ads")
-                Approvals.noteFrameRead(tabs[0], readHost: "tracker.test:8443", caller: "mcp-ads")
-                #expect(await Approvals.allowInteraction(.act("Clicking “Go”"), on: tabs[0], caller: "mcp-ads"))
-                #expect(stand.asked.isEmpty, "advertisements and trackers are not a site the AI read from")
-                Approvals.noteFrameRead(tabs[0], readHost: "pay.example", caller: "mcp-ads")
-                Approvals.noteFrameRead(tabs[0], readHost: Approvals.unknownFrame, caller: "mcp-ads")
-                #expect(await Approvals.allowInteraction(.act("Clicking “Go”"), on: tabs[0], caller: "mcp-ads"))
-                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("pay.example"), "any other frame is")
             }
         }
 
@@ -1316,7 +1310,7 @@ extension SharedAgentState {
 
         /// The question the guard asks before something that can't be undone, apart from the others about using a tab.
         private nonisolated static func isHigh(_ prompt: Approvals.Prompt) -> Bool { prompt.message.contains("undone") }
-        private nonisolated static func isLow(_ prompt: Approvals.Prompt) -> Bool { prompt.message.contains("agree, save") }
+        private nonisolated static func isLow(_ prompt: Approvals.Prompt) -> Bool { prompt.message.contains("accept cookies") }
         private func guarded(_ stand: Approvals.Stand) -> [Approvals.Prompt] { stand.asked.filter(Self.isHigh) }
         private func consent(_ stand: Approvals.Stand) -> [Approvals.Prompt] { stand.asked.filter(Self.isLow) }
 
@@ -1531,7 +1525,7 @@ extension SharedAgentState {
                 #expect(asked("Continue") == .high, "where the link goes: a whole segment of its path")
                 #expect(asked("\"Go\"") == .high, "a button's name and value")
                 #expect(asked("\"Next\"") == .high, "the form it submits")
-                #expect(asked("\"Allow\"") == .low && asked("\"Accept\"") == .low)
+                #expect(asked("\"Allow\"") == .high && asked("\"Accept\"") == .high, "outside a cookie banner they grant something")
                 let icons = results.filter { $0.line.hasPrefix(" button \"\"") }.map(\.asked)
                 #expect(icons == [.high, .high, .high, .none], "the three icons by the picture they show, not the one with nothing: \(results)")
             }
@@ -2467,7 +2461,7 @@ extension SharedAgentState {
 
         @Test func consentAndSettingsAreAskedAboutAsSuchAndHeadlinesNever() async throws {
             let html = """
-                <body><button id=a onclick="document.title='accepted'">Accept all</button>
+                <body><div id=banner>We use cookies. <button id=a onclick="document.title='accepted'">Accept all</button></div>
                 <button id=b onclick="document.title='ordered'">Place order</button>
                 <a href="https://lab.test/#long">Why we should send fewer emails in the workplace today, a long read from our editors</a>
                 <a href="https://lab.test/#promo">Save 20% on shoes</a>
@@ -2498,7 +2492,7 @@ extension SharedAgentState {
         }
 
         @Test func aLowTierActionIsAskedOncePerSiteForTheChatByThePanelAndEachTimeByOthers() async throws {
-            let html = "<body><button onclick=\"document.title='accepted'\">Accept all</button><button onclick=\"document.title='saved'\">Save</button><button onclick=\"document.title='ordered'\">Place order</button></body>"
+            let html = "<body><div class=cookie-banner><button onclick=\"document.title='accepted'\">Accept all</button></div><button onclick=\"document.title='saved'\">Save</button><button onclick=\"document.title='ordered'\">Place order</button></body>"
             let (tab, window, browser) = try await page(html)
             defer { window.close(); browser.windowClosed() }
             let panel = ChatStore.caller
@@ -2660,7 +2654,7 @@ extension SharedAgentState {
             }
         }
 
-        @Test func goingBackToAPageThatCameFromASubmittedFormIsNotDoneForTheAI() async throws {
+        @Test func reloadingAPageThatCameFromASubmittedFormIsNotDoneForTheAI() async throws {
             let server = try await TinyServer { method, path in
                 switch (method, path) {
                 case ("GET", "/form"): return "<body><form method=post action=/take><input name=a value=1><button>Go</button></form></body>"
@@ -2680,20 +2674,18 @@ extension SharedAgentState {
             #expect(await waitUntil { !view.isLoading && view.url?.path == "/form" })
             _ = try? await view.callAsyncJavaScript("document.forms[0].submit()", contentWorld: .page)
             #expect(await waitUntil { !view.isLoading && view.url?.path == "/take" })
-            view.load(URLRequest(url: server.url("/elsewhere")))
-            #expect(await waitUntil { !view.isLoading && view.url?.path == "/elsewhere" })
             #expect(server.count("POST") == 1)
-            let result = await ToolCatalog.call("go_back", ["tab_id": tab.id], caller: "mcp-resubmit")
+            let result = await ToolCatalog.call("reload", ["tab_id": tab.id], caller: "mcp-resubmit")
             let text = result.content.first?["text"] as? String ?? ""
             #expect(result.isError && text.contains("submitted form"), "\(text)")
             try await Task.sleep(for: .milliseconds(300))
-            #expect(server.count("POST") == 1 && view.url?.path == "/elsewhere", "the form was not sent again, and the tab did not go there")
-            #expect(!tab.agentHistoryMove)
+            #expect(server.count("POST") == 1, "the form was not sent again")
+            #expect(!tab.agentHistoryMove && !tab.resubmitBlocked)
         }
 
         @Test func whatAFrameThatCouldNotBeReadIsToldAsIsCutAndItsSiteCountsAsRead() async throws {
             let long = "https://tracker-free.example/" + String(repeating: "a", count: 600)
-            let (tab, window, browser) = try await page("<body><p>Outer</p><iframe style='width:200px;height:80px' src='\(long)'></iframe></body>", host: "outer.test")
+            let (tab, window, browser) = try await page("<body><p>Outer</p><iframe sandbox style='width:200px;height:80px' srcdoc='<p>Hi</p>' src='\(long)'></iframe></body>", host: "outer.test")
             defer { window.close(); browser.windowClosed() }
             let panel = ChatStore.caller
             Approvals.forgetReads(caller: panel)
@@ -2707,17 +2699,14 @@ extension SharedAgentState {
             }
         }
 
-        @Test func aPictureCountsOnlyTheFramesThatShowSomethingAndAreNotAdsTheBlockerBlocks() async throws {
-            let html = "<body><p>Outer</p><iframe sandbox='allow-scripts' style='width:200px;height:80px' srcdoc='<p>Shown</p>'></iframe>"
-                + "<iframe sandbox='allow-scripts' style='width:200px;height:80px' srcdoc='<body></body>'></iframe>"
-                + "<iframe sandbox style='width:200px;height:80px' src='https://adserver.example/slot'></iframe></body>"
-            let (tab, window, browser) = try await page(html, host: "outer.test")
-            defer { window.close(); browser.windowClosed() }
-            let before = AdBlocker.shared.blockedHosts
-            AdBlocker.shared.blockedHosts = ["adserver.example"]
-            defer { AdBlocker.shared.blockedHosts = before }
-            let hosts = await ToolCatalog.shownFrameHosts(tab, try #require(tab.webView))
-            #expect(hosts == [Approvals.unknownFrame], "one unknown (the frame with words), not the empty box and not the advertisement: \(hosts)")
+        @Test func aPictureCountsEveryFrameItShowsWhateverTheFrameSaysAboutItselfAndWhoseListsItIsOn() async throws {
+            for (name, frame) in [("a frame that says it is empty", "<iframe sandbox='allow-scripts' style='width:200px;height:80px' srcdoc='<body></body>'></iframe>"),
+                                  ("one on the ad blocker's lists", "<iframe sandbox style='width:200px;height:80px' src='https://doubleclick.net/slot'></iframe>")] {
+                let (tab, window, browser) = try await page("<body><p>Outer</p>\(frame)</body>", host: "outer.test")
+                defer { window.close(); browser.windowClosed() }
+                let hosts = await ToolCatalog.shownFrameHosts(tab, try #require(tab.webView))
+                #expect(hosts == [Approvals.unknownFrame], "\(name): \(hosts)")
+            }
         }
 
         @Test func aFrameIsGreetedByTheAppAndOnlyThatFrameAnswersForItsName() async throws {

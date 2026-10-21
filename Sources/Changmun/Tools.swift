@@ -40,7 +40,7 @@ enum ToolCatalog {
         tool("read_tabs", "Read several tabs at once: each one's title, URL and visible text, without the numbered elements. Use it to compare or combine tabs instead of switching between them; use read_page on a tab before clicking in it.",
              ["tab_ids": ["type": "array", "items": ["type": "integer"], "description": "Tab ids from list_tabs (at most \(maxTabsPerRead))"],
               "max_chars": ["type": "integer", "description": "Maximum characters of text per tab (default 6000)"]], required: ["tab_ids"]),
-        tool("click", "Click an element by its number from the latest read_page. If it looks like it pays, orders, sends, posts, deletes, cancels or gives something up, Changmun asks the user every time; if it looks like agreeing to something, saving, sharing or changing a setting, Changmun asks the user (once per site when the user allows the site for the chat). After the page you are working on has read other sites, Changmun also asks the user before every click, key press, hover, drag, typed text and chosen option (once per site when the user allows the site for the chat).", ["element_id": ["type": "integer"]], required: ["element_id"]),
+        tool("click", "Click an element by its number from the latest read_page. If it looks like it pays, orders, sends, posts, replies, comments, shares, uploads, grants access, deletes or cancels, Changmun asks the user every time; if it looks like a cookie banner or a setting (save, clear, reset, block, enable), Changmun asks the user (once per site when the user allows the site for the chat). After the page you are working on has read other sites, Changmun also asks the user before every click, key press, hover, drag, typed text and chosen option (once per site when the user allows the site for the chat).", ["element_id": ["type": "integer"]], required: ["element_id"]),
         tool("click_at", "Click the element at a point of the visible page, for things read_page doesn't list (a canvas, a map, a custom control). x and y are CSS pixels from the top left of the visible page, which is exactly what a screenshot shows when its note says 1 pixel = 1 CSS pixel (otherwise divide the screenshot's pixels by the scale it names; page zoom and the screen's pixel density don't matter). Says which element was hit. Points in frames work too, and it reaches elements inside open shadow DOM that read_page doesn't list.",
              ["x": ["type": "number", "description": "CSS pixels from the left edge of the visible page"], "y": ["type": "number", "description": "CSS pixels from the top edge of the visible page"]], required: ["x", "y"]),
         tool("type_text", "Replace the text of an input, text area or editable element (by number from read_page). Set submit to press Enter afterwards.",
@@ -138,7 +138,7 @@ enum ToolCatalog {
             if session.stopped { return stopped }
             Approvals.noteRead(tab, readHost: host, caller: caller)
             // What a frame of another site showed was read from that site, not from the page around it.
-            for frameHost in frameHosts { Approvals.noteFrameRead(tab, readHost: frameHost, caller: caller) }
+            for frameHost in frameHosts { Approvals.noteRead(tab, readHost: frameHost, caller: caller) }
             return result
         case "click":
             guard let id = int(args["element_id"]) else { return .text("element_id is required.", error: true) }
@@ -168,7 +168,7 @@ enum ToolCatalog {
             AgentActivity.shared.step(String(localized: "Looking at the page"), caller: caller)
             Approvals.noteRead(tab, caller: caller)
             // A picture shows the frames of other sites on the page too.
-            for frameHost in await shownFrameHosts(tab, webView) { Approvals.noteFrameRead(tab, readHost: frameHost, caller: caller) }
+            for frameHost in await shownFrameHosts(tab, webView) { Approvals.noteRead(tab, readHost: frameHost, caller: caller) }
             return await screenshot(tab, webView)
         default:
             return .text("Unknown tool \(name).", error: true)
@@ -604,13 +604,6 @@ enum Approvals {
         noteRead(tab, readHost: nil, caller: caller)
     }
 
-    /// Records what a frame of another site gave, unless the ad blocker's lists block that site (an advertisement or a tracker
-    /// is not something the AI read from) or it is a frame of a site that has none.
-    static func noteFrameRead(_ tab: Tab, readHost: String, caller: String) {
-        if let name = hostname(ofSite: readHost), AdBlocker.shared.blocks(name, onPage: tab.url?.host()) { return }
-        noteRead(tab, readHost: readHost, caller: caller)
-    }
-
     /// Records a read by the site its text came from, or by the tab's own site when the page named none.
     static func noteRead(_ tab: Tab, readHost: String?, caller: String) {
         if let site = readHost ?? site(of: tab.url) { readHosts[caller, default: []].insert(site) }
@@ -717,12 +710,12 @@ enum Approvals {
         if tier == .high {
             let sent = destination.map { String(localized: "The form sends what is typed in it to \(display($0)), another site than this page.") + "\n\n" } ?? ""
             return await choose(String(localized: "The AI wants to do something that can’t be undone"),
-                                "\(place)\n\n“\(words)”\n\n" + sent + String(localized: "This looks like it pays, orders, sends, posts, deletes, cancels or gives something up, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this."),
+                                "\(place)\n\n“\(words)”\n\n" + sent + String(localized: "This looks like it pays, orders, sends, posts, shares, uploads, grants access, deletes or cancels, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this."),
                                 [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))], caller: caller) != .deny
         }
         let forChat = caller == ChatStore.caller && allowable
-        let answer = await choose(String(localized: "The AI wants to agree, save or change a setting"),
-                                  "\(place)\n\n“\(words)”\n\n" + String(localized: "This looks like accepting, agreeing, saving, sharing or changing a setting, not like paying or sending. You can allow it once, or on this site for the rest of the chat."),
+        let answer = await choose(String(localized: "The AI wants to accept cookies or change a setting"),
+                                  "\(place)\n\n“\(words)”\n\n" + String(localized: "This looks like a cookie banner or a setting (save, clear, reset, block, enable), not like paying, sending or granting access. You can allow it once, or on this site for the rest of the chat."),
                                   [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))]
                                   + (forChat ? [(.site, String(localized: "Allow on \(display(host)) for This Chat"))] : []), caller: caller)
         if answer == .site, forChat { lowAllowed[caller, default: []].insert(host) }

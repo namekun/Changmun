@@ -265,6 +265,17 @@ extension PageScripts {
     // Somewhere the keyboard types or chooses: a text field, a text area, an editable element, a list.
     const editableKind = e => !!e && (e.localName === 'textarea' || e.localName === 'select' || e.isContentEditable || attr(e, 'role') === 'textbox'
       || (e.localName === 'input' && /^(text|search|url|tel|email|password|number|date|datetime-local|month|week|time|)$/.test(e.type)));
+    // A cookie banner: the control, or a short stretch of the page around it, speaks of cookies. That is what makes "Accept" and
+    // "Allow" a consent to a banner and not a permission to something.
+    const COOKIE = /cookie|쿠키|クッキー|galleta|kekse|témoin|temoin/i;
+    function inCookieBanner(ctl) {
+      let n = ctl;
+      for (let i = 0; n && n.nodeType === 1 && n !== docOf(ctl).body && i < 5; i++, n = n.parentElement) {
+        if (COOKIE.test([attr(n, 'id'), attr(n, 'class'), attr(n, 'aria-label'), attr(n, 'data-testid')].join(' '))) return true;
+        if (i > 0) { const t = n.innerText || ''; if (t.length <= 800 && COOKIE.test(t)) return true; }
+      }
+      return false;
+    }
     // The digits of a name are a count or a price that changes by itself on a page; for what asks every time they are kept.
     const mask = (text, exact) => exact ? text : text.replace(/\d+/g, '#');
 
@@ -301,12 +312,12 @@ extension PageScripts {
         // (delete this mail, undo, send): they act by themselves.
         if (!editable && (key === 'Delete' || key === 'Backspace' || mods.ctrl || mods.meta)) keyRisk = true;
       }
-      const action = form ? actionOf(form, submitter) : '', payment = !!form && hasPayment(form), link = plainLink(ctl);
+      const action = form ? actionOf(form, submitter) : '', payment = !!form && hasPayment(form), link = plainLink(ctl), cookie = inCookieBanner(ctl);
       // Everything the approvals judged on is in the fingerprint: what the page may change while the user thinks (a checkout
       // step that appears under the same "Continue") must make the action stop.
       const print = exact => digest(JSON.stringify([ctl.localName, role, ctl.type || '', mask(names.join('|'), exact), hints.join('|'),
-        mask(dests.join('|'), exact), submits, sends, payment, mask(action.replace(/[?#].*$/, ''), exact), !!form, link, keyRisk]));
-      return {label, names, hints, dests, submits, sends, payment, action, link, keyRisk, secret: isSecret(ctl) || isSecret(el), description: describe(el), origin: originOf(el),
+        mask(dests.join('|'), exact), submits, sends, payment, mask(action.replace(/[?#].*$/, ''), exact), !!form, link, keyRisk, cookie]));
+      return {label, names, hints, dests, submits, sends, payment, action, link, keyRisk, cookie, secret: isSecret(ctl) || isSecret(el), description: describe(el), origin: originOf(el),
         fp: print(false), fpExact: print(true)};
     }
     // The page may change between looking and acting (and the user takes their time to answer): the action goes ahead
@@ -769,7 +780,7 @@ extension PageScripts {
 
     const want = norm(args.text);
     const found = docs().some(e => norm(e.doc.body ? e.doc.body.innerText : '').includes(want));
-    return JSON.stringify({found, blank: !docs().some(e => (e.doc.body ? e.doc.body.innerText : '').trim()), origin: String(window.origin || 'null')});
+    return JSON.stringify({found, origin: String(window.origin || 'null')});
     """#
 
     /// Takes the marks off, and ends what is waiting to act (the pause after an outline): the user pressed stop.
@@ -783,24 +794,12 @@ extension PageScripts {
     for (const e of docs()) for (const f of deepAll(e.doc, 'iframe,frame,object,embed')) {
       const r = f.getBoundingClientRect();
       if (sameSite(f) || r.width < 20 || r.height < 20 || e.doc.defaultView.getComputedStyle(f).visibility === 'hidden') continue;
-      out.push({...tagFrame(f), src: (f.src || f.data || attr(f, 'src') || attr(f, 'data') || '').slice(0, 300)});
+      out.push(tagFrame(f));
     }
     return JSON.stringify(out);
     """#
 
     static let origin = "return String(window.origin || 'null');"
-
-    /// Where a frame says it is and whether it shows nothing at all: no text, and nothing that could be seen of a size (a tracking
-    /// pixel, an empty box).
-    static let frameFacts = lib + #"""
-
-    const text = (document.body ? document.body.innerText : '').trim();
-    const shown = Array.from(document.querySelectorAll('img,video,canvas,svg,input,textarea,select,button,iframe,frame,object,embed')).some(e => {
-      const r = e.getBoundingClientRect();
-      return r.width >= 20 && r.height >= 20;
-    });
-    return JSON.stringify({origin: String(window.origin || 'null'), blank: !text && !shown});
-    """#
 
     /// Makes every password field known as one from the moment its document begins to exist, in the isolated world like the other
     /// scripts: also one that is added later, and one the page turns into a plain text field before anything else looks.

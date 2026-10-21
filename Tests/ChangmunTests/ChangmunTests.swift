@@ -804,14 +804,6 @@ struct SettingsRuleTests {
 }
 
 struct FilterConverterTests {
-    @Test func theHostsAListBlocksOutrightAreReadFromItsPlainHostRules() {
-        let hosts = FilterConverter.blockedHosts(in: Self.sample + "\n||allowed.example^\n@@||allowed.example^\n||Mixed.Case.example^$third-party,important\n||frames.example^$subdocument")
-        #expect(hosts.isSuperset(of: ["doubleclick.net", "ads.example.com", "mixed.case.example", "frames.example"]))
-        #expect(!hosts.contains("tracker.example") && !hosts.contains("cdn.example") && !hosts.contains("popunder.example") && !hosts.contains("weird.example"), "rules for some pages, some kinds of load or with more to them don't block the host")
-        #expect(!hosts.contains("allowed.example") && !hosts.contains("good.example") && !hosts.contains("exact.example"), "an exception lets a host through")
-        #expect(FilterConverter.blockedHosts(in: "||localhost^\n||a b.example^\n||ünï.example^\n").isEmpty)
-    }
-
     static let sample = #"""
     [Adblock Plus 2.0]
     ! Title: sample

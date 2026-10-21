@@ -34,9 +34,11 @@ enum AgentKey {
 /// details or posts to a checkout. It errs toward asking: a page can name a button anything. Generic words of agreement ("OK",
 /// "확인") are not enough to ask.
 ///
-/// `high` is what can't be taken back or gives something away (paying, ordering, sending, posting, deleting, cancelling,
-/// transferring): asked about every time. `low` is consent and settings (accept, agree, allow, save, share, clear, reset, connect,
-/// upload ...): asked about once per site for a chat.
+/// `high` is what can't be taken back or gives something away: money (paying, ordering, transferring, booking), content or data
+/// (sending, posting, replying, commenting, sharing, uploading, submitting, subscribing, inviting), access (allowing, granting,
+/// authorizing, connecting, linking an account) and losses (deleting, cancelling, revoking, closing): asked about every time.
+/// `low` is a cookie banner's consent (accept, agree, allow, where the control or the text around it speaks of cookies) and settings
+/// (save, clear, reset, block, enable, disable, install, complete, finish ...): asked about once per site for a chat.
 enum IrreversibleAction {
     enum Tier: Int, Comparable {
         case none, low, high
@@ -65,9 +67,11 @@ enum IrreversibleAction {
         var link = false
         /// The key pressed is one that acts by itself: Delete or Backspace outside a text field, or a combination with ctrl or meta.
         var keyRisk = false
+        /// The control sits in a cookie banner: it, or the text around it, speaks of cookies.
+        var cookie = false
 
         init(label: String = "", names: [String] = [], hints: [String] = [], dests: [String] = [], submits: Bool = false, payment: Bool = false, action: String = "", sends: Bool = false,
-             link: Bool = false, keyRisk: Bool = false) {
+             link: Bool = false, keyRisk: Bool = false, cookie: Bool = false) {
             self.label = label
             self.names = names
             self.hints = hints
@@ -78,24 +82,25 @@ enum IrreversibleAction {
             self.sends = sends
             self.link = link
             self.keyRisk = keyRisk
+            self.cookie = cookie
         }
 
         init(_ json: [String: Any]) {
             self.init(label: json["label"] as? String ?? "", names: json["names"] as? [String] ?? [], hints: json["hints"] as? [String] ?? [],
                       dests: json["dests"] as? [String] ?? [], submits: json["submits"] as? Bool ?? false, payment: json["payment"] as? Bool ?? false, action: json["action"] as? String ?? "",
-                      sends: json["sends"] as? Bool ?? false, link: json["link"] as? Bool ?? false, keyRisk: json["keyRisk"] as? Bool ?? false)
+                      sends: json["sends"] as? Bool ?? false, link: json["link"] as? Bool ?? false, keyRisk: json["keyRisk"] as? Bool ?? false, cookie: json["cookie"] as? Bool ?? false)
         }
     }
 
     static func tier(of facts: Facts) -> Tier {
         if facts.sends || facts.keyRisk || (facts.submits && (facts.payment || postsToCheckout(facts.action))) { return .high }
         if facts.dests.contains(where: { facts.link ? linkGoesToHigh($0) : goesToIrreversible($0) }) { return .high }
-        return (facts.names + facts.hints).reduce(Tier.none) { max($0, tier(ofText: $1)) }
+        return (facts.names + facts.hints).reduce(Tier.none) { max($0, tier(ofText: $1, cookie: facts.cookie)) }
     }
 
     /// The name to show the user: the one that put the action in its tier, else the control's own.
     static func name(of facts: Facts, tier wanted: Tier = .high) -> String {
-        facts.names.first(where: { tier(ofText: $0) >= wanted }) ?? (facts.label.isEmpty ? facts.hints.first(where: { tier(ofText: $0) >= wanted }) ?? "" : facts.label)
+        facts.names.first(where: { tier(ofText: $0, cookie: facts.cookie) >= wanted }) ?? (facts.label.isEmpty ? facts.hints.first(where: { tier(ofText: $0, cookie: facts.cookie) >= wanted }) ?? "" : facts.label)
     }
 
     /// Words (whole words only, accents and case ignored) of the Latin-script languages.
@@ -109,40 +114,48 @@ enum IrreversibleAction {
         "withdraw", "withdrawing", "deposit", "depositing", "wire", "unsubscribe",
         "trash", "bin", "recycle", "erase", "erasing", "wipe", "wiping", "revoke", "deactivate", "terminate",
         "sell", "selling", "bid", "bidding", "invest", "investing", "trade", "trading",
+        "reply", "comment", "submit", "submitting", "share", "sharing", "upload", "uploading", "subscribe", "subscribing", "invite", "inviting",
+        "authorize", "authorise", "authorizing", "grant", "granting", "connect", "connecting", "book", "reserve", "reserving",
         // Spanish
         "comprar", "compra", "pagar", "pago", "pedir", "pedido", "enviar", "envia", "publicar", "eliminar", "borrar", "transferir", "transferencia",
         "confirmar", "donar", "aprobar", "retirar", "depositar", "papelera", "revocar", "vender", "pujar", "invertir",
+        "responder", "comentar", "compartir", "subir", "suscribirse", "suscribir", "invitar", "autorizar", "conceder", "otorgar", "conectar", "reservar",
         // German
         "kaufen", "kauf", "bezahlen", "zahlen", "zahlungspflichtig", "bestellen", "bestellung", "senden", "absenden", "abschicken", "versenden",
         "posten", "veröffentlichen", "löschen", "überweisen", "bestätigen", "spenden", "genehmigen", "abheben", "einzahlen",
         "abbestellen", "papierkorb", "widerrufen", "verkaufen", "bieten", "investieren", "handeln",
+        "antworten", "kommentieren", "teilen", "hochladen", "abonnieren", "einladen", "autorisieren", "gewähren", "verbinden", "einreichen", "buchen", "reservieren",
         // French
         "acheter", "achat", "payer", "régler", "commander", "commande", "valider", "envoyer", "publier", "supprimer", "virer", "virement",
         "transférer", "confirmer", "approuver", "désabonner", "corbeille", "poubelle", "résilier", "vendre", "enchérir", "investir",
+        "répondre", "commenter", "partager", "téléverser", "abonner", "inviter", "autoriser", "accorder", "soumettre", "réserver",
+    ])
+
+    /// Consent: asked about once per site in a cookie banner, every time anywhere else (an authorization screen says "Allow" too).
+    private static let consentWords: Set<String> = fold(all: [
+        "allow", "allowing", "accept", "accepting", "agree", "agreeing",
+        "permitir", "acepto", "erlauben", "zulassen", "akzeptieren", "zustimmen", "accepter",
     ])
 
     private static let lowWords: Set<String> = fold(all: [
         // English
-        "reply", "book", "reserve", "reserving", "submit", "submitting", "save", "saving", "share", "sharing", "comment", "remove", "removing", "subscribe", "subscribing",
-        "authorize", "authorise", "authorizing", "allow", "allowing", "accept", "accepting", "agree", "agreeing", "grant", "granting",
-        "connect", "connecting", "disconnect", "disconnecting", "unlink", "invite", "inviting", "upload", "uploading", "install", "installing",
+        "save", "saving", "remove", "removing", "disconnect", "disconnecting", "unlink", "install", "installing",
         "enable", "enabling", "disable", "disabling", "reset", "resetting", "clear", "clearing", "empty", "emptying", "discard", "ban", "banning",
         "block", "blocking", "complete", "completing", "finish", "finishing",
         // Spanish
-        "responder", "reservar", "guardar", "compartir", "comentar", "autorizar", "suscribirse", "suscribir", "descartar", "permitir", "acepto", "conceder", "otorgar",
-        "conectar", "invitar", "subir", "instalar", "activar", "desactivar", "desconectar", "desvincular", "restablecer", "vaciar", "bloquear", "completar", "finalizar",
+        "guardar", "descartar", "instalar", "activar", "desactivar", "desconectar", "desvincular", "restablecer", "vaciar", "bloquear", "completar", "finalizar",
         // German
-        "antworten", "buchen", "reservieren", "entfernen", "speichern", "teilen", "kommentieren", "autorisieren", "abonnieren", "einreichen", "verwerfen", "erlauben", "zulassen",
-        "akzeptieren", "zustimmen", "gewähren", "verbinden", "einladen", "hochladen", "installieren", "aktivieren", "deaktivieren", "trennen",
-        "zurücksetzen", "leeren", "sperren", "blockieren", "abschließen", "beenden", "fertigstellen",
+        "speichern", "entfernen", "verwerfen", "installieren", "aktivieren", "deaktivieren", "trennen", "zurücksetzen", "leeren", "sperren", "blockieren",
+        "abschließen", "beenden", "fertigstellen",
         // French
-        "répondre", "réserver", "retirer", "enregistrer", "sauvegarder", "partager", "commenter", "autoriser", "abonner", "soumettre", "accepter", "accorder", "inviter",
-        "téléverser", "installer", "activer", "désactiver", "dissocier", "réinitialiser", "vider", "effacer", "bannir", "bloquer", "terminer", "finaliser", "compléter",
+        "retirer", "enregistrer", "sauvegarder", "installer", "activer", "désactiver", "dissocier", "réinitialiser", "vider", "effacer", "bannir", "bloquer",
+        "terminer", "finaliser", "compléter",
     ])
 
     private static let highPhrases = ["check out", "place order", "passer la commande", "finalizar compra", "realizar pedido", "zur kasse", "remove permanently", "permanently remove",
                                       "delete forever", "empty trash", "empty the trash", "empty bin", "empty the bin", "close account", "close my account", "wire transfer",
-                                      "make payment", "make a payment", "authorize payment", "authorise payment"].map(fold)
+                                      "make payment", "make a payment", "authorize payment", "authorise payment", "allow access", "give access", "link account", "link your account",
+                                      "link my account", "allow all access"].map(fold)
 
     /// "Save 20%" and "Save up to $5" are promotions, not a save.
     private static let promotional: Set<String> = fold(all: ["save", "saving", "savings"])
@@ -158,18 +171,28 @@ enum IrreversibleAction {
     /// Korean, Japanese and Chinese have no spaces between words, so these are looked for anywhere in the text.
     private static let highCharacters = [
         "구매", "결제", "주문", "보내", "전송", "게시", "삭제", "송금", "발송", "이체", "발행", "후원", "탈퇴", "해지", "휴지통", "출금", "입금", "판매", "입찰", "투자", "승인",
+        "답글", "예약", "제출", "신청", "구독", "공유", "등록", "댓글", "연결", "초대", "업로드",
         "購入", "支払", "決済", "注文", "送信", "投稿", "削除", "送金", "公開", "振込", "寄付", "退会", "解約", "ゴミ箱", "出金", "入金", "売却", "入札", "投資", "承認",
+        "返信", "予約", "申し込み", "申込", "共有", "登録", "コメント", "接続", "招待", "アップロード",
         "购买", "購買", "支付", "付款", "下单", "下單", "发送", "發送", "发布", "發佈", "發布", "删除", "刪除", "转账", "轉帳", "结算", "結算", "订购", "訂購", "提交订单", "提交訂單",
         "捐款", "确认订单", "確認訂單", "注销", "註銷", "取消订阅", "取消订单", "取消訂單", "垃圾桶", "垃圾箱", "回收站", "废纸篓",
         "批准", "提现", "提現", "出售", "竞拍", "競拍", "投资", "投資", "汇款", "匯款", "存款",
+        "回复", "回覆", "预订", "預訂", "预约", "預約", "提交", "订阅", "訂閱", "分享", "评论", "評論", "授权", "授權", "连接", "連接", "邀请", "邀請", "上传", "上傳",
     ]
 
+    private static let consentCharacters = ["허용", "동의", "수락", "許可", "同意", "承諾", "允许", "允許", "接受"]
+
     private static let lowCharacters = [
-        "답글", "예약", "제거", "제출", "신청", "구독", "저장", "공유", "등록", "댓글", "허용", "동의", "수락", "연결", "초대", "업로드", "설치", "활성화", "비활성화", "초기화", "차단", "완료",
-        "返信", "予約", "申し込み", "申込", "保存", "共有", "登録", "コメント", "許可", "同意", "承諾", "接続", "招待", "アップロード", "インストール", "有効化", "無効化", "切断", "リセット", "クリア", "ブロック", "完了",
-        "回复", "回覆", "预订", "預訂", "预约", "預約", "提交", "订阅", "訂閱", "分享", "评论", "評論", "允许", "允許", "接受", "授权", "授權", "连接", "連接", "邀请", "邀請", "上传", "上傳", "安装", "安裝",
-        "启用", "啟用", "禁用", "断开", "斷開", "重置", "清空", "封禁", "屏蔽", "完成",
+        "제거", "저장", "설치", "활성화", "비활성화", "초기화", "차단", "완료",
+        "保存", "インストール", "有効化", "無効化", "切断", "リセット", "クリア", "ブロック", "完了",
+        "安装", "安裝", "启用", "啟用", "禁用", "断开", "斷開", "重置", "清空", "封禁", "屏蔽", "完成",
     ]
+
+    /// What a cookie banner says, or a control in one: cookies in the languages of the app.
+    static func mentionsCookies(_ text: String) -> Bool {
+        let folded = fold(text)
+        return ["cookie", "쿠키", "クッキー", "galleta", "kekse", "témoin", "temoin"].map(fold).contains { folded.contains($0) }
+    }
 
     /// Ordinary words that contain one of those: pages and lists a link goes to (a board, a history of orders), not what they
     /// would do. They are taken out before looking for the words above.
@@ -191,7 +214,7 @@ enum IrreversibleAction {
         clean(text).folding(options: [.diacriticInsensitive, .caseInsensitive, .widthInsensitive], locale: nil)
     }
 
-    static func tier(ofText text: String) -> Tier {
+    static func tier(ofText text: String, cookie: Bool = false) -> Tier {
         var cleaned = clean(text)
         for compound in ordinaryCompounds { cleaned = cleaned.replacingOccurrences(of: compound, with: " ") }
         if highCharacters.contains(where: cleaned.contains) { return .high }
@@ -200,6 +223,10 @@ enum IrreversibleAction {
         if tokens.contains(where: cancelWords.contains) && tokens.contains(where: cancelContext.contains) { return .high }
         let spaced = " " + tokens.joined(separator: " ") + " "
         if highPhrases.contains(where: { spaced.contains(" \($0) ") }) { return .high }
+        // Consent is a cookie banner's when the control or the words around it speak of cookies; anywhere else it grants something.
+        if tokens.contains(where: consentWords.contains) || consentCharacters.contains(where: cleaned.contains) {
+            return cookie || mentionsCookies(text) ? .low : .high
+        }
         if lowCharacters.contains(where: cleaned.contains) { return .low }
         for (index, token) in tokens.enumerated() where lowWords.contains(token) {
             if promotional.contains(token), isAmount(tokens.dropFirst(index + 1)) { continue }
@@ -216,7 +243,7 @@ enum IrreversibleAction {
     }
 
     /// Whether a text puts an action in a tier of at least `wanted`.
-    static func matches(_ text: String, tier wanted: Tier = .high) -> Bool { tier(ofText: text) >= wanted }
+    static func matches(_ text: String, tier wanted: Tier = .high, cookie: Bool = false) -> Bool { tier(ofText: text, cookie: cookie) >= wanted }
 
     /// Where a form, a button or a script goes that pays or gives something up, in the words of an address.
     private static let destinationWords: Set<String> = [
@@ -730,10 +757,10 @@ extension ToolCatalog {
 
     /// The frames a picture shows, from the answer of the script that lists them: nil when it gave none, and `more` when there
     /// are more than the app asks about.
-    static func shownFrames(from answer: String?) -> (refs: [(slot: String, nonce: String, src: String)], more: Bool)? {
+    static func shownFrames(from answer: String?) -> (refs: [(slot: String, nonce: String)], more: Bool)? {
         guard let answer, let list = (try? JSONSerialization.jsonObject(with: Data(answer.utf8))) as? [[String: String]] else { return nil }
         let first = list.prefix(maxShownFrames)
-        let refs = first.compactMap { ref in ref["slot"].flatMap { slot in ref["nonce"].map { (slot, $0, ref["src"] ?? "") } } }
+        let refs = first.compactMap { ref in ref["slot"].flatMap { slot in ref["nonce"].map { (slot, $0) } } }
         return (refs, list.count > first.count || refs.count < first.count)
     }
 
@@ -741,9 +768,8 @@ extension ToolCatalog {
 
     /// The sites of the frames a picture of the page shows (also those inside frames of other sites), each asked where it
     /// really is. A frame that can't be reached or has no site, one beyond the first few, and a list that could not be had
-    /// all count as an unknown frame, which is a site of its own for the approvals: the picture may show anything there. A frame
-    /// that shows nothing (an empty box, a tracking pixel), and one that can't be reached but is of a site the ad blocker's lists
-    /// block, is no site the picture showed.
+    /// all count as an unknown frame, which is a site of its own for the approvals: the picture may show anything there.
+    /// Every such frame counts, whatever it says about itself or whoever's lists it is on.
     @MainActor
     static func shownFrameHosts(_ tab: Tab, _ webView: WKWebView) async -> Set<String> {
         var hosts = Set<String>()
@@ -761,13 +787,9 @@ extension ToolCatalog {
             for ref in shown.refs {
                 var host = Approvals.unknownFrame
                 if let info = infos[ref.slot] {
-                    let facts = await run(PageScripts.frameFacts, [:], in: webView, frame: info, timeout: 3)
-                    let json = facts.isError ? nil : (facts.content.first?["text"] as? String).flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] }
-                    if let origin = json?["origin"] as? String, !Self.host(ofOrigin: origin).isEmpty { host = Self.host(ofOrigin: origin) }
+                    let origin = await run(PageScripts.origin, [:], in: webView, frame: info, timeout: 3)
+                    if !origin.isError, let origin = origin.content.first?["text"] as? String, !Self.host(ofOrigin: origin).isEmpty { host = Self.host(ofOrigin: origin) }
                     await visit(info, depth: depth + 1)
-                    if json?["blank"] as? Bool == true { continue }
-                } else if let site = Approvals.site(of: URL(string: ref.src)), let name = Approvals.hostname(ofSite: site), AdBlocker.shared.blocks(name, onPage: tab.url?.host()) {
-                    continue
                 }
                 hosts.insert(host)
             }
@@ -877,7 +899,7 @@ extension ToolCatalog {
                     if !allowed { throw ToolFailure(result: declined) }
                 }
                 let read = aim.host.isEmpty ? Approvals.unknownFrame : aim.host
-                if frame != nil { Approvals.noteFrameRead(tab, readHost: read, caller: session.caller) } else { Approvals.noteRead(tab, readHost: read, caller: session.caller) }
+                Approvals.noteRead(tab, readHost: read, caller: session.caller)
             }
             return aim
         }
@@ -1232,13 +1254,12 @@ extension ToolCatalog {
                 }
                 continue
             }
-            // The answer says something about what the frame shows, so it was read from where it is (but a frame that shows nothing
-            // told nothing).
+            // The answer says something about what the frame shows, so it was read from where it is.
             let host = host(ofOrigin: json["origin"] as? String ?? "")
             if place.frame == nil {
                 Approvals.noteRead(tab, readHost: host.isEmpty ? nil : host, caller: caller)
-            } else if json["blank"] as? Bool != true {
-                Approvals.noteFrameRead(tab, readHost: host.isEmpty ? Approvals.unknownFrame : host, caller: caller)
+            } else {
+                Approvals.noteRead(tab, readHost: host.isEmpty ? Approvals.unknownFrame : host, caller: caller)
             }
             if json["found"] as? Bool == true { return true }
         }

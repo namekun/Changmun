@@ -858,8 +858,8 @@ struct AISettings: View {
                 } else {
                     Caption(text: "If you turn this off, instructions hidden in a web page can make the AI send other tabs or content it read earlier to the outside.", color: .orange)
                 }
-                Caption(text: "Either way, it asks every time before something that looks like it pays, orders, sends, posts, deletes or cancels.")
-                Caption(text: "It also asks before something that looks like accepting, saving, sharing or changing a setting, which you can allow for a site until the chat is cleared.")
+                Caption(text: "Either way, it asks every time before something that looks like it pays, orders, sends, posts, shares, grants access, deletes or cancels.")
+                Caption(text: "It also asks before something that looks like a cookie banner or a setting (save, clear, reset, block), which you can allow for a site until the chat is cleared.")
             }
             Section("Claude Code") {
                 LabeledContent("claude CLI") { Text(status).foregroundStyle(.secondary).lineLimit(2).multilineTextAlignment(.trailing) }
