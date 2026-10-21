@@ -304,6 +304,105 @@ struct SidebarDragTests {
         #expect(shown(b) == ["\(t[0])", "G[\(t[1]) \(t[2])]", "\(t[3])"])
     }
 
+    @Test func aFolderThatOnlyExistsAsAPartOfADeeperPathIsNotFreeForANewOne() throws {
+        let rig = Rig(tabs: 4), b = rig.b
+        let t = b.tabs.map(\.id)
+        // Imported with no row of its own for "Work".
+        rig.library.addBookmark(url: "https://old.example/", title: "Old", folder: "Chrome Bookmarks Bar / Work / Projects")
+        rig.library.addBookmark(url: "https://changmun.example/", title: "Old", folder: "Changmun Work / Projects")
+        let inside = try #require(b.group([t[0], t[1]], name: "Work"))
+        #expect(b.saveGroup(inside, to: .folder("Chrome Bookmarks Bar"), library: rig.library))
+        #expect(entries(rig.library, "Chrome Bookmarks Bar / Work 2") == ["https://site1.example/", "https://site2.example/"])
+        b.undoNotice()
+        #expect(entries(rig.library, "Chrome Bookmarks Bar / Work / Projects") == ["https://old.example/"], "the imported bookmarks stay")
+        #expect(rig.library.folders().map(\.name).sorted() == ["Changmun Work / Projects", "Chrome Bookmarks Bar / Work / Projects"])
+        let pinned = try #require(b.group([t[2], t[3]], name: "Work"))
+        #expect(b.saveGroup(pinned, to: .pinned(before: nil), library: rig.library))
+        #expect(rig.store.space(Space.defaultID).pinnedFolders == ["Changmun Work 2"])
+        b.undoNotice()
+        #expect(entries(rig.library, "Changmun Work / Projects") == ["https://changmun.example/"])
+        #expect(rig.store.space(Space.defaultID).pinnedFolders.isEmpty)
+    }
+
+    @Test func takingBackASaveKeepsWhatWasPutInTheFolderMeanwhile() throws {
+        let rig = Rig(tabs: 3), b = rig.b
+        let t = b.tabs.map(\.id)
+        let group = try #require(b.group([t[0], t[1]], name: "G"))
+        #expect(b.saveGroup(group, to: .pinned(before: nil), library: rig.library))
+        rig.library.addBookmark(url: "https://later.example/", title: "Later", folder: "Changmun G")
+        b.undoNotice()
+        #expect(entries(rig.library, "Changmun G") == ["https://later.example/"], "only the saved pages go")
+        #expect(shown(b) == ["G[\(t[0]) \(t[1])]", "\(t[2])"])
+    }
+
+    @Test func takingBackASaveInAFolderLeavesWhatItDidNotChange() throws {
+        let rig = Rig(tabs: 3), b = rig.b
+        let t = b.tabs.map(\.id)
+        rig.library.addBookmark(url: "https://old.example/", title: "Old", folder: "Arc Work")
+        rig.store.pinFolder("Arc Work", in: Space.defaultID)
+        // The parent is pinned and open already: it stays so, and pinned.
+        rig.store.toggleOpen("pin:Arc Work", in: Space.defaultID)
+        let first = try #require(b.group([t[0]], name: "Trip"))
+        #expect(b.saveGroup(first, to: .folder("Arc Work"), library: rig.library))
+        b.undoNotice()
+        #expect(rig.store.space(Space.defaultID).pinnedFolders == ["Arc Work"])
+        #expect(rig.store.space(Space.defaultID).openFolders == ["pin:Arc Work"])
+        // Closed, it is opened by the save and closed again by taking it back.
+        rig.store.toggleOpen("pin:Arc Work", in: Space.defaultID)
+        #expect(b.saveGroup(first, to: .folder("Arc Work"), library: rig.library))
+        #expect(rig.store.space(Space.defaultID).openFolders == ["pin:Arc Work"])
+        b.undoNotice()
+        #expect(rig.store.space(Space.defaultID).openFolders.isEmpty && rig.store.space(Space.defaultID).pinnedFolders == ["Arc Work"])
+        #expect(entries(rig.library, "Arc Work") == ["https://old.example/"])
+    }
+
+    @Test func takingBackASaveToTheFavoritesPutsTheOthersBackInOrder() throws {
+        let rig = Rig(tabs: 4), b = rig.b
+        let t = b.tabs.map(\.id)
+        let favorites = b.favoritesFolder
+        for name in ["a", "b", "c"] { rig.library.addBookmark(url: "https://\(name).example/", title: name, folder: favorites) }
+        rig.library.placeFavorites(["https://a.example/", "https://b.example/", "https://c.example/"], before: nil, in: favorites)
+        let group = try #require(b.group([t[0], t[1]], name: "G"))
+        rig.library.addBookmark(url: "https://site2.example/", title: "Two", folder: favorites)
+        rig.library.placeFavorites(["https://site2.example/"], before: nil, in: favorites)
+        let order = rig.library.favorites(in: favorites).map(\.url)
+        #expect(b.saveGroup(group, to: .favorites(before: "https://a.example/"), library: rig.library))
+        #expect(rig.library.favorites(in: favorites).map(\.url).first == "https://site1.example/")
+        rig.library.addBookmark(url: "https://later.example/", title: "Later", folder: favorites)
+        b.undoNotice()
+        #expect(rig.library.favorites(in: favorites).map(\.url) == order + ["https://later.example/"])
+    }
+
+    @Test func takingBackASaveDoesNotRegroupATabMovedToAnotherBookmark() throws {
+        let rig = Rig(tabs: 3), b = rig.b
+        let t = b.tabs.map(\.id)
+        let group = try #require(b.group([t[0], t[1]], name: "G"))
+        #expect(b.saveGroup(group, to: .pinned(before: nil), library: rig.library))
+        let elsewhere = Browser.bookmarkKey(url: "https://site1.example/", folder: "Arc Home")
+        b.tab(t[0])?.bookmarkKey = elsewhere
+        b.undoNotice()
+        #expect(b.tab(t[0])?.bookmarkKey == elsewhere && b.tab(t[0])?.groupID == nil, "a tab with a bookmark has no group")
+        #expect(b.tab(t[1])?.groupID == group && b.tab(t[1])?.bookmarkKey == nil)
+    }
+
+    @Test func favoritesPlacedBeforeOneOfThemGoBeforeTheNextOtherOne() {
+        let library = Library(path: Sandbox().file("lib.sqlite").path)
+        let urls = ["a", "b", "c", "d", "e"].map { "https://\($0).example/" }
+        for url in urls { library.addBookmark(url: url, title: url, folder: Library.favoritesFolder) }
+        library.placeFavorites(urls, before: nil)
+        func order() -> [String] { library.favorites().map { String($0.url.dropFirst(8).prefix(1)) } }
+        library.placeFavorites([urls[3], urls[1]], before: urls[1])
+        #expect(order() == ["a", "d", "b", "c", "e"], "above c, the next one not moved")
+        library.placeFavorites([urls[2], urls[4]], before: urls[4])
+        #expect(order() == ["a", "d", "b", "c", "e"], "nothing after them, so the end")
+        library.placeFavorites([urls[0]], before: urls[3])
+        #expect(order() == ["a", "d", "b", "c", "e"])
+        library.placeFavorites([urls[4]], before: urls[0])
+        #expect(order() == ["e", "a", "d", "b", "c"])
+        library.placeFavorites([urls[4]], before: "https://missing.example/")
+        #expect(order() == ["a", "d", "b", "c", "e"], "a favorite that is not there is the end")
+    }
+
     @Test func theSidebarDropsKeepGroupsThroughTheSharedLibrary() throws {
         let b = browser(3, spaces: Sandbox().store())
         let t = b.tabs.map(\.id)

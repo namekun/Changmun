@@ -242,7 +242,7 @@ final class Library: @unchecked Sendable {
         return before - counts.history
     }
 
-    /// Moves a favorite to where another one is (dropping it on that tile), or to the end.
+    /// Moves a favorite to just before another one (dropping it on that tile, where the drop line shows), or to the end.
     func moveFavorite(_ url: String, to target: String?, in folder: String = Library.favoritesFolder) {
         let original = favorites(in: folder).map(\.url)
         guard let from = original.firstIndex(of: url), url != target else { return }
@@ -262,10 +262,13 @@ final class Library: @unchecked Sendable {
         changed()
     }
 
-    /// Puts these favorites, in this order, just above another favorite, or at the end.
+    /// Puts these favorites, in this order, just above another favorite, or at the end. When that favorite is one of
+    /// them, they go above the next one that is not.
     func placeFavorites(_ urls: [String], before target: String?, in folder: String = Library.favoritesFolder) {
-        var order = favorites(in: folder).map(\.url).filter { !urls.contains($0) }
-        order.insert(contentsOf: urls, at: target.flatMap { order.firstIndex(of: $0) } ?? order.count)
+        let current = favorites(in: folder).map(\.url)
+        var order = current.filter { !urls.contains($0) }
+        let anchor = target.flatMap { current.firstIndex(of: $0) }.flatMap { current[$0...].first { !urls.contains($0) } }
+        order.insert(contentsOf: urls, at: anchor.flatMap { order.firstIndex(of: $0) } ?? order.count)
         guard let db else { return }
         try? db.transaction {
             for (position, item) in order.enumerated() {

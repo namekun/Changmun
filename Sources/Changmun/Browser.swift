@@ -870,6 +870,7 @@ final class Browser: ObservableObject {
         case .favorites: folder = favoritesFolder
         }
         let added = pages.filter { !library.isFavorite($0.url, in: folder) }
+        let order = library.favorites(in: folder).map(\.url)
         for page in added { library.addBookmark(url: page.url, title: page.tab.title.isEmpty ? (page.tab.url?.host() ?? page.url) : page.tab.title, folder: folder) }
         var bound: [Int: String] = [:]
         for page in pages {
@@ -878,28 +879,35 @@ final class Browser: ObservableObject {
             if page.tab.bookmarkKey == key { bound[page.tab.id] = key }
         }
         ungroup(id)
+        var pinned = false, opened: String?
         switch destination {
         case .pinned(let before):
+            pinned = !spaces.space(space).pinnedFolders.contains(folder)
             spaces.pinFolder(folder, before: before, in: space)
-            if group.isOpen, !spaces.space(space).openFolders.contains("pin:" + folder) { spaces.toggleOpen("pin:" + folder, in: space) }
+            if group.isOpen, !spaces.space(space).openFolders.contains("pin:" + folder) { opened = "pin:" + folder }
         case .folder(let parent):
-            if !spaces.space(space).openFolders.contains("pin:" + parent) { spaces.toggleOpen("pin:" + parent, in: space) }
+            if !spaces.space(space).openFolders.contains("pin:" + parent) { opened = "pin:" + parent }
         case .favorites(let before):
             library.placeFavorites(pages.map(\.url), before: before, in: folder)
         }
+        if let opened { spaces.toggleOpen(opened, in: space) }
         offerUndo(destination.makesFolder ? String(localized: "Saved the group as a bookmark folder") : String(localized: "Added the group to Favorites")) { [weak self] in
-            if destination.makesFolder {
-                library.removeFolder(folder)
-                self?.spaces.unpinFolder(folder, in: space)
-                if let spaces = self?.spaces, spaces.space(space).openFolders.contains("pin:" + folder) { spaces.toggleOpen("pin:" + folder, in: space) }
-            } else {
-                for page in added { library.removeBookmark(url: page.url, folder: folder) }
+            // Only what the save did: the bookmarks it added (not what was put in the folder since), the pin and the
+            // opening it made, and the order the favorites had.
+            for page in added { library.removeBookmark(url: page.url, folder: folder) }
+            if let spaces = self?.spaces {
+                if pinned { spaces.unpinFolder(folder, in: space) }
+                if let opened, spaces.space(space).openFolders.contains(opened) { spaces.toggleOpen(opened, in: space) }
+            }
+            if !destination.makesFolder {
+                let extras = library.favorites(in: folder).map(\.url).filter { !order.contains($0) }
+                library.placeFavorites(order, before: extras.first, in: folder)
             }
             guard let self else { return }
             if !groups.contains(where: { $0.id == group.id }) { groups.append(group) }
             for member in members where tabs.contains(where: { $0 === member }) {
                 if let key = bound[member.id], member.bookmarkKey == key { member.bookmarkKey = nil }
-                member.groupID = group.id
+                if member.bookmarkKey == nil { member.groupID = group.id }
             }
             objectWillChange.send()
         }
@@ -911,9 +919,11 @@ final class Browser: ObservableObject {
     private func newFolderKey(for name: String, in parent: String?, _ library: Library) -> String {
         let name = name.replacingOccurrences(of: " / ", with: " - ")
         let base = parent.map { $0 + " / " + name } ?? "Changmun " + name
-        let taken = Set(library.folders().map(\.name))
+        let names = library.folders().map(\.name)
+        // Taken as a folder, or as the parent of one: a folder that only exists as part of a deeper path is not free.
+        func isTaken(_ key: String) -> Bool { names.contains { $0 == key || $0.hasPrefix(key + " / ") } }
         var key = base, number = 2
-        while taken.contains(key) {
+        while isTaken(key) {
             key = base + " \(number)"
             number += 1
         }
