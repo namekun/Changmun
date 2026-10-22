@@ -84,7 +84,7 @@ Sind nur die Command Line Tools installiert, bauen die Skripte gegen das macOS-2
 
 - **Private Fenster.** Surfen, ohne Spuren zu hinterlassen. Private Fenster halten Cookies und Websitedaten nur im Arbeitsspeicher und vergessen sie beim Schließen; nichts landet im Verlauf, in der Sitzung oder bei der KI.
 - **Website-Einstellungen.** Zeigt und ändert an einer Stelle, was Changmun sich für eine Website merkt. Ein Klick auf das Schloss links in der Adressleiste öffnet ein kleines Fenster mit allem, was Changmun für diese Website merkt: Werbeblocker, Zoom, Pop-ups, Kamera und Mikrofon und ob ihre Tabs in den Ruhezustand dürfen. Ein Klick auf eine andere Stelle der Adressleiste, auch auf den Namen der Website, bearbeitet wie bisher die Adresse.
-- **Passwörter.** Das Merken übernimmt der Schlüsselbund. Passwörter werden nach der Anmeldung im Schlüsselbund gesichert (nur https) und über die Schlüssel-Taste in der Adressleiste eingesetzt. Zum Kopieren eines Passworts brauchst du Touch ID oder dein Mac-Passwort.
+- **Passwörter.** Das Merken übernimmt der Schlüsselbund. Passwörter werden nach der Anmeldung im Schlüsselbund gesichert (nur https) und über die Schlüssel-Taste in der Adressleiste eingesetzt. Zum Kopieren oder Einsetzen eines Passworts brauchst du Touch ID oder dein Mac-Passwort (beim Einsetzen lässt sich das unter Einstellungen › Datenschutz abschalten).
 - **Pop-ups.** Seiten dürfen nicht ungefragt Fenster aufreißen. Pop-ups, die ohne Klick aufgehen, werden blockiert; „Öffnen“ und „Für diese Website immer erlauben“ erscheinen direkt oberhalb der Seite.
 
 Werbe- und Tracker-Blocker werden unter [Werbeblocker](#werbeblocker) beschrieben, was auf deinem Mac bleibt und was gesendet wird, unter [Datenschutz](#datenschutz).
@@ -209,6 +209,18 @@ Beim ersten Start oder über das Menü importiert Changmun Lesezeichen und Verla
 - Die Update-Prüfung fragt einmal am Tag die öffentliche Releases-API von GitHub nach der neuesten Versionsnummer und sendet sonst nichts (abschaltbar unter Einstellungen › Erweitert).
 - Suchvorschläge senden, was du in die Befehlsleiste eingibst, an deine Suchmaschine (in den Einstellungen ausschaltbar; aus privaten Fenstern wird nie etwas gesendet).
 - Die KI-Seitenleiste sendet deine Nachrichten und die Seiteninhalte, die die KI liest, über das `claude`-CLI an Anthropic. „Tabs aufräumen“ und die Seitenübersetzung laufen auf deinem Mac.
+
+## Passwörter und Sicherheit
+
+Browsern, die Passwörter synchronisieren, wird eine berechtigte Frage gestellt: Liegt eine verschlüsselte Kopie meiner Passwörter auf eurem Server, und könntet ihr sie entschlüsseln, euch als mich anmelden oder sie verkaufen, wenn die Firma pleitegeht? Bei Changmun sind die Antworten kurz, und jede wurde am Code überprüft.
+
+- **Wo sie liegen.** Im Anmelde-Schlüsselbund deines Mac, als Internetpasswörter mit der Bezeichnung `Changmun` (such in der Schlüsselbundverwaltung danach). Changmun markiert sie nicht als synchronisierbar, deshalb trägt auch der iCloud-Schlüsselbund sie nirgendwohin. Löschst du eines unter Einstellungen › Datenschutz › Gesicherte Passwörter › Verwalten …, ist es auch aus dem Schlüsselbund weg.
+- **Nirgends sonst eine Kopie.** Changmun hat kein Konto und keinen Server, also gibt es keine verschlüsselte Kopie, die man entschlüsseln, verkaufen, leaken oder erben könnte. Außer den Anfragen unter Datenschutz holt die App von sich aus nur die Werbefilterlisten, eine von dir gewünschte Erweiterung aus dem Chrome Web Store und das Symbol jeder Website direkt von dieser Website. Keine davon enthält ein Passwort.
+- **Wer sie entschlüsseln kann.** Nur dieser Mac, nachdem du ihn entsperrt hast. Touch ID oder dein Mac-Passwort wird verlangt, bevor Changmun ein Passwort kopiert, bevor es eines in eine Seite einsetzt (Einstellungen › Datenschutz › Touch ID zum Ausfüllen von Passwörtern verlangen, standardmäßig an; nach der Bestätigung fragt das Einsetzen in der nächsten Minute nicht erneut) und bevor die KI sich für dich anmeldet. Bei Abbruch wird nichts eingesetzt.
+- **Die KI bekommt sie nie.** Bei `sign_in` füllt Changmun das Formular selbst aus und sagt der KI nur, dass es das getan hat, ohne Passwort und Kontonamen. Die KI kann Passwortfelder weder lesen noch darin tippen oder Tasten drücken, und Screenshots verdecken sie. Liest sie danach die angemeldete Seite, ist deren Text Seiteninhalt wie jeder andere.
+- **Was an Anthropic geht.** Deine Nachrichten und die Seiten, die die KI liest, über dein eigenes `claude`-CLI, und sonst nichts. Changmun besitzt keinen Anthropic-Schlüssel und stellt selbst keine Anfragen an Anthropic.
+- **Importierte Passwörter.** Werden auf deinem Mac mit dem `Safe Storage`-Schlüsselbundschlüssel des jeweiligen Browsers entschlüsselt (macOS fragt vorher) und in deinem Anmelde-Schlüsselbund gesichert. Unterwegs wird nichts hochgeladen.
+- **Wenn das Projekt stehen bleibt.** Es gibt nichts zu verkaufen und nichts abzuschalten: kein Server, kein Konto, keine Datenbank von irgendjemandem. Deine Passwörter bleiben in deinem Schlüsselbund, und die App läuft, solange macOS läuft. Sie ist Open Source unter MIT, also kann das jeder überprüfen, am besten ab `Sources/Changmun/Logins.swift`.
 
 ## Für Entwickler
 

@@ -84,7 +84,7 @@ Si seuls les Command Line Tools sont installés, les scripts compilent avec le S
 
 - **Fenêtres privées.** Naviguez sans rien laisser derrière vous. Les fenêtres privées gardent leurs cookies et les données des sites en mémoire et les oublient à la fermeture ; rien n’est envoyé à l’historique, à la session ni à l’IA.
 - **Réglages du site.** Affiche et modifie au même endroit ce que Changmun retient pour un site. Cliquez sur le cadenas, à gauche de la barre d’adresse, pour afficher un petit panneau avec ce que Changmun retient pour ce site : blocage des publicités, zoom, pop-ups, caméra et micro, et si ses onglets peuvent se mettre en veille. Cliquez ailleurs sur la barre, y compris sur le nom du site, pour modifier l’adresse, comme avant.
-- **Mots de passe.** Les retenir, c’est le travail du Trousseau. Ils sont enregistrés dans le Trousseau après votre connexion (https uniquement) et remplis depuis la clé située dans la barre d’adresse. Pour en copier un, Touch ID ou le mot de passe de votre Mac est demandé.
+- **Mots de passe.** Les retenir, c’est le travail du Trousseau. Ils sont enregistrés dans le Trousseau après votre connexion (https uniquement) et remplis depuis la clé située dans la barre d’adresse. Pour en copier ou en remplir un, Touch ID ou le mot de passe de votre Mac est demandé (au remplissage, cela se désactive dans Réglages › Confidentialité).
 - **Pop-ups.** Les pages n’ouvrent pas de fenêtres sans qu’on le leur demande. Les pop-ups ouverts sans clic sont bloqués, avec « Ouvrir » et « Toujours autoriser pour ce site » juste au-dessus de la page.
 
 Le blocage des publicités et des traqueurs est décrit dans [Blocage des publicités](#blocage-des-publicités), et ce qui reste sur votre Mac ou est envoyé dans [Confidentialité](#confidentialité).
@@ -209,6 +209,18 @@ Au premier lancement, ou depuis le menu, Changmun importe les signets et l’his
 - La recherche de mises à jour interroge une fois par jour l’API publique des versions de GitHub pour connaître le dernier numéro de version et n’envoie rien d’autre (désactivable dans Réglages › Avancé).
 - Les suggestions de recherche envoient à votre moteur de recherche ce que vous saisissez dans la barre de commande (désactivez-les dans les Réglages ; jamais envoyées depuis les fenêtres privées).
 - Le panneau IA envoie vos messages, ainsi que le contenu des pages que l’IA lit, à Anthropic via la CLI `claude`. Le rangement des onglets et la traduction des pages s’exécutent sur votre Mac.
+
+## Mots de passe et sécurité
+
+On pose aux navigateurs qui synchronisent les mots de passe une question légitime : une copie chiffrée de mes mots de passe est-elle sur votre serveur, et pourriez-vous la déchiffrer, vous connecter à ma place ou la vendre si l’entreprise fait faillite ? Pour Changmun, les réponses sont courtes, et chacune a été vérifiée dans le code.
+
+- **Où ils se trouvent.** Dans le Trousseau de session de votre Mac, comme mots de passe Internet portant le nom `Changmun` (cherchez-le dans Accès au trousseau). Changmun ne les marque pas comme synchronisables, donc le Trousseau iCloud ne les emporte pas non plus. En supprimer un dans Réglages › Confidentialité › Mots de passe enregistrés › Gérer…, c’est aussi le retirer du Trousseau.
+- **Aucune copie ailleurs.** Changmun n’a ni compte ni serveur : il n’existe donc aucune copie chiffrée à déchiffrer, vendre, divulguer ou hériter. En dehors des requêtes listées sous Confidentialité, l’app ne télécharge d’elle-même que les listes de filtres publicitaires, une extension du Chrome Web Store que vous avez demandée, et l’icône de chaque site, directement depuis ce site. Aucune ne transporte de mot de passe.
+- **Qui peut les déchiffrer.** Seulement ce Mac, une fois que vous l’avez déverrouillé. Touch ID ou le mot de passe de votre Mac est demandé avant que Changmun copie un mot de passe, avant qu’il en remplisse un dans une page (Réglages › Confidentialité › Exiger Touch ID pour remplir les mots de passe, activé par défaut ; une fois confirmé, les remplissages de la minute suivante ne redemandent rien) et avant que l’IA se connecte pour vous. Si vous annulez, rien n’est rempli.
+- **L’IA ne les reçoit jamais.** Avec `sign_in`, Changmun remplit lui-même le formulaire et dit seulement à l’IA qu’il l’a fait, sans le mot de passe ni le nom du compte. L’IA ne peut ni lire les champs de mot de passe, ni y saisir du texte, ni y appuyer sur des touches, et les captures d’écran les masquent. Si elle lit ensuite la page connectée, le texte de cette page est du contenu de page comme un autre.
+- **Ce qui part chez Anthropic.** Vos messages et les pages que lit l’IA, via votre propre CLI `claude`, et rien d’autre. Changmun ne détient aucune clé Anthropic et n’adresse lui-même aucune requête à Anthropic.
+- **Mots de passe importés.** Déchiffrés sur votre Mac avec la clé `Safe Storage` du Trousseau de chaque navigateur (macOS demande d’abord) et enregistrés dans votre Trousseau de session. Rien n’est envoyé en chemin.
+- **Si le projet s’arrête.** Il n’y a rien à vendre ni à éteindre : pas de serveur, pas de compte, la base de données de personne. Vos mots de passe restent dans votre Trousseau et l’app fonctionne tant que macOS fonctionne. Le code est ouvert sous licence MIT : chacun peut tout vérifier, en commençant par `Sources/Changmun/Logins.swift`.
 
 ## Pour les développeurs
 

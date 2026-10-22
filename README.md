@@ -84,7 +84,7 @@ With only the Command Line Tools installed, the scripts build against the macOS 
 
 - **Private windows.** Browse without leaving anything behind. Private windows keep their cookies and site data in memory and forget them when closed; nothing goes to history, the session or the AI.
 - **Site settings.** What Changmun remembers about a site, shown and changed in one place. Click the lock icon at the left of the address bar for a small panel with what Changmun keeps for that site: ad blocking, zoom, pop-ups, camera and microphone, and whether its tabs may sleep. Click anywhere else on the address bar, the site name included, to edit the address, as before.
-- **Passwords.** Remembering them is the Keychain's job. Passwords are saved to the Keychain after you sign in (https only) and filled from the key in the address bar. Copying one asks for Touch ID or your Mac password.
+- **Passwords.** Remembering them is the Keychain's job. Passwords are saved to the Keychain after you sign in (https only) and filled from the key in the address bar. Copying or filling one asks for Touch ID or your Mac password (filling can be switched off in Settings › Privacy).
 - **Pop-ups.** Pages don't get to open windows on you unasked. Pop-ups opened without a click are blocked, with "Open" and "Always Allow for This Site" right above the page.
 
 Ad and tracker blocking is covered under [Ad blocking](#ad-blocking), and what stays on your Mac and what is sent is covered under [Privacy](#privacy).
@@ -228,6 +228,18 @@ On first launch, or from the menu, Changmun imports bookmarks and history from S
 - The update check asks GitHub's public releases API for the latest version number once a day and sends nothing else (Settings › Advanced turns it off).
 - Search suggestions send what you type in the command bar to your search engine (turn them off in Settings; never sent from private windows).
 - The AI panel sends your messages, and the page content the AI reads, to Anthropic through the `claude` CLI. Tidy tabs and page translation run on your Mac.
+
+## Passwords and security
+
+People ask password-syncing browsers a fair question: is an encrypted copy of my passwords on your server, and could you decrypt it, log in as me, or sell it if the company goes under? For Changmun the answers are short, and each was checked against the code.
+
+- **Where they live.** In your Mac's login Keychain, as internet passwords labeled `Changmun` (search for it in Keychain Access). Changmun doesn't mark them as synchronizable, so iCloud Keychain doesn't carry them anywhere either. Delete one in Settings › Privacy › Saved Passwords › Manage… and it's gone from the Keychain.
+- **No copy anywhere else.** Changmun has no account and no server, so there's no encrypted copy to decrypt, sell, leak or inherit. Besides the requests listed under Privacy, the only things the app fetches by itself are the ad filter lists, a Chrome Web Store extension you asked for, and each site's own icon from that site. None of them carries a password.
+- **Who can decrypt them.** Only this Mac, once you've unlocked it. Touch ID or your Mac password is asked before Changmun copies a password, before it fills one into a page (Settings › Privacy › Require Touch ID to fill passwords, on by default; after you confirm, fills in the next minute don't ask again) and before the AI signs in for you. Cancel and nothing is filled.
+- **The AI never receives them.** For `sign_in`, Changmun fills the form itself and tells the AI only that it did, not the password or the account name. The AI can't read password fields, type into them or press keys in them, and screenshots mask them. If it then reads the signed-in page, that page's text is page content like any other.
+- **What goes to Anthropic.** Your messages and the pages the AI reads, through your own `claude` CLI, and nothing else. Changmun holds no Anthropic key and makes no requests to Anthropic itself.
+- **Imported passwords.** Decrypted on your Mac with each browser's `Safe Storage` Keychain key (macOS asks first) and saved to your login Keychain. Nothing is uploaded on the way.
+- **If the project stops.** There's nothing to sell and nothing to shut off: no server, no account, no database of anyone. Your passwords stay in your Keychain and the app keeps running as long as macOS does. It's open source under MIT, so anyone can check all of this, starting with `Sources/Changmun/Logins.swift`.
 
 ## For developers
 

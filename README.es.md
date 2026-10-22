@@ -84,7 +84,7 @@ Si solo tienes instaladas las Command Line Tools, los scripts compilan con el SD
 
 - **Ventanas privadas.** Navega sin dejar rastro. Las ventanas privadas guardan sus cookies y datos de sitios web en memoria y los olvidan al cerrarse; nada va al historial, a la sesión ni a la IA.
 - **Ajustes del sitio.** Muestra y cambia en un solo lugar lo que Changmun recuerda de un sitio. Haz clic en el candado, a la izquierda de la barra de direcciones, para ver un panel pequeño con lo que Changmun guarda de ese sitio: bloqueo de anuncios, zoom, ventanas emergentes, cámara y micrófono, y si sus pestañas pueden suspenderse. Haz clic en cualquier otra parte de la barra, incluido el nombre del sitio, para editar la dirección, como siempre.
-- **Contraseñas.** Recordarlas es cosa del llavero. Las contraseñas se guardan en el llavero después de iniciar sesión (solo https) y se rellenan desde la llave de la barra de direcciones. Para copiar una se pide Touch ID o la contraseña de tu Mac.
+- **Contraseñas.** Recordarlas es cosa del llavero. Las contraseñas se guardan en el llavero después de iniciar sesión (solo https) y se rellenan desde la llave de la barra de direcciones. Para copiar o rellenar una se pide Touch ID o la contraseña de tu Mac (al rellenar se puede desactivar en Ajustes › Privacidad).
 - **Ventanas emergentes.** Las páginas no abren ventanas sin que se lo pidas. Las que se abren sin un clic se bloquean, con "Abrir" y "Permitir siempre en este sitio" justo encima de la página.
 
 El bloqueo de anuncios y rastreadores se explica en [Bloqueo de anuncios](#bloqueo-de-anuncios), y lo que se queda en tu Mac y lo que se envía, en [Privacidad](#privacidad).
@@ -209,6 +209,18 @@ En el primer arranque, o desde el menú, Changmun importa marcadores e historial
 - La búsqueda de actualizaciones consulta una vez al día la API pública de versiones de GitHub para saber el número de la última versión y no envía nada más (se desactiva en Ajustes › Avanzado).
 - Las sugerencias de búsqueda envían a tu buscador lo que escribes en la barra de comandos (desactívalas en Ajustes; nunca se envían desde ventanas privadas).
 - El panel de IA envía tus mensajes, y el contenido de las páginas que lee la IA, a Anthropic a través de la CLI `claude`. Ordenar pestañas y la traducción de páginas se ejecutan en tu Mac.
+
+## Contraseñas y seguridad
+
+A los navegadores que sincronizan contraseñas se les hace una pregunta razonable: si una copia cifrada de mis contraseñas está en vuestro servidor, ¿podéis descifrarla, iniciar sesión como yo o venderla si la empresa quiebra? En Changmun las respuestas son cortas, y cada una se comprobó en el código.
+
+- **Dónde están.** En el llavero de inicio de sesión de tu Mac, como contraseñas de internet con la etiqueta `Changmun` (búscala en Acceso a Llaveros). Changmun no las marca como sincronizables, así que el llavero de iCloud tampoco las lleva a ningún sitio. Si borras una en Ajustes › Privacidad › Contraseñas guardadas › Gestionar…, desaparece del llavero.
+- **No hay copia en ningún otro sitio.** Changmun no tiene cuentas ni servidor, así que no existe una copia cifrada que descifrar, vender, filtrar o heredar. Además de las peticiones que figuran en Privacidad, lo único que la app descarga por su cuenta son las listas de filtros de anuncios, una extensión de Chrome Web Store que hayas pedido y el icono de cada sitio, directamente de ese sitio. Ninguna lleva una contraseña.
+- **Quién puede descifrarlas.** Solo este Mac, una vez que lo has desbloqueado. Se pide Touch ID o la contraseña de tu Mac antes de copiar una contraseña, antes de rellenarla en una página (Ajustes › Privacidad › Pedir Touch ID para rellenar contraseñas, activado por defecto; tras confirmar, los rellenados del minuto siguiente no vuelven a preguntar) y antes de que la IA inicie sesión por ti. Si cancelas, no se rellena nada.
+- **La IA nunca las recibe.** Con `sign_in`, Changmun rellena el formulario por sí mismo y solo le dice a la IA que lo hizo, sin la contraseña ni el nombre de la cuenta. La IA no puede leer los campos de contraseña, escribir en ellos ni pulsar teclas en ellos, y las capturas los ocultan. Si luego lee la página ya con la sesión iniciada, el texto de esa página es contenido de página como cualquier otro.
+- **Qué llega a Anthropic.** Tus mensajes y las páginas que lee la IA, a través de tu propia CLI `claude`, y nada más. Changmun no tiene ninguna clave de Anthropic ni hace peticiones a Anthropic por su cuenta.
+- **Contraseñas importadas.** Se descifran en tu Mac con la clave `Safe Storage` del llavero de cada navegador (macOS pregunta antes) y se guardan en tu llavero de inicio de sesión. No se sube nada por el camino.
+- **Si el proyecto se para.** No hay nada que vender ni que apagar: ni servidor, ni cuentas, ni la base de datos de nadie. Tus contraseñas siguen en tu llavero y la app sigue funcionando mientras funcione macOS. Es de código abierto con licencia MIT, así que cualquiera puede comprobar todo esto, empezando por `Sources/Changmun/Logins.swift`.
 
 ## Para desarrolladores
 
