@@ -57,16 +57,51 @@ extension SharedAgentState {
             #expect(!(await Approvals.allowTab(tabs[1], caller: ChatStore.caller, reading: true)))
         }
 
-        @Test func thePanelNameCountsOnlyWithItsSecret() {
-            let secret = ChatStore.panelSecret
-            #expect(ControlServer.caller(["x-changmun-caller": "panel", "x-changmun-panel-secret": secret]) == ChatStore.caller)
-            #expect(ControlServer.caller(["x-changmun-caller": "panel"]) != ChatStore.caller)
-            #expect(ControlServer.caller(["x-changmun-caller": "panel", "x-changmun-panel-secret": "guess"]) != ChatStore.caller)
-            #expect(ControlServer.caller(["x-changmun-caller": "panel", "x-changmun-panel-secret": ""]) != ChatStore.caller)
+        @Test func thePanelNameCountsOnlyWithItsSecretAndTheTokenOfTheRunUnderWay() {
+            let secret = ChatStore.panelSecret, chat = ChatStore.shared
+            chat.runToken = "token-of-run-1"
+            defer { chat.runToken = nil }
+            func panel(secret: String?, token: String?) -> [String: String] {
+                var headers = ["x-changmun-caller": "panel"]
+                if let secret { headers["x-changmun-panel-secret"] = secret }
+                if let token { headers["x-changmun-run-token"] = token }
+                return headers
+            }
+            #expect(ControlServer.caller(panel(secret: secret, token: "token-of-run-1")) == ChatStore.caller)
+            #expect(ControlServer.caller(panel(secret: nil, token: nil)) != ChatStore.caller)
+            #expect(ControlServer.caller(panel(secret: "guess", token: "token-of-run-1")) == "unverified-panel")
+            #expect(ControlServer.caller(panel(secret: "", token: "token-of-run-1")) == "unverified-panel")
+            #expect(ControlServer.caller(panel(secret: secret, token: nil)) == nil, "the secret alone is not a run")
+            #expect(ControlServer.caller(panel(secret: secret, token: "token-of-run-2")) == nil)
             #expect(ControlServer.caller(["x-changmun-caller": "cli"]) == "cli")
             #expect(ControlServer.caller(["x-changmun-caller": "cli", "x-changmun-panel-secret": secret]) == "cli")
             #expect(ControlServer.caller(["x-changmun-caller": "mcp-42"]) == "mcp-42")
             #expect(ControlServer.caller([:]) == "unknown")
+        }
+
+        @Test func aRunThatWasStoppedOrReplacedIsNotAcceptedAnymore() {
+            let secret = ChatStore.panelSecret, chat = ChatStore.shared
+            defer { chat.runToken = nil }
+            let first = ["x-changmun-caller": "panel", "x-changmun-panel-secret": secret, "x-changmun-run-token": "run-1"]
+            let second = ["x-changmun-caller": "panel", "x-changmun-panel-secret": secret, "x-changmun-run-token": "run-2"]
+            chat.runToken = "run-1"
+            #expect(ControlServer.caller(first) == ChatStore.caller)
+            chat.stop()
+            #expect(chat.runToken == nil && ControlServer.caller(first) == nil, "a late call of the run that was stopped is refused")
+            chat.runToken = "run-2"
+            #expect(ControlServer.caller(first) == nil, "and so is one of the run that came before")
+            #expect(ControlServer.caller(second) == ChatStore.caller)
+            chat.endRun()
+            #expect(ControlServer.caller(second) == nil, "a run that ended has no calls either")
+        }
+
+        @Test func theRunTokenTravelsInTheConfigFileToo() throws {
+            let file = try ChatStore.writeMCPConfig(runToken: "tok-123")
+            defer { try? FileManager.default.removeItem(at: file) }
+            let config = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+            let server = try #require((config["mcpServers"] as? [String: Any])?["changmun"] as? [String: Any])
+            #expect((server["env"] as? [String: String])?[ChatStore.runTokenVariable] == "tok-123")
+            #expect(!(server["args"] as? [String] ?? []).contains { $0.contains("tok-123") })
         }
 
         @Test func theSecretTravelsInAPrivateFileNotOnACommandLine() throws {

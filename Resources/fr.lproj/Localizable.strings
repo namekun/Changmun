@@ -553,3 +553,5 @@
 "…(%lld more characters are not shown)" = "…(%lld caractères de plus non affichés)";
 "↵ queues it for when the AI is done · ⌘↵ steers it now" = "↵ le met en file jusqu’à la fin de l’IA · ⌘↵ la réoriente tout de suite";
 "Remove from the queue" = "Retirer de la file";
+"Send Queued" = "Envoyer la file";
+"The last run didn't finish, so these wait for you" = "La dernière exécution ne s’est pas terminée, ces messages attendent donc votre feu vert";

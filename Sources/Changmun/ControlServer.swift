@@ -176,7 +176,8 @@ final class ControlServer {
         // allow, site or deny), a caller's stop button ("stop": the caller's name), the chat started over ("newChat", as
         // the New Chat button does), what a caller has read forgotten ("forget": the caller's name), what the panel records
         // as read when a message goes out ("noteFront": the title and address of the tab in front, and the attached tabs),
-        // the name the panel's calls carry ("panelSecret": its secret, which only a headless app gives out), and what was
+        // the name the panel's calls carry ("panelSecret": its secret and the token of the run under way, which only a headless app
+        // gives out; "panelRun" starts a run's token), and what was
         // asked, newest last ("clear" empties that list).
         if Headless.isOn, request.method == "POST", request.path == "/approvals",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
@@ -191,9 +192,10 @@ final class ControlServer {
                 if let caller = body["forget"] as? String { Approvals.forgetReads(caller: caller) }
                 if body["newChat"] as? Bool == true { ChatStore.shared.reset() }
                 if body["noteFront"] as? Bool == true { ChatStore.shared.noteAttachedRead() }
+                if body["panelRun"] as? Bool == true { ChatStore.shared.runToken = UUID().uuidString + UUID().uuidString }
                 let asked = Approvals.headless.asked.map { ["message": $0.message, "detail": $0.detail, "choices": $0.choices.map { "\($0)" }] as [String: Any] }
                 if body["clear"] as? Bool == true { Approvals.headless.asked = [] }
-                self.respond(connection, status: "200 OK", body: ["asked": asked].merging(body["panelSecret"] as? Bool == true ? ["panelSecret": ChatStore.panelSecret] : [:]) { $1 })
+                self.respond(connection, status: "200 OK", body: ["asked": asked].merging(body["panelSecret"] as? Bool == true ? ["panelSecret": ChatStore.panelSecret, "runToken": ChatStore.shared.runToken ?? ""] : [:]) { $1 })
             }
             return
         }
@@ -223,17 +225,25 @@ final class ControlServer {
         }
         let arguments = body["arguments"] as? [String: Any] ?? [:]
         Task { @MainActor in
-            let result = await ToolCatalog.call(name, arguments, caller: Self.caller(request.headers))
+            // A call from a run of the panel that was stopped or replaced is not carried out, however late it comes.
+            guard let caller = Self.caller(request.headers) else {
+                return self.respond(connection, status: "200 OK", body: ToolResult.text("This run of the AI was stopped, so its calls are no longer accepted.", error: true).json)
+            }
+            let result = await ToolCatalog.call(name, arguments, caller: caller)
             self.respond(connection, status: "200 OK", body: result.json)
         }
     }
 
     /// The caller a request names, except that the panel's name counts only with the panel's secret: without it the
-    /// request is an ordinary outside client that happens to use that name.
-    static func caller(_ headers: [String: String]) -> String {
+    /// request is an ordinary outside client that happens to use that name. With the secret, it counts only with the token of the
+    /// run under way; nil for a request that has the secret and not that token (a run that was stopped).
+    @MainActor
+    static func caller(_ headers: [String: String]) -> String? {
         let name = headers["x-changmun-caller"] ?? "unknown"
-        guard name == ChatStore.caller, !sameSecret(headers["x-changmun-panel-secret"] ?? "", ChatStore.panelSecret) else { return name }
-        return "unverified-" + name
+        guard name == ChatStore.caller else { return name }
+        guard sameSecret(headers["x-changmun-panel-secret"] ?? "", ChatStore.panelSecret) else { return "unverified-" + name }
+        guard let token = ChatStore.shared.runToken, sameSecret(headers["x-changmun-run-token"] ?? "", token) else { return nil }
+        return name
     }
 
     /// Compares without stopping at the first difference, so how long it takes says nothing about the secret.

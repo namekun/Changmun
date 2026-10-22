@@ -24,19 +24,35 @@ final class ChatStore: ObservableObject {
     @Published var step: String?
     /// Tabs the user attached as context: the AI may read them without asking.
     @Published private(set) var attachedIDs: [Int] = []
-    /// A message waiting for the run under way to end, shown as a chip the user can remove.
+    /// The tabs a message goes with: the one the user was looking at and the ones attached, when they wrote it.
+    struct Context: Equatable {
+        var frontID: Int?
+        var attachedIDs: [Int]
+    }
+
+    /// A message waiting for the run under way to end, shown as a chip the user can remove. It is sent with the tabs it was
+    /// written with, not with whatever is in front when its turn comes.
     struct Queued: Identifiable, Equatable {
         let id = UUID()
         var text: String
+        var context: Context
     }
 
-    /// Messages sent while a run was on, in the order they were sent: each goes out when the run before it ends.
+    /// Messages sent while a run was on, in the order they were sent: each goes out when the run before it ends well.
     @Published private(set) var queue: [Queued] = []
+    /// The run before them failed or was cut short: they wait for the user to say so (`sendQueued`).
+    @Published private(set) var queueHeld = false
     static let maxQueued = 8
-    /// Starts a run of the AI for a message, or says it couldn't. Tests stand in for the `claude` process with it.
-    var launch: ((String) -> Bool)?
+    /// Starts a run of the AI for a message (and the prompt made of it and its tabs), or says it couldn't. Tests stand in for the
+    /// `claude` process with it.
+    var launch: ((_ message: String, _ prompt: String) -> Bool)?
+    /// Proves a call named "panel" comes from the run under way: its `claude` is given it in its MCP config, and a run that was
+    /// stopped or replaced is not accepted anymore, however long its process lingers.
+    var runToken: String?
+    private var runFailed = false
     private var sessionID: String?
-    private var process: Process?
+    /// The `claude` process of the run under way (tests give it a stand-in).
+    var process: Process?
     /// Events from a run that was stopped or replaced are dropped.
     private var runID = UUID()
     private var streamingIndex: Int?
@@ -58,7 +74,16 @@ final class ChatStore: ObservableObject {
 
     /// The titles and addresses of the tab in front and of the attached tabs go to the AI with each message, so they count as read.
     func noteAttachedRead() {
-        for tab in attachedTabs + [Browser.recent?.active].compactMap({ $0 }) { Approvals.noteRead(tab, caller: Self.caller) }
+        noteRead(front: Browser.recent?.active, attached: attachedTabs)
+    }
+
+    private func noteRead(front: Tab?, attached: [Tab]) {
+        for tab in attached + [front].compactMap({ $0 }) { Approvals.noteRead(tab, caller: Self.caller) }
+    }
+
+    /// The tabs in front and attached right now.
+    private var currentContext: Context {
+        Context(frontID: Browser.recent?.active?.id, attachedIDs: attachedIDs)
     }
 
     func detach(_ id: Int) {
@@ -104,13 +129,14 @@ final class ChatStore: ObservableObject {
             return true
         }
         guard queue.count < Self.maxQueued else { return false }
-        queue.append(Queued(text: message))
+        queue.append(Queued(text: message, context: currentContext))
         return true
     }
 
-    /// Stops the run under way as the stop button does and goes on with the same conversation at once, with this message. The
-    /// messages in the queue stay queued. Before the conversation has a session to resume (the run has only just begun) there is
-    /// nothing to continue, so it is queued like any other.
+    /// Stops the run under way as the stop button does and goes on with the same conversation with this message, once the old
+    /// `claude` has really exited (so nothing of the old run can still be calling the tools). The messages in the queue stay queued.
+    /// Before the conversation has a session to resume (the run has only just begun) there is nothing to continue, so it is queued
+    /// like any other.
     func steer(_ text: String) {
         let message = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty else { return }
@@ -119,31 +145,78 @@ final class ChatStore: ObservableObject {
             submit(message)
             return
         }
+        let old = process
         stopRun()
+        guard let old, old.isRunning else { return send(message) }
+        // The new run is about to begin: the panel stays busy meanwhile, and a stop in the meantime drops it.
+        isRunning = true
+        let waiting = runID
+        Task.detached { [weak self] in
+            let deadline = Date().addingTimeInterval(3)
+            while old.isRunning && Date() < deadline { try? await Task.sleep(for: .milliseconds(50)) }
+            if old.isRunning { kill(old.processIdentifier, SIGKILL) }
+            old.waitUntilExit()
+            await self?.continueSteer(message, after: waiting)
+        }
+    }
+
+    private func continueSteer(_ message: String, after run: UUID) {
+        guard runID == run else { return }
+        isRunning = false
         send(message)
     }
 
     func removeQueued(_ id: UUID) {
         queue.removeAll { $0.id == id }
+        if queue.isEmpty { queueHeld = false }
     }
 
-    /// The run is over, however it ended: the next queued message goes out.
+    /// The user's say-so for the messages held back by a run that failed: the first goes out, and the rest follow as usual.
+    func sendQueued() {
+        guard !isRunning, !queue.isEmpty else { return }
+        queueHeld = false
+        let next = queue.removeFirst()
+        send(next.text, context: next.context)
+    }
+
+    /// The run is over, however it ended. If it ended well, the next queued message goes out; if it failed or was cut short, the
+    /// queue waits for the user.
     func endRun() {
+        runToken = nil
         isRunning = false
         step = nil
         // Whatever the AI left under way (a question waiting for the user) goes with its process.
         AgentActivity.shared.cancel(caller: Self.caller)
         process = nil
-        guard !queue.isEmpty else { return }
-        send(queue.removeFirst().text)
+        guard !queue.isEmpty else {
+            queueHeld = false
+            return
+        }
+        if runFailed {
+            queueHeld = true
+        } else {
+            sendQueued()
+        }
     }
 
-    func send(_ text: String) {
+    /// The line that tells the AI which tab the user was looking at when they wrote a queued message, and the tabs attached then,
+    /// as they are now: a tab that has gone, or was detached since, is left out.
+    private func tabs(for context: Context?) -> (front: Tab?, attached: [Tab], closed: Bool) {
+        guard let context else { return (Browser.recent?.active, attachedTabs, false) }
+        let front = context.frontID.flatMap(ToolCatalog.findTab)
+        return (front, context.attachedIDs.filter(attachedIDs.contains).compactMap(ToolCatalog.findTab), context.frontID != nil && front == nil)
+    }
+
+    func send(_ text: String, context: Context? = nil) {
         let message = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty, !isRunning else { return }
         items.append(ChatItem(kind: .user, text: message))
+        let tabs = tabs(for: context)
+        let prompt = (context == nil ? Self.contextLine(tabs.front) : Self.queuedContextLine(tabs.front, closed: tabs.closed)) + Self.attachedLine(tabs.attached) + "\n\n" + message
+        runFailed = false
         if let launch {
-            isRunning = launch(message)
+            noteRead(front: tabs.front, attached: tabs.attached)
+            isRunning = launch(message, prompt)
             return
         }
         guard let claude = Self.claudePath() else {
@@ -151,15 +224,17 @@ final class ChatStore: ObservableObject {
             items.append(ChatItem(kind: .error, text: String(localized: "Couldn't find the `claude` CLI. Install Claude Code and try again.")))
             return
         }
-        noteAttachedRead()
-        // The config holds the panel's secret, so it goes in a file only this user can read, not on the command line.
-        guard let config = try? Self.writeMCPConfig() else {
+        noteRead(front: tabs.front, attached: tabs.attached)
+        // The config holds the panel's secret and this run's token, so it goes in a file only this user can read, not on the command line.
+        let token = UUID().uuidString + UUID().uuidString
+        guard let config = try? Self.writeMCPConfig(runToken: token) else {
             queue.removeAll()
             fail(String(localized: "The AI request failed."))
             return
         }
+        runToken = token
         var arguments = [
-            "-p", Self.contextLine(Browser.recent?.active) + Self.attachedLine(attachedTabs) + "\n\n" + message,
+            "-p", prompt,
             "--output-format", "stream-json", "--verbose", "--include-partial-messages",
             "--model", model,
             "--setting-sources", "",
@@ -229,6 +304,7 @@ final class ChatStore: ObservableObject {
     /// the process still says is dropped.
     private func stopRun() {
         runID = UUID()
+        runToken = nil
         process?.terminate()
         process = nil
         isRunning = false
@@ -238,6 +314,7 @@ final class ChatStore: ObservableObject {
     /// The stop button: ends the run, and the messages waiting for it go too.
     func stop() {
         queue.removeAll()
+        queueHeld = false
         stopRun()
     }
 
@@ -321,6 +398,7 @@ final class ChatStore: ObservableObject {
     }
 
     private func fail(_ text: String) {
+        runFailed = true
         items.append(ChatItem(kind: .error, text: text))
         isRunning = false
         step = nil
@@ -385,6 +463,12 @@ final class ChatStore: ObservableObject {
         return "[Current tab #\(tab.id), title set by the page \"\(title(tab))\", address \(address(tab))]"
     }
 
+    /// The line for a message that waited in the queue: the tab the user was looking at when they wrote it, which may not be the one in front now.
+    static func queuedContextLine(_ tab: Tab?, closed: Bool) -> String {
+        guard let tab else { return closed ? "[The tab the user was looking at when they wrote this message has been closed]" : "[No open tab]" }
+        return "[Tab the user was looking at when they wrote this message: #\(tab.id), title set by the page \"\(title(tab))\", address \(address(tab))]"
+    }
+
     /// The tabs attached in the panel, on the line after the current tab; empty when there are none.
     static func attachedLine(_ tabs: [Tab]) -> String {
         guard !tabs.isEmpty else { return "" }
@@ -409,9 +493,11 @@ final class ChatStore: ObservableObject {
     nonisolated static let panelSecret = UUID().uuidString + UUID().uuidString
     nonisolated static let panelSecretVariable = "CHANGMUN_PANEL_SECRET"
 
-    static func mcpConfig() -> Data {
+    nonisolated static let runTokenVariable = "CHANGMUN_RUN_TOKEN"
+
+    static func mcpConfig(runToken: String) -> Data {
         let server: [String: Any] = ["command": Bundle.main.executablePath ?? CommandLine.arguments[0], "args": ["--mcp", "--caller", caller],
-                                     "env": [panelSecretVariable: panelSecret]]
+                                     "env": [panelSecretVariable: panelSecret, runTokenVariable: runToken]]
         return try! JSONSerialization.data(withJSONObject: ["mcpServers": ["changmun": server]])
     }
 
@@ -421,14 +507,14 @@ final class ChatStore: ObservableObject {
     }
 
     /// One run's MCP config, made with the owner's permissions from the start (never readable by others, even for a moment).
-    static func writeMCPConfig() throws -> URL {
+    static func writeMCPConfig(runToken: String = UUID().uuidString) throws -> URL {
         try FileManager.default.createDirectory(at: configFolder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: configFolder.path)
         let file = configFolder.appendingPathComponent("mcp-\(getpid())-\(UUID().uuidString).json")
         let descriptor = open(file.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0o600)
         guard descriptor >= 0 else { throw CocoaError(.fileWriteUnknown) }
         defer { close(descriptor) }
-        let data = mcpConfig()
+        let data = mcpConfig(runToken: runToken)
         guard write(descriptor, (data as NSData).bytes, data.count) == data.count else {
             try? FileManager.default.removeItem(at: file)
             throw CocoaError(.fileWriteUnknown)
@@ -565,14 +651,25 @@ struct ChatPanel: View {
 
     /// The messages waiting for the run under way to end, each removable.
     private var queued: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 6) {
-                ForEach(chat.queue) { message in
-                    QueuedChip(text: message.text) { chat.removeQueued(message.id) }
+        HStack(spacing: 6) {
+            ScrollView(.horizontal) {
+                HStack(spacing: 6) {
+                    ForEach(chat.queue) { message in
+                        QueuedChip(text: message.text) { chat.removeQueued(message.id) }
+                    }
                 }
             }
+            .scrollIndicators(.never)
+            // The run before them failed or was cut short: they go only when the user says so.
+            if chat.queueHeld && !chat.isRunning {
+                Button { chat.sendQueued() } label: {
+                    Text("Send Queued").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.primary)
+                        .padding(.horizontal, 8).frame(height: 22).background(Capsule().fill(Theme.pill))
+                }
+                .buttonStyle(.plain)
+                .help("The last run didn't finish, so these wait for you")
+            }
         }
-        .scrollIndicators(.never)
         .padding(.horizontal, 4)
         .padding(.bottom, 6)
     }

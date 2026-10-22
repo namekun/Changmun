@@ -553,3 +553,5 @@
 "…(%lld more characters are not shown)" = "…(%lld자 더 있지만 표시되지 않아요)";
 "↵ queues it for when the AI is done · ⌘↵ steers it now" = "↵ 는 AI가 끝난 뒤에 보내고, ⌘↵ 는 지금 바로 방향을 바꿔요";
 "Remove from the queue" = "대기열에서 빼기";
+"Send Queued" = "대기열 보내기";
+"The last run didn't finish, so these wait for you" = "지난 실행이 끝나지 않아서, 이 메시지들은 사용자가 보내라고 할 때까지 기다려요";

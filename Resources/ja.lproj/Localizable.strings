@@ -553,3 +553,5 @@
 "…(%lld more characters are not shown)" = "…(さらに%lld文字ありますが表示されていません)";
 "↵ queues it for when the AI is done · ⌘↵ steers it now" = "↵ でAIの作業が終わるまで待機 · ⌘↵ で今すぐ方向転換";
 "Remove from the queue" = "待機から外す";
+"Send Queued" = "待機分を送信";
+"The last run didn't finish, so these wait for you" = "前回の実行が最後まで終わらなかったため、送信はあなたの操作を待っています";

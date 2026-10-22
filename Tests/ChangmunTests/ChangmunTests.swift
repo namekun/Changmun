@@ -1039,17 +1039,17 @@ extension SharedAgentState {
     @MainActor
     struct ChatStreamTests {
         /// A chat whose runs are stood in for: each message launched is kept, and a run lasts until `endRun`.
-        private func standIn() -> (chat: ChatStore, launched: () -> [String]) {
+        private func standIn() -> (chat: ChatStore, launched: () -> [String], prompts: () -> [String]) {
             let chat = ChatStore()
             let box = Launches()
-            chat.launch = { box.messages.append($0); return true }
-            return (chat, { box.messages })
+            chat.launch = { box.messages.append($0); box.prompts.append($1); return true }
+            return (chat, { box.messages }, { box.prompts })
         }
 
-        private final class Launches { var messages: [String] = [] }
+        private final class Launches { var messages: [String] = []; var prompts: [String] = [] }
 
         @Test func messagesSentWhileTheAIWorksAreQueuedAndGoOutOneByOneInOrderWhenItEnds() {
-            let (chat, launched) = standIn()
+            let (chat, launched, _) = standIn()
             #expect(chat.submit("one") && chat.isRunning && launched() == ["one"] && chat.queue.isEmpty)
             #expect(chat.submit("  two\n") && chat.submit("three"))
             #expect(!chat.submit(" \n\t"), "a blank message is nothing")
@@ -1065,7 +1065,7 @@ extension SharedAgentState {
         }
 
         @Test func aQueuedMessageCanBeRemovedAndTheQueueHasALimit() {
-            let (chat, launched) = standIn()
+            let (chat, launched, _) = standIn()
             chat.submit("first")
             for number in 1...ChatStore.maxQueued { #expect(chat.submit("m\(number)")) }
             #expect(!chat.submit("one too many") && chat.queue.count == ChatStore.maxQueued)
@@ -1081,7 +1081,7 @@ extension SharedAgentState {
 
         @Test func stopAndNewChatEmptyTheQueue() {
             for ending in [{ (chat: ChatStore) in chat.stop() }, { (chat: ChatStore) in chat.reset() }] {
-                let (chat, launched) = standIn()
+                let (chat, launched, _) = standIn()
                 chat.submit("running")
                 chat.submit("waiting")
                 ending(chat)
@@ -1092,7 +1092,7 @@ extension SharedAgentState {
         }
 
         @Test func steeringStopsTheRunAndContinuesTheSameConversationWithoutTouchingTheQueue() {
-            let (chat, launched) = standIn()
+            let (chat, launched, _) = standIn()
             let stops = AgentActivity.shared.stopCount(for: ChatStore.caller)
             chat.submit("first")
             chat.handle(["type": "system", "subtype": "init", "session_id": "s-steer"])
@@ -1111,8 +1111,115 @@ extension SharedAgentState {
             #expect(launched().last == "plain" && AgentActivity.shared.stopCount(for: ChatStore.caller) == idle, "nothing to stop")
         }
 
+        @Test func aQueuedMessageGoesWithTheTabsItWasWrittenWithNotThoseInFrontWhenItsTurnComes() {
+            let (chat, _, prompts) = standIn()
+            let browser = Browser()
+            browser.focused()
+            defer { browser.windowClosed() }
+            let first = browser.openTab(url: URL(string: "https://one.example/")), second = browser.openTab(url: URL(string: "https://two.example/"))
+            browser.activate(first.id)
+            chat.submit("start")
+            #expect(prompts()[0].hasPrefix("[Current tab #\(first.id)"), "a message sent at once says which tab is in front")
+            chat.submit("while one was in front")
+            browser.activate(second.id)
+            chat.endRun()
+            let queued = prompts()[1]
+            #expect(queued.hasPrefix("[Tab the user was looking at when they wrote this message: #\(first.id)") && queued.contains("one.example") && !queued.contains("two.example"), "\(queued)")
+            #expect(queued.hasSuffix("while one was in front"))
+            // When the tab has gone by then, it is sent without it.
+            chat.endRun()
+            chat.submit("start again")
+            chat.submit("while two was in front")
+            browser.close(second.id)
+            chat.endRun()
+            let gone = prompts()[3]
+            #expect(gone.hasPrefix("[The tab the user was looking at when they wrote this message has been closed]") && !gone.contains("two.example"), "\(gone)")
+        }
+
+        @Test func tabsAttachedWhenAMessageWasQueuedAreSentOnlyIfTheyStillAreAttachedAndOpen() {
+            let (chat, _, prompts) = standIn()
+            let browser = Browser()
+            browser.focused()
+            defer { chat.reset(); browser.windowClosed() }
+            let front = browser.openTab(url: URL(string: "https://front.example/")), kept = browser.openTab(url: URL(string: "https://kept.example/")),
+                detached = browser.openTab(url: URL(string: "https://detached.example/")), closed = browser.openTab(url: URL(string: "https://closed.example/"))
+            browser.activate(front.id)
+            chat.attach([kept, detached, closed])
+            chat.submit("start")
+            chat.submit("compare them")
+            chat.detach(detached.id)
+            browser.close(closed.id)
+            chat.endRun()
+            let sent = prompts()[1]
+            #expect(sent.contains("kept.example") && !sent.contains("detached.example") && !sent.contains("closed.example"), "\(sent)")
+        }
+
+        @Test func aRunThatFailedHoldsTheQueueUntilTheUserSendsIt() {
+            let (chat, launched, _) = standIn()
+            chat.submit("first")
+            chat.submit("second")
+            chat.submit("third")
+            chat.handle(["type": "result", "is_error": true, "result": "rate limited"])
+            chat.endRun()
+            #expect(launched() == ["first"] && chat.queue.map(\.text) == ["second", "third"] && chat.queueHeld && !chat.isRunning, "nothing goes out by itself")
+            chat.sendQueued()
+            #expect(launched() == ["first", "second"] && !chat.queueHeld && chat.isRunning && chat.queue.map(\.text) == ["third"])
+            chat.endRun()
+            #expect(launched().last == "third", "after a good run the rest follows as usual")
+            // A chip can still be removed, and the control goes with the last one; stopping empties it.
+            chat.endRun()
+            chat.submit("a")
+            chat.submit("b")
+            chat.submit("c")
+            chat.handle(["type": "result", "is_error": true, "result": "boom"])
+            chat.endRun()
+            #expect(chat.queueHeld)
+            chat.removeQueued(chat.queue[0].id)
+            #expect(chat.queueHeld)
+            chat.stop()
+            #expect(chat.queue.isEmpty && !chat.queueHeld)
+            chat.sendQueued()
+            #expect(launched().last == "a", "nothing is left to send")
+        }
+
+        @Test func steeringWaitsForTheOldProcessToExitBeforeTheNewRunBegins() async throws {
+            let (chat, launched, _) = standIn()
+            chat.submit("first")
+            chat.handle(["type": "system", "subtype": "init", "session_id": "s-wait"])
+            let old = Process()
+            // A process that takes its time to go after it is told to.
+            old.executableURL = URL(fileURLWithPath: "/bin/sh")
+            old.arguments = ["-c", "trap '' TERM; sleep 0.6"]
+            try old.run()
+            try await Task.sleep(for: .milliseconds(200))
+            defer { if old.isRunning { old.terminate() } }
+            chat.process = old
+            chat.runToken = "old-run"
+            chat.steer("new direction")
+            #expect(chat.runToken == nil, "the old run's calls are refused from the moment of the steer")
+            #expect(chat.isRunning && launched() == ["first"], "the new run waits for the old process")
+            #expect(await waitUntil { launched().count == 2 })
+            #expect(!old.isRunning && launched() == ["first", "new direction"], "and begins once it has exited")
+            // A stop while it waits drops the new run.
+            let (other, otherLaunched, _) = standIn()
+            other.submit("first")
+            other.handle(["type": "system", "subtype": "init", "session_id": "s-wait2"])
+            let slow = Process()
+            slow.executableURL = URL(fileURLWithPath: "/bin/sh")
+            slow.arguments = ["-c", "trap '' TERM; sleep 0.6"]
+            try slow.run()
+            try await Task.sleep(for: .milliseconds(200))
+            defer { if slow.isRunning { slow.terminate() } }
+            other.process = slow
+            other.steer("never sent")
+            other.stop()
+            slow.waitUntilExit()
+            try await Task.sleep(for: .milliseconds(500))
+            #expect(otherLaunched() == ["first"] && !other.isRunning)
+        }
+
         @Test func steeringBeforeTheConversationHasASessionToContinueIsQueuedInstead() {
-            let (chat, launched) = standIn()
+            let (chat, launched, _) = standIn()
             chat.submit("first")
             chat.steer("too early")
             #expect(launched() == ["first"] && chat.queue.map(\.text) == ["too early"] && chat.isRunning, "nothing to continue yet: it waits its turn")

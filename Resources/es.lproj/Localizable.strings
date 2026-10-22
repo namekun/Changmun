@@ -553,3 +553,5 @@
 "…(%lld more characters are not shown)" = "…(%lld caracteres más sin mostrar)";
 "↵ queues it for when the AI is done · ⌘↵ steers it now" = "↵ lo pone en cola hasta que la IA termine · ⌘↵ la reorienta ahora";
 "Remove from the queue" = "Quitar de la cola";
+"Send Queued" = "Enviar en cola";
+"The last run didn't finish, so these wait for you" = "La última ejecución no terminó, así que estos esperan tu orden";

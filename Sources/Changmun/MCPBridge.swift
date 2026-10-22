@@ -76,6 +76,9 @@ enum ControlClient {
         if let secret = ProcessInfo.processInfo.environment[ChatStore.panelSecretVariable] {
             request.setValue(secret, forHTTPHeaderField: "X-Changmun-Panel-Secret")
         }
+        if let token = ProcessInfo.processInfo.environment[ChatStore.runTokenVariable] {
+            request.setValue(token, forHTTPHeaderField: "X-Changmun-Run-Token")
+        }
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["name": name, "arguments": arguments])
         var result: [String: Any]?
         var failure = "no response"

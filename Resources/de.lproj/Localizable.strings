@@ -553,3 +553,5 @@
 "…(%lld more characters are not shown)" = "…(%lld weitere Zeichen werden nicht angezeigt)";
 "↵ queues it for when the AI is done · ⌘↵ steers it now" = "↵ stellt es in die Warteschlange, bis die KI fertig ist · ⌘↵ lenkt sie sofort um";
 "Remove from the queue" = "Aus der Warteschlange entfernen";
+"Send Queued" = "Wartende senden";
+"The last run didn't finish, so these wait for you" = "Der letzte Durchlauf wurde nicht beendet, daher warten diese auf dich";
