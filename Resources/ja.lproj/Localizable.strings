@@ -575,3 +575,6 @@
 "The AI tried to sign in to %@" = "AIが%@へのログインを試みました";
 "There is no saved login for this site, so nothing was filled in. The AI is told only that the sign-in wasn't done." = "このサイトには保存済みのログインがないため、何も入力しませんでした。AIにはログインできなかったとだけ伝わります。";
 "You declined signing in to %@ earlier in this chat, so the AI isn't asking again." = "このチャットで先に%@へのログインを断ったため、AIは再度確認しません。";
+"Require Touch ID to fill passwords" = "パスワードの自動入力にTouch IDを要求";
+"Filling a saved password asks for Touch ID or your Mac password, then doesn’t ask again for a minute." = "保存したパスワードの入力にはTouch IDまたはMacのパスワードが必要です。その後1分間は再確認しません。";
+"Authentication is required to fill the saved password" = "保存されたパスワードを入力するには認証が必要です";

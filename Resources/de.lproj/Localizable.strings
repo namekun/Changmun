@@ -575,3 +575,6 @@
 "The AI tried to sign in to %@" = "Die KI hat versucht, sich bei %@ anzumelden";
 "There is no saved login for this site, so nothing was filled in. The AI is told only that the sign-in wasn't done." = "Für diese Website ist keine Anmeldung gespeichert, daher wurde nichts eingetragen. Die KI erfährt nur, dass die Anmeldung nicht erfolgt ist.";
 "You declined signing in to %@ earlier in this chat, so the AI isn't asking again." = "Du hast die Anmeldung bei %@ früher in diesem Chat abgelehnt, deshalb fragt die KI nicht erneut.";
+"Require Touch ID to fill passwords" = "Touch ID zum Ausfüllen von Passwörtern verlangen";
+"Filling a saved password asks for Touch ID or your Mac password, then doesn’t ask again for a minute." = "Zum Ausfüllen eines gesicherten Passworts fragt Changmun nach Touch ID oder deinem Mac-Passwort und danach eine Minute lang nicht mehr.";
+"Authentication is required to fill the saved password" = "Zum Ausfüllen des gesicherten Passworts ist eine Authentifizierung erforderlich";

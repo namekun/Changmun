@@ -575,3 +575,6 @@
 "The AI tried to sign in to %@" = "AI 尝试登录 %@";
 "There is no saved login for this site, so nothing was filled in. The AI is told only that the sign-in wasn't done." = "此网站没有已保存的登录信息，因此未填写任何内容。AI 只会被告知未能登录。";
 "You declined signing in to %@ earlier in this chat, so the AI isn't asking again." = "你在此对话中已拒绝登录 %@，因此 AI 不会再次询问。";
+"Require Touch ID to fill passwords" = "填写密码时需要触控 ID";
+"Filling a saved password asks for Touch ID or your Mac password, then doesn’t ask again for a minute." = "填写已存储的密码时需要触控 ID 或 Mac 密码验证，之后一分钟内不再询问。";
+"Authentication is required to fill the saved password" = "需要验证身份才能填写已存储的密码";

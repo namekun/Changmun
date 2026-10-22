@@ -575,3 +575,6 @@
 "The AI tried to sign in to %@" = "La IA intentó iniciar sesión en %@";
 "There is no saved login for this site, so nothing was filled in. The AI is told only that the sign-in wasn't done." = "No hay ningún inicio de sesión guardado para este sitio, así que no se rellenó nada. A la IA solo se le dice que no se inició sesión.";
 "You declined signing in to %@ earlier in this chat, so the AI isn't asking again." = "Rechazaste iniciar sesión en %@ antes en este chat, así que la IA no vuelve a preguntar.";
+"Require Touch ID to fill passwords" = "Pedir Touch ID para rellenar contraseñas";
+"Filling a saved password asks for Touch ID or your Mac password, then doesn’t ask again for a minute." = "Para rellenar una contraseña guardada se pide Touch ID o la contraseña de tu Mac, y no se vuelve a pedir durante un minuto.";
+"Authentication is required to fill the saved password" = "Se requiere autenticación para rellenar la contraseña guardada";

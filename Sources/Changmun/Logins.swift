@@ -1,4 +1,5 @@
 import Foundation
+import LocalAuthentication
 import Security
 import SwiftUI
 import WebKit
@@ -165,6 +166,51 @@ enum Logins {
     """
 }
 
+/// The device owner's say before a saved password is read to fill a page: Touch ID or the Mac's password, as for copying one
+/// in the settings and for the AI's sign-in. Once confirmed, further fills within `grace` seconds need no new question, so
+/// filling two forms in a row asks once. Cancelling fills nothing. The setting "Require Touch ID to fill passwords" turns it off.
+@MainActor
+final class FillAuthorization {
+    static let shared = FillAuthorization()
+    static let grace: TimeInterval = 60
+
+    private let required: @MainActor () -> Bool
+    private let confirm: (String) async -> Bool
+    private let now: () -> Date
+    private var confirmedAt: Date?
+    private var asking = false
+
+    /// Changmun Headless has nobody to ask (and no keychain), so it goes without, as the other paths do.
+    init(required: @escaping @MainActor () -> Bool = { Preferences.shared.requireAuthToFill },
+         confirm: @escaping (String) async -> Bool = FillAuthorization.askDeviceOwner,
+         now: @escaping () -> Date = Date.init) {
+        self.required = required
+        self.confirm = confirm
+        self.now = now
+    }
+
+    /// The password from `read`, which is not called until the device owner has confirmed (or the setting is off, or they
+    /// confirmed less than `grace` seconds ago). nil when they declined, or while another question is still open.
+    func read(_ read: () -> String?) async -> String? {
+        if required(), !Headless.isOn, !withinGrace {
+            guard !asking else { return nil }
+            asking = true
+            defer { asking = false }
+            guard await confirm(String(localized: "Authentication is required to fill the saved password")) else { return nil }
+            confirmedAt = now()
+        }
+        return read()
+    }
+
+    private var withinGrace: Bool {
+        confirmedAt.map { now().timeIntervalSince($0) < Self.grace } ?? false
+    }
+
+    nonisolated private static func askDeviceOwner(_ reason: String) async -> Bool {
+        (try? await LAContext().evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)) == true
+    }
+}
+
 extension Tab {
     /// Shows the key button when the page asks for a password and one is saved for its host.
     func checkForLogins() {
@@ -176,10 +222,15 @@ extension Tab {
         }
     }
 
-    func fillLogin(username: String) {
-        guard let webView, webView.url?.scheme == "https", let host = webView.url?.host(),
-              let password = Logins.password(host: host, username: username) else { return }
-        fill(username: username, password: password)
+    /// Fills a saved login into the page the user is on, after the device owner has confirmed (unless they turned that off).
+    func fillLogin(username: String, authorization: FillAuthorization? = nil, readPassword: @escaping (String, String) -> String? = Logins.password(host:username:)) {
+        guard let webView, webView.url?.scheme == "https", let host = webView.url?.host() else { return }
+        Task { @MainActor [weak self] in
+            guard let password = await (authorization ?? .shared).read({ readPassword(host, username) }) else { return }
+            // The user may have moved on while the question was open: the password only goes to the site it was chosen for.
+            guard let self, self.webView?.url?.host() == host else { return }
+            self.fill(username: username, password: password)
+        }
     }
 
     func fill(username: String, password: String) {

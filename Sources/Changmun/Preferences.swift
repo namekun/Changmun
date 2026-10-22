@@ -148,6 +148,8 @@ final class Preferences: ObservableObject {
             Task { await AdBlocker.shared.apply(enabled: blockTrackers) }
         }
     }
+    /// Filling a saved password asks for Touch ID or the Mac's password first.
+    @Published var requireAuthToFill: Bool { didSet { defaults.set(requireAuthToFill, forKey: "requireAuthToFill") } }
     @Published var customFilterLists: [String] { didSet { defaults.set(customFilterLists, forKey: "customFilterLists") } }
     @Published var disabledFilterLists: [String] { didSet { defaults.set(disabledFilterLists, forKey: "disabledFilterLists") } }
     /// Sites where ads aren't blocked.
@@ -203,6 +205,7 @@ final class Preferences: ObservableObject {
         archiveHours = d.object(forKey: "archiveTabsAfterHours") as? Int ?? 0
         groupNewTabs = d.object(forKey: "groupNewTabs") as? Bool ?? true
         blockTrackers = d.object(forKey: "blockTrackers") as? Bool ?? true
+        requireAuthToFill = d.object(forKey: "requireAuthToFill") as? Bool ?? true
         customFilterLists = d.stringArray(forKey: "customFilterLists") ?? []
         disabledFilterLists = d.stringArray(forKey: "disabledFilterLists") ?? []
         adBlockAllowlist = d.stringArray(forKey: "adBlockAllowlist") ?? []

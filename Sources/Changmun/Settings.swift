@@ -489,6 +489,8 @@ struct PrivacySettings: View {
                         Button("Manage…") { showPasswords = true }
                     }
                 }
+                Toggle("Require Touch ID to fill passwords", isOn: $prefs.requireAuthToFill)
+                Caption(text: "Filling a saved password asks for Touch ID or your Mac password, then doesn’t ask again for a minute.")
                 ForEach(prefs.neverSaveLoginHosts, id: \.self) { host in
                     HStack {
                         Text(host).lineLimit(1)
