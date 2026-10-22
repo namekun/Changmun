@@ -31,6 +31,7 @@ def validate(version, build, url, length, signature):
     # Sparkle compares sparkle:version with the running app's CFBundleVersion.
     if not re.fullmatch(r"[1-9]\d*", build):
         raise Invalid(f"build {build!r} isn't a plain number")
+    # http://127.0.0.1: is for local end-to-end tests only; real feeds are https, which check-dmg.sh enforces.
     if not (url.startswith("https://") or url.startswith("http://127.0.0.1:")):
         raise Invalid(f"url {url!r} isn't https")
     if not re.fullmatch(r"[1-9]\d*", str(length)):

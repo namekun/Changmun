@@ -1,8 +1,8 @@
 #!/bin/bash
 # Releases a new version: runs every check (scripts/preflight.sh), bumps the version (Info.plist and the website,
 # docs/index.html), builds the DMG and checks it (scripts/check-dmg.sh), signs it for Sparkle and adds it to the feed
-# (scripts/appcast.sh, docs/appcast.xml), and only then commits, tags, publishes the GitHub release, pushes the feed
-# live and updates the Homebrew tap. The DMG is attached twice, as Changmun-<version>.dmg and as Changmun.dmg,
+# (scripts/appcast.sh, docs/appcast.xml), and only then commits, tags, publishes the GitHub release, checks the published
+# DMG, updates the Homebrew tap and, last, pushes the feed live. The DMG is attached twice, as Changmun-<version>.dmg and as Changmun.dmg,
 # so that the site's .../releases/latest/download/Changmun.dmg link always gives the newest.
 #
 #   scripts/release.sh <version> [notes-file]
@@ -46,10 +46,27 @@ fi
 
 ./scripts/preflight.sh
 
-# Until the version commit is pushed, a failure puts the bumped files back.
+# Until the tag is pushed, a failure puts the bumped files back. After it, nothing can be undone: STAGE says which
+# step was under way, and a failure prints the steps still to do by hand.
 PUSHED=0
+STAGE=0
 STABLE="$(mktemp -d)"
-trap 'rm -rf "$STABLE"; (( PUSHED )) || git checkout -q -- "$PLIST" "$PAGE" "$APPCAST"' EXIT
+finish() {
+    local status=$?
+    rm -rf "$STABLE"
+    if (( ! PUSHED )); then
+        git checkout -q -- "$PLIST" "$PAGE" "$APPCAST"
+    elif (( status != 0 )); then
+        {
+            echo "Release v$VERSION failed after its tag was pushed. Still to do, in this order:"
+            if (( STAGE <= 1 )); then echo "  1. gh release create v$VERSION $DMG (also as Changmun.dmg) --title v$VERSION --notes-file $NOTES_FILE"; fi
+            if (( STAGE <= 2 )); then echo "  2. check that the downloaded release DMG has the sha256 of $DMG"; fi
+            if (( STAGE <= 3 )); then echo "  3. set version and sha256 in $CASK, then commit and push the tap"; fi
+            if (( STAGE <= 4 )); then echo "  4. git push origin main (this puts the feed live: only after 1 and 2)"; fi
+        } >&2
+    fi
+}
+trap finish EXIT
 
 CURRENT="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")"
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")"
@@ -74,11 +91,17 @@ git tag "v$VERSION"
 git push -q origin "v$VERSION"
 PUSHED=1
 
-cp "$DMG" "$STABLE/Changmun.dmg"
-gh release create "v$VERSION" "$DMG" "$STABLE/Changmun.dmg" --title "v$VERSION" --notes-file "$NOTES_FILE"
-git push -q origin main
-
 SHA="$(shasum -a 256 "$DMG" | cut -d' ' -f1)"
+cp "$DMG" "$STABLE/Changmun.dmg"
+STAGE=1
+gh release create "v$VERSION" "$DMG" "$STABLE/Changmun.dmg" --title "v$VERSION" --notes-file "$NOTES_FILE"
+
+# The download must match what the cask promises, and the feed must not go live before it does.
+STAGE=2
+PUBLISHED="$(curl -sL "https://github.com/namekun/Changmun/releases/download/v$VERSION/$(basename "$DMG")" | shasum -a 256 | cut -d' ' -f1)"
+[[ "$PUBLISHED" == "$SHA" ]] || { echo "Published DMG checksum $PUBLISHED does not match $SHA" >&2; exit 1; }
+
+STAGE=3
 git -C "$TAP_DIR" pull -q --ff-only
 sed -i '' -e "s/version \"[0-9.]*\"/version \"$VERSION\"/" -e "s/sha256 \"[0-9a-f]*\"/sha256 \"$SHA\"/" "$CASK"
 grep -q "version \"$VERSION\"" "$CASK" && grep -q "sha256 \"$SHA\"" "$CASK" \
@@ -87,9 +110,9 @@ git -C "$TAP_DIR" add Casks/changmun.rb
 git -C "$TAP_DIR" commit -qm "changmun $VERSION"
 git -C "$TAP_DIR" push -q
 
-# The download must match what the cask promises.
-PUBLISHED="$(curl -sL "https://github.com/namekun/Changmun/releases/download/v$VERSION/$(basename "$DMG")" | shasum -a 256 | cut -d' ' -f1)"
-[[ "$PUBLISHED" == "$SHA" ]] || { echo "Published DMG checksum $PUBLISHED does not match $SHA" >&2; exit 1; }
+STAGE=4
+git push -q origin main
+STAGE=5
 # GitHub Pages takes a minute or two to serve the new feed.
 for _ in $(seq 36); do
     SERVED="$(curl -fsL -m 20 "https://namekun.github.io/Changmun/appcast.xml" || true)"

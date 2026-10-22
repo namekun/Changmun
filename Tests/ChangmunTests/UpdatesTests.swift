@@ -27,6 +27,11 @@ struct UpdatesTests {
         #expect(parser?.parse() == true)
         #expect(delegate.channels == 1)
         #expect(delegate.items <= 10)
+        // sign_update (appcast.sh) ends the feed with its signature block, which SURequireSignedFeed needs.
+        let text = try String(contentsOf: feed, encoding: .utf8)
+        let block = try #require(text.range(of: "<!-- sparkle-signatures:", options: .backwards))
+        #expect(text[block.lowerBound...].contains("\nedSignature: "))
+        #expect(text[block.lowerBound...].hasSuffix("-->\n"))
     }
 
     @MainActor @Test func nothingUpdatesWhereThereIsNoFeed() {

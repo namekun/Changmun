@@ -231,6 +231,8 @@ swift scripts/make-icon.swift
 scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
 ```
 
+Las versiones se firman para Sparkle con una clave EdDSA. Pon la ruta del archivo de la clave privada en `~/.config/changmun/sparkle.env` como `SPARKLE_KEY_FILE=...`; `release.sh` no se ejecuta sin ella, ni con una clave que no sea el `SUPublicEDKey` de `Resources/Info.plist`. Guarda una copia de ese archivo sin conexión. Si se pierde, las copias instaladas ya no podrán actualizarse nunca; si se filtra, cualquiera podrá firmar una actualización que aceptarán.
+
 El texto de la interfaz está en inglés en el código y traducido en `Resources/<language>.lproj/Localizable.strings`; añade cada cadena nueva a las seis tablas.
 
 `scripts/headless.sh` ejecuta un Changmun sin interfaz para pruebas y agentes: fuera de pantalla, sin tomar nunca el foco ni reproducir sonido, con su propio perfil en `~/Library/Application Support/Changmun Headless`. No toca el llavero, y responde por sí solo a las confirmaciones de la IA, los permisos de sitios y los diálogos de JavaScript (los permisos se deniegan).

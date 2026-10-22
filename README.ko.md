@@ -231,6 +231,8 @@ swift scripts/make-icon.swift
 scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
 ```
 
+릴리스는 EdDSA 키로 Sparkle용 서명을 해요. 개인 키 파일의 경로를 `~/.config/changmun/sparkle.env`에 `SPARKLE_KEY_FILE=...`로 적어 두세요. 이게 없거나 `Resources/Info.plist`의 `SUPublicEDKey`와 맞지 않는 키면 `release.sh`가 실행되지 않아요. 이 파일은 오프라인에 따로 백업해 두세요. 잃어버리면 이미 설치된 앱을 다시는 업데이트할 수 없고, 유출되면 누구나 설치된 앱이 받아들이는 업데이트에 서명할 수 있어요.
+
 UI 문구는 코드에서는 영어이고 `Resources/<language>.lproj/Localizable.strings`에서 번역해요. 새 문구는 여섯 개 표 모두에 추가하세요.
 
 `scripts/headless.sh`는 테스트나 에이전트가 쓰는 화면 없는 Changmun을 띄워요. 창은 화면 밖에 두고, 포커스를 가져가지도 소리를 내지도 않으며, `~/Library/Application Support/Changmun Headless`에 자기만의 프로필을 둬요. 키체인은 건드리지 않고, AI 확인 창·사이트 권한·JavaScript 대화상자에는 알아서 답해요(권한은 거부).

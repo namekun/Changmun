@@ -250,6 +250,8 @@ swift scripts/make-icon.swift
 scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
 ```
 
+Releases are signed for Sparkle with an EdDSA key. Put the path of its private key file in `~/.config/changmun/sparkle.env` as `SPARKLE_KEY_FILE=...`; `release.sh` refuses to run without it, or with a key that isn't the `SUPublicEDKey` in `Resources/Info.plist`. Keep a backup of that file offline. If it's lost, installed copies can never be updated again, and if it leaks, anyone can sign an update they'd accept.
+
 UI text is English in the code and translated in `Resources/<language>.lproj/Localizable.strings`; add every new string to all six tables.
 
 `scripts/headless.sh` runs a headless Changmun for tests and agents: off screen, never takes focus or plays sound, with its own profile in `~/Library/Application Support/Changmun Headless`. It doesn't touch the Keychain, and answers AI confirmations, site permissions and JavaScript dialogs by itself (permissions are denied).

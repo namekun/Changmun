@@ -15,6 +15,8 @@ APP="$WORK/Changmun.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/Changmun" "$APP/Contents/MacOS/Changmun"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+# Without a feed Sparkle stays off (Updates.swift), so a development build is never offered the release in its place.
+[[ "$CONFIG" == release ]] || plutil -remove SUFeedURL "$APP/Contents/Info.plist"
 cp -R Resources/*.lproj Resources/AppIcon.icns Resources/changmun "$APP/Contents/Resources/"
 # Sparkle brings the updates; ditto keeps the framework's symlinks.
 FW="$APP/Contents/Frameworks/Sparkle.framework"
@@ -27,7 +29,8 @@ rm -rf "$FW/Versions/B/XPCServices" "$FW/XPCServices"
 # stopping early would fail otool with a broken pipe.
 LOADS="$(otool -l "$APP/Contents/MacOS/Changmun")"
 grep -q "@executable_path/../Frameworks" <<<"$LOADS" \
-    || install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/Changmun" 2>/dev/null
+    || install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/Changmun" \
+    || { echo "add_rpath failed" >&2; exit 1; }
 xattr -cr "$APP"
 IDENTITY=""
 [[ "$CONFIG" == release ]] && IDENTITY="$(developer_id)"

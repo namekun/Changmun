@@ -231,6 +231,8 @@ swift scripts/make-icon.swift
 scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
 ```
 
+リリースはEdDSAの鍵でSparkle用に署名します。秘密鍵ファイルのパスを`~/.config/changmun/sparkle.env`に`SPARKLE_KEY_FILE=...`として書いてください。これがない場合や、`Resources/Info.plist`の`SUPublicEDKey`と合わない鍵の場合、`release.sh`は実行されません。このファイルはオフラインでバックアップしてください。失くすと、インストール済みのアプリは二度とアップデートできなくなり、漏れると誰でも、インストール済みのアプリが受け入れるアップデートに署名できてしまいます。
+
 UIのテキストはコード内では英語で、`Resources/<language>.lproj/Localizable.strings`で翻訳されます。新しい文字列は6つの表すべてに追加してください。
 
 `scripts/headless.sh`は、テストやエージェント向けにヘッドレスのChangmunを実行します。画面の外で動作し、フォーカスを奪わず、音も鳴らさず、`~/Library/Application Support/Changmun Headless`に専用のプロファイルを持ちます。キーチェーンには触れず、AIの確認、サイトの権限、JavaScriptのダイアログには自動で応答します (権限は拒否されます)。
