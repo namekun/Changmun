@@ -398,7 +398,8 @@ final class AgentActivity: ObservableObject {
 
     /// Tells the panel what a tool call from it is doing, while one of its runs lasts.
     func step(_ text: String?, caller: String) {
-        if caller == ChatStore.caller, panelRun != nil || text == nil { ChatStore.shared.step = text }
+        // The words the AI gave the step, when it gave any, take the place of the app's.
+        if caller == ChatStore.caller, panelRun != nil || text == nil { ChatStore.shared.step = text.map { ToolCatalog.currentTitle ?? $0 } }
     }
 }
 

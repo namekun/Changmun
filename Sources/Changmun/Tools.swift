@@ -18,9 +18,29 @@ enum ToolCatalog {
 
     private static func tool(_ name: String, _ description: String, _ properties: [String: Any] = [:], required: [String] = []) -> [String: Any] {
         var props = properties
+        props["title"] = stepTitleSchema
         if !["list_tabs", "open_tab", "read_tabs"].contains(name) { props["tab_id"] = tabID }
         return ["name": name, "description": description, "inputSchema": ["type": "object", "properties": props, "required": required]]
     }
+
+    private static let stepTitleSchema: [String: Any] = ["type": "string", "description": "A few words, in the user's language, saying what this step is for (for example “Comparing prices”). The user sees it while you work."]
+
+    /// Longest title the panel shows, in unicode scalars.
+    static let maxStepTitle = 60
+
+    /// The title the AI gave a step, made fit to show: model text, so it is one line, its invisible and look-alike characters are
+    /// made visible and it is cut, as anything of the model's shown in a question. nil when there is none to show. It is only ever
+    /// shown in the panel's progress line; no question and no decision is made with it.
+    nonisolated static func stepTitle(_ value: Any?) -> String? {
+        guard let raw = value as? String else { return nil }
+        let line = raw.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let shown = Approvals.shown(line, limit: maxStepTitle)
+        guard !shown.text.isEmpty else { return nil }
+        return shown.cut > 0 ? shown.text + "…" : shown.text
+    }
+
+    /// The title of the tool call under way, which the progress line shows in place of the words the app would make.
+    @TaskLocal static var currentTitle: String?
 
     static let maxTabsPerRead = 10
     /// All of a read_tabs call, approvals included, ends before the control server gives up on its caller.
@@ -64,6 +84,11 @@ enum ToolCatalog {
     @MainActor
     /// `caller` tells apart the chat panel and each MCP connection: what one has read doesn't count for another.
     static func call(_ name: String, _ args: [String: Any], caller: String) async -> ToolResult {
+        await $currentTitle.withValue(stepTitle(args["title"])) { await perform(name, args, caller: caller) }
+    }
+
+    @MainActor
+    private static func perform(_ name: String, _ args: [String: Any], caller: String) async -> ToolResult {
         if name == "list_tabs" {
             guard let browser = Browser.recent else { return .text("No tabs are open.") }
             return listTabs(browser, caller: caller)

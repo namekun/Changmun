@@ -8,6 +8,8 @@ struct ChatItem: Identifiable, Equatable {
     var text: String
     /// For a tool step, the SF Symbol shown in its chip.
     var symbol: String? = nil
+    /// For a tool step that shows the title the AI gave it, what the app would have said.
+    var detail: String? = nil
 }
 
 /// One conversation with Claude. Each message runs `claude -p`, resuming the same session, with only
@@ -70,6 +72,8 @@ final class ChatStore: ObservableObject {
     - After click, type_text, press_key, select_option, hover and drag, the result lists what changed in the page's \
     elements (+ new, ~ changed, - gone). New elements are numbered and usable at once, and the numbers of your last \
     read still work; read the page again only after a navigation or when the list says more changed than it shows.
+    - Give every tool call a short title: a few words, in the user's language, saying what the step is for (for \
+    example "Comparing prices"). The user sees it in the panel while you work.
     - Before anything hard to undo (buying, sending a message, posting, deleting, submitting a form with personal \
     data) stop and ask the user to confirm; Changmun asks them too, and each such click is theirs to allow or refuse. \
     Never type passwords, card numbers or other secrets; ask the user to.
@@ -220,7 +224,9 @@ final class ChatStore: ObservableObject {
                 case "tool_use":
                     streamingIndex = nil
                     let name = (block["name"] as? String ?? "").replacingOccurrences(of: "mcp__changmun__", with: "")
-                    items.append(ChatItem(kind: .tool, text: Self.describe(tool: name, input: block["input"] as? [String: Any] ?? [:]), symbol: Self.symbol(tool: name)))
+                    let input = block["input"] as? [String: Any] ?? [:], described = Self.describe(tool: name, input: input)
+                    let title = ToolCatalog.stepTitle(input["title"])
+                    items.append(ChatItem(kind: .tool, text: title ?? described, symbol: Self.symbol(tool: name), detail: title == nil ? nil : described))
                 default:
                     break
                 }
@@ -639,6 +645,7 @@ struct ChatRow: View {
             .padding(.horizontal, 9)
             .frame(height: 22)
             .background(Capsule().fill(Theme.selected))
+            .help(item.detail ?? "")
         case .error:
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Image(systemName: "exclamationmark.circle.fill").font(.system(size: 11))
