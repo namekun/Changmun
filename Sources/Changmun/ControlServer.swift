@@ -171,6 +171,46 @@ final class ControlServer {
             }
             return
         }
+        // Tests only: pop-ups in the front window. "allow" replaces the sites allowed to open pop-ups; "action" is open, always or
+        // close, run on the bar of the tab "tab_id" names (else the one in front); "reset" empties the bars and closes the tabs
+        // other than "tab_id"; "eval" runs a script in the page of that tab as the browser's own calls do (with a user gesture),
+        // and its value comes back as "result". The answer is the number of tabs, the last few of them (the page's opener, its title and address),
+        // the active tab, and every bar that is showing.
+        if Headless.isOn, request.method == "POST", request.path == "/popups",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                guard let browser = Browser.current else {
+                    return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
+                }
+                if let allow = body["allow"] as? [String] { Preferences.shared.popupHosts = allow }
+                let target = browser.tab(body["tab_id"] as? Int)
+                if body["reset"] as? Bool == true {
+                    for tab in browser.tabs where tab !== target { browser.close(tab.id, remember: false) }
+                    target?.blockedPopup = nil
+                    browser.lastAllowedPopup = .distantPast
+                }
+                switch body["action"] as? String {
+                case "open": target?.openBlockedPopup(always: false)
+                case "always": target?.openBlockedPopup(always: true)
+                case "close": target?.blockedPopup = nil
+                default: break
+                }
+                var result: Any?
+                if let script = body["eval"] as? String { result = try? await target?.wake().evaluateJavaScript(script) }
+                try? await Task.sleep(for: .milliseconds(600))
+                let recent = browser.tabs.suffix(6).map { tab -> [String: Any] in
+                    ["id": tab.id, "opener": tab.openerID ?? -1, "title": tab.webView?.title ?? "", "url": tab.webView?.url?.absoluteString ?? ""]
+                }
+                let bars = browser.tabs.compactMap { tab -> [String: Any]? in
+                    guard let popup = tab.blockedPopup else { return nil }
+                    return ["tab": tab.id, "url": popup.absoluteString, "frame": tab.blockedPopupFrame ?? NSNull(),
+                            "site": tab.blockedPopupSite ?? NSNull(), "otherSite": tab.blockedPopupIsFromOtherSite]
+                }
+                self.respond(connection, status: "200 OK", body: ["tabs": browser.tabs.count, "active": browser.activeID ?? -1, "recent": recent,
+                                                                   "bars": bars, "allowed": Preferences.shared.popupHosts, "result": result.map { "\($0)" } ?? ""])
+            }
+            return
+        }
         // Tests only: the saved logins of the headless app, which keeps them in memory (it never touches the keychain). "host",
         // "username" and "password" add one; "clear" empties them; the answer is how many there are.
         if Headless.isOn, request.method == "POST", request.path == "/logins",
