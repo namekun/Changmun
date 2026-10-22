@@ -27,8 +27,23 @@ final class ChatStore: ObservableObject {
     /// The tabs a message goes with: the one the user was looking at and the ones attached, when they wrote it.
     struct Context: Equatable {
         var frontID: Int?
+        /// The site each of those tabs was on then: a tab that is on another site by the time the message goes out is not described.
+        var frontSite: String?
         var attachedIDs: [Int]
+        var attachedSites: [Int: String]
     }
+
+    /// The tab a tool without a tab_id works on in the run under way.
+    enum DefaultTab: Equatable {
+        /// The tab in front of the user.
+        case front
+        /// The tab the user was looking at when they wrote a message that waited in the queue, as long as it is on the same site.
+        case tab(Int)
+        /// Such a tab has gone or changed sites: the AI is to say which tab it means.
+        case none
+    }
+
+    private(set) var runDefaultTab = DefaultTab.front
 
     /// A message waiting for the run under way to end, shown as a chip the user can remove. It is sent with the tabs it was
     /// written with, not with whatever is in front when its turn comes.
@@ -96,8 +111,12 @@ final class ChatStore: ObservableObject {
 
     /// The tabs in front and attached right now.
     private var currentContext: Context {
-        Context(frontID: Browser.recent?.active?.id, attachedIDs: attachedIDs)
+        let front = Browser.recent?.active
+        return Context(frontID: front?.id, frontSite: front.map(Self.site), attachedIDs: attachedIDs,
+                       attachedSites: Dictionary(attachedTabs.map { ($0.id, Self.site($0)) }) { $1 })
     }
+
+    private static func site(_ tab: Tab) -> String { Approvals.site(of: tab.url) ?? "" }
 
     func detach(_ id: Int) {
         attachedIDs.removeAll { $0 == id }
@@ -259,12 +278,20 @@ final class ChatStore: ObservableObject {
         send(message, resumeNote: "[Note: the user interrupted your previous work and that conversation could not be continued, so this is a new one.\(about) The browser is as the previous work left it; use list_tabs and read_page to see it.]")
     }
 
-    /// The line that tells the AI which tab the user was looking at when they wrote a queued message, and the tabs attached then,
-    /// as they are now: a tab that has gone, or was detached since, is left out.
-    private func tabs(for context: Context?) -> (front: Tab?, attached: [Tab], closed: Bool) {
-        guard let context else { return (Browser.recent?.active, attachedTabs, false) }
-        let front = context.frontID.flatMap(ToolCatalog.findTab)
-        return (front, context.attachedIDs.filter(attachedIDs.contains).compactMap(ToolCatalog.findTab), context.frontID != nil && front == nil)
+    /// The tabs a queued message goes with, as they are now: one that has gone, or was detached since, is left out, and one that is on
+    /// another site than when the message was written is named but not described (its title and address are the new site's).
+    private func tabs(for context: Context?) -> (front: Tab?, attached: [Tab], closed: Bool, frontMoved: Int?, attachedMoved: [Int]) {
+        guard let context else { return (Browser.recent?.active, attachedTabs, false, nil, []) }
+        var front = context.frontID.flatMap(ToolCatalog.findTab), frontMoved: Int?
+        if let tab = front, Self.site(tab) != context.frontSite {
+            frontMoved = tab.id
+            front = nil
+        }
+        var attached: [Tab] = [], attachedMoved: [Int] = []
+        for tab in context.attachedIDs.filter(attachedIDs.contains).compactMap(ToolCatalog.findTab) {
+            if Self.site(tab) == context.attachedSites[tab.id] { attached.append(tab) } else { attachedMoved.append(tab.id) }
+        }
+        return (front, attached, context.frontID != nil && front == nil && frontMoved == nil, frontMoved, attachedMoved)
     }
 
     /// A run that couldn't begin: what was queued waits for the user (`sendQueued`) instead of being thrown away.
@@ -280,10 +307,15 @@ final class ChatStore: ObservableObject {
         guard !message.isEmpty, !isRunning else { return }
         if resumeNote == nil { items.append(ChatItem(kind: .user, text: message)) }
         let tabs = tabs(for: context)
-        let prompt = (context == nil ? Self.contextLine(tabs.front) : Self.queuedContextLine(tabs.front, closed: tabs.closed)) + Self.attachedLine(tabs.attached)
+        let prompt = (context == nil ? Self.contextLine(tabs.front) : Self.queuedContextLine(tabs.front, closed: tabs.closed, moved: tabs.frontMoved))
+            + Self.attachedLine(tabs.attached, moved: tabs.attachedMoved)
             + (resumeNote.map { "\n" + $0 } ?? "") + "\n\n" + message
         runFailed = false
         notice = nil
+        hiddenTitles.removeAll()
+        // Without a tab_id the AI's tools work on the tab the user is looking at; for a message that waited, on the one they were
+        // looking at then if it is still on the same site, else on none until the AI names one.
+        runDefaultTab = context == nil ? .front : tabs.front.map { .tab($0.id) } ?? .none
         if let launch {
             noteRead(front: tabs.front, attached: tabs.attached)
             isRunning = launch(message, prompt)
@@ -406,6 +438,7 @@ final class ChatStore: ObservableObject {
     func stop() {
         queue.removeAll()
         queueHeld = false
+        runDefaultTab = .front
         stopRun()
     }
 
@@ -425,9 +458,15 @@ final class ChatStore: ObservableObject {
         handle(event)
     }
 
-    /// An action that asks the user every time is shown without the AI's title on its step.
+    /// Titles of this run's steps that must not be shown: the action asks the user every time. Kept for the run, so a step whose chip
+    /// comes after the decision (or whose chip is made again) never shows it: unsure, the AI's words stay out.
+    private var hiddenTitles = Set<String>()
+
+    /// An action that asks the user every time is shown without the AI's title on its step, on the chip that is there and on one that
+    /// comes later.
     func hideTitle(_ title: String?) {
         guard let title else { return }
+        hiddenTitles.insert(title)
         for index in items.indices where items[index].kind == .tool && items[index].title == title { items[index].title = nil }
     }
 
@@ -469,7 +508,7 @@ final class ChatStore: ObservableObject {
                     let name = (block["name"] as? String ?? "").replacingOccurrences(of: "mcp__changmun__", with: "")
                     let input = block["input"] as? [String: Any] ?? [:], described = Self.describe(tool: name, input: input)
                     // Signing in is decided on the app's words alone.
-                    let title = name == "sign_in" ? nil : ToolCatalog.stepTitle(input["title"])
+                    let title = name == "sign_in" ? nil : ToolCatalog.stepTitle(input["title"]).flatMap { hiddenTitles.contains($0) ? nil : $0 }
                     items.append(ChatItem(kind: .tool, text: described, symbol: Self.symbol(tool: name), title: title))
                 default:
                     break
@@ -573,15 +612,18 @@ final class ChatStore: ObservableObject {
     }
 
     /// The line for a message that waited in the queue: the tab the user was looking at when they wrote it, which may not be the one in front now.
-    static func queuedContextLine(_ tab: Tab?, closed: Bool) -> String {
+    static func queuedContextLine(_ tab: Tab?, closed: Bool, moved: Int? = nil) -> String {
+        if let moved { return "[The tab the user was looking at when they wrote this message (#\(moved)) has since gone to another site, so its title and address are not given. Use list_tabs and pass tab_id]" }
         guard let tab else { return closed ? "[The tab the user was looking at when they wrote this message has been closed]" : "[No open tab]" }
         return "[Tab the user was looking at when they wrote this message: #\(tab.id), title set by the page \"\(title(tab))\", address \(address(tab))]"
     }
 
     /// The tabs attached in the panel, on the line after the current tab; empty when there are none.
-    static func attachedLine(_ tabs: [Tab]) -> String {
-        guard !tabs.isEmpty else { return "" }
-        return "\n[Tabs the user attached: " + tabs.map { "#\($0.id) \"\(title($0))\" \(address($0))" }.joined(separator: "; ") + "]"
+    static func attachedLine(_ tabs: [Tab], moved: [Int] = []) -> String {
+        var line = ""
+        if !tabs.isEmpty { line += "\n[Tabs the user attached: " + tabs.map { "#\($0.id) \"\(title($0))\" \(address($0))" }.joined(separator: "; ") + "]" }
+        if !moved.isEmpty { line += "\n[Tabs the user attached that have since gone to another site, so their titles and addresses are not given: " + moved.map { "#\($0)" }.joined(separator: ", ") + "]" }
+        return line
     }
 
     private static func title(_ tab: Tab) -> Substring { oneLine(tab.displayTitle).prefix(80) }

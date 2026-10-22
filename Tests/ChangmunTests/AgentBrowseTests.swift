@@ -1198,6 +1198,17 @@ extension SharedAgentState {
             #expect(chat.items[0].title == nil && chat.items[0].text == "Click [4]")
         }
 
+        @Test func aDecisionToLeaveTheTitleOutThatComesBeforeTheChipStillKeepsItOut() {
+            let chat = ChatStore()
+            chat.hideTitle("Comparing prices")
+            chat.handle(["type": "assistant", "message": ["id": "m1", "content": [
+                ["type": "tool_use", "name": "mcp__changmun__click", "input": ["element_id": 4, "title": "Comparing prices"]],
+                ["type": "tool_use", "name": "mcp__changmun__click", "input": ["element_id": 5, "title": "Looking around"]],
+            ]]])
+            #expect(chat.items.map(\.title) == [nil, "Looking around"], "the chip made after the decision has no AI title")
+            #expect(chat.items.map(\.text) == ["Click [4]", "Click [5]"], "the app's words are there either way")
+        }
+
         @Test func anActionThatAsksEveryTimeIsAnnouncedWithoutTheAIsTitle() async throws {
             AgentActivity.shared.runStarted()
             defer { AgentActivity.shared.runEnded(); ChatStore.shared.step = nil }
@@ -1461,6 +1472,39 @@ extension SharedAgentState {
             #expect(second.contains("value \"Bob\" → \"Bobby\"") && !second.contains("focused"), "against the latest report")
             let filled = await call(tab, "click", ["element_id": fill])
             #expect(!filled.text.contains("hunter") && !filled.text.contains("Secret"), Comment(rawValue: "a secret's value is never told: \(filled.text)"))
+        }
+
+        @Test func aToolWithoutATabIdWorksOnTheTabAQueuedMessageWasWrittenForOrAsksTheAIToSayWhich() async throws {
+            let (tab, window, browser) = try await page("<body><h1>Written for</h1><button>Hi</button></body>")
+            defer { window.close(); browser.windowClosed(); ChatStore.shared.reset() }
+            let other = browser.openTab(url: nil)
+            let chat = ChatStore.shared
+            chat.launch = { _, _ in true }
+            defer { chat.launch = nil }
+            func ask() async -> (text: String, failed: Bool) {
+                let result = await Approvals.$stand.withValue(Approvals.Stand { _ in .once }) { await ToolCatalog.call("read_page", [:], caller: ChatStore.caller) }
+                return (result.content.compactMap { $0["text"] as? String }.joined(separator: "\n"), result.isError)
+            }
+            browser.activate(other.id)
+            chat.submit("start")
+            // Written while the page was in front, sent when another is.
+            browser.activate(tab.id)
+            chat.submit("about the page")
+            browser.activate(other.id)
+            chat.endRun()
+            #expect(chat.runDefaultTab == .tab(tab.id))
+            let read = await ask()
+            #expect(!read.failed && read.text.contains("Written for"), Comment(rawValue: "the tab it was written for, not the one in front: \(read.text)"))
+            // The next message waits while the page is in front too, but the page has gone to another site when it is sent.
+            chat.endRun()
+            chat.submit("start again")
+            browser.activate(tab.id)
+            chat.submit("about the page again")
+            tab.url = URL(string: "https://elsewhere.example/")
+            chat.endRun()
+            #expect(chat.runDefaultTab == .none)
+            let refused = await ask()
+            #expect(refused.failed && refused.text.contains("list_tabs") && !refused.text.contains("Written for"), Comment(rawValue: refused.text))
         }
 
         @Test func anElementThatLeftAndComesBackIsNewAgainWithANumberThatWorks() async throws {

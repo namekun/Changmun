@@ -113,7 +113,14 @@ enum ToolCatalog {
         if args["tab_id"] != nil && int(args["tab_id"]) == nil { return .text("tab_id must be a number.", error: true) }
         if let problem = validate(name, args) { return .text(problem, error: true) }
         // Tab ids are unique across windows: one listed earlier is found even after another window came to the front.
-        let tab = int(args["tab_id"]).map(findTab) ?? Browser.recent?.active
+        var tab = int(args["tab_id"]).map(findTab) ?? Browser.recent?.active
+        if args["tab_id"] == nil, caller == ChatStore.caller {
+            switch ChatStore.shared.runDefaultTab {
+            case .front: break
+            case .tab(let id): tab = findTab(id)
+            case .none: return .text("Error: this message was written while the user was looking at a tab that has since gone to another site or been closed, so there is no default tab. Call list_tabs and pass the tab_id.", error: true)
+            }
+        }
         guard let tab, let browser = tab.browser else {
             return .text(args["tab_id"] == nil ? "No tab is open. Use open_tab first." : "No tab with that id.", error: true)
         }

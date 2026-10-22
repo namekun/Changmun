@@ -1154,6 +1154,42 @@ extension SharedAgentState {
             #expect(sent.contains("kept.example") && !sent.contains("detached.example") && !sent.contains("closed.example"), "\(sent)")
         }
 
+        @Test func aQueuedMessageDoesNotDescribeATabThatWentToAnotherSiteInTheMeantime() {
+            let (chat, _, prompts) = standIn()
+            let browser = Browser()
+            browser.focused()
+            defer { chat.reset(); browser.windowClosed() }
+            let front = browser.openTab(url: URL(string: "https://bank.example/account")), kept = browser.openTab(url: URL(string: "https://kept.example/")),
+                moved = browser.openTab(url: URL(string: "https://before.example/"))
+            browser.activate(front.id)
+            chat.attach([kept, moved])
+            chat.submit("start")
+            chat.submit("go on")
+            #expect(chat.runDefaultTab == .front)
+            front.url = URL(string: "https://evil.example/phish")
+            moved.url = URL(string: "https://after.example/")
+            chat.endRun()
+            let sent = prompts()[1]
+            #expect(!sent.contains("evil.example") && !sent.contains("bank.example") && !sent.contains("after.example") && !sent.contains("before.example"), "\(sent)")
+            #expect(sent.contains("#\(front.id)") && sent.contains("gone to another site"), "it says the tab moved: \(sent)")
+            #expect(sent.contains("kept.example") && sent.contains("#\(moved.id)"), "a tab that stayed is described, one that moved is only named: \(sent)")
+            #expect(chat.runDefaultTab == .none, "the AI has to say which tab it means")
+        }
+
+        @Test func aQueuedMessageWorksOnTheTabItWasWrittenForWhileItStaysOnItsSite() {
+            let (chat, _, _) = standIn()
+            let browser = Browser()
+            browser.focused()
+            defer { chat.reset(); browser.windowClosed() }
+            let first = browser.openTab(url: URL(string: "https://one.example/")), second = browser.openTab(url: URL(string: "https://two.example/"))
+            browser.activate(first.id)
+            chat.submit("start")
+            chat.submit("about one")
+            browser.activate(second.id)
+            chat.endRun()
+            #expect(chat.runDefaultTab == .tab(first.id), "not whatever is in front now")
+        }
+
         @Test func aRunThatFailedHoldsTheQueueUntilTheUserSendsIt() {
             let (chat, launched, _) = standIn()
             chat.submit("first")
