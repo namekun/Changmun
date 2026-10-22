@@ -1,7 +1,8 @@
 #!/bin/bash
 # Releases a new version: runs every check (scripts/preflight.sh), bumps the version (Info.plist and the website,
-# docs/index.html), builds the DMG and checks it (scripts/check-dmg.sh), and only then commits, tags, publishes the
-# GitHub release and updates the Homebrew tap. The DMG is attached twice, as Changmun-<version>.dmg and as Changmun.dmg,
+# docs/index.html), builds the DMG and checks it (scripts/check-dmg.sh), signs it for Sparkle and adds it to the feed
+# (scripts/appcast.sh, docs/appcast.xml), and only then commits, tags, publishes the GitHub release, pushes the feed
+# live and updates the Homebrew tap. The DMG is attached twice, as Changmun-<version>.dmg and as Changmun.dmg,
 # so that the site's .../releases/latest/download/Changmun.dmg link always gives the newest.
 #
 #   scripts/release.sh <version> [notes-file]
@@ -17,6 +18,7 @@ TAP_DIR="${TAP_DIR:-../homebrew-tap}"
 CASK="$TAP_DIR/Casks/changmun.rb"
 PLIST="Resources/Info.plist"
 PAGE="docs/index.html"
+APPCAST="docs/appcast.xml"
 
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Version must look like 1.2.3" >&2; exit 1; }
 [[ "$(git branch --show-current)" == "main" ]] || { echo "Release from main" >&2; exit 1; }
@@ -37,12 +39,17 @@ if [[ -z "${SKIP_NOTARIZE:-}" && -n "$(developer_id)" ]] && ! xcrun notarytool h
     exit 1
 fi
 
+# The key that signs updates must be there, and be the one the app trusts, or no installed copy would take the update.
+[[ -f "${SPARKLE_KEY_FILE:-}" ]] || { echo "No Sparkle key file: name it in ~/.config/changmun/sparkle.env (SPARKLE_KEY_FILE)" >&2; exit 1; }
+[[ "$(python3 -I scripts/appcast.py pubkey "$SPARKLE_KEY_FILE")" == "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$PLIST")" ]] \
+    || { echo "The key in $SPARKLE_KEY_FILE isn't the SUPublicEDKey in $PLIST" >&2; exit 1; }
+
 ./scripts/preflight.sh
 
 # Until the version commit is pushed, a failure puts the bumped files back.
 PUSHED=0
 STABLE="$(mktemp -d)"
-trap 'rm -rf "$STABLE"; (( PUSHED )) || git checkout -q -- "$PLIST" "$PAGE"' EXIT
+trap 'rm -rf "$STABLE"; (( PUSHED )) || git checkout -q -- "$PLIST" "$PAGE" "$APPCAST"' EXIT
 
 CURRENT="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")"
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")"
@@ -50,6 +57,8 @@ BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")"
 if [[ "$CURRENT" != "$VERSION" ]] || git rev-parse -q --verify "refs/tags/v$CURRENT" >/dev/null; then
     BUILD=$(( BUILD + 1 ))
 fi
+# Sparkle compares builds, so this one must be above everything the feed already offers.
+(( BUILD > $(python3 -I scripts/appcast.py max-build "$APPCAST") )) || { echo "Build $BUILD isn't above the feed's newest" >&2; exit 1; }
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" -c "Set :CFBundleVersion $BUILD" "$PLIST"
 # Every place the page shows the version is <span data-version>X</span>.
 sed -i '' -e "s|<span data-version>[0-9.]*</span>|<span data-version>$VERSION</span>|g" "$PAGE"
@@ -57,14 +66,17 @@ grep -q "<span data-version>$VERSION</span>" "$PAGE" || { echo "$PAGE has no <sp
 
 DMG="$(./scripts/make-dmg.sh)"
 ./scripts/check-dmg.sh "$DMG" "$VERSION"
+./scripts/appcast.sh "$DMG" "$VERSION" "$BUILD" "$NOTES_FILE" "$APPCAST" >/dev/null
 
-git diff --quiet -- "$PLIST" "$PAGE" || { git add "$PLIST" "$PAGE"; git commit -q -m "Version $VERSION"; }
+git diff --quiet -- "$PLIST" "$PAGE" "$APPCAST" || { git add "$PLIST" "$PAGE" "$APPCAST"; git commit -q -m "Version $VERSION"; }
 git tag "v$VERSION"
-git push -q origin main "v$VERSION"
+# The tag first: the feed goes live with main, and must not offer a DMG that isn't published yet.
+git push -q origin "v$VERSION"
 PUSHED=1
 
 cp "$DMG" "$STABLE/Changmun.dmg"
 gh release create "v$VERSION" "$DMG" "$STABLE/Changmun.dmg" --title "v$VERSION" --notes-file "$NOTES_FILE"
+git push -q origin main
 
 SHA="$(shasum -a 256 "$DMG" | cut -d' ' -f1)"
 git -C "$TAP_DIR" pull -q --ff-only
@@ -78,4 +90,11 @@ git -C "$TAP_DIR" push -q
 # The download must match what the cask promises.
 PUBLISHED="$(curl -sL "https://github.com/namekun/Changmun/releases/download/v$VERSION/$(basename "$DMG")" | shasum -a 256 | cut -d' ' -f1)"
 [[ "$PUBLISHED" == "$SHA" ]] || { echo "Published DMG checksum $PUBLISHED does not match $SHA" >&2; exit 1; }
+# GitHub Pages takes a minute or two to serve the new feed.
+for _ in $(seq 36); do
+    SERVED="$(curl -fsL -m 20 "https://namekun.github.io/Changmun/appcast.xml" || true)"
+    [[ "$SERVED" == "$(cat "$APPCAST")" ]] && break
+    sleep 5
+done
+[[ "$SERVED" == "$(cat "$APPCAST")" ]] || echo "⚠ https://namekun.github.io/Changmun/appcast.xml doesn't serve this release's feed yet; check it" >&2
 echo "Released v$VERSION ($DMG, sha256 $SHA)"

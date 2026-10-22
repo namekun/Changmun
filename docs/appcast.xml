@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+  <channel>
+    <title>Changmun</title>
+    <link>https://namekun.github.io/Changmun/</link>
+    <description>Changmun updates</description>
+    <language>en</language>
+  </channel>
+</rss>
+<!-- sparkle-signatures:
+edSignature: I9WAZCozTtng/TS6i43eAyP1NNK4s+ua4MNbdPLfPE0rxR2z7qBnf70rqVAq3MYP/ATjCOrsSuqPqm8k503rAw==
+length: 316
+-->
