@@ -563,3 +563,5 @@
 "Sign in with saved login" = "Iniciar sesión con el acceso guardado";
 "Let the AI sign in to %@?" = "¿Dejar que la IA inicie sesión en %@?";
 "Pick the account to sign in with." = "Elige la cuenta con la que iniciar sesión.";
+"The queue is full (%lld messages). Wait for the AI, or remove one." = "La cola está llena (%lld mensajes). Espera a la IA o quita uno.";
+"There is nothing to continue yet, so your message is queued." = "Aún no hay nada que continuar, así que tu mensaje se puso en cola.";

@@ -1182,16 +1182,23 @@ extension SharedAgentState {
             #expect(launched().last == "a", "nothing is left to send")
         }
 
+        /// A process that ignores the end it is told to take and says (by a file) when it has begun to: no guessing how long that takes.
+        private func stubborn(_ seconds: Double = 0.6) async throws -> Process {
+            let ready = FileManager.default.temporaryDirectory.appendingPathComponent("changmun-ready-\(UUID().uuidString)")
+            defer { try? FileManager.default.removeItem(at: ready) }
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/sh")
+            process.arguments = ["-c", "trap '' TERM; : > '\(ready.path)'; sleep \(seconds)"]
+            try process.run()
+            #expect(await waitUntil { FileManager.default.fileExists(atPath: ready.path) }, "the process is ready")
+            return process
+        }
+
         @Test func steeringWaitsForTheOldProcessToExitBeforeTheNewRunBegins() async throws {
             let (chat, launched, _) = standIn()
             chat.submit("first")
             chat.handle(["type": "system", "subtype": "init", "session_id": "s-wait"])
-            let old = Process()
-            // A process that takes its time to go after it is told to.
-            old.executableURL = URL(fileURLWithPath: "/bin/sh")
-            old.arguments = ["-c", "trap '' TERM; sleep 0.6"]
-            try old.run()
-            try await Task.sleep(for: .milliseconds(200))
+            let old = try await stubborn()
             defer { if old.isRunning { old.terminate() } }
             chat.process = old
             chat.runToken = "old-run"
@@ -1204,11 +1211,7 @@ extension SharedAgentState {
             let (other, otherLaunched, _) = standIn()
             other.submit("first")
             other.handle(["type": "system", "subtype": "init", "session_id": "s-wait2"])
-            let slow = Process()
-            slow.executableURL = URL(fileURLWithPath: "/bin/sh")
-            slow.arguments = ["-c", "trap '' TERM; sleep 0.6"]
-            try slow.run()
-            try await Task.sleep(for: .milliseconds(200))
+            let slow = try await stubborn()
             defer { if slow.isRunning { slow.terminate() } }
             other.process = slow
             other.steer("never sent")
@@ -1218,6 +1221,23 @@ extension SharedAgentState {
             #expect(otherLaunched() == ["first"] && !other.isRunning)
         }
 
+        @Test func aSecondSteerWhileTheFirstWaitsForTheOldProcessJoinsItAndNothingStartsEarlier() async throws {
+            let (chat, launched, _) = standIn()
+            chat.submit("first")
+            chat.handle(["type": "system", "subtype": "init", "session_id": "s-twice"])
+            let old = try await stubborn()
+            defer { if old.isRunning { old.terminate() } }
+            chat.process = old
+            #expect(chat.steer("one"))
+            #expect(chat.steer("  two  "), "taken, though the old process is still going")
+            #expect(launched() == ["first"] && old.isRunning && chat.isRunning, "nothing begins while the old process may still be calling the tools")
+            #expect(await waitUntil { launched().count == 2 })
+            #expect(!old.isRunning, "the new run began after the old process had exited")
+            #expect(launched() == ["first", "one\n\ntwo"], "no text was dropped: \(launched())")
+            #expect(chat.items.filter { $0.kind == .user }.map(\.text) == ["first", "one\n\ntwo"])
+            #expect(chat.queue.isEmpty)
+        }
+
         @Test func steeringBeforeTheConversationHasASessionToContinueIsQueuedInstead() {
             let (chat, launched, _) = standIn()
             chat.submit("first")
@@ -1225,6 +1245,42 @@ extension SharedAgentState {
             #expect(launched() == ["first"] && chat.queue.map(\.text) == ["too early"] && chat.isRunning, "nothing to continue yet: it waits its turn")
             chat.steer("  ")
             #expect(chat.queue.count == 1)
+        }
+
+        @Test func aFullQueueSaysSoAndKeepsWhatWasWritten() {
+            let (chat, _, _) = standIn()
+            chat.submit("first")
+            for number in 1...ChatStore.maxQueued { chat.submit("m\(number)") }
+            #expect(chat.notice == nil)
+            #expect(!chat.submit("one too many") && chat.queue.count == ChatStore.maxQueued)
+            #expect(chat.notice?.contains("queue is full") == true, "\(chat.notice ?? "no notice")")
+            #expect(!chat.steer("and no steer either") && chat.queue.count == ChatStore.maxQueued, "no session to continue, so it would be queued, and there is no room")
+        }
+
+        @Test func aSteerThatFellBackToTheQueueSaysSo() {
+            let (chat, _, _) = standIn()
+            chat.submit("first")
+            #expect(chat.steer("too early") && chat.queue.map(\.text) == ["too early"])
+            #expect(chat.notice?.contains("queued") == true, "\(chat.notice ?? "no notice")")
+        }
+
+        @Test func aMessageWrittenWhileTheQueueIsHeldWaitsBehindItAndNothingGoesBeforeTheUserSaysSo() {
+            let (chat, launched, _) = standIn()
+            chat.submit("first")
+            chat.submit("second")
+            chat.handle(["type": "result", "is_error": true, "result": "rate limited"])
+            chat.endRun()
+            #expect(chat.queueHeld && !chat.isRunning && launched() == ["first"])
+            #expect(chat.submit("newer"), "taken")
+            #expect(chat.steer("newest"), "a steer while nothing runs is a message like any other")
+            #expect(launched() == ["first"] && !chat.isRunning, "not sent ahead of the held ones")
+            #expect(chat.queue.map(\.text) == ["second", "newer", "newest"] && chat.queueHeld)
+            chat.sendQueued()
+            #expect(launched() == ["first", "second"])
+            chat.endRun()
+            chat.endRun()
+            chat.endRun()
+            #expect(launched() == ["first", "second", "newer", "newest"] && chat.queue.isEmpty, "in the order they were written")
         }
 
         @Test func streamsTextAndShowsTools() {

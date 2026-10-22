@@ -563,3 +563,5 @@
 "Sign in with saved login" = "Se connecter avec l’identifiant enregistré";
 "Let the AI sign in to %@?" = "Laisser l’IA se connecter à %@ ?";
 "Pick the account to sign in with." = "Choisissez le compte à utiliser.";
+"The queue is full (%lld messages). Wait for the AI, or remove one." = "La file d’attente est pleine (%lld messages). Attendez l’IA ou retirez-en un.";
+"There is nothing to continue yet, so your message is queued." = "Il n’y a encore rien à poursuivre : votre message est mis en file d’attente.";

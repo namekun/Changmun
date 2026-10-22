@@ -43,6 +43,12 @@ final class ChatStore: ObservableObject {
     /// The run before them failed or was cut short: they wait for the user to say so (`sendQueued`).
     @Published private(set) var queueHeld = false
     static let maxQueued = 8
+    /// A line for the panel about what the app did with a message that didn't go the way the user pressed the key (the queue is full, a
+    /// steer was queued, a run couldn't start); it goes by itself.
+    @Published private(set) var notice: String?
+    /// A steer waiting for the process of the run it stopped to exit: a second steer in the meantime joins it, so no text is lost and
+    /// nothing starts while the old process may still be calling the tools.
+    private var pendingSteer: String?
     /// Starts a run of the AI for a message (and the prompt made of it and its tabs), or says it couldn't. Tests stand in for the
     /// `claude` process with it.
     var launch: ((_ message: String, _ prompt: String) -> Bool)?
@@ -121,50 +127,76 @@ final class ChatStore: ObservableObject {
     short paragraphs or "- " lists; never tables or headings.
     """
 
-    /// What the composer does with a message: sent at once when the AI is idle, otherwise queued to go out when the run ends.
-    /// False when it was neither (blank, or the queue is full).
+    /// What the composer does with a message: sent at once when the AI is idle, otherwise queued to go out when the run ends. Behind
+    /// messages that are held for the user's say-so it is queued too, so nothing goes out ahead of them.
+    /// False when it was neither (blank, or the queue is full, which the notice then says).
     @discardableResult
     func submit(_ text: String) -> Bool {
         let message = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty else { return false }
-        guard isRunning else {
+        guard isRunning || (queueHeld && !queue.isEmpty) else {
             send(message)
             return true
         }
-        guard queue.count < Self.maxQueued else { return false }
+        guard queue.count < Self.maxQueued else {
+            say(String(localized: "The queue is full (\(Self.maxQueued) messages). Wait for the AI, or remove one."))
+            return false
+        }
         queue.append(Queued(text: message, context: currentContext))
         return true
     }
 
+    /// Shows a line in the panel for a few seconds.
+    private func say(_ text: String) {
+        notice = text
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(6))
+            if self?.notice == text { self?.notice = nil }
+        }
+    }
+
     /// Stops the run under way as the stop button does and goes on with the same conversation with this message, once the old
     /// `claude` has really exited (so nothing of the old run can still be calling the tools). The messages in the queue stay queued.
-    /// Before the conversation has a session to resume (the run has only just begun) there is nothing to continue, so it is queued
-    /// like any other.
-    func steer(_ text: String) {
+    /// A second steer while the first waits for the old process is added to it. Before the conversation has a session to resume (the
+    /// run has only just begun) there is nothing to continue, so it is queued like any other, and the notice says so.
+    /// False when the message was not taken (blank, or it had to be queued and the queue is full).
+    @discardableResult
+    func steer(_ text: String) -> Bool {
         let message = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !message.isEmpty else { return }
-        guard isRunning else { return send(message) }
+        guard !message.isEmpty else { return false }
+        if let pending = pendingSteer {
+            pendingSteer = pending + "\n\n" + message
+            return true
+        }
+        guard isRunning else { return submit(message) }
         guard sessionID != nil else {
-            submit(message)
-            return
+            guard submit(message) else { return false }
+            say(String(localized: "There is nothing to continue yet, so your message is queued."))
+            return true
         }
         let old = process
         stopRun()
-        guard let old, old.isRunning else { return send(message) }
+        guard let old, old.isRunning else {
+            send(message)
+            return true
+        }
         // The new run is about to begin: the panel stays busy meanwhile, and a stop in the meantime drops it.
         isRunning = true
+        pendingSteer = message
         let waiting = runID
         Task.detached { [weak self] in
             let deadline = Date().addingTimeInterval(3)
             while old.isRunning && Date() < deadline { try? await Task.sleep(for: .milliseconds(50)) }
             if old.isRunning { kill(old.processIdentifier, SIGKILL) }
             old.waitUntilExit()
-            await self?.continueSteer(message, after: waiting)
+            await self?.continueSteer(after: waiting)
         }
+        return true
     }
 
-    private func continueSteer(_ message: String, after run: UUID) {
-        guard runID == run else { return }
+    private func continueSteer(after run: UUID) {
+        guard runID == run, let message = pendingSteer else { return }
+        pendingSteer = nil
         isRunning = false
         send(message)
     }
@@ -308,6 +340,7 @@ final class ChatStore: ObservableObject {
     private func stopRun() {
         runID = UUID()
         runToken = nil
+        pendingSteer = nil
         process?.terminate()
         process = nil
         isRunning = false
@@ -605,6 +638,10 @@ struct ChatPanel: View {
             }
             attachments
             if !chat.queue.isEmpty { queued }
+            if let notice = chat.notice {
+                Text(notice).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waiting)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6).padding(.bottom, 6)
+            }
             composer
         }
     }
@@ -723,7 +760,7 @@ struct ChatPanel: View {
     }
 
     private func send(_ text: String, steering: Bool = false) {
-        if steering { chat.steer(text) } else if !chat.submit(text) { return }
+        guard steering ? chat.steer(text) : chat.submit(text) else { return }
         draft = ""
     }
 }

@@ -563,3 +563,5 @@
 "Sign in with saved login" = "保存済みのログインでサインイン";
 "Let the AI sign in to %@?" = "AIが%@にサインインするのを許可しますか?";
 "Pick the account to sign in with." = "サインインに使うアカウントを選んでください。";
+"The queue is full (%lld messages). Wait for the AI, or remove one." = "待機列がいっぱいです(%lld件)。AIの完了を待つか、1件取り消してください。";
+"There is nothing to continue yet, so your message is queued." = "まだ続きがないため、メッセージは待機列に入れました。";

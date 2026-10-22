@@ -563,3 +563,5 @@
 "Sign in with saved login" = "저장된 로그인으로 로그인";
 "Let the AI sign in to %@?" = "AI가 %@에 로그인하게 할까요?";
 "Pick the account to sign in with." = "로그인에 쓸 계정을 골라 주세요.";
+"The queue is full (%lld messages). Wait for the AI, or remove one." = "대기열이 가득 찼어요(%lld개). AI가 끝나기를 기다리거나 하나를 지워 주세요.";
+"There is nothing to continue yet, so your message is queued." = "아직 이어갈 대화가 없어서 메시지를 대기열에 넣었어요.";

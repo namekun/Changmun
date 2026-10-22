@@ -563,3 +563,5 @@
 "Sign in with saved login" = "使用已保存的登录信息登录";
 "Let the AI sign in to %@?" = "允许 AI 登录 %@ 吗？";
 "Pick the account to sign in with." = "请选择用于登录的账号。";
+"The queue is full (%lld messages). Wait for the AI, or remove one." = "队列已满(%lld 条)。请等待 AI 完成，或删除一条。";
+"There is nothing to continue yet, so your message is queued." = "目前还没有可继续的对话，消息已加入队列。";
