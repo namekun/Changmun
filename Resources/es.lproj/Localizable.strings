@@ -568,3 +568,6 @@
 "The conversation couldn't be continued after you interrupted it, so your message was sent as a new conversation." = "No se pudo continuar la conversación tras tu interrupción, así que tu mensaje se envió como una conversación nueva.";
 "The AI wants to click a button in what the page calls a cookie banner" = "La IA quiere pulsar un botón de lo que la página llama un aviso de cookies";
 "Only the page’s own markup says this is a cookie banner, and a page can say that of anything. It is asked every time.\n\nAllow it only if you asked for this." = "Solo el propio código de la página dice que esto es un aviso de cookies, y una página puede decirlo de cualquier cosa. Se pregunta cada vez.\n\nPermítelo solo si lo has pedido tú.";
+"The AI tried to sign in to %@" = "La IA intentó iniciar sesión en %@";
+"There is no saved login for this site, so nothing was filled in. The AI is told only that the sign-in wasn't done." = "No hay ningún inicio de sesión guardado para este sitio, así que no se rellenó nada. A la IA solo se le dice que no se inició sesión.";
+"You declined signing in to %@ earlier in this chat, so the AI isn't asking again." = "Rechazaste iniciar sesión en %@ antes en este chat, así que la IA no vuelve a preguntar.";

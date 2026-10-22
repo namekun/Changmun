@@ -568,3 +568,6 @@
 "The conversation couldn't be continued after you interrupted it, so your message was sent as a new conversation." = "中断したあと会話を続けられなかったため、メッセージは新しい会話として送りました。";
 "The AI wants to click a button in what the page calls a cookie banner" = "AIがページの言う「Cookieバナー」の中のボタンを押そうとしています";
 "Only the page’s own markup says this is a cookie banner, and a page can say that of anything. It is asked every time.\n\nAllow it only if you asked for this." = "これがCookieバナーだと言っているのはページ自身のマークアップだけで、ページはどんなものにもそう名乗れます。毎回確認します。\n\nご自身で頼んだことの場合のみ許可してください。";
+"The AI tried to sign in to %@" = "AIが%@へのログインを試みました";
+"There is no saved login for this site, so nothing was filled in. The AI is told only that the sign-in wasn't done." = "このサイトには保存済みのログインがないため、何も入力しませんでした。AIにはログインできなかったとだけ伝わります。";
+"You declined signing in to %@ earlier in this chat, so the AI isn't asking again." = "このチャットで先に%@へのログインを断ったため、AIは再度確認しません。";

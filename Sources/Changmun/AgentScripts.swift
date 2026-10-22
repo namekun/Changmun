@@ -947,13 +947,23 @@ extension PageScripts {
     if (!pw && !el) return JSON.stringify({error: 'none'});
     const form = (pw && pw.form) || (user && user.form) || (el && (el.form || el.closest('form'))) || null;
     const origin = originOf(pw || user);
-    if (args.stage !== 'fill') return JSON.stringify({origin, user: !!user, password: !!pw, action: form ? actionOf(form, null) : ''});
-    if (origin !== args.expectOrigin) return JSON.stringify({error: 'changed'});
+    // Everywhere the form can send what is typed in it: its own action and the formaction of every submit button (also one outside the
+    // form that names it, and an image button), each as the address it resolves to.
+    const submitters = form ? [...formEls(form), ...all(form, 'input[type=image]')].filter(b => b.type === 'submit' || b.type === 'image') : [];
+    const actions = form ? [...new Set([actionOf(form, null), ...submitters.map(b => actionOf(form, b))])].filter(Boolean) : [];
+    if (args.stage !== 'fill') return JSON.stringify({origin, user: !!user, password: !!pw, action: form ? actionOf(form, null) : '', actions});
+    // Between looking and filling the page may have changed: another site, or a form that now sends somewhere else.
+    if (origin !== args.expectOrigin || JSON.stringify(actions) !== JSON.stringify(args.expectActions || [])) return JSON.stringify({error: 'changed'});
+    // As a person filling it in would: focus, the key coming up, the field being left. Pages that enable their button on one of those
+    // (and not on input) enable it.
     const set = (e, v) => {
+      seenPasswords.add(e);
+      e.focus({preventScroll: true});
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(e, v);
       e.dispatchEvent(new Event('input', {bubbles: true}));
+      e.dispatchEvent(new KeyboardEvent('keyup', {bubbles: true, composed: true}));
       e.dispatchEvent(new Event('change', {bubbles: true}));
-      seenPasswords.add(e);
+      e.blur();
     };
     if (user) set(user, args.username);
     if (pw) set(pw, args.password);

@@ -568,3 +568,6 @@
 "The conversation couldn't be continued after you interrupted it, so your message was sent as a new conversation." = "중단한 뒤 대화를 이어갈 수 없어서 메시지를 새 대화로 보냈어요.";
 "The AI wants to click a button in what the page calls a cookie banner" = "AI가 페이지가 쿠키 배너라고 하는 곳의 버튼을 누르려고 해요";
 "Only the page’s own markup says this is a cookie banner, and a page can say that of anything. It is asked every time.\n\nAllow it only if you asked for this." = "이곳이 쿠키 배너라고 말하는 것은 페이지 자체의 마크업뿐이고, 페이지는 무엇에든 그렇게 말할 수 있어요. 매번 물어봐요.\n\n직접 요청한 일일 때만 허용하세요.";
+"The AI tried to sign in to %@" = "AI가 %@에 로그인을 시도했어요";
+"There is no saved login for this site, so nothing was filled in. The AI is told only that the sign-in wasn't done." = "이 사이트에는 저장된 로그인이 없어서 아무것도 채우지 않았어요. AI에게는 로그인하지 못했다고만 알려요.";
+"You declined signing in to %@ earlier in this chat, so the AI isn't asking again." = "이 대화에서 %@ 로그인을 이미 거부해서 AI가 다시 묻지 않아요.";

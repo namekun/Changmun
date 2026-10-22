@@ -74,7 +74,7 @@ enum ToolCatalog {
         tool("drag", "Drag from an element or point to another and drop there: HTML5 drag and drop when the source is draggable, otherwise pointer and mouse events along the way (sliders, sortable lists). Both ends must be in the same frame.",
              ["from_element_id": ["type": "integer"], "from_x": ["type": "number"], "from_y": ["type": "number"],
               "to_element_id": ["type": "integer"], "to_x": ["type": "number"], "to_y": ["type": "number"]]),
-        tool("sign_in", "Fill in the user's saved login for this site (the page's exact host, on https) into the sign-in form's username and password fields, firing input and change events. The user is asked every time, shown the site and the account, and confirms with Touch ID or their password; you are never given the password or the account name. It does not submit: click the form's sign-in button afterwards (that click is judged like any other). Refused in private windows, on http, with no saved login for the exact host, and in a frame of another site unless the login is for that frame's host. When several logins are saved for the site, the user picks the account in the question. If the sign-in wasn't done (no saved login, the user said no, or it couldn't be confirmed) you are told only that, whatever the reason: don't retry; tell the user.",
+        tool("sign_in", "Fill in the user's saved login for this site (the page's exact host, on https) into the sign-in form's username and password fields, firing input and change events. The user is asked every time, shown the site and the account, and confirms with Touch ID or their password; you are never given the password or the account name. It does not submit: click the form's sign-in button afterwards (that click is judged like any other). Refused in private windows, on http, with no saved login for the exact host, and in a frame of another site unless the login is for that frame's host. When several logins are saved for the site, the user picks the account in the question. If the sign-in wasn't done (no saved login, the user said no, or it couldn't be confirmed) you are told only that, whatever the reason: don't retry; tell the user. Asking again for a site the user declined shows no question but waits a few seconds before it gives the same answer. The account name is not given to you, but it can still reach you if the page itself shows it (a greeting, a filled field you read).",
              ["element_id": ["type": "integer", "description": "A field or button of the form (number from read_page). Default: the page's password field"]]),
         tool("wait_for", "Wait until the given text is on the page (or, with gone, no longer there), or, without text, until the page stops loading. Frames from other sites are searched too. Gives up after timeout seconds (default 10, at most 30). Use it instead of reading the page over and over.",
              ["text": ["type": "string"], "gone": ["type": "boolean", "description": "Wait for the text to disappear"], "timeout": ["type": "number", "description": "Seconds, default 10, at most 30"]]),
@@ -845,13 +845,24 @@ enum Approvals {
         let inFrame = page.map { String(localized: "The sign-in form is in a frame on \(shown(display($0), limit: 100).text).") + "\n\n" } ?? ""
         let explanation = String(localized: "Changmun fills in the saved login itself; the AI is not shown the password or the account name. It does not press Sign in: the AI does that next, and that click is judged like any other.")
         let buttons = [(Choice.deny, String(localized: "Don’t Allow")), (Choice.once, String(localized: "Allow Once"))]
+        // No saved login: the same kind of question, with the same wait, that only says so and can only be closed.
+        if accounts.isEmpty {
+            _ = await choose(String(localized: "The AI tried to sign in to \(site)"), "\(site)\n\n\(inFrame)" + String(localized: "There is no saved login for this site, so nothing was filled in. The AI is told only that the sign-in wasn't done."),
+                             [(.deny, String(localized: "Close"))], caller: caller)
+            return nil
+        }
         guard let only = accounts.first, accounts.count == 1 else {
             let answer = await choose(String(localized: "Let the AI sign in to \(site)?"), "\(site)\n\n\(inFrame)" + String(localized: "Pick the account to sign in with.") + "\n\n\(explanation)",
                                       buttons, accounts: accounts, caller: caller)
             return answer.choice == .once && accounts.indices.contains(answer.account) ? accounts[answer.account] : nil
         }
-        let account = only.isEmpty ? String(localized: "(No username)") : shown(quotable(only), limit: 100).text
+        let account = accountTitle(only)
         return await choose(String(localized: "Let the AI sign in to \(site) as \(account)?"), "\(site)\n\(account)\n\n\(inFrame)\(explanation)", buttons, caller: caller) == .once ? only : nil
+    }
+
+    /// How a saved account is named in a question: a login saved with no username is said so.
+    static func accountTitle(_ account: String) -> String {
+        account.isEmpty ? String(localized: "(No username)") : shown(quotable(account), limit: 100).text
     }
 
     /// A long name keeps its beginning and its end, where a button says what it does.
@@ -871,6 +882,7 @@ enum Approvals {
         readHosts[caller] = nil
         allowances[caller] = nil
         lowAllowed[caller] = nil
+        SignIn.forgetDeclined(caller: caller)
         chatBegan[caller] = Date()
     }
 
@@ -924,7 +936,7 @@ enum Approvals {
             alert.informativeText = detail
             for (_, title) in buttons { alert.addButton(withTitle: title) }
             if accounts.count > 1 {
-                list.addItems(withTitles: accounts.map { shown(quotable($0), limit: 100).text })
+                list.addItems(withTitles: accounts.map(accountTitle))
                 alert.accessoryView = list
             }
             NSApp.requestUserAttention(.informationalRequest)

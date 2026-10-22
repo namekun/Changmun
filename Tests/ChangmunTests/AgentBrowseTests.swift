@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import Foundation
+import LocalAuthentication
 import Network
 import Testing
 import WebKit
@@ -2391,7 +2392,13 @@ extension SharedAgentState {
                         if why == "no login for the host" || why == "a subdomain" {
                             #expect(result.text == ToolCatalog.signInNotDone.content.compactMap { $0["text"] as? String }.joined(), "no saved login has the one answer")
                         }
-                        #expect(stand.asked.isEmpty && confirmations.reasons.isEmpty && store.passwordReads == 0, "nothing was asked, confirmed or read")
+                        if why == "no login for the host" || why == "a subdomain" {
+                            // The user is asked as if there were one, with nothing to allow, and nothing is confirmed or read.
+                            #expect(stand.asked.count == 1 && stand.asked[0].choices == [.deny] && stand.asked[0].accounts.isEmpty && stand.asked[0].detail.contains("no saved login"), "\(stand.asked.map(\.message))")
+                            #expect(confirmations.reasons.isEmpty && store.passwordReads == 0)
+                        } else {
+                            #expect(stand.asked.isEmpty && confirmations.reasons.isEmpty && store.passwordReads == 0, "nothing was asked, confirmed or read")
+                        }
                         #expect(await evaluate(tab, "return document.getElementById('u').value + document.getElementById('p').value") == "")
                         for name in ["pw-other", "pw-www", "pw-evil", "pw-lab", "bob", "carol", "dave"] { #expect(!result.text.contains(name)) }
                     }
@@ -2453,11 +2460,11 @@ extension SharedAgentState {
                 }
             }
             #expect(await evaluate(tab, "return document.getElementById('u').value + document.getElementById('p').value") == "")
-            // No login saved at all: nothing is asked, and the answer is the same.
+            // No login saved at all: a question that only says so is closed, and the answer is the same.
             try await signingIn(StubLogins([]), confirmations) {
-                try await asking({ _ in .once }) { stand in
+                try await asking({ _ in .deny }) { stand in
                     answers["no login"] = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: "mcp-e")
-                    #expect(stand.asked.isEmpty)
+                    #expect(stand.asked.count == 1 && stand.asked[0].choices == [.deny])
                 }
             }
             let reference = everything(ToolCatalog.signInNotDone)
@@ -2465,6 +2472,133 @@ extension SharedAgentState {
             for (why, result) in answers {
                 #expect(result.isError && everything(result) == reference, Comment(rawValue: "\(why): \(everything(result))"))
             }
+        }
+
+        @Test func withNoSavedLoginTheUserSeesAQuestionAndTheAIWaitsForItJustAsWithOne() async throws {
+            let (tab, window, browser) = try await page(Self.loginForm, host: "lab.test")
+            defer { window.close(); browser.windowClosed() }
+            for (store, why) in [(StubLogins([]), "no login"), (StubLogins([("lab.test", Self.alice, Self.secret)]), "a login")] {
+                try await signingIn(store) {
+                    try await asking({ _ in .deny }) { stand in
+                        stand.holds = true
+                        let started = Date()
+                        let answer = Task { @MainActor in await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: "mcp-wait-\(why)") }
+                        #expect(await waitUntil { stand.asked.count == 1 }, "\(why): a question is shown")
+                        try await Task.sleep(for: .milliseconds(400))
+                        // Not answered until the user is done with the question, whether it offers a login or only says there is none.
+                        Approvals.release(.deny)
+                        let result = await answer.value
+                        #expect(Date().timeIntervalSince(started) >= 0.4, "\(why): it waited for the user")
+                        #expect(everything(result) == everything(ToolCatalog.signInNotDone), Comment(rawValue: "\(why): \(everything(result))"))
+                    }
+                }
+            }
+        }
+
+        @Test func aSiteTheUserDeclinedIsNotAskedAgainInTheChatButTheAIWaitsTheSameAndThePanelSaysSo() async throws {
+            let (tab, window, browser) = try await page(Self.loginForm, host: "lab.test")
+            defer { window.close(); browser.windowClosed(); Approvals.forgetReads(caller: ChatStore.caller); ChatStore.shared.reset() }
+            let was = SignIn.repeatDelay
+            SignIn.repeatDelay = 0.6
+            defer { SignIn.repeatDelay = was }
+            let store = StubLogins([("lab.test", Self.alice, Self.secret)]), confirmations = Confirmations()
+            let panel = ChatStore.caller
+            try await signingIn(store, confirmations) {
+                try await asking({ _ in .deny }) { stand in
+                    let first = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: panel)
+                    #expect(stand.asked.count == 1 && everything(first) == everything(ToolCatalog.signInNotDone))
+                    let started = Date()
+                    let again = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: panel)
+                    #expect(stand.asked.count == 1, "no window again")
+                    #expect(Date().timeIntervalSince(started) >= 0.6, "and not an instant answer, which would tell the AI something")
+                    #expect(everything(again) == everything(ToolCatalog.signInNotDone))
+                    #expect(ChatStore.shared.notice?.contains("lab.test") == true, "\(ChatStore.shared.notice ?? "no notice")")
+                    // Another caller, and a new chat, are asked.
+                    _ = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: "mcp-other-chat")
+                    #expect(stand.asked.count == 2)
+                    Approvals.forgetReads(caller: panel)
+                    _ = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: panel)
+                    #expect(stand.asked.count == 3)
+                    // A stop during the wait ends it at once.
+                    _ = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: panel)
+                    SignIn.repeatDelay = 30
+                    let waiting = Task { @MainActor in await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: panel) }
+                    try await Task.sleep(for: .milliseconds(200))
+                    AgentActivity.shared.cancel(caller: panel)
+                    let stopped = await waiting.value
+                    #expect(stopped.isError && everything(stopped).contains("Stopped"), Comment(rawValue: everything(stopped)))
+                }
+            }
+        }
+
+        @Test func aFormWithAButtonThatSendsElsewhereOrChangesItsMindBeforeFillingGetsNoLogin() async throws {
+            let store = StubLogins([("lab.test", Self.alice, Self.secret)]), confirmations = Confirmations()
+            // A submit button with a formaction on another site.
+            let sneaky = Self.loginForm.replacingOccurrences(of: "<button>Log in</button>", with: "<button>Log in</button><button formaction=\"https://evil.test/collect\">Other</button>")
+            do {
+                let (tab, window, browser) = try await page(sneaky, host: "lab.test")
+                defer { window.close(); browser.windowClosed() }
+                try await signingIn(store, confirmations) {
+                    try await asking({ _ in .once }) { stand in
+                        let result = await call(tab, "sign_in")
+                        #expect(result.failed && result.text.contains("another site") && stand.asked.isEmpty && store.passwordReads == 0, Comment(rawValue: result.text))
+                        #expect(await evaluate(tab, "return document.getElementById('u').value + document.getElementById('p').value") == "")
+                    }
+                }
+            }
+            // The form is changed while the user thinks.
+            let (tab, window, browser) = try await page(Self.loginForm, host: "lab.test")
+            defer { window.close(); browser.windowClosed() }
+            try await signingIn(store, confirmations) {
+                try await asking({ _ in .once }) { stand in
+                    stand.holds = true
+                    let answer = Task { @MainActor in await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: "mcp-swap") }
+                    #expect(await waitUntil { stand.asked.count == 1 })
+                    _ = await evaluate(tab, "document.querySelector('form').setAttribute('action', 'https://evil.test/collect'); return 'ok'")
+                    Approvals.release(.once)
+                    let result = await answer.value
+                    #expect(everything(result) == everything(ToolCatalog.signInNotDone), Comment(rawValue: everything(result)))
+                    #expect(await evaluate(tab, "return document.getElementById('u').value + document.getElementById('p').value") == "", "nothing was filled into a form that now sends elsewhere")
+                    #expect(store.passwordReads == 1 && confirmations.reasons.count == 1, "the user had confirmed; the page then fails the check")
+                }
+            }
+        }
+
+        @Test func fillingFiresFocusKeyupAndBlurSoThatAPagesButtonEnables() async throws {
+            let html = """
+                <body><form action="/session" onsubmit="return false"><input id=u autocomplete=username><input id=p type=password><button id=go disabled>Log in</button></form>
+                <script>
+                const seen = []; window.seen = seen;
+                for (const id of ['u', 'p']) for (const t of ['focus', 'keyup', 'blur']) document.getElementById(id).addEventListener(t, () => seen.push(id + ':' + t));
+                // This page enables its button only on keyup of the password field.
+                document.getElementById('p').addEventListener('keyup', () => { document.getElementById('go').disabled = false });
+                </script></body>
+                """
+            let (tab, window, browser) = try await page(html, host: "lab.test")
+            defer { window.close(); browser.windowClosed() }
+            try await signingIn(StubLogins([("lab.test", Self.alice, Self.secret)])) {
+                try await asking({ _ in .once }) { _ in
+                    let result = await call(tab, "sign_in")
+                    #expect(!result.failed, Comment(rawValue: result.text))
+                    #expect(await evaluate(tab, "return String(document.getElementById('go').disabled)") == "false", "the button enabled")
+                    let seen = await evaluate(tab, "return seen.join(',')")
+                    #expect(seen == "u:focus,u:keyup,u:blur,p:focus,p:keyup,p:blur", Comment(rawValue: seen))
+                }
+            }
+        }
+
+        @Test func anAccountWithNoUsernameIsNamedSoInTheQuestionAndThePicker() {
+            #expect(Approvals.accountTitle("") == "(No username)")
+            #expect(Approvals.accountTitle("alice") == "alice")
+        }
+
+        @Test func stoppingWithdrawsTheDeviceOwnersQuestionOfThatCaller() {
+            SignIn.registerConfirmationForTesting(LAContext(), caller: "mcp-touch")
+            SignIn.registerConfirmationForTesting(LAContext(), caller: "mcp-other-touch")
+            let before = SignIn.waitingConfirmations
+            AgentActivity.shared.cancel(caller: "mcp-touch")
+            #expect(SignIn.waitingConfirmations == before - 1)
+            AgentActivity.shared.cancel(caller: "mcp-other-touch")
         }
 
         @Test func withSeveralAccountsSavedTheUserPicksOneInTheQuestionAndTheAIIsNeverAskedOrToldWhich() async throws {

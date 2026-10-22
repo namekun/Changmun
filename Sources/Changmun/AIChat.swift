@@ -173,7 +173,7 @@ final class ChatStore: ObservableObject {
     }
 
     /// Shows a line in the panel for a few seconds.
-    private func say(_ text: String) {
+    func say(_ text: String) {
         notice = text
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(6))

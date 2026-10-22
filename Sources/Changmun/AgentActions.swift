@@ -396,6 +396,7 @@ final class AgentActivity: ObservableObject {
     func cancel(caller: String = ChatStore.caller) {
         stops[caller, default: 0] += 1
         Approvals.cancelPending(caller: caller)
+        SignIn.cancelConfirmation(caller: caller)
         for (id, callers) in uses where callers[caller] != nil {
             guard let tab = ToolCatalog.findTab(id), let webView = tab.webView else { continue }
             for frame in [nil] + tab.agent.frames.known.map({ Optional($0.frame) }) {

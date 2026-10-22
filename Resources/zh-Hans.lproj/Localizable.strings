@@ -568,3 +568,6 @@
 "The conversation couldn't be continued after you interrupted it, so your message was sent as a new conversation." = "中断后无法继续原来的对话，已将你的消息作为新对话发送。";
 "The AI wants to click a button in what the page calls a cookie banner" = "AI 想点击页面所称的 Cookie 横幅中的按钮";
 "Only the page’s own markup says this is a cookie banner, and a page can say that of anything. It is asked every time.\n\nAllow it only if you asked for this." = "只有页面自身的标记声称这是 Cookie 横幅，而页面可以对任何东西这样声称。每次都会询问。\n\n仅在这是你要求的操作时才允许。";
+"The AI tried to sign in to %@" = "AI 尝试登录 %@";
+"There is no saved login for this site, so nothing was filled in. The AI is told only that the sign-in wasn't done." = "此网站没有已保存的登录信息，因此未填写任何内容。AI 只会被告知未能登录。";
+"You declined signing in to %@ earlier in this chat, so the AI isn't asking again." = "你在此对话中已拒绝登录 %@，因此 AI 不会再次询问。";

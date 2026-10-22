@@ -43,13 +43,38 @@ enum SignIn {
 
     @MainActor static var activeStore: LoginStore { store ?? (Headless.isOn ? MemoryLogins.shared : KeychainLogins()) }
 
+    /// The Touch ID or password question of each caller that is waiting on one, so that the stop button can take it away.
+    @MainActor private static var confirmations: [String: LAContext] = [:]
+
     /// Touch ID or the Mac's password, as the settings ask before they copy a saved password; every time, since the AI uses it.
     /// Changmun Headless has nobody to ask and holds only the logins a test put in memory.
-    @MainActor static func confirmDeviceOwner(_ reason: String) async -> Bool {
+    @MainActor static func confirmDeviceOwner(_ reason: String, caller: String) async -> Bool {
         if let confirm { return await confirm(reason) }
         if Headless.isOn { return true }
-        return (try? await LAContext().evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)) == true
+        let context = LAContext()
+        confirmations[caller]?.invalidate()
+        confirmations[caller] = context
+        defer { if confirmations[caller] === context { confirmations[caller] = nil } }
+        return (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)) == true
     }
+
+    /// The caller was stopped: the question to the device owner that is waiting is withdrawn (it answers no).
+    @MainActor static func cancelConfirmation(caller: String) {
+        confirmations.removeValue(forKey: caller)?.invalidate()
+    }
+
+    @MainActor static var waitingConfirmations: Int { confirmations.count }
+    @MainActor static func registerConfirmationForTesting(_ context: LAContext, caller: String) { confirmations[caller] = context }
+
+    /// Per caller, the sites for which the user closed or declined a sign-in question in this chat.
+    @MainActor private static var declined: [String: Set<String>] = [:]
+    /// How long a repeated sign-in for a site the user declined takes: no question again, and the same wait whatever the page or the
+    /// saved logins are, so that how long the answer takes says nothing.
+    static var repeatDelay: TimeInterval = 4
+
+    @MainActor static func noteDeclined(host: String, caller: String) { declined[caller, default: []].insert(host) }
+    @MainActor static func wasDeclined(host: String, caller: String) -> Bool { declined[caller]?.contains(host) == true }
+    @MainActor static func forgetDeclined(caller: String) { declined[caller] = nil }
 
     /// The host a saved login must be filed under for a document of this origin: only a page on https, with a host of its own
     /// and no port of its own (another port is another site). nil for anything else (http, a sandboxed frame, a data: page).
@@ -99,8 +124,11 @@ extension ToolCatalog {
             return refused("saved logins are used only on https pages (and frames) that have a host of their own, on the standard port.")
         }
         let shownHost = Approvals.shown(host, limit: 100).text
-        // A form that sends what is typed in it to another site is not one to put a login in.
-        if let action = found["action"] as? String, !action.isEmpty, Approvals.site(of: URL(string: action)) != Approvals.site(ofOrigin: origin) {
+        // A form that sends what is typed in it to another site is not one to put a login in: nor is one that has a button which does
+        // (a formaction), whichever the user would press.
+        let actions = found["actions"] as? [String] ?? []
+        let sendsElsewhere = (actions + [found["action"] as? String ?? ""]).contains { !$0.isEmpty && Approvals.site(of: URL(string: $0)) != Approvals.site(ofOrigin: origin) }
+        if sendsElsewhere {
             return refused("the sign-in form on \(shownHost) sends to another site, so no login was filled in.")
         }
         // A tab the user isn't looking at is approved for one site; a frame of another is asked about.
@@ -109,9 +137,22 @@ extension ToolCatalog {
             if session.stopped { return stopped }
             if !allowed { return declined }
         }
-        // From here on, whatever goes wrong has the one answer: the AI can't tell whether a login is saved.
+        // The user said no to this site earlier in the chat: no question again, but the same wait and the same answer, with a line in the
+        // panel (not a window) saying so.
+        if SignIn.wasDeclined(host: host, caller: session.caller) {
+            if session.caller == ChatStore.caller {
+                ChatStore.shared.say(String(localized: "You declined signing in to \(shownHost) earlier in this chat, so the AI isn't asking again."))
+            }
+            let end = Date().addingTimeInterval(SignIn.repeatDelay)
+            while Date() < end {
+                if session.stopped { return stopped }
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+            return session.stopped ? stopped : signInNotDone
+        }
+        // From here on, whatever goes wrong has the one answer: the AI can't tell whether a login is saved, so the same questions are
+        // asked and waited for whether or not there is one (with none, the question only says so and has nothing to allow).
         let accounts = SignIn.activeStore.accounts(exactly: host)
-        guard !accounts.isEmpty else { return signInNotDone }
         AgentActivity.shared.step(String(localized: "Signing in to \(shownHost)"), caller: session.caller, titled: false)
         Approvals.noteRead(tab, readHost: host, caller: session.caller)
         // Using the page after reading other sites is asked about as for any other use; then the sign-in itself, every time.
@@ -121,12 +162,15 @@ extension ToolCatalog {
         let pageSite = Approvals.site(of: tab.url)
         let chosen = await Approvals.allowSignIn(host: host, accounts: accounts, page: pageSite == host ? nil : pageSite, caller: session.caller)
         if session.stopped { return stopped }
-        guard let account = chosen else { return signInNotDone }
-        guard await SignIn.confirmDeviceOwner(String(localized: "Authentication is required to let the AI sign in to \(shownHost)")) else { return signInNotDone }
+        guard let account = chosen else {
+            SignIn.noteDeclined(host: host, caller: session.caller)
+            return signInNotDone
+        }
+        guard await SignIn.confirmDeviceOwner(String(localized: "Authentication is required to let the AI sign in to \(shownHost)"), caller: session.caller) else { return signInNotDone }
         if session.stopped { return stopped }
         guard let password = SignIn.activeStore.password(exactly: host, username: account) else { return signInNotDone }
         // Whatever the page says back, none of it is passed on: only the words below.
-        let filled = look(await run(PageScripts.signIn, ["args": wanted.merging(["stage": "fill", "expectOrigin": origin, "username": account, "password": password]) { $1 }],
+        let filled = look(await run(PageScripts.signIn, ["args": wanted.merging(["stage": "fill", "expectOrigin": origin, "expectActions": actions, "username": account, "password": password]) { $1 }],
                                     in: webView, frame: frame))
         guard case .answered(let done) = filled, done["error"] == nil else { return signInNotDone }
         return .text("Filled the saved login for \(shownHost) into the form (the user chose the account; the AI is not given it or the password). Nothing was submitted: click the page's sign-in button next.")
