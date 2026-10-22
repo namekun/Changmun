@@ -734,7 +734,7 @@ struct ChatPanel: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {
-                        if chat.items.isEmpty { ChatWelcome(several: chat.attachedTabs.count >= 2) { send($0) } }
+                        if chat.items.isEmpty { ChatEmptyState(several: chat.attachedTabs.count >= 2) { send($0) } }
                         ForEach(chat.items) { item in
                             ChatRow(item: item).id(item.id)
                         }

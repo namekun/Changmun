@@ -3,7 +3,7 @@ import SwiftUI
 
 @MainActor
 final class ImportModel: ObservableObject {
-    enum Step { case welcome, choose, importing, done }
+    enum Step { case welcome, choose, importing, done, ai }
 
     @Published var step: Step = .welcome
     @Published var sources: [ImportSource] = []
@@ -11,6 +11,7 @@ final class ImportModel: ObservableObject {
     @Published var options = ImportOptions()
     @Published var status = ""
     @Published var reports: [ImportReport] = []
+    @Published var ai = AIAvailability.none
 
     init() {
         sources = BrowserDiscovery.sources()
@@ -19,6 +20,12 @@ final class ImportModel: ObservableObject {
 
     var needsSecrets: Bool {
         (options.passwords || options.cookies) && sources.contains { selected.contains($0.id) && $0.supportsSecrets }
+    }
+
+    /// The last step, for every way through onboarding: what the AI needs, looked up as it opens.
+    func showAI() {
+        ai = AIAvailability.detector()
+        step = .ai
     }
 
     func start() {
@@ -53,6 +60,7 @@ struct OnboardingView: View {
                 case .choose: choose
                 case .importing: importing
                 case .done: done
+                case .ai: ai
                 }
             }
             .frame(width: 540)
@@ -74,7 +82,7 @@ struct OnboardingView: View {
                 .foregroundStyle(Color.primary.opacity(0.7))
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
-                Button("Later") { finish() }.buttonStyle(SecondaryButton())
+                Button("Later") { model.showAI() }.buttonStyle(SecondaryButton())
                 Spacer()
                 Button("Import") { model.step = .choose }.buttonStyle(PrimaryButton())
             }
@@ -164,11 +172,26 @@ struct OnboardingView: View {
                     .buttonStyle(SecondaryButton())
                 }
                 Spacer()
-                Button("Get Started") { finish() }.buttonStyle(PrimaryButton())
+                Button("Get Started") { model.showAI() }.buttonStyle(PrimaryButton())
             }
             .padding(.top, 6)
         }
         .padding(24)
+    }
+
+    private var ai: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 26, weight: .medium))
+                .foregroundStyle(Theme.primary)
+            AIGuidance(availability: model.ai)
+            HStack {
+                Spacer()
+                Button("Done") { finish() }.buttonStyle(PrimaryButton())
+            }
+            .padding(.top, 10)
+        }
+        .padding(28)
     }
 
     private func finish() {
