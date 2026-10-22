@@ -104,7 +104,14 @@ open build/Changmun.app
 
 右侧的面板 (⌘E) 使用你已有的 `claude` CLI，因此直接消耗你的 Claude Code 订阅。默认模型是 Sonnet；可用 `defaults write io.github.namekun.Changmun aiModel opus` 切换。
 
-AI 通过以下工具操作浏览器：`list_tabs`、`open_tab`、`switch_tab`、`close_tab`、`navigate`、`go_back`、`go_forward`、`reload`、`read_page`、`read_tabs`、`click`、`click_at`、`type_text`、`press_key`、`select_option`、`hover`、`drag`、`wait_for`、`scroll`、`screenshot`。密码、一次性验证码和银行卡栏位，它无法读取其值、无法输入或按键，截图中也会被遮住。它也无法上传文件。
+AI 通过以下工具操作浏览器：`list_tabs`、`open_tab`、`switch_tab`、`close_tab`、`navigate`、`go_back`、`go_forward`、`reload`、`read_page`、`read_tabs`、`click`、`click_at`、`type_text`、`press_key`、`select_option`、`hover`、`drag`、`wait_for`、`scroll`、`screenshot`、`sign_in`。密码、一次性验证码和银行卡栏位，它无法读取其值、无法输入或按键，截图中也会被遮住。它也无法上传文件。
+
+- `read_page` 在每个元素后用方括号写出状态：`[checked]`/`[unchecked]`、`[selected]`、`[expanded]`/`[collapsed]`、`[disabled]`、`[focused]`、`[pressed]`、`[required]`、`[invalid]`。输入框和列表的当前值也会写成一行，但密码、验证码和银行卡栏位永远不显示值。
+- 在 `click`、`click_at`、`type_text`、`press_key`、`select_option`、`hover`、`drag` 之后，页面稳定下来（最多约 1.5 秒），会返回自 AI 上次查看以来的变化：地址和标题是否变了，以及新出现的（`+`，编号接着往下排，可立即使用）、变化的（`~`）和消失的（`-`）元素。最多 40 行；若页面发生了跳转，只会说明这一点并建议用 `read_page`。这与读取一样会被记录。
+- `screenshot` 加上 `labels` 会重新读取页面，并在图片上为视野内的每个元素画出与 `read_page` 相同编号的方框。不会向页面添加任何东西，只画在图片上。方框的位置取决于页面的布局，因此对元素的描述以 `read_page` 为准。也可以用 `changmun screenshot --labels`。
+- 每个工具都接受可选的 `title`（例如“正在比较价格”），会原样显示在面板的进度行里；没有时显示 Changmun 生成的文字。它是模型写的文字，所以会整理成一行、最多 60 个字符，并且不参与任何询问或判断。
+- AI 工作时输入框仍可发送。回车会把消息排成小标签，等本次运行顺利结束后按顺序发出（带着你写下它时的标签页）；若运行失败或被中断，会出现“发送队列”按钮等你确认。⌘回车则会像“停止”一样停下当前运行，并立刻在同一对话中接着发送新消息。停止和新对话会清空队列。
+- `sign_in` 会把已保存的登录信息填入表单，而不让 AI 看到。页面的确切主机必须与已保存登录的主机一致（仅限 https），私密窗口中不可用。每次都会询问“允许 AI 以某账号登录某网站吗？”，并用 Touch ID 或 Mac 密码确认（有多个账号时由你在窗口里选择）。没有保存的登录信息、你拒绝、没有回应或验证失败时，AI 听到的都是同一句“登录没有完成”，所以无法探出你有哪些账号。AI 拿不到密码，也拿不到账号名。它不会点击按钮；之后的点击由 AI 完成，并像其他点击一样受到检查。
 
 要跨多个标签页完成任务，可在聊天下方用“添加标签页”添加它们（逐个添加、整个标签页群组，或所有已打开的标签页）。添加的标签页显示为可移除的小标签，AI 会用 `read_tabs` 一并读取，读取前不再询问。添加两个或更多时，面板会建议比较它们，或分别总结每个标签页的要点。
 

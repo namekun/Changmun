@@ -104,7 +104,14 @@ Command Line Tools만 깔려 있으면 스크립트가 macOS 26 SDK로 빌드해
 
 오른쪽 패널(⌘E)은 이미 설치된 `claude` CLI를 쓰니 Claude Code 구독으로 돌아가요. 기본 모델은 Sonnet이고, `defaults write io.github.namekun.Changmun aiModel opus`로 바꿀 수 있어요.
 
-AI는 이 도구들로 브라우저를 다뤄요: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `click_at`, `type_text`, `press_key`, `select_option`, `hover`, `drag`, `wait_for`, `scroll`, `screenshot`. 비밀번호·인증 코드·카드 칸은 읽지도, 입력하거나 키를 누르지도 못하고, 스크린샷에서도 가려져요. 파일 업로드도 못 해요.
+AI는 이 도구들로 브라우저를 다뤄요: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `click_at`, `type_text`, `press_key`, `select_option`, `hover`, `drag`, `wait_for`, `scroll`, `screenshot`, `sign_in`. 비밀번호·인증 코드·카드 칸은 읽지도, 입력하거나 키를 누르지도 못하고, 스크린샷에서도 가려져요. 파일 업로드도 못 해요.
+
+- `read_page`는 요소마다 상태를 대괄호로 붙여요: `[checked]`·`[unchecked]`, `[selected]`, `[expanded]`·`[collapsed]`, `[disabled]`, `[focused]`, `[pressed]`, `[required]`, `[invalid]`. 칸과 목록의 현재 값도 한 줄로 보여 주지만, 비밀번호·코드·카드 칸은 값을 절대 보여 주지 않아요.
+- `click`, `click_at`, `type_text`, `press_key`, `select_option`, `hover`, `drag`가 끝나고 페이지가 가라앉으면(최대 1.5초쯤), 마지막으로 본 뒤 바뀐 것을 돌려줘요. 주소·제목이 바뀌었는지, 새로 생긴(`+`, 번호가 새로 붙어 바로 쓸 수 있어요)·바뀐(`~`)·사라진(`-`) 요소를요. 최대 40줄이고, 페이지가 이동했으면 그렇다고만 알리고 `read_page`를 권해요. 읽은 것과 똑같이 기록해요.
+- `screenshot`에 `labels`를 주면 페이지를 다시 읽어서, 보이는 요소마다 `read_page`와 같은 번호를 그림 위에 박스로 그려 줘요. 페이지에는 아무것도 넣지 않고 그림에만 그려요. 박스 위치는 페이지의 레이아웃을 따르니, 요소에 대해서는 `read_page`가 기준이에요. `changmun screenshot --labels`도 돼요.
+- 모든 도구는 선택 인자 `title`(예: "가격 비교하는 중")을 받아요. 패널의 진행 줄에 그대로 보이고, 없으면 Changmun이 만든 문구가 나와요. 모델이 쓴 글이라 한 줄, 60자까지로 다듬고, 확인 창이나 판단에는 쓰지 않아요.
+- AI가 일하는 중에도 입력창에 보낼 수 있어요. Return은 메시지를 칩으로 대기시켜 두었다가 이번 실행이 잘 끝나면 순서대로 보내요(쓴 순간의 탭과 함께). 실행이 실패하거나 중단되면 "대기열 보내기" 버튼이 기다려요. ⌘Return은 지금 실행을 멈추고(정지와 똑같이) 같은 대화에서 새 메시지로 바로 이어 가요. 정지와 새 대화는 대기열을 비워요.
+- `sign_in`은 저장된 로그인을 AI가 보지 못하게 양식에 채워 줘요. 페이지의 정확한 호스트가 저장된 로그인의 호스트와 같아야 하고(https만), 시크릿 창에서는 쓸 수 없어요. 매번 "AI가 ○○에 △△ 계정으로 로그인하게 할까요?"라고 묻고(계정이 여러 개면 창에서 직접 골라요) Touch ID나 Mac 암호로 확인해요. 저장된 로그인이 없거나 거부·무응답·인증 실패일 때 AI는 똑같이 "로그인하지 못했어요"라는 말만 들어서, 어떤 계정이 있는지 알아낼 수 없어요. AI는 비밀번호도 계정 이름도 받지 못해요. 버튼은 누르지 않아요. 그다음 클릭은 AI가 하고, 다른 클릭과 똑같이 확인해요.
 
 여러 탭에 걸친 일은 채팅 아래의 "탭 추가"로 탭을 붙이면 돼요(하나씩, 탭 그룹째, 열린 탭 전부). 붙인 탭은 칩으로 나타나고 하나씩 뺄 수 있어요. AI는 `read_tabs`로 이 탭들을 한꺼번에 읽고, 읽기 전에 따로 묻지는 않아요. 두 개 이상 붙이면 패널이 탭 비교하기와 탭마다 핵심만 정리하기를 제안해요.
 
