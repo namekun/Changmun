@@ -66,6 +66,9 @@ final class ChatStore: ObservableObject {
     - Element ids come from the latest read_page; read the page again after it changes. Use click_at only for what \
     read_page doesn't list (a canvas, a map), with the coordinates of a screenshot; use wait_for instead of reading \
     the page again and again while something loads.
+    - After click, type_text, press_key, select_option, hover and drag, the result lists what changed in the page's \
+    elements (+ new, ~ changed, - gone). New elements are numbered and usable at once, and the numbers of your last \
+    read still work; read the page again only after a navigation or when the list says more changed than it shows.
     - Before anything hard to undo (buying, sending a message, posting, deleting, submitting a form with personal \
     data) stop and ask the user to confirm; Changmun asks them too, and each such click is theirs to allow or refuse. \
     Never type passwords, card numbers or other secrets; ask the user to.

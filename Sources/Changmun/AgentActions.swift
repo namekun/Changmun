@@ -503,9 +503,24 @@ struct AgentState {
     var ranges: [(range: ClosedRange<Int>, slot: String)] = []
     let gate = ReadGate()
 
+    /// What the AI last saw of the page, from a read or from the report of what an action changed: the address and title it was
+    /// told, and the last element number handed out (new elements are numbered on from it). nil before a read, and after the page
+    /// navigated, when its elements are gone.
+    struct Seen {
+        var url: String
+        var title: String
+        var lastID: Int
+    }
+
+    var seen: Seen?
+    /// The page navigated after it was read.
+    var navigated = false
+
     mutating func beginRead() {
         frames.beginRead()
         ranges = []
+        seen = nil
+        navigated = false
     }
 
     mutating func endRead() { frames.endRead() }
@@ -517,6 +532,8 @@ struct AgentState {
     mutating func reset() {
         frames.reset()
         ranges = []
+        navigated = navigated || seen != nil
+        seen = nil
     }
 }
 
@@ -741,6 +758,7 @@ extension ToolCatalog {
             }
         }
         await readFrames(page.frames, depth: 0)
+        tab.agent.seen = AgentState.Seen(url: page.url, title: page.title, lastID: count)
         let cut = capped ? "\n(Only the first \(maxElements) elements are listed. Scroll, or use click_at for the rest.)" : ""
         return (.text("Title: \(page.title)\nURL: \(page.url)\nScroll: \(page.scroll) of \(page.height) (viewport \(page.viewport))"
                       + "\n\n--- Interactive elements ---\n" + (lines.isEmpty ? "(none)" : lines.joined(separator: "\n")) + cut
@@ -950,6 +968,65 @@ extension ToolCatalog {
         return result
     }
 
+    // MARK: What an action changed
+
+    /// Most lines of changes told after an action.
+    static let maxChangeLines = 40
+
+    /// After an action, once the page has settled: what changed in its interactive elements since the AI last saw them (its read,
+    /// or the last report), with the address and title if they changed, so that it needn't read the whole page again. New elements
+    /// are numbered on and work with the tools. Everything told is page content, so the sites it came from (the page's, and
+    /// those of the frames that answered) are recorded as read, as a read does. Empty when the tab is not one the caller may be
+    /// told about; after a navigation, only says so.
+    @MainActor
+    static func changes(_ tab: Tab, _ webView: WKWebView, session: Session) async -> String {
+        guard Approvals.mayShow(tab, caller: session.caller), session.approved == nil || Approvals.site(of: tab.url) == session.approved else { return "" }
+        return await tab.agent.gate.run { await changesAlone(tab, webView, session: session) } ?? ""
+    }
+
+    @MainActor
+    private static func changesAlone(_ tab: Tab, _ webView: WKWebView, session: Session) async -> String {
+        guard let seen = tab.agent.seen else {
+            return tab.agent.navigated ? "\n\nWhat changed: the page navigated. Read the page (read_page) to see it and number its elements."
+                : "\n\nWhat changed: not told, since this page was not read before. Read the page (read_page) to number its elements."
+        }
+        let page = await run(PageScripts.changes, ["args": ["start": seen.lastID, "budget": maxChangeLines, "settle": 1200]], in: webView, timeout: 8)
+        guard case .answered(let json) = look(page) else {
+            return "\n\nWhat changed: the page did not answer. Read the page (read_page) to see it."
+        }
+        if json["navigated"] as? Bool == true {
+            return "\n\nWhat changed: the page navigated. Read the page (read_page) to see it and number its elements."
+        }
+        let url = json["url"] as? String ?? "", title = json["title"] as? String ?? ""
+        Approvals.noteRead(tab, readHost: Approvals.site(of: URL(string: url)), caller: session.caller)
+        var lines = (json["lines"] as? [String] ?? []), more = int(json["more"]) ?? 0, last = seen.lastID + (int(json["added"]) ?? 0)
+        // The frames of other sites that the latest read reached, each numbered on after the page.
+        for (slot, frame) in tab.agent.frames.known {
+            let answer = await run(PageScripts.changes, ["args": ["start": last, "budget": max(maxChangeLines - lines.count, 0), "settle": 0]], in: webView, frame: frame, timeout: frameTimeout)
+            let result = look(answer)
+            if result == .gone { tab.agent.frames.drop(slot: slot) }
+            guard case .answered(let part) = result, part["navigated"] as? Bool != true else { continue }
+            let host = host(ofOrigin: part["origin"] as? String ?? "")
+            // A tab the user isn't looking at is approved for one site: what a frame of another says is not told.
+            if let approved = session.approved, host != approved { continue }
+            Approvals.noteRead(tab, readHost: host.isEmpty ? Approvals.unknownFrame : host, caller: session.caller)
+            lines += (part["lines"] as? [String] ?? []).map { $0 + " (in a frame of \(host.isEmpty ? "another site" : host))" }
+            more += int(part["more"]) ?? 0
+            if let added = int(part["added"]), added > 0 {
+                tab.agent.ranges.append((last + 1...last + added, slot))
+                last += added
+            }
+        }
+        tab.agent.seen = AgentState.Seen(url: url, title: title, lastID: last)
+        var report: [String] = []
+        if url != seen.url { report.append("URL: \(Approvals.shown(seen.url, limit: 300).text) → \(Approvals.shown(url, limit: 300).text)") }
+        if title != seen.title { report.append("Title: \(Approvals.shown(seen.title, limit: 120).text) → \(Approvals.shown(title, limit: 120).text)") }
+        report += lines
+        if more > 0 { report.append("(\(more) more changes are not listed. Read the page (read_page) for the rest.)") }
+        if lines.isEmpty && more == 0 { report.append("No interactive element changed.") }
+        return "\n\nWhat changed (+ new, ~ changed, - gone; new elements are numbered and the numbers of your last read still work, except for those gone):\n" + report.joined(separator: "\n")
+    }
+
     // MARK: Tools
 
     @MainActor
@@ -961,7 +1038,7 @@ extension ToolCatalog {
             try await approve(.act(step), aims: [aim], irreversible: [aim], tab: tab, session: session)
             let result = await act(PageScripts.click, aim.script(), aim: aim, tab: tab, webView: webView)
             if result.isError { return result }
-            return .text("Clicked [\(id)]. \(now(tab, caller: session.caller)). Element numbers may have changed; read the page again before using them.")
+            return .text("Clicked [\(id)]. \(now(tab, caller: session.caller))." + (await changes(tab, webView, session: session)))
         } catch let failure as ToolFailure {
             return failure.result
         } catch {
@@ -979,7 +1056,7 @@ extension ToolCatalog {
             try await approve(.act(step), aims: [aim], irreversible: [aim], tab: tab, session: session)
             let result = await act(PageScripts.clickAt, aim.script(), aim: aim, tab: tab, webView: webView)
             if result.isError { return result }
-            return .text("Clicked at (\(pixels(x)), \(pixels(y))), which was \(aim.description). \(now(tab, caller: session.caller)). Element numbers may have changed; read the page again before using them.")
+            return .text("Clicked at (\(pixels(x)), \(pixels(y))), which was \(aim.description). \(now(tab, caller: session.caller))." + (await changes(tab, webView, session: session)))
         } catch let failure as ToolFailure {
             return failure.result
         } catch {
@@ -995,8 +1072,8 @@ extension ToolCatalog {
             AgentActivity.shared.step(String(localized: "Typing into “\(aim.label)”"), caller: session.caller)
             try await approve(.type(text), aims: [aim], irreversible: submit ? [aim] : [], tab: tab, session: session)
             let result = await act(PageScripts.type, aim.script(["text": text, "submit": submit]), aim: aim, tab: tab, webView: webView)
-            if result.isError || !submit { return result }
-            return .text("Typed into [\(id)] and pressed Enter. \(now(tab, caller: session.caller))")
+            if result.isError { return result }
+            return .text("Typed into [\(id)]\(submit ? " and pressed Enter" : ""). \(now(tab, caller: session.caller))" + (await changes(tab, webView, session: session)))
         } catch let failure as ToolFailure {
             return failure.result
         } catch {
@@ -1017,7 +1094,7 @@ extension ToolCatalog {
             try await approve(.act(step), aims: [aim], irreversible: [aim], tab: tab, session: session)
             let result = await act(PageScripts.pressKey, aim.script(["mods": modifiers]), aim: aim, tab: tab, webView: webView)
             if result.isError { return result }
-            return .text("Pressed \(key) on \(aim.description): \(said(result)). \(now(tab, caller: session.caller)). Element numbers may have changed; read the page again before using them.")
+            return .text("Pressed \(key) on \(aim.description): \(said(result)). \(now(tab, caller: session.caller))." + (await changes(tab, webView, session: session)))
         } catch let failure as ToolFailure {
             return failure.result
         } catch {
@@ -1065,7 +1142,7 @@ extension ToolCatalog {
             try await approve(nil, aims: [aim], irreversible: [aim.judged(as: optionFacts)], tab: tab, session: session)
             let result = await ask("choose", expect: exact ? exactFingerprint : fingerprint, exact: exact)
             if result.isError { return result }
-            return .text("Selected in [\(id)]: \(said(result)). \(now(tab, caller: session.caller)). Element numbers may have changed; read the page again before using them.")
+            return .text("Selected in [\(id)]: \(said(result)). \(now(tab, caller: session.caller))." + (await changes(tab, webView, session: session)))
         } catch let failure as ToolFailure {
             return failure.result
         } catch {
@@ -1082,7 +1159,7 @@ extension ToolCatalog {
             try await approve(.act(step), aims: [aim], tab: tab, session: session)
             let result = await act(PageScripts.hover, aim.script(), aim: aim, tab: tab, webView: webView)
             if result.isError { return result }
-            return .text("Moved the pointer over [\(id)]. Read the page again to see what appeared. \(now(tab, caller: session.caller))")
+            return .text("Moved the pointer over [\(id)]. \(now(tab, caller: session.caller))." + (await changes(tab, webView, session: session)))
         } catch let failure as ToolFailure {
             return failure.result
         } catch {
@@ -1110,7 +1187,7 @@ extension ToolCatalog {
             try await approve(.act(step), aims: [from], irreversible: [from, to], tab: tab, session: session)
             let result = await act(PageScripts.drag, ["args": ["from": from.scriptArgs(), "to": to.scriptArgs()]], aim: from, tab: tab, webView: webView)
             if result.isError { return result }
-            return .text("Dragged \(from.description) to \(to.description): \(said(result)). \(now(tab, caller: session.caller)). Element numbers may have changed; read the page again before using them.")
+            return .text("Dragged \(from.description) to \(to.description): \(said(result)). \(now(tab, caller: session.caller))." + (await changes(tab, webView, session: session)))
         } catch let failure as ToolFailure {
             return failure.result
         } catch {

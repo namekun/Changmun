@@ -188,6 +188,8 @@ extension PageScripts {
     };
     // The beginning of a long text: its first three words, or its first characters when it has no spaces.
     const lead = text => { const w = text.split(' '); return w.length > 1 ? w.slice(0, 3).join(' ') : text.slice(0, 4); };
+    // The AI's own mark, which sits in the page's root while it shows, is no child of the page's.
+    const kids = el => el.childElementCount - (globalThis.changmunMark && globalThis.changmunMark.host.parentElement === el ? 1 : 0);
     function namesOf(ctl) {
       const out = [];
       if (passive(ctl)) return out;
@@ -203,7 +205,7 @@ extension PageScripts {
       if (ctl.labels && ctl.labels.length) add(ctl.labels[0].textContent);
       if (!/^(input|textarea|select)$/.test(ctl.localName)) {
         const text = squash(ctl.matches(WORDY) ? ctl.innerText || ctl.textContent : ownText(ctl));
-        const room = link ? LINK_MAX : acts ? 1000 : ctl.matches(CONTROL) ? 160 : (ctl.childElementCount <= 2 ? 40 : 0);
+        const room = link ? LINK_MAX : acts ? 1000 : ctl.matches(CONTROL) ? 160 : (kids(ctl) <= 2 ? 40 : 0);
         if (text && text.length <= room) add(text);
         else if (text && room && !link) add(lead(text));
         // A web component's own words are in its shadow tree.
@@ -470,6 +472,7 @@ extension PageScripts {
     /// scripts that number elements.
     static let listing = #"""
 
+    const SCAN_LIMIT = 1500;
     const selector = 'a[href],button,input,textarea,select,summary,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=radio],[role=option],[role=switch],[role=combobox],[role=listbox],[role=textbox],[draggable=true],[contenteditable=""],[contenteditable=true],[onclick]';
     // Whether the element is one to list: it takes room on the page and is not hidden.
     const listed = (el, view) => {
@@ -528,16 +531,21 @@ extension PageScripts {
     static let read = lib + listing + #"""
 
     registry.clear();
+    // What the page looked like when it was read, to tell what an action changed: the info of each numbered element, and the
+    // elements seen without being numbered (beyond the limit), which are not "new" later.
+    const snap = globalThis.changmunSnap = new Map(), known = globalThis.changmunKnown = new WeakSet();
     const lines = [], frames = [];
-    let n = start, capped = false;
+    let n = start, capped = false, beyond = 0;
     for (const e of docs()) {
       const view = e.doc.defaultView;
       for (const el of e.doc.querySelectorAll(selector)) {
         if (!listed(el, view)) continue;
-        if (n - start >= limit) { capped = true; break; }
+        if (n - start >= limit) { capped = true; if (++beyond > SCAN_LIMIT) break; known.add(el); continue; }
         registry.set(++n, new WeakRef(el));
-        const r = el.getBoundingClientRect();
-        lines.push(lineOf(n, infoOf(el), !(r.bottom > 0 && r.top < view.innerHeight), !!e.frame));
+        known.add(el);
+        const r = el.getBoundingClientRect(), info = infoOf(el);
+        snap.set(n, info);
+        lines.push(lineOf(n, info, !(r.bottom > 0 && r.top < view.innerHeight), !!e.frame));
       }
       for (const f of e.doc.querySelectorAll('iframe,frame')) {
         const r = f.getBoundingClientRect();
@@ -553,6 +561,82 @@ extension PageScripts {
     }
     return JSON.stringify({title: document.title, url: location.href, origin: String(window.origin || 'null'), scroll: Math.round(scrollY), height: document.documentElement.scrollHeight,
       viewport: innerHeight, lines, count: n, capped, text, frames});
+    """#
+
+    /// What an action changed in the page since the latest read (or the latest report of changes): the interactive elements that
+    /// came, went or changed, compared by element and not by number. New ones are numbered on from `start`, so they work with the
+    /// tools like the rest. At most `budget` lines are told (new ones first); the rest is counted. Run in the page and in every
+    /// frame of another site that the latest read reached. `settle` is how long (at most) to wait for the page to stop changing.
+    static let changes = lib + listing + #"""
+
+    if (!globalThis.changmunSnap) return JSON.stringify({navigated: true});
+    if (args.settle) await new Promise(resolve => {
+      let idle, cap;
+      const watch = new MutationObserver(() => { clearTimeout(idle); idle = setTimeout(done, 150); });
+      const done = () => { watch.disconnect(); clearTimeout(idle); clearTimeout(cap); resolve(); };
+      watch.observe(document, {childList: true, subtree: true, attributes: true, characterData: true});
+      idle = setTimeout(done, 150);
+      cap = setTimeout(done, args.settle);
+    });
+    const snap = globalThis.changmunSnap, known = globalThis.changmunKnown;
+    const nowAt = new Map(), order = [];
+    let scanned = 0;
+    for (const e of docs()) {
+      const view = e.doc.defaultView;
+      for (const el of e.doc.querySelectorAll(selector)) {
+        if (!listed(el, view)) continue;
+        if (++scanned > SCAN_LIMIT) break;
+        nowAt.set(el, e);
+        order.push(el);
+      }
+    }
+    const byEl = new Map();
+    for (const [id, ref] of registry) { const el = ref.deref(); if (el) byEl.set(el, id); }
+    const ids = [...registry.keys()].sort((a, b) => a - b);
+    const gone = [], changed = [], fresh = [];
+    for (const id of ids) {
+      const el = registry.get(id).deref();
+      if (!el || !nowAt.has(el)) { gone.push(id); continue; }
+      const was = snap.get(id), now = infoOf(el);
+      const parts = [];
+      const show = v => v == null ? '(empty)' : '"' + v + '"';
+      if (was.label !== now.label) parts.push('name "' + was.label + '" → "' + now.label + '"');
+      if (was.value !== now.value) parts.push('value ' + show(was.value) + ' → ' + show(now.value));
+      const gained = now.states.filter(s => !was.states.includes(s)), lost = was.states.filter(s => !now.states.includes(s));
+      const group = [['checked', 'unchecked', 'mixed'], ['expanded', 'collapsed']];
+      const swapped = s => group.some(g => g.includes(s) && gained.some(t => g.includes(t)));
+      for (const s of gained) parts.push('now [' + s + ']');
+      for (const s of lost) if (!swapped(s)) parts.push('no longer [' + s + ']');
+      if (parts.length) changed.push({id, el, now, text: '~ [' + id + '] ' + now.kind + ' "' + now.label + '": ' + parts.join('; ')});
+    }
+    for (const el of order) if (!byEl.has(el) && !known.has(el)) fresh.push(el);
+    let budget = args.budget, next = args.start, more = 0, added = 0;
+    const out = [];
+    for (const el of fresh) {
+      if (budget <= 0) { more++; continue; }
+      budget--;
+      const id = ++next, info = infoOf(el), e = nowAt.get(el), r = el.getBoundingClientRect();
+      registry.set(id, new WeakRef(el));
+      snap.set(id, info);
+      known.add(el);
+      added++;
+      out.push('+ ' + lineOf(id, info, !(r.bottom > 0 && r.top < e.doc.defaultView.innerHeight), !!e.frame));
+    }
+    for (const c of changed) {
+      if (budget <= 0) { more++; continue; }
+      budget--;
+      snap.set(c.id, c.now);
+      out.push(c.text);
+    }
+    for (const id of gone) {
+      if (budget <= 0) { more++; continue; }
+      budget--;
+      const was = snap.get(id);
+      registry.delete(id);
+      snap.delete(id);
+      out.push('- [' + id + '] ' + was.kind + ' "' + was.label + '"');
+    }
+    return JSON.stringify({title: document.title, url: location.href, origin: String(window.origin || 'null'), lines: out, more, added});
     """#
 
     /// Aims like the tool will, and says what the action would do, without doing it: the element's name for the

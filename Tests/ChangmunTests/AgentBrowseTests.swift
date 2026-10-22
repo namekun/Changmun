@@ -1384,6 +1384,117 @@ extension SharedAgentState {
             #expect((await call(tab, "read_page")).text.contains("\"Cheese\" [checked]"))
         }
 
+        /// The lines of a "What changed" section that begin with the mark.
+        private func changes(_ text: String, _ mark: String) -> [String] {
+            text.split(separator: "\n").filter { $0.hasPrefix(mark + " ") }.map(String.init)
+        }
+
+        @Test func anActionTellsWhatChangedAndNewElementsAreNumberedAndUsable() async throws {
+            let html = """
+                <body><button id=reveal onclick="const b = document.createElement('button'); b.textContent = 'Extra'; b.onclick = () => { document.title = 'extra used' }; document.body.append(b);
+                  const i = document.createElement('input'); i.placeholder = 'City'; document.body.append(i); document.getElementById('temp').remove()">Reveal</button>
+                <button id=temp>Temp</button><input type=checkbox aria-label="Bacon"><input id=nm placeholder="Name">
+                <button id=pw onclick="document.getElementById('sec').value = 'hunter3'">Fill</button><input id=sec type=password value="hunter2" placeholder="Secret"></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            let count = read.split(separator: "\n").filter { $0.hasPrefix("[") }.count
+            let reveal = try #require(id(of: "Reveal", in: read)), bacon = try #require(id(of: "Bacon", in: read)), name = try #require(id(of: "Name", in: read)), fill = try #require(id(of: "Fill", in: read))
+
+            let revealed = await call(tab, "click", ["element_id": reveal])
+            #expect(!revealed.failed && revealed.text.contains("What changed"), Comment(rawValue: revealed.text))
+            let added = changes(revealed.text, "+")
+            #expect(added.count == 2 && added.contains { $0.contains("button \"Extra\"") } && added.contains { $0.contains("\"City\"") }, "\(added)")
+            let extra = try #require(added.first { $0.contains("\"Extra\"") }.flatMap { number(of: $0.dropFirst(2)) })
+            #expect(extra > count, "numbered on after the ones read")
+            #expect(changes(revealed.text, "-").count == 1 && changes(revealed.text, "-")[0].contains("button \"Temp\""))
+            #expect(!revealed.text.contains("URL:") && !revealed.text.contains("Title:"))
+            #expect(!(await call(tab, "click", ["element_id": extra])).failed)
+            #expect(await waitUntil { tab.title == "extra used" }, "the new element works")
+
+            let checked = await call(tab, "click", ["element_id": bacon])
+            #expect(changes(checked.text, "~").first?.contains("[\(bacon)] input[checkbox] \"Bacon\": now [checked]") == true, Comment(rawValue: checked.text))
+            let typed = await call(tab, "type_text", ["element_id": name, "text": "Bob"])
+            let change = try #require(changes(typed.text, "~").first { $0.contains("\"Name\"") })
+            #expect(change.contains("value (empty) → \"Bob\"") && change.contains("now [focused]"), "\(change)")
+            let again = await call(tab, "type_text", ["element_id": name, "text": "Bobby"])
+            let second = try #require(changes(again.text, "~").first { $0.contains("\"Name\"") })
+            #expect(second.contains("value \"Bob\" → \"Bobby\"") && !second.contains("focused"), "against the latest report")
+            let filled = await call(tab, "click", ["element_id": fill])
+            #expect(!filled.text.contains("hunter") && !filled.text.contains("Secret"), Comment(rawValue: "a secret's value is never told: \(filled.text)"))
+        }
+
+        @Test func theAddressAndTitleThatChangedAreToldWithTheChange() async throws {
+            let html = "<body><button onclick=\"history.pushState({}, '', '/next'); document.title = 'Next page'\">Go on</button></body>"
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            let result = await call(tab, "click", ["element_id": try #require(id(of: "Go on", in: read))])
+            #expect(result.text.contains("URL: https://lab.test/ → https://lab.test/next") && result.text.contains("Title: ") && result.text.contains("→ Next page"), Comment(rawValue: result.text))
+            let second = await call(tab, "hover", ["element_id": try #require(id(of: "Go on", in: read))])
+            #expect(!second.text.contains("URL:") && second.text.contains("No interactive element changed"), "what was told is the new baseline")
+        }
+
+        @Test func moreChangesThanTheCapAreCountedAndTheRestIsLeftToAReadOfThePage() async throws {
+            let html = "<body><button onclick=\"for (let i = 0; i < 60; i++) { const b = document.createElement('button'); b.textContent = 'Item ' + i; document.body.append(b) }\">Many</button></body>"
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            let result = await call(tab, "click", ["element_id": try #require(id(of: "Many", in: read))])
+            #expect(changes(result.text, "+").count == ToolCatalog.maxChangeLines && result.text.contains("(21 more changes are not listed. Read the page (read_page) for the rest.)"), Comment(rawValue: result.text))
+            let later = await call(tab, "read_page").text
+            #expect(later.contains("\"Item 59\""), "a read still gives them all")
+        }
+
+        @Test func aNavigationIsSaidSoAndNoPageWasReadMeansNoChangesToTell() async throws {
+            let server = try await TinyServer { _, path in
+                path == "/two" ? "<body><h1>Two</h1><button>Back here</button></body>" : "<body><a id=l href=\"/two\">To two</a></body>"
+            }
+            defer { server.stop() }
+            let browser = Browser()
+            browser.focused()
+            defer { browser.windowClosed() }
+            let tab = browser.openTab(url: nil)
+            let view = tab.wake()
+            let window = OffscreenWindow(view)
+            defer { window.close() }
+            view.load(URLRequest(url: server.url("/one")))
+            #expect(await waitUntil { !view.isLoading && view.url?.path == "/one" })
+            let unread = await call(tab, "click_at", ["x": 400, "y": 400])
+            #expect(unread.text.contains("this page was not read before") && !unread.text.contains("+ ["), Comment(rawValue: unread.text))
+            let read = await call(tab, "read_page").text
+            let result = await call(tab, "click", ["element_id": try #require(id(of: "To two", in: read))])
+            #expect(await waitUntil { view.url?.path == "/two" })
+            #expect(result.text.contains("the page navigated. Read the page (read_page)") && !result.text.contains("+ ["), Comment(rawValue: result.text))
+        }
+
+        @Test func changesInAFrameOfAnotherSiteAreToldAndCountAsReadFromThatSite() async throws {
+            let inner = "<script>setTimeout(() => { document.body.innerHTML = '<button>Late</button>' }, 300)</script>"
+            let html = "<body><button id=go>Go</button><iframe sandbox='allow-scripts' style='width:300px;height:100px' srcdoc=\"\(inner)\"></iframe></body>"
+            let (tab, window, browser) = try await page(html, host: "outer.test")
+            defer { window.close(); browser.windowClosed() }
+            try await asking({ _ in .once }) { stand in
+                var read = ""
+                for _ in 0..<100 where tab.agent.frames.known.isEmpty {
+                    read = await call(tab, "read_page", caller: "mcp-frame").text
+                    if tab.agent.frames.known.isEmpty { try await Task.sleep(for: .milliseconds(50)) }
+                }
+                #expect(!read.contains("Late"), "the frame showed nothing when it was read: \(read)")
+                #expect(stand.asked.isEmpty)
+                try await Task.sleep(for: .milliseconds(500))
+                let go = try #require(id(of: "Go", in: read))
+                let result = await call(tab, "click", ["element_id": go], caller: "mcp-frame")
+                let late = try #require(changes(result.text, "+").first, Comment(rawValue: result.text))
+                #expect(late.contains("button \"Late\"") && late.hasSuffix("(in a frame of another site)"), Comment(rawValue: late))
+                let number = try #require(number(of: late.dropFirst(2)))
+                #expect(stand.asked.isEmpty, "nothing was asked: the frame had not been read from before")
+                // What the frame told is read from a site of its own, so using the page asks now, and the new element works.
+                let next = await call(tab, "click", ["element_id": number], caller: "mcp-frame")
+                #expect(!next.failed && stand.asked.filter { $0.message.contains("this page") || $0.message.contains("outer.test") }.count >= 1, "\(next.text) \(stand.asked.map(\.message))")
+            }
+        }
+
         @Test func anOptionIsJudgedByWhatItResolvesToNotByTheWordsAskedFor() async throws {
             let html = """
                 <body><select id=acct onchange="document.title='changed ' + this.value"><option>Profile</option><option>Delete account</option></select>
@@ -2074,7 +2185,8 @@ extension SharedAgentState {
                 #expect(!(await call(tab, "hover", ["element_id": go], caller: panel)).failed)
                 #expect(!(await call(tab, "drag", ["from_element_id": drag, "to_x": zone[0], "to_y": zone[1]], caller: panel)).failed)
                 #expect(!(await call(tab, "type_text", ["element_id": name, "text": "Ann"], caller: panel)).failed)
-                #expect(!(await call(tab, "click_at", ["x": 5, "y": 5], caller: panel)).failed)
+                let atPoint = await call(tab, "click_at", ["x": 5, "y": 5], caller: panel)
+                #expect(!atPoint.failed, Comment(rawValue: atPoint.text))
                 #expect(uses() == 1, "once for the site")
                 // Reading yet another site takes the allowance back.
                 Approvals.noteRead(tab, readHost: "third.example", caller: panel)
