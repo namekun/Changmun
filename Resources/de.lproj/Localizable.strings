@@ -90,10 +90,11 @@
 "Can’t open the page" = "Die Seite kann nicht geöffnet werden";
 "Capture Full Page…" = "Ganze Seite aufnehmen …";
 "Change…" = "Ändern …";
-"Changmun %@ is out" = "Changmun %@ ist da";
+"Changmun fetches a short list of releases from GitHub Pages, which sees the app name and version in the request. Nothing about you or your Mac is sent, and an update is installed only if it is signed by the developer. To check now, choose Changmun › Check for Updates…" = "Changmun lädt von GitHub Pages eine kurze Liste der Versionen; GitHub sieht dabei nur Name und Version der App. Nichts über dich oder deinen Mac wird gesendet, und ein Update wird nur installiert, wenn es vom Entwickler signiert ist. Zum sofortigen Prüfen wähle Changmun › Nach Updates suchen…";
 "Changmun is your default browser" = "Changmun ist dein Standardbrowser";
 "Changmun Private Window" = "Privates Changmun-Fenster";
-"Check for Updates" = "Nach Updates suchen";
+"Check for Updates…" = "Nach Updates suchen…";
+"Check for updates automatically" = "Automatisch nach Updates suchen";
 "Check tab list" = "Tab-Liste prüfen";
 "Checking…" = "Wird geprüft …";
 "Choose" = "Wählen";
@@ -166,6 +167,7 @@
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "Doppelklicken, um in einem neuen Tab zu öffnen. Um den Verlauf nach Zeitraum zu löschen, gehe zu Einstellungen › Datenschutz.";
 "Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "Doppelklicken, um erneut zu öffnen. Wie lange es bis zur Archivierung dauert, legst du unter Einstellungen › Tabs fest.";
 "Download" = "Download";
+"Download and install updates automatically" = "Updates automatisch laden und installieren";
 "Download this language in System Settings › General › Language & Region › Translation Languages" = "Lade diese Sprache in den Systemeinstellungen › Allgemein › Sprache & Region › Übersetzungssprachen herunter";
 "Downloading filter lists…" = "Filterlisten werden geladen …";
 "Downloading · %@" = "Wird geladen · %@";
@@ -299,7 +301,6 @@
 "Off" = "Aus";
 "OK" = "OK";
 "On Startup" = "Beim Start";
-"Once a day, Changmun asks GitHub whether a newer version is out and tells you in the sidebar. Nothing else is sent." = "Einmal am Tag fragt Changmun bei GitHub nach, ob eine neuere Version erschienen ist, und sagt es dir in der Seitenleiste. Sonst wird nichts gesendet.";
 "Open" = "Öffnen";
 "Open as Tab" = "Als Tab öffnen";
 "Open Downloads Folder" = "Download-Ordner öffnen";

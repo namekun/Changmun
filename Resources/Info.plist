@@ -73,5 +73,17 @@
 	<string>Used when a website asks for your microphone.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUEnableSystemProfiling</key>
+	<false/>
+	<key>SUFeedURL</key>
+	<string>https://namekun.github.io/Changmun/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>Ez5uRNzch69fB2q28YeBLyQ9kwe6I2Ce356Is6hG98Y=</string>
+	<key>SURequireSignedFeed</key>
+	<true/>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
 </dict>
 </plist>

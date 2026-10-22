@@ -90,10 +90,11 @@
 "Can’t open the page" = "페이지를 열 수 없어요";
 "Capture Full Page…" = "전체 페이지 캡처…";
 "Change…" = "변경…";
-"Changmun %@ is out" = "Changmun %@ 나왔어요";
+"Changmun fetches a short list of releases from GitHub Pages, which sees the app name and version in the request. Nothing about you or your Mac is sent, and an update is installed only if it is signed by the developer. To check now, choose Changmun › Check for Updates…" = "Changmun이 GitHub Pages에서 짧은 릴리스 목록을 받아 오는데, 이때 GitHub에는 앱 이름과 버전만 보여요. 사용자나 Mac에 관한 정보는 보내지 않고, 개발자가 서명한 업데이트만 설치해요. 지금 확인하려면 Changmun › 업데이트 확인…을 선택해 주세요.";
 "Changmun is your default browser" = "Changmun을 쓰고 있어요";
 "Changmun Private Window" = "Changmun 개인 창";
-"Check for Updates" = "업데이트 확인";
+"Check for Updates…" = "업데이트 확인…";
+"Check for updates automatically" = "업데이트를 자동으로 확인";
 "Check tab list" = "탭 목록 확인";
 "Checking…" = "확인하는 중…";
 "Choose" = "선택";
@@ -166,6 +167,7 @@
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "두 번 클릭하면 새 탭에서 열려요. 기간별로 지우기는 설정 › 개인정보에서 할 수 있어요.";
 "Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "두 번 클릭하면 다시 열려요. 보관할 때까지의 시간은 설정 › 탭에서 정해요.";
 "Download" = "다운로드";
+"Download and install updates automatically" = "업데이트를 자동으로 내려받아 설치";
 "Download this language in System Settings › General › Language & Region › Translation Languages" = "시스템 설정 › 일반 › 언어 및 지역 › 번역 언어에서 이 언어를 내려받아 주세요";
 "Downloading filter lists…" = "필터 목록을 받는 중…";
 "Downloading · %@" = "받는 중 · %@";
@@ -299,7 +301,6 @@
 "Off" = "끄기";
 "OK" = "확인";
 "On Startup" = "시작할 때";
-"Once a day, Changmun asks GitHub whether a newer version is out and tells you in the sidebar. Nothing else is sent." = "하루에 한 번 GitHub에 새 버전이 나왔는지 물어보고, 나왔으면 사이드바에서 알려 줘요. 그 밖에는 아무것도 보내지 않아요.";
 "Open" = "열기";
 "Open as Tab" = "탭으로 열기";
 "Open Downloads Folder" = "다운로드 폴더 열기";

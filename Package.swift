@@ -7,9 +7,13 @@ let package = Package(
     products: [
         .executable(name: "Changmun", targets: ["Changmun"]),
     ],
+    dependencies: [
+        // Updates arrive inside the app; pinned exactly, so a release is built from the Sparkle it was tested with.
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"),
+    ],
     targets: [
         // Apple's on-device model is there from macOS 26; on older systems tidying goes without it.
-        .executableTarget(name: "Changmun", path: "Sources/Changmun",
+        .executableTarget(name: "Changmun", dependencies: [.product(name: "Sparkle", package: "Sparkle")], path: "Sources/Changmun",
                           linkerSettings: [.unsafeFlags(["-weak_framework", "FoundationModels"])]),
         .testTarget(name: "ChangmunTests", dependencies: ["Changmun"], path: "Tests/ChangmunTests"),
     ]

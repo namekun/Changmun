@@ -175,8 +175,6 @@ final class Preferences: ObservableObject {
     @Published var developerMode: Bool { didSet { defaults.set(developerMode, forKey: "developerMode") } }
     @Published var addressBar: AddressBarChoice { didSet { defaults.set(addressBar.rawValue, forKey: "addressBar") } }
     @Published var shortcuts: ShortcutScheme { didSet { defaults.set(shortcuts.rawValue, forKey: "shortcuts") } }
-    /// Once a day, asks GitHub whether a newer Changmun is out.
-    @Published var checkForUpdates: Bool { didSet { defaults.set(checkForUpdates, forKey: "checkForUpdates") } }
 
     private init() {
         let d = UserDefaults.standard
@@ -219,7 +217,6 @@ final class Preferences: ObservableObject {
         developerMode = d.bool(forKey: "developerMode")
         addressBar = AddressBarChoice(rawValue: d.string(forKey: "addressBar") ?? "") ?? .automatic
         shortcuts = ShortcutScheme(rawValue: d.string(forKey: "shortcuts") ?? "") ?? .safari
-        checkForUpdates = d.object(forKey: "checkForUpdates") as? Bool ?? true
     }
 
     var addressBarOnTop: Bool { Self.onTop(addressBar, developerMode: developerMode) }

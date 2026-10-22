@@ -41,13 +41,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         watchSwitcherKeys()
         watchSpaceSwipes()
         guard !Headless.isOn else { return }
-        UpdateCheck.shared.checkIfDue()
+        Updates.shared.start()
         if !UserDefaults.standard.bool(forKey: "onboarded") { browser.showOnboarding = true }
         NSApp.activate()
     }
-
-    /// A browser left running for days asks again once the day has passed.
-    func applicationDidBecomeActive(_ notification: Notification) { UpdateCheck.shared.checkIfDue() }
 
     func applicationWillTerminate(_ notification: Notification) {
         Browser.saveSession()
@@ -219,6 +216,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switch item.action {
         case #selector(nextSpace(_:)), #selector(previousSpace(_:)), #selector(selectNumberedSpace(_:)), #selector(newSpace(_:)):
             Browser.current?.isPrivate != true
+        case #selector(checkForUpdates(_:)): Updates.shared.canCheck
         case #selector(savePDF(_:)): browser.active?.webView != nil
         case #selector(captureFullPage(_:)): browser.active?.webView != nil && browser.active?.showsPDF != true
         default: true
@@ -327,6 +325,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tab.objectWillChange.send()
     }
     @objc func importData(_ sender: Any?) { browser.showOnboarding = true }
+    @objc func checkForUpdates(_ sender: Any?) { Updates.shared.checkForUpdates() }
     @objc func newChat(_ sender: Any?) {
         let browser = Browser.recent ?? BrowserWindow.open()
         ChatStore.shared.reset()
@@ -477,6 +476,7 @@ enum AppMenu {
 
         let app = submenu(main, "Changmun")
         add(app, "About Changmun", #selector(NSApplication.orderFrontStandardAboutPanel(_:)))
+        add(app, "Check for Updates…", #selector(AppDelegate.checkForUpdates(_:)))
         app.addItem(.separator())
         add(app, "Settings…", #selector(AppDelegate.showSettings(_:)), ",")
         add(app, "Import from Another Browser…", #selector(AppDelegate.importData(_:)))

@@ -8,7 +8,10 @@ if [[ -z "${SDKROOT:-}" && "$(xcode-select -p 2>/dev/null || true)" == "$CLT_ROO
 fi
 
 # Build products live outside the project: a synced folder (iCloud Desktop) adds Finder info that codesign rejects.
-SCRATCH=(--scratch-path "${CHANGMUN_SCRATCH:-$HOME/Library/Caches/Changmun/build}")
+SCRATCH_DIR="${CHANGMUN_SCRATCH:-$HOME/Library/Caches/Changmun/build}"
+SCRATCH=(--scratch-path "$SCRATCH_DIR")
+# Sparkle's tools (generate_keys, sign_update) come down with the package, once `swift package resolve` has run.
+SPARKLE_BIN="$SCRATCH_DIR/artifacts/sparkle/Sparkle/bin"
 
 # Release builds are signed with the Developer ID in the keychain (or $SIGN_IDENTITY) under the hardened runtime,
 # and the DMG is notarized with the notarytool profile $NOTARY_PROFILE. Without a Developer ID, and for debug
@@ -22,6 +25,8 @@ if [[ -n "${NOTARY_KEY:-}" ]]; then
 else
     NOTARY_AUTH=(--keychain-profile "$NOTARY_PROFILE")
 fi
+# The EdDSA key that signs updates is a file named in ~/.config/changmun/sparkle.env (SPARKLE_KEY_FILE), not the keychain's.
+[[ -f "$HOME/.config/changmun/sparkle.env" ]] && source "$HOME/.config/changmun/sparkle.env"
 developer_id() {
     if [[ -n "${SIGN_IDENTITY:-}" ]]; then echo "$SIGN_IDENTITY"; return; fi
     security find-identity -v -p codesigning 2>/dev/null | sed -nE 's/.*"(Developer ID Application: [^"]+)".*/\1/p' | head -1

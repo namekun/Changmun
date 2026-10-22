@@ -482,7 +482,6 @@ struct Sidebar: View {
     @ObservedObject var browser: Browser
     @ObservedObject private var prefs = Preferences.shared
     @ObservedObject private var library = LibraryWatcher.shared
-    @ObservedObject private var updates = UpdateCheck.shared
     @State private var dropTarget: String?
     @State private var showLibrary = false
     @State private var bookmarkQuery = ""
@@ -557,10 +556,6 @@ struct Sidebar: View {
             }
             .modifier(SpaceSlide(spaceID: browser.spaceID, direction: browser.spaceDirection))
 
-            if prefs.checkForUpdates, let version = updates.available {
-                UpdateNotice(version: version) { updates.dismiss() }
-                    .padding(.horizontal, Metrics.inset).padding(.bottom, Metrics.inset)
-            }
             DownloadShelf(browser: browser).padding(.bottom, Metrics.inset)
             // The rest of the browser, out of the way at the bottom: every bookmark, downloads, extensions and AI.
             HStack(spacing: Metrics.rowGap) {

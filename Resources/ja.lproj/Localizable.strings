@@ -90,10 +90,11 @@
 "Can’t open the page" = "ページを開けません";
 "Capture Full Page…" = "ページ全体をキャプチャ…";
 "Change…" = "変更…";
-"Changmun %@ is out" = "Changmun %@ が公開されました";
+"Changmun fetches a short list of releases from GitHub Pages, which sees the app name and version in the request. Nothing about you or your Mac is sent, and an update is installed only if it is signed by the developer. To check now, choose Changmun › Check for Updates…" = "ChangmunはGitHub Pagesからリリースの短い一覧を取得します。GitHubにはアプリ名とバージョンだけが伝わり、あなたやMacに関する情報は送信されません。アップデートは、開発者の署名があるものだけがインストールされます。今すぐ確認するには、Changmun › アップデートを確認… を選択してください。";
 "Changmun is your default browser" = "Changmunがデフォルトのブラウザです";
 "Changmun Private Window" = "Changmun プライベートウインドウ";
-"Check for Updates" = "アップデートを確認";
+"Check for Updates…" = "アップデートを確認…";
+"Check for updates automatically" = "アップデートを自動的に確認";
 "Check tab list" = "タブ一覧を確認";
 "Checking…" = "確認中…";
 "Choose" = "選択";
@@ -166,6 +167,7 @@
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "ダブルクリックで新規タブに開きます。期間を指定して履歴を消去するには、設定 › プライバシーを開いてください。";
 "Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "ダブルクリックで開き直します。タブをアーカイブするまでの時間は、設定 › タブで設定できます。";
 "Download" = "ダウンロード";
+"Download and install updates automatically" = "アップデートを自動的にダウンロードしてインストール";
 "Download this language in System Settings › General › Language & Region › Translation Languages" = "システム設定 › 一般 › 言語と地域 › 翻訳言語で、この言語をダウンロードしてください";
 "Downloading filter lists…" = "フィルタリストをダウンロード中…";
 "Downloading · %@" = "ダウンロード中 · %@";
@@ -299,7 +301,6 @@
 "Off" = "オフ";
 "OK" = "OK";
 "On Startup" = "起動時";
-"Once a day, Changmun asks GitHub whether a newer version is out and tells you in the sidebar. Nothing else is sent." = "1日に1回、GitHubに新しいバージョンが出ているか確認し、あればサイドバーでお知らせします。それ以外は何も送信しません。";
 "Open" = "開く";
 "Open as Tab" = "タブとして開く";
 "Open Downloads Folder" = "ダウンロードフォルダを開く";
