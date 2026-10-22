@@ -631,7 +631,9 @@ extension PageScripts {
     for (const id of gone) {
       if (budget <= 0) { more++; continue; }
       budget--;
-      const was = snap.get(id);
+      const was = snap.get(id), ref = registry.get(id), goneEl = ref && ref.deref();
+      // No longer known as seen: a node the page reuses (a menu, a modal, an accordion toggled with display) that comes back is new again.
+      if (goneEl) known.delete(goneEl);
       registry.delete(id);
       snap.delete(id);
       out.push('- [' + id + '] ' + was.kind + ' "' + was.label + '"');

@@ -1427,6 +1427,26 @@ extension SharedAgentState {
             #expect(!filled.text.contains("hunter") && !filled.text.contains("Secret"), Comment(rawValue: "a secret's value is never told: \(filled.text)"))
         }
 
+        @Test func anElementThatLeftAndComesBackIsNewAgainWithANumberThatWorks() async throws {
+            let html = """
+                <body><button id=toggle onclick="const m = document.getElementById('menu'); m.style.display = m.style.display === 'none' ? 'block' : 'none'">Toggle menu</button>
+                <div id=menu style="display:none"><button onclick="document.title = 'item used'">Item A</button></div></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            let toggle = try #require(id(of: "Toggle menu", in: read))
+            let opened = await call(tab, "click", ["element_id": toggle])
+            let first = try #require(changes(opened.text, "+").first { $0.contains("\"Item A\"") }.flatMap { number(of: $0.dropFirst(2)) }, Comment(rawValue: opened.text))
+            let closed = await call(tab, "click", ["element_id": toggle])
+            #expect(changes(closed.text, "-").contains { $0.contains("[\(first)]") && $0.contains("\"Item A\"") }, Comment(rawValue: closed.text))
+            let again = await call(tab, "click", ["element_id": toggle])
+            let second = try #require(changes(again.text, "+").first { $0.contains("\"Item A\"") }.flatMap { number(of: $0.dropFirst(2)) }, Comment(rawValue: "the same node is reported as new again: \(again.text)"))
+            #expect(second > first, "with a number of its own")
+            #expect(!(await call(tab, "click", ["element_id": second])).failed)
+            #expect(await waitUntil { tab.title == "item used" }, "that works")
+        }
+
         @Test func theAddressAndTitleThatChangedAreToldWithTheChange() async throws {
             let html = "<body><button onclick=\"history.pushState({}, '', '/next'); document.title = 'Next page'\">Go on</button></body>"
             let (tab, window, browser) = try await page(html)
