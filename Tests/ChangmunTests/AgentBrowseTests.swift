@@ -34,14 +34,16 @@ final class TinyServer: @unchecked Sendable {
     init(_ respond: @escaping @Sendable (String, String) -> String) async throws {
         self.respond = respond
         listener = try NWListener(using: .tcp, on: .any)
-        listener.newConnectionHandler = { [unowned self] connection in
+        // Weak: a late connection can arrive after a test let go of the server.
+        listener.newConnectionHandler = { [weak self] connection in
             connection.start(queue: .global())
-            connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [unowned self] data, _, _, _ in
+            connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, _, _ in
+                guard let self else { return connection.cancel() }
                 let head = String(decoding: data ?? Data(), as: UTF8.self).split(separator: "\r\n").first.map(String.init) ?? ""
                 let parts = head.split(separator: " ").map(String.init)
                 let method = parts.first ?? "", path = parts.count > 1 ? String(parts[1].split(separator: "?").first ?? "") : ""
                 lock.lock(); seen.append(method); lock.unlock()
-                let body = respond(method, path)
+                let body = self.respond(method, path)
                 let reply = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \(body.utf8.count)\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n" + body
                 connection.send(content: Data(reply.utf8), completion: .contentProcessed { _ in connection.cancel() })
             }
@@ -49,11 +51,11 @@ final class TinyServer: @unchecked Sendable {
         port = try await withCheckedThrowingContinuation { continuation in
             let once = NSLock()
             var done = false
-            listener.stateUpdateHandler = { [unowned self] state in
+            listener.stateUpdateHandler = { [weak self] state in
                 once.lock(); defer { once.unlock() }
                 guard !done else { return }
                 switch state {
-                case .ready: done = true; continuation.resume(returning: listener.port?.rawValue ?? 0)
+                case .ready: done = true; continuation.resume(returning: self?.listener.port?.rawValue ?? 0)
                 case .failed(let error): done = true; continuation.resume(throwing: error)
                 default: break
                 }
