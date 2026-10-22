@@ -670,6 +670,9 @@ extension ToolCatalog {
             if args["gone"] != nil && args["gone"] as? Bool == nil { return "gone must be true or false." }
             if args["gone"] as? Bool == true && args["text"] == nil { return "gone needs the text to wait for to disappear." }
             if args["timeout"] != nil && number(args["timeout"]).map({ $0 > 0 }) != true { return "timeout must be a number of seconds." }
+        case "sign_in":
+            if args["element_id"] != nil && !hasElement("element_id") { return "element_id must be a number." }
+            if args["account"] != nil && args["account"] as? String == nil { return "account must be a string." }
         case "screenshot":
             if args["labels"] != nil && args["labels"] as? Bool == nil { return "labels must be true or false." }
         case "drag":
@@ -770,7 +773,7 @@ extension ToolCatalog {
 
     /// The frame an element number from the last read lives in: nil for the page itself or a frame of its own site.
     @MainActor
-    private static func frame(ofElement id: Int, in tab: Tab) async -> Result<WKFrameInfo?, ToolFailure> {
+    static func frame(ofElement id: Int, in tab: Tab) async -> Result<WKFrameInfo?, ToolFailure> {
         guard let slot = tab.agent.ranges.first(where: { $0.range.contains(id) })?.slot else { return .success(nil) }
         guard let frame = await tab.frame(named: slot) else { return .failure(ToolFailure(result: unreachableFrame)) }
         return .success(frame)

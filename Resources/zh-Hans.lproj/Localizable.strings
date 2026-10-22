@@ -555,3 +555,9 @@
 "Remove from the queue" = "从队列中移除";
 "Send Queued" = "发送队列";
 "The last run didn't finish, so these wait for you" = "上一次运行没有完成，这些消息会等你确认后再发送";
+"Signing in to %@" = "正在登录 %@";
+"Authentication is required to let the AI sign in to %@" = "需要验证身份，才能让 AI 登录 %@";
+"Let the AI sign in to %@ as %@?" = "允许 AI 以 %2$@ 的身份登录 %1$@ 吗？";
+"The sign-in form is in a frame on %@." = "登录表单位于 %@ 的框架中。";
+"Changmun fills in the saved login itself; the AI is not shown the password or the account name. It does not press Sign in: the AI does that next, and that click is judged like any other." = "已保存的登录信息由 Changmun 自己填入；AI 看不到密码，也看不到账号名。它不会点击登录：之后由 AI 来点，这次点击与其他操作一样会被检查。";
+"Sign in with saved login" = "使用已保存的登录信息登录";

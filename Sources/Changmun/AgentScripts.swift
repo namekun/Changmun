@@ -916,6 +916,46 @@ extension PageScripts {
     /// Takes the marks off, and ends what is waiting to act (the pause after an outline): the user pressed stop.
     static let clearMarks = lib + "\nglobalThis.changmunStops = (globalThis.changmunStops || 0) + 1;\nclearMark();\nreturn 'ok';"
 
+    /// Finds the sign-in form's username and password fields (the form of the element given, else the page's visible password field)
+    /// and, in the `fill` stage, puts a saved login in them, for the app, which is the only one that holds it. It says what it found
+    /// and nothing of what it was given. Both fields are known as secrets from then on: their values are not read, typed over or
+    /// shown in a picture.
+    static let signIn = lib + #"""
+
+    const all = (root, selector) => Array.from((root.nodeType === 9 ? Document.prototype : Element.prototype).querySelectorAll.call(root, selector));
+    let el = null;
+    if (args.id != null) {
+      el = byId(args.id);
+      if (!el) return JSON.stringify({error: 'gone'});
+    }
+    const doc = el ? docOf(el) : document;
+    const visible = e => { const r = e.getBoundingClientRect(); return r.width >= 1 && r.height >= 1 && viewOf(e).getComputedStyle(e).visibility !== 'hidden'; };
+    const usable = e => visible(e) && !e.disabled && !e.readOnly;
+    const textual = e => e.localName === 'input' && /^(text|email|tel|)$/.test(e.type) && usable(e);
+    let scope = el ? (el.form || el.closest('form') || doc) : doc;
+    const pw = (el && el.localName === 'input' && el.type === 'password' && usable(el) ? el : null) || all(scope, 'input').find(e => e.type === 'password' && usable(e)) || null;
+    if (pw && pw.form) scope = pw.form;
+    const inputs = all(scope, 'input');
+    let user = el && textual(el) ? el : null;
+    if (!user && pw) user = inputs.filter(e => textual(e) && (e.compareDocumentPosition(pw) & Node.DOCUMENT_POSITION_FOLLOWING)).pop() || null;
+    if (!user && el) user = inputs.find(e => textual(e) && (attr(e, 'autocomplete') === 'username' || e.type === 'email')) || null;
+    if (!pw && !user) return JSON.stringify({error: 'none'});
+    if (!pw && !el) return JSON.stringify({error: 'none'});
+    const form = (pw && pw.form) || (user && user.form) || (el && (el.form || el.closest('form'))) || null;
+    const origin = originOf(pw || user);
+    if (args.stage !== 'fill') return JSON.stringify({origin, user: !!user, password: !!pw, action: form ? actionOf(form, null) : ''});
+    if (origin !== args.expectOrigin) return JSON.stringify({error: 'changed'});
+    const set = (e, v) => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(e, v);
+      e.dispatchEvent(new Event('input', {bubbles: true}));
+      e.dispatchEvent(new Event('change', {bubbles: true}));
+      seenPasswords.add(e);
+    };
+    if (user) set(user, args.username);
+    if (pw) set(pw, args.password);
+    return JSON.stringify({user: !!user, password: !!pw});
+    """#
+
     /// Where each element the latest read numbered is in the visible page, for the boxes drawn on a picture: [number, x, y, width, height]
     /// in CSS pixels from the top left of this window's viewport (the part in view only), and where the frames of other sites sit in
     /// it (x, y and the scale of a frame's pixel), so that their own answers can be put in place. Nothing is added to the page.

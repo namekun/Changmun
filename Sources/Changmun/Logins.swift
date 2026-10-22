@@ -73,6 +73,21 @@ enum Logins {
         return nil
     }
 
+    /// The password saved under exactly this host, not under its www or non-www twin.
+    static func password(exactly host: String, username: String) -> String? {
+        guard !Headless.isOn else { return nil }
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassInternetPassword,
+            kSecAttrServer as String: host,
+            kSecAttrAccount as String: username,
+            kSecAttrLabel as String: label,
+            kSecReturnData as String: true,
+        ]
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let data = result as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
     struct Saved: Identifiable, Hashable {
         var host: String
         var username: String

@@ -1272,13 +1272,13 @@ extension SharedAgentState {
 extension SharedAgentState {
     @MainActor @Suite
     struct PageTests {
-        private func page(_ html: String, host: String = "lab.test") async throws -> (Tab, NSWindow, Browser) {
+        private func page(_ html: String, host: String = "lab.test", scheme: String = "https") async throws -> (Tab, NSWindow, Browser) {
             let b = Browser()
             b.focused()
             let tab = b.openTab(url: nil)
             let view = tab.wake()
             let window = OffscreenWindow(view)
-            view.loadHTMLString(html, baseURL: URL(string: "https://\(host)/"))
+            view.loadHTMLString(html, baseURL: URL(string: "\(scheme)://\(host)/"))
             #expect(await waitUntil { !view.isLoading && view.url != nil })
             return (tab, window, b)
         }
@@ -2175,6 +2175,221 @@ extension SharedAgentState {
                 #expect(!isRed(pixel(shot, x: 203 / min(width, 1280), y: 203 / height)), "and not at the frame's own corner")
             }
             #expect(await evaluate(tab, "return getComputedStyle(document.getElementById('code')).webkitTextSecurity") == "none", "unmasked afterwards")
+        }
+
+        // MARK: sign_in
+
+        private final class StubLogins: LoginStore {
+            var items: [(host: String, username: String, password: String)]
+            var passwordReads = 0
+            init(_ items: [(String, String, String)]) { self.items = items.map { (host: $0.0, username: $0.1, password: $0.2) } }
+            func accounts(exactly host: String) -> [String] { items.filter { $0.host == host }.map(\.username) }
+            func password(exactly host: String, username: String) -> String? {
+                passwordReads += 1
+                return items.first { $0.host == host && $0.username == username }?.password
+            }
+        }
+
+        private final class Confirmations { var reasons: [String] = []; var answer = true }
+
+        private static let alice = "alice@example.com", secret = "S3cr3t-Passw0rd!"
+        private static let loginForm = """
+            <body><form id=f action="/session" onsubmit="document.title = 'submitted'; return false">
+            <input id=u name=user autocomplete=username placeholder="Email"><input id=p type=password placeholder="Secret"><button>Log in</button></form>
+            <script>window.log = {}; for (const id of ['u', 'p']) for (const t of ['input', 'change']) document.getElementById(id).addEventListener(t, () => { log[id + t] = (log[id + t] || 0) + 1 });</script></body>
+            """
+
+        /// Runs the body with a stand-in for the keychain and for Touch ID.
+        private func signingIn(_ store: StubLogins, _ confirmations: Confirmations = Confirmations(), _ body: () async throws -> Void) async throws {
+            try await SignIn.$store.withValue(store) {
+                try await SignIn.$confirm.withValue({ reason in confirmations.reasons.append(reason); return confirmations.answer }) { try await body() }
+            }
+        }
+
+        private func everything(_ result: ToolResult) -> String {
+            String(decoding: (try? JSONSerialization.data(withJSONObject: result.json)) ?? Data(), as: UTF8.self)
+        }
+
+        @Test func signInFillsTheSavedLoginAskedEveryTimeAndNeitherItsPasswordNorItsAccountReachesTheAI() async throws {
+            let (tab, window, browser) = try await page(Self.loginForm, host: "lab.test")
+            defer { window.close(); browser.windowClosed() }
+            let store = StubLogins([("lab.test", Self.alice, Self.secret)]), confirmations = Confirmations()
+            try await signingIn(store, confirmations) {
+                try await asking({ _ in .once }) { stand in
+                    let read = await call(tab, "read_page").text
+                    let result = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: "mcp-signin")
+                    let text = result.content.compactMap { $0["text"] as? String }.joined(separator: "\n")
+                    #expect(!result.isError && text.contains("Filled the saved login for lab.test") && text.contains("Nothing was submitted"), Comment(rawValue: text))
+                    for what in [everything(result), read, (await call(tab, "read_page")).text] {
+                        #expect(!what.contains(Self.secret) && !what.contains("alice") && !what.contains("example.com"), "neither the password nor the account is told")
+                    }
+                    let filledUser = await evaluate(tab, "return document.getElementById('u').value"), filledPassword = await evaluate(tab, "return document.getElementById('p').value")
+                    #expect(filledUser == Self.alice && filledPassword == Self.secret)
+                    #expect(await evaluate(tab, "return JSON.stringify(window.log)") == #"{"uinput":1,"uchange":1,"pinput":1,"pchange":1}"#, "input and change fired on both")
+                    #expect(await evaluate(tab, "return document.title") != "submitted", "nothing was submitted")
+                    // The user was asked, with the site and the account, and confirmed with the device owner's authentication.
+                    let asked = stand.asked.filter { $0.message.contains("sign in") }
+                    #expect(asked.count == 1 && asked[0].message == "Let the AI sign in to lab.test as \(Self.alice)?" && asked[0].choices == [.deny, .once])
+                    #expect(confirmations.reasons.count == 1 && confirmations.reasons[0].contains("lab.test"))
+                    // The fields are secrets from then on: not typed into, not shown, not told in what changed afterwards.
+                    let user = try #require(id(of: "Email", in: read))
+                    let typed = await call(tab, "type_text", ["element_id": user, "text": "mallory"])
+                    #expect(typed.failed && typed.text.contains("password"))
+                    let submit = try #require(id(of: "Log in", in: read))
+                    let clicked = await call(tab, "click", ["element_id": submit])
+                    #expect(!clicked.failed && !clicked.text.contains("alice") && !clicked.text.contains(Self.secret), "the click goes through the normal path: \(clicked.text)")
+                    // Every time: a second use asks again.
+                    _ = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: "mcp-signin")
+                    #expect(stand.asked.filter { $0.message.contains("sign in") }.count == 2 && confirmations.reasons.count == 2)
+                }
+            }
+        }
+
+        @Test func signInAsksEvenWhenTheOtherQuestionsAreOffAndAfterTheInteractionQuestionWhenOtherSitesWereRead() async throws {
+            let (tab, window, browser) = try await page(Self.loginForm, host: "lab.test")
+            defer { window.close(); browser.windowClosed() }
+            let was = Preferences.shared.aiApprovals
+            defer { Preferences.shared.aiApprovals = was }
+            try await signingIn(StubLogins([("lab.test", Self.alice, Self.secret)])) {
+                try await asking({ _ in .once }) { stand in
+                    Preferences.shared.aiApprovals = false
+                    _ = await call(tab, "sign_in", caller: "mcp-off")
+                    #expect(stand.asked.count == 1 && stand.asked[0].message.contains("sign in"), "asked with the setting off")
+                    Preferences.shared.aiApprovals = true
+                    stand.asked.removeAll()
+                    Approvals.noteRead(tab, readHost: "elsewhere.example", caller: "mcp-gate")
+                    _ = await call(tab, "sign_in", caller: "mcp-gate")
+                    #expect(stand.asked.count == 2 && stand.asked[0].message.contains("lab.test") && !stand.asked[0].message.contains("sign in") && stand.asked[1].message.contains("sign in"),
+                            "the use of the page after reading another site is asked about too: \(stand.asked.map(\.message))")
+                }
+            }
+        }
+
+        @Test func signInIsRefusedWithoutAMatchForTheExactHostAndFillsNothing() async throws {
+            let store = StubLogins([("other.test", "bob", "pw-other"), ("www.lab.test", "carol", "pw-www"), ("lab.test.evil.test", "dave", "pw-evil"), ("evil.test", "lab.test", "pw-name")])
+            let confirmations = Confirmations()
+            // A page on http, another port, and a page on a host with no saved login.
+            // lab.test has a saved login, but the page is on http, or on another port.
+            store.items.append((host: "lab.test", username: "alice", password: "pw-lab"))
+            for (scheme, host, why) in [("https", "no-login.test", "no login for the host"), ("http", "lab.test", "http"), ("https", "lab.test:8443", "another port"),
+                                        ("https", "sub.lab.test", "a subdomain")] {
+                let (tab, window, browser) = try await page(Self.loginForm, host: host, scheme: scheme)
+                defer { window.close(); browser.windowClosed() }
+                try await signingIn(store, confirmations) {
+                    try await asking({ _ in .once }) { stand in
+                        let result = await call(tab, "sign_in")
+                        #expect(result.failed, Comment(rawValue: "\(why): \(result.text)"))
+                        #expect(stand.asked.isEmpty && confirmations.reasons.isEmpty && store.passwordReads == 0, "nothing was asked, confirmed or read")
+                        #expect(await evaluate(tab, "return document.getElementById('u').value + document.getElementById('p').value") == "")
+                        for name in ["pw-other", "pw-www", "pw-evil", "pw-lab", "bob", "carol", "dave"] { #expect(!result.text.contains(name)) }
+                    }
+                }
+            }
+        }
+
+        @Test func signInIsRefusedInAPrivateWindow() async throws {
+            let store = StubLogins([("lab.test", Self.alice, Self.secret)]), confirmations = Confirmations()
+            let browser = Browser(isPrivate: true)
+            browser.focused()
+            defer { browser.windowClosed() }
+            let tab = browser.openTab(url: nil)
+            let view = tab.wake()
+            let window = OffscreenWindow(view)
+            defer { window.close() }
+            view.loadHTMLString(Self.loginForm, baseURL: URL(string: "https://lab.test/"))
+            #expect(await waitUntil { !view.isLoading && view.url != nil })
+            try await signingIn(store, confirmations) {
+                try await asking({ _ in .once }) { stand in
+                    let direct = await ToolCatalog.signIn([:], tab: tab, webView: view, session: Session(caller: "mcp-private"))
+                    #expect(direct.isError && direct.content.compactMap { $0["text"] as? String }.joined().contains("private"))
+                    let viaTool = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: "mcp-private")
+                    #expect(viaTool.isError, "a private window's tabs are not the AI's at all")
+                    #expect(stand.asked.isEmpty && confirmations.reasons.isEmpty && store.passwordReads == 0)
+                    #expect(await evaluate(tab, "return document.getElementById('p').value") == "")
+                }
+            }
+        }
+
+        @Test func signInDoesNothingIfTheUserDeclinesOrDoesNotConfirm() async throws {
+            let (tab, window, browser) = try await page(Self.loginForm, host: "lab.test")
+            defer { window.close(); browser.windowClosed() }
+            let store = StubLogins([("lab.test", Self.alice, Self.secret)]), confirmations = Confirmations()
+            try await signingIn(store, confirmations) {
+                try await asking({ _ in .deny }) { stand in
+                    let denied = await call(tab, "sign_in")
+                    #expect(denied.failed && denied.text.contains("declined") && confirmations.reasons.isEmpty && store.passwordReads == 0)
+                }
+                try await asking({ _ in .once }) { _ in
+                    confirmations.answer = false
+                    let unconfirmed = await call(tab, "sign_in")
+                    #expect(unconfirmed.failed && unconfirmed.text.contains("did not confirm") && confirmations.reasons.count == 1 && store.passwordReads == 0, "the password is not read before the device owner confirms")
+                }
+            }
+            #expect(await evaluate(tab, "return document.getElementById('u').value + document.getElementById('p').value") == "")
+        }
+
+        @Test func signInChoosesAmongSeveralAccountsOnlyByTheOneNamedAndNeverListsThem() async throws {
+            let (tab, window, browser) = try await page(Self.loginForm, host: "lab.test")
+            defer { window.close(); browser.windowClosed() }
+            let store = StubLogins([("lab.test", "alice@example.com", "pw-alice"), ("lab.test", "bob@example.com", "pw-bob")])
+            try await signingIn(store) {
+                try await asking({ _ in .once }) { stand in
+                    let ambiguous = await call(tab, "sign_in")
+                    #expect(ambiguous.failed && ambiguous.text.contains("more than one") && !ambiguous.text.contains("alice") && !ambiguous.text.contains("bob") && stand.asked.isEmpty)
+                    let unknown = await call(tab, "sign_in", ["account": "mallory@example.com"])
+                    #expect(unknown.failed && !unknown.text.contains("alice") && !unknown.text.contains("bob") && stand.asked.isEmpty)
+                    let chosen = await call(tab, "sign_in", ["account": "bob@example.com"])
+                    #expect(!chosen.failed && !chosen.text.contains("bob") && !chosen.text.contains("pw-bob"))
+                    #expect(stand.asked.count == 1 && stand.asked[0].message.contains("bob@example.com"))
+                    #expect(await evaluate(tab, "return document.getElementById('u').value + '/' + document.getElementById('p').value") == "bob@example.com/pw-bob")
+                }
+            }
+        }
+
+        @Test func signInRefusesAFormThatSendsToAnotherSiteAndAPageWithoutOne() async throws {
+            let store = StubLogins([("lab.test", Self.alice, Self.secret)]), confirmations = Confirmations()
+            let elsewhere = Self.loginForm.replacingOccurrences(of: "action=\"/session\"", with: "action=\"https://evil.test/collect\"")
+            for (html, why) in [(elsewhere, "sends elsewhere"), ("<body><p>Nothing here</p><input placeholder=\"Search\"></body>", "no password field")] {
+                let (tab, window, browser) = try await page(html, host: "lab.test")
+                defer { window.close(); browser.windowClosed() }
+                try await signingIn(store, confirmations) {
+                    try await asking({ _ in .once }) { stand in
+                        let result = await call(tab, "sign_in")
+                        #expect(result.failed && stand.asked.isEmpty && store.passwordReads == 0 && confirmations.reasons.isEmpty, Comment(rawValue: "\(why): \(result.text)"))
+                    }
+                }
+            }
+        }
+
+        @Test func signInRefusesAFrameWithNoSiteOfItsOwnEvenWhenThePageHasALogin() async throws {
+            let inner = "<form><input placeholder='Frame user'><input type=password placeholder='Frame secret'></form>"
+            let html = "<body><iframe sandbox='allow-scripts' style='width:300px;height:100px' srcdoc=\"\(inner)\"></iframe></body>"
+            let (tab, window, browser) = try await page(html, host: "lab.test")
+            defer { window.close(); browser.windowClosed() }
+            let store = StubLogins([("lab.test", Self.alice, Self.secret)]), confirmations = Confirmations()
+            try await signingIn(store, confirmations) {
+                try await asking({ _ in .once }) { stand in
+                    var read = ""
+                    for _ in 0..<100 where !read.contains("Frame user") {
+                        read = await call(tab, "read_page", caller: "mcp-frame").text
+                        if !read.contains("Frame user") { try await Task.sleep(for: .milliseconds(50)) }
+                    }
+                    let field = try #require(id(of: "Frame user", in: read), Comment(rawValue: read))
+                    stand.asked.removeAll()
+                    let result = await call(tab, "sign_in", ["element_id": field], caller: "mcp-frame")
+                    #expect(result.failed && result.text.contains("https"), Comment(rawValue: result.text))
+                    #expect(stand.asked.isEmpty && confirmations.reasons.isEmpty && store.passwordReads == 0)
+                }
+            }
+        }
+
+        @Test func aLoginIsUsedOnlyForTheHostOfADocumentOnHttpsWithTheStandardPort() {
+            #expect(SignIn.loginHost(ofOrigin: "https://lab.test") == "lab.test")
+            #expect(SignIn.loginHost(ofOrigin: "https://Shop.Lab.Test") == "shop.lab.test", "a host is exact: two sites on one domain are two")
+            #expect(SignIn.loginHost(ofOrigin: "https://xn--bcher-kva.example") == "xn--bcher-kva.example")
+            for none in ["http://lab.test", "https://lab.test:8443", "null", "", "file://", "data:text/html,x", "https://[::1]", "about:blank", "ftp://lab.test"] {
+                #expect(SignIn.loginHost(ofOrigin: none) == nil, "\(none)")
+            }
         }
 
         @Test func aPointOfTheScreenIsClickedAndNamed() async throws {

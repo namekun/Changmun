@@ -555,3 +555,9 @@
 "Remove from the queue" = "대기열에서 빼기";
 "Send Queued" = "대기열 보내기";
 "The last run didn't finish, so these wait for you" = "지난 실행이 끝나지 않아서, 이 메시지들은 사용자가 보내라고 할 때까지 기다려요";
+"Signing in to %@" = "%@에 로그인하는 중";
+"Authentication is required to let the AI sign in to %@" = "AI가 %@에 로그인하려면 인증이 필요해요";
+"Let the AI sign in to %@ as %@?" = "AI가 %@에 %@ 계정으로 로그인하게 할까요?";
+"The sign-in form is in a frame on %@." = "로그인 양식이 %@의 프레임 안에 있어요.";
+"Changmun fills in the saved login itself; the AI is not shown the password or the account name. It does not press Sign in: the AI does that next, and that click is judged like any other." = "저장된 로그인은 Changmun이 직접 채워 넣어요. AI에게는 비밀번호도 계정 이름도 보이지 않아요. 로그인 버튼은 누르지 않아요. 그다음에 AI가 누르고, 그 클릭은 다른 동작과 똑같이 확인해요.";
+"Sign in with saved login" = "저장된 로그인으로 로그인";

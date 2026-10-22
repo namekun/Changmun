@@ -555,3 +555,9 @@
 "Remove from the queue" = "Quitar de la cola";
 "Send Queued" = "Enviar en cola";
 "The last run didn't finish, so these wait for you" = "La última ejecución no terminó, así que estos esperan tu orden";
+"Signing in to %@" = "Iniciando sesión en %@";
+"Authentication is required to let the AI sign in to %@" = "Se necesita autenticación para que la IA inicie sesión en %@";
+"Let the AI sign in to %@ as %@?" = "¿Dejar que la IA inicie sesión en %@ como %@?";
+"The sign-in form is in a frame on %@." = "El formulario de acceso está en un marco de %@.";
+"Changmun fills in the saved login itself; the AI is not shown the password or the account name. It does not press Sign in: the AI does that next, and that click is judged like any other." = "Changmun rellena el acceso guardado por sí mismo; la IA no ve la contraseña ni el nombre de la cuenta. No pulsa Iniciar sesión: eso lo hace la IA después, y ese clic se juzga como cualquier otro.";
+"Sign in with saved login" = "Iniciar sesión con el acceso guardado";

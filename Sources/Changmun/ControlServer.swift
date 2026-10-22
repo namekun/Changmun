@@ -171,6 +171,30 @@ final class ControlServer {
             }
             return
         }
+        // Tests only: the saved logins of the headless app, which keeps them in memory (it never touches the keychain). "host",
+        // "username" and "password" add one; "clear" empties them; the answer is how many there are.
+        if Headless.isOn, request.method == "POST", request.path == "/logins",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                if body["clear"] as? Bool == true { MemoryLogins.shared.items = [] }
+                if let host = body["host"] as? String, let username = body["username"] as? String, let password = body["password"] as? String {
+                    MemoryLogins.shared.items.append((host, username, password))
+                }
+                self.respond(connection, status: "200 OK", body: ["count": MemoryLogins.shared.items.count])
+            }
+            return
+        }
+        // Tests only: a page of "html" in the tab in front, as if it came from the address "base" (https://lab.test/, say).
+        if Headless.isOn, request.method == "POST", request.path == "/load-html",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any], let html = body["html"] as? String {
+            Task { @MainActor in
+                guard let tab = Browser.recent?.active else { return self.respond(connection, status: "404 Not Found", body: ["error": "no tab"]) }
+                tab.wake().loadHTMLString(html, baseURL: (body["base"] as? String).flatMap(URL.init(string:)))
+                try? await Task.sleep(for: .milliseconds(500))
+                self.respond(connection, status: "200 OK", body: [:])
+            }
+            return
+        }
         // Tests only: how the AI's approvals are answered ("answer": allow, site or deny; any other value goes back to
         // allowing), whether questions wait for an answer instead ("hold"), the answer given to those waiting ("release":
         // allow, site or deny), a caller's stop button ("stop": the caller's name), the chat started over ("newChat", as

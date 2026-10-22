@@ -74,6 +74,9 @@ enum ToolCatalog {
         tool("drag", "Drag from an element or point to another and drop there: HTML5 drag and drop when the source is draggable, otherwise pointer and mouse events along the way (sliders, sortable lists). Both ends must be in the same frame.",
              ["from_element_id": ["type": "integer"], "from_x": ["type": "number"], "from_y": ["type": "number"],
               "to_element_id": ["type": "integer"], "to_x": ["type": "number"], "to_y": ["type": "number"]]),
+        tool("sign_in", "Fill in the user's saved login for this site (the page's exact host, on https) into the sign-in form's username and password fields, firing input and change events. The user is asked every time, shown the site and the account, and confirms with Touch ID or their password; you are never given the password or the account name. It does not submit: click the form's sign-in button afterwards (that click is judged like any other). Refused in private windows, on http, with no saved login for the exact host, and in a frame of another site unless the login is for that frame's host. If several accounts are saved, ask the user which one and pass it as account.",
+             ["element_id": ["type": "integer", "description": "A field or button of the form (number from read_page). Default: the page's password field"],
+              "account": ["type": "string", "description": "The username to use when several logins are saved for the site"]]),
         tool("wait_for", "Wait until the given text is on the page (or, with gone, no longer there), or, without text, until the page stops loading. Frames from other sites are searched too. Gives up after timeout seconds (default 10, at most 30). Use it instead of reading the page over and over.",
              ["text": ["type": "string"], "gone": ["type": "boolean", "description": "Wait for the text to disappear"], "timeout": ["type": "number", "description": "Seconds, default 10, at most 30"]]),
         tool("scroll", "Scroll the page.", ["direction": ["type": "string", "enum": ["down", "up", "top", "bottom"]]], required: ["direction"]),
@@ -185,6 +188,8 @@ enum ToolCatalog {
             return await drag(args, tab: tab, webView: webView, session: session)
         case "wait_for":
             return await waitFor(args, tab: tab, webView: webView, session: session)
+        case "sign_in":
+            return await signIn(args, tab: tab, webView: webView, session: session)
         case "scroll":
             // Free of the questions the other ways of using a page are asked: it moves what is in view and nothing else. A page
             // can see which of four directions was chosen, which is all it can be told this way.
@@ -810,6 +815,18 @@ enum Approvals {
                                   + (forChat ? [(.site, String(localized: "Allow on \(display(host)) for This Chat"))] : []), caller: caller)
         if answer == .site, forChat { lowAllowed[caller, default: []].insert(host) }
         return answer != .deny
+    }
+
+    /// The sign-in of the sign_in tool: asked every time, whatever else was allowed and whether or not the other questions are asked,
+    /// with the site the login goes to and the account that is filled in (what the user sees; the AI never does). `page` is the site of
+    /// the page when the form is in a frame of another.
+    static func allowSignIn(host: String, username: String, page: String?, caller: String) async -> Bool {
+        let site = shown(display(host), limit: 100).text
+        let account = username.isEmpty ? String(localized: "(No username)") : shown(quotable(username), limit: 100).text
+        let inFrame = page.map { String(localized: "The sign-in form is in a frame on \(shown(display($0), limit: 100).text).") + "\n\n" } ?? ""
+        return await choose(String(localized: "Let the AI sign in to \(site) as \(account)?"),
+                            "\(site)\n\(account)\n\n\(inFrame)" + String(localized: "Changmun fills in the saved login itself; the AI is not shown the password or the account name. It does not press Sign in: the AI does that next, and that click is judged like any other."),
+                            [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))], caller: caller) == .once
     }
 
     /// A long name keeps its beginning and its end, where a button says what it does.

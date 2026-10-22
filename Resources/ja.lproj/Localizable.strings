@@ -555,3 +555,9 @@
 "Remove from the queue" = "待機から外す";
 "Send Queued" = "待機分を送信";
 "The last run didn't finish, so these wait for you" = "前回の実行が最後まで終わらなかったため、送信はあなたの操作を待っています";
+"Signing in to %@" = "%@にサインイン中";
+"Authentication is required to let the AI sign in to %@" = "AIに%@へサインインさせるには認証が必要です";
+"Let the AI sign in to %@ as %@?" = "AIが%@に%@としてサインインするのを許可しますか?";
+"The sign-in form is in a frame on %@." = "サインインフォームは%@のフレーム内にあります。";
+"Changmun fills in the saved login itself; the AI is not shown the password or the account name. It does not press Sign in: the AI does that next, and that click is judged like any other." = "保存済みのログインはChangmunが自分で入力します。AIにはパスワードもアカウント名も見えません。サインインボタンは押しません。そのあとAIが押し、そのクリックはほかの操作と同じように確認されます。";
+"Sign in with saved login" = "保存済みのログインでサインイン";
