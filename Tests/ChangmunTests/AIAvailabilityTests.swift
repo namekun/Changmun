@@ -63,4 +63,17 @@ struct AIAvailabilityTests {
         ChatStore.claudeLocator = { nil }
         #expect(AIAvailability.detect(folders: []) == .none)
     }
+
+    @Test func thePanelStartsReadyAndFollowsWhatIsFoundWhenItLooksAgain() {
+        let saved = AIAvailability.detector
+        defer { AIAvailability.detector = saved }
+        let chat = ChatStore()
+        #expect(chat.availability == .ready, "nothing changes for someone who has it, before anything is looked up")
+        AIAvailability.detector = { .none }
+        chat.refreshAvailability()
+        #expect(chat.availability == .none)
+        AIAvailability.detector = { .ready }
+        chat.refreshAvailability()
+        #expect(chat.availability == .ready, "installing Claude Code, or fixing its path, is seen on the next look")
+    }
 }

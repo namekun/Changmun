@@ -23,6 +23,9 @@ func waitUntil(_ seconds: Double = 5, _ condition: @MainActor () -> Bool) async 
     return condition()
 }
 
+/// A caller named the way the MCP bridge names itself, which no other process will be called.
+func bridgeCaller() -> String { "mcp-\(getpid())-\(UUID().uuidString)" }
+
 /// A page server on the loopback address, for the tests of what only a real load can show.
 final class TinyServer: @unchecked Sendable {
     private let listener: NWListener
@@ -640,10 +643,10 @@ extension SharedAgentState {
             }
         }
 
-        @Test func theCommandLineIsAskedEachTimeWhileThePanelAndMCPClientsCanAllowASiteForTheirChat() async {
+        @Test func onlyThePanelAndTheBridgesOwnNamesCanAllowASiteForTheirChat() async {
             let (browser, tabs) = open(["https://a.example/", "https://b.example/"])
             defer { browser.windowClosed() }
-            for caller in ["mcp-77", "unverified-panel"] {
+            for caller in [bridgeCaller()] {
                 Approvals.forgetReads(caller: caller)
                 defer { Approvals.forgetReads(caller: caller) }
                 await asking({ _ in .site }) { stand in
@@ -654,15 +657,19 @@ extension SharedAgentState {
                     #expect(stand.asked.count == 1, "\(caller) is not asked again on the site it allowed for its chat")
                 }
             }
-            // Every command of the command line is the one caller "cli": what one was allowed would reach the next, so it is asked each time.
-            Approvals.forgetReads(caller: "cli")
-            defer { Approvals.forgetReads(caller: "cli") }
-            await asking({ _ in .site }) { stand in
-                Approvals.noteRead(tabs[0], readHost: nil, caller: "cli")
-                #expect(await Approvals.allowInteraction(.act("Clicking “Go”"), on: tabs[1], caller: "cli"))
-                #expect(stand.asked.last?.choices == [.deny, .once])
-                #expect(await Approvals.allowInteraction(.act("Clicking “Go”"), on: tabs[1], caller: "cli"))
-                #expect(stand.asked.count == 2, "cli is asked each time")
+            // Every other name could be had by another process (or is every command of the command line, or a request that wasn't
+            // proved to be the panel's): asked each time, however the user answers.
+            let uuid = UUID().uuidString
+            for caller in ["cli", "unknown", "unverified-panel", "unverified-\(ChatStore.caller)", "my-agent", "mcp-12-notauuid", "mcp-12", "mcp--\(uuid)", "mcp-x1-\(uuid)", "mcp-12-\(uuid)-more", "MCP-12-\(uuid)", "test-page-3"] {
+                Approvals.forgetReads(caller: caller)
+                defer { Approvals.forgetReads(caller: caller) }
+                await asking({ _ in .site }) { stand in
+                    Approvals.noteRead(tabs[0], readHost: nil, caller: caller)
+                    #expect(await Approvals.allowInteraction(.act("Clicking “Go”"), on: tabs[1], caller: caller))
+                    #expect(stand.asked.last?.choices == [.deny, .once], "\(caller)")
+                    #expect(await Approvals.allowInteraction(.act("Clicking “Go”"), on: tabs[1], caller: caller))
+                    #expect(stand.asked.count == 2, "\(caller) is asked each time")
+                }
             }
             // A page without an address has no site to allow.
             let panel = ChatStore.caller
@@ -679,7 +686,7 @@ extension SharedAgentState {
         @Test func anMCPClientCanAllowASiteForItsOwnConnectionOnly() async {
             let (browser, tabs) = open(["https://a.example/", "https://b.example/", "https://c.example/"])
             defer { browser.windowClosed() }
-            let client = "mcp-1-site", other = "mcp-2-site"
+            let client = bridgeCaller(), other = bridgeCaller()
             for caller in [client, other] { Approvals.forgetReads(caller: caller) }
             defer { for caller in [client, other] { Approvals.forgetReads(caller: caller) } }
             await asking({ prompt in prompt.choices.contains(.site) ? .site : .once }) { stand in
@@ -1044,9 +1051,9 @@ extension SharedAgentState {
         @Test func aLowTierActionIsAskedOncePerSiteForTheChatByThePanelAndMCPClientsAndEachTimeByTheCommandLine() async {
             let (browser, tabs) = open(["https://a.example/", "https://b.example/"])
             defer { browser.windowClosed() }
-            let panel = ChatStore.caller
+            let panel = ChatStore.caller, mcp = bridgeCaller()
             Approvals.forgetReads(caller: panel)
-            defer { for caller in [panel, "mcp-low-unit", "cli"] { Approvals.forgetReads(caller: caller) } }
+            defer { for caller in [panel, mcp, "cli"] { Approvals.forgetReads(caller: caller) } }
             await asking({ prompt in prompt.choices.contains(.site) ? .site : .once }) { stand in
                 #expect(await Approvals.allowAction(.low, "Accept all", on: tabs[0], caller: panel))
                 #expect(stand.asked.count == 1 && stand.asked[0].choices == [.deny, .once, .site] && stand.asked[0].message.contains("accept cookies"))
@@ -1057,20 +1064,20 @@ extension SharedAgentState {
                 #expect(stand.asked.count == 2, "another site is asked about")
                 #expect(await Approvals.allowAction(.high, "Pay", on: tabs[0], caller: panel))
                 #expect(stand.asked.count == 3 && stand.asked[2].choices == [.deny, .once] && stand.asked[2].message.contains("undone"), "never covered by it")
-                for _ in 0..<2 { #expect(await Approvals.allowAction(.low, "Save", on: tabs[0], caller: "mcp-low-unit")) }
+                for _ in 0..<2 { #expect(await Approvals.allowAction(.low, "Save", on: tabs[0], caller: mcp)) }
                 #expect(stand.asked.count == 4 && stand.asked[3].choices == [.deny, .once, .site], "an MCP client can allow a site for its connection too")
                 for _ in 0..<2 { #expect(await Approvals.allowAction(.low, "Save", on: tabs[0], caller: "cli")) }
                 #expect(stand.asked.count == 6 && stand.asked.suffix(2).allSatisfy { $0.choices == [.deny, .once] }, "the command line is asked each time")
-                #expect(await Approvals.allowAction(.high, "Pay", on: tabs[0], caller: "mcp-low-unit"))
+                #expect(await Approvals.allowAction(.high, "Pay", on: tabs[0], caller: mcp))
                 #expect(stand.asked.count == 7 && stand.asked[6].choices == [.deny, .once], "never covered by it")
                 Approvals.forgetReads(caller: panel)
                 #expect(await Approvals.allowAction(.low, "Save", on: tabs[0], caller: panel))
                 #expect(stand.asked.count == 8, "a new chat starts over")
             }
-            Approvals.forgetReads(caller: "mcp-low-unit")
+            Approvals.forgetReads(caller: mcp)
             await asking({ _ in .deny }) { stand in
-                #expect(!(await Approvals.allowAction(.low, "Save", on: tabs[0], caller: "mcp-low-unit")))
-                #expect(!(await Approvals.allowAction(.low, "Save", on: tabs[0], caller: "mcp-low-unit")) && stand.asked.count == 2)
+                #expect(!(await Approvals.allowAction(.low, "Save", on: tabs[0], caller: mcp)))
+                #expect(!(await Approvals.allowAction(.low, "Save", on: tabs[0], caller: mcp)) && stand.asked.count == 2)
             }
         }
 
@@ -3403,7 +3410,7 @@ extension SharedAgentState {
                 let headline = try #require(read.split(separator: "\n").first { $0.contains("Why we should send fewer emails") }.flatMap(number))
                 let promo = try #require(id(of: "Save 20% on shoes", in: read)), feedback = try #require(id(of: "Send feedback", in: read)), save = try #require(id(of: "Save", in: read))
                 #expect(!(await call(tab, "click", ["element_id": accept])).failed)
-                #expect(consent(stand).count == 1 && consent(stand)[0].detail.contains("“Accept all cookies”") && consent(stand)[0].choices == [.deny, .once, .site], "a consent: asked (an MCP client may allow the site), never as a loss")
+                #expect(consent(stand).count == 1 && consent(stand)[0].detail.contains("“Accept all cookies”") && consent(stand)[0].choices == [.deny, .once], "a consent: asked (a caller named by the test can't allow the site), never as a loss")
                 #expect(consent(stand)[0].detail.hasPrefix("lab.test\n\n") && guarded(stand).isEmpty)
                 #expect(await waitUntil { tab.title == "accepted" })
                 let refused = await call(tab, "click", ["element_id": order])
@@ -3449,9 +3456,9 @@ extension SharedAgentState {
             let html = "<body><div id=onetrust-banner-sdk><button onclick=\"document.title='accepted'\">Accept all cookies</button></div><button onclick=\"document.title='saved'\">Save</button><button onclick=\"document.title='ordered'\">Place order</button></body>"
             let (tab, window, browser) = try await page(html)
             defer { window.close(); browser.windowClosed() }
-            let panel = ChatStore.caller
+            let panel = ChatStore.caller, mcp = bridgeCaller()
             Approvals.forgetReads(caller: panel)
-            defer { for caller in [panel, "mcp-low", "cli"] { Approvals.forgetReads(caller: caller) } }
+            defer { for caller in [panel, mcp, "cli"] { Approvals.forgetReads(caller: caller) } }
             try await asking({ prompt in prompt.choices.contains(.site) ? .site : .once }) { stand in
                 let read = await call(tab, "read_page", caller: panel).text
                 let accept = try #require(id(of: "Accept all cookies", in: read)), save = try #require(id(of: "Save", in: read)), order = try #require(id(of: "Place order", in: read))
@@ -3461,10 +3468,10 @@ extension SharedAgentState {
                 #expect(consent(stand).count == 1, "allowed on lab.test for this chat: not asked again")
                 for _ in 0..<2 { _ = await call(tab, "click", ["element_id": order], caller: panel) }
                 #expect(guarded(stand).count == 2 && guarded(stand).allSatisfy { $0.choices == [.deny, .once] }, "what can't be undone is asked every time")
-                let client = await call(tab, "click", ["element_id": save], caller: "mcp-low")
-                _ = await call(tab, "click", ["element_id": save], caller: "mcp-low")
+                let client = await call(tab, "click", ["element_id": save], caller: mcp)
+                _ = await call(tab, "click", ["element_id": save], caller: mcp)
                 #expect(!client.failed && consent(stand).count == 2 && consent(stand)[1].choices == [.deny, .once, .site], "an MCP client can allow the site for its connection, and then isn't asked again")
-                for _ in 0..<2 { _ = await call(tab, "click", ["element_id": order], caller: "mcp-low") }
+                for _ in 0..<2 { _ = await call(tab, "click", ["element_id": order], caller: mcp) }
                 #expect(guarded(stand).count == 4 && guarded(stand).allSatisfy { $0.choices == [.deny, .once] }, "what can't be undone is asked every time of an MCP client too")
                 let command = await call(tab, "click", ["element_id": save], caller: "cli")
                 _ = await call(tab, "click", ["element_id": save], caller: "cli")

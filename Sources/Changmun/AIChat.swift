@@ -69,6 +69,14 @@ final class ChatStore: ObservableObject {
     private var steerRetry: String?
     /// How the `claude` CLI is found (tests say where, or that there is none).
     static var claudeLocator: () -> String? = { claudePath() }
+    /// What the AI needs from the user. Ready until looked up, so that nobody who has it sees anything change; the panel looks it up as it
+    /// opens, when the app comes to the front and when the path to `claude` is changed.
+    @Published private(set) var availability = AIAvailability.ready
+
+    func refreshAvailability() {
+        let now = AIAvailability.detector()
+        if now != availability { availability = now }
+    }
     /// How long a process that ignored the request to end is given before it is killed.
     static var killDelay: TimeInterval = 3
     /// Starts a run of the AI for a message (and the prompt made of it and its tabs), or says it couldn't. Tests stand in for the
@@ -692,7 +700,7 @@ final class ChatStore: ObservableObject {
     static func claudePath() -> String? {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let candidates = [UserDefaults.standard.string(forKey: "claudePath"), "\(home)/.local/bin/claude", "\(home)/.claude/local/claude",
-                          "/opt/homebrew/bin/claude", "/usr/local/bin/claude"].compactMap { $0 }
+                          "/opt/homebrew/bin/claude", "/usr/local/bin/claude", "\(home)/.npm-global/bin/claude", "\(home)/.bun/bin/claude"].compactMap { $0 }
         return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
@@ -712,8 +720,9 @@ struct ChatPanel: View {
     @ObservedObject var browser: Browser
     @State private var draft = ""
     @State private var draftHeight: CGFloat = 16
-    /// What the AI needs from the user, looked up as the panel opens; until it is ready there is nothing to type to.
-    @State private var availability = AIAvailability.detector()
+    @ObservedObject private var prefs = Preferences.shared
+    /// Until the AI is ready there is nothing to type to.
+    private var ready: Bool { chat.availability == .ready }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -736,7 +745,7 @@ struct ChatPanel: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {
-                        if chat.items.isEmpty { ChatEmptyState(availability: availability, several: chat.attachedTabs.count >= 2) { send($0) } }
+                        if chat.items.isEmpty { ChatEmptyState(availability: chat.availability, several: chat.attachedTabs.count >= 2) { send($0) } }
                         ForEach(chat.items) { item in
                             ChatRow(item: item).id(item.id)
                         }
@@ -751,15 +760,17 @@ struct ChatPanel: View {
                     }
                 }
             }
-            attachments.disabled(availability != .ready).opacity(availability == .ready ? 1 : 0.4)
+            attachments
             if !chat.queue.isEmpty { queued }
             if let notice = chat.notice {
                 Text(notice).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waiting)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6).padding(.bottom, 6)
             }
-            composer.disabled(availability != .ready).opacity(availability == .ready ? 1 : 0.4)
+            composer.disabled(!ready).opacity(ready ? 1 : 0.4)
         }
-        .onAppear { availability = AIAvailability.detector() }
+        .onAppear { chat.refreshAvailability() }
+        .onChange(of: prefs.claudePath) { chat.refreshAvailability() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in chat.refreshAvailability() }
     }
 
     /// The tabs attached as context, each removable, and the menu to add more.
@@ -792,6 +803,8 @@ struct ChatPanel: View {
             .padding(.horizontal, 8)
             .frame(height: 22)
             .background(Capsule().fill(Theme.hoverTab))
+            .disabled(!ready)
+            .opacity(ready ? 1 : 0.4)
             .help("Give the AI more tabs to read")
             ScrollView(.horizontal) {
                 HStack(spacing: 6) {

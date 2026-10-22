@@ -587,3 +587,4 @@
 "The AI panel needs Claude Code" = "AI 面板需要 Claude Code";
 "Everything else in Changmun works without AI. To turn the AI panel on later, install Claude Code." = "没有 AI，Changmun 的其他功能也都能正常使用。之后想开启 AI 面板，安装 Claude Code 即可。";
 "Get Claude Code" = "获取 Claude Code";
+"Already installed? Enter where it is in Settings › AI." = "如果已经安装，请在“设置 › AI”中指定路径。";

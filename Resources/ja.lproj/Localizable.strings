@@ -587,3 +587,4 @@
 "The AI panel needs Claude Code" = "AIパネルにはClaude Codeが必要です";
 "Everything else in Changmun works without AI. To turn the AI panel on later, install Claude Code." = "AIがなくても、Changmunのそのほかの機能はすべて使えます。AIパネルは、あとからClaude Codeをインストールすれば使えるようになります。";
 "Get Claude Code" = "Claude Codeを入手";
+"Already installed? Enter where it is in Settings › AI." = "すでにインストール済みなら、設定 › AIでパスを指定してください。";

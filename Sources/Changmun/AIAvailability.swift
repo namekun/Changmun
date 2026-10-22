@@ -72,6 +72,12 @@ struct AIGuidance: View {
                 .lineSpacing(compact ? 0 : 3)
                 .foregroundStyle(compact ? Theme.secondary : Color.primary.opacity(0.7))
                 .fixedSize(horizontal: false, vertical: true)
+            if availability != .ready {
+                Text("Already installed? Enter where it is in Settings › AI.")
+                    .font(.system(size: compact ? 11.5 : 12.5))
+                    .foregroundStyle(Theme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if case .supportComing(let found) = availability {
                 Text("Support for \(Self.list(found)) on this Mac is coming.")
                     .font(.system(size: compact ? 11.5 : 12.5))

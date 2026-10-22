@@ -587,3 +587,4 @@
 "The AI panel needs Claude Code" = "AI 패널에는 Claude Code가 필요해요";
 "Everything else in Changmun works without AI. To turn the AI panel on later, install Claude Code." = "AI 없이도 Changmun의 다른 기능은 모두 그대로 쓸 수 있어요. AI 패널은 나중에 Claude Code를 설치하면 켤 수 있어요.";
 "Get Claude Code" = "Claude Code 받기";
+"Already installed? Enter where it is in Settings › AI." = "이미 설치했다면 설정 › AI에서 경로를 직접 지정해 주세요.";

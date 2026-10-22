@@ -587,3 +587,4 @@
 "The AI panel needs Claude Code" = "El panel de IA necesita Claude Code";
 "Everything else in Changmun works without AI. To turn the AI panel on later, install Claude Code." = "Todo lo demás en Changmun funciona sin IA. Para activar el panel de IA más adelante, instala Claude Code.";
 "Get Claude Code" = "Obtener Claude Code";
+"Already installed? Enter where it is in Settings › AI." = "Si ya lo tienes instalado, indica dónde está en Ajustes › IA.";

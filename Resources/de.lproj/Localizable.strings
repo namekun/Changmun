@@ -587,3 +587,4 @@
 "The AI panel needs Claude Code" = "Die KI-Seitenleiste braucht Claude Code";
 "Everything else in Changmun works without AI. To turn the AI panel on later, install Claude Code." = "Alles andere in Changmun funktioniert auch ohne KI. Wenn du die KI-Seitenleiste später einschalten möchtest, installiere Claude Code.";
 "Get Claude Code" = "Claude Code herunterladen";
+"Already installed? Enter where it is in Settings › AI." = "Schon installiert? Lege den Pfad unter Einstellungen › KI fest.";
