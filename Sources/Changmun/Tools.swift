@@ -77,7 +77,7 @@ enum ToolCatalog {
         tool("wait_for", "Wait until the given text is on the page (or, with gone, no longer there), or, without text, until the page stops loading. Frames from other sites are searched too. Gives up after timeout seconds (default 10, at most 30). Use it instead of reading the page over and over.",
              ["text": ["type": "string"], "gone": ["type": "boolean", "description": "Wait for the text to disappear"], "timeout": ["type": "number", "description": "Seconds, default 10, at most 30"]]),
         tool("scroll", "Scroll the page.", ["direction": ["type": "string", "enum": ["down", "up", "top", "bottom"]]], required: ["direction"]),
-        tool("screenshot", "Take a screenshot of the visible part of the page. Its note says how its pixels relate to the CSS pixels click_at takes. With labels, the page is read again and a numbered box is drawn over each interactive element in view for the picture (taken off the page afterwards): the numbers are those read_page gives, so you can use them with click, type_text, select_option, hover, press_key and drag.",
+        tool("screenshot", "Take a screenshot of the visible part of the page. Its note says how its pixels relate to the CSS pixels click_at takes. With labels, the page is read again and a numbered box is drawn on the picture over each interactive element in view (nothing is added to the page): the numbers are those read_page gives, so you can use them with click, type_text, select_option, hover, press_key and drag. The boxes follow the page's layout, which a hostile page can bend, so what read_page says about an element is authoritative.",
              ["labels": ["type": "boolean", "description": "Draw each interactive element's number over it"]]),
     ]
 
@@ -364,27 +364,68 @@ enum ToolCatalog {
     @MainActor
     private static func screenshot(_ tab: Tab, _ webView: WKWebView, labels: Bool, session: Session) async -> ToolResult {
         guard labels else { return await picture(tab, webView) }
-        // The page is read again, so that the numbers drawn are the ones a read_page gives now, and nobody else's read renumbers
-        // the elements while the boxes are up.
+        // The page is read again, so that the numbers are the ones a read_page gives now, and nobody else's read renumbers the
+        // elements meanwhile. Nothing is put into the page: where each numbered element is comes from its own scripts, and the boxes
+        // are drawn on the picture afterwards, out of the page's reach.
         return await tab.agent.gate.run {
             let read = await readPageAlone(tab, webView, maxChars: 200, session: session)
             if read.0.isError { return read.0 }
-            var drawn = 0
-            for frame in [nil] + tab.agent.frames.known.map({ Optional($0.frame) }) {
-                drawn += Int(await run(PageScripts.labels, [:], in: webView, frame: frame, timeout: 5).content.first?["text"] as? String ?? "") ?? 0
-            }
-            var result = await picture(tab, webView)
-            await runInPageAndFrames(PageScripts.clearLabels, tab, webView)
+            let boxes = await labelBoxes(tab, webView)
+            var result = await picture(tab, webView, labels: boxes)
             if !result.isError {
-                result.content.append(["type": "text", "text": drawn == 0 ? "No interactive element is in view, so no numbers are drawn."
-                    : "The boxes carry the element numbers of a read_page taken just now (the page was read again for the picture, so numbers from earlier reads are replaced): use them with click, type_text, select_option, hover, press_key and drag. Elements outside the picture have no box."])
+                result.content.append(["type": "text", "text": boxes.isEmpty ? "No interactive element is in view, so no numbers are drawn."
+                    : "The boxes carry the element numbers of a read_page taken just now (the page was read again for the picture, so numbers from earlier reads are replaced): use them with click, type_text, select_option, hover, press_key and drag. Where the boxes are comes from the page's layout, which a page can bend: what read_page says of an element is authoritative."])
             }
             return result
         } ?? stopped
     }
 
+    /// A numbered element's place in the visible page, in CSS pixels from its top left.
+    struct LabelBox: Equatable {
+        var id: Int
+        var x: Double, y: Double, width: Double, height: Double
+    }
+
+    /// Where each element the latest read numbered is in the visible page, from the page's own scripts (and those of the frames of
+    /// other sites that the read reached, whose places are taken from where the page puts their frames). Only what is in view.
     @MainActor
-    private static func picture(_ tab: Tab, _ webView: WKWebView) async -> ToolResult {
+    private static func labelBoxes(_ tab: Tab, _ webView: WKWebView) async -> [LabelBox] {
+        func parse(_ result: ToolResult) -> (boxes: [LabelBox], frames: [String: [Double]])? {
+            guard case .answered(let json) = look(result), let list = json["rects"] as? [[Double]] else { return nil }
+            return (list.compactMap { $0.count == 5 ? LabelBox(id: Int($0[0]), x: $0[1], y: $0[2], width: $0[3], height: $0[4]) : nil }, json["frames"] as? [String: [Double]] ?? [:])
+        }
+        guard let page = parse(await run(PageScripts.rects, [:], in: webView, timeout: 5)) else { return [] }
+        var boxes = page.boxes
+        for (slot, frame) in tab.agent.frames.known {
+            guard let place = page.frames[slot], place.count == 3, let inside = parse(await run(PageScripts.rects, [:], in: webView, frame: frame, timeout: 5)) else { continue }
+            boxes += inside.boxes.map { LabelBox(id: $0.id, x: place[0] + place[2] * $0.x, y: place[1] + place[2] * $0.y, width: place[2] * $0.width, height: place[2] * $0.height) }
+        }
+        return boxes
+    }
+
+    /// Draws the boxes and their numbers into the picture being made, `scale` pixels to a CSS pixel, `height` pixels high (the same
+    /// scale click_at's note names, so a box lands where the element is).
+    private static func draw(_ boxes: [LabelBox], scale: CGFloat, height: CGFloat) {
+        let red = NSColor(srgbRed: 0.898, green: 0.282, blue: 0.302, alpha: 1)
+        let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11, weight: .bold), .foregroundColor: NSColor.white]
+        for box in boxes {
+            let frame = NSRect(x: box.x * scale, y: height - (box.y + box.height) * scale, width: max(box.width * scale, 4), height: max(box.height * scale, 4))
+            red.withAlphaComponent(0.10).setFill()
+            frame.fill()
+            red.setStroke()
+            let outline = NSBezierPath(rect: frame.insetBy(dx: 1, dy: 1))
+            outline.lineWidth = 2
+            outline.stroke()
+            let text = NSAttributedString(string: String(box.id), attributes: attributes)
+            let tag = NSRect(x: frame.minX, y: frame.maxY - 16, width: max(16, text.size().width + 8), height: 16)
+            red.setFill()
+            tag.fill()
+            text.draw(at: NSPoint(x: tag.minX + (tag.width - text.size().width) / 2, y: tag.minY + (16 - text.size().height) / 2))
+        }
+    }
+
+    @MainActor
+    private static func picture(_ tab: Tab, _ webView: WKWebView, labels: [LabelBox] = []) async -> ToolResult {
         let size = await run("return JSON.stringify([innerWidth, innerHeight]);", [:], in: webView, timeout: 5).content.first?["text"] as? String
         let viewport = size.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [Double] }.flatMap { $0.count == 2 && $0[0] >= 1 && $0[1] >= 1 ? $0 : nil }
         let configuration = WKSnapshotConfiguration()
@@ -396,7 +437,7 @@ enum ToolCatalog {
             webView.takeSnapshot(with: configuration) { image, _ in finish(image) }
         }
         await runInPageAndFrames(PageScripts.unmaskSecrets, tab, webView)
-        guard let image, let jpeg = jpegData(image, maxWidth: 1280) else { return .text("Error: the page could not be captured.", error: true) }
+        guard let image, let jpeg = jpegData(image, maxWidth: 1280, labels: labels, cssWidth: viewport?[0]) else { return .text("Error: the page could not be captured.", error: true) }
         var content: [[String: Any]] = [["type": "image", "data": jpeg.base64EncodedString(), "mimeType": "image/jpeg"]]
         if let viewport {
             let pixels = min(image.size.width, 1280).rounded(), scale = pixels / viewport[0]
@@ -416,7 +457,7 @@ enum ToolCatalog {
         }
     }
 
-    private static func jpegData(_ image: NSImage, maxWidth: CGFloat) -> Data? {
+    private static func jpegData(_ image: NSImage, maxWidth: CGFloat, labels: [LabelBox] = [], cssWidth: Double? = nil) -> Data? {
         let scale = min(1, maxWidth / max(image.size.width, 1))
         let size = NSSize(width: (image.size.width * scale).rounded(), height: (image.size.height * scale).rounded())
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width), pixelsHigh: Int(size.height), bitsPerSample: 8,
@@ -424,6 +465,7 @@ enum ToolCatalog {
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
         image.draw(in: NSRect(origin: .zero, size: size))
+        if let cssWidth, cssWidth > 0 { draw(labels, scale: size.width / cssWidth, height: size.height) }
         NSGraphicsContext.restoreGraphicsState()
         return rep.representation(using: .jpeg, properties: [.compressionFactor: 0.7])
     }

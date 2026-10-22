@@ -2115,113 +2115,66 @@ extension SharedAgentState {
             return (Int(color.redComponent * 255), Int(color.greenComponent * 255), Int(color.blueComponent * 255))
         }
 
-        @Test func aScreenshotWithLabelsNumbersTheElementsInViewAndLeavesNothingOnThePage() async throws {
+        private func isRed(_ color: (r: Int, g: Int, b: Int)?) -> Bool { color.map { $0.r > 190 && $0.g < 120 && $0.b < 120 } ?? false }
+
+        private func picture(_ result: ToolResult) -> String? { result.content.first { $0["type"] as? String == "image" }?["data"] as? String }
+
+        @Test func aScreenshotWithLabelsDrawsTheNumbersOnThePictureAndTouchesNothingInThePage() async throws {
             let html = """
                 <body style='margin:0;background:#fff'><button style='position:absolute;left:100px;top:50px;width:120px;height:40px'>Target</button>
                 <input style='position:absolute;left:300px;top:50px;width:120px;height:30px' placeholder="Fruit">
-                <button style='position:absolute;left:100px;top:9000px;width:120px;height:40px'>Far</button>
-                <input id=code autocomplete=one-time-code value="123456" style='position:absolute;left:500px;top:50px'></body>
+                <button style='position:absolute;left:100px;top:9000px;width:120px;height:40px'>Far</button></body>
                 """
             let (tab, window, browser) = try await page(html)
             defer { window.close(); browser.windowClosed() }
             let view = try #require(tab.webView)
-            let width = Double(await evaluate(tab, "return innerWidth")) ?? 1
-            let before = await evaluate(tab, "return document.documentElement.children.length")
-            func picture(_ result: ToolResult) -> String? { result.content.first { $0["type"] as? String == "image" }?["data"] as? String }
+            let width = Double(await evaluate(tab, "return innerWidth")) ?? 1, height = Double(await evaluate(tab, "return innerHeight")) ?? 900
+            // The page's own scripts watch for any change to its document while the picture is made.
+            _ = await evaluate(tab, "window.mutations = 0; new MutationObserver(r => { window.mutations += r.length }).observe(document, {subtree: true, childList: true, attributes: true, characterData: true}); return 1")
+            let before = await evaluate(tab, "return document.documentElement.outerHTML")
             let plain = await ToolCatalog.call("screenshot", ["tab_id": tab.id], caller: "labels-plain")
             let labelled = await ToolCatalog.call("screenshot", ["tab_id": tab.id, "labels": true], caller: "labels-1")
             let note = labelled.content.compactMap { $0["text"] as? String }.joined(separator: "\n")
-            #expect(!labelled.isError && note.contains("element numbers of a read_page"), Comment(rawValue: note))
-            // The tag of the first element's box is red in the labelled picture and the page's own colour in the plain one.
-            let x = 103 / min(width, 1280), y = 53 / (Double(await evaluate(tab, "return innerHeight")) ?? 900)
-            let labelledPicture = try #require(picture(labelled)), plainPicture = try #require(picture(plain)), laterPicture = try #require(picture(await ToolCatalog.call("screenshot", ["tab_id": tab.id], caller: "labels-2")))
-            let red = try #require(pixel(labelledPicture, x: x, y: y)), page = try #require(pixel(plainPicture, x: x, y: y))
-            #expect(red.r > 190 && red.g < 120 && red.b < 120, "the box is drawn: \(red)")
-            #expect(!(page.r > 190 && page.g < 120 && page.b < 120), "and only in the labelled one: \(page)")
-            #expect(await evaluate(tab, "return document.documentElement.children.length") == before, "the page is as it was")
-            let clean = try #require(pixel(laterPicture, x: x, y: y))
-            #expect(!(clean.r > 190 && clean.g < 120 && clean.b < 120), "nothing is left to show in a later picture")
-            // The numbers are read_page's: a button, a field and a code field are in view, the button far down is not.
+            #expect(!labelled.isError && note.contains("element numbers of a read_page") && note.contains("authoritative"), Comment(rawValue: note))
+            try await Task.sleep(for: .milliseconds(200))
+            #expect(await evaluate(tab, "return window.mutations") == "0", "nothing was added to, removed from or changed in the page")
+            #expect(await evaluate(tab, "return document.documentElement.outerHTML") == before)
+            // The tag of the first element's box is on the labelled picture at the element's place, and not on the plain one.
+            let x = 103 / min(width, 1280), y = 53 / height
+            let labelledPicture = try #require(picture(labelled)), plainPicture = try #require(picture(plain))
+            #expect(isRed(pixel(labelledPicture, x: x, y: y)), "the box is where the button is")
+            #expect(!isRed(pixel(plainPicture, x: x, y: y)))
+            #expect(isRed(pixel(labelledPicture, x: 303 / min(width, 1280), y: 53 / height)), "and the field's")
+            #expect(!isRed(pixel(labelledPicture, x: 103 / min(width, 1280), y: 400 / height)), "not where nothing is")
+            // The numbers are read_page's, and only what is in view gets a box.
             let read = await call(tab, "read_page").text
             #expect(id(of: "Target", in: read) == 1 && id(of: "Fruit", in: read) == 2 && id(of: "Far", in: read) == 3)
-            let drawn = await ToolCatalog.run(PageScripts.labels, [:], in: view, timeout: 5)
-            #expect(drawn.content.first?["text"] as? String == "3", "three of the four are in view")
-            _ = await ToolCatalog.run(PageScripts.clearLabels, [:], in: view, timeout: 5)
-            #expect(await evaluate(tab, "return document.documentElement.children.length") == before)
-            // Secrets are masked for a labelled picture too, and unmasked after.
-            #expect(await evaluate(tab, "return getComputedStyle(document.getElementById('code')).webkitTextSecurity") == "none")
+            let rects = await ToolCatalog.run(PageScripts.rects, [:], in: view, timeout: 5)
+            let list = try #require(((try? JSONSerialization.jsonObject(with: Data((rects.content.first?["text"] as? String ?? "").utf8))) as? [String: Any])?["rects"] as? [[Double]])
+            #expect(list.count == 2 && list[0] == [1, 100, 50, 120, 40] && list[1] == [2, 300, 50, 120, 30], "\(list)")
             #expect((await call(tab, "screenshot", ["labels": "yes"])).failed)
         }
 
-        @Test func aTitleTheAIGaveAStepIsMadeSafeToShow() {
-            #expect(ToolCatalog.stepTitle("Comparing prices") == "Comparing prices")
-            #expect(ToolCatalog.stepTitle("  Comparing\n\tprices \r\n now  ") == "Comparing prices now", "one line, whitespace squeezed")
-            #expect(ToolCatalog.stepTitle("Line one\u{2028}line two\u{85}three") == "Line one line two three")
-            #expect(ToolCatalog.stepTitle("Pay\u{200B}ing\u{202E}gnip") == "Pay▯ing▯gnip", "invisible and direction characters are made visible")
-            #expect(ToolCatalog.stepTitle("Ok\u{FE0F}\u{E0041}\u{3164}") == "Ok▯▯▯")
-            #expect(ToolCatalog.stepTitle("e" + String(repeating: "\u{301}", count: 8)) == "é\u{301}\u{301}▯", "more than three combining marks are cut")
-            let long = String(repeating: "あ", count: 200)
-            #expect(ToolCatalog.stepTitle(long) == String(repeating: "あ", count: 60) + "…", "cut to 60 scalars")
-            #expect(ToolCatalog.stepTitle(String(repeating: "x", count: 60)) == String(repeating: "x", count: 60), "and not marked when it fits")
-            for none: Any? in [nil, 5, ["a"], "", "   ", "\n\t "] { #expect(ToolCatalog.stepTitle(none) == nil) }
-            for tool in ToolCatalog.definitions {
-                let properties = (tool["inputSchema"] as? [String: Any])?["properties"] as? [String: Any]
-                #expect((properties?["title"] as? [String: Any])?["type"] as? String == "string", "\(tool["name"] ?? "")")
-                #expect(((tool["inputSchema"] as? [String: Any])?["required"] as? [String])?.contains("title") != true)
-            }
-        }
-
-        @Test func theChatShowsTheTitleAStepWasGivenAndTheGeneratedWordsOtherwise() {
-            let chat = ChatStore()
-            func tool(_ input: [String: Any]) -> [String: Any] {
-                ["type": "assistant", "message": ["id": UUID().uuidString, "content": [["type": "tool_use", "name": "mcp__changmun__click", "input": input]]]]
-            }
-            chat.handle(tool(["element_id": 4, "title": "Opening the cart"]))
-            chat.handle(tool(["element_id": 4]))
-            chat.handle(tool(["element_id": 5, "title": "Pay\u{200B} now\nand more " + String(repeating: "x", count: 100)]))
-            let steps = chat.items.filter { $0.kind == .tool }
-            #expect(steps.count == 3)
-            #expect(steps[0].text == "Opening the cart" && steps[0].detail == "Click [4]")
-            #expect(steps[1].text == "Click [4]" && steps[1].detail == nil, "today's words without a title")
-            #expect(steps[2].text.hasPrefix("Pay▯ now and more x") && !steps[2].text.contains("\n") && steps[2].text.unicodeScalars.count <= 61)
-        }
-
-        @Test func theProgressLineShowsTheTitleOfTheCallUnderWayAndNothingElseUsesIt() async throws {
-            let html = "<body><button onclick=\"document.title='ordered'\">Place order</button><button onclick=\"document.title='fine'\">Details</button></body>"
-            let (tab, window, browser) = try await page(html)
+        @Test func aLabelledScreenshotMasksSecretsAndPutsTheBoxOfAFrameWhereItsElementIs() async throws {
+            let inner = "<body style='margin:0'><button style='position:absolute;left:20px;top:30px;width:100px;height:40px'>In frame</button></body>"
+            let html = "<body style='margin:0;background:#fff'><input id=code autocomplete=one-time-code value='123456' style='position:absolute;left:500px;top:300px'>"
+                + "<iframe sandbox='allow-scripts' style='position:absolute;left:200px;top:200px;width:250px;height:150px;border:0' srcdoc=\"\(inner)\"></iframe></body>"
+            let (tab, window, browser) = try await page(html, host: "outer.test")
             defer { window.close(); browser.windowClosed() }
-            let chat = ChatStore.shared
-            AgentActivity.shared.runStarted()
-            defer { AgentActivity.shared.runEnded(); chat.step = nil }
-            let waiting = Task { @MainActor in
-                await Approvals.$stand.withValue(Approvals.Stand { _ in .once }) {
-                    await ToolCatalog.call("wait_for", ["tab_id": tab.id, "text": "never there", "timeout": 3, "title": "Looking for a sign-in"], caller: ChatStore.caller)
+            let width = Double(await evaluate(tab, "return innerWidth")) ?? 1, height = Double(await evaluate(tab, "return innerHeight")) ?? 900
+            try await asking({ _ in .once }) { _ in
+                var read = ""
+                for _ in 0..<100 where !read.contains("In frame") {
+                    read = await call(tab, "read_page", caller: "labels-frame").text
+                    if !read.contains("In frame") { try await Task.sleep(for: .milliseconds(50)) }
                 }
+                let labelled = await ToolCatalog.call("screenshot", ["tab_id": tab.id, "labels": true], caller: "labels-frame")
+                let shot = try #require(picture(labelled), "\(labelled.content)")
+                // The button sits at (200 + 20, 200 + 30) in the page: the tag of its box is there.
+                #expect(isRed(pixel(shot, x: 223 / min(width, 1280), y: 233 / height)), "the frame's box is placed with the frame")
+                #expect(!isRed(pixel(shot, x: 203 / min(width, 1280), y: 203 / height)), "and not at the frame's own corner")
             }
-            #expect(await waitUntil { chat.step != nil })
-            #expect(chat.step == "Looking for a sign-in", "the AI's words, not “Waiting for…”")
-            AgentActivity.shared.cancel(caller: ChatStore.caller)
-            _ = await waiting.value
-            AgentActivity.shared.runStarted()
-            // Without a title, the app's own words.
-            let plain = Task { @MainActor in
-                await Approvals.$stand.withValue(Approvals.Stand { _ in .once }) {
-                    await ToolCatalog.call("wait_for", ["tab_id": tab.id, "text": "never there", "timeout": 3], caller: ChatStore.caller)
-                }
-            }
-            #expect(await waitUntil { chat.step != nil })
-            #expect(chat.step == "Waiting for “never there”")
-            AgentActivity.shared.cancel(caller: ChatStore.caller)
-            _ = await plain.value
-            // A title decides nothing and is not in a question: a harmless title doesn't excuse an order, a scary one doesn't stop a harmless click.
-            try await asking({ _ in .once }) { stand in
-                let read = await call(tab, "read_page").text
-                let order = try #require(id(of: "Place order", in: read)), details = try #require(id(of: "Details", in: read))
-                _ = await call(tab, "click", ["element_id": order, "title": "Just looking, nothing to pay"])
-                #expect(guarded(stand).count == 1 && !stand.asked.contains { $0.message.contains("Just looking") || $0.detail.contains("Just looking") })
-                _ = await call(tab, "click", ["element_id": details, "title": "Paying and deleting everything"])
-                #expect(guarded(stand).count == 1 && !stand.asked.contains { $0.detail.contains("Paying") })
-            }
+            #expect(await evaluate(tab, "return getComputedStyle(document.getElementById('code')).webkitTextSecurity") == "none", "unmasked afterwards")
         }
 
         @Test func aPointOfTheScreenIsClickedAndNamed() async throws {

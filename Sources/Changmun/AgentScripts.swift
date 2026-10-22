@@ -916,22 +916,12 @@ extension PageScripts {
     /// Takes the marks off, and ends what is waiting to act (the pause after an outline): the user pressed stop.
     static let clearMarks = lib + "\nglobalThis.changmunStops = (globalThis.changmunStops || 0) + 1;\nclearMark();\nreturn 'ok';"
 
-    /// Draws the number of each element the latest read numbered over it, for a picture: a box and a tag in a closed shadow tree the
-    /// page can't reach, never taking the pointer, with nothing in it but the numbers. Only what is in view is drawn. Answers how many.
-    /// It takes itself off after a while if the app never asks.
-    static let labels = lib + #"""
+    /// Where each element the latest read numbered is in the visible page, for the boxes drawn on a picture: [number, x, y, width, height]
+    /// in CSS pixels from the top left of this window's viewport (the part in view only), and where the frames of other sites sit in
+    /// it (x, y and the scale of a frame's pixel), so that their own answers can be put in place. Nothing is added to the page.
+    static let rects = lib + #"""
 
-    const old = globalThis.changmunLabels;
-    if (old) { clearTimeout(old.timer); old.host.remove(); }
-    const host = document.createElement('div');
-    for (const [name, value] of [['all', 'initial'], ['position', 'fixed'], ['inset', '0'], ['pointer-events', 'none'], ['z-index', '2147483647']]) host.style.setProperty(name, value, 'important');
-    const shadow = host.attachShadow({mode: 'closed'});
-    const sheet = new CSSStyleSheet();
-    sheet.replaceSync('.box { position: fixed; box-sizing: border-box; border: 2px solid #e5484d; background: rgba(229, 72, 77, .10); }'
-      + ' .tag { position: absolute; left: 0; top: 0; min-width: 16px; padding: 0 4px; box-sizing: border-box; text-align: center; background: #e5484d; color: #fff;'
-      + ' font: 700 11px/16px -apple-system, system-ui, sans-serif; }');
-    shadow.adoptedStyleSheets = [sheet];
-    let drawn = 0;
+    const out = [];
     for (const [id, ref] of registry) {
       const el = ref.deref();
       if (!el || !el.isConnected) continue;
@@ -939,30 +929,16 @@ extension PageScripts {
       let left = w.dx + w.s * r.left, top = w.dy + w.s * r.top, right = left + w.s * r.width, bottom = top + w.s * r.height;
       if (right <= 0 || bottom <= 0 || left >= innerWidth || top >= innerHeight) continue;
       left = Math.max(left, 0); top = Math.max(top, 0); right = Math.min(right, innerWidth); bottom = Math.min(bottom, innerHeight);
-      const box = document.createElement('div');
-      box.className = 'box';
-      box.style.left = left + 'px';
-      box.style.top = top + 'px';
-      box.style.width = Math.max(right - left, 4) + 'px';
-      box.style.height = Math.max(bottom - top, 4) + 'px';
-      const tag = document.createElement('div');
-      tag.className = 'tag';
-      tag.textContent = String(id);
-      box.append(tag);
-      shadow.append(box);
-      drawn++;
+      out.push([id, left, top, right - left, bottom - top]);
     }
-    document.documentElement.append(host);
-    globalThis.changmunLabels = {host, timer: setTimeout(() => host.remove(), 15000)};
-    await Promise.race([new Promise(resolve => requestAnimationFrame(() => resolve())), sleep(150)]);
-    return String(drawn);
-    """#
-
-    static let clearLabels = lib + #"""
-
-    const old = globalThis.changmunLabels;
-    if (old) { clearTimeout(old.timer); old.host.remove(); globalThis.changmunLabels = null; }
-    return 'ok';
+    const frames = {};
+    for (const e of docs()) for (const f of e.doc.querySelectorAll('iframe,frame')) {
+      const slot = frameTags.get(f);
+      if (!slot) continue;
+      const r = f.getBoundingClientRect(), k = f.clientWidth ? r.width / f.clientWidth : 1;
+      frames[slot] = [e.dx + e.s * (r.left + f.clientLeft * k), e.dy + e.s * (r.top + f.clientTop * k), e.s * k];
+    }
+    return JSON.stringify({rects: out, frames});
     """#
 
     /// The frames of other sites that a picture of the page shows, greeted so that the app can ask each where it really is:
