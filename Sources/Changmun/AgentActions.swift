@@ -532,12 +532,17 @@ struct AgentState {
     var seen: Seen?
     /// The page navigated after it was read.
     var navigated = false
+    /// Frames that did not answer a look at what changed, and when: they are not asked again for a while, so that one that hangs
+    /// can't hold up every report after an action.
+    var hung: [String: Date] = [:]
+    static let hungFor: TimeInterval = 10
 
     mutating func beginRead() {
         frames.beginRead()
         ranges = []
         seen = nil
         navigated = false
+        hung = [:]
     }
 
     mutating func endRead() { frames.endRead() }
@@ -548,6 +553,7 @@ struct AgentState {
 
     mutating func reset() {
         frames.reset()
+        hung = [:]
         ranges = []
         navigated = navigated || seen != nil
         seen = nil
@@ -992,8 +998,10 @@ extension ToolCatalog {
 
     // MARK: What an action changed
 
-    /// Most lines of changes told after an action.
+    /// Most lines of changes told after an action (a change of the focus alone takes none of them).
     static let maxChangeLines = 40
+    /// How long each frame of another site is given to tell what changed in it, and how long all of them are given together.
+    static let frameChangeTimeout = 1.5, framesChangeDeadline = 3.0
 
     /// After an action, once the page has settled: what changed in its interactive elements since the AI last saw them (its read,
     /// or the last report), with the address and title if they changed, so that it needn't read the whole page again. New elements
@@ -1022,11 +1030,40 @@ extension ToolCatalog {
         let url = json["url"] as? String ?? "", title = json["title"] as? String ?? ""
         Approvals.noteRead(tab, readHost: Approvals.site(of: URL(string: url)), caller: session.caller)
         var lines = (json["lines"] as? [String] ?? []), more = int(json["more"]) ?? 0, last = seen.lastID + (int(json["added"]) ?? 0)
-        // The frames of other sites that the latest read reached, each numbered on after the page.
-        for (slot, frame) in tab.agent.frames.known {
-            let answer = await run(PageScripts.changes, ["args": ["start": last, "budget": max(maxChangeLines - lines.count, 0), "settle": 0]], in: webView, frame: frame, timeout: frameTimeout)
-            let result = look(answer)
-            if result == .gone { tab.agent.frames.drop(slot: slot) }
+        // The frames of other sites that the latest read reached, each numbered on after the page. They are asked all at once, each
+        // given a short time and all of them a deadline; one that hangs is left alone for a while. The lines that are told are shared out
+        // among them, and each starts its numbers where the ones before it end at most, so that the numbers they hand out at the same
+        // time can't meet (a frame that tells fewer than its share leaves a gap in the numbers, which nothing depends on).
+        let now = Date()
+        let known = tab.agent.frames.known
+        let asked = known.filter { now.timeIntervalSince(tab.agent.hung[$0.slot] ?? .distantPast) >= AgentState.hungFor }.prefix(maxShownFrames)
+        var skipped = known.filter { now.timeIntervalSince(tab.agent.hung[$0.slot] ?? .distantPast) < AgentState.hungFor }.count
+        let remaining = max(maxChangeLines - (int(json["spent"]) ?? lines.count), 0)
+        var plans: [(slot: String, frame: WKFrameInfo, start: Int, budget: Int)] = []
+        var next = last
+        for (index, entry) in asked.enumerated() {
+            let share = remaining / max(asked.count, 1) + (index < remaining % max(asked.count, 1) ? 1 : 0)
+            plans.append((entry.slot, entry.frame, next, share))
+            next += share
+        }
+        let deadline = Date().addingTimeInterval(framesChangeDeadline)
+        var answers: [Int: Look] = [:]
+        await withTaskGroup(of: (Int, Look).self) { group in
+            for (index, plan) in plans.enumerated() {
+                group.addTask { @MainActor in
+                    let timeout = min(frameChangeTimeout, max(deadline.timeIntervalSinceNow, 0.3))
+                    return (index, look(await run(PageScripts.changes, ["args": ["start": plan.start, "budget": plan.budget, "settle": 0]], in: webView, frame: plan.frame, timeout: timeout)))
+                }
+            }
+            for await (index, result) in group { answers[index] = result }
+        }
+        for (index, plan) in plans.enumerated() {
+            let result = answers[index] ?? .hung
+            if result == .gone { tab.agent.frames.drop(slot: plan.slot) }
+            if result == .hung {
+                tab.agent.hung[plan.slot] = Date()
+                skipped += 1
+            }
             guard case .answered(let part) = result, part["navigated"] as? Bool != true else { continue }
             let host = host(ofOrigin: part["origin"] as? String ?? "")
             // A tab the user isn't looking at is approved for one site: what a frame of another says is not told.
@@ -1035,8 +1072,8 @@ extension ToolCatalog {
             lines += (part["lines"] as? [String] ?? []).map { $0 + " (in a frame of \(host.isEmpty ? "another site" : host))" }
             more += int(part["more"]) ?? 0
             if let added = int(part["added"]), added > 0 {
-                tab.agent.ranges.append((last + 1...last + added, slot))
-                last += added
+                tab.agent.ranges.append((plan.start + 1...plan.start + added, plan.slot))
+                last = max(last, plan.start + added)
             }
         }
         tab.agent.seen = AgentState.Seen(url: url, title: title, lastID: last)
@@ -1045,7 +1082,11 @@ extension ToolCatalog {
         if title != seen.title { report.append("Title: \(Approvals.shown(seen.title, limit: 120).text) → \(Approvals.shown(title, limit: 120).text)") }
         report += lines
         if more > 0 { report.append("(\(more) more changes are not listed. Read the page (read_page) for the rest.)") }
-        if lines.isEmpty && more == 0 { report.append("No interactive element changed.") }
+        if skipped > 0 { report.append("(\(skipped) frame\(skipped == 1 ? "" : "s") from another site did not answer in time, so changes in \(skipped == 1 ? "it are" : "them are") not listed.)") }
+        if lines.isEmpty && more == 0 {
+            report.append(tab.isLoading ? "No interactive element changed yet; the page is still loading — use wait_for if you expect more."
+                                        : "No interactive element changed yet; the page may still be loading — use wait_for if you expect more.")
+        }
         return "\n\nWhat changed (+ new, ~ changed, - gone; new elements are numbered and the numbers of your last read still work, except for those gone):\n" + report.joined(separator: "\n")
     }
 

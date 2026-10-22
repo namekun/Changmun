@@ -72,15 +72,19 @@ extension PageScripts {
 
     // This document and the frames of the same site in it. dx, dy and s say where a frame's top left sits in this
     // document's viewport and how much a pixel of the frame is worth there (frames can be scaled).
-    function docs(root = document, frame = null, dx = 0, dy = 0, s = 1, depth = 0, out = []) {
-      out.push({doc: root, frame, dx, dy, s});
+    // `clip` is the part of this document that is visible in the window, [left, top, right, bottom] in the window's pixels: what is
+    // inside a frame is cut at the frame's own edge too.
+    function docs(root = document, frame = null, dx = 0, dy = 0, s = 1, depth = 0, out = [], clip = [0, 0, innerWidth, innerHeight]) {
+      out.push({doc: root, frame, dx, dy, s, clip});
       if (depth < 4) for (const f of root.querySelectorAll('iframe,frame')) {
         let d = null;
         try { d = f.contentDocument; } catch (e) {}
         if (!d || !d.documentElement) continue;
         const r = f.getBoundingClientRect();
         const k = f.clientWidth ? r.width / f.clientWidth : 1;
-        docs(d, f, dx + s * (r.left + f.clientLeft * k), dy + s * (r.top + f.clientTop * k), s * k, depth + 1, out);
+        const left = dx + s * (r.left + f.clientLeft * k), top = dy + s * (r.top + f.clientTop * k);
+        docs(d, f, left, top, s * k, depth + 1, out,
+          [Math.max(clip[0], left), Math.max(clip[1], top), Math.min(clip[2], left + s * k * f.clientWidth), Math.min(clip[3], top + s * k * f.clientHeight)]);
       }
       return out;
     }
@@ -97,7 +101,8 @@ extension PageScripts {
       const ref = registry.get(id), el = ref && ref.deref();
       return el && el.isConnected ? el : null;
     };
-    const where = el => docs().find(e => e.doc === el.ownerDocument) || {dx: 0, dy: 0, s: 1};
+    // Where the document of an element sits; pass the list of `docs()` when asking for several elements (it is worked out once).
+    const where = (el, list = docs()) => list.find(e => e.doc === el.ownerDocument) || {dx: 0, dy: 0, s: 1};
     const focusable = el => el.closest('a[href],button,input,select,summary,textarea,[tabindex],[contenteditable]') || el;
     // A form, or the document, with a field named "ownerDocument", "baseURI" or "defaultView" has that field there instead:
     // what the approvals rely on is read through the prototypes.
@@ -411,8 +416,9 @@ extension PageScripts {
         + ' font: 600 11px/18px -apple-system, system-ui, sans-serif; }'
         + ' @keyframes pop { from { transform: scale(1.08); } to { transform: none; } }');
       shadow.adoptedStyleSheets = [sheet];
+      const list = docs();
       for (const el of els) {
-        const r = el.getBoundingClientRect(), w = where(el);
+        const r = el.getBoundingClientRect(), w = where(el, list);
         const box = document.createElement('div');
         box.className = 'box';
         box.style.left = (w.dx + w.s * r.left - 2) + 'px';
@@ -494,7 +500,8 @@ extension PageScripts {
       if (!secret) {
         if ((tag === 'input' || tag === 'textarea') && !isButtonInput && !/^(checkbox|radio|file)$/.test(type) && el.value) value = clip(el.value, 60);
         if (tag === 'select' && el.selectedOptions[0]) {
-          value = clip(el.selectedOptions[0].text, 40);
+          // A list that takes several shows all that are chosen (cut short), not the first only.
+          value = el.multiple ? clip(Array.from(el.selectedOptions).slice(0, 6).map(o => clip(o.text, 30)).join(', ') + (el.selectedOptions.length > 6 ? ', … (' + el.selectedOptions.length + ' chosen)' : ''), 120) : clip(el.selectedOptions[0].text, 40);
           options = Array.from(el.options).slice(0, 20).map(o => clip(o.text, 30));
         }
       }
@@ -509,6 +516,7 @@ extension PageScripts {
       if (el.matches(':disabled') || aria('aria-disabled') === 'true') states.push('disabled');
       if (docOf(el).activeElement === el) states.push('focused');
       if (aria('aria-pressed') === 'true') states.push('pressed');
+      else if (aria('aria-pressed') === 'mixed') states.push('mixed');
       if (el.required === true || aria('aria-required') === 'true') states.push('required');
       if (!secret) {
         const v = el.validity;
@@ -537,9 +545,11 @@ extension PageScripts {
     // elements seen without being numbered (beyond the limit), which are not "new" later.
     const snap = globalThis.changmunSnap = new Map(), known = globalThis.changmunKnown = new WeakSet();
     const lines = [], frames = [];
-    let n = start, capped = false, beyond = 0;
+    let n = start, capped = false;
     for (const e of docs()) {
       const view = e.doc.defaultView;
+      // Looked at past the limit up to SCAN_LIMIT in each document, so that what is beyond it in one isn't taken for new later in another.
+      let beyond = 0;
       for (const el of e.doc.querySelectorAll(selector)) {
         if (!listed(el, view)) continue;
         if (n - start >= limit) { capped = true; if (++beyond > SCAN_LIMIT) break; known.add(el); continue; }
@@ -582,9 +592,10 @@ extension PageScripts {
     });
     const snap = globalThis.changmunSnap, known = globalThis.changmunKnown;
     const nowAt = new Map(), order = [];
-    let scanned = 0;
     for (const e of docs()) {
       const view = e.doc.defaultView;
+      // The limit is per document: a huge one doesn't stop the next from being looked at.
+      let scanned = 0;
       for (const el of e.doc.querySelectorAll(selector)) {
         if (!listed(el, view)) continue;
         if (++scanned > SCAN_LIMIT) break;
@@ -595,7 +606,7 @@ extension PageScripts {
     const byEl = new Map();
     for (const [id, ref] of registry) { const el = ref.deref(); if (el) byEl.set(el, id); }
     const ids = [...registry.keys()].sort((a, b) => a - b);
-    const gone = [], changed = [], fresh = [];
+    const gone = [], changed = [], focusOnly = [], fresh = [];
     for (const id of ids) {
       const el = registry.get(id).deref();
       if (!el || !nowAt.has(el)) { gone.push(id); continue; }
@@ -609,7 +620,9 @@ extension PageScripts {
       const swapped = s => group.some(g => g.includes(s) && gained.some(t => g.includes(t)));
       for (const s of gained) parts.push('now [' + s + ']');
       for (const s of lost) if (!swapped(s)) parts.push('no longer [' + s + ']');
-      if (parts.length) changed.push({id, el, now, text: '~ [' + id + '] ' + now.kind + ' "' + now.label + '": ' + parts.join('; ')});
+      // A change of the focus alone (the element clicked took it, the one before gave it up) is told last and takes no line of the budget.
+      const onlyFocus = parts.length > 0 && parts.every(p => p === 'now [focused]' || p === 'no longer [focused]');
+      if (parts.length) (onlyFocus ? focusOnly : changed).push({id, el, now, text: '~ [' + id + '] ' + now.kind + ' "' + now.label + '": ' + parts.join('; ')});
     }
     for (const el of order) if (!byEl.has(el) && !known.has(el)) fresh.push(el);
     let budget = args.budget, next = args.start, more = 0, added = 0;
@@ -640,7 +653,11 @@ extension PageScripts {
       snap.delete(id);
       out.push('- [' + id + '] ' + was.kind + ' "' + was.label + '"');
     }
-    return JSON.stringify({title: document.title, url: location.href, origin: String(window.origin || 'null'), lines: out, more, added});
+    for (const c of focusOnly) {
+      snap.set(c.id, c.now);
+      out.push(c.text);
+    }
+    return JSON.stringify({title: document.title, url: location.href, origin: String(window.origin || 'null'), lines: out, more, added, spent: args.budget - budget});
     """#
 
     /// Aims like the tool will, and says what the action would do, without doing it: the element's name for the
@@ -947,9 +964,10 @@ extension PageScripts {
     if (!pw && !el) return JSON.stringify({error: 'none'});
     const form = (pw && pw.form) || (user && user.form) || (el && (el.form || el.closest('form'))) || null;
     const origin = originOf(pw || user);
-    // Everywhere the form can send what is typed in it: its own action and the formaction of every submit button (also one outside the
-    // form that names it, and an image button), each as the address it resolves to.
-    const submitters = form ? [...formEls(form), ...all(form, 'input[type=image]')].filter(b => b.type === 'submit' || b.type === 'image') : [];
+    // Everywhere the form can send what is typed in it: its own action and the formaction of every control that submits it, wherever in
+    // the document (or in a web component) it sits, since a form="..." attribute makes a button or an image button outside the form one
+    // of its own (image buttons are not among its elements), each as the address it resolves to.
+    const submitters = form ? deepAll(docOf(form), 'button,input[type=submit],input[type=image]').filter(b => b.form === form && (b.type === 'submit' || b.type === 'image')) : [];
     const actions = form ? [...new Set([actionOf(form, null), ...submitters.map(b => actionOf(form, b))])].filter(Boolean) : [];
     if (args.stage !== 'fill') return JSON.stringify({origin, user: !!user, password: !!pw, action: form ? actionOf(form, null) : '', actions});
     // Between looking and filling the page may have changed: another site, or a form that now sends somewhere else.
@@ -975,22 +993,28 @@ extension PageScripts {
     /// it (x, y and the scale of a frame's pixel), so that their own answers can be put in place. Nothing is added to the page.
     static let rects = lib + #"""
 
-    const out = [];
+    const out = [], list = docs();
     for (const [id, ref] of registry) {
       const el = ref.deref();
       if (!el || !el.isConnected) continue;
-      const r = el.getBoundingClientRect(), w = where(el);
+      const r = el.getBoundingClientRect(), w = where(el, list);
       let left = w.dx + w.s * r.left, top = w.dy + w.s * r.top, right = left + w.s * r.width, bottom = top + w.s * r.height;
-      if (right <= 0 || bottom <= 0 || left >= innerWidth || top >= innerHeight) continue;
-      left = Math.max(left, 0); top = Math.max(top, 0); right = Math.min(right, innerWidth); bottom = Math.min(bottom, innerHeight);
+      // Only what is visible: inside the window and inside every frame it is in.
+      const [cl, ct, cr, cb] = w.clip || [0, 0, innerWidth, innerHeight];
+      if (right <= cl || bottom <= ct || left >= cr || top >= cb) continue;
+      left = Math.max(left, cl); top = Math.max(top, ct); right = Math.min(right, cr); bottom = Math.min(bottom, cb);
       out.push([id, left, top, right - left, bottom - top]);
     }
+    // Where each frame of another site sits in this window, with the part of it that is visible: x, y and the scale of its pixel, then
+    // that part as left, top, right and bottom.
     const frames = {};
-    for (const e of docs()) for (const f of e.doc.querySelectorAll('iframe,frame')) {
+    for (const e of list) for (const f of e.doc.querySelectorAll('iframe,frame')) {
       const slot = frameTags.get(f);
       if (!slot) continue;
       const r = f.getBoundingClientRect(), k = f.clientWidth ? r.width / f.clientWidth : 1;
-      frames[slot] = [e.dx + e.s * (r.left + f.clientLeft * k), e.dy + e.s * (r.top + f.clientTop * k), e.s * k];
+      const x = e.dx + e.s * (r.left + f.clientLeft * k), y = e.dy + e.s * (r.top + f.clientTop * k), scale = e.s * k;
+      const [cl, ct, cr, cb] = e.clip;
+      frames[slot] = [x, y, scale, Math.max(cl, x), Math.max(ct, y), Math.min(cr, x + scale * f.clientWidth), Math.min(cb, y + scale * f.clientHeight)];
     }
     return JSON.stringify({rects: out, frames});
     """#

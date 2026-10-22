@@ -374,18 +374,29 @@ enum ToolCatalog {
     /// click_at whatever the page zoom or the screen's pixel density; a wider page is scaled down, and the note says by how much.
     @MainActor
     private static func screenshot(_ tab: Tab, _ webView: WKWebView, labels: Bool, session: Session) async -> ToolResult {
-        guard labels else { return await picture(tab, webView) }
+        guard labels else { return await picture(tab, webView).0 }
         // The page is read again, so that the numbers are the ones a read_page gives now, and nobody else's read renumbers the
         // elements meanwhile. Nothing is put into the page: where each numbered element is comes from its own scripts, and the boxes
         // are drawn on the picture afterwards, out of the page's reach.
         return await tab.agent.gate.run {
             let read = await readPageAlone(tab, webView, maxChars: 200, session: session)
             if read.0.isError { return read.0 }
-            let boxes = await labelBoxes(tab, webView)
-            var result = await picture(tab, webView, labels: boxes)
+            let placed = await labelBoxes(tab, webView)
+            var (result, drawn) = await picture(tab, webView, labels: placed.boxes)
             if !result.isError {
-                result.content.append(["type": "text", "text": boxes.isEmpty ? "No interactive element is in view, so no numbers are drawn."
-                    : "The boxes carry the element numbers of a read_page taken just now (the page was read again for the picture, so numbers from earlier reads are replaced): use them with click, type_text, select_option, hover, press_key and drag. Where the boxes are comes from the page's layout, which a page can bend: what read_page says of an element is authoritative."])
+                var note: String
+                if placed.boxes.isEmpty {
+                    note = "No interactive element is in view, so no numbers are drawn."
+                } else if drawn == 0 {
+                    // The size of the page was not known, so the boxes could not be put at their places.
+                    note = "No numbers could be drawn on this picture (the size of the page was not known), so it has no boxes. Use the element numbers of the read_page that was just taken."
+                } else {
+                    note = "The boxes (\(drawn)) carry the element numbers of a read_page taken just now (the page was read again for the picture, so numbers from earlier reads are replaced): use them with click, type_text, select_option, hover, press_key and drag. Where the boxes are comes from the page's layout, which a page can bend: what read_page says of an element is authoritative."
+                }
+                if placed.unplaced > 0 {
+                    note += " The elements of \(placed.unplaced) frame\(placed.unplaced == 1 ? "" : "s") from another site have no box, since where \(placed.unplaced == 1 ? "it is" : "they are") on the page could not be worked out: use their numbers from read_page."
+                }
+                result.content.append(["type": "text", "text": note])
             }
             return result
         } ?? stopped
@@ -397,29 +408,74 @@ enum ToolCatalog {
         var x: Double, y: Double, width: Double, height: Double
     }
 
+    /// Where a frame sits in the window: where its top left is, what one of its pixels is worth, and the part of it that shows.
+    struct FramePlace: Equatable {
+        var x: Double, y: Double, scale: Double
+        var left: Double, top: Double, right: Double, bottom: Double
+    }
+
+    /// A box moved into the window from a frame's own pixels and cut at the part of the frame that shows; nil when none of it shows.
+    static func placed(_ box: LabelBox, in place: FramePlace) -> LabelBox? {
+        let left = max(place.x + place.scale * box.x, place.left), top = max(place.y + place.scale * box.y, place.top)
+        let right = min(place.x + place.scale * (box.x + box.width), place.right), bottom = min(place.y + place.scale * (box.y + box.height), place.bottom)
+        return right > left && bottom > top ? LabelBox(id: box.id, x: left, y: top, width: right - left, height: bottom - top) : nil
+    }
+
+    /// The place of a frame found inside another, from what the script of the outer one says (in its own pixels), in the window.
+    static func nested(_ inner: [Double], in outer: FramePlace) -> FramePlace? {
+        guard inner.count >= 7 else { return nil }
+        let x = outer.x + outer.scale * inner[0], y = outer.y + outer.scale * inner[1]
+        return FramePlace(x: x, y: y, scale: outer.scale * inner[2],
+                          left: max(outer.left, outer.x + outer.scale * inner[3]), top: max(outer.top, outer.y + outer.scale * inner[4]),
+                          right: min(outer.right, outer.x + outer.scale * inner[5]), bottom: min(outer.bottom, outer.y + outer.scale * inner[6]))
+    }
+
     /// Where each element the latest read numbered is in the visible page, from the page's own scripts (and those of the frames of
-    /// other sites that the read reached, whose places are taken from where the page puts their frames). Only what is in view.
+    /// other sites that the read reached, whose places are taken from where the page puts their frames, also for a frame inside a
+    /// frame). Only what is in view, and of a frame only the part of it that shows. `unplaced` is how many frames' elements get no box
+    /// because where their frame is could not be worked out.
     @MainActor
-    private static func labelBoxes(_ tab: Tab, _ webView: WKWebView) async -> [LabelBox] {
+    static func labelBoxes(_ tab: Tab, _ webView: WKWebView) async -> (boxes: [LabelBox], unplaced: Int) {
         func parse(_ result: ToolResult) -> (boxes: [LabelBox], frames: [String: [Double]])? {
             guard case .answered(let json) = look(result), let list = json["rects"] as? [[Double]] else { return nil }
             return (list.compactMap { $0.count == 5 ? LabelBox(id: Int($0[0]), x: $0[1], y: $0[2], width: $0[3], height: $0[4]) : nil }, json["frames"] as? [String: [Double]] ?? [:])
         }
-        guard let page = parse(await run(PageScripts.rects, [:], in: webView, timeout: 5)) else { return [] }
+        guard let page = parse(await run(PageScripts.rects, [:], in: webView, timeout: 5)) else { return ([], 0) }
         var boxes = page.boxes
-        for (slot, frame) in tab.agent.frames.known {
-            guard let place = page.frames[slot], place.count == 3, let inside = parse(await run(PageScripts.rects, [:], in: webView, frame: frame, timeout: 5)) else { continue }
-            boxes += inside.boxes.map { LabelBox(id: $0.id, x: place[0] + place[2] * $0.x, y: place[1] + place[2] * $0.y, width: place[2] * $0.width, height: place[2] * $0.height) }
+        var places: [String: FramePlace] = [:]
+        for (slot, frame) in page.frames {
+            if let place = nested(frame, in: FramePlace(x: 0, y: 0, scale: 1, left: -.infinity, top: -.infinity, right: .infinity, bottom: .infinity)) { places[slot] = place }
         }
-        return boxes
+        var waiting = tab.agent.frames.known
+        var unplaced = 0
+        // A frame is asked once the place of the frame that holds it is known: the page's own frames first, then the ones inside them.
+        var progress = true
+        while progress && !waiting.isEmpty {
+            progress = false
+            for entry in waiting {
+                guard let place = places[entry.slot] else { continue }
+                waiting.removeAll { $0.slot == entry.slot }
+                progress = true
+                guard let inside = parse(await run(PageScripts.rects, [:], in: webView, frame: entry.frame, timeout: 5)) else {
+                    unplaced += 1
+                    continue
+                }
+                boxes += inside.boxes.compactMap { placed($0, in: place) }
+                for (slot, frame) in inside.frames { if let inner = nested(frame, in: place) { places[slot] = inner } }
+            }
+        }
+        return (boxes, unplaced + waiting.count)
     }
 
     /// Draws the boxes and their numbers into the picture being made, `scale` pixels to a CSS pixel, `height` pixels high (the same
     /// scale click_at's note names, so a box lands where the element is).
-    private static func draw(_ boxes: [LabelBox], scale: CGFloat, height: CGFloat) {
+    @discardableResult
+    private static func draw(_ boxes: [LabelBox], scale: CGFloat, height: CGFloat) -> Int {
         let red = NSColor(srgbRed: 0.898, green: 0.282, blue: 0.302, alpha: 1)
         let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11, weight: .bold), .foregroundColor: NSColor.white]
+        var drawn = 0
         for box in boxes {
+            drawn += 1
             let frame = NSRect(x: box.x * scale, y: height - (box.y + box.height) * scale, width: max(box.width * scale, 4), height: max(box.height * scale, 4))
             red.withAlphaComponent(0.10).setFill()
             frame.fill()
@@ -433,10 +489,11 @@ enum ToolCatalog {
             tag.fill()
             text.draw(at: NSPoint(x: tag.minX + (tag.width - text.size().width) / 2, y: tag.minY + (16 - text.size().height) / 2))
         }
+        return drawn
     }
 
     @MainActor
-    private static func picture(_ tab: Tab, _ webView: WKWebView, labels: [LabelBox] = []) async -> ToolResult {
+    private static func picture(_ tab: Tab, _ webView: WKWebView, labels: [LabelBox] = []) async -> (ToolResult, drawn: Int) {
         let size = await run("return JSON.stringify([innerWidth, innerHeight]);", [:], in: webView, timeout: 5).content.first?["text"] as? String
         let viewport = size.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [Double] }.flatMap { $0.count == 2 && $0[0] >= 1 && $0[1] >= 1 ? $0 : nil }
         let configuration = WKSnapshotConfiguration()
@@ -448,14 +505,14 @@ enum ToolCatalog {
             webView.takeSnapshot(with: configuration) { image, _ in finish(image) }
         }
         await runInPageAndFrames(PageScripts.unmaskSecrets, tab, webView)
-        guard let image, let jpeg = jpegData(image, maxWidth: 1280, labels: labels, cssWidth: viewport?[0]) else { return .text("Error: the page could not be captured.", error: true) }
+        guard let image, let (jpeg, drawn) = jpegData(image, maxWidth: 1280, labels: labels, cssWidth: viewport?[0]) else { return (.text("Error: the page could not be captured.", error: true), 0) }
         var content: [[String: Any]] = [["type": "image", "data": jpeg.base64EncodedString(), "mimeType": "image/jpeg"]]
         if let viewport {
             let pixels = min(image.size.width, 1280).rounded(), scale = pixels / viewport[0]
             content.append(["type": "text", "text": scale == 1 ? "Screenshot: \(Int(pixels)) x \(Int((image.size.height * min(1, 1280 / image.size.width)).rounded())) pixels, 1 pixel = 1 CSS pixel, so a point in it is the x and y for click_at."
                 : "Screenshot: \(Int(pixels)) pixels wide for a page \(Int(viewport[0])) x \(Int(viewport[1])) CSS pixels: for click_at, divide a point's x and y by \(String(format: "%.3f", scale))."])
         }
-        return ToolResult(content: content)
+        return (ToolResult(content: content), drawn)
     }
 
     /// Runs a script in the page and in every frame of another site the app can reach, all at once.
@@ -468,7 +525,8 @@ enum ToolCatalog {
         }
     }
 
-    private static func jpegData(_ image: NSImage, maxWidth: CGFloat, labels: [LabelBox] = [], cssWidth: Double? = nil) -> Data? {
+    /// The picture as a JPEG, and how many boxes were drawn on it (none when the width of the page in CSS pixels is not known).
+    private static func jpegData(_ image: NSImage, maxWidth: CGFloat, labels: [LabelBox] = [], cssWidth: Double? = nil) -> (Data, drawn: Int)? {
         let scale = min(1, maxWidth / max(image.size.width, 1))
         let size = NSSize(width: (image.size.width * scale).rounded(), height: (image.size.height * scale).rounded())
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width), pixelsHigh: Int(size.height), bitsPerSample: 8,
@@ -476,9 +534,10 @@ enum ToolCatalog {
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
         image.draw(in: NSRect(origin: .zero, size: size))
-        if let cssWidth, cssWidth > 0 { draw(labels, scale: size.width / cssWidth, height: size.height) }
+        var drawn = 0
+        if let cssWidth, cssWidth > 0 { drawn = draw(labels, scale: size.width / cssWidth, height: size.height) }
         NSGraphicsContext.restoreGraphicsState()
-        return rep.representation(using: .jpeg, properties: [.compressionFactor: 0.7])
+        return rep.representation(using: .jpeg, properties: [.compressionFactor: 0.7]).map { ($0, drawn) }
     }
 
     /// Waits until the tab stops loading (at most ten seconds). After a click, gives a navigation a moment to start.
