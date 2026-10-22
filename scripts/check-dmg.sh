@@ -53,9 +53,13 @@ if grep -q "^Authority=Developer ID Application" <<<"$SIGNING"; then
     grep -q "flags=.*runtime" <<<"$SIGNING" || fail "The hardened runtime is off"
     grep -q "com.apple.security.device.camera" <<<"$(codesign -d --entitlements - "$APP" 2>/dev/null)" \
         || fail "The camera entitlement is missing, so sites couldn't use the camera"
-    xcrun stapler validate -q "$DMG" || fail "The DMG has no notarization ticket"
-    spctl --assess --type open --context context:primary-signature "$DMG" 2>/dev/null || fail "Gatekeeper rejects the DMG"
-    spctl --assess --type execute "$APP" 2>/dev/null || fail "Gatekeeper rejects the app"
+    if [[ -n "${SKIP_NOTARIZE:-}" ]]; then
+        step "Not notarized (SKIP_NOTARIZE): Gatekeeper checks skipped"
+    else
+        xcrun stapler validate -q "$DMG" || fail "The DMG has no notarization ticket"
+        spctl --assess --type open --context context:primary-signature "$DMG" 2>/dev/null || fail "Gatekeeper rejects the DMG"
+        spctl --assess --type execute "$APP" 2>/dev/null || fail "Gatekeeper rejects the app"
+    fi
 fi
 
 step "Resources"

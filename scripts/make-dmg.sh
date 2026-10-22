@@ -20,6 +20,11 @@ rm -rf "$STAGE"
 IDENTITY="$(developer_id)"
 if [[ -n "$IDENTITY" ]]; then
     codesign --force --timestamp --sign "$IDENTITY" "$DMG"
+    if [[ -n "${SKIP_NOTARIZE:-}" ]]; then
+        echo "▸ Signed with $IDENTITY; not notarized (SKIP_NOTARIZE)" >&2
+        echo "$DMG"
+        exit 0
+    fi
     echo "▸ Notarizing (this takes a few minutes)" >&2
     RESULT="$(xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait --output-format json)"
     STATUS="$(python3 -I -c 'import json, sys; print(json.load(sys.stdin).get("status", ""))' <<<"$RESULT")"
