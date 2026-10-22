@@ -37,7 +37,7 @@
 brew install --cask namekun/tap/changmun
 ```
 
-需要 [Homebrew](https://brew.sh)、macOS 14 Sonoma 或更高版本，以及搭载 Apple 芯片的 Mac。App 使用 Developer ID 签名并经过 Apple 公证，所以可以直接打开。更新时运行 `brew update && brew upgrade --cask changmun`。
+需要 [Homebrew](https://brew.sh)、macOS 14 Sonoma 或更高版本，以及搭载 Apple 芯片的 Mac。App 使用 Developer ID 签名并经过 Apple 公证，所以可以直接打开。更新会在 App 内收到（Changmun › 检查更新…，默认自动）。Homebrew 只用于安装。
 
 首次启动时，Changmun 会询问是否从你现在使用的浏览器导入书签和历史记录（Chromium 内核浏览器还包括密码和登录状态）。
 
@@ -98,7 +98,7 @@ open build/Changmun.app
 
 ### 更新
 
-- **更新提醒。** 有新版本时提醒你。Changmun 通过 Homebrew 更新。每天一次向 GitHub 查询最新版本，有新版本时边栏底部会出现一条安静的提示，可以帮你复制 `brew upgrade --cask changmun`。可在设置 › 高级 › 检查更新中关闭。
+- **自动更新。** Changmun 通过 Sparkle 自行更新。它每天在后台检查一次，有新版本时询问你是否安装；选取 Changmun › 检查更新… 可立即检查。更新带有签名，只有与 App 内置密钥相符的才会安装。可在设置 › 高级中关闭自动检查，或让它自动下载并安装。
 
 ## AI
 
@@ -206,7 +206,7 @@ Changmun 会把 EasyList（广告）和 EasyPrivacy（跟踪器）转换为 WebK
 ## 隐私
 
 - 你的浏览数据只保留在你的 Mac 上。Changmun 没有账号、服务器或统计分析。
-- 检查更新每天一次向 GitHub 的公开发布 API 查询最新版本号，不会发送其他任何内容（可在设置 › 高级中关闭）。
+- 检查更新会从 GitHub Pages 获取一份很小的发布列表（`appcast.xml`）。GitHub 和任何网站服务器一样会收到这个请求，能看到 Changmun 的名称和版本；会附带 Mac 详细信息的 Sparkle 系统资料已关闭，并保持关闭（可在设置 › 高级中关闭检查本身）。
 - 搜索建议会把你在命令栏中输入的内容发送给你的搜索引擎（可在设置中关闭；私密浏览窗口中从不发送）。
 - AI 面板会通过 `claude` CLI 把你的消息和 AI 读取的页面内容发送给 Anthropic。整理标签页和页面翻译都在你的 Mac 上运行。
 

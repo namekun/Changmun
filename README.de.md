@@ -37,7 +37,7 @@
 brew install --cask namekun/tap/changmun
 ```
 
-Du brauchst [Homebrew](https://brew.sh), macOS 14 Sonoma oder neuer und einen Mac mit Apple Chip. Die App ist mit einer Developer ID signiert und von Apple notarisiert, sodass sie sich sofort öffnet. Aktualisieren mit `brew update && brew upgrade --cask changmun`.
+Du brauchst [Homebrew](https://brew.sh), macOS 14 Sonoma oder neuer und einen Mac mit Apple Chip. Die App ist mit einer Developer ID signiert und von Apple notarisiert, sodass sie sich sofort öffnet. Updates kommen direkt in der App an (Changmun › Nach Updates suchen…, standardmäßig automatisch); Homebrew brauchst du nur zum Installieren.
 
 Beim ersten Start bietet Changmun an, Lesezeichen und Verlauf aus deinem bisherigen Browser zu übernehmen, aus Chromium-Browsern auch Passwörter und Anmeldungen.
 
@@ -98,7 +98,7 @@ Werbe- und Tracker-Blocker werden unter [Werbeblocker](#werbeblocker) beschriebe
 
 ### Updates
 
-- **Update-Hinweis.** Sagt dir Bescheid, wenn es eine neue Version gibt. Changmun wird über Homebrew aktualisiert. Einmal am Tag fragt es bei GitHub nach der neuesten Version; gibt es eine neuere, kopiert ein dezenter Hinweis unten in der Seitenleiste `brew upgrade --cask changmun` für dich. Abschalten unter Einstellungen › Erweitert › Nach Updates suchen.
+- **Automatische Updates.** Changmun aktualisiert sich selbst mit Sparkle. Es prüft einmal am Tag im Hintergrund und bietet die Installation an, sobald eine neue Version erscheint; Changmun › Nach Updates suchen… prüft sofort. Updates sind signiert, und Changmun installiert eines nur, wenn die Signatur zum Schlüssel in der App passt. Unter Einstellungen › Erweitert kannst du die automatische Prüfung abschalten oder Updates von selbst laden und installieren lassen.
 
 ## KI
 
@@ -206,7 +206,7 @@ Beim ersten Start oder über das Menü importiert Changmun Lesezeichen und Verla
 ## Datenschutz
 
 - Dein Surfverhalten bleibt auf deinem Mac. Changmun hat kein Konto, keinen Server und keine Analyse.
-- Die Update-Prüfung fragt einmal am Tag die öffentliche Releases-API von GitHub nach der neuesten Versionsnummer und sendet sonst nichts (abschaltbar unter Einstellungen › Erweitert).
+- Die Update-Prüfung lädt eine kleine Liste der Versionen (`appcast.xml`) von GitHub Pages. GitHub sieht die Anfrage wie jeder Webserver, mit Name und Version von Changmun; das Systemprofil von Sparkle, das Angaben zu deinem Mac hinzufügen würde, ist aus und bleibt aus (die Prüfung selbst lässt sich unter Einstellungen › Erweitert abschalten).
 - Suchvorschläge senden, was du in die Befehlsleiste eingibst, an deine Suchmaschine (in den Einstellungen ausschaltbar; aus privaten Fenstern wird nie etwas gesendet).
 - Die KI-Seitenleiste sendet deine Nachrichten und die Seiteninhalte, die die KI liest, über das `claude`-CLI an Anthropic. „Tabs aufräumen“ und die Seitenübersetzung laufen auf deinem Mac.
 

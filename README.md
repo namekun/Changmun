@@ -37,7 +37,7 @@
 brew install --cask namekun/tap/changmun
 ```
 
-Needs [Homebrew](https://brew.sh), macOS 14 Sonoma or later and an Apple silicon Mac. The app is signed with a Developer ID and notarized by Apple, so it opens right away. To update, run `brew update && brew upgrade --cask changmun`.
+Needs [Homebrew](https://brew.sh), macOS 14 Sonoma or later and an Apple silicon Mac. The app is signed with a Developer ID and notarized by Apple, so it opens right away. Updates arrive inside the app (Changmun › Check for Updates…, automatic by default), so Homebrew is only needed to install.
 
 On first launch Changmun offers to bring over bookmarks and history from the browser you use now, plus passwords and sign-ins if it's a Chromium browser.
 
@@ -98,7 +98,7 @@ Ad and tracker blocking is covered under [Ad blocking](#ad-blocking), and what s
 
 ### Updates
 
-- **Update notice.** Tells you when a new version is out. Changmun is updated through Homebrew. Once a day it asks GitHub for the latest release, and when there's a newer one a quiet note at the bottom of the sidebar copies `brew upgrade --cask changmun` for you. Turn it off in Settings › Advanced › Check for Updates.
+- **Automatic updates.** Changmun updates itself with Sparkle. It checks in the background once a day and, when a new version is out, offers to install it; Changmun › Check for Updates… checks right now. Updates are signed, and Changmun installs one only if the signature matches the key built into the app. In Settings › Advanced you can turn the automatic check off, or let it download and install on its own.
 
 ## AI
 
@@ -225,7 +225,7 @@ On first launch, or from the menu, Changmun imports bookmarks and history from S
 ## Privacy
 
 - Your browsing stays on your Mac. Changmun has no account, server or analytics.
-- The update check asks GitHub's public releases API for the latest version number once a day and sends nothing else (Settings › Advanced turns it off).
+- The update check fetches a small list of releases (`appcast.xml`) from GitHub Pages. GitHub sees the request like any web server does, including Changmun's name and version; Sparkle's system profile, which would add details about your Mac, is off and stays off (Settings › Advanced turns the check off).
 - Search suggestions send what you type in the command bar to your search engine (turn them off in Settings; never sent from private windows).
 - The AI panel sends your messages, and the page content the AI reads, to Anthropic through the `claude` CLI. Tidy tabs and page translation run on your Mac.
 

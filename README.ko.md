@@ -37,7 +37,7 @@
 brew install --cask namekun/tap/changmun
 ```
 
-[Homebrew](https://brew.sh)가 필요하고, macOS 14 Sonoma 이상의 Apple 실리콘 Mac에서 돌아가요. 앱은 Developer ID로 서명하고 Apple 공증까지 받아서 바로 열려요. 업데이트는 `brew update && brew upgrade --cask changmun`을 실행하세요.
+[Homebrew](https://brew.sh)가 필요하고, macOS 14 Sonoma 이상의 Apple 실리콘 Mac에서 돌아가요. 앱은 Developer ID로 서명하고 Apple 공증까지 받아서 바로 열려요. 업데이트는 앱 안에서 받아요(Changmun › 업데이트 확인…, 기본은 자동). Homebrew는 설치할 때만 쓰면 돼요.
 
 처음 실행하면 지금 쓰는 브라우저의 북마크와 방문 기록을, Chromium 계열이면 비밀번호와 로그인 상태까지 가져올지 물어봐요.
 
@@ -98,7 +98,7 @@ Command Line Tools만 깔려 있으면 스크립트가 macOS 26 SDK로 빌드해
 
 ### 업데이트
 
-- **업데이트 알림.** 새 버전이 나오면 알려 줘요. Changmun은 Homebrew로 업데이트해요. 하루에 한 번 GitHub에서 최신 릴리스를 확인하고, 새 버전이 있으면 사이드바 아래에 조용한 알림이 떠서 `brew upgrade --cask changmun`을 복사해 줘요. 설정 › 고급 › 업데이트 확인에서 끌 수 있어요.
+- **자동 업데이트.** Changmun이 Sparkle로 스스로 업데이트해요. 하루에 한 번 백그라운드에서 확인하고, 새 버전이 나오면 설치할지 물어봐요. Changmun › 업데이트 확인…을 고르면 바로 확인해요. 업데이트에는 서명이 있어서, 앱에 들어 있는 키와 맞는 것만 설치해요. 설정 › 고급에서 자동 확인을 끄거나, 알아서 내려받아 설치하게 할 수 있어요.
 
 ## AI
 
@@ -206,7 +206,7 @@ EasyList(광고)와 EasyPrivacy(추적)를 WebKit 콘텐츠 차단 규칙으로 
 ## 개인정보
 
 - 웹에서 한 일은 이 Mac 안에만 남아요. Changmun에는 계정도 서버도 분석 도구도 없어요.
-- 업데이트 확인은 하루에 한 번 GitHub의 공개 릴리스 API에서 최신 버전 번호만 가져오고, 그 밖에는 아무것도 보내지 않아요(설정 › 고급에서 끌 수 있어요).
+- 업데이트 확인은 GitHub Pages에서 작은 릴리스 목록(`appcast.xml`)을 받아 와요. GitHub는 일반 웹 서버처럼 요청을 받으니 Changmun의 이름과 버전은 볼 수 있어요. Mac에 관한 정보를 더하는 Sparkle의 시스템 프로필은 꺼져 있고 계속 꺼 둬요(설정 › 고급에서 확인 자체를 끌 수 있어요).
 - 검색어 추천은 명령 막대에 입력한 글자를 검색 엔진에 보내요(설정에서 끌 수 있고, 개인 창에서는 보내지 않아요).
 - AI 패널은 `claude` CLI를 거쳐 입력한 메시지와 AI가 읽은 페이지 내용을 Anthropic에 보내요. 탭 정리와 페이지 번역은 이 Mac 안에서 돌아요.
 
