@@ -2155,9 +2155,24 @@ extension SharedAgentState {
             // The tab already shows the address of a page that has not replaced the one that asked: the origin WebKit named decides.
             tab.popupBlocked(try #require(URL(string: "https://x.test/go")), pageSite: "other.test")
             #expect(b.tabs.count == 1 && tab.blockedPopupSite == "other.test")
+            // What the button says is the site it grants, though the page that asked is the main frame: it is not the one shown.
+            #expect(tab.blockedPopupIsFromOtherSite)
             tab.blockedPopup = nil
             tab.popupBlocked(try #require(URL(string: "https://x.test/go")), pageSite: "shown.test")
             #expect(b.tabs.count == 2 && tab.blockedPopup == nil)
+        }
+
+        @Test func theBarGoesWhenTheNextPageStartsLoadingNotOnlyWhenItCommits() throws {
+            let restore = allowing([])
+            defer { restore() }
+            let b = Browser()
+            let tab = b.openTab(url: URL(string: "https://page.test/"))
+            let view = tab.wake()
+            tab.popupBlocked(try #require(URL(string: "https://x.test/go")), pageSite: "page.test")
+            tab.popupBlocked(try #require(URL(string: "https://x.test/two")), pageSite: "page.test")
+            #expect(tab.blockedPopup != nil && tab.blockedPopupCount == 2)
+            tab.webView(view, didStartProvisionalNavigation: nil)
+            #expect(tab.blockedPopup == nil && tab.blockedPopupCount == 0 && tab.blockedPopupSite == nil)
         }
 
         @Test func aFrameOfAnAllowedSiteOpensOnAPageOfAnotherSite() throws {
@@ -2356,6 +2371,102 @@ extension SharedAgentState {
                 """, base: "https://popup.test/page", in: b)
             defer { window.close() }
             #expect(await eventually("warned.join('|')", in: view).contains("https://popup.test/next"))
+        }
+
+        /// A script that opens a window from a timer under the gesture the app's call carries, and says what it got in the page.
+        private static let openLater = """
+            return await new Promise(resolve => setTimeout(() => {
+              const answer = window.open('/late') === null ? 'refused' : 'window';
+              document.documentElement.dataset.done = answer;
+              resolve(answer);
+            }, 400));
+            """
+
+        @Test func aToolScriptThatTimedOutStillMarksThePageUntilItReallyEnds() async throws {
+            let restore = allowing([])
+            defer { restore() }
+            // The control: a script of the app's, not marked, does open the window (the call's gesture reaches the timer).
+            let control = Browser()
+            control.focused()
+            defer { control.windowClosed() }
+            let (_, controlView, controlWindow) = try await page("<p>page</p>", base: "https://popup.test/page", in: control)
+            defer { controlWindow.close() }
+            let opened = try await controlView.callAsyncJavaScript(Self.openLater, contentWorld: .defaultClient) as? String
+            #expect(opened == "window" && control.tabs.count == 2)
+            // The tool stops waiting after 0.1 s; the page's script goes on, and its window is not the user's.
+            let b = Browser()
+            b.focused()
+            defer { b.windowClosed() }
+            let (tab, view, window) = try await page("<p>page</p>", base: "https://popup.test/page", in: b)
+            defer { window.close() }
+            let result = await ToolCatalog.run(Self.openLater, [:], in: view, timeout: 0.1)
+            #expect(result.isError, "the tool gave up waiting")
+            #expect(AppScripts.drives(view), "the script is still going")
+            #expect(await eventually("document.documentElement.dataset.done || ''", in: view) == "refused")
+            #expect(b.tabs.count == 1)
+            _ = tab
+        }
+
+        @Test func aClickOfTheAIsOwnScriptIsTheUsers() async throws {
+            let restore = allowing([])
+            defer { restore() }
+            let b = Browser()
+            b.focused()
+            defer { b.windowClosed() }
+            let (_, view, window) = try await page("<p>page</p>", base: "https://popup.test/page", in: b)
+            defer { window.close() }
+            let result = await ToolCatalog.$currentTool.withValue("click") { await ToolCatalog.run(Self.openLater, [:], in: view) }
+            #expect(result.content.first?["text"] as? String == "window" && b.tabs.count == 2)
+        }
+
+        @Test func aLoginFilledInCannotOpenAWindowThroughThePagesHandlers() async throws {
+            let restore = allowing([])
+            defer { restore() }
+            let html = """
+                <form><input type="text" name="user"><input type="password" name="pw"
+                  oninput="window.opened = window.open('/typed') ? 'window' : 'refused'"></form>
+                """
+            // The control: the same fill, run as a plain call, gets the window the page's handler asks for.
+            let control = Browser()
+            control.focused()
+            defer { control.windowClosed() }
+            let (_, controlView, controlWindow) = try await page(html, base: "https://login.test/", in: control)
+            defer { controlWindow.close() }
+            _ = try await controlView.callAsyncJavaScript(Logins.fillScript, arguments: ["username": "me", "password": "secret"], contentWorld: .defaultClient)
+            #expect(await eventually("window.opened || ''", in: controlView) == "window" && control.tabs.count == 2)
+            let b = Browser()
+            b.focused()
+            defer { b.windowClosed() }
+            let (tab, view, window) = try await page(html, base: "https://login.test/", in: b)
+            defer { window.close() }
+            tab.fill(username: "me", password: "secret")
+            #expect(await eventually("window.opened || ''", in: view) == "refused")
+            #expect(b.tabs.count == 1)
+            #expect(await waitUntil { tab.blockedPopup != nil })
+        }
+
+        @Test func aPageIsDrivenWhileAnAppScriptRunsAndForAMomentAfter() async throws {
+            let b = Browser()
+            b.focused()
+            defer { b.windowClosed() }
+            let (_, view, window) = try await page("<p>page</p>", base: "https://popup.test/page", in: b)
+            defer { window.close() }
+            #expect(!AppScripts.drives(view))
+            let slow = "await new Promise(resolve => setTimeout(resolve, 200)); return 1"
+            var firstEnded = false
+            view.appScript(slow) { _ in firstEnded = true }
+            #expect(AppScripts.drives(view), "running")
+            #expect(await waitUntil { firstEnded })
+            #expect(AppScripts.drives(view), "just ended")
+            // A click's own script is the user's kind of act, even straight after another tool's.
+            var clickEnded = false
+            view.appScript(slow, userLike: true) { _ in clickEnded = true }
+            try await Task.sleep(for: .milliseconds(50))
+            #expect(!AppScripts.drives(view), "a click alone")
+            view.appScript(slow) { _ in }
+            #expect(AppScripts.drives(view), "a click beside another tool's script")
+            #expect(await waitUntil { clickEnded })
+            #expect(await waitUntil(5) { !AppScripts.drives(view) }, "the moment is over")
         }
 
         @Test func anAllowedSitesPopupIsAWindowOfThePage() async throws {

@@ -41,6 +41,8 @@ enum ToolCatalog {
 
     /// The title of the tool call under way, which the progress line shows in place of the words the app would make.
     @TaskLocal static var currentTitle: String?
+    /// The tool being carried out: its scripts mark the page as driven by the app, unless it is a click (see AppScripts).
+    @TaskLocal static var currentTool: String?
 
     static let maxTabsPerRead = 10
     /// All of a read_tabs call, approvals included, ends before the control server gives up on its caller.
@@ -86,7 +88,7 @@ enum ToolCatalog {
     @MainActor
     /// `caller` tells apart the chat panel and each MCP connection: what one has read doesn't count for another.
     static func call(_ name: String, _ args: [String: Any], caller: String) async -> ToolResult {
-        await $currentTitle.withValue(stepTitle(args["title"])) { await perform(name, args, caller: caller) }
+        await $currentTool.withValue(name) { await $currentTitle.withValue(stepTitle(args["title"])) { await perform(name, args, caller: caller) } }
     }
 
     @MainActor
@@ -138,9 +140,6 @@ enum ToolCatalog {
         let webView = tab.wake()
         if name != "switch_tab" && name != "close_tab" { AgentActivity.shared.use(tab, caller: caller) }
         defer { AgentActivity.shared.step(nil, caller: caller) }
-        // See AgentState.tools: a window opened while a tool runs is judged as the page's own, unless the tool is a click.
-        tab.agent.toolStarted(name)
-        defer { tab.agent.toolEnded(name) }
         switch name {
         case "switch_tab":
             browser.activate(tab.id)
@@ -262,9 +261,7 @@ enum ToolCatalog {
                 sections[tab.id] = "This tab didn't load in time. Try again."
                 continue
             }
-            tab.agent.toolStarted("read_tabs")
             let result = await run(PageScripts.readText, ["maxChars": maxChars], in: webView, timeout: min(20, remaining))
-            tab.agent.toolEnded("read_tabs")
             let host = readHost(result)
             if !read.inFront, !(await Approvals.allowRead(tab, approvedHost: read.approvedHost, readHost: host, caller: caller)) {
                 sections[tab.id] = "The user declined this tab. Don't retry it."
@@ -346,7 +343,7 @@ enum ToolCatalog {
     @MainActor
     static func run(_ script: String, _ arguments: [String: Any], in webView: WKWebView, frame: WKFrameInfo? = nil, timeout: Double = 20) async -> ToolResult {
         await withTimeout(seconds: timeout, fallback: .text(didNotAnswer, error: true)) { finish in
-            webView.callAsyncJavaScript(script, arguments: arguments, in: frame, in: .defaultClient) { result in
+            webView.appScript(script, arguments: arguments, in: frame, userLike: currentTool.map(AppScripts.clickTools.contains) ?? false) { result in
                 switch result {
                 case .success(let value):
                     let text = value as? String ?? "\(value)"

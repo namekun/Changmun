@@ -28,7 +28,9 @@ enum Reader {
     @MainActor
     static func run(_ mode: Mode, in webView: WKWebView) async -> State {
         let arguments: [String: Any] = ["mode": mode.rawValue, "exitLabel": String(localized: "Exit Reader Mode")]
-        let answer = try? await webView.callAsyncJavaScript(script, arguments: arguments, contentWorld: .defaultClient) as? String
+        // Looking whether there is an article (it runs when every page has loaded) changes nothing, so it doesn't mark the page.
+        let answer = try? await (mode == .check ? webView.callAsyncJavaScript(script, arguments: arguments, contentWorld: .defaultClient)
+                                                : webView.appScript(script, arguments: arguments)) as? String
         return answer.flatMap(State.init) ?? .none
     }
 

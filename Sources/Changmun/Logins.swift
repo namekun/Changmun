@@ -179,7 +179,11 @@ extension Tab {
     func fillLogin(username: String) {
         guard let webView, webView.url?.scheme == "https", let host = webView.url?.host(),
               let password = Logins.password(host: host, username: username) else { return }
-        webView.callAsyncJavaScript(Logins.fillScript, arguments: ["username": username, "password": password], in: nil, in: .defaultClient) { _ in }
+        fill(username: username, password: password)
+    }
+
+    func fill(username: String, password: String) {
+        webView?.appScript(Logins.fillScript, arguments: ["username": username, "password": password])
     }
 }
 

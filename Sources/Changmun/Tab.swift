@@ -261,12 +261,12 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// Puts the page's video in picture in picture (the playing one, else the largest), or brings it back.
     func pictureInPicture(_ mode: PictureInPicture) {
         guard let webView else { return }
-        webView.callAsyncJavaScript(Self.pictureInPictureScript, arguments: ["mode": mode.rawValue], in: nil, in: .defaultClient) { _ in }
+        webView.appScript(Self.pictureInPictureScript, arguments: ["mode": mode.rawValue])
     }
 
     /// Moves the floating video (else the one playing) by `seconds`.
     func seekVideo(by seconds: Double) {
-        webView?.callAsyncJavaScript(Self.seekScript, arguments: ["by": seconds], in: nil, in: .defaultClient) { _ in }
+        webView?.appScript(Self.seekScript, arguments: ["by": seconds])
     }
 
     static let seekScript = """
@@ -401,6 +401,12 @@ extension Tab: WKNavigationDelegate {
         Downloads.shared.track(download, from: self)
     }
 
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        // The page that asked for the pop-up is on its way out: its bar goes now, not at the commit, so that no button is pressed
+        // while the tab's address and the bar's site have parted ways.
+        blockedPopup = nil
+    }
+
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         if webView.url?.isFileURL != true { userFileLoad = nil }
         // A new site gets its own zoom; staying on the same one keeps what the user set (a private tab never saves it).
@@ -472,11 +478,12 @@ extension Tab: WKNavigationDelegate {
         browser.openTab(url: popup, activate: browser.isShown(self), after: self).openerID = id
     }
 
-    /// Whether the pop-up in the bar came from a frame of another site than the page's.
+    /// Whether the site the bar would allow is not the one the page shows (a frame's, or the main frame's when the tab has
+    /// moved on): the button then names it. It is the site that is granted that is compared, nothing else.
     var blockedPopupIsFromOtherSite: Bool {
-        guard let frame = blockedPopupFrame else { return false }
+        guard let site = blockedPopupSite else { return false }
         func bare(_ host: String?) -> String { (host ?? "").lowercased().replacingOccurrences(of: "www.", with: "", options: .anchored) }
-        return bare(frame) != bare(url?.host())
+        return bare(site) != bare(url?.host())
     }
 
     /// Opens the pop-up in the bar, and with `always` allows its site. `seen` is what the bar showed when the user pressed the
@@ -625,8 +632,8 @@ extension Tab: WKUIDelegate {
         // macOS release renames it, `knowsUserInitiated` goes false and the preference is turned off again (Browser.swift), so WebKit
         // refuses the unclicked windows itself. If one changes what it says, only the test that opens a window from a timer with no
         // gesture (aTimersPopupWithNoGestureIsRefused) notices, so it must keep passing.
-        // The AI's tools run their scripts with a user gesture too, so while one that isn't a click runs, no window is the user's.
-        let userInitiated = !agent.drivesGesture && Self.isUserInitiated(action)
+        // The app's own scripts (the AI's tools, a login filled in...) run with a user gesture too: see AppScripts.
+        let userInitiated = !AppScripts.drives(webView) && Self.isUserInitiated(action)
         if userInitiated, Self.isPeekClick(action), let url = action.request.url {
             browser?.openPeek(url)
             return nil

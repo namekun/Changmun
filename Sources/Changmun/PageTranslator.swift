@@ -48,16 +48,15 @@ enum PageTranslator {
             let requests = texts.enumerated().map { TranslationSession.Request(sourceText: $1, clientIdentifier: String(start + $0)) }
             guard let responses = try? await session.translations(from: requests), current() else { return start == 0 ? .failed : .translated }
             let translated = Dictionary(responses.compactMap { r in r.clientIdentifier.map { ($0, r.targetText) } }) { first, _ in first }
-            _ = try? await webView.callAsyncJavaScript(applyScript, arguments: ["texts": translated], contentWorld: .defaultClient)
+            _ = try? await webView.appScript(applyScript, arguments: ["texts": translated])
             start += texts.count
         }
         return .translated
     }
 
     static func showOriginal(_ webView: WKWebView) async {
-        _ = try? await webView.callAsyncJavaScript(
-            "const t = globalThis.changmunTranslation; if (t) t.nodes.forEach((n, i) => { n.nodeValue = t.originals[i]; }); delete globalThis.changmunTranslation;",
-            contentWorld: .defaultClient)
+        _ = try? await webView.appScript(
+            "const t = globalThis.changmunTranslation; if (t) t.nodes.forEach((n, i) => { n.nodeValue = t.originals[i]; }); delete globalThis.changmunTranslation;")
     }
 
     /// The first 4000 or so characters of the page's text, without laying the whole page out for `innerText`.

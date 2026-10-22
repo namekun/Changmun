@@ -1397,21 +1397,6 @@ extension SharedAgentState {
             #expect(browser.tabs.count == 3)
         }
 
-        @Test func theToolsMarkTheTabAsDrivenWhileTheyRunAndForAMomentAfter() {
-            var state = AgentState()
-            #expect(!state.drivesGesture)
-            state.toolStarted("type_text")
-            #expect(state.drivesGesture)
-            state.toolStarted("click")
-            #expect(state.drivesGesture, "a click beside another tool does not make the other one the user's")
-            state.toolEnded("type_text")
-            #expect(!state.drivesGesture, "a click alone is the user's kind of gesture")
-            state.toolEnded("click")
-            #expect(state.drivesGesture, "the moment after a tool that is not a click")
-            state.lastDrivenEnd = Date().addingTimeInterval(-AgentState.drivenGrace - 1)
-            #expect(!state.drivesGesture && state.tools.isEmpty)
-        }
-
         /// The question the guard asks before something that can't be undone, apart from the others about using a tab.
         private nonisolated static func isHigh(_ prompt: Approvals.Prompt) -> Bool { prompt.message.contains("undone") }
         private nonisolated static func isLow(_ prompt: Approvals.Prompt) -> Bool { prompt.message.contains("accept cookies") }
