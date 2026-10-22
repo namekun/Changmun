@@ -5,9 +5,20 @@
     <link>https://namekun.github.io/Changmun/</link>
     <description>Changmun updates</description>
     <language>en</language>
+    <item>
+      <title>0.6.0</title>
+      <pubDate>Thu, 22 Oct 2026 15:46:11 +0000</pubDate>
+      <sparkle:version>18</sparkle:version>
+      <sparkle:shortVersionString>0.6.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.6.0</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Changmun updates itself.** New versions now arrive inside the app. Changmun looks for one once a day and asks before installing it; choose Changmun › Check for Updates… to look right away, or let it download and install updates on its own in Settings › Advanced. Every update is signed by the developer, and Changmun refuses one that isn't. This is the last version you need to install by hand, so the sidebar's brew note is gone. Homebrew keeps working and now knows that Changmun keeps itself up to date.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.6.0/Changmun-0.6.0.dmg" length="4227505" type="application/octet-stream" sparkle:edSignature="dyrFq1fmAYdHU+5C9UUZJrbjauSL8DXuTSLzyrxIkp86lbxd/tbxN6WY4f7FbOiibV812i9AP9NUg28EFqEXAg==" />
+    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: I9WAZCozTtng/TS6i43eAyP1NNK4s+ua4MNbdPLfPE0rxR2z7qBnf70rqVAq3MYP/ATjCOrsSuqPqm8k503rAw==
-length: 316
+edSignature: TkIB93DfpL4eV7QeidzwyW+wfToGutkkRW5DLq5szMvWxGJijfHucnjtU86NkNuveZM3WE1G2WvbS6TMmuH3CQ==
+length: 1648
 -->
