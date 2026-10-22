@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 struct ChatItem: Identifiable, Equatable {
-    enum Kind { case user, assistant, tool, error }
+    enum Kind { case user, assistant, tool, error, note }
     let id = UUID()
     var kind: Kind
     var text: String
@@ -49,6 +49,13 @@ final class ChatStore: ObservableObject {
     /// A steer waiting for the process of the run it stopped to exit: a second steer in the meantime joins it, so no text is lost and
     /// nothing starts while the old process may still be calling the tools.
     private var pendingSteer: String?
+    /// The message a steer resumed the conversation with, until the resumed run shows signs of life: if the session can't be resumed
+    /// (a run cut off in the middle of a tool call may leave one that errors), the message goes again as a new conversation.
+    private var steerRetry: String?
+    /// How the `claude` CLI is found (tests say where, or that there is none).
+    static var claudeLocator: () -> String? = { claudePath() }
+    /// How long a process that ignored the request to end is given before it is killed.
+    static var killDelay: TimeInterval = 3
     /// Starts a run of the AI for a message (and the prompt made of it and its tabs), or says it couldn't. Tests stand in for the
     /// `claude` process with it.
     var launch: ((_ message: String, _ prompt: String) -> Bool)?
@@ -176,6 +183,7 @@ final class ChatStore: ObservableObject {
         }
         let old = process
         stopRun()
+        steerRetry = message
         guard let old, old.isRunning else {
             send(message)
             return true
@@ -198,6 +206,7 @@ final class ChatStore: ObservableObject {
         guard runID == run, let message = pendingSteer else { return }
         pendingSteer = nil
         isRunning = false
+        steerRetry = message
         send(message)
     }
 
@@ -223,6 +232,11 @@ final class ChatStore: ObservableObject {
         // Whatever the AI left under way (a question waiting for the user) goes with its process.
         AgentActivity.shared.cancel(caller: Self.caller)
         process = nil
+        if runFailed, let message = steerRetry {
+            retryAsNewConversation(message)
+            return
+        }
+        steerRetry = nil
         guard !queue.isEmpty else {
             queueHeld = false
             return
@@ -234,6 +248,17 @@ final class ChatStore: ObservableObject {
         }
     }
 
+    /// The session a steer resumed can't be continued: the message goes again, in a new conversation that is told in a line what the
+    /// interrupted one was about, and the panel says what happened. The queue stays as it is until that run ends.
+    private func retryAsNewConversation(_ message: String) {
+        steerRetry = nil
+        let earlier = items.filter { $0.kind == .user }.dropLast().last?.text
+        sessionID = nil
+        items.append(ChatItem(kind: .note, text: String(localized: "The conversation couldn't be continued after you interrupted it, so your message was sent as a new conversation.")))
+        let about = earlier.map { " The user's earlier request there was “\(Self.oneLine(String($0.prefix(300))))”." } ?? ""
+        send(message, resumeNote: "[Note: the user interrupted your previous work and that conversation could not be continued, so this is a new one.\(about) The browser is as the previous work left it; use list_tabs and read_page to see it.]")
+    }
+
     /// The line that tells the AI which tab the user was looking at when they wrote a queued message, and the tabs attached then,
     /// as they are now: a tab that has gone, or was detached since, is left out.
     private func tabs(for context: Context?) -> (front: Tab?, attached: [Tab], closed: Bool) {
@@ -242,29 +267,41 @@ final class ChatStore: ObservableObject {
         return (front, context.attachedIDs.filter(attachedIDs.contains).compactMap(ToolCatalog.findTab), context.frontID != nil && front == nil)
     }
 
-    func send(_ text: String, context: Context? = nil) {
+    /// A run that couldn't begin: what was queued waits for the user (`sendQueued`) instead of being thrown away.
+    private func couldNotStart(_ text: String) {
+        fail(text)
+        queueHeld = !queue.isEmpty
+    }
+
+    /// `resumeNote` is given when the message goes again as a new conversation after a resume failed: it is not shown as a second
+    /// message of the user, and the AI is told in a line what happened.
+    func send(_ text: String, context: Context? = nil, resumeNote: String? = nil) {
         let message = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty, !isRunning else { return }
-        items.append(ChatItem(kind: .user, text: message))
+        if resumeNote == nil { items.append(ChatItem(kind: .user, text: message)) }
         let tabs = tabs(for: context)
-        let prompt = (context == nil ? Self.contextLine(tabs.front) : Self.queuedContextLine(tabs.front, closed: tabs.closed)) + Self.attachedLine(tabs.attached) + "\n\n" + message
+        let prompt = (context == nil ? Self.contextLine(tabs.front) : Self.queuedContextLine(tabs.front, closed: tabs.closed)) + Self.attachedLine(tabs.attached)
+            + (resumeNote.map { "\n" + $0 } ?? "") + "\n\n" + message
         runFailed = false
+        notice = nil
         if let launch {
             noteRead(front: tabs.front, attached: tabs.attached)
             isRunning = launch(message, prompt)
+            if !isRunning {
+                runFailed = true
+                queueHeld = !queue.isEmpty
+            }
             return
         }
-        guard let claude = Self.claudePath() else {
-            queue.removeAll()
-            items.append(ChatItem(kind: .error, text: String(localized: "Couldn't find the `claude` CLI. Install Claude Code and try again.")))
+        guard let claude = Self.claudeLocator() else {
+            couldNotStart(String(localized: "Couldn't find the `claude` CLI. Install Claude Code and try again."))
             return
         }
         noteRead(front: tabs.front, attached: tabs.attached)
         // The config holds the panel's secret and this run's token, so it goes in a file only this user can read, not on the command line.
         let token = UUID().uuidString + UUID().uuidString
         guard let config = try? Self.writeMCPConfig(runToken: token) else {
-            queue.removeAll()
-            fail(String(localized: "The AI request failed."))
+            couldNotStart(String(localized: "The AI request failed."))
             return
         }
         runToken = token
@@ -301,8 +338,9 @@ final class ChatStore: ObservableObject {
             try process.run()
         } catch {
             try? FileManager.default.removeItem(at: config)
-            queue.removeAll()
-            fail(String(localized: "Couldn't run claude: \(error.localizedDescription)"))
+            runToken = nil
+            self.process = nil
+            couldNotStart(String(localized: "Couldn't run claude: \(error.localizedDescription)"))
             return
         }
 
@@ -329,8 +367,13 @@ final class ChatStore: ObservableObject {
     private func finished(run: UUID, sawResult: Bool, status: Int32, errorText: String) {
         guard runID == run else { return }
         if !sawResult {
-            let tail = errorText.split(separator: "\n").suffix(4).joined(separator: "\n")
-            fail(String(localized: "The AI response didn't finish (exit code \(Int(status))).\n\(tail)"))
+            if steerRetry != nil {
+                // A run that resumed a session and never answered: endRun sends the message again in a new conversation.
+                runFailed = true
+            } else {
+                let tail = errorText.split(separator: "\n").suffix(4).joined(separator: "\n")
+                fail(String(localized: "The AI response didn't finish (exit code \(Int(status))).\n\(tail)"))
+            }
         }
         endRun()
     }
@@ -341,10 +384,22 @@ final class ChatStore: ObservableObject {
         runID = UUID()
         runToken = nil
         pendingSteer = nil
-        process?.terminate()
+        steerRetry = nil
+        if let process { Self.terminate(process) }
         process = nil
         isRunning = false
         AgentActivity.shared.cancel(caller: Self.caller)
+    }
+
+    /// Asks the process to end, and kills it when it hasn't after `killDelay`.
+    static func terminate(_ process: Process) {
+        guard process.isRunning else { return }
+        process.terminate()
+        let pid = process.processIdentifier, delay = killDelay
+        Task.detached {
+            try? await Task.sleep(for: .seconds(delay))
+            if process.isRunning { kill(pid, SIGKILL) }
+        }
     }
 
     /// The stop button: ends the run, and the messages waiting for it go too.
@@ -375,6 +430,7 @@ final class ChatStore: ObservableObject {
         case "system":
             if let id = event["session_id"] as? String { sessionID = id }
         case "stream_event":
+            steerRetry = nil
             guard let inner = event["event"] as? [String: Any] else { return }
             switch inner["type"] as? String {
             case "message_start":
@@ -391,6 +447,7 @@ final class ChatStore: ObservableObject {
                 break
             }
         case "assistant":
+            steerRetry = nil
             guard let message = event["message"] as? [String: Any],
                   let content = message["content"] as? [[String: Any]] else { return }
             let streamed = (message["id"] as? String).map(streamedMessages.contains) ?? false
@@ -416,7 +473,14 @@ final class ChatStore: ObservableObject {
             if event["is_error"] as? Bool == true {
                 // A session that failed may not resume; the next message starts a fresh one.
                 sessionID = nil
-                fail(event["result"] as? String ?? String(localized: "The AI request failed."))
+                if steerRetry != nil {
+                    // The resumed session never answered: endRun sends the message again in a new conversation.
+                    runFailed = true
+                } else {
+                    fail(event["result"] as? String ?? String(localized: "The AI request failed."))
+                }
+            } else {
+                steerRetry = nil
             }
             streamingIndex = nil
         default:
@@ -892,6 +956,13 @@ struct ChatRow: View {
             .frame(height: 22)
             .background(Capsule().fill(Theme.selected))
             .help(item.detail ?? "")
+        case .note:
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "info.circle").font(.system(size: 11))
+                Text(item.text).textSelection(.enabled)
+            }
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(Theme.secondary)
         case .error:
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Image(systemName: "exclamationmark.circle.fill").font(.system(size: 11))

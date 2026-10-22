@@ -565,3 +565,4 @@
 "Pick the account to sign in with." = "Elige la cuenta con la que iniciar sesión.";
 "The queue is full (%lld messages). Wait for the AI, or remove one." = "La cola está llena (%lld mensajes). Espera a la IA o quita uno.";
 "There is nothing to continue yet, so your message is queued." = "Aún no hay nada que continuar, así que tu mensaje se puso en cola.";
+"The conversation couldn't be continued after you interrupted it, so your message was sent as a new conversation." = "No se pudo continuar la conversación tras tu interrupción, así que tu mensaje se envió como una conversación nueva.";

@@ -1283,6 +1283,84 @@ extension SharedAgentState {
             #expect(launched() == ["first", "second", "newer", "newest"] && chat.queue.isEmpty, "in the order they were written")
         }
 
+        @Test func aSteerWhoseSessionCantBeResumedGoesAgainAsANewConversationAndSaysSo() {
+            let (chat, launched, prompts) = standIn()
+            chat.submit("compare the prices")
+            chat.handle(["type": "system", "subtype": "init", "session_id": "s-resume"])
+            chat.submit("later")
+            chat.steer("only the cheap ones")
+            #expect(launched() == ["compare the prices", "only the cheap ones"])
+            chat.handle(["type": "result", "is_error": true, "result": "No conversation found with session ID: s-resume"])
+            chat.endRun()
+            #expect(launched() == ["compare the prices", "only the cheap ones", "only the cheap ones"], "the same message went again: \(launched())")
+            #expect(prompts()[2].contains("could not be continued") && prompts()[2].contains("compare the prices") && prompts()[2].hasSuffix("only the cheap ones"), "\(prompts()[2])")
+            #expect(chat.items.filter { $0.kind == .user }.map(\.text) == ["compare the prices", "only the cheap ones"], "not shown twice")
+            #expect(chat.items.contains { $0.kind == .note && $0.text.contains("new conversation") } && !chat.items.contains { $0.kind == .error }, "the user is told, and it is not an error")
+            #expect(chat.queue.map(\.text) == ["later"], "the queue waits for the new run")
+            chat.endRun()
+            #expect(launched().last == "later")
+        }
+
+        @Test func aResumedSteerWhoseRunFailedBeforeAnyAnswerIsRetried() {
+            let (chat, launched, _) = standIn()
+            chat.submit("first")
+            chat.handle(["type": "system", "subtype": "init", "session_id": "s-end"])
+            chat.steer("again")
+            chat.handle(["type": "result", "is_error": true, "result": "boom"])
+            chat.endRun()
+            #expect(launched() == ["first", "again", "again"])
+        }
+
+        @Test func aSteerThatAnsweredIsNotRetriedWhenTheRunFailsLater() {
+            let (chat, launched, _) = standIn()
+            chat.submit("first")
+            chat.handle(["type": "system", "subtype": "init", "session_id": "s-ok"])
+            chat.steer("go on")
+            chat.handle(["type": "stream_event", "event": ["type": "content_block_delta", "delta": ["type": "text_delta", "text": "Sure."]]])
+            chat.handle(["type": "result", "is_error": true, "result": "overloaded"])
+            chat.endRun()
+            #expect(launched() == ["first", "go on"] && chat.items.last?.kind == .error, "a failure after it answered is a failure")
+            // And an ordinary run that fails is never retried.
+            chat.submit("plain")
+            chat.handle(["type": "result", "is_error": true, "result": "boom"])
+            chat.endRun()
+            #expect(launched().filter { $0 == "plain" }.count == 1)
+        }
+
+        @Test func aRunThatCouldNotBeginHoldsTheQueueInsteadOfThrowingItAway() async throws {
+            for how in ["the launch said no", "no claude", "claude would not run"] {
+                let (chat, _, _) = standIn()
+                chat.submit("first")
+                chat.submit("second")
+                chat.submit("third")
+                let saved = ChatStore.claudeLocator
+                defer { ChatStore.claudeLocator = saved }
+                switch how {
+                case "the launch said no": chat.launch = { _, _ in false }
+                case "no claude": chat.launch = nil; ChatStore.claudeLocator = { nil }
+                default: chat.launch = nil; ChatStore.claudeLocator = { "/nonexistent/claude" }
+                }
+                chat.endRun()
+                #expect(!chat.isRunning && chat.queueHeld && chat.queue.map(\.text) == ["third"], "\(how): the rest waits for the user")
+                #expect(chat.runToken == nil && chat.process == nil, "\(how)")
+                if how != "the launch said no" { #expect(chat.items.last?.kind == .error, "\(how)") }
+            }
+        }
+
+        @Test func stoppingKillsAProcessThatIgnoresTheRequestToEnd() async throws {
+            let (chat, _, _) = standIn()
+            let saved = ChatStore.killDelay
+            ChatStore.killDelay = 0.3
+            defer { ChatStore.killDelay = saved }
+            chat.submit("first")
+            let stubborn = try await stubborn(30)
+            defer { if stubborn.isRunning { kill(stubborn.processIdentifier, SIGKILL) } }
+            chat.process = stubborn
+            chat.stop()
+            #expect(await waitUntil(3) { !stubborn.isRunning }, "killed after the delay")
+            #expect(stubborn.terminationReason == .uncaughtSignal && stubborn.terminationStatus == SIGKILL)
+        }
+
         @Test func streamsTextAndShowsTools() {
             let chat = ChatStore()
             chat.handle(["type": "system", "subtype": "init", "session_id": "s1"])
