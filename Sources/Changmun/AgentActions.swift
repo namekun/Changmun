@@ -67,11 +67,14 @@ enum IrreversibleAction {
         var link = false
         /// The key pressed is one that acts by itself: Delete or Backspace outside a text field, or a combination with ctrl or meta.
         var keyRisk = false
-        /// The control sits in a cookie banner: it, or the text around it, speaks of cookies.
+        /// The control's own name speaks of cookies.
         var cookie = false
+        /// The control sits in the container of a known consent manager and its own name does not speak of cookies: only the page's markup
+        /// says it is a cookie banner.
+        var banner = false
 
         init(label: String = "", names: [String] = [], hints: [String] = [], dests: [String] = [], submits: Bool = false, payment: Bool = false, action: String = "", sends: Bool = false,
-             link: Bool = false, keyRisk: Bool = false, cookie: Bool = false) {
+             link: Bool = false, keyRisk: Bool = false, cookie: Bool = false, banner: Bool = false) {
             self.label = label
             self.names = names
             self.hints = hints
@@ -83,24 +86,33 @@ enum IrreversibleAction {
             self.link = link
             self.keyRisk = keyRisk
             self.cookie = cookie
+            self.banner = banner
         }
 
         init(_ json: [String: Any]) {
             self.init(label: json["label"] as? String ?? "", names: json["names"] as? [String] ?? [], hints: json["hints"] as? [String] ?? [],
                       dests: json["dests"] as? [String] ?? [], submits: json["submits"] as? Bool ?? false, payment: json["payment"] as? Bool ?? false, action: json["action"] as? String ?? "",
-                      sends: json["sends"] as? Bool ?? false, link: json["link"] as? Bool ?? false, keyRisk: json["keyRisk"] as? Bool ?? false, cookie: json["cookie"] as? Bool ?? false)
+                      sends: json["sends"] as? Bool ?? false, link: json["link"] as? Bool ?? false, keyRisk: json["keyRisk"] as? Bool ?? false, cookie: json["cookie"] as? Bool ?? false, banner: json["banner"] as? Bool ?? false)
         }
     }
 
     static func tier(of facts: Facts) -> Tier {
         if facts.sends || facts.keyRisk || (facts.submits && (facts.payment || postsToCheckout(facts.action))) { return .high }
         if facts.dests.contains(where: { facts.link ? linkGoesToHigh($0) : goesToIrreversible($0) }) { return .high }
-        return (facts.names + facts.hints).reduce(Tier.none) { max($0, tier(ofText: $1, cookie: facts.cookie)) }
+        return (facts.names + facts.hints).reduce(Tier.none) { max($0, tier(ofText: $1, cookie: facts.cookie, banner: facts.banner)) }
+    }
+
+    /// The action is in the low tier only because the page's markup says it sits in a cookie banner (a consent manager's container):
+    /// a page can say so of anything, so it is asked about every time, in words that don't vouch for it.
+    static func restsOnMarkup(_ facts: Facts) -> Bool {
+        var without = facts
+        without.banner = false
+        return facts.banner && tier(of: facts) < tier(of: without)
     }
 
     /// The name to show the user: the one that put the action in its tier, else the control's own.
     static func name(of facts: Facts, tier wanted: Tier = .high) -> String {
-        facts.names.first(where: { tier(ofText: $0, cookie: facts.cookie) >= wanted }) ?? (facts.label.isEmpty ? facts.hints.first(where: { tier(ofText: $0, cookie: facts.cookie) >= wanted }) ?? "" : facts.label)
+        facts.names.first(where: { tier(ofText: $0, cookie: facts.cookie, banner: facts.banner) >= wanted }) ?? (facts.label.isEmpty ? facts.hints.first(where: { tier(ofText: $0, cookie: facts.cookie, banner: facts.banner) >= wanted }) ?? "" : facts.label)
     }
 
     /// Words (whole words only, accents and case ignored) of the Latin-script languages.
@@ -214,7 +226,7 @@ enum IrreversibleAction {
         clean(text).folding(options: [.diacriticInsensitive, .caseInsensitive, .widthInsensitive], locale: nil)
     }
 
-    static func tier(ofText text: String, cookie: Bool = false) -> Tier {
+    static func tier(ofText text: String, cookie: Bool = false, banner: Bool = false) -> Tier {
         var cleaned = clean(text)
         for compound in ordinaryCompounds { cleaned = cleaned.replacingOccurrences(of: compound, with: " ") }
         if highCharacters.contains(where: cleaned.contains) { return .high }
@@ -225,7 +237,7 @@ enum IrreversibleAction {
         if highPhrases.contains(where: { spaced.contains(" \($0) ") }) { return .high }
         // Consent is a cookie banner's when the control or the words around it speak of cookies; anywhere else it grants something.
         if tokens.contains(where: consentWords.contains) || consentCharacters.contains(where: cleaned.contains) {
-            return cookie || mentionsCookies(text) ? .low : .high
+            return cookie || banner || mentionsCookies(text) ? .low : .high
         }
         if lowCharacters.contains(where: cleaned.contains) { return .low }
         for (index, token) in tokens.enumerated() where lowWords.contains(token) {
@@ -949,7 +961,8 @@ extension ToolCatalog {
             let tier = destination == nil ? IrreversibleAction.tier(of: aim.facts) : .high
             guard tier != .none else { continue }
             let name = IrreversibleAction.name(of: aim.facts, tier: tier)
-            let allowed = await Approvals.allowAction(tier, name.isEmpty ? aim.label : name, on: tab, caller: session.caller, site: aim.host, destination: destination)
+            let allowed = await Approvals.allowAction(tier, name.isEmpty ? aim.label : name, on: tab, caller: session.caller, site: aim.host, destination: destination,
+                                                      markupOnly: destination == nil && IrreversibleAction.restsOnMarkup(aim.facts))
             if session.stopped { throw ToolFailure(result: stopped) }
             if !allowed { throw ToolFailure(result: declined) }
         }

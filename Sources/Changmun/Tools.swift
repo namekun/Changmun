@@ -806,9 +806,18 @@ enum Approvals {
     /// back, and a page can name a button anything. What looks like agreeing, saving, sharing or changing a setting (the low
     /// tier) is asked about once per site for a chat when the user says so (the chat panel), else each time. `destination` is
     /// the site a form sends its data to when that isn't the site it is on.
-    static func allowAction(_ tier: IrreversibleAction.Tier, _ name: String, on tab: Tab, caller: String, site: String? = nil, destination: String? = nil) async -> Bool {
+    /// `markupOnly`: the low tier is only the page's markup saying the control is in a cookie banner. A page can say that of anything,
+    /// so this is asked every time, with no offer to allow the site for the chat, and in words that don't vouch for it.
+    static func allowAction(_ tier: IrreversibleAction.Tier, _ name: String, on tab: Tab, caller: String, site: String? = nil, destination: String? = nil,
+                            markupOnly: Bool = false) async -> Bool {
         let host = site ?? Self.site(of: tab.url) ?? ""
         let allowable = hasSite(host)
+        if tier == .low, markupOnly {
+            let place = host.isEmpty ? String(localized: "this page") : display(host)
+            return await choose(String(localized: "The AI wants to click a button in what the page calls a cookie banner"),
+                                "\(place)\n\n“\(shown(quotable(abbreviated(name))).text)”\n\n" + String(localized: "Only the page’s own markup says this is a cookie banner, and a page can say that of anything. It is asked every time.\n\nAllow it only if you asked for this."),
+                                [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))], caller: caller) != .deny
+        }
         if tier == .low, allowable, lowAllowed[caller]?.contains(host) == true { return true }
         let place = host.isEmpty ? String(localized: "this page") : display(host)
         let words = shown(quotable(abbreviated(name))).text

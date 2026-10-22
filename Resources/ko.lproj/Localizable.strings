@@ -566,3 +566,5 @@
 "The queue is full (%lld messages). Wait for the AI, or remove one." = "대기열이 가득 찼어요(%lld개). AI가 끝나기를 기다리거나 하나를 지워 주세요.";
 "There is nothing to continue yet, so your message is queued." = "아직 이어갈 대화가 없어서 메시지를 대기열에 넣었어요.";
 "The conversation couldn't be continued after you interrupted it, so your message was sent as a new conversation." = "중단한 뒤 대화를 이어갈 수 없어서 메시지를 새 대화로 보냈어요.";
+"The AI wants to click a button in what the page calls a cookie banner" = "AI가 페이지가 쿠키 배너라고 하는 곳의 버튼을 누르려고 해요";
+"Only the page’s own markup says this is a cookie banner, and a page can say that of anything. It is asked every time.\n\nAllow it only if you asked for this." = "이곳이 쿠키 배너라고 말하는 것은 페이지 자체의 마크업뿐이고, 페이지는 무엇에든 그렇게 말할 수 있어요. 매번 물어봐요.\n\n직접 요청한 일일 때만 허용하세요.";

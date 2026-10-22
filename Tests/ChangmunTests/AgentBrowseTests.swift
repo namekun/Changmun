@@ -202,8 +202,8 @@ extension SharedAgentState {
     struct IrreversibleActionTests {
         private typealias Tier = IrreversibleAction.Tier
 
-        private func tier(_ names: String..., hints: [String] = [], submits: Bool = false, payment: Bool = false, action: String = "", sends: Bool = false, link: Bool = false, keyRisk: Bool = false, cookie: Bool = false) -> Tier {
-            IrreversibleAction.tier(of: .init(label: names.first ?? "", names: names, hints: hints, submits: submits, payment: payment, action: action, sends: sends, link: link, keyRisk: keyRisk, cookie: cookie))
+        private func tier(_ names: String..., hints: [String] = [], submits: Bool = false, payment: Bool = false, action: String = "", sends: Bool = false, link: Bool = false, keyRisk: Bool = false, cookie: Bool = false, banner: Bool = false) -> Tier {
+            IrreversibleAction.tier(of: .init(label: names.first ?? "", names: names, hints: hints, submits: submits, payment: payment, action: action, sends: sends, link: link, keyRisk: keyRisk, cookie: cookie, banner: banner))
         }
 
         private func high(_ names: String...) -> Bool { names.allSatisfy { tier($0) == .high } }
@@ -254,6 +254,13 @@ extension SharedAgentState {
             let said = ["Accept all cookies", "Allow cookies", "Alle Cookies akzeptieren", "Aceptar galletas, permitir", "쿠키 허용", "クッキーを許可", "Accepter les témoins"]
             for name in said { #expect(tier(name) == .low, "\(name)") }
             #expect(tier("Accept all cookies and pay now", cookie: true) == .high, "a banner's words don't make a payment a consent")
+            // A consent manager's container, said by the markup alone, is the low tier too, but a decision that rests on nothing else.
+            for name in banner { #expect(tier(name, banner: true) == .low, "\(name)") }
+            #expect(IrreversibleAction.restsOnMarkup(.init(label: "Accept", names: ["Accept"], banner: true)))
+            #expect(!IrreversibleAction.restsOnMarkup(.init(label: "Accept all cookies", names: ["Accept all cookies"], banner: true)), "its own name speaks of cookies")
+            #expect(!IrreversibleAction.restsOnMarkup(.init(label: "Save", names: ["Save"], banner: true)), "a setting is the low tier with or without it")
+            #expect(!IrreversibleAction.restsOnMarkup(.init(label: "Accept", names: ["Accept"], cookie: true)))
+            #expect(tier("Accept and pay now", banner: true) == .high)
             #expect(IrreversibleAction.mentionsCookies("We use Cookies") && IrreversibleAction.mentionsCookies("쿠키 설정") && !IrreversibleAction.mentionsCookies("Allow access to your files"))
         }
 
@@ -1362,6 +1369,8 @@ extension SharedAgentState {
         private nonisolated static func isLow(_ prompt: Approvals.Prompt) -> Bool { prompt.message.contains("accept cookies") }
         private func guarded(_ stand: Approvals.Stand) -> [Approvals.Prompt] { stand.asked.filter(Self.isHigh) }
         private func consent(_ stand: Approvals.Stand) -> [Approvals.Prompt] { stand.asked.filter(Self.isLow) }
+        /// The question for a control only the markup of the page calls a cookie banner's.
+        private func bannerMarkup(_ stand: Approvals.Stand) -> [Approvals.Prompt] { stand.asked.filter { $0.message.contains("what the page calls a cookie banner") } }
 
         private static let form = """
             <body><h1>Lab</h1>
@@ -3043,7 +3052,7 @@ extension SharedAgentState {
 
         @Test func consentAndSettingsAreAskedAboutAsSuchAndHeadlinesNever() async throws {
             let html = """
-                <body><div id="onetrust-banner-sdk">We use cookies. <button id=a onclick="document.title='accepted'">Accept all</button></div>
+                <body><div id="onetrust-banner-sdk">We use cookies. <button id=a onclick="document.title='accepted'">Accept all cookies</button></div>
                 <button id=b onclick="document.title='ordered'">Place order</button>
                 <a href="https://lab.test/#long">Why we should send fewer emails in the workplace today, a long read from our editors</a>
                 <a href="https://lab.test/#promo">Save 20% on shoes</a>
@@ -3054,11 +3063,11 @@ extension SharedAgentState {
             defer { window.close(); browser.windowClosed() }
             try await asking({ prompt in Self.isHigh(prompt) ? .deny : .once }) { stand in
                 let read = await call(tab, "read_page").text
-                let accept = try #require(id(of: "Accept all", in: read)), order = try #require(id(of: "Place order", in: read))
+                let accept = try #require(id(of: "Accept all cookies", in: read)), order = try #require(id(of: "Place order", in: read))
                 let headline = try #require(read.split(separator: "\n").first { $0.contains("Why we should send fewer emails") }.flatMap(number))
                 let promo = try #require(id(of: "Save 20% on shoes", in: read)), feedback = try #require(id(of: "Send feedback", in: read)), save = try #require(id(of: "Save", in: read))
                 #expect(!(await call(tab, "click", ["element_id": accept])).failed)
-                #expect(consent(stand).count == 1 && consent(stand)[0].detail.contains("“Accept all”") && consent(stand)[0].choices == [.deny, .once], "a consent: asked, never as a loss")
+                #expect(consent(stand).count == 1 && consent(stand)[0].detail.contains("“Accept all cookies”") && consent(stand)[0].choices == [.deny, .once], "a consent: asked, never as a loss")
                 #expect(consent(stand)[0].detail.hasPrefix("lab.test\n\n") && guarded(stand).isEmpty)
                 #expect(await waitUntil { tab.title == "accepted" })
                 let refused = await call(tab, "click", ["element_id": order])
@@ -3074,6 +3083,8 @@ extension SharedAgentState {
         }
 
         @Test func onlyAKnownConsentManagersBannerOrACookieNamedButtonMakesAConsentLowTier() async throws {
+            // A cookie-named button is the plain low tier. A consent manager's container, which the markup alone vouches for, is asked about
+            // every time, without the offer to allow it for the chat and without words that vouch for it.
             let html = """
                 <body><div id="onetrust-banner-sdk"><button onclick="document.title='cmp'">Accept</button></div>
                 <div class="banner"><button onclick="document.title='named'">Accept cookies</button></div>
@@ -3087,15 +3098,19 @@ extension SharedAgentState {
                 let lines = read.split(separator: "\n").filter { $0.contains("] button ") }.compactMap(number)
                 #expect(lines.count == 4)
                 for element in lines { _ = await call(tab, "click", ["element_id": element]) }
-                // Consent manager and button named for cookies: low tier. UGC text and a page's own look-alike banner: asked every time.
-                #expect(consent(stand).count == 2 && consent(stand).map(\.detail).allSatisfy { $0.contains("“Accept”") || $0.contains("“Accept cookies”") })
+                // Button named for cookies: low tier. Consent manager container: asked every time, on the markup's word alone. UGC text and a
+                // page's own look-alike banner: asked every time as a grant.
+                #expect(consent(stand).count == 1 && consent(stand)[0].detail.contains("“Accept cookies”"))
+                #expect(bannerMarkup(stand).count == 1 && bannerMarkup(stand)[0].choices == [.deny, .once] && bannerMarkup(stand)[0].detail.contains("“Accept”"))
+                let said = bannerMarkup(stand)[0].message + bannerMarkup(stand)[0].detail
+                #expect(!said.contains("not granting") && !said.contains("not like paying") && !said.contains("setting") && said.contains("markup"), "no words that vouch for it: \(said)")
                 #expect(guarded(stand).count == 2)
                 #expect(guarded(stand).contains { $0.detail.contains("“Accept invitation”") } && guarded(stand).contains { $0.detail.contains("“Accept”") })
             }
         }
 
         @Test func aLowTierActionIsAskedOncePerSiteForTheChatByThePanelAndEachTimeByOthers() async throws {
-            let html = "<body><div id=onetrust-banner-sdk><button onclick=\"document.title='accepted'\">Accept all</button></div><button onclick=\"document.title='saved'\">Save</button><button onclick=\"document.title='ordered'\">Place order</button></body>"
+            let html = "<body><div id=onetrust-banner-sdk><button onclick=\"document.title='accepted'\">Accept all cookies</button></div><button onclick=\"document.title='saved'\">Save</button><button onclick=\"document.title='ordered'\">Place order</button></body>"
             let (tab, window, browser) = try await page(html)
             defer { window.close(); browser.windowClosed() }
             let panel = ChatStore.caller
@@ -3103,7 +3118,7 @@ extension SharedAgentState {
             defer { Approvals.forgetReads(caller: panel) }
             try await asking({ prompt in prompt.choices.contains(.site) ? .site : .once }) { stand in
                 let read = await call(tab, "read_page", caller: panel).text
-                let accept = try #require(id(of: "Accept all", in: read)), save = try #require(id(of: "Save", in: read)), order = try #require(id(of: "Place order", in: read))
+                let accept = try #require(id(of: "Accept all cookies", in: read)), save = try #require(id(of: "Save", in: read)), order = try #require(id(of: "Place order", in: read))
                 #expect(!(await call(tab, "click", ["element_id": accept], caller: panel)).failed)
                 #expect(consent(stand).count == 1 && consent(stand)[0].choices == [.deny, .once, .site])
                 #expect(!(await call(tab, "click", ["element_id": save], caller: panel)).failed)

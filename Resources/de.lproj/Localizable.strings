@@ -566,3 +566,5 @@
 "The queue is full (%lld messages). Wait for the AI, or remove one." = "Die Warteschlange ist voll (%lld Nachrichten). Warte auf die KI oder entferne eine.";
 "There is nothing to continue yet, so your message is queued." = "Es gibt noch nichts fortzusetzen, daher wurde deine Nachricht in die Warteschlange gestellt.";
 "The conversation couldn't be continued after you interrupted it, so your message was sent as a new conversation." = "Die Unterhaltung konnte nach deiner Unterbrechung nicht fortgesetzt werden, deshalb wurde deine Nachricht als neue Unterhaltung gesendet.";
+"The AI wants to click a button in what the page calls a cookie banner" = "Die KI möchte eine Schaltfläche in dem anklicken, was die Seite ein Cookie-Banner nennt";
+"Only the page’s own markup says this is a cookie banner, and a page can say that of anything. It is asked every time.\n\nAllow it only if you asked for this." = "Nur der Code der Seite selbst sagt, dass dies ein Cookie-Banner ist, und eine Seite kann das von allem behaupten. Es wird jedes Mal gefragt.\n\nErlaube es nur, wenn du dies verlangt hast.";

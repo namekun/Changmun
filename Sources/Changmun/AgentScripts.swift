@@ -267,15 +267,16 @@ extension PageScripts {
     // Somewhere the keyboard types or chooses: a text field, a text area, an editable element, a list.
     const editableKind = e => !!e && (e.localName === 'textarea' || e.localName === 'select' || e.isContentEditable || attr(e, 'role') === 'textbox'
       || (e.localName === 'input' && /^(text|search|url|tel|email|password|number|date|datetime-local|month|week|time|)$/.test(e.type)));
-    // A cookie banner: the control's own name speaks of cookies, or it sits in the container of a known consent manager. That is
-    // what makes "Accept" and "Allow" a consent to a banner and not a permission to something. The text around the control does not
-    // count: anyone can write "cookie" next to an "Accept invitation" button.
+    // A cookie banner: the control's own name speaks of cookies (`cookie`), or it sits in the container of a known consent manager
+    // (`banner`, which only the markup says, and which a page can fake with an id). That is what makes "Accept" and "Allow" a consent
+    // to a banner and not a permission to something. The text around the control does not count: anyone can write "cookie" next to
+    // an "Accept invitation" button.
     const COOKIE = /cookie|쿠키|クッキー|galleta|kekse|témoin|temoin/i;
     const CMP = '#onetrust-banner-sdk,#onetrust-consent-sdk,#CybotCookiebotDialog,#CybotCookiebotDialogBodyUnderlay,#didomi-host,#didomi-popup,.didomi-popup-container,'
       + '.qc-cmp2-container,#qc-cmp2-ui,#truste-consent-track,#teconsent,#consent_blackbar,.osano-cm-window,.osano-cm-dialog,.cky-consent-container,.cky-consent-bar,'
       + '#iubenda-cs-banner,.iubenda-cs-container,#usercentrics-root,#uc-center-container,[id^=sp_message_container],.cmpbox,#cmpbox';
-    function inCookieBanner(ctl) {
-      if ([labelOf(ctl), ...namesOf(ctl)].some(t => COOKIE.test(t))) return true;
+    const namesCookies = ctl => [labelOf(ctl), ...namesOf(ctl)].some(t => COOKIE.test(t));
+    function inConsentContainer(ctl) {
       // Up out of shadow trees too (a consent manager draws its banner in one).
       for (let n = ctl, i = 0; n && i < 60; i++) {
         if (n.nodeType === 1 && n.matches(CMP)) return true;
@@ -320,12 +321,13 @@ extension PageScripts {
         // (delete this mail, undo, send): they act by themselves.
         if (!editable && (key === 'Delete' || key === 'Backspace' || mods.ctrl || mods.meta)) keyRisk = true;
       }
-      const action = form ? actionOf(form, submitter) : '', payment = !!form && hasPayment(form), link = plainLink(ctl), cookie = inCookieBanner(ctl);
+      const action = form ? actionOf(form, submitter) : '', payment = !!form && hasPayment(form), link = plainLink(ctl), cookie = namesCookies(ctl);
+      const banner = !cookie && inConsentContainer(ctl);
       // Everything the approvals judged on is in the fingerprint: what the page may change while the user thinks (a checkout
       // step that appears under the same "Continue") must make the action stop.
       const print = exact => digest(JSON.stringify([ctl.localName, role, ctl.type || '', mask(names.join('|'), exact), hints.join('|'),
-        mask(dests.join('|'), exact), submits, sends, payment, mask(action.replace(/[?#].*$/, ''), exact), !!form, link, keyRisk, cookie]));
-      return {label, names, hints, dests, submits, sends, payment, action, link, keyRisk, cookie, secret: isSecret(ctl) || isSecret(el), description: describe(el), origin: originOf(el),
+        mask(dests.join('|'), exact), submits, sends, payment, mask(action.replace(/[?#].*$/, ''), exact), !!form, link, keyRisk, cookie, banner]));
+      return {label, names, hints, dests, submits, sends, payment, action, link, keyRisk, cookie, banner, secret: isSecret(ctl) || isSecret(el), description: describe(el), origin: originOf(el),
         fp: print(false), fpExact: print(true)};
     }
     // The page may change between looking and acting (and the user takes their time to answer): the action goes ahead
