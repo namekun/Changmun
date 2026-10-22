@@ -26,11 +26,11 @@ if [[ -n "$IDENTITY" ]]; then
         exit 0
     fi
     echo "▸ Notarizing (this takes a few minutes)" >&2
-    RESULT="$(xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait --output-format json)"
+    RESULT="$(xcrun notarytool submit "$DMG" "${NOTARY_AUTH[@]}" --wait --output-format json)"
     STATUS="$(python3 -I -c 'import json, sys; print(json.load(sys.stdin).get("status", ""))' <<<"$RESULT")"
     if [[ "$STATUS" != "Accepted" ]]; then
         ID="$(python3 -I -c 'import json, sys; print(json.load(sys.stdin).get("id", ""))' <<<"$RESULT")"
-        [[ -n "$ID" ]] && xcrun notarytool log "$ID" --keychain-profile "$NOTARY_PROFILE" >&2
+        [[ -n "$ID" ]] && xcrun notarytool log "$ID" "${NOTARY_AUTH[@]}" >&2
         echo "✘ Notarization: ${STATUS:-no answer}" >&2
         exit 1
     fi

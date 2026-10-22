@@ -32,8 +32,8 @@ fi
 
 # Notarizing comes after the checks and the build, so find out first whether the credentials are there.
 source scripts/env.sh
-if [[ -z "${SKIP_NOTARIZE:-}" && -n "$(developer_id)" ]] && ! xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
-    echo "No notarytool credentials named $NOTARY_PROFILE: run xcrun notarytool store-credentials $NOTARY_PROFILE first" >&2
+if [[ -z "${SKIP_NOTARIZE:-}" && -n "$(developer_id)" ]] && ! xcrun notarytool history "${NOTARY_AUTH[@]}" >/dev/null 2>&1; then
+    echo "The notarytool credentials don't work: add an API key in ~/.config/changmun/notary.env or run xcrun notarytool store-credentials $NOTARY_PROFILE" >&2
     exit 1
 fi
 
