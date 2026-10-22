@@ -2201,12 +2201,16 @@ struct PopupBar: View {
                 Image(systemName: "macwindow.badge.plus").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
                 Text("Pop-up blocked").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary)
                 Text(description(of: popup)).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
+                if tab.blockedPopupCount > 1 {
+                    Text("and \(tab.blockedPopupCount - 1) more").font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1).fixedSize()
+                }
                 Spacer(minLength: 8)
-                PeekAction(title: String(localized: "Open")) { tab.openBlockedPopup(always: false) }
+                // What is pressed is what the bar shows now: if it has changed by the time the press is handled, nothing happens.
+                PeekAction(title: String(localized: "Open")) { tab.openBlockedPopup(always: false, seen: (popup, tab.blockedPopupSite)) }
                 if !tab.isPrivate, let site = tab.blockedPopupSite {
                     // Allowing a pop-up from another site's frame allows that site, which the button says.
                     Button(tab.blockedPopupIsFromOtherSite ? String(localized: "Always Allow for \(site)") : String(localized: "Always Allow for This Site")) {
-                        tab.openBlockedPopup(always: true)
+                        tab.openBlockedPopup(always: true, seen: (popup, site))
                     }
                     .buttonStyle(.plain)
                     .font(.system(size: 12, weight: .semibold))

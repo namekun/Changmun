@@ -648,8 +648,19 @@ final class Browser: ObservableObject {
     }
 
     @Published private(set) var tabSwitcher: TabSwitcher?
-    /// When a site allowed to open popups last had one opened as a tab, in this window.
-    var lastAllowedPopup = Date.distantPast
+    /// When sites allowed to open popups had one opened as a tab in this window, within the last minute.
+    var allowedPopups: [Date] = []
+    /// Most pop-ups the allowed sites get in a minute, and the least time between two: a page can ask for any number.
+    static let allowedPopupsPerMinute = 5, allowedPopupGap = 1.0
+
+    /// Whether an allowed site's pop-up may open now (at most one a second, and so many a minute), counting it if so.
+    func takeAllowedPopupSlot() -> Bool {
+        let now = Date()
+        allowedPopups = allowedPopups.filter { now.timeIntervalSince($0) < 60 }
+        guard allowedPopups.count < Self.allowedPopupsPerMinute, allowedPopups.last.map({ now.timeIntervalSince($0) > Self.allowedPopupGap }) ?? true else { return false }
+        allowedPopups.append(now)
+        return true
+    }
 
     /// The shown tab first, then the others by when they were last shown.
     var recentTabs: [Tab] {

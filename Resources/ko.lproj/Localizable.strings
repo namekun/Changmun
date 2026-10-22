@@ -58,6 +58,7 @@
 "Allow pop-ups" = "팝업 허용";
 "Always Allow for %@" = "%@ 항상 허용";
 "Always Allow for This Site" = "이 사이트는 항상 허용";
+"and %lld more" = "%lld개 더";
 "Archive tabs you haven’t viewed in a while" = "오래 안 본 탭 보관";
 "Archived Tabs" = "보관한 탭";
 "Ask" = "묻기";

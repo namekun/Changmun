@@ -138,6 +138,9 @@ enum ToolCatalog {
         let webView = tab.wake()
         if name != "switch_tab" && name != "close_tab" { AgentActivity.shared.use(tab, caller: caller) }
         defer { AgentActivity.shared.step(nil, caller: caller) }
+        // See AgentState.tools: a window opened while a tool runs is judged as the page's own, unless the tool is a click.
+        tab.agent.toolStarted(name)
+        defer { tab.agent.toolEnded(name) }
         switch name {
         case "switch_tab":
             browser.activate(tab.id)
@@ -259,7 +262,9 @@ enum ToolCatalog {
                 sections[tab.id] = "This tab didn't load in time. Try again."
                 continue
             }
+            tab.agent.toolStarted("read_tabs")
             let result = await run(PageScripts.readText, ["maxChars": maxChars], in: webView, timeout: min(20, remaining))
+            tab.agent.toolEnded("read_tabs")
             let host = readHost(result)
             if !read.inFront, !(await Approvals.allowRead(tab, approvedHost: read.approvedHost, readHost: host, caller: caller)) {
                 sections[tab.id] = "The user declined this tab. Don't retry it."

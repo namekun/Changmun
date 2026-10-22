@@ -2034,6 +2034,36 @@ extension SharedAgentState {
 extension SharedAgentState {
     @MainActor
     struct PopupTests {
+        /// Sets the sites allowed to open pop-ups for one test, and gives back what restores them: no test goes by what is saved.
+        private func allowing(_ hosts: [String]) -> () -> Void {
+            let prefs = Preferences.shared
+            let saved = prefs.popupHosts
+            prefs.popupHosts = hosts
+            return { prefs.popupHosts = saved }
+        }
+
+        /// A page in a window of its own, loaded from `html` as if from `base`, with its script run once it is in.
+        private func page(_ html: String, base: String, in b: Browser) async throws -> (Changmun.Tab, WKWebView, NSWindow) {
+            let tab = b.openTab(url: nil)
+            let view = tab.wake()
+            let window = OffscreenWindow(view)
+            view.loadHTMLString(html, baseURL: URL(string: base))
+            _ = await waitUntil(5) { !view.isLoading && view.url != nil }
+            return (tab, view, window)
+        }
+
+        /// What the page says `script` is, once it is not empty (a page that sets a flag to say what happened to it).
+        private func eventually(_ script: String, in view: WKWebView) async -> String {
+            let end = Date().addingTimeInterval(8)
+            var value = ""
+            while Date() < end {
+                value = ((try? await view.evaluateJavaScript(script)) as? String) ?? ""
+                if !value.isEmpty { break }
+                try? await Task.sleep(for: .milliseconds(20))
+            }
+            return value
+        }
+
         @Test func sitesAllowedForPopupsCoverTheirSubdomains() {
             #expect(Preferences.matches("pay.example.com", ["example.com"]))
             #expect(Preferences.matches("EXAMPLE.com", ["example.com"]))
@@ -2042,40 +2072,64 @@ extension SharedAgentState {
         }
 
         @Test func allowedSitesOpenOnePopupASecondAndOnlyTakeTheEyeWhenShown() throws {
-            let prefs = Preferences.shared
-            let saved = prefs.popupHosts
-            defer { prefs.popupHosts = saved }
-            prefs.allowPopups(from: "www.allowed.test")
-            #expect(prefs.allowsPopups(from: "pay.allowed.test"))
+            let restore = allowing([])
+            defer { restore() }
+            Preferences.shared.allowPopups(from: "www.allowed.test")
+            #expect(Preferences.shared.allowsPopups(from: "pay.allowed.test"))
             let b = Browser()
             let shown = b.openTab(url: URL(string: "https://allowed.test/"))
             let background = b.openTab(url: URL(string: "https://allowed.test/other"), activate: false)
             background.popupBlocked(try #require(URL(string: "https://allowed.test/one")))
             #expect(b.tabs.count == 3 && b.activeID == shown.id)
+            // The second within a second is not opened, and not lost either: it is offered.
             shown.popupBlocked(try #require(URL(string: "https://allowed.test/two")))
             #expect(b.tabs.count == 3)
             #expect(background.blockedPopup == nil)
+            #expect(shown.blockedPopup?.absoluteString == "https://allowed.test/two")
         }
 
-        @Test func aPopupOpenedWithoutAClickIsOfferedInABar() async throws {
+        @Test func anAllowedSiteGetsFewPopupsAMinuteAndTheRestAreOffered() throws {
+            let restore = allowing(["allowed.test"])
+            defer { restore() }
+            let b = Browser()
+            let tab = b.openTab(url: URL(string: "https://allowed.test/"))
+            // Five in the last minute (none in the last second) are all it gets.
+            b.allowedPopups = (1...Browser.allowedPopupsPerMinute).map { Date().addingTimeInterval(-Double($0) * 5) }
+            tab.popupBlocked(try #require(URL(string: "https://allowed.test/six")))
+            #expect(b.tabs.count == 1 && tab.blockedPopup?.absoluteString == "https://allowed.test/six")
+            // One fewer: it opens. The minute running out frees the others.
+            tab.blockedPopup = nil
+            b.allowedPopups.removeFirst()
+            tab.popupBlocked(try #require(URL(string: "https://allowed.test/five")))
+            #expect(b.tabs.count == 2 && tab.blockedPopup == nil)
+            tab.blockedPopup = nil
+            b.allowedPopups = (1...Browser.allowedPopupsPerMinute).map { Date().addingTimeInterval(-61 - Double($0)) }
+            tab.popupBlocked(try #require(URL(string: "https://allowed.test/later")))
+            #expect(b.tabs.count == 3 && b.allowedPopups.count == 1)
+        }
+
+        /// Guards `_isUserInitiated`, which is all that tells a click's window from a page's own (see createWebViewWith): a timer
+        /// with no click behind it must get null back, not a window.
+        @Test func aTimersPopupWithNoGestureIsRefused() async throws {
+            let restore = allowing([])
+            defer { restore() }
             let b = Browser()
             b.focused()
             defer { b.windowClosed() }
-            let tab = b.openTab(url: nil)
-            let view = tab.wake()
-            let window = OffscreenWindow(view)
+            let (tab, view, window) = try await page("""
+                <script>setTimeout(() => { window.result = window.open('/next') === null ? 'refused' : 'window' }, 50)</script>
+                """, base: "https://popup.test/page", in: b)
             defer { window.close() }
-            view.loadHTMLString("<script>setTimeout(() => window.open('/next'), 50)</script>", baseURL: URL(string: "https://popup.test/page"))
-            for _ in 0..<60 where tab.blockedPopup == nil { try await Task.sleep(for: .milliseconds(50)) }
+            #expect(await eventually("window.result || ''", in: view) == "refused")
+            #expect(await waitUntil { tab.blockedPopup != nil })
+            #expect(b.tabs.count == 1)
             #expect(tab.blockedPopup?.absoluteString == "https://popup.test/next")
-            #expect(tab.blockedPopupFrame == nil)
+            #expect(tab.blockedPopupFrame == nil && tab.blockedPopupSite == "popup.test")
         }
 
         @Test func aFramesPopupIsJudgedByTheFramesSiteNotThePages() throws {
-            let prefs = Preferences.shared
-            let saved = prefs.popupHosts
-            defer { prefs.popupHosts = saved }
-            prefs.popupHosts = ["page.test"]
+            let restore = allowing(["page.test"])
+            defer { restore() }
             let b = Browser()
             let tab = b.openTab(url: URL(string: "https://page.test/"))
             // An ad's frame on another site: the bar, and no tab, though the page's site is allowed.
@@ -2084,18 +2138,31 @@ extension SharedAgentState {
             #expect(tab.blockedPopup?.absoluteString == "https://ad.test/landing")
             #expect(tab.blockedPopupFrame == "ad.test" && tab.blockedPopupSite == "ad.test" && tab.blockedPopupIsFromOtherSite)
             // A frame with no site of its own (sandboxed) is never allowed, and offers nothing to always allow.
+            tab.blockedPopup = nil
             tab.popupBlocked(try #require(URL(string: "https://ad.test/other")), fromFrame: "")
-            #expect(b.tabs.count == 1 && tab.blockedPopupSite == nil)
+            #expect(b.tabs.count == 1 && tab.blockedPopup != nil && tab.blockedPopupSite == nil)
             // The page's own frame, of the allowed site: it opens.
+            tab.blockedPopup = nil
             tab.popupBlocked(try #require(URL(string: "https://page.test/help")), fromFrame: "cdn.page.test")
             #expect(b.tabs.count == 2)
         }
 
+        @Test func aMainFramePopupIsJudgedByItsOriginNotTheAddressTheTabShows() throws {
+            let restore = allowing(["shown.test"])
+            defer { restore() }
+            let b = Browser()
+            let tab = b.openTab(url: URL(string: "https://shown.test/"))
+            // The tab already shows the address of a page that has not replaced the one that asked: the origin WebKit named decides.
+            tab.popupBlocked(try #require(URL(string: "https://x.test/go")), pageSite: "other.test")
+            #expect(b.tabs.count == 1 && tab.blockedPopupSite == "other.test")
+            tab.blockedPopup = nil
+            tab.popupBlocked(try #require(URL(string: "https://x.test/go")), pageSite: "shown.test")
+            #expect(b.tabs.count == 2 && tab.blockedPopup == nil)
+        }
+
         @Test func aFrameOfAnAllowedSiteOpensOnAPageOfAnotherSite() throws {
-            let prefs = Preferences.shared
-            let saved = prefs.popupHosts
-            defer { prefs.popupHosts = saved }
-            prefs.popupHosts = ["pay.test"]
+            let restore = allowing(["pay.test"])
+            defer { restore() }
             let b = Browser()
             let tab = b.openTab(url: URL(string: "https://shop.test/"))
             tab.popupBlocked(try #require(URL(string: "https://pay.test/3ds")), fromFrame: "pay.test")
@@ -2106,10 +2173,9 @@ extension SharedAgentState {
         }
 
         @Test func alwaysAllowFromAFrameAllowsTheFramesSite() throws {
+            let restore = allowing([])
+            defer { restore() }
             let prefs = Preferences.shared
-            let saved = prefs.popupHosts
-            defer { prefs.popupHosts = saved }
-            prefs.popupHosts = []
             let b = Browser()
             let tab = b.openTab(url: URL(string: "https://www.page.test/"))
             tab.popupBlocked(try #require(URL(string: "https://www.frame.test/go")), fromFrame: "www.frame.test")
@@ -2124,29 +2190,51 @@ extension SharedAgentState {
         }
 
         @Test func aFrameOfAPrivateTabOnlyOffersTheBar() throws {
-            let prefs = Preferences.shared
-            let saved = prefs.popupHosts
-            defer { prefs.popupHosts = saved }
-            prefs.popupHosts = ["frame.test"]
+            let restore = allowing(["frame.test"])
+            defer { restore() }
             let b = Browser(isPrivate: true)
             let tab = b.openTab(url: URL(string: "https://page.test/"))
             tab.popupBlocked(try #require(URL(string: "https://frame.test/go")), fromFrame: "frame.test")
             #expect(b.tabs.count == 1 && tab.blockedPopup != nil)
             tab.openBlockedPopup(always: true)
-            #expect(prefs.popupHosts == ["frame.test"])
+            #expect(Preferences.shared.popupHosts == ["frame.test"])
         }
 
-        /// A page in a window of its own, loaded from `html` as if from `base`, with its script run once it is in.
-        private func page(_ html: String, base: String, in b: Browser) async throws -> (Changmun.Tab, WKWebView, NSWindow) {
-            let tab = b.openTab(url: nil)
-            let view = tab.wake()
-            let window = OffscreenWindow(view)
-            view.loadHTMLString(html, baseURL: URL(string: base))
-            for _ in 0..<80 where view.isLoading || view.url == nil { try await Task.sleep(for: .milliseconds(50)) }
-            return (tab, view, window)
+        @Test func theBarKeepsTheFirstPopupAndOnlyCountsTheOthers() throws {
+            let restore = allowing([])
+            defer { restore() }
+            let b = Browser()
+            let tab = b.openTab(url: URL(string: "https://page.test/"))
+            tab.popupBlocked(try #require(URL(string: "https://ad.test/one")), fromFrame: "ad.test")
+            tab.popupBlocked(try #require(URL(string: "https://evil.test/two")), fromFrame: "evil.test")
+            tab.popupBlocked(try #require(URL(string: "https://evil.test/three")), fromFrame: "evil.test")
+            #expect(tab.blockedPopup?.absoluteString == "https://ad.test/one" && tab.blockedPopupSite == "ad.test" && tab.blockedPopupCount == 3)
+            tab.blockedPopup = nil
+            #expect(tab.blockedPopupCount == 0 && tab.blockedPopupFrame == nil && tab.blockedPopupSite == nil)
+        }
+
+        @Test func alwaysAllowOnlyAllowsTheSiteTheBarShowedWhenItWasPressed() throws {
+            let restore = allowing([])
+            defer { restore() }
+            let ad = try #require(URL(string: "https://ad.test/one"))
+            let b = Browser()
+            let tab = b.openTab(url: URL(string: "https://page.test/"))
+            tab.popupBlocked(ad, fromFrame: "ad.test")
+            let seen: (popup: URL, site: String?) = (tab.blockedPopup!, tab.blockedPopupSite)
+            // The bar was closed and another site's put up before the press was handled: nothing is allowed or opened on its word.
+            tab.blockedPopup = nil
+            tab.popupBlocked(try #require(URL(string: "https://evil.test/two")), fromFrame: "evil.test")
+            tab.openBlockedPopup(always: true, seen: seen)
+            tab.openBlockedPopup(always: false, seen: seen)
+            #expect(Preferences.shared.popupHosts.isEmpty && b.tabs.count == 1 && tab.blockedPopupSite == "evil.test")
+            // What the bar shows is what is allowed.
+            tab.openBlockedPopup(always: true, seen: (tab.blockedPopup!, tab.blockedPopupSite))
+            #expect(Preferences.shared.popupHosts == ["evil.test"] && b.tabs.count == 2)
         }
 
         @Test func aPopupFromAFrameIsOfferedInABarWithTheFrame() async throws {
+            let restore = allowing([])
+            defer { restore() }
             let b = Browser()
             b.focused()
             defer { b.windowClosed() }
@@ -2154,26 +2242,93 @@ extension SharedAgentState {
                 <iframe srcdoc="<script>setTimeout(() => window.open('https://ad.test/next'), 50)</script>"></iframe>
                 """, base: "https://page.test/", in: b)
             defer { window.close() }
-            for _ in 0..<60 where tab.blockedPopup == nil { try await Task.sleep(for: .milliseconds(50)) }
+            #expect(await waitUntil { tab.blockedPopup != nil })
             #expect(tab.blockedPopup?.absoluteString == "https://ad.test/next")
             // A srcdoc frame has its parent's origin, so its site is the page's.
             #expect(tab.blockedPopupFrame == "page.test" && !tab.blockedPopupIsFromOtherSite)
         }
 
         @Test func aSandboxedFramesPopupHasNoSiteToAllow() async throws {
+            let restore = allowing(["page.test"])
+            defer { restore() }
             let b = Browser()
             b.focused()
             defer { b.windowClosed() }
-            let (tab, _, window) = try await page("""
-                <iframe sandbox="allow-scripts" srcdoc="<script>setTimeout(() => window.open('https://ad.test/next'), 50)</script>"></iframe>
+            // allow-popups lets the frame ask the app for the window, which it refuses: the frame has no site, though the page's is allowed.
+            let (tab, view, window) = try await page("""
+                <script>addEventListener('message', e => { window.result = e.data })</script>
+                <iframe sandbox="allow-scripts allow-popups" srcdoc="<script>setTimeout(() => parent.postMessage(window.open('https://ad.test/next') === null ? 'refused' : 'window', '*'), 50)</script>"></iframe>
                 """, base: "https://page.test/", in: b)
             defer { window.close() }
-            for _ in 0..<60 where tab.blockedPopup == nil { try await Task.sleep(for: .milliseconds(50)) }
+            #expect(await eventually("window.result || ''", in: view) == "refused")
+            #expect(await waitUntil { tab.blockedPopup != nil })
+            #expect(b.tabs.count == 1)
             #expect(tab.blockedPopup?.absoluteString == "https://ad.test/next")
             #expect(tab.blockedPopupFrame == "" && tab.blockedPopupSite == nil)
         }
 
+        @Test func anAdFrameInAnAllowedPageIsRefusedByTheApp() async throws {
+            let restore = allowing(["localhost"])
+            defer { restore() }
+            // The page is on localhost and its frame on 127.0.0.1: two sites, as WebKit names the origin of each.
+            let server = try await TinyServer { _, path in
+                switch path {
+                case "/ad": "<script>setTimeout(() => parent.postMessage(window.open('/landing') === null ? 'refused' : 'window', '*'), 100)</script>"
+                default: "<script>addEventListener('message', e => { window.adResult = e.data })</script><iframe id=f></iframe><script>f.src = 'http://127.0.0.1:' + location.port + '/ad'</script>"
+                }
+            }
+            defer { server.stop() }
+            let b = Browser()
+            b.focused()
+            defer { b.windowClosed() }
+            let tab = b.openTab(url: nil)
+            let view = tab.wake()
+            let window = OffscreenWindow(view)
+            defer { window.close() }
+            view.load(URLRequest(url: try #require(URL(string: "http://localhost:\(server.port)/page"))))
+            #expect(await eventually("window.adResult || ''", in: view) == "refused")
+            #expect(b.tabs.count == 1)
+            #expect(await waitUntil { tab.blockedPopup != nil })
+            #expect(tab.blockedPopupFrame == "127.0.0.1" && tab.blockedPopupIsFromOtherSite)
+            // The page's own timer gets its window: the site is allowed, the ad's refusal did not use up its turn.
+            _ = try await view.evaluateJavaScript("setTimeout(() => { window.own = window.open('/own') ? 'window' : 'refused' }, 50)")
+            #expect(await eventually("window.own || ''", in: view) == "window")
+            #expect(b.tabs.count == 2)
+        }
+
+        @Test func aLoopOfWindowsInOneClickOpensOneTabAndTheRestAreCountedInTheBar() async throws {
+            let restore = allowing([])
+            defer { restore() }
+            let b = Browser()
+            b.focused()
+            defer { b.windowClosed() }
+            let (tab, view, window) = try await page("<p>page</p>", base: "https://popup.test/page", in: b)
+            defer { window.close() }
+            // Run as a click does (with a user gesture): the first window is the gesture's, the other 19 are refused.
+            let opened = try await view.evaluateJavaScript("(() => { let n = 0; for (let i = 0; i < 20; i++) if (window.open('/p' + i)) n++; return n })()") as? Int
+            #expect(opened == 1)
+            #expect(await waitUntil { tab.blockedPopupCount == 19 })
+            #expect(b.tabs.count == 2)
+            #expect(tab.blockedPopup?.absoluteString == "https://popup.test/p1")
+        }
+
+        @Test func aLoopOfWindowsOnAnAllowedSiteStillOnlyOpensAFew() async throws {
+            let restore = allowing(["popup.test"])
+            defer { restore() }
+            let b = Browser()
+            b.focused()
+            defer { b.windowClosed() }
+            let (_, view, window) = try await page("<p>page</p>", base: "https://popup.test/page", in: b)
+            defer { window.close() }
+            _ = try await view.evaluateJavaScript("(() => { for (let i = 0; i < 40; i++) window.open('/p' + i) })()")
+            try await Task.sleep(for: .milliseconds(300))
+            // The gesture's window, and the one a second the site is allowed: not 40.
+            #expect(b.tabs.count <= 3)
+        }
+
         @Test func aPopupOpenedAfterTheClickHasRunOutIsOfferedToo() async throws {
+            let restore = allowing([])
+            defer { restore() }
             let b = Browser()
             b.focused()
             defer { b.windowClosed() }
@@ -2183,13 +2338,16 @@ extension SharedAgentState {
             let now = try await view.evaluateJavaScript("(() => { const w = window.open('/now'); return w === null ? 'blocked' : 'window' })()") as? String
             #expect(now == "window" && b.tabs.count == 2)
             #expect(tab.blockedPopup == nil)
-            _ = try await view.evaluateJavaScript("setTimeout(() => window.open('/later'), 2000)")
-            for _ in 0..<80 where tab.blockedPopup == nil { try await Task.sleep(for: .milliseconds(50)) }
+            _ = try await view.evaluateJavaScript("setTimeout(() => { window.later = window.open('/later') === null ? 'blocked' : 'window' }, 2000)")
+            #expect(await eventually("window.later || ''", in: view) == "blocked")
+            #expect(await waitUntil { tab.blockedPopup != nil })
             #expect(tab.blockedPopup?.absoluteString == "https://popup.test/later")
             #expect(b.tabs.count == 2)
         }
 
         @Test func aWarningTellsTheConsoleWhenAPopupIsBlocked() async throws {
+            let restore = allowing([])
+            defer { restore() }
             let b = Browser()
             b.focused()
             defer { b.windowClosed() }
@@ -2197,19 +2355,12 @@ extension SharedAgentState {
                 <script>window.warned = []; console.warn = m => warned.push(m); setTimeout(() => window.open('/next'), 50)</script>
                 """, base: "https://popup.test/page", in: b)
             defer { window.close() }
-            var warned = ""
-            for _ in 0..<60 where warned.isEmpty {
-                try await Task.sleep(for: .milliseconds(50))
-                warned = (try await view.evaluateJavaScript("warned.join('|')") as? String) ?? ""
-            }
-            #expect(warned.contains("https://popup.test/next"))
+            #expect(await eventually("warned.join('|')", in: view).contains("https://popup.test/next"))
         }
 
         @Test func anAllowedSitesPopupIsAWindowOfThePage() async throws {
-            let prefs = Preferences.shared
-            let saved = prefs.popupHosts
-            defer { prefs.popupHosts = saved }
-            prefs.popupHosts = ["popup.test"]
+            let restore = allowing(["popup.test"])
+            defer { restore() }
             let b = Browser()
             b.focused()
             defer { b.windowClosed() }
@@ -2217,12 +2368,10 @@ extension SharedAgentState {
             defer { window.close() }
             // No click behind it: WebKit would refuse; the site is allowed, so it opens with the page as its opener.
             _ = try await view.evaluateJavaScript("setTimeout(() => { window.child = window.open('/next', 'named') }, 50)")
-            for _ in 0..<60 where b.tabs.count < 2 { try await Task.sleep(for: .milliseconds(50)) }
-            try await Task.sleep(for: .milliseconds(200))
+            #expect(await eventually("window.child && window.child.name === 'named' ? 'named' : ''", in: view) == "named")
             #expect(b.tabs.count == 2)
             #expect(b.tabs.last?.openerID == tab.id)
             #expect(tab.blockedPopup == nil)
-            #expect(try await view.evaluateJavaScript("window.child !== null && window.child.name === 'named'") as? Bool == true)
         }
     }
 }

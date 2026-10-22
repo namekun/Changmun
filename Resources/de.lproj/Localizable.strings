@@ -58,6 +58,7 @@
 "Allow pop-ups" = "Pop-ups erlauben";
 "Always Allow for %@" = "Für %@ immer erlauben";
 "Always Allow for This Site" = "Für diese Website immer erlauben";
+"and %lld more" = "und %lld weitere";
 "Archive tabs you haven’t viewed in a while" = "Tabs archivieren, die du länger nicht angesehen hast";
 "Archived Tabs" = "Archivierte Tabs";
 "Ask" = "Fragen";

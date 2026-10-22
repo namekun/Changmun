@@ -58,6 +58,7 @@
 "Allow pop-ups" = "ポップアップを許可";
 "Always Allow for %@" = "%@では常に許可";
 "Always Allow for This Site" = "このサイトでは常に許可";
+"and %lld more" = "ほか%lld件";
 "Archive tabs you haven’t viewed in a while" = "しばらく見ていないタブをアーカイブ";
 "Archived Tabs" = "アーカイブしたタブ";
 "Ask" = "確認";

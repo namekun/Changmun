@@ -1365,6 +1365,53 @@ extension SharedAgentState {
             return (try? await view.callAsyncJavaScript(script, contentWorld: .page)).flatMap { "\($0)" } ?? ""
         }
 
+        @Test func aWindowOpenedWhileAToolOtherThanAClickRunsIsNotTheUsers() async throws {
+            let prefs = Preferences.shared
+            let saved = prefs.popupHosts
+            defer { prefs.popupHosts = saved }
+            prefs.popupHosts = []
+            let html = """
+                <body><input placeholder="Name" oninput="window.typed = window.open('/typed') ? 'window' : 'refused'">
+                <button onclick="window.clicked = window.open('/clicked') ? 'window' : 'refused'">Go</button></body>
+                """
+            let (tab, window, browser) = try await page(html, host: "ai.test")
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page").text
+            let field = try #require(id(of: "Name", in: read)), go = try #require(id(of: "Go", in: read))
+            // The tool's script carries a user gesture, but typing is not a click: the page's handler gets no window, and the bar.
+            let typed = await call(tab, "type_text", ["element_id": field, "text": "hi"])
+            #expect(!typed.failed, Comment(rawValue: typed.text))
+            #expect(await evaluate(tab, "return window.typed") == "refused")
+            #expect(browser.tabs.count == 1)
+            #expect(await waitUntil { tab.blockedPopup?.absoluteString == "https://ai.test/typed" })
+            // A click is what a click is, even straight after: the window it asked for opens.
+            let clicked = await call(tab, "click", ["element_id": go])
+            #expect(!clicked.failed, Comment(rawValue: clicked.text))
+            #expect(await evaluate(tab, "return window.clicked") == "window")
+            #expect(browser.tabs.count == 2)
+            // On a site the user allowed, the same typing opens a window like any other of the page's own.
+            prefs.popupHosts = ["ai.test"]
+            let again = await call(tab, "type_text", ["element_id": field, "text": "other"])
+            #expect(!again.failed, Comment(rawValue: again.text))
+            #expect(await evaluate(tab, "return window.typed") == "window")
+            #expect(browser.tabs.count == 3)
+        }
+
+        @Test func theToolsMarkTheTabAsDrivenWhileTheyRunAndForAMomentAfter() {
+            var state = AgentState()
+            #expect(!state.drivesGesture)
+            state.toolStarted("type_text")
+            #expect(state.drivesGesture)
+            state.toolStarted("click")
+            #expect(state.drivesGesture, "a click beside another tool does not make the other one the user's")
+            state.toolEnded("type_text")
+            #expect(!state.drivesGesture, "a click alone is the user's kind of gesture")
+            state.toolEnded("click")
+            #expect(state.drivesGesture, "the moment after a tool that is not a click")
+            state.lastDrivenEnd = Date().addingTimeInterval(-AgentState.drivenGrace - 1)
+            #expect(!state.drivesGesture && state.tools.isEmpty)
+        }
+
         /// The question the guard asks before something that can't be undone, apart from the others about using a tab.
         private nonisolated static func isHigh(_ prompt: Approvals.Prompt) -> Bool { prompt.message.contains("undone") }
         private nonisolated static func isLow(_ prompt: Approvals.Prompt) -> Bool { prompt.message.contains("accept cookies") }

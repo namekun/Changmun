@@ -58,6 +58,7 @@
 "Allow pop-ups" = "允许弹出式窗口";
 "Always Allow for %@" = "始终允许 %@";
 "Always Allow for This Site" = "始终允许此网站";
+"and %lld more" = "另外 %lld 个";
 "Archive tabs you haven’t viewed in a while" = "归档一段时间未查看的标签页";
 "Archived Tabs" = "已归档的标签页";
 "Ask" = "询问";

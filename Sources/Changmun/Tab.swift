@@ -29,10 +29,22 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// A sign-in just submitted on this page, waiting for the user to save it or not.
     @Published var loginOffer: LoginOffer?
     /// A window the page tried to open on its own, which WebKit blocked.
-    @Published var blockedPopup: URL?
+    @Published var blockedPopup: URL? {
+        didSet {
+            guard blockedPopup == nil else { return }
+            blockedPopupFrame = nil
+            blockedPopupSite = nil
+            blockedPopupCount = 0
+        }
+    }
     /// The site of the frame the blocked pop-up came from, when that was a frame in the page and not the page itself
     /// ("" for a frame with no site of its own).
     @Published var blockedPopupFrame: String?
+    /// The site "Always Allow" would allow for the pop-up in the bar (nil where there is none): the origin of the page or frame
+    /// that asked, as WebKit named it when it asked.
+    @Published var blockedPopupSite: String?
+    /// How many windows the bar stands for: the first one it shows, and the ones refused after it while it stayed up.
+    @Published var blockedPopupCount = 0
     @Published var isInPictureInPicture = false {
         didSet { if isInPictureInPicture != oldValue { PictureInPictureKeys.update() } }
     }
@@ -59,6 +71,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     @Published private(set) var webView: WKWebView?
     /// What the AI's tools know about this tab's frames.
     var agent = AgentState()
+    /// When the page last asked for a window with a user gesture behind it, and the event of that gesture (see createWebViewWith).
+    private var lastGestureWindow: (at: Date, event: TimeInterval?)?
     /// The AI is going back, forward or reloading: a page that would send a form again is not loaded.
     var agentHistoryMove = false
     /// Such a load was refused.
@@ -426,7 +440,6 @@ extension Tab: WKNavigationDelegate {
         translating?.cancel()
         translating = nil
         blockedPopup = nil
-        blockedPopupFrame = nil
         isInPictureInPicture = false
         foreignLanguage = nil
         translation = .original
@@ -437,23 +450,26 @@ extension Tab: WKNavigationDelegate {
     // MARK: Popups
 
     /// A popup that was not opened: offered in a bar, or opened as a tab when the site it came from is one the user allows
-    /// popups from. That site is the page's, or for a popup from a frame (`frame`), the frame's own: an ad's frame never
-    /// borrows the permission of the page it sits in.
-    func popupBlocked(_ popup: URL, fromFrame frame: String? = nil) {
-        guard !isPrivate, Preferences.shared.allowsPopups(from: frame ?? url?.host()), let browser else {
-            if blockedPopup != popup || blockedPopupFrame != frame { blockedPopup = popup; blockedPopupFrame = frame }
+    /// popups from. That site is the origin of the page (`pageSite`, as WebKit named it; the address of the tab when it
+    /// isn't known) or, for a popup from a frame (`frame`), the frame's own: an ad's frame never borrows the permission of
+    /// the page it sits in. An allowed site's tabs are few (`Browser.takeAllowedPopupSlot`); the ones beyond them are offered too.
+    func popupBlocked(_ popup: URL, fromFrame frame: String? = nil, pageSite: String? = nil) {
+        let site = (frame ?? pageSite ?? url?.host() ?? "").lowercased()
+        let judged = site.isEmpty ? nil : site
+        guard !isPrivate, Preferences.shared.allowsPopups(from: judged), let browser, browser.takeAllowedPopupSlot() else {
+            // The bar keeps the first one until it is closed, so that a frame can't swap the address (and the site "Always
+            // Allow" would allow) under a user who is about to press it; the others only add to its count.
+            if blockedPopup == nil {
+                blockedPopup = popup
+                blockedPopupFrame = frame
+                blockedPopupSite = judged
+                blockedPopupCount = 1
+            } else {
+                blockedPopupCount += 1
+            }
             return
         }
-        // The page could post this itself: at most one tab a second in the window, and only a shown tab takes the eye.
-        guard Date().timeIntervalSince(browser.lastAllowedPopup) > 1 else { return }
-        browser.lastAllowedPopup = Date()
         browser.openTab(url: popup, activate: browser.isShown(self), after: self).openerID = id
-    }
-
-    /// The site "Always Allow" would allow for the pop-up in the bar: the page's, or its frame's.
-    var blockedPopupSite: String? {
-        guard let frame = blockedPopupFrame else { return url?.host() }
-        return frame.isEmpty ? nil : frame
     }
 
     /// Whether the pop-up in the bar came from a frame of another site than the page's.
@@ -463,11 +479,13 @@ extension Tab: WKNavigationDelegate {
         return bare(frame) != bare(url?.host())
     }
 
-    func openBlockedPopup(always: Bool) {
+    /// Opens the pop-up in the bar, and with `always` allows its site. `seen` is what the bar showed when the user pressed the
+    /// button: if the bar has changed since (another page's, or another site's), nothing is opened or allowed on its word.
+    func openBlockedPopup(always: Bool, seen: (popup: URL, site: String?)? = nil) {
         guard let popup = blockedPopup else { return }
         let site = blockedPopupSite
+        if let seen, seen.popup != popup || (always && seen.site != site) { return }
         blockedPopup = nil
-        blockedPopupFrame = nil
         if always, !isPrivate, let site { Preferences.shared.allowPopups(from: site) }
         browser?.openTab(url: popup, after: self).openerID = id
     }
@@ -602,22 +620,39 @@ extension Tab: WKNavigationDelegate {
 
 extension Tab: WKUIDelegate {
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        if Self.isPeekClick(action), let url = action.request.url {
+        // SECURITY DEPENDENCY: with javaScriptCanOpenWindowsAutomatically on, every window.open reaches this method, and all that keeps
+        // a page from opening windows on its own is that `_isUserInitiated` (private, read through KVC) is false for them. If a
+        // macOS release renames it, `knowsUserInitiated` goes false and the preference is turned off again (Browser.swift), so WebKit
+        // refuses the unclicked windows itself. If one changes what it says, only the test that opens a window from a timer with no
+        // gesture (aTimersPopupWithNoGestureIsRefused) notices, so it must keep passing.
+        // The AI's tools run their scripts with a user gesture too, so while one that isn't a click runs, no window is the user's.
+        let userInitiated = !agent.drivesGesture && Self.isUserInitiated(action)
+        if userInitiated, Self.isPeekClick(action), let url = action.request.url {
             browser?.openPeek(url)
             return nil
         }
-        // Told apart here, not by WebKit, so that a window an allowed site opens on its own is a real window of the page.
         var activate = true
-        if !Self.isUserInitiated(action) {
+        // The user's window is the first of its gesture, so that a loop of window.open in a click opens one tab, not hundreds.
+        if !userInitiated || isAnotherWindowOfTheGesture() {
+            // Not the user's, or one more of the same gesture: only a site the user allowed gets a window, and only a few.
             let site = PopupWatcher.site(of: action.sourceFrame)
             guard let browser, !isPrivate, Preferences.shared.allowsPopups(from: site.isEmpty ? nil : site),
-                  Date().timeIntervalSince(browser.lastAllowedPopup) > 1 else { return nil }
-            browser.lastAllowedPopup = Date()
+                  browser.takeAllowedPopupSlot() else { return nil }
             activate = browser.isShown(self)
         }
         let tab = browser?.openTab(configuration: configuration, after: self, activate: activate)
         tab?.openerID = id
         return tab?.webView
+    }
+
+    /// Whether the window a user-initiated `window.open` asks for follows another of the same gesture: within a second of the last
+    /// one asked for (each ask renews that, so a long loop is one gesture), and with no new click or key between. Where the event
+    /// can't be told (a script of the app's, a stale one), the second alone decides.
+    private func isAnotherWindowOfTheGesture() -> Bool {
+        let event = NSApp.currentEvent?.timestamp
+        defer { lastGestureWindow = (Date(), event) }
+        guard let last = lastGestureWindow, Date().timeIntervalSince(last.at) < 1 else { return false }
+        return event == nil || event == last.event
     }
 
     /// Whether WebKit can say a window was asked for by the user (it can in this version of macOS: its navigation actions carry

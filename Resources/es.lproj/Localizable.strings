@@ -58,6 +58,7 @@
 "Allow pop-ups" = "Permitir ventanas emergentes";
 "Always Allow for %@" = "Permitir siempre en %@";
 "Always Allow for This Site" = "Permitir siempre en este sitio";
+"and %lld more" = "y %lld más";
 "Archive tabs you haven’t viewed in a while" = "Archivar las pestañas que no has visto en un tiempo";
 "Archived Tabs" = "Pestañas archivadas";
 "Ask" = "Preguntar";

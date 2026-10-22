@@ -133,8 +133,10 @@ final class PopupWatcher: NSObject, WKScriptMessageHandler {
         guard let address = message.body as? String, let url = URL(string: address), ["http", "https"].contains(url.scheme) else { return }
         MainActor.assumeIsolated {
             guard let webView = message.webView, let tab = Browser.tab(showing: webView) else { return }
-            // An ad's frame posting here must not borrow the site's permission: it is judged by its own site.
-            tab.popupBlocked(url, fromFrame: message.frameInfo.isMainFrame ? nil : Self.site(of: message.frameInfo))
+            // An ad's frame posting here must not borrow the site's permission: it is judged by its own site. The page itself is
+            // judged by the origin WebKit says its main frame has, not by the address the tab shows, which can run ahead of it.
+            let site = Self.site(of: message.frameInfo)
+            tab.popupBlocked(url, fromFrame: message.frameInfo.isMainFrame ? nil : site, pageSite: message.frameInfo.isMainFrame ? site : nil)
         }
     }
 }

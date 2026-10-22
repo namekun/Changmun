@@ -537,6 +537,30 @@ struct AgentState {
     var hung: [String: Date] = [:]
     static let hungFor: TimeInterval = 10
 
+    /// The tools running in the page now, by name, and when the last that was not a click ended. A script the app runs in the page
+    /// carries a user gesture, so a handler it wakes (typing into a field, a key, a hover) could open a window as if the user had
+    /// asked: while a tool other than a click is at work, and for a moment after it, windows are not taken to be the user's.
+    var tools: [String: Int] = [:]
+    var lastDrivenEnd = Date.distantPast
+    static let clickTools: Set<String> = ["click", "click_at"]
+    static let drivenGrace: TimeInterval = 2
+
+    mutating func toolStarted(_ name: String) {
+        tools[name, default: 0] += 1
+    }
+
+    mutating func toolEnded(_ name: String) {
+        tools[name] = tools[name].flatMap { $0 > 1 ? $0 - 1 : nil }
+        if !Self.clickTools.contains(name) { lastDrivenEnd = Date() }
+    }
+
+    /// Whether a gesture seen now may be the AI's tool, not the user: a tool other than a click is at work, or ended a moment ago
+    /// (unless a click is at work now, whose gesture is the point of a click).
+    var drivesGesture: Bool {
+        if tools.keys.contains(where: { !Self.clickTools.contains($0) }) { return true }
+        return tools.isEmpty && Date().timeIntervalSince(lastDrivenEnd) < Self.drivenGrace
+    }
+
     mutating func beginRead() {
         frames.beginRead()
         ranges = []

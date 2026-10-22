@@ -187,7 +187,7 @@ final class ControlServer {
                 if body["reset"] as? Bool == true {
                     for tab in browser.tabs where tab !== target { browser.close(tab.id, remember: false) }
                     target?.blockedPopup = nil
-                    browser.lastAllowedPopup = .distantPast
+                    browser.allowedPopups = []
                 }
                 switch body["action"] as? String {
                 case "open": target?.openBlockedPopup(always: false)
