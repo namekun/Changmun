@@ -30,6 +30,13 @@ if [[ -z "$NOTES_FILE" ]]; then
 fi
 [[ -s "$NOTES_FILE" ]] || { echo "Release notes are empty" >&2; exit 1; }
 
+# Notarizing comes after the checks and the build, so find out first whether the credentials are there.
+source scripts/env.sh
+if [[ -n "$(developer_id)" ]] && ! xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
+    echo "No notarytool credentials named $NOTARY_PROFILE: run xcrun notarytool store-credentials $NOTARY_PROFILE first" >&2
+    exit 1
+fi
+
 ./scripts/preflight.sh
 
 # Until the version commit is pushed, a failure puts the bumped files back.
