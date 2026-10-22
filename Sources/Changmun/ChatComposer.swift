@@ -74,7 +74,10 @@ struct ComposerField: NSViewRepresentable {
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let textView = scroll.documentView as? ComposerTextView else { return }
-        textView.onReturn = onReturn
+        // Disabled (the AI can't answer yet): nothing can be typed, and Return sends nothing.
+        let enabled = context.environment.isEnabled
+        textView.isEditable = enabled
+        textView.onReturn = enabled ? onReturn : { _, _ in }
         context.coordinator.parent = self
         if textView.string != text && !textView.hasMarkedText() { textView.string = text }
         context.coordinator.measure(textView)

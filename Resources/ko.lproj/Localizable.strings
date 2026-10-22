@@ -580,10 +580,10 @@
 "Filling a saved password asks for Touch ID or your Mac password, then doesn’t ask again for a minute." = "저장된 비밀번호를 채울 때 Touch ID나 Mac 암호로 확인하고, 그 뒤 1분 동안은 다시 묻지 않아요.";
 "Authentication is required to fill the saved password" = "저장된 비밀번호를 채우려면 확인이 필요해요";
 "Claude Code is ready" = "Claude Code를 쓸 수 있어요";
-"Press ⌘E any time to talk to the AI. It can read the page, click and type for you." = "언제든 ⌘E를 눌러 AI와 이야기해 보세요. 페이지를 읽고, 대신 클릭하고 입력해 줘요.";
+"Press ⌘E any time to talk to the AI. It can read the page, click and type for you." = "언제든 ⌘E를 눌러 AI와 이야기해 보세요. 페이지를 읽고, 클릭이나 입력도 대신 해 줘요.";
 "The AI panel works with Claude Code for now" = "AI 패널은 지금 Claude Code로만 쓸 수 있어요";
 "Install Claude Code to turn it on." = "Claude Code를 설치하면 켜져요.";
-"Found on this Mac, support coming: %@" = "이 Mac에서 찾았어요, 지원 예정: %@";
+"Support for %@ on this Mac is coming." = "이 Mac에 있는 %@도 곧 지원할 예정이에요.";
 "The AI panel needs Claude Code" = "AI 패널에는 Claude Code가 필요해요";
-"Everything else in Changmun works without AI. To turn the AI panel on later, install Claude Code." = "AI 없이도 Changmun의 나머지 기능은 모두 그대로 써요. AI 패널은 나중에 Claude Code를 설치하면 켤 수 있어요.";
+"Everything else in Changmun works without AI. To turn the AI panel on later, install Claude Code." = "AI 없이도 Changmun의 다른 기능은 모두 그대로 쓸 수 있어요. AI 패널은 나중에 Claude Code를 설치하면 켤 수 있어요.";
 "Get Claude Code" = "Claude Code 받기";

@@ -583,7 +583,7 @@
 "Press ⌘E any time to talk to the AI. It can read the page, click and type for you." = "Appuyez sur ⌘E à tout moment pour parler à l’IA. Elle peut lire la page, cliquer et saisir à votre place.";
 "The AI panel works with Claude Code for now" = "Pour l’instant, le panneau IA fonctionne avec Claude Code";
 "Install Claude Code to turn it on." = "Installez Claude Code pour l’activer.";
-"Found on this Mac, support coming: %@" = "Trouvé sur ce Mac, prise en charge à venir : %@";
+"Support for %@ on this Mac is coming." = "La prise en charge de %@ (déjà sur ce Mac) arrive bientôt.";
 "The AI panel needs Claude Code" = "Le panneau IA a besoin de Claude Code";
 "Everything else in Changmun works without AI. To turn the AI panel on later, install Claude Code." = "Tout le reste de Changmun fonctionne sans IA. Pour activer le panneau IA plus tard, installez Claude Code.";
 "Get Claude Code" = "Obtenir Claude Code";

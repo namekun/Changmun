@@ -582,8 +582,8 @@
 "Claude Code is ready" = "Claude Code ist bereit";
 "Press ⌘E any time to talk to the AI. It can read the page, click and type for you." = "Drücke jederzeit ⌘E, um mit der KI zu sprechen. Sie kann die Seite lesen sowie für dich klicken und tippen.";
 "The AI panel works with Claude Code for now" = "Die KI-Seitenleiste funktioniert vorerst mit Claude Code";
-"Install Claude Code to turn it on." = "Installiere Claude Code, um es einzuschalten.";
-"Found on this Mac, support coming: %@" = "Auf diesem Mac gefunden, Unterstützung folgt: %@";
+"Install Claude Code to turn it on." = "Installiere Claude Code, um sie einzuschalten.";
+"Support for %@ on this Mac is coming." = "Die Unterstützung für %@ auf diesem Mac folgt bald.";
 "The AI panel needs Claude Code" = "Die KI-Seitenleiste braucht Claude Code";
 "Everything else in Changmun works without AI. To turn the AI panel on later, install Claude Code." = "Alles andere in Changmun funktioniert auch ohne KI. Wenn du die KI-Seitenleiste später einschalten möchtest, installiere Claude Code.";
-"Get Claude Code" = "Claude Code holen";
+"Get Claude Code" = "Claude Code herunterladen";

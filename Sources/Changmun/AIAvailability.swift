@@ -59,6 +59,11 @@ struct AIGuidance: View {
         }
     }
 
+    /// Korean puts commas between names, where the system's list adds "및".
+    private static func list(_ names: [String]) -> String {
+        Bundle.main.preferredLocalizations.first == "ko" ? names.joined(separator: ", ") : ListFormatter.localizedString(byJoining: names)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? 10 : 12) {
             Text(title).font(.system(size: compact ? 15 : 18, weight: .semibold)).foregroundStyle(compact ? Theme.primary : Color.primary)
@@ -68,7 +73,7 @@ struct AIGuidance: View {
                 .foregroundStyle(compact ? Theme.secondary : Color.primary.opacity(0.7))
                 .fixedSize(horizontal: false, vertical: true)
             if case .supportComing(let found) = availability {
-                Text("Found on this Mac, support coming: \(ListFormatter.localizedString(byJoining: found))")
+                Text("Support for \(Self.list(found)) on this Mac is coming.")
                     .font(.system(size: compact ? 11.5 : 12.5))
                     .foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -84,18 +89,15 @@ struct AIGuidance: View {
 
 /// The panel before the first message: the suggestions, or what is missing for the AI to answer at all.
 struct ChatEmptyState: View {
+    let availability: AIAvailability
     var several = false
     let send: (String) -> Void
-    @State private var availability = AIAvailability.detector()
 
     var body: some View {
-        Group {
-            if availability == .ready {
-                ChatWelcome(several: several, send: send)
-            } else {
-                AIGuidance(availability: availability, compact: true).padding(.top, 4)
-            }
+        if availability == .ready {
+            ChatWelcome(several: several, send: send)
+        } else {
+            AIGuidance(availability: availability, compact: true).padding(.top, 4)
         }
-        .onAppear { availability = AIAvailability.detector() }
     }
 }

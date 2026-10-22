@@ -712,6 +712,8 @@ struct ChatPanel: View {
     @ObservedObject var browser: Browser
     @State private var draft = ""
     @State private var draftHeight: CGFloat = 16
+    /// What the AI needs from the user, looked up as the panel opens; until it is ready there is nothing to type to.
+    @State private var availability = AIAvailability.detector()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -734,7 +736,7 @@ struct ChatPanel: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {
-                        if chat.items.isEmpty { ChatEmptyState(several: chat.attachedTabs.count >= 2) { send($0) } }
+                        if chat.items.isEmpty { ChatEmptyState(availability: availability, several: chat.attachedTabs.count >= 2) { send($0) } }
                         ForEach(chat.items) { item in
                             ChatRow(item: item).id(item.id)
                         }
@@ -749,14 +751,15 @@ struct ChatPanel: View {
                     }
                 }
             }
-            attachments
+            attachments.disabled(availability != .ready).opacity(availability == .ready ? 1 : 0.4)
             if !chat.queue.isEmpty { queued }
             if let notice = chat.notice {
                 Text(notice).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waiting)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6).padding(.bottom, 6)
             }
-            composer
+            composer.disabled(availability != .ready).opacity(availability == .ready ? 1 : 0.4)
         }
+        .onAppear { availability = AIAvailability.detector() }
     }
 
     /// The tabs attached as context, each removable, and the menu to add more.
