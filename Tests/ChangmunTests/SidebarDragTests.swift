@@ -357,6 +357,20 @@ extension SharedAgentState {
             #expect(b.tab(t[1])?.groupID == group && b.tab(t[1])?.bookmarkKey == nil)
         }
 
+        @Test func aTabDroppedOnAFolderBecomesItsBookmark() throws {
+            let b = browser(3, spaces: Sandbox().store())
+            let tab = b.tabs[1]
+            let folder = "Changmun Kept \(UUID().uuidString)"
+            #expect(SidebarDrag.drop([SidebarDrag.tab(tab.id)], onFolder: folder, browser: b))
+            #expect(Library.shared.folders().first { $0.name == folder }?.entries.map(\.url) == ["https://site2.example/"])
+            #expect(tab.bookmarkKey == Browser.bookmarkKey(url: "https://site2.example/", folder: folder))
+            #expect(!b.listedTabs.contains { $0 === tab } && b.space.openFolders.contains("pin:" + folder))
+            // A tab with no web page is left where it is.
+            let blank = b.openTab(url: URL(string: "about:blank"), activate: false)
+            #expect(!SidebarDrag.drop([SidebarDrag.tab(blank.id)], onFolder: folder, browser: b))
+            Library.shared.removeFolder(folder)
+        }
+
         @Test func theSidebarDropsKeepGroupsThroughTheSharedLibrary() throws {
             let b = browser(3, spaces: Sandbox().store())
             let t = b.tabs.map(\.id)

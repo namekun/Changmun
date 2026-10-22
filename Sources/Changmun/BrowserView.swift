@@ -768,12 +768,13 @@ struct Sidebar: View {
         let isPinned = browser.space.pinnedFolders.contains(folder.key)
         let targetKey = scope + "folder:" + folder.key
         // Pinned folders reorder when a folder is dropped on one, and a group is pinned above it as a new folder;
-        // a bookmark dropped on any folder moves in, and a group becomes a folder inside it.
+        // a bookmark dropped on any folder moves in, a tab is kept there as its bookmark, and a group becomes a folder
+        // inside it.
         let reorders = pinned && depth == 0
         let over = dropTarget == targetKey
         let places = reorders && (SidebarDrag.dragging == .folder || SidebarDrag.dragging == .group)
         return FolderRow(name: folder.label, count: folder.count, isOpen: browser.space.openFolders.contains(openKey), showCount: false,
-                         target: over && !places && SidebarDrag.dragging != .tab && SidebarDrag.dragging != .folder) {
+                         target: over && !places && SidebarDrag.dragging != .folder) {
             browser.spaces.toggleOpen(openKey, in: browser.spaceID)
         } menu: {
             if isPinned {
@@ -1032,6 +1033,18 @@ enum SidebarDrag {
         }
         if let group = groupID(items) {
             _ = withAnimation(Motion.standard) { browser.saveGroup(group, to: .folder(folder)) }
+            return true
+        }
+        // A tab becomes the folder's bookmark and that bookmark's tab, as on the favorites; the folder opens to show it.
+        if let id = tabID(items), let tab = browser.tab(id), let url = tab.url, ["http", "https"].contains(url.scheme?.lowercased()) {
+            let address = url.absoluteString
+            if !Library.shared.isFavorite(address, in: folder) {
+                Library.shared.addBookmark(url: address, title: tab.title.isEmpty ? (url.host() ?? address) : tab.title, folder: folder)
+            }
+            withAnimation(Motion.standard) {
+                browser.bind(tab, to: Browser.bookmarkKey(url: address, folder: folder))
+                if !browser.space.openFolders.contains("pin:" + folder) { browser.spaces.toggleOpen("pin:" + folder, in: browser.spaceID) }
+            }
             return true
         }
         guard let (url, from) = bookmark(items), from != folder else { return false }
