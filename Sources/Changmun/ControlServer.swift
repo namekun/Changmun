@@ -274,6 +274,7 @@ final class ControlServer {
                 case "none": AIAvailability.detector = { .none }
                 default: break
                 }
+                ChatStore.shared.refreshAvailability()
                 guard let browser = Browser.current else {
                     return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
                 }

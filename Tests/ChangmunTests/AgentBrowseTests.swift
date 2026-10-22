@@ -660,7 +660,7 @@ extension SharedAgentState {
             // Every other name could be had by another process (or is every command of the command line, or a request that wasn't
             // proved to be the panel's): asked each time, however the user answers.
             let uuid = UUID().uuidString
-            for caller in ["cli", "unknown", "unverified-panel", "unverified-\(ChatStore.caller)", "my-agent", "mcp-12-notauuid", "mcp-12", "mcp--\(uuid)", "mcp-x1-\(uuid)", "mcp-12-\(uuid)-more", "MCP-12-\(uuid)", "test-page-3"] {
+            for caller in ["cli", "unknown", "unverified-panel", "unverified-\(ChatStore.caller)", "my-agent", "mcp-12-notauuid", "mcp-12", "mcp--\(uuid)", "mcp-x1-\(uuid)", "mcp-12-\(uuid)-more", "MCP-12-\(uuid)", "mcp-5\u{301}-\(uuid)", "mcp-1️⃣-\(uuid)", "mcp-٣-\(uuid)", "test-page-3"] {
                 Approvals.forgetReads(caller: caller)
                 defer { Approvals.forgetReads(caller: caller) }
                 await asking({ _ in .site }) { stand in

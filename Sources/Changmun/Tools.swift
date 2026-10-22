@@ -865,7 +865,7 @@ enum Approvals {
     private static func hasChat(_ caller: String) -> Bool {
         if caller == ChatStore.caller { return true }
         let parts = caller.split(separator: "-", maxSplits: 2, omittingEmptySubsequences: false)
-        return parts.count == 3 && parts[0] == "mcp" && !parts[1].isEmpty && parts[1].allSatisfy { ("0"..."9").contains($0) }
+        return parts.count == 3 && parts[0] == "mcp" && !parts[1].isEmpty && parts[1].utf8.allSatisfy { (48...57).contains($0) }
             && UUID(uuidString: String(parts[2])) != nil
     }
 

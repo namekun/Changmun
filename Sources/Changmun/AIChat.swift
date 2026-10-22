@@ -766,7 +766,8 @@ struct ChatPanel: View {
                 Text(notice).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waiting)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6).padding(.bottom, 6)
             }
-            composer.disabled(!ready).opacity(ready ? 1 : 0.4)
+            // A run under way can always be stopped.
+            composer.disabled(!ready && !chat.isRunning).opacity(ready || chat.isRunning ? 1 : 0.4)
         }
         .onAppear { chat.refreshAvailability() }
         .onChange(of: prefs.claudePath) { chat.refreshAvailability() }
