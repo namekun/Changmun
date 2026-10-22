@@ -1175,6 +1175,42 @@ extension SharedAgentState {
             #expect(chat.step == nil, "stopping takes the line away")
         }
 
+        @Test func theAIsTitleComesAfterTheAppsWordsOnTheStepLineAndTheChipAndNeverInTheirPlace() {
+            let chat = ChatStore()
+            chat.handle(["type": "assistant", "message": ["id": "m1", "content": [
+                ["type": "tool_use", "name": "mcp__changmun__click", "input": ["element_id": 4, "title": "Comparing prices"]],
+                ["type": "tool_use", "name": "mcp__changmun__sign_in", "input": ["title": "Nothing to worry about"]],
+                ["type": "tool_use", "name": "mcp__changmun__read_page", "input": [:]],
+            ]]])
+            #expect(chat.items.map(\.text) == ["Click [4]", "Sign in with saved login", "Read page"], "the app's words are the text")
+            #expect(chat.items.map(\.title) == ["Comparing prices", nil, nil], "the AI's words are a second label, and not on signing in")
+            // The line the panel shows while the step runs.
+            AgentActivity.shared.runStarted()
+            defer { AgentActivity.shared.runEnded(); ChatStore.shared.step = nil }
+            ToolCatalog.$currentTitle.withValue("Comparing prices") {
+                AgentActivity.shared.step("Clicking “Buy”", caller: ChatStore.caller)
+                #expect(ChatStore.shared.step == "Clicking “Buy” · Comparing prices")
+                AgentActivity.shared.step("Signing in to a.example", caller: ChatStore.caller, titled: false)
+                #expect(ChatStore.shared.step == "Signing in to a.example", "only the app's text where the user decides on it")
+            }
+            // A step that asks every time takes the title off its chip too.
+            chat.hideTitle("Comparing prices")
+            #expect(chat.items[0].title == nil && chat.items[0].text == "Click [4]")
+        }
+
+        @Test func anActionThatAsksEveryTimeIsAnnouncedWithoutTheAIsTitle() async throws {
+            AgentActivity.shared.runStarted()
+            defer { AgentActivity.shared.runEnded(); ChatStore.shared.step = nil }
+            let buy = ToolCatalog.Aim(frame: nil, slot: nil, args: [:], facts: IrreversibleAction.Facts(label: "Buy now", names: ["Buy now"]), secret: false, description: "", origin: "https://a.example", fingerprint: "", exact: true, host: "a.example")
+            let plain = ToolCatalog.Aim(frame: nil, slot: nil, args: [:], facts: IrreversibleAction.Facts(label: "Next", names: ["Next"]), secret: false, description: "", origin: "https://a.example", fingerprint: "", exact: false, host: "a.example")
+            ToolCatalog.$currentTitle.withValue("Just looking") {
+                ToolCatalog.announce("Clicking “Next”", aims: [plain], caller: ChatStore.caller)
+                #expect(ChatStore.shared.step == "Clicking “Next” · Just looking")
+                ToolCatalog.announce("Clicking “Buy now”", aims: [buy], caller: ChatStore.caller)
+                #expect(ChatStore.shared.step == "Clicking “Buy now”", "the title of a purchase is not shown")
+            }
+        }
+
         @Test func aTabTheChatUsesIsHeldOnlyWhileItsRunLasts() {
             let (b, tabs) = browser(tabs: ["https://used.example/"])
             defer { b.windowClosed() }

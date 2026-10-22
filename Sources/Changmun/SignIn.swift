@@ -112,7 +112,7 @@ extension ToolCatalog {
         // From here on, whatever goes wrong has the one answer: the AI can't tell whether a login is saved.
         let accounts = SignIn.activeStore.accounts(exactly: host)
         guard !accounts.isEmpty else { return signInNotDone }
-        AgentActivity.shared.step(String(localized: "Signing in to \(shownHost)"), caller: session.caller)
+        AgentActivity.shared.step(String(localized: "Signing in to \(shownHost)"), caller: session.caller, titled: false)
         Approvals.noteRead(tab, readHost: host, caller: session.caller)
         // Using the page after reading other sites is asked about as for any other use; then the sign-in itself, every time.
         let used = await Approvals.allowInteraction(.act(String(localized: "Signing in to \(shownHost)")), on: tab, caller: session.caller, site: host)

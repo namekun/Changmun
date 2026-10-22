@@ -396,10 +396,13 @@ final class AgentActivity: ObservableObject {
         }
     }
 
-    /// Tells the panel what a tool call from it is doing, while one of its runs lasts.
-    func step(_ text: String?, caller: String) {
-        // The words the AI gave the step, when it gave any, take the place of the app's.
-        if caller == ChatStore.caller, panelRun != nil || text == nil { ChatStore.shared.step = text.map { ToolCatalog.currentTitle ?? $0 } }
+    /// Tells the panel what a tool call from it is doing, while one of its runs lasts. The words the app says are always shown; the
+    /// title the AI gave the step comes after them as a second label (`titled`), except where the user decides on what the app says
+    /// (signing in, what can't be undone): there the AI's words are left out of the line and the step's chip.
+    func step(_ text: String?, caller: String, titled: Bool = true) {
+        guard caller == ChatStore.caller, panelRun != nil || text == nil else { return }
+        if !titled { ChatStore.shared.hideTitle(ToolCatalog.currentTitle) }
+        ChatStore.shared.step = text.map { text in titled ? ToolCatalog.currentTitle.map { text + " · " + $0 } ?? text : text }
     }
 }
 
@@ -1032,6 +1035,13 @@ extension ToolCatalog {
         return "\n\nWhat changed (+ new, ~ changed, - gone; new elements are numbered and the numbers of your last read still work, except for those gone):\n" + report.joined(separator: "\n")
     }
 
+    /// The progress line for an action on `aims`: with the AI's title after the app's words, unless the action asks the user every time.
+    @MainActor
+    static func announce(_ text: String, aims: [Aim], caller: String) {
+        let asksEveryTime = aims.contains { foreignDestination(of: $0) != nil || IrreversibleAction.tier(of: $0.facts) == .high }
+        AgentActivity.shared.step(text, caller: caller, titled: !asksEveryTime)
+    }
+
     // MARK: Tools
 
     @MainActor
@@ -1039,7 +1049,7 @@ extension ToolCatalog {
         do {
             let aim = try await Self.aim(["id": id], tab: tab, in: webView, session: session)
             let step = String(localized: "Clicking “\(aim.label)”")
-            AgentActivity.shared.step(step, caller: session.caller)
+            announce(step, aims: [aim], caller: session.caller)
             try await approve(.act(step), aims: [aim], irreversible: [aim], tab: tab, session: session)
             let result = await act(PageScripts.click, aim.script(), aim: aim, tab: tab, webView: webView)
             if result.isError { return result }
@@ -1057,7 +1067,7 @@ extension ToolCatalog {
         do {
             let aim = try await Self.aim(["x": x, "y": y], tab: tab, in: webView, session: session)
             let step = String(localized: "Clicking at \(pixels(x)), \(pixels(y))")
-            AgentActivity.shared.step(step, caller: session.caller)
+            announce(step, aims: [aim], caller: session.caller)
             try await approve(.act(step), aims: [aim], irreversible: [aim], tab: tab, session: session)
             let result = await act(PageScripts.clickAt, aim.script(), aim: aim, tab: tab, webView: webView)
             if result.isError { return result }
@@ -1074,7 +1084,7 @@ extension ToolCatalog {
         do {
             let aim = try await Self.aim(["id": id], key: submit ? "Enter" : nil, typing: submit, tab: tab, in: webView, session: session)
             if aim.secret { return .text("Error: Changmun does not let the AI type into password fields. Ask the user to.", error: true) }
-            AgentActivity.shared.step(String(localized: "Typing into “\(aim.label)”"), caller: session.caller)
+            announce(String(localized: "Typing into “\(aim.label)”"), aims: submit ? [aim] : [], caller: session.caller)
             try await approve(.type(text), aims: [aim], irreversible: submit ? [aim] : [], tab: tab, session: session)
             let result = await act(PageScripts.type, aim.script(["text": text, "submit": submit]), aim: aim, tab: tab, webView: webView)
             if result.isError { return result }
@@ -1094,7 +1104,7 @@ extension ToolCatalog {
             let aim = try await Self.aim(wanted, key: key, mods: modifiers, tab: tab, in: webView, session: session)
             if aim.secret { return .text("Error: Changmun does not let the AI press keys in password fields. Ask the user to.", error: true) }
             let step = String(localized: "Pressing \(key)")
-            AgentActivity.shared.step(step, caller: session.caller)
+            announce(step, aims: [aim], caller: session.caller)
             // Enter or Space on a button or in a form does what a click does, and Enter in a message box sends it.
             try await approve(.act(step), aims: [aim], irreversible: [aim], tab: tab, session: session)
             let result = await act(PageScripts.pressKey, aim.script(["mods": modifiers]), aim: aim, tab: tab, webView: webView)
@@ -1144,6 +1154,8 @@ extension ToolCatalog {
             // A menu item named "Delete" is a button by another name, and so is the option of a list that acts when it changes
             // (a native list that submits its form takes the form's card details and address along). It is judged by every
             // name its markup gives it, and chosen only if it is still that very option.
+            // What the option does decides how the step is told, as for a click.
+            announce(String(localized: "Choosing “\(option)”"), aims: [aim.judged(as: optionFacts)], caller: session.caller)
             try await approve(nil, aims: [aim], irreversible: [aim.judged(as: optionFacts)], tab: tab, session: session)
             let result = await ask("choose", expect: exact ? exactFingerprint : fingerprint, exact: exact)
             if result.isError { return result }
@@ -1186,7 +1198,7 @@ extension ToolCatalog {
             if from.secret || to.secret { return .text("Error: Changmun does not let the AI use password fields. Ask the user to.", error: true) }
             guard from.slot == to.slot else { return .text("Error: dragging from one frame to another isn't supported.", error: true) }
             let step = String(localized: "Dragging “\(from.label)” to “\(to.label)”")
-            AgentActivity.shared.step(step, caller: session.caller)
+            announce(step, aims: [from, to], caller: session.caller)
             // Dropping something on a control named "Delete" or "Send" does what pressing it would, and dragging a control
             // named so drops it into something.
             try await approve(.act(step), aims: [from], irreversible: [from, to], tab: tab, session: session)

@@ -8,8 +8,8 @@ struct ChatItem: Identifiable, Equatable {
     var text: String
     /// For a tool step, the SF Symbol shown in its chip.
     var symbol: String? = nil
-    /// For a tool step that shows the title the AI gave it, what the app would have said.
-    var detail: String? = nil
+    /// For a tool step, the title the AI gave it: shown after `text` (what the app says), never in place of it.
+    var title: String? = nil
 }
 
 /// One conversation with Claude. Each message runs `claude -p`, resuming the same session, with only
@@ -425,6 +425,12 @@ final class ChatStore: ObservableObject {
         handle(event)
     }
 
+    /// An action that asks the user every time is shown without the AI's title on its step.
+    func hideTitle(_ title: String?) {
+        guard let title else { return }
+        for index in items.indices where items[index].kind == .tool && items[index].title == title { items[index].title = nil }
+    }
+
     func handle(_ event: [String: Any]) {
         switch event["type"] as? String {
         case "system":
@@ -462,8 +468,9 @@ final class ChatStore: ObservableObject {
                     streamingIndex = nil
                     let name = (block["name"] as? String ?? "").replacingOccurrences(of: "mcp__changmun__", with: "")
                     let input = block["input"] as? [String: Any] ?? [:], described = Self.describe(tool: name, input: input)
-                    let title = ToolCatalog.stepTitle(input["title"])
-                    items.append(ChatItem(kind: .tool, text: title ?? described, symbol: Self.symbol(tool: name), detail: title == nil ? nil : described))
+                    // Signing in is decided on the app's words alone.
+                    let title = name == "sign_in" ? nil : ToolCatalog.stepTitle(input["title"])
+                    items.append(ChatItem(kind: .tool, text: described, symbol: Self.symbol(tool: name), title: title))
                 default:
                     break
                 }
@@ -948,14 +955,14 @@ struct ChatRow: View {
         case .tool:
             HStack(spacing: 5) {
                 Image(systemName: item.symbol ?? "cursorarrow.rays").font(.system(size: 9.5, weight: .semibold))
-                Text(item.text).lineLimit(1).truncationMode(.middle)
+                Text(item.text + (item.title.map { " · " + $0 } ?? "")).lineLimit(1).truncationMode(.middle)
             }
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(Theme.secondary)
             .padding(.horizontal, 9)
             .frame(height: 22)
             .background(Capsule().fill(Theme.selected))
-            .help(item.detail ?? "")
+            .help(item.text + (item.title.map { " · " + $0 } ?? ""))
         case .note:
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Image(systemName: "info.circle").font(.system(size: 11))
