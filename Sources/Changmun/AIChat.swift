@@ -565,7 +565,7 @@ struct ChatPanel: View {
     @ObservedObject var chat: ChatStore
     @ObservedObject var browser: Browser
     @State private var draft = ""
-    @FocusState private var focused: Bool
+    @State private var draftHeight: CGFloat = 16
 
     var body: some View {
         VStack(spacing: 0) {
@@ -607,7 +607,6 @@ struct ChatPanel: View {
             if !chat.queue.isEmpty { queued }
             composer
         }
-        .onAppear { focused = true }
     }
 
     /// The tabs attached as context, each removable, and the menu to add more.
@@ -682,19 +681,17 @@ struct ChatPanel: View {
     private var composer: some View {
         VStack(spacing: 0) {
             HStack(alignment: .bottom, spacing: 8) {
-                TextField("Ask about this page, or give it a task", text: $draft, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Theme.primary)
-                    .lineLimit(1...6)
-                    .focused($focused)
-                    .padding(.vertical, 3)
-                    .onKeyPress(.return, phases: .down) { press in
-                        if press.modifiers.contains(.shift) { return .ignored }
-                        // While the AI works, Return queues the message for when it is done and ⌘Return steers it now.
-                        send(draft, steering: press.modifiers.contains(.command))
-                        return .handled
+                ZStack(alignment: .topLeading) {
+                    if draft.isEmpty {
+                        Text("Ask about this page, or give it a task")
+                            .font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.faint)
+                            .allowsHitTesting(false)
                     }
+                    // While the AI works, Return queues the message for when it is done and ⌘Return steers it now.
+                    ComposerField(text: $draft, height: $draftHeight) { text, command in send(text, steering: command) }
+                }
+                .frame(height: draftHeight)
+                .padding(.vertical, 3)
                 if chat.isRunning {
                     Button { chat.stop() } label: {
                         HStack(spacing: 4) {
