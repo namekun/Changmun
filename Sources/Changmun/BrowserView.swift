@@ -2784,7 +2784,9 @@ struct CommandBar: View {
         case .ask(let question):
             browser.commandBar = nil
             browser.showChat = true
-            chat.send(question)
+            // Without the AI there is nothing to send to: the panel shows what is missing instead of a message that can only fail.
+            chat.refreshAvailability()
+            if chat.availability == .ready { chat.send(question) } else { chat.say(String(localized: "The AI panel needs Claude Code, so your question wasn't sent.")) }
         case .page(let url, _):
             browser.open(url, in: mode)
         case nil:

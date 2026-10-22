@@ -263,6 +263,30 @@ final class ControlServer {
             }
             return
         }
+        // Tests only: what the AI tools on this Mac look like to the app. "state" is ready, coming (Claude Code missing, Codex and
+        // opencode found) or none; "show" is onboarding (opens it, at its first step) or panel (opens the AI panel on a new chat).
+        if Headless.isOn, request.method == "POST", request.path == "/ai-tools",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                switch body["state"] as? String {
+                case "ready": AIAvailability.detector = { .ready }
+                case "coming": AIAvailability.detector = { .supportComing(["Codex", "opencode"]) }
+                case "none": AIAvailability.detector = { .none }
+                default: break
+                }
+                ChatStore.shared.refreshAvailability()
+                guard let browser = Browser.current else {
+                    return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
+                }
+                switch body["show"] as? String {
+                case "onboarding": browser.showOnboarding = true
+                case "panel": ChatStore.shared.reset(); browser.showChat = true
+                default: break
+                }
+                self.respond(connection, status: "200 OK", body: [:])
+            }
+            return
+        }
         // Tests only: open the settings window on a page, far off screen, and answer with its picture.
         if Headless.isOn, request.method == "POST", request.path == "/settings-image",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {

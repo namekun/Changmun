@@ -771,7 +771,8 @@ enum Approvals {
         if let site = readHost ?? site(of: tab.url) { readHosts[caller, default: []].insert(site) }
     }
 
-    /// How an approval was answered. Only a chat panel can allow a site for as long as the chat lasts.
+    /// How an approval was answered. `site` (allow on this site for as long as the chat lasts) is offered to the chat panel and to any
+    /// MCP client that the bridge named itself (its chat is its connection); any other caller is only ever asked each time.
     enum Choice {
         case deny, once, site
     }
@@ -803,6 +804,7 @@ enum Approvals {
     /// Changmun Headless has nobody to ask, and its own profile holds nothing of the user's to leak; its tests set the answers.
     static let headless = Stand { _ in .once }
     /// Per caller and site, the sites the AI had read when the user allowed it to use that site for the rest of the chat.
+    /// A caller's chat is the panel's chat, or an MCP client's connection (its name is its process's and never used again).
     private static var allowances: [String: [String: Set<String>]] = [:]
 
     /// What the AI does to a page.
@@ -847,12 +849,24 @@ enum Approvals {
             message = String(localized: "The AI wants to use \(target)")
             detail = "\(target)\n\n" + String(localized: "Action:\n\(text.text)\n\nSites read earlier in this conversation: \(sites)\nA page can hide instructions for the AI. Deny if this isn’t what you asked for.")
         }
-        let forChat = caller == ChatStore.caller && allowable
+        let forChat = hasChat(caller) && allowable
         let answer = await choose(message, detail,
                                   [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))]
                                   + (forChat ? [(.site, String(localized: "Allow on \(display(host)) for This Chat"))] : []), caller: caller)
         if answer == .site, forChat { allowances[caller, default: [:]][host] = read }
         return answer != .deny
+    }
+
+    /// Whether the caller has a chat an allowance can last for, which only a caller no other process can be taken for has: the panel
+    /// (its name is only ever given back to a request that proved it, see `ControlServer.caller`), or a name in the form the MCP bridge
+    /// gives itself, "mcp-<process ID>-<UUID>", which no other process will have. Everything else is asked each time: the command line
+    /// (every command is the one caller "cli"), a request with no name, one that named the panel without proving it, and a name a client
+    /// chose for itself with `--caller`, which another process can choose too.
+    private static func hasChat(_ caller: String) -> Bool {
+        if caller == ChatStore.caller { return true }
+        let parts = caller.split(separator: "-", maxSplits: 2, omittingEmptySubsequences: false)
+        return parts.count == 3 && parts[0] == "mcp" && !parts[1].isEmpty && parts[1].utf8.allSatisfy { (48...57).contains($0) }
+            && UUID(uuidString: String(parts[2])) != nil
     }
 
     private static func display(_ host: String) -> String {
@@ -865,7 +879,7 @@ enum Approvals {
     /// What looks like it pays, orders, sends, posts, deletes, cancels or gives something up (the high tier) is asked about every
     /// time, whatever else the user allowed (and whether or not the other questions are asked): what it does can't be taken
     /// back, and a page can name a button anything. What looks like agreeing, saving, sharing or changing a setting (the low
-    /// tier) is asked about once per site for a chat when the user says so (the chat panel), else each time. `destination` is
+    /// tier) is asked about once per site for a chat when the user says so (the panel or an MCP client of the bridge's own naming), else each time. `destination` is
     /// the site a form sends its data to when that isn't the site it is on.
     /// `markupOnly`: the low tier is only the page's markup saying the control is in a cookie banner. A page can say that of anything,
     /// so this is asked every time, with no offer to allow the site for the chat, and in words that don't vouch for it.
@@ -888,7 +902,7 @@ enum Approvals {
                                 "\(place)\n\n“\(words)”\n\n" + sent + String(localized: "This looks like it pays, orders, sends, posts, shares, uploads, grants access, deletes or cancels, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this."),
                                 [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))], caller: caller) != .deny
         }
-        let forChat = caller == ChatStore.caller && allowable
+        let forChat = hasChat(caller) && allowable
         let answer = await choose(String(localized: "The AI wants to accept cookies or change a setting"),
                                   "\(place)\n\n“\(words)”\n\n" + String(localized: "This looks like a cookie banner or a setting (save, clear, reset, block, enable), not like paying, sending or granting access. You can allow it once, or on this site for the rest of the chat."),
                                   [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))]

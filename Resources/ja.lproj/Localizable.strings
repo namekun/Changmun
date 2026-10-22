@@ -579,3 +579,13 @@
 "Require Touch ID to fill passwords" = "パスワードの自動入力にTouch IDを要求";
 "Filling a saved password asks for Touch ID or your Mac password, then doesn’t ask again for a minute." = "保存したパスワードの入力にはTouch IDまたはMacのパスワードが必要です。その後1分間は再確認しません。";
 "Authentication is required to fill the saved password" = "保存されたパスワードを入力するには認証が必要です";
+"Claude Code is ready" = "Claude Codeを使えます";
+"Press ⌘E any time to talk to the AI. It can read the page, click and type for you." = "⌘Eを押すと、いつでもAIに話しかけられます。ページを読んだり、クリックや入力を代わりにしたりしてくれます。";
+"The AI panel works with Claude Code for now" = "AIパネルは今のところClaude Codeでのみ使えます";
+"Install Claude Code to turn it on." = "Claude Codeをインストールすると使えるようになります。";
+"Support for %@ on this Mac is coming." = "このMacにある%@にも、まもなく対応する予定です。";
+"The AI panel needs Claude Code" = "AIパネルにはClaude Codeが必要です";
+"Everything else in Changmun works without AI. To turn the AI panel on later, install Claude Code." = "AIがなくても、Changmunのそのほかの機能はすべて使えます。AIパネルは、あとからClaude Codeをインストールすれば使えるようになります。";
+"Get Claude Code" = "Claude Codeを入手";
+"Already installed? Enter where it is in Settings › AI." = "すでにインストール済みなら、設定 › AIでパスを指定してください。";
+"The AI panel needs Claude Code, so your question wasn't sent." = "AIパネルにはClaude Codeが必要なため、質問は送信されませんでした。";
