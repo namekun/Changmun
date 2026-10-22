@@ -65,7 +65,8 @@ final class ChatStore: ObservableObject {
     - When asked to do something on a page, do it with the tools, then say briefly what you did.
     - Element ids come from the latest read_page; read the page again after it changes. Use click_at only for what \
     read_page doesn't list (a canvas, a map), with the coordinates of a screenshot; use wait_for instead of reading \
-    the page again and again while something loads.
+    the page again and again while something loads. A screenshot with labels: true draws each element's number over \
+    it (read again for the picture), which helps to tell what is what on a visual page.
     - After click, type_text, press_key, select_option, hover and drag, the result lists what changed in the page's \
     elements (+ new, ~ changed, - gone). New elements are numbered and usable at once, and the numbers of your last \
     read still work; read the page again only after a navigation or when the list says more changed than it shows.

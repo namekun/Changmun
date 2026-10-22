@@ -182,6 +182,8 @@ extension SharedAgentState {
             #expect(try CLI.parse(["type", "3", "hi", "--submit"]) == .call("type_text", ["element_id": 3, "text": "hi", "submit": true], output: nil))
             #expect(try CLI.parse(["read", "--max", "500", "--tab", "2"]) == .call("read_page", ["max_chars": 500, "tab_id": 2], output: nil))
             #expect(try CLI.parse(["screenshot", "-o", "x.jpg"]) == .call("screenshot", [:], output: "x.jpg"))
+            #expect(try CLI.parse(["screenshot", "--labels", "--tab", "2"]) == .call("screenshot", ["labels": true, "tab_id": 2], output: nil))
+            #expect(throws: CLI.UsageError.self) { try CLI.parse(["read", "--labels"]) }
         }
 
         @Test func coordinatesShownAreKeptToASaneRange() {
@@ -2104,6 +2106,51 @@ extension SharedAgentState {
             #expect(!shot.failed)
             now = await both()
             #expect(now.password == "none" && now.code == "none")
+        }
+
+        /// The colour of a pixel of a screenshot's picture, at a point given as a share of its width and height.
+        private func pixel(_ picture: String, x: Double, y: Double) -> (r: Int, g: Int, b: Int)? {
+            guard let data = Data(base64Encoded: picture), let rep = NSBitmapImageRep(data: data),
+                  let color = rep.colorAt(x: Int(Double(rep.pixelsWide) * x), y: Int(Double(rep.pixelsHigh) * y))?.usingColorSpace(.deviceRGB) else { return nil }
+            return (Int(color.redComponent * 255), Int(color.greenComponent * 255), Int(color.blueComponent * 255))
+        }
+
+        @Test func aScreenshotWithLabelsNumbersTheElementsInViewAndLeavesNothingOnThePage() async throws {
+            let html = """
+                <body style='margin:0;background:#fff'><button style='position:absolute;left:100px;top:50px;width:120px;height:40px'>Target</button>
+                <input style='position:absolute;left:300px;top:50px;width:120px;height:30px' placeholder="Fruit">
+                <button style='position:absolute;left:100px;top:9000px;width:120px;height:40px'>Far</button>
+                <input id=code autocomplete=one-time-code value="123456" style='position:absolute;left:500px;top:50px'></body>
+                """
+            let (tab, window, browser) = try await page(html)
+            defer { window.close(); browser.windowClosed() }
+            let view = try #require(tab.webView)
+            let width = Double(await evaluate(tab, "return innerWidth")) ?? 1
+            let before = await evaluate(tab, "return document.documentElement.children.length")
+            func picture(_ result: ToolResult) -> String? { result.content.first { $0["type"] as? String == "image" }?["data"] as? String }
+            let plain = await ToolCatalog.call("screenshot", ["tab_id": tab.id], caller: "labels-plain")
+            let labelled = await ToolCatalog.call("screenshot", ["tab_id": tab.id, "labels": true], caller: "labels-1")
+            let note = labelled.content.compactMap { $0["text"] as? String }.joined(separator: "\n")
+            #expect(!labelled.isError && note.contains("element numbers of a read_page"), Comment(rawValue: note))
+            // The tag of the first element's box is red in the labelled picture and the page's own colour in the plain one.
+            let x = 103 / min(width, 1280), y = 53 / (Double(await evaluate(tab, "return innerHeight")) ?? 900)
+            let labelledPicture = try #require(picture(labelled)), plainPicture = try #require(picture(plain)), laterPicture = try #require(picture(await ToolCatalog.call("screenshot", ["tab_id": tab.id], caller: "labels-2")))
+            let red = try #require(pixel(labelledPicture, x: x, y: y)), page = try #require(pixel(plainPicture, x: x, y: y))
+            #expect(red.r > 190 && red.g < 120 && red.b < 120, "the box is drawn: \(red)")
+            #expect(!(page.r > 190 && page.g < 120 && page.b < 120), "and only in the labelled one: \(page)")
+            #expect(await evaluate(tab, "return document.documentElement.children.length") == before, "the page is as it was")
+            let clean = try #require(pixel(laterPicture, x: x, y: y))
+            #expect(!(clean.r > 190 && clean.g < 120 && clean.b < 120), "nothing is left to show in a later picture")
+            // The numbers are read_page's: a button, a field and a code field are in view, the button far down is not.
+            let read = await call(tab, "read_page").text
+            #expect(id(of: "Target", in: read) == 1 && id(of: "Fruit", in: read) == 2 && id(of: "Far", in: read) == 3)
+            let drawn = await ToolCatalog.run(PageScripts.labels, [:], in: view, timeout: 5)
+            #expect(drawn.content.first?["text"] as? String == "3", "three of the four are in view")
+            _ = await ToolCatalog.run(PageScripts.clearLabels, [:], in: view, timeout: 5)
+            #expect(await evaluate(tab, "return document.documentElement.children.length") == before)
+            // Secrets are masked for a labelled picture too, and unmasked after.
+            #expect(await evaluate(tab, "return getComputedStyle(document.getElementById('code')).webkitTextSecurity") == "none")
+            #expect((await call(tab, "screenshot", ["labels": "yes"])).failed)
         }
 
         @Test func aPointOfTheScreenIsClickedAndNamed() async throws {

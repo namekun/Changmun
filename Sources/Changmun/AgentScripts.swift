@@ -916,6 +916,55 @@ extension PageScripts {
     /// Takes the marks off, and ends what is waiting to act (the pause after an outline): the user pressed stop.
     static let clearMarks = lib + "\nglobalThis.changmunStops = (globalThis.changmunStops || 0) + 1;\nclearMark();\nreturn 'ok';"
 
+    /// Draws the number of each element the latest read numbered over it, for a picture: a box and a tag in a closed shadow tree the
+    /// page can't reach, never taking the pointer, with nothing in it but the numbers. Only what is in view is drawn. Answers how many.
+    /// It takes itself off after a while if the app never asks.
+    static let labels = lib + #"""
+
+    const old = globalThis.changmunLabels;
+    if (old) { clearTimeout(old.timer); old.host.remove(); }
+    const host = document.createElement('div');
+    for (const [name, value] of [['all', 'initial'], ['position', 'fixed'], ['inset', '0'], ['pointer-events', 'none'], ['z-index', '2147483647']]) host.style.setProperty(name, value, 'important');
+    const shadow = host.attachShadow({mode: 'closed'});
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync('.box { position: fixed; box-sizing: border-box; border: 2px solid #e5484d; background: rgba(229, 72, 77, .10); }'
+      + ' .tag { position: absolute; left: 0; top: 0; min-width: 16px; padding: 0 4px; box-sizing: border-box; text-align: center; background: #e5484d; color: #fff;'
+      + ' font: 700 11px/16px -apple-system, system-ui, sans-serif; }');
+    shadow.adoptedStyleSheets = [sheet];
+    let drawn = 0;
+    for (const [id, ref] of registry) {
+      const el = ref.deref();
+      if (!el || !el.isConnected) continue;
+      const r = el.getBoundingClientRect(), w = where(el);
+      let left = w.dx + w.s * r.left, top = w.dy + w.s * r.top, right = left + w.s * r.width, bottom = top + w.s * r.height;
+      if (right <= 0 || bottom <= 0 || left >= innerWidth || top >= innerHeight) continue;
+      left = Math.max(left, 0); top = Math.max(top, 0); right = Math.min(right, innerWidth); bottom = Math.min(bottom, innerHeight);
+      const box = document.createElement('div');
+      box.className = 'box';
+      box.style.left = left + 'px';
+      box.style.top = top + 'px';
+      box.style.width = Math.max(right - left, 4) + 'px';
+      box.style.height = Math.max(bottom - top, 4) + 'px';
+      const tag = document.createElement('div');
+      tag.className = 'tag';
+      tag.textContent = String(id);
+      box.append(tag);
+      shadow.append(box);
+      drawn++;
+    }
+    document.documentElement.append(host);
+    globalThis.changmunLabels = {host, timer: setTimeout(() => host.remove(), 15000)};
+    await Promise.race([new Promise(resolve => requestAnimationFrame(() => resolve())), sleep(150)]);
+    return String(drawn);
+    """#
+
+    static let clearLabels = lib + #"""
+
+    const old = globalThis.changmunLabels;
+    if (old) { clearTimeout(old.timer); old.host.remove(); globalThis.changmunLabels = null; }
+    return 'ok';
+    """#
+
     /// The frames of other sites that a picture of the page shows, greeted so that the app can ask each where it really is:
     /// also those in web components, and the documents of <object> and <embed>.
     static let visibleFrames = lib + #"""

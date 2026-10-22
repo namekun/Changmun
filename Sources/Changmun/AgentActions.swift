@@ -669,6 +669,8 @@ extension ToolCatalog {
             if args["gone"] != nil && args["gone"] as? Bool == nil { return "gone must be true or false." }
             if args["gone"] as? Bool == true && args["text"] == nil { return "gone needs the text to wait for to disappear." }
             if args["timeout"] != nil && number(args["timeout"]).map({ $0 > 0 }) != true { return "timeout must be a number of seconds." }
+        case "screenshot":
+            if args["labels"] != nil && args["labels"] as? Bool == nil { return "labels must be true or false." }
         case "drag":
             guard hasElement("from_element_id") != hasPoint("from_"), hasElement("to_element_id") != hasPoint("to_") else {
                 return "Give where to drag from and where to drop: from_element_id or from_x and from_y, and to_element_id or to_x and to_y."
@@ -714,7 +716,7 @@ extension ToolCatalog {
     }
 
     @MainActor
-    private static func readPageAlone(_ tab: Tab, _ webView: WKWebView, maxChars: Int, session: Session) async -> (ToolResult, frameHosts: Set<String>) {
+    static func readPageAlone(_ tab: Tab, _ webView: WKWebView, maxChars: Int, session: Session) async -> (ToolResult, frameHosts: Set<String>) {
         tab.agent.beginRead()
         defer { tab.agent.endRead() }
         let maxElements = 250

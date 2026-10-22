@@ -25,7 +25,8 @@ enum CLI {
       changmun drag <from> <to> [--tab N]    each an element number or x,y
       changmun wait [text] [--gone] [--timeout N] [--tab N]   until the text shows (or goes), else until the page has loaded
       changmun scroll down|up|top|bottom [--tab N]
-      changmun screenshot [--tab N] [-o file.jpg]
+      changmun screenshot [--labels] [--tab N] [-o file.jpg]
+                                             --labels draws each element's number over it, as `read` numbers them
       changmun call <tool> [json]            any tool by name, with JSON arguments
       changmun tools                         the tools and their arguments, as JSON
 
@@ -68,7 +69,7 @@ enum CLI {
     private static let appliesTo: [String: Set<String>] = {
         let onATab: Set<String> = ["show", "close", "go", "back", "forward", "reload", "read", "click", "click-at", "type", "press", "select", "hover", "drag", "wait", "scroll", "screenshot", "call"]
         var table: [String: Set<String>] = ["--tab": onATab, "--max": ["read", "read-tabs"], "-o": ["screenshot", "call"], "--output": ["screenshot", "call"],
-                                            "--submit": ["type"], "--gone": ["wait"], "--timeout": ["wait"], "--element": ["press"]]
+                                            "--submit": ["type"], "--labels": ["screenshot"], "--gone": ["wait"], "--timeout": ["wait"], "--element": ["press"]]
         for modifier in AgentKey.modifierNames { table["--" + modifier] = ["press"] }
         return table
     }()
@@ -76,7 +77,7 @@ enum CLI {
     /// The command line as a tool call. Flags may come anywhere after the command.
     static func parse(_ arguments: [String]) throws -> Command {
         var words: [String] = []
-        var tab: Int?, max: Int?, output: String?, submit = false, gone = false, element: Int?, timeout: Double?
+        var tab: Int?, max: Int?, output: String?, submit = false, labels = false, gone = false, element: Int?, timeout: Double?
         var modifiers: [String] = []
         var flags: [String] = []
         var rest = arguments.makeIterator()
@@ -94,6 +95,8 @@ enum CLI {
                 output = value
             case "--submit":
                 submit = true
+            case "--labels":
+                labels = true
             case "--gone":
                 gone = true
             case "--shift", "--alt", "--ctrl", "--meta":
@@ -209,7 +212,9 @@ enum CLI {
             }
             args["direction"] = direction
             return .call("scroll", args, output: nil)
-        case "screenshot": return .call("screenshot", args, output: output)
+        case "screenshot":
+            if labels { args["labels"] = true }
+            return .call("screenshot", args, output: output)
         case "call":
             guard let tool = operands.first else { throw UsageError(message: "call needs a tool name (see `changmun tools`)") }
             var given = args

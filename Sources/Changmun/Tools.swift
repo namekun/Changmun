@@ -57,7 +57,8 @@ enum ToolCatalog {
         tool("wait_for", "Wait until the given text is on the page (or, with gone, no longer there), or, without text, until the page stops loading. Frames from other sites are searched too. Gives up after timeout seconds (default 10, at most 30). Use it instead of reading the page over and over.",
              ["text": ["type": "string"], "gone": ["type": "boolean", "description": "Wait for the text to disappear"], "timeout": ["type": "number", "description": "Seconds, default 10, at most 30"]]),
         tool("scroll", "Scroll the page.", ["direction": ["type": "string", "enum": ["down", "up", "top", "bottom"]]], required: ["direction"]),
-        tool("screenshot", "Take a screenshot of the visible part of the page. Its note says how its pixels relate to the CSS pixels click_at takes."),
+        tool("screenshot", "Take a screenshot of the visible part of the page. Its note says how its pixels relate to the CSS pixels click_at takes. With labels, the page is read again and a numbered box is drawn over each interactive element in view for the picture (taken off the page afterwards): the numbers are those read_page gives, so you can use them with click, type_text, select_option, hover, press_key and drag.",
+             ["labels": ["type": "boolean", "description": "Draw each interactive element's number over it"]]),
     ]
 
     @MainActor
@@ -169,7 +170,7 @@ enum ToolCatalog {
             Approvals.noteRead(tab, caller: caller)
             // A picture shows the frames of other sites on the page too.
             for frameHost in await shownFrameHosts(tab, webView) { Approvals.noteRead(tab, readHost: frameHost, caller: caller) }
-            return await screenshot(tab, webView)
+            return await screenshot(tab, webView, labels: args["labels"] as? Bool ?? false, session: session)
         default:
             return .text("Unknown tool \(name).", error: true)
         }
@@ -336,7 +337,29 @@ enum ToolCatalog {
     /// The picture is made as wide as the visible page is in CSS pixels (up to 1280), so a point of it is a point for
     /// click_at whatever the page zoom or the screen's pixel density; a wider page is scaled down, and the note says by how much.
     @MainActor
-    private static func screenshot(_ tab: Tab, _ webView: WKWebView) async -> ToolResult {
+    private static func screenshot(_ tab: Tab, _ webView: WKWebView, labels: Bool, session: Session) async -> ToolResult {
+        guard labels else { return await picture(tab, webView) }
+        // The page is read again, so that the numbers drawn are the ones a read_page gives now, and nobody else's read renumbers
+        // the elements while the boxes are up.
+        return await tab.agent.gate.run {
+            let read = await readPageAlone(tab, webView, maxChars: 200, session: session)
+            if read.0.isError { return read.0 }
+            var drawn = 0
+            for frame in [nil] + tab.agent.frames.known.map({ Optional($0.frame) }) {
+                drawn += Int(await run(PageScripts.labels, [:], in: webView, frame: frame, timeout: 5).content.first?["text"] as? String ?? "") ?? 0
+            }
+            var result = await picture(tab, webView)
+            await runInPageAndFrames(PageScripts.clearLabels, tab, webView)
+            if !result.isError {
+                result.content.append(["type": "text", "text": drawn == 0 ? "No interactive element is in view, so no numbers are drawn."
+                    : "The boxes carry the element numbers of a read_page taken just now (the page was read again for the picture, so numbers from earlier reads are replaced): use them with click, type_text, select_option, hover, press_key and drag. Elements outside the picture have no box."])
+            }
+            return result
+        } ?? stopped
+    }
+
+    @MainActor
+    private static func picture(_ tab: Tab, _ webView: WKWebView) async -> ToolResult {
         let size = await run("return JSON.stringify([innerWidth, innerHeight]);", [:], in: webView, timeout: 5).content.first?["text"] as? String
         let viewport = size.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [Double] }.flatMap { $0.count == 2 && $0[0] >= 1 && $0[1] >= 1 ? $0 : nil }
         let configuration = WKSnapshotConfiguration()
