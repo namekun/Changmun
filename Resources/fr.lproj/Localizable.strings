@@ -7,6 +7,8 @@
 "%@ wants to use the camera" = "%@ souhaite utiliser la caméra";
 "%@ wants to use the camera and microphone" = "%@ souhaite utiliser la caméra et le micro";
 "%@ wants to use the microphone" = "%@ souhaite utiliser le micro";
+"%@, from a frame" = "%@, depuis un cadre";
+"%@, from a frame of %@" = "%@, depuis un cadre de %@";
 "%lld history item" = "%lld élément d’historique";
 "%lld history items" = "%lld éléments d’historique";
 "%lld match" = "%lld occurrence";
@@ -54,6 +56,7 @@
 "Allow on %@ for This Chat" = "Autoriser sur %@ pour ce chat";
 "Allow Once" = "Autoriser une fois";
 "Allow pop-ups" = "Autoriser les pop-ups";
+"Always Allow for %@" = "Toujours autoriser pour %@";
 "Always Allow for This Site" = "Toujours autoriser pour ce site";
 "Archive tabs you haven’t viewed in a while" = "Archiver les onglets non consultés depuis un moment";
 "Archived Tabs" = "Onglets archivés";

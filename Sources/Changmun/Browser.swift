@@ -184,7 +184,9 @@ final class Browser: ObservableObject {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = store
         config.preferences.isElementFullscreenEnabled = true
-        config.preferences.javaScriptCanOpenWindowsAutomatically = false
+        // WebKit then asks for every window.open, clicked or not, and Tab decides: with it off, WebKit refuses the ones nobody
+        // clicked for itself, and an allowed site's window can only be opened later as a plain tab (no window.opener).
+        config.preferences.javaScriptCanOpenWindowsAutomatically = Tab.knowsUserInitiated
         config.applicationNameForUserAgent = "Version/\(safariVersion) Safari/605.1.15"
         config.mediaTypesRequiringUserActionForPlayback = .audio
         // Lets the Web Inspector open inside the app (F12, "Inspect Element"); private, so only when WebKit has it.
@@ -274,13 +276,13 @@ final class Browser: ObservableObject {
         return tab
     }
 
-    func openTab(configuration: WKWebViewConfiguration, after: Tab?) -> Tab {
+    func openTab(configuration: WKWebViewConfiguration, after: Tab?, activate: Bool = true) -> Tab {
         let tab = Tab(id: Self.takeID(), configuration: configuration, browser: self)
         if let after { tab.spaceID = after.spaceID }
         insert(tab, after: after)
         tab.sortsIntoGroup = tab.groupID == nil
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
-        activate(tab.id)
+        if activate { self.activate(tab.id) }
         return tab
     }
 

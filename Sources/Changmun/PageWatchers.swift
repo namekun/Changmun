@@ -94,9 +94,11 @@ final class LoginCapture: NSObject, WKScriptMessageHandler {
     }
 }
 
-/// Notices a page opening a window on its own (not from a click), which WebKit blocks, so the browser can offer it.
-/// `window.open` belongs to the page, so this runs in the page's world and the page could post to it too: a message
-/// only ever shows the bar, or opens a tab for a site the user allowed to open popups.
+/// Notices a page's `window.open` coming back empty-handed, in the page and in every frame in it: the app refuses windows
+/// nobody asked for (no click behind them, or one too long ago), a filter list can stop one before the app is asked, and a
+/// sandboxed frame can't open any. Each is offered in a bar, or opened as a tab for a site the user allowed pop-ups from.
+/// `window.open` belongs to the page, so this runs in the page's world and the page could post to it too: a message only
+/// ever shows the bar, or opens a tab for the site of the frame it came from, which WebKit names, not the message.
 final class PopupWatcher: NSObject, WKScriptMessageHandler {
     static let name = "changmunPopup"
 
@@ -104,11 +106,14 @@ final class PopupWatcher: NSObject, WKScriptMessageHandler {
     (() => {
       const open = window.open, handler = window.webkit.messageHandlers.\(name);
       window.open = function (url, target, features, ...rest) {
-        // Blocked means: no click behind it. A click's window that returns null was opened with noopener, or shown as a peek.
-        const clicked = navigator.userActivation ? navigator.userActivation.isActive : true;
         const opened = open.call(this, url, target, features, ...rest);
-        if (!opened && !clicked && !/noopener|noreferrer/i.test(String(features || ''))) {
-          try { handler.postMessage(new URL(url || '', location.href).href); } catch (e) {}
+        // No window back means none was opened (noopener asks for none to come back, and its window did open).
+        if (!opened && !/noopener|noreferrer/i.test(String(features || ''))) {
+          try {
+            const address = new URL(url || '', location.href).href;
+            console.warn('Changmun blocked a pop-up to ' + address + ': it was not opened by a click, or a filter list or a sandbox stopped it.');
+            handler.postMessage(address);
+          } catch (e) {}
         }
         return opened;
       };
@@ -116,17 +121,20 @@ final class PopupWatcher: NSObject, WKScriptMessageHandler {
     """
 
     static func install(in controller: WKUserContentController) {
-        controller.addUserScript(WKUserScript(source: script, injectionTime: .atDocumentStart, forMainFrameOnly: true, in: .page))
+        controller.addUserScript(WKUserScript(source: script, injectionTime: .atDocumentStart, forMainFrameOnly: false, in: .page))
         controller.add(PopupWatcher(), contentWorld: .page, name: name)
     }
 
+    /// The site a frame's own documents come from, which is its origin's. Empty for a frame with none (a sandboxed one, whose
+    /// address its page chose), which no site's permission ever matches.
+    static func site(of frame: WKFrameInfo) -> String { frame.securityOrigin.host.lowercased() }
+
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
-        // Only the page itself: an ad's frame posting here must not borrow the site's permission.
-        guard message.frameInfo.isMainFrame, let address = message.body as? String, let url = URL(string: address),
-              ["http", "https"].contains(url.scheme) else { return }
+        guard let address = message.body as? String, let url = URL(string: address), ["http", "https"].contains(url.scheme) else { return }
         MainActor.assumeIsolated {
             guard let webView = message.webView, let tab = Browser.tab(showing: webView) else { return }
-            tab.popupBlocked(url)
+            // An ad's frame posting here must not borrow the site's permission: it is judged by its own site.
+            tab.popupBlocked(url, fromFrame: message.frameInfo.isMainFrame ? nil : Self.site(of: message.frameInfo))
         }
     }
 }

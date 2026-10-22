@@ -7,6 +7,8 @@
 "%@ wants to use the camera" = "%@がカメラを使用しようとしています";
 "%@ wants to use the camera and microphone" = "%@がカメラとマイクを使用しようとしています";
 "%@ wants to use the microphone" = "%@がマイクを使用しようとしています";
+"%@, from a frame" = "%@、フレームから";
+"%@, from a frame of %@" = "%@、%@のフレームから";
 "%lld history item" = "履歴 %lld件";
 "%lld history items" = "履歴 %lld件";
 "%lld match" = "%lld件";
@@ -54,6 +56,7 @@
 "Allow on %@ for This Chat" = "この会話中は%@で許可";
 "Allow Once" = "1回だけ許可";
 "Allow pop-ups" = "ポップアップを許可";
+"Always Allow for %@" = "%@では常に許可";
 "Always Allow for This Site" = "このサイトでは常に許可";
 "Archive tabs you haven’t viewed in a while" = "しばらく見ていないタブをアーカイブ";
 "Archived Tabs" = "アーカイブしたタブ";

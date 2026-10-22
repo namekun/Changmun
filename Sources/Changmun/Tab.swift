@@ -30,6 +30,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     @Published var loginOffer: LoginOffer?
     /// A window the page tried to open on its own, which WebKit blocked.
     @Published var blockedPopup: URL?
+    /// The site of the frame the blocked pop-up came from, when that was a frame in the page and not the page itself
+    /// ("" for a frame with no site of its own).
+    @Published var blockedPopupFrame: String?
     @Published var isInPictureInPicture = false {
         didSet { if isInPictureInPicture != oldValue { PictureInPictureKeys.update() } }
     }
@@ -423,6 +426,7 @@ extension Tab: WKNavigationDelegate {
         translating?.cancel()
         translating = nil
         blockedPopup = nil
+        blockedPopupFrame = nil
         isInPictureInPicture = false
         foreignLanguage = nil
         translation = .original
@@ -432,10 +436,12 @@ extension Tab: WKNavigationDelegate {
 
     // MARK: Popups
 
-    /// A popup the page opened on its own: offered in a bar, or opened as a tab on a site the user allows popups from.
-    func popupBlocked(_ popup: URL) {
-        guard !isPrivate, Preferences.shared.allowsPopups(from: url?.host()), let browser else {
-            if blockedPopup != popup { blockedPopup = popup }
+    /// A popup that was not opened: offered in a bar, or opened as a tab when the site it came from is one the user allows
+    /// popups from. That site is the page's, or for a popup from a frame (`frame`), the frame's own: an ad's frame never
+    /// borrows the permission of the page it sits in.
+    func popupBlocked(_ popup: URL, fromFrame frame: String? = nil) {
+        guard !isPrivate, Preferences.shared.allowsPopups(from: frame ?? url?.host()), let browser else {
+            if blockedPopup != popup || blockedPopupFrame != frame { blockedPopup = popup; blockedPopupFrame = frame }
             return
         }
         // The page could post this itself: at most one tab a second in the window, and only a shown tab takes the eye.
@@ -444,10 +450,25 @@ extension Tab: WKNavigationDelegate {
         browser.openTab(url: popup, activate: browser.isShown(self), after: self).openerID = id
     }
 
+    /// The site "Always Allow" would allow for the pop-up in the bar: the page's, or its frame's.
+    var blockedPopupSite: String? {
+        guard let frame = blockedPopupFrame else { return url?.host() }
+        return frame.isEmpty ? nil : frame
+    }
+
+    /// Whether the pop-up in the bar came from a frame of another site than the page's.
+    var blockedPopupIsFromOtherSite: Bool {
+        guard let frame = blockedPopupFrame else { return false }
+        func bare(_ host: String?) -> String { (host ?? "").lowercased().replacingOccurrences(of: "www.", with: "", options: .anchored) }
+        return bare(frame) != bare(url?.host())
+    }
+
     func openBlockedPopup(always: Bool) {
         guard let popup = blockedPopup else { return }
+        let site = blockedPopupSite
         blockedPopup = nil
-        if always, !isPrivate, let host = url?.host() { Preferences.shared.allowPopups(from: host) }
+        blockedPopupFrame = nil
+        if always, !isPrivate, let site { Preferences.shared.allowPopups(from: site) }
         browser?.openTab(url: popup, after: self).openerID = id
     }
 
@@ -585,9 +606,28 @@ extension Tab: WKUIDelegate {
             browser?.openPeek(url)
             return nil
         }
-        let tab = browser?.openTab(configuration: configuration, after: self)
+        // Told apart here, not by WebKit, so that a window an allowed site opens on its own is a real window of the page.
+        var activate = true
+        if !Self.isUserInitiated(action) {
+            let site = PopupWatcher.site(of: action.sourceFrame)
+            guard let browser, !isPrivate, Preferences.shared.allowsPopups(from: site.isEmpty ? nil : site),
+                  Date().timeIntervalSince(browser.lastAllowedPopup) > 1 else { return nil }
+            browser.lastAllowedPopup = Date()
+            activate = browser.isShown(self)
+        }
+        let tab = browser?.openTab(configuration: configuration, after: self, activate: activate)
         tab?.openerID = id
         return tab?.webView
+    }
+
+    /// Whether WebKit can say a window was asked for by the user (it can in this version of macOS: its navigation actions carry
+    /// `_isUserInitiated`). Where it can't, windows are left to WebKit to allow or refuse, and the watcher offers the refused.
+    static let knowsUserInitiated = WKNavigationAction.instancesRespond(to: NSSelectorFromString("_isUserInitiated"))
+
+    /// A click (or a script a click started a moment ago, as WebKit counts it) is behind the action.
+    private static func isUserInitiated(_ action: WKNavigationAction) -> Bool {
+        guard knowsUserInitiated else { return true }
+        return action.value(forKey: "_isUserInitiated") as? Bool ?? false
     }
 
     func webView(_ webView: WKWebView, decideMediaCapturePermissionsFor origin: WKSecurityOrigin, initiatedBy frame: WKFrameInfo,

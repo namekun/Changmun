@@ -2188,20 +2188,30 @@ struct LoginOfferBar: View {
 struct PopupBar: View {
     @ObservedObject var tab: Tab
 
+    /// Where the pop-up goes, and when a frame in the page asked for it, whose frame.
+    private func description(of popup: URL) -> String {
+        let host = popup.host() ?? popup.absoluteString
+        guard let frame = tab.blockedPopupFrame else { return host }
+        return frame.isEmpty ? String(localized: "\(host), from a frame") : String(localized: "\(host), from a frame of \(frame)")
+    }
+
     var body: some View {
         if let popup = tab.blockedPopup {
             HStack(spacing: 8) {
                 Image(systemName: "macwindow.badge.plus").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
                 Text("Pop-up blocked").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary)
-                Text(popup.host() ?? popup.absoluteString).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
+                Text(description(of: popup)).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
                 Spacer(minLength: 8)
                 PeekAction(title: String(localized: "Open")) { tab.openBlockedPopup(always: false) }
-                if !tab.isPrivate {
-                    Button("Always Allow for This Site") { tab.openBlockedPopup(always: true) }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Theme.secondary)
-                        .padding(.horizontal, 4)
+                if !tab.isPrivate, let site = tab.blockedPopupSite {
+                    // Allowing a pop-up from another site's frame allows that site, which the button says.
+                    Button(tab.blockedPopupIsFromOtherSite ? String(localized: "Always Allow for \(site)") : String(localized: "Always Allow for This Site")) {
+                        tab.openBlockedPopup(always: true)
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.secondary)
+                    .padding(.horizontal, 4)
                 }
                 BarButton(symbol: "xmark", help: String(localized: "Close")) { tab.blockedPopup = nil }
             }

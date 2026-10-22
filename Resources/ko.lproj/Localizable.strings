@@ -7,6 +7,8 @@
 "%@ wants to use the camera" = "%@에서 카메라를 쓰려고 해요";
 "%@ wants to use the camera and microphone" = "%@에서 카메라와 마이크를 쓰려고 해요";
 "%@ wants to use the microphone" = "%@에서 마이크를 쓰려고 해요";
+"%@, from a frame" = "%@, 프레임에서";
+"%@, from a frame of %@" = "%@, %@의 프레임에서";
 "%lld history item" = "방문 기록 %lld개";
 "%lld history items" = "방문 기록 %lld개";
 "%lld match" = "%lld개";
@@ -54,6 +56,7 @@
 "Allow on %@ for This Chat" = "이 대화에서 %@ 허용";
 "Allow Once" = "한 번만 허용";
 "Allow pop-ups" = "팝업 허용";
+"Always Allow for %@" = "%@ 항상 허용";
 "Always Allow for This Site" = "이 사이트는 항상 허용";
 "Archive tabs you haven’t viewed in a while" = "오래 안 본 탭 보관";
 "Archived Tabs" = "보관한 탭";
