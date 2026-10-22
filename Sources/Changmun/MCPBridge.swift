@@ -36,11 +36,12 @@ enum MCPBridge {
         }
     }
 
-    /// The chat panel names itself; any other client is its own caller for as long as this process runs.
+    /// The chat panel names itself; any other client is its own caller for as long as this process runs, under a name no other process
+    /// will ever have (a process ID alone comes round again), so what the user allowed it for its chat can't reach a later one.
     static let caller: String = {
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--caller"), i + 1 < args.count { return args[i + 1] }
-        return "mcp-\(getpid())"
+        return "mcp-\(getpid())-\(UUID().uuidString)"
     }()
 
     private static func forward(_ name: String, _ arguments: [String: Any]) -> [String: Any] {
