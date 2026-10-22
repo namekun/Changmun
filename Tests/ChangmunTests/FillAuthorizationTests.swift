@@ -104,4 +104,32 @@ struct FillAuthorizationTests {
         }
         #expect(value == "secret")
     }
+
+    @Test(arguments: ["http://login.test/", "https://login.test:8443/", "https://other.test/"])
+    func aPageThatMovedOnWhileTheQuestionWasOpenIsNotFilled(newBase: String) async throws {
+        let b = Browser()
+        b.focused()
+        defer { b.windowClosed() }
+        let tab = b.openTab(url: nil)
+        let view = tab.wake()
+        let window = OffscreenWindow(view)
+        defer { window.close() }
+        let form = "<form><input type=text name=u><input type=password name=p></form>"
+        view.loadHTMLString(form, baseURL: URL(string: "https://login.test/"))
+        _ = await waitUntil(5) { !view.isLoading && view.url?.absoluteString == "https://login.test/" }
+
+        var release: CheckedContinuation<Bool, Never>?
+        let slow = FillAuthorization(required: { true }, confirm: { _ in await withCheckedContinuation { release = $0 } }, now: Date.init)
+        var read = 0
+        tab.fillLogin(username: "me", authorization: slow) { _, _ in read += 1; return "secret" }
+        _ = await waitUntil { release != nil }
+
+        view.loadHTMLString(form, baseURL: URL(string: newBase))
+        _ = await waitUntil(5) { !view.isLoading && view.url?.absoluteString == newBase }
+        #expect(view.url?.absoluteString == newBase)
+        release?.resume(returning: true)
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(try await view.evaluateJavaScript("document.querySelector('[name=p]').value") as? String == "")
+        #expect(try await view.evaluateJavaScript("document.querySelector('[name=u]').value") as? String == "")
+    }
 }

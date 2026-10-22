@@ -224,13 +224,26 @@ extension Tab {
 
     /// Fills a saved login into the page the user is on, after the device owner has confirmed (unless they turned that off).
     func fillLogin(username: String, authorization: FillAuthorization? = nil, readPassword: @escaping (String, String) -> String? = Logins.password(host:username:)) {
-        guard let webView, webView.url?.scheme == "https", let host = webView.url?.host() else { return }
+        guard let webView, let origin = Self.httpsOrigin(webView.url) else { return }
+        let host = origin.host
         Task { @MainActor [weak self] in
             guard let password = await (authorization ?? .shared).read({ readPassword(host, username) }) else { return }
-            // The user may have moved on while the question was open: the password only goes to the site it was chosen for.
-            guard let self, self.webView?.url?.host() == host else { return }
+            // The page may have moved on while the question was open (to http, another port, another site): the password
+            // goes only to the origin it was chosen for.
+            guard let self, Self.httpsOrigin(self.webView?.url) == origin else { return }
             self.fill(username: username, password: password)
         }
+    }
+
+    /// The scheme, host and port of an https address; nil for anything else.
+    private static func httpsOrigin(_ url: URL?) -> Origin? {
+        guard let url, url.scheme == "https", let host = url.host() else { return nil }
+        return Origin(host: host, port: url.port ?? 443)
+    }
+
+    private struct Origin: Equatable {
+        let host: String
+        let port: Int
     }
 
     func fill(username: String, password: String) {
