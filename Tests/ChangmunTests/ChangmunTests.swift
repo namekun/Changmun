@@ -1038,6 +1038,88 @@ struct HTTPRequestTests {
 extension SharedAgentState {
     @MainActor
     struct ChatStreamTests {
+        /// A chat whose runs are stood in for: each message launched is kept, and a run lasts until `endRun`.
+        private func standIn() -> (chat: ChatStore, launched: () -> [String]) {
+            let chat = ChatStore()
+            let box = Launches()
+            chat.launch = { box.messages.append($0); return true }
+            return (chat, { box.messages })
+        }
+
+        private final class Launches { var messages: [String] = [] }
+
+        @Test func messagesSentWhileTheAIWorksAreQueuedAndGoOutOneByOneInOrderWhenItEnds() {
+            let (chat, launched) = standIn()
+            #expect(chat.submit("one") && chat.isRunning && launched() == ["one"] && chat.queue.isEmpty)
+            #expect(chat.submit("  two\n") && chat.submit("three"))
+            #expect(!chat.submit(" \n\t"), "a blank message is nothing")
+            #expect(launched() == ["one"] && chat.queue.map(\.text) == ["two", "three"], "nothing goes out while the run lasts")
+            chat.endRun()
+            #expect(launched() == ["one", "two"] && chat.queue.map(\.text) == ["three"] && chat.isRunning, "one at a time")
+            #expect(chat.items.filter { $0.kind == .user }.map(\.text) == ["one", "two"], "it joins the conversation when it goes out")
+            chat.endRun()
+            #expect(launched() == ["one", "two", "three"] && chat.queue.isEmpty)
+            chat.endRun()
+            #expect(!chat.isRunning && launched().count == 3, "nothing is left to send")
+            #expect(chat.submit("four") && launched().last == "four", "idle again: sent at once")
+        }
+
+        @Test func aQueuedMessageCanBeRemovedAndTheQueueHasALimit() {
+            let (chat, launched) = standIn()
+            chat.submit("first")
+            for number in 1...ChatStore.maxQueued { #expect(chat.submit("m\(number)")) }
+            #expect(!chat.submit("one too many") && chat.queue.count == ChatStore.maxQueued)
+            let second = chat.queue[1]
+            chat.removeQueued(second.id)
+            chat.removeQueued(UUID())
+            #expect(!chat.queue.contains(second) && chat.queue.count == ChatStore.maxQueued - 1)
+            chat.endRun()
+            #expect(launched() == ["first", "m1"], "the removed one is skipped")
+            chat.endRun()
+            #expect(launched().last == "m3")
+        }
+
+        @Test func stopAndNewChatEmptyTheQueue() {
+            for ending in [{ (chat: ChatStore) in chat.stop() }, { (chat: ChatStore) in chat.reset() }] {
+                let (chat, launched) = standIn()
+                chat.submit("running")
+                chat.submit("waiting")
+                ending(chat)
+                #expect(chat.queue.isEmpty && !chat.isRunning)
+                chat.endRun()
+                #expect(launched() == ["running"], "what was waiting is never sent")
+            }
+        }
+
+        @Test func steeringStopsTheRunAndContinuesTheSameConversationWithoutTouchingTheQueue() {
+            let (chat, launched) = standIn()
+            let stops = AgentActivity.shared.stopCount(for: ChatStore.caller)
+            chat.submit("first")
+            chat.handle(["type": "system", "subtype": "init", "session_id": "s-steer"])
+            chat.submit("later")
+            chat.steer("  actually do this \n")
+            #expect(launched() == ["first", "actually do this"] && chat.isRunning, "continued at once")
+            #expect(AgentActivity.shared.stopCount(for: ChatStore.caller) == stops + 1, "the run was stopped the way the stop button does")
+            #expect(chat.queue.map(\.text) == ["later"], "the queue stays")
+            #expect(chat.items.filter { $0.kind == .user }.map(\.text) == ["first", "actually do this"])
+            chat.endRun()
+            #expect(launched().last == "later")
+            // Idle: steering is sending.
+            chat.endRun()
+            let idle = AgentActivity.shared.stopCount(for: ChatStore.caller)
+            chat.steer("plain")
+            #expect(launched().last == "plain" && AgentActivity.shared.stopCount(for: ChatStore.caller) == idle, "nothing to stop")
+        }
+
+        @Test func steeringBeforeTheConversationHasASessionToContinueIsQueuedInstead() {
+            let (chat, launched) = standIn()
+            chat.submit("first")
+            chat.steer("too early")
+            #expect(launched() == ["first"] && chat.queue.map(\.text) == ["too early"] && chat.isRunning, "nothing to continue yet: it waits its turn")
+            chat.steer("  ")
+            #expect(chat.queue.count == 1)
+        }
+
         @Test func streamsTextAndShowsTools() {
             let chat = ChatStore()
             chat.handle(["type": "system", "subtype": "init", "session_id": "s1"])

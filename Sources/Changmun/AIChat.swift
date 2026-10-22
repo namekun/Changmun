@@ -24,6 +24,17 @@ final class ChatStore: ObservableObject {
     @Published var step: String?
     /// Tabs the user attached as context: the AI may read them without asking.
     @Published private(set) var attachedIDs: [Int] = []
+    /// A message waiting for the run under way to end, shown as a chip the user can remove.
+    struct Queued: Identifiable, Equatable {
+        let id = UUID()
+        var text: String
+    }
+
+    /// Messages sent while a run was on, in the order they were sent: each goes out when the run before it ends.
+    @Published private(set) var queue: [Queued] = []
+    static let maxQueued = 8
+    /// Starts a run of the AI for a message, or says it couldn't. Tests stand in for the `claude` process with it.
+    var launch: ((String) -> Bool)?
     private var sessionID: String?
     private var process: Process?
     /// Events from a run that was stopped or replaced are dropped.
@@ -82,17 +93,68 @@ final class ChatStore: ObservableObject {
     short paragraphs or "- " lists; never tables or headings.
     """
 
+    /// What the composer does with a message: sent at once when the AI is idle, otherwise queued to go out when the run ends.
+    /// False when it was neither (blank, or the queue is full).
+    @discardableResult
+    func submit(_ text: String) -> Bool {
+        let message = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !message.isEmpty else { return false }
+        guard isRunning else {
+            send(message)
+            return true
+        }
+        guard queue.count < Self.maxQueued else { return false }
+        queue.append(Queued(text: message))
+        return true
+    }
+
+    /// Stops the run under way as the stop button does and goes on with the same conversation at once, with this message. The
+    /// messages in the queue stay queued. Before the conversation has a session to resume (the run has only just begun) there is
+    /// nothing to continue, so it is queued like any other.
+    func steer(_ text: String) {
+        let message = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !message.isEmpty else { return }
+        guard isRunning else { return send(message) }
+        guard sessionID != nil else {
+            submit(message)
+            return
+        }
+        stopRun()
+        send(message)
+    }
+
+    func removeQueued(_ id: UUID) {
+        queue.removeAll { $0.id == id }
+    }
+
+    /// The run is over, however it ended: the next queued message goes out.
+    func endRun() {
+        isRunning = false
+        step = nil
+        // Whatever the AI left under way (a question waiting for the user) goes with its process.
+        AgentActivity.shared.cancel(caller: Self.caller)
+        process = nil
+        guard !queue.isEmpty else { return }
+        send(queue.removeFirst().text)
+    }
+
     func send(_ text: String) {
         let message = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty, !isRunning else { return }
         items.append(ChatItem(kind: .user, text: message))
+        if let launch {
+            isRunning = launch(message)
+            return
+        }
         guard let claude = Self.claudePath() else {
+            queue.removeAll()
             items.append(ChatItem(kind: .error, text: String(localized: "Couldn't find the `claude` CLI. Install Claude Code and try again.")))
             return
         }
         noteAttachedRead()
         // The config holds the panel's secret, so it goes in a file only this user can read, not on the command line.
         guard let config = try? Self.writeMCPConfig() else {
+            queue.removeAll()
             fail(String(localized: "The AI request failed."))
             return
         }
@@ -129,6 +191,7 @@ final class ChatStore: ObservableObject {
             try process.run()
         } catch {
             try? FileManager.default.removeItem(at: config)
+            queue.removeAll()
             fail(String(localized: "Couldn't run claude: \(error.localizedDescription)"))
             return
         }
@@ -159,19 +222,23 @@ final class ChatStore: ObservableObject {
             let tail = errorText.split(separator: "\n").suffix(4).joined(separator: "\n")
             fail(String(localized: "The AI response didn't finish (exit code \(Int(status))).\n\(tail)"))
         }
-        isRunning = false
-        step = nil
-        // Whatever the AI left under way (a question waiting for the user) goes with its process.
-        AgentActivity.shared.cancel(caller: Self.caller)
-        process = nil
+        endRun()
     }
 
-    func stop() {
+    /// Ends the run under way: what is waiting for the user's answer is answered no, the tools in flight are cancelled, and what
+    /// the process still says is dropped.
+    private func stopRun() {
         runID = UUID()
         process?.terminate()
         process = nil
         isRunning = false
         AgentActivity.shared.cancel(caller: Self.caller)
+    }
+
+    /// The stop button: ends the run, and the messages waiting for it go too.
+    func stop() {
+        queue.removeAll()
+        stopRun()
     }
 
     func reset() {
@@ -446,6 +513,7 @@ struct ChatPanel: View {
                 }
             }
             attachments
+            if !chat.queue.isEmpty { queued }
             composer
         }
         .onAppear { focused = true }
@@ -495,48 +563,90 @@ struct ChatPanel: View {
         .padding(.bottom, 6)
     }
 
-    private var composer: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            TextField("Ask about this page, or give it a task", text: $draft, axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Theme.primary)
-                .lineLimit(1...6)
-                .focused($focused)
-                .padding(.vertical, 3)
-                .onKeyPress(.return, phases: .down) { press in
-                    if press.modifiers.contains(.shift) { return .ignored }
-                    send(draft)
-                    return .handled
+    /// The messages waiting for the run under way to end, each removable.
+    private var queued: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 6) {
+                ForEach(chat.queue) { message in
+                    QueuedChip(text: message.text) { chat.removeQueued(message.id) }
                 }
-            if chat.isRunning {
-                Button { chat.stop() } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "stop.fill").font(.system(size: 8, weight: .bold))
-                        Text("Stop").font(.system(size: 11, weight: .semibold))
-                    }
-                    .foregroundStyle(Theme.primary)
-                    .padding(.horizontal, 8)
-                    .frame(height: 22)
-                    .background(Capsule().fill(Theme.pill))
-                }
-                .buttonStyle(.plain)
-                .help("Stop generating")
-            } else {
-                Keycap("↵").opacity(draft.isEmpty ? 0.5 : 1).padding(.bottom, 2)
             }
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 8)
-        .padding(.vertical, 8)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
-        .padding(.bottom, 4)
+        .scrollIndicators(.never)
+        .padding(.horizontal, 4)
+        .padding(.bottom, 6)
     }
 
-    private func send(_ text: String) {
-        guard !chat.isRunning, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        chat.send(text)
+    private var composer: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .bottom, spacing: 8) {
+                TextField("Ask about this page, or give it a task", text: $draft, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Theme.primary)
+                    .lineLimit(1...6)
+                    .focused($focused)
+                    .padding(.vertical, 3)
+                    .onKeyPress(.return, phases: .down) { press in
+                        if press.modifiers.contains(.shift) { return .ignored }
+                        // While the AI works, Return queues the message for when it is done and ⌘Return steers it now.
+                        send(draft, steering: press.modifiers.contains(.command))
+                        return .handled
+                    }
+                if chat.isRunning {
+                    Button { chat.stop() } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "stop.fill").font(.system(size: 8, weight: .bold))
+                            Text("Stop").font(.system(size: 11, weight: .semibold))
+                        }
+                        .foregroundStyle(Theme.primary)
+                        .padding(.horizontal, 8)
+                        .frame(height: 22)
+                        .background(Capsule().fill(Theme.pill))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Stop generating")
+                } else {
+                    Keycap("↵").opacity(draft.isEmpty ? 0.5 : 1).padding(.bottom, 2)
+                }
+            }
+            .padding(.leading, 12)
+            .padding(.trailing, 8)
+            .padding(.vertical, 8)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
+            .padding(.bottom, chat.isRunning ? 2 : 4)
+            if chat.isRunning {
+                Text("↵ queues it for when the AI is done · ⌘↵ steers it now")
+                    .font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.faint)
+                    .padding(.bottom, 4)
+            }
+        }
+    }
+
+    private func send(_ text: String, steering: Bool = false) {
+        if steering { chat.steer(text) } else if !chat.submit(text) { return }
         draft = ""
+    }
+}
+
+struct QueuedChip: View {
+    let text: String
+    let remove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "clock").font(.system(size: 8.5, weight: .bold))
+            Text(text).lineLimit(1).truncationMode(.tail).frame(maxWidth: 140)
+            Button(action: remove) { Image(systemName: "xmark").font(.system(size: 8, weight: .bold)) }
+                .buttonStyle(.plain)
+                .help("Remove from the queue")
+        }
+        .font(.system(size: 11, weight: .semibold))
+        .foregroundStyle(Theme.secondary)
+        .padding(.horizontal, 9)
+        .frame(height: 22)
+        .background(Capsule().fill(Theme.selected))
+        .help(text)
     }
 }
 

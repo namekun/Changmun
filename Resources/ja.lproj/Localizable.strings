@@ -551,3 +551,5 @@
 "Saved the group as a bookmark folder" = "グループをブックマークフォルダとして保存しました";
 "The group has no pages to save" = "グループに保存できるページがありません";
 "…(%lld more characters are not shown)" = "…(さらに%lld文字ありますが表示されていません)";
+"↵ queues it for when the AI is done · ⌘↵ steers it now" = "↵ でAIの作業が終わるまで待機 · ⌘↵ で今すぐ方向転換";
+"Remove from the queue" = "待機から外す";

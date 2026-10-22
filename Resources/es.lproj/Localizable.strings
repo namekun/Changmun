@@ -551,3 +551,5 @@
 "Saved the group as a bookmark folder" = "Grupo guardado como carpeta de marcadores";
 "The group has no pages to save" = "El grupo no tiene páginas que guardar";
 "…(%lld more characters are not shown)" = "…(%lld caracteres más sin mostrar)";
+"↵ queues it for when the AI is done · ⌘↵ steers it now" = "↵ lo pone en cola hasta que la IA termine · ⌘↵ la reorienta ahora";
+"Remove from the queue" = "Quitar de la cola";
