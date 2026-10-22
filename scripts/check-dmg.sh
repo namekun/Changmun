@@ -62,6 +62,40 @@ if grep -q "^Authority=Developer ID Application" <<<"$SIGNING"; then
     fi
 fi
 
+step "Sparkle"
+FW="$APP/Contents/Frameworks/Sparkle.framework"
+for item in Versions/B/Sparkle Versions/B/Autoupdate Versions/B/Updater.app; do
+    [[ -e "$FW/$item" ]] || fail "Sparkle.framework lacks $item"
+done
+[[ -L "$FW/Versions/Current" && -L "$FW/Sparkle" ]] || fail "Sparkle.framework lost its symlinks"
+[[ ! -e "$FW/Versions/B/XPCServices" && ! -e "$FW/XPCServices" ]] || fail "Sparkle's XPC services are for sandboxed apps"
+LOADS="$(otool -l "$APP/Contents/MacOS/Changmun")"
+grep -q "@executable_path/../Frameworks" <<<"$LOADS" || fail "The app can't find Contents/Frameworks"
+plist() { /usr/libexec/PlistBuddy -c "Print :$1" "$APP/Contents/Info.plist" 2>/dev/null || true; }
+repo() { /usr/libexec/PlistBuddy -c "Print :$1" Resources/Info.plist; }
+[[ "$(plist SUFeedURL)" == "https://namekun.github.io/Changmun/appcast.xml" ]] || fail "SUFeedURL is '$(plist SUFeedURL)'"
+[[ "$(plist SUPublicEDKey)" == "$(repo SUPublicEDKey)" && "$(base64 -D <<<"$(plist SUPublicEDKey)" | wc -c | tr -d ' ')" == 32 ]] \
+    || fail "SUPublicEDKey isn't the repository's 32 byte key"
+[[ "$(plist SURequireSignedFeed)" == true && "$(plist SUVerifyUpdateBeforeExtraction)" == true ]] || fail "Sparkle's signature checks are off"
+[[ "$(plist SUEnableSystemProfiling)" == false ]] || fail "Sparkle may send the system profile"
+# Every piece of code, Sparkle's included, signed as the app is: the same team, the hardened runtime, and for a Developer ID
+# the certificate and a secure timestamp. Code of another team is refused at launch under library validation, and
+# Sparkle won't install an update whose Autoupdate is signed by someone else.
+TEAM="$(sed -n 's/^TeamIdentifier=//p' <<<"$SIGNING")"
+if grep -q "^Authority=Developer ID Application" <<<"$SIGNING"; then
+    while IFS= read -r -d '' file; do
+        [[ "$(file -b "$file")" == Mach-O* ]] || continue
+        NESTED="$(codesign -dvv "$file" 2>&1)" || fail "${file#"$APP"/} isn't signed"
+        grep -Eq "flags=.*[(,]runtime[),]" <<<"$NESTED" || fail "${file#"$APP"/} isn't signed with the hardened runtime"
+        [[ "$(sed -n 's/^TeamIdentifier=//p' <<<"$NESTED")" == "$TEAM" ]] || fail "${file#"$APP"/} isn't signed by the app's team ($TEAM)"
+        grep -q "^Authority=Developer ID Application:" <<<"$NESTED" || fail "${file#"$APP"/} isn't signed with the Developer ID"
+        grep -q "^Timestamp=" <<<"$NESTED" || fail "${file#"$APP"/} has no secure timestamp"
+    done < <(find "$APP" -type f -print0)
+    if grep -q "disable-library-validation" <<<"$(codesign -d --entitlements - "$APP" 2>/dev/null)"; then
+        fail "A Developer ID build keeps library validation, which is what holds Sparkle to the app's team"
+    fi
+fi
+
 step "Resources"
 for item in AppIcon.icns {en,ko,ja,zh-Hans,es,de,fr}.lproj/InfoPlist.strings {ko,ja,zh-Hans,es,de,fr}.lproj/Localizable.strings; do
     [[ -e "$APP/Contents/Resources/$item" ]] || fail "Missing $item"

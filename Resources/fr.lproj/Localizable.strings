@@ -90,10 +90,11 @@
 "Can’t open the page" = "Impossible d’ouvrir la page";
 "Capture Full Page…" = "Capturer la page entière…";
 "Change…" = "Modifier…";
-"Changmun %@ is out" = "Changmun %@ est disponible";
+"Changmun fetches a short list of releases from GitHub Pages, which sees the app name and version in the request. Nothing about you or your Mac is sent, and an update is installed only if it is signed by the developer. To check now, choose Changmun › Check for Updates…" = "Changmun récupère sur GitHub Pages une courte liste de versions ; GitHub ne voit que le nom et la version de l’app. Rien sur toi ni sur ton Mac n’est envoyé, et une mise à jour n’est installée que si elle est signée par le développeur. Pour vérifier tout de suite, choisis Changmun › Rechercher des mises à jour…";
 "Changmun is your default browser" = "Changmun est votre navigateur par défaut";
 "Changmun Private Window" = "Fenêtre privée Changmun";
-"Check for Updates" = "Rechercher des mises à jour";
+"Check for Updates…" = "Rechercher des mises à jour…";
+"Check for updates automatically" = "Rechercher les mises à jour automatiquement";
 "Check tab list" = "Vérifier la liste des onglets";
 "Checking…" = "Vérification…";
 "Choose" = "Choisir";
@@ -166,6 +167,7 @@
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "Double-cliquez pour ouvrir dans un nouvel onglet. Pour effacer l’historique par période, accédez à Réglages › Confidentialité.";
 "Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "Double-cliquez pour rouvrir. Définissez le délai avant l’archivage des onglets dans Réglages › Onglets.";
 "Download" = "Télécharger";
+"Download and install updates automatically" = "Télécharger et installer les mises à jour automatiquement";
 "Download this language in System Settings › General › Language & Region › Translation Languages" = "Téléchargez cette langue dans Réglages Système › Général › Langue et région › Langues de traduction";
 "Downloading filter lists…" = "Téléchargement des listes de filtres…";
 "Downloading · %@" = "Téléchargement · %@";
@@ -299,7 +301,6 @@
 "Off" = "Désactivé";
 "OK" = "OK";
 "On Startup" = "Au démarrage";
-"Once a day, Changmun asks GitHub whether a newer version is out and tells you in the sidebar. Nothing else is sent." = "Une fois par jour, Changmun demande à GitHub si une version plus récente est disponible et te le signale dans la barre latérale. Rien d’autre n’est envoyé.";
 "Open" = "Ouvrir";
 "Open as Tab" = "Ouvrir dans un onglet";
 "Open Downloads Folder" = "Ouvrir le dossier Téléchargements";

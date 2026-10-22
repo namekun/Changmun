@@ -37,7 +37,7 @@
 brew install --cask namekun/tap/changmun
 ```
 
-[Homebrew](https://brew.sh)、macOS 14 Sonoma以降、Appleシリコン搭載のMacが必要です。アプリはDeveloper IDで署名され、Appleの公証を受けているので、すぐに開きます。アップデートは`brew update && brew upgrade --cask changmun`で行います。
+[Homebrew](https://brew.sh)、macOS 14 Sonoma以降、Appleシリコン搭載のMacが必要です。アプリはDeveloper IDで署名され、Appleの公証を受けているので、すぐに開きます。アップデートはアプリの中で届きます (Changmun › アップデートを確認…、初期設定では自動)。Homebrewはインストールにだけ使います。
 
 初回起動時に、いま使っているブラウザからブックマークと履歴を (Chromium系ならパスワードとログイン状態も) 読み込むかどうかを確認します。
 
@@ -98,7 +98,7 @@ Command Line Toolsだけがインストールされている場合、スクリ�
 
 ### アップデート
 
-- **アップデートのお知らせ。** 新しいバージョンが出るとお知らせします。ChangmunはHomebrewで更新します。1日に1回GitHubで最新リリースを確認し、新しいバージョンがあるとサイドバーの下に控えめなお知らせが出て、`brew upgrade --cask changmun`をコピーできます。設定 › 詳細 › アップデートを確認でオフにできます。
+- **自動アップデート。** ChangmunはSparkleで自分自身を更新します。1日に1回バックグラウンドで確認し、新しいバージョンが出るとインストールするか尋ねます。Changmun › アップデートを確認… を選ぶとすぐに確認します。アップデートには署名があり、アプリに組み込まれた鍵と一致するものだけをインストールします。設定 › 詳細で、自動確認をオフにしたり、ダウンロードとインストールを自動で行うようにしたりできます。
 
 ## AI
 
@@ -206,7 +206,7 @@ ChangmunはEasyList (広告) とEasyPrivacy (トラッカー) をWebKitのコン
 ## プライバシー
 
 - 閲覧データはMacの外に出ません。Changmunにはアカウントも、サーバも、アナリティクスもありません。
-- アップデートの確認は、1日に1回GitHubの公開リリースAPIから最新のバージョン番号を取得するだけで、ほかには何も送りません (設定 › 詳細でオフにできます)。
+- アップデートの確認では、GitHub Pagesから小さなリリース一覧 (`appcast.xml`) を取得します。GitHubは一般的なWebサーバと同じようにリクエストを受けるため、Changmunの名前とバージョンは見えます。Macの詳細を加えるSparkleのシステムプロファイルはオフで、オフのままです (設定 › 詳細で確認自体をオフにできます)。
 - 検索候補を表示すると、コマンドバーに入力した文字が検索エンジンに送信されます (設定でオフにできます。プライベートウインドウからは送信されません)。
 - AIパネルは、メッセージと、AIが読み取ったページの内容を、`claude` CLIを通じてAnthropicに送信します。タブの整理とページの翻訳はMac上で実行されます。
 
@@ -230,6 +230,8 @@ scripts/check-strings.sh   # every string the code uses is translated in every l
 swift scripts/make-icon.swift
 scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
 ```
+
+リリースはEdDSAの鍵でSparkle用に署名します。秘密鍵ファイルのパスを`~/.config/changmun/sparkle.env`に`SPARKLE_KEY_FILE=...`として書いてください。これがない場合や、`Resources/Info.plist`の`SUPublicEDKey`と合わない鍵の場合、`release.sh`は実行されません。このファイルはオフラインでバックアップしてください。失くすと、インストール済みのアプリは二度とアップデートできなくなり、漏れると誰でも、インストール済みのアプリが受け入れるアップデートに署名できてしまいます。
 
 UIのテキストはコード内では英語で、`Resources/<language>.lproj/Localizable.strings`で翻訳されます。新しい文字列は6つの表すべてに追加してください。
 

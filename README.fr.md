@@ -37,7 +37,7 @@
 brew install --cask namekun/tap/changmun
 ```
 
-Il vous faut [Homebrew](https://brew.sh), macOS 14 Sonoma ou ultérieur et un Mac avec puce Apple. L’app est signée avec un Developer ID et notarisée par Apple, elle s’ouvre donc directement. Pour mettre à jour, lancez `brew update && brew upgrade --cask changmun`.
+Il vous faut [Homebrew](https://brew.sh), macOS 14 Sonoma ou ultérieur et un Mac avec puce Apple. L’app est signée avec un Developer ID et notarisée par Apple, elle s’ouvre donc directement. Les mises à jour arrivent dans l’app (Changmun › Rechercher des mises à jour…, automatiques par défaut) ; Homebrew ne sert qu’à l’installation.
 
 Au premier lancement, Changmun propose d’importer les signets et l’historique du navigateur que vous utilisez actuellement, avec les mots de passe et les sessions ouvertes si c’est un navigateur Chromium.
 
@@ -98,7 +98,7 @@ Le blocage des publicités et des traqueurs est décrit dans [Blocage des public
 
 ### Mises à jour
 
-- **Avis de mise à jour.** Vous prévient quand une nouvelle version est disponible. Changmun se met à jour avec Homebrew. Une fois par jour, il demande à GitHub la dernière version et, s’il y en a une plus récente, une note discrète en bas de la barre latérale copie `brew upgrade --cask changmun` pour vous. Désactivez-la dans Réglages › Avancé › Rechercher des mises à jour.
+- **Mises à jour automatiques.** Changmun se met à jour tout seul avec Sparkle. Il vérifie une fois par jour en arrière-plan et, quand une nouvelle version est disponible, propose de l’installer ; Changmun › Rechercher des mises à jour… vérifie tout de suite. Les mises à jour sont signées, et Changmun n’en installe une que si la signature correspond à la clé intégrée à l’app. Dans Réglages › Avancé, vous pouvez désactiver la vérification automatique ou le laisser télécharger et installer seul.
 
 ## IA
 
@@ -206,7 +206,7 @@ Au premier lancement, ou depuis le menu, Changmun importe les signets et l’his
 ## Confidentialité
 
 - Votre navigation reste sur votre Mac. Changmun n’a ni compte, ni serveur, ni outil d’analyse.
-- La recherche de mises à jour interroge une fois par jour l’API publique des versions de GitHub pour connaître le dernier numéro de version et n’envoie rien d’autre (désactivable dans Réglages › Avancé).
+- La recherche de mises à jour récupère sur GitHub Pages une petite liste de versions (`appcast.xml`). GitHub reçoit la requête comme n’importe quel serveur web, avec le nom et la version de Changmun ; le profil système de Sparkle, qui ajouterait des détails sur votre Mac, est désactivé et le reste (Réglages › Avancé désactive la vérification).
 - Les suggestions de recherche envoient à votre moteur de recherche ce que vous saisissez dans la barre de commande (désactivez-les dans les Réglages ; jamais envoyées depuis les fenêtres privées).
 - Le panneau IA envoie vos messages, ainsi que le contenu des pages que l’IA lit, à Anthropic via la CLI `claude`. Le rangement des onglets et la traduction des pages s’exécutent sur votre Mac.
 
@@ -230,6 +230,8 @@ scripts/check-strings.sh   # every string the code uses is translated in every l
 swift scripts/make-icon.swift
 scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
 ```
+
+Les versions sont signées pour Sparkle avec une clé EdDSA. Indiquez le chemin du fichier de la clé privée dans `~/.config/changmun/sparkle.env` avec `SPARKLE_KEY_FILE=...` ; `release.sh` refuse de tourner sans lui, ou avec une clé qui ne correspond pas au `SUPublicEDKey` de `Resources/Info.plist`. Gardez une sauvegarde de ce fichier hors ligne. S’il est perdu, les copies installées ne pourront plus jamais être mises à jour ; s’il fuit, n’importe qui peut signer une mise à jour qu’elles accepteront.
 
 Le texte de l’interface est en anglais dans le code et traduit dans `Resources/<language>.lproj/Localizable.strings` ; ajoutez chaque nouvelle chaîne aux six tables.
 

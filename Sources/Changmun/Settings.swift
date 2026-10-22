@@ -57,7 +57,8 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .ai:
             [String(localized: "Model"), String(localized: "Claude Code"), String(localized: "AI Chat")]
         case .advanced:
-            [String(localized: "Shortcuts"), String(localized: "Developer Mode"), String(localized: "Check for Updates")]
+            [String(localized: "Shortcuts"), String(localized: "Developer Mode"),
+             String(localized: "Check for updates automatically"), String(localized: "Download and install updates automatically")]
         }
     }
 
@@ -899,6 +900,7 @@ struct AISettings: View {
 
 struct AdvancedSettings: View {
     @ObservedObject var prefs: Preferences
+    @ObservedObject private var updates = Updates.shared
 
     var body: some View {
         Form {
@@ -917,8 +919,10 @@ struct AdvancedSettings: View {
                 Caption(text: "When on, the address bar shows the full address by default. You can open the Web Inspector any time with F12 (Network tab) or ⌥⌘I.")
             }
             Section {
-                Toggle("Check for Updates", isOn: $prefs.checkForUpdates)
-                Caption(text: "Once a day, Changmun asks GitHub whether a newer version is out and tells you in the sidebar. Nothing else is sent.")
+                Toggle("Check for updates automatically", isOn: $updates.automaticallyChecks)
+                Toggle("Download and install updates automatically", isOn: $updates.automaticallyDownloads)
+                    .disabled(!updates.allowsAutomaticDownloads)
+                Caption(text: "Changmun fetches a short list of releases from GitHub Pages, which sees the app name and version in the request. Nothing about you or your Mac is sent, and an update is installed only if it is signed by the developer. To check now, choose Changmun › Check for Updates…")
             }
         }
         .formStyle(.grouped)
