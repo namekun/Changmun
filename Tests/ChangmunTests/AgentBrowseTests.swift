@@ -2219,7 +2219,7 @@ extension SharedAgentState {
                     let read = await call(tab, "read_page").text
                     let result = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: "mcp-signin")
                     let text = result.content.compactMap { $0["text"] as? String }.joined(separator: "\n")
-                    #expect(!result.isError && text.contains("Filled the saved login for lab.test") && text.contains("Nothing was submitted"), Comment(rawValue: text))
+                    #expect(!result.isError && text.contains("Filled the saved login for lab.test") && text.contains("the user chose the account") && text.contains("Nothing was submitted"), Comment(rawValue: text))
                     for what in [everything(result), read, (await call(tab, "read_page")).text] {
                         #expect(!what.contains(Self.secret) && !what.contains("alice") && !what.contains("example.com"), "neither the password nor the account is told")
                     }
@@ -2279,6 +2279,9 @@ extension SharedAgentState {
                     try await asking({ _ in .once }) { stand in
                         let result = await call(tab, "sign_in")
                         #expect(result.failed, Comment(rawValue: "\(why): \(result.text)"))
+                        if why == "no login for the host" || why == "a subdomain" {
+                            #expect(result.text == ToolCatalog.signInNotDone.content.compactMap { $0["text"] as? String }.joined(), "no saved login has the one answer")
+                        }
                         #expect(stand.asked.isEmpty && confirmations.reasons.isEmpty && store.passwordReads == 0, "nothing was asked, confirmed or read")
                         #expect(await evaluate(tab, "return document.getElementById('u').value + document.getElementById('p').value") == "")
                         for name in ["pw-other", "pw-www", "pw-evil", "pw-lab", "bob", "carol", "dave"] { #expect(!result.text.contains(name)) }
@@ -2310,40 +2313,83 @@ extension SharedAgentState {
             }
         }
 
-        @Test func signInDoesNothingIfTheUserDeclinesOrDoesNotConfirm() async throws {
+        @Test func signInDoesNothingIfTheUserDeclinesOrDoesNotConfirmAndTheAIIsToldTheSameAsWhenNoLoginIsSaved() async throws {
             let (tab, window, browser) = try await page(Self.loginForm, host: "lab.test")
             defer { window.close(); browser.windowClosed() }
             let store = StubLogins([("lab.test", Self.alice, Self.secret)]), confirmations = Confirmations()
+            var answers: [String: ToolResult] = [:]
             try await signingIn(store, confirmations) {
+                try await asking({ _ in .deny }) { _ in
+                    answers["declined"] = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: "mcp-a")
+                    #expect(confirmations.reasons.isEmpty && store.passwordReads == 0)
+                }
+                // The user doesn't answer: the question times out as no.
                 try await asking({ _ in .deny }) { stand in
-                    let denied = await call(tab, "sign_in")
-                    #expect(denied.failed && denied.text.contains("declined") && confirmations.reasons.isEmpty && store.passwordReads == 0)
+                    stand.holds = true
+                    let was = Approvals.timeout
+                    Approvals.timeout = 0.3
+                    defer { Approvals.timeout = was }
+                    answers["timed out"] = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: "mcp-b")
                 }
                 try await asking({ _ in .once }) { _ in
                     confirmations.answer = false
-                    let unconfirmed = await call(tab, "sign_in")
-                    #expect(unconfirmed.failed && unconfirmed.text.contains("did not confirm") && confirmations.reasons.count == 1 && store.passwordReads == 0, "the password is not read before the device owner confirms")
+                    answers["unconfirmed"] = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: "mcp-c")
+                    #expect(confirmations.reasons.count == 1 && store.passwordReads == 0, "the password is not read before the device owner confirms")
+                }
+                // The question about using the page after reading another site is answered no.
+                try await asking({ prompt in prompt.message.contains("sign in") ? .once : .deny }) { _ in
+                    confirmations.answer = true
+                    Approvals.noteRead(tab, readHost: "elsewhere.example", caller: "mcp-d")
+                    answers["not allowed to use the page"] = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: "mcp-d")
                 }
             }
             #expect(await evaluate(tab, "return document.getElementById('u').value + document.getElementById('p').value") == "")
+            // No login saved at all: nothing is asked, and the answer is the same.
+            try await signingIn(StubLogins([]), confirmations) {
+                try await asking({ _ in .once }) { stand in
+                    answers["no login"] = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: "mcp-e")
+                    #expect(stand.asked.isEmpty)
+                }
+            }
+            let reference = everything(ToolCatalog.signInNotDone)
+            #expect(answers.count == 5)
+            for (why, result) in answers {
+                #expect(result.isError && everything(result) == reference, Comment(rawValue: "\(why): \(everything(result))"))
+            }
         }
 
-        @Test func signInChoosesAmongSeveralAccountsOnlyByTheOneNamedAndNeverListsThem() async throws {
+        @Test func withSeveralAccountsSavedTheUserPicksOneInTheQuestionAndTheAIIsNeverAskedOrToldWhich() async throws {
             let (tab, window, browser) = try await page(Self.loginForm, host: "lab.test")
             defer { window.close(); browser.windowClosed() }
             let store = StubLogins([("lab.test", "alice@example.com", "pw-alice"), ("lab.test", "bob@example.com", "pw-bob")])
             try await signingIn(store) {
                 try await asking({ _ in .once }) { stand in
-                    let ambiguous = await call(tab, "sign_in")
-                    #expect(ambiguous.failed && ambiguous.text.contains("more than one") && !ambiguous.text.contains("alice") && !ambiguous.text.contains("bob") && stand.asked.isEmpty)
-                    let unknown = await call(tab, "sign_in", ["account": "mallory@example.com"])
-                    #expect(unknown.failed && !unknown.text.contains("alice") && !unknown.text.contains("bob") && stand.asked.isEmpty)
-                    let chosen = await call(tab, "sign_in", ["account": "bob@example.com"])
-                    #expect(!chosen.failed && !chosen.text.contains("bob") && !chosen.text.contains("pw-bob"))
-                    #expect(stand.asked.count == 1 && stand.asked[0].message.contains("bob@example.com"))
-                    #expect(await evaluate(tab, "return document.getElementById('u').value + '/' + document.getElementById('p').value") == "bob@example.com/pw-bob")
+                    stand.pick = { _ in 1 }
+                    // An account name given by the AI is not a parameter: it changes nothing.
+                    let chosen = await ToolCatalog.call("sign_in", ["tab_id": tab.id, "account": "alice@example.com"], caller: "mcp-pick")
+                    #expect(!chosen.isError && !everything(chosen).contains("bob") && !everything(chosen).contains("alice") && !everything(chosen).contains("pw-"), Comment(rawValue: everything(chosen)))
+                    let question = try #require(stand.asked.first)
+                    #expect(question.accounts == ["alice@example.com", "bob@example.com"] && question.message == "Let the AI sign in to lab.test?" && question.choices == [.deny, .once])
+                    #expect(await evaluate(tab, "return document.getElementById('u').value + '/' + document.getElementById('p').value") == "bob@example.com/pw-bob", "the user's pick")
+                    // Nothing picked: the first, the most recently used.
+                    stand.pick = { _ in 0 }
+                    _ = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: "mcp-pick")
+                    #expect(await evaluate(tab, "return document.getElementById('u').value") == "alice@example.com")
+                    // A pick outside the list is the closest one in it; a no is a no whatever was picked.
+                    stand.pick = { _ in 9 }
+                    _ = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: "mcp-pick")
+                    #expect(await evaluate(tab, "return document.getElementById('u').value") == "bob@example.com")
+                }
+                try await asking({ _ in .deny }) { stand in
+                    stand.pick = { _ in 1 }
+                    let before = await evaluate(tab, "return document.getElementById('p').value")
+                    let denied = await ToolCatalog.call("sign_in", ["tab_id": tab.id], caller: "mcp-pick-2")
+                    #expect(everything(denied) == everything(ToolCatalog.signInNotDone) && store.passwordReads == 3)
+                    #expect(await evaluate(tab, "return document.getElementById('p').value") == before)
                 }
             }
+            let properties = ToolCatalog.definitions.first { $0["name"] as? String == "sign_in" }.flatMap { ($0["inputSchema"] as? [String: Any])?["properties"] as? [String: Any] }
+            #expect(Set(properties?.keys.map { $0 } ?? []) == ["element_id", "title", "tab_id"], "no account parameter")
         }
 
         @Test func signInRefusesAFormThatSendsToAnotherSiteAndAPageWithoutOne() async throws {

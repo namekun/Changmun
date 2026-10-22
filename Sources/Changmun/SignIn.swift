@@ -4,7 +4,7 @@ import WebKit
 
 /// The saved sign-ins the sign_in tool may use, looked up by the exact host of the page.
 protocol LoginStore {
-    /// The usernames saved for exactly this host (not its www or non-www twin).
+    /// The usernames saved for exactly this host (not its www or non-www twin), the most recently used first.
     func accounts(exactly host: String) -> [String]
     func password(exactly host: String, username: String) -> String?
 }
@@ -12,7 +12,7 @@ protocol LoginStore {
 /// The login keychain's saved sign-ins, as the settings list them.
 struct KeychainLogins: LoginStore {
     func accounts(exactly host: String) -> [String] {
-        Logins.all().filter { $0.host.lowercased() == host }.map(\.username)
+        Logins.accounts(exactly: host)
     }
 
     func password(exactly host: String, username: String) -> String? {
@@ -64,9 +64,15 @@ enum SignIn {
 extension ToolCatalog {
     private static func refused(_ text: String) -> ToolResult { .text("Error: \(text)", error: true) }
 
+    /// What the AI is told whenever the sign-in wasn't done for a reason that has to do with the user's saved logins or their say: no
+    /// saved login for the site, the user said no or didn't answer, they didn't confirm, or the password couldn't be read. One
+    /// answer for all of them, so a page that talks the AI into trying can't tell from it which accounts are saved.
+    static let signInNotDone = ToolResult.text("Error: The sign-in wasn't done. Don't retry it; tell the user what you wanted to do.", error: true)
+
     /// Fills the saved login for the site of the form into its username and password fields, without pressing anything. The page's
     /// exact host must be the saved login's host, on https; in a frame, the frame's host. The user is asked every time, with the
-    /// site and the account, and confirms with the device owner's authentication before the password is read.
+    /// site and the account (picking one when several are saved), and confirms with the device owner's authentication before the
+    /// password is read. The AI is told whether it was done and never which account or what password.
     @MainActor
     static func signIn(_ args: [String: Any], tab: Tab, webView: WKWebView, session: Session) async -> ToolResult {
         if tab.isPrivate { return refused("Saved logins are not used in private windows.") }
@@ -103,38 +109,26 @@ extension ToolCatalog {
             if session.stopped { return stopped }
             if !allowed { return declined }
         }
+        // From here on, whatever goes wrong has the one answer: the AI can't tell whether a login is saved.
         let accounts = SignIn.activeStore.accounts(exactly: host)
-        guard !accounts.isEmpty else { return refused("no saved login for \(shownHost).") }
-        let account: String
-        if let named = args["account"] as? String {
-            guard accounts.contains(named) else { return refused("no saved login for that account on \(shownHost).") }
-            account = named
-        } else if accounts.count == 1 {
-            account = accounts[0]
-        } else {
-            return refused("more than one login is saved for \(shownHost). Ask the user which account to use, then call sign_in again with account set to it.")
-        }
+        guard !accounts.isEmpty else { return signInNotDone }
         AgentActivity.shared.step(String(localized: "Signing in to \(shownHost)"), caller: session.caller)
         Approvals.noteRead(tab, readHost: host, caller: session.caller)
         // Using the page after reading other sites is asked about as for any other use; then the sign-in itself, every time.
         let used = await Approvals.allowInteraction(.act(String(localized: "Signing in to \(shownHost)")), on: tab, caller: session.caller, site: host)
         if session.stopped { return stopped }
-        if !used { return declined }
+        guard used else { return signInNotDone }
         let pageSite = Approvals.site(of: tab.url)
-        let allowed = await Approvals.allowSignIn(host: host, username: account, page: pageSite == host ? nil : pageSite, caller: session.caller)
+        let chosen = await Approvals.allowSignIn(host: host, accounts: accounts, page: pageSite == host ? nil : pageSite, caller: session.caller)
         if session.stopped { return stopped }
-        if !allowed { return declined }
-        guard await SignIn.confirmDeviceOwner(String(localized: "Authentication is required to let the AI sign in to \(shownHost)")) else {
-            return refused("the user did not confirm with Touch ID or their Mac password. Don't retry; tell the user.")
-        }
+        guard let account = chosen else { return signInNotDone }
+        guard await SignIn.confirmDeviceOwner(String(localized: "Authentication is required to let the AI sign in to \(shownHost)")) else { return signInNotDone }
         if session.stopped { return stopped }
-        guard let password = SignIn.activeStore.password(exactly: host, username: account) else { return refused("no saved login for \(shownHost).") }
+        guard let password = SignIn.activeStore.password(exactly: host, username: account) else { return signInNotDone }
         // Whatever the page says back, none of it is passed on: only the words below.
         let filled = look(await run(PageScripts.signIn, ["args": wanted.merging(["stage": "fill", "expectOrigin": origin, "username": account, "password": password]) { $1 }],
                                     in: webView, frame: frame))
-        guard case .answered(let done) = filled, done["error"] == nil else {
-            return refused("the form changed before it could be filled in, or did not answer. Read the page and try again.")
-        }
-        return .text("Filled the saved login for \(shownHost) into the form (the account was shown to the user; the AI is not given it or the password). Nothing was submitted: click the page's sign-in button next.")
+        guard case .answered(let done) = filled, done["error"] == nil else { return signInNotDone }
+        return .text("Filled the saved login for \(shownHost) into the form (the user chose the account; the AI is not given it or the password). Nothing was submitted: click the page's sign-in button next.")
     }
 }

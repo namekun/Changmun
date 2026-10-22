@@ -561,3 +561,5 @@
 "The sign-in form is in a frame on %@." = "サインインフォームは%@のフレーム内にあります。";
 "Changmun fills in the saved login itself; the AI is not shown the password or the account name. It does not press Sign in: the AI does that next, and that click is judged like any other." = "保存済みのログインはChangmunが自分で入力します。AIにはパスワードもアカウント名も見えません。サインインボタンは押しません。そのあとAIが押し、そのクリックはほかの操作と同じように確認されます。";
 "Sign in with saved login" = "保存済みのログインでサインイン";
+"Let the AI sign in to %@?" = "AIが%@にサインインするのを許可しますか?";
+"Pick the account to sign in with." = "サインインに使うアカウントを選んでください。";

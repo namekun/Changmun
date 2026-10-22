@@ -73,6 +73,22 @@ enum Logins {
         return nil
     }
 
+    /// The usernames saved under exactly this host, the most recently saved or updated first.
+    static func accounts(exactly host: String) -> [String] {
+        guard !Headless.isOn else { return [] }
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassInternetPassword,
+            kSecAttrServer as String: host,
+            kSecAttrLabel as String: label,
+            kSecMatchLimit as String: kSecMatchLimitAll,
+            kSecReturnAttributes as String: true,
+        ]
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let items = result as? [[String: Any]] else { return [] }
+        let recent = items.sorted { ($0[kSecAttrModificationDate as String] as? Date ?? .distantPast) > ($1[kSecAttrModificationDate as String] as? Date ?? .distantPast) }
+        return recent.compactMap { $0[kSecAttrAccount as String] as? String }
+    }
+
     /// The password saved under exactly this host, not under its www or non-www twin.
     static func password(exactly host: String, username: String) -> String? {
         guard !Headless.isOn else { return nil }

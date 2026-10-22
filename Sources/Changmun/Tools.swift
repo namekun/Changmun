@@ -74,9 +74,8 @@ enum ToolCatalog {
         tool("drag", "Drag from an element or point to another and drop there: HTML5 drag and drop when the source is draggable, otherwise pointer and mouse events along the way (sliders, sortable lists). Both ends must be in the same frame.",
              ["from_element_id": ["type": "integer"], "from_x": ["type": "number"], "from_y": ["type": "number"],
               "to_element_id": ["type": "integer"], "to_x": ["type": "number"], "to_y": ["type": "number"]]),
-        tool("sign_in", "Fill in the user's saved login for this site (the page's exact host, on https) into the sign-in form's username and password fields, firing input and change events. The user is asked every time, shown the site and the account, and confirms with Touch ID or their password; you are never given the password or the account name. It does not submit: click the form's sign-in button afterwards (that click is judged like any other). Refused in private windows, on http, with no saved login for the exact host, and in a frame of another site unless the login is for that frame's host. If several accounts are saved, ask the user which one and pass it as account.",
-             ["element_id": ["type": "integer", "description": "A field or button of the form (number from read_page). Default: the page's password field"],
-              "account": ["type": "string", "description": "The username to use when several logins are saved for the site"]]),
+        tool("sign_in", "Fill in the user's saved login for this site (the page's exact host, on https) into the sign-in form's username and password fields, firing input and change events. The user is asked every time, shown the site and the account, and confirms with Touch ID or their password; you are never given the password or the account name. It does not submit: click the form's sign-in button afterwards (that click is judged like any other). Refused in private windows, on http, with no saved login for the exact host, and in a frame of another site unless the login is for that frame's host. When several logins are saved for the site, the user picks the account in the question. If the sign-in wasn't done (no saved login, the user said no, or it couldn't be confirmed) you are told only that, whatever the reason: don't retry; tell the user.",
+             ["element_id": ["type": "integer", "description": "A field or button of the form (number from read_page). Default: the page's password field"]]),
         tool("wait_for", "Wait until the given text is on the page (or, with gone, no longer there), or, without text, until the page stops loading. Frames from other sites are searched too. Gives up after timeout seconds (default 10, at most 30). Use it instead of reading the page over and over.",
              ["text": ["type": "string"], "gone": ["type": "boolean", "description": "Wait for the text to disappear"], "timeout": ["type": "number", "description": "Seconds, default 10, at most 30"]]),
         tool("scroll", "Scroll the page.", ["direction": ["type": "string", "enum": ["down", "up", "top", "bottom"]]], required: ["direction"]),
@@ -713,11 +712,15 @@ enum Approvals {
         var message: String
         var detail: String
         var choices: [Choice]
+        /// The accounts the user is to pick one of (a sign-in with several saved logins); empty for any other question.
+        var accounts: [String] = []
     }
 
     /// Answers questions in place of the window, and keeps what was asked, newest last.
     final class Stand {
         var answer: (Prompt) -> Choice
+        /// Which account of a question's list the user picks (the index), for the questions that have one.
+        var pick: (Prompt) -> Int = { _ in 0 }
         var asked: [Prompt] = []
         /// Holds each question until it is withdrawn or released, as a window would while the user thinks.
         var holds = false
@@ -818,15 +821,21 @@ enum Approvals {
     }
 
     /// The sign-in of the sign_in tool: asked every time, whatever else was allowed and whether or not the other questions are asked,
-    /// with the site the login goes to and the account that is filled in (what the user sees; the AI never does). `page` is the site of
-    /// the page when the form is in a frame of another.
-    static func allowSignIn(host: String, username: String, page: String?, caller: String) async -> Bool {
+    /// with the site the login goes to and the account that is filled in (what the user sees; the AI never does). With several
+    /// accounts saved the user picks one in the question (the first, the most recently used, to begin with): the AI is never asked
+    /// which. `page` is the site of the page when the form is in a frame of another. nil when the user says no (or doesn't answer).
+    static func allowSignIn(host: String, accounts: [String], page: String?, caller: String) async -> String? {
         let site = shown(display(host), limit: 100).text
-        let account = username.isEmpty ? String(localized: "(No username)") : shown(quotable(username), limit: 100).text
         let inFrame = page.map { String(localized: "The sign-in form is in a frame on \(shown(display($0), limit: 100).text).") + "\n\n" } ?? ""
-        return await choose(String(localized: "Let the AI sign in to \(site) as \(account)?"),
-                            "\(site)\n\(account)\n\n\(inFrame)" + String(localized: "Changmun fills in the saved login itself; the AI is not shown the password or the account name. It does not press Sign in: the AI does that next, and that click is judged like any other."),
-                            [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))], caller: caller) == .once
+        let explanation = String(localized: "Changmun fills in the saved login itself; the AI is not shown the password or the account name. It does not press Sign in: the AI does that next, and that click is judged like any other.")
+        let buttons = [(Choice.deny, String(localized: "Don’t Allow")), (Choice.once, String(localized: "Allow Once"))]
+        guard let only = accounts.first, accounts.count == 1 else {
+            let answer = await choose(String(localized: "Let the AI sign in to \(site)?"), "\(site)\n\n\(inFrame)" + String(localized: "Pick the account to sign in with.") + "\n\n\(explanation)",
+                                      buttons, accounts: accounts, caller: caller)
+            return answer.choice == .once && accounts.indices.contains(answer.account) ? accounts[answer.account] : nil
+        }
+        let account = only.isEmpty ? String(localized: "(No username)") : shown(quotable(only), limit: 100).text
+        return await choose(String(localized: "Let the AI sign in to \(site) as \(account)?"), "\(site)\n\(account)\n\n\(inFrame)\(explanation)", buttons, caller: caller) == .once ? only : nil
     }
 
     /// A long name keeps its beginning and its end, where a button says what it does.
@@ -876,48 +885,58 @@ enum Approvals {
         await choose(message, detail, [(.deny, String(localized: "Deny")), (.once, String(localized: "Allow"))], caller: caller) != .deny
     }
 
-    /// Asks on the browser window, the first button being the one Return presses; no answer within `timeout` counts as
-    /// no, so a late yes never runs a stale request.
     private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], caller: String) async -> Choice {
-        let prompt = Prompt(message: message, detail: detail, choices: buttons.map(\.0))
+        await choose(message, detail, buttons, accounts: [], caller: caller).choice
+    }
+
+    /// Asks on the browser window, the first button being the one Return presses; no answer within `timeout` counts as
+    /// no, so a late yes never runs a stale request. With `accounts`, the question carries a list to pick one from (the first
+    /// is chosen to begin with), and says which.
+    private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], accounts: [String], caller: String) async -> (choice: Choice, account: Int) {
+        let prompt = Prompt(message: message, detail: detail, choices: buttons.map(\.0), accounts: accounts)
         let standing = stand ?? (Headless.isOn ? headless : nil)
         if let standing {
             if standing.asked.count > 100 { standing.asked.removeFirst(standing.asked.count - 100) }
             standing.asked.append(prompt)
-            if !standing.holds { return standing.answer(prompt) }
+            if !standing.holds { return (standing.answer(prompt), min(max(standing.pick(prompt), 0), max(accounts.count - 1, 0))) }
         }
-        guard standing != nil || Browser.recent?.window != nil else { return .deny }
+        guard standing != nil || Browser.recent?.window != nil else { return (.deny, 0) }
         let alert = NSAlert()
+        let list = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 280, height: 26), pullsDown: false)
         if standing == nil {
             alert.messageText = message
             alert.informativeText = detail
             for (_, title) in buttons { alert.addButton(withTitle: title) }
+            if accounts.count > 1 {
+                list.addItems(withTitles: accounts.map { shown(quotable($0), limit: 100).text })
+                alert.accessoryView = list
+            }
             NSApp.requestUserAttention(.informationalRequest)
         }
         return await withCheckedContinuation { continuation in
             let once = Once()
             let id = UUID()
-            let finish = { (choice: Choice) in
+            let finish = { (choice: Choice, account: Int) in
                 guard !once.done else { return }
                 once.done = true
                 pending.removeAll { $0.id == id }
-                continuation.resume(returning: choice)
+                continuation.resume(returning: (choice, account))
             }
             var end: () -> Void = {}
             if standing == nil, let window = Browser.recent?.window {
                 alert.beginSheetModal(for: window) { response in
                     let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
-                    finish(buttons.indices.contains(index) ? buttons[index].0 : .deny)
+                    finish(buttons.indices.contains(index) ? buttons[index].0 : .deny, max(list.indexOfSelectedItem, 0))
                 }
                 end = { window.endSheet(alert.window) }
             }
             pending.append(Pending(id: id, caller: caller) { choice in
-                finish(choice)
+                finish(choice, 0)
                 end()
             })
             DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
                 guard !once.done else { return }
-                finish(.deny)
+                finish(.deny, 0)
                 end()
             }
         }

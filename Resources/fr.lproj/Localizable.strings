@@ -561,3 +561,5 @@
 "The sign-in form is in a frame on %@." = "Le formulaire de connexion se trouve dans un cadre sur %@.";
 "Changmun fills in the saved login itself; the AI is not shown the password or the account name. It does not press Sign in: the AI does that next, and that click is judged like any other." = "Changmun saisit lui-même l’identifiant enregistré ; l’IA ne voit ni le mot de passe ni le nom du compte. Il n’appuie pas sur Se connecter : l’IA le fait ensuite, et ce clic est jugé comme n’importe quel autre.";
 "Sign in with saved login" = "Se connecter avec l’identifiant enregistré";
+"Let the AI sign in to %@?" = "Laisser l’IA se connecter à %@ ?";
+"Pick the account to sign in with." = "Choisissez le compte à utiliser.";

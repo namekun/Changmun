@@ -672,7 +672,6 @@ extension ToolCatalog {
             if args["timeout"] != nil && number(args["timeout"]).map({ $0 > 0 }) != true { return "timeout must be a number of seconds." }
         case "sign_in":
             if args["element_id"] != nil && !hasElement("element_id") { return "element_id must be a number." }
-            if args["account"] != nil && args["account"] as? String == nil { return "account must be a string." }
         case "screenshot":
             if args["labels"] != nil && args["labels"] as? Bool == nil { return "labels must be true or false." }
         case "drag":
