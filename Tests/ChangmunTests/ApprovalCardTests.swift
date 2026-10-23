@@ -216,6 +216,28 @@ extension SharedAgentState {
             #expect(key(36, inPanel: false) == .deny && key(53, inPanel: false) == .deny, "no may be said from anywhere but a page")
         }
 
+        @Test func aSecondQuestionIsArmedOnlyAfterItCameToTheFront() async throws {
+            let (browser, _) = open([])
+            defer { browser.windowClosed() }
+            func card(_ id: UUID) -> ApprovalCards.Card {
+                .init(id: id, prompt: Approvals.Prompt(message: "m", detail: "d", choices: [.deny, .once]), buttons: [(.deny, "No"), (.once, "Yes")],
+                      browser: browser, answer: { _ in }, moveToSheet: {})
+            }
+            let cards = ApprovalCards.shared, first = UUID(), second = UUID()
+            cards.add(card(first))
+            defer { cards.remove(first); cards.remove(second) }
+            try await Task.sleep(for: .milliseconds(600))
+            cards.add(card(second))
+            let pressedEarlier = Date()
+            #expect(Date().timeIntervalSince(cards.visibleSince(first)) >= ApprovalKeys.yesDelay, "the first has been in front for a while")
+            let before = Date()
+            cards.remove(first)
+            #expect(cards.visibleSince(second) >= before, "it came to the front just now, whenever it was made")
+            #expect(!ApprovalKeys.yesArmed(shownFor: Date().timeIntervalSince(cards.visibleSince(second))), "so the keys that say yes do nothing yet")
+            #expect(!ApprovalKeys.mayClickYes(shownAt: cards.visibleSince(second), mouseDownAt: pressedEarlier, now: Date().addingTimeInterval(1)), "a press from before it was in front doesn't count")
+            #expect(ApprovalKeys.mayClickYes(shownAt: cards.visibleSince(second), mouseDownAt: Date().addingTimeInterval(0.6), now: Date().addingTimeInterval(0.7)))
+        }
+
         // MARK: What was read and allowed
 
         @Test func revokingTakesBackTheSiteForTheNextActionAndOnlyForThatCaller() async {

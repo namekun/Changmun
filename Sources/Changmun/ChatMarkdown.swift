@@ -342,12 +342,10 @@ struct CopyTextButton: View {
 
 
 /// What an answer's links may be and say. The AI's text can come from a page, so a link in it is a place the page chose: it opens only if it
-/// is http(s) with no user name or password, it names its host next to its words unless they already show it, and when the chat has read
-/// a site and the address itself carries a lot, the user is asked first, with the whole address in front of them.
+/// is http(s) with no user name or password, it always names its host in ASCII next to its words (unless the words are that very address),
+/// and once the chat has read a site, a link to any site that isn't one the chat has read or one open in the window is asked about first,
+/// with the whole address in front of the user: what was read can ride out in any part of an address.
 enum ChatLinks {
-    /// How long the query and fragment of an address may be before it counts as carrying data.
-    static let carryLimit = 64
-
     /// Whether the address may be opened from an answer: http or https, with a host and no user name or password.
     static func isSafe(_ url: URL) -> Bool {
         guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
@@ -356,30 +354,23 @@ enum ChatLinks {
         return true
     }
 
-    /// The host as it is shown next to a link, with the port when it isn't the scheme's own.
+    /// The host as it is shown next to a link: as `Approvals.site` writes it (lowercased, an international name in its ASCII "xn--" form,
+    /// with the port when it isn't the scheme's own), so a look-alike name can be told from the one it imitates.
     static func host(of url: URL) -> String? {
-        guard isSafe(url), let parts = URLComponents(url: url, resolvingAgainstBaseURL: false), let host = parts.host?.lowercased() else { return nil }
-        let own = parts.scheme?.lowercased() == "https" ? 443 : 80
-        return parts.port.map { $0 == own ? host : "\(host):\($0)" } ?? host
+        guard isSafe(url), let site = Approvals.site(of: url) else { return nil }
+        return site.hasPrefix("http://") ? String(site.dropFirst(7)) : site
     }
 
-    /// Whether the words of a link already show its host: the host stands in them as a name of its own, not as the end of a longer one
-    /// ("notevil.example" doesn't show "evil.example") nor as the start of one ("example.com.evil.net" doesn't show "example.com").
-    static func textShows(_ text: String, host: String) -> Bool {
-        let text = Array(text.lowercased()), host = Array(host.lowercased())
-        guard !host.isEmpty, text.count >= host.count else { return false }
-        func word(_ c: Character) -> Bool { c.isLetter || c.isNumber || c == "-" || c == "." || c == "_" }
-        for start in 0...(text.count - host.count) where Array(text[start..<start + host.count]) == host {
-            if start > 0, word(text[start - 1]) { continue }
-            let end = start + host.count
-            if end < text.count {
-                let next = text[end]
-                if next.isLetter || next.isNumber || next == "-" || next == "_" { continue }
-                if next == ".", end + 1 < text.count, text[end + 1].isLetter || text[end + 1].isNumber { continue }
-            }
-            return true
-        }
-        return false
+    /// Whether the words of a link are themselves the address it goes to, so that naming the host again would add nothing: the host alone
+    /// (or with or without "www."), or the address written out (with or without a scheme) whose host is exactly that, in plain ASCII.
+    /// Words that only contain the host, or have more in them, don't count.
+    static func textIs(_ text: String, host: String) -> Bool {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), host = host.lowercased()
+        guard !text.isEmpty, !host.isEmpty, text.allSatisfy({ $0.isASCII && !$0.isWhitespace }) else { return false }
+        if text == host || text == "www." + host || host == "www." + text { return true }
+        let written = text.contains("://") ? text : "https://" + text
+        guard let url = URL(string: written), isSafe(url), let shown = Self.host(of: url) else { return false }
+        return shown == host || shown == "www." + host || host == "www." + shown
     }
 
     /// The links of an answer's text that may be opened.
@@ -388,7 +379,7 @@ enum ChatLinks {
         return parsed.runs.compactMap(\.link).filter(isSafe)
     }
 
-    /// Takes the link off what may not be opened, and puts the host after the words of one whose words don't show it.
+    /// Takes the link off what may not be opened, and puts the host after the words of every link that aren't the address itself.
     static func annotate(_ input: AttributedString) -> AttributedString {
         var output = AttributedString()
         var group: Range<AttributedString.Index>?
@@ -399,7 +390,7 @@ enum ChatLinks {
             if let link = groupLink {
                 if let host = host(of: link) {
                     output.append(piece)
-                    if !textShows(String(piece.characters), host: host) {
+                    if !textIs(String(piece.characters), host: host) {
                         var note = AttributedString(" (\(host))")
                         note.font = .system(size: 10.5, weight: .medium)
                         note.foregroundColor = Theme.secondary
@@ -426,18 +417,22 @@ enum ChatLinks {
         return output
     }
 
-    /// Whether to ask before opening: the chat has read something, and the address carries more than `carryLimit` characters in its
-    /// query and fragment, which is where a page could have the AI put what it read.
-    static func needsConfirmation(_ url: URL, chatHasRead: Bool) -> Bool {
-        guard chatHasRead, let parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return false }
-        return (parts.percentEncodedQuery?.count ?? 0) + (parts.percentEncodedFragment?.count ?? 0) > carryLimit
+    /// Whether to ask before opening: the chat has read a site (`read`, as `Approvals.sitesRead` lists them), and the link goes to a site
+    /// that is neither one of those nor one open in the window (`open`, written the same way). The whole address is where a page could
+    /// have the AI put what it read: its path, its subdomain, its query.
+    static func needsConfirmation(_ url: URL, read: [String], open: [String]) -> Bool {
+        guard !read.isEmpty else { return false }
+        guard let site = Approvals.site(of: url) else { return true }
+        return !read.contains(site) && !open.contains(site)
     }
 
     /// Opens a link of an answer in a new tab, after the question when it needs one.
     @MainActor
     static func open(_ url: URL) -> OpenURLAction.Result {
         guard isSafe(url) else { return .discarded }
-        if needsConfirmation(url, chatHasRead: !Approvals.sitesRead(caller: ChatStore.caller).isEmpty) {
+        let browser = Browser.recent
+        let openSites = (browser?.tabs ?? []).filter { !$0.isPrivate }.compactMap { Approvals.site(of: $0.url) }
+        if needsConfirmation(url, read: Approvals.sitesRead(caller: ChatStore.caller), open: openSites) {
             let alert = NSAlert()
             alert.messageText = String(localized: "This link carries data in its address. Open it?")
             alert.informativeText = Approvals.shown(url.absoluteString, limit: 1000).text
@@ -445,8 +440,8 @@ enum ChatLinks {
             alert.addButton(withTitle: String(localized: "Open"))
             guard alert.runModal() == .alertSecondButtonReturn else { return .handled }
         }
-        let browser = Browser.recent ?? BrowserWindow.open()
-        browser.openTab(url: url, after: browser.active)
+        let target = browser ?? BrowserWindow.open()
+        target.openTab(url: url, after: target.active)
         return .handled
     }
 }

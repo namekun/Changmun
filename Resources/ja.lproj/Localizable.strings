@@ -666,3 +666,4 @@
 "typed %lld characters" = "%lld 文字を入力";
 "The history stays on this Mac, and you can turn it off here." = "履歴はこの Mac の中だけに保存され、ここでオフにできます。";
 "Couldn’t save chat history" = "チャット履歴を保存できませんでした";
+"%lld characters" = "%lld 文字";

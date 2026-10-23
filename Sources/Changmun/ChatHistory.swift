@@ -52,6 +52,15 @@ final class ChatHistory: ObservableObject {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         chats = (try? Data(contentsOf: file)).flatMap { try? decoder.decode(Stored.self, from: $0) }?.chats ?? []
+        Self.removeStaleTemporaries(beside: file)
+    }
+
+    /// A write that was cut short (the app quit in the middle of it) leaves its temporary file behind: it holds chats, so it goes.
+    static func removeStaleTemporaries(beside file: URL) {
+        let folder = file.deletingLastPathComponent(), prefix = ".\(file.lastPathComponent)."
+        for name in (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? [] where name.hasPrefix(prefix) && name.hasSuffix(".tmp") {
+            unlink(folder.appendingPathComponent(name).path)
+        }
     }
 
     /// Keeps the conversation (or replaces what was kept of it). A conversation with no message of the user is nothing to keep.
@@ -81,33 +90,50 @@ final class ChatHistory: ObservableObject {
     func clear() {
         chats.removeAll()
         save()
+        Self.removeStaleTemporaries(beside: file)
     }
 
-    /// What is kept of a step: the addresses without their query and fragment (which carry what a page put in them), and what was typed or
-    /// chosen as only how long it was. The panel shows the whole step while the chat is open; this is what goes to the file.
+    /// What is kept of a step: an address without its query and fragment (which carry what a page put in them, written with a scheme or
+    /// not), and what was typed, chosen or waited for as only how long it was. The panel shows the whole step while the chat is open; this
+    /// is what goes to the file.
     static func persistable(_ item: ChatItem) -> ChatItem {
         guard item.kind == .tool else { return item }
         var item = item
-        if item.tool == "type_text" || item.tool == "select_option", let separator = item.text.range(of: " · ") {
-            let typed = item.text[separator.upperBound...].count
-            item.text = String(item.text[..<separator.lowerBound]) + " · " + String(localized: "typed \(typed) characters")
+        if let separator = item.text.range(of: " · ") {
+            let head = String(item.text[..<separator.lowerBound]), argument = item.text[separator.upperBound...]
+            switch item.tool {
+            case "type_text", "select_option":
+                item.text = head + " · " + String(localized: "typed \(argument.count) characters")
+            case "wait_for":
+                item.text = head + " · " + String(localized: "\(argument.count) characters")
+            case "navigate", "open_tab":
+                item.text = head + " · " + String(argument.prefix { $0 != "?" && $0 != "#" })
+            default: break
+            }
         }
         item.text = strippingQueries(item.text)
         item.title = item.title.map(strippingQueries)
         return item
     }
 
-    /// The text with every http(s) address cut before its "?" or "#".
+    /// The text with every address cut before its "?" or "#": one with a scheme anywhere in it, and a bare one ("bank.com/login?…") that is a
+    /// word of its own.
     static func strippingQueries(_ text: String) -> String {
-        guard text.contains("?") || text.contains("#"),
-              let regex = try? NSRegularExpression(pattern: "https?://[^\\s\"”)]*", options: .caseInsensitive) else { return text }
+        guard text.contains("?") || text.contains("#") else { return text }
         var result = text
-        // From the end, so the places found first stay where they were.
-        for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
-            guard let range = Range(match.range, in: result), let cut = result[range].firstIndex(where: { $0 == "?" || $0 == "#" }) else { continue }
-            result.removeSubrange(cut..<range.upperBound)
+        if let regex = try? NSRegularExpression(pattern: "https?://[^\\s\"”)]*", options: .caseInsensitive) {
+            // From the end, so the places found first stay where they were.
+            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
+                guard let range = Range(match.range, in: result), let cut = result[range].firstIndex(where: { $0 == "?" || $0 == "#" }) else { continue }
+                result.removeSubrange(cut..<range.upperBound)
+            }
         }
-        return result
+        return result.split(separator: " ", omittingEmptySubsequences: false).map { word -> String in
+            guard let cut = word.firstIndex(where: { $0 == "?" || $0 == "#" }) else { return String(word) }
+            let before = word[..<cut]
+            // Words like "What?" or "#3" are words; "bank.com/login?x" and "a.b#c" are addresses.
+            return before.contains { $0 == "." || $0 == "/" } ? String(before) : String(word)
+        }.joined(separator: " ")
     }
 
     private func save() {

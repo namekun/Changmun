@@ -666,3 +666,4 @@
 "typed %lld characters" = "%lld caracteres escritos";
 "The history stays on this Mac, and you can turn it off here." = "El historial se queda en este Mac y puedes desactivarlo aquí.";
 "Couldn’t save chat history" = "No se pudo guardar el historial de chats";
+"%lld characters" = "%lld caracteres";

@@ -13,6 +13,7 @@ final class ApprovalCards: ObservableObject {
         let prompt: Approvals.Prompt
         let buttons: [(Approvals.Choice, String)]
         weak var browser: Browser?
+        /// When the question was made; when its card was first in front is `ApprovalCards.visibleSince`.
         let shownAt = Date()
         /// Answers the question; the card goes with it.
         let answer: (Approvals.Choice) -> Void
@@ -27,10 +28,19 @@ final class ApprovalCards: ObservableObject {
     var cardFocused = false
     /// When the mouse button last went down in the app: a click on a button that says yes counts only if it began after the card was armed.
     private(set) var lastMouseDown: Date?
+    /// When each card became the first one of its panel, the one on show: the keys and the buttons that say yes are armed a moment after
+    /// that, not after the question was made (a second question must not wake up already armed when the first is answered).
+    private var frontSince: [UUID: Date] = [:]
+
+    func visibleSince(_ id: UUID) -> Date {
+        frontSince[id] ?? cards.first { $0.id == id }?.shownAt ?? Date()
+    }
 
     func add(_ card: Card) {
         if cards.isEmpty { cardFocused = false }
+        let alone = card.browser.map { first(for: $0) == nil } ?? true
         cards.append(card)
+        if alone { frontSince[card.id] = Date() }
         if monitor == nil {
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown]) { [weak self] event in
                 if event.type == .leftMouseDown {
@@ -43,7 +53,11 @@ final class ApprovalCards: ObservableObject {
     }
 
     func remove(_ id: UUID) {
+        let browser = cards.first { $0.id == id }?.browser
         cards.removeAll { $0.id == id }
+        frontSince[id] = nil
+        // The next question of that panel comes to the front now.
+        if let browser, let next = first(for: browser), frontSince[next.id] == nil { frontSince[next.id] = Date() }
         // The focus was on the card that went: the next one starts without it.
         cardFocused = false
         if cards.isEmpty, let monitor {
@@ -78,7 +92,7 @@ final class ApprovalCards: ObservableObject {
         // The keys that say yes work only from the panel: its box, or the card (but not from a text field elsewhere, like the address bar).
         let inPanel = window.firstResponder is ComposerTextView || (cardFocused && !(window.firstResponder is NSText))
         guard let choice = ApprovalKeys.choice(keyCode: event.keyCode, flags: event.modifierFlags, offered: card.prompt.choices,
-                                               inPage: inPage, typed: typed, inPanel: inPanel, shownFor: Date().timeIntervalSince(card.shownAt)) else { return event }
+                                               inPage: inPage, typed: typed, inPanel: inPanel, shownFor: Date().timeIntervalSince(visibleSince(card.id))) else { return event }
         // A key held down answers once, and its repeats are not taken for more (nor passed on to the box).
         if event.isARepeat { return nil }
         card.answer(choice)
@@ -181,7 +195,7 @@ struct ApprovalCardView: View {
         .focused($focused)
         .onChange(of: focused) { ApprovalCards.shared.cardFocused = focused }
         .task {
-            let wait = ApprovalKeys.yesDelay - Date().timeIntervalSince(card.shownAt)
+            let wait = ApprovalKeys.yesDelay - Date().timeIntervalSince(ApprovalCards.shared.visibleSince(card.id))
             if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
             armed = true
         }
@@ -220,7 +234,7 @@ struct ApprovalCardView: View {
     private func button(_ choice: Approvals.Choice, _ title: String) -> some View {
         let live = choice == .deny || armed
         return Button {
-            guard choice == .deny || ApprovalKeys.mayClickYes(shownAt: card.shownAt, mouseDownAt: ApprovalCards.shared.lastMouseDown, now: Date()) else { return }
+            guard choice == .deny || ApprovalKeys.mayClickYes(shownAt: ApprovalCards.shared.visibleSince(card.id), mouseDownAt: ApprovalCards.shared.lastMouseDown, now: Date()) else { return }
             card.answer(choice)
         } label: {
             HStack(spacing: 6) {

@@ -666,3 +666,4 @@
 "typed %lld characters" = "%lld Zeichen eingegeben";
 "The history stays on this Mac, and you can turn it off here." = "Der Verlauf bleibt auf diesem Mac; du kannst ihn hier ausschalten.";
 "Couldn’t save chat history" = "Der Chatverlauf konnte nicht gespeichert werden";
+"%lld characters" = "%lld Zeichen";

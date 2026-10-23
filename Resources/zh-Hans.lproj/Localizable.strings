@@ -666,3 +666,4 @@
 "typed %lld characters" = "输入了 %lld 个字符";
 "The history stays on this Mac, and you can turn it off here." = "记录只保存在这台 Mac 上，你可以在这里关闭。";
 "Couldn’t save chat history" = "无法保存对话记录";
+"%lld characters" = "%lld 个字符";

@@ -54,27 +54,50 @@ struct AIPanelSecurityTests {
         }
     }
 
-    @Test func aLinkNamesItsHostUnlessItsWordsShowIt() {
+    @Test func aLinkNamesItsHostUnlessItsWordsAreThatAddress() {
         #expect(plain("[Continue](https://evil.example/c?d=1)") == "Continue (evil.example)")
         #expect(plain("[Continue](https://evil.example:8443/c)") == "Continue (evil.example:8443)")
         #expect(plain("[example.com/page](https://example.com/page)") == "example.com/page")
         #expect(plain("[https://example.com/a](https://example.com/a)") == "https://example.com/a")
-        #expect(plain("[notevil.example](https://evil.example/)") == "notevil.example (evil.example)", "the end of a longer name is not the name")
-        #expect(plain("[example.com.evil.net](https://example.com/)") == "example.com.evil.net (example.com)", "the start of a longer name is not the name")
-        #expect(plain("[www.example.com](https://www.example.com)") == "www.example.com")
-        #expect(plain("[go to evil.example now](https://evil.example/)") == "go to evil.example now")
-        #expect(ChatLinks.textShows("Visit Example.COM.", host: "example.com"))
-        #expect(!ChatLinks.textShows("", host: "example.com") && !ChatLinks.textShows("a", host: ""))
+        #expect(plain("[www.example.com](https://example.com)") == "www.example.com")
+        #expect(plain("[example.com](https://www.example.com)") == "example.com")
+        #expect(plain("[ Example.COM ](https://example.com)") == " Example.COM ", "the words are the host, however written")
+        for tricky in ["Visit bank.com (secure)", "go to evil.example now", "notevil.example", "bank.com.evil.net", "bank.com@evil.net", "evil.example.", "example.com:444"] {
+            let host = tricky.hasPrefix("example.com") ? "example.com" : tricky.contains("bank.com") ? "bank.com" : "evil.example"
+            #expect(plain("[\(tricky)](https://\(host)/)") == "\(tricky) (\(host))", "\(tricky) is not the address \(host)")
+        }
+        #expect(plain("[bank.com.evil.net](https://bank.com/)") == "bank.com.evil.net (bank.com)")
+        #expect(plain("[bank.com@evil.net](https://evil.net/)") == "bank.com@evil.net (evil.net)", "a user name in the words is not the destination")
+        #expect(plain("[bank.com](https://bank.com.evil.net/)") == "bank.com (bank.com.evil.net)")
+        #expect(plain("[bank.com/login](http://bank.com/login)") == "bank.com/login", "the same host, whatever the scheme")
     }
 
-    @Test func aLinkThatCarriesDataAsksOnlyWhenTheChatHasReadASite() {
-        let long = URL(string: "https://evil.example/c?d=" + String(repeating: "a", count: 80))!
-        let fragment = URL(string: "https://evil.example/c#" + String(repeating: "b", count: 70))!
-        let short = URL(string: "https://example.com/search?q=cats")!
-        #expect(ChatLinks.needsConfirmation(long, chatHasRead: true) && ChatLinks.needsConfirmation(fragment, chatHasRead: true))
-        #expect(!ChatLinks.needsConfirmation(long, chatHasRead: false), "nothing read, nothing to carry")
-        #expect(!ChatLinks.needsConfirmation(short, chatHasRead: true))
-        #expect(!ChatLinks.needsConfirmation(URL(string: "https://example.com/" + String(repeating: "p", count: 200))!, chatHasRead: true), "a long path alone is no data")
+    @Test func aLookAlikeHostIsShownInItsAsciiForm() throws {
+        let url = try #require(URL(string: "https://bаnk.com/login"))   // Cyrillic а
+        let host = try #require(ChatLinks.host(of: url))
+        #expect(host.hasPrefix("xn--") && host.allSatisfy(\.isASCII), Comment(rawValue: host))
+        #expect(plain("[bаnk.com](https://bаnk.com/login)") == "bаnk.com (\(host))", "Unicode words never stand for the address")
+        #expect(plain("[bank.com](https://bаnk.com/login)") == "bank.com (\(host))")
+        #expect(ChatLinks.host(of: URL(string: "http://Example.COM:8080/")!) == "example.com:8080")
+        #expect(ChatLinks.host(of: URL(string: "https://example.com:443/")!) == "example.com")
+    }
+
+    @Test func onceASiteWasReadALinkToAnyOtherSiteAsksWhateverPartCarriesTheData() {
+        let read = ["a.example"], open = ["b.example", "http://c.example", "d.example:8443"]
+        func asks(_ link: String, read: [String] = read, open: [String] = open) -> Bool {
+            ChatLinks.needsConfirmation(URL(string: link)!, read: read, open: open)
+        }
+        #expect(asks("https://evil.example/x/SECRETDATA"), "in the path")
+        #expect(asks("https://SECRETDATA.evil.example/"), "in a subdomain")
+        #expect(asks("https://evil.example/?q=SECRETDATA") && asks("https://evil.example/#SECRETDATA"))
+        #expect(asks("https://evil.example/"), "even a short address: the site itself is new")
+        #expect(!asks("https://a.example/anything?q=" + String(repeating: "x", count: 200)), "a site that was read")
+        #expect(!asks("https://b.example/") && !asks("http://c.example/x") && !asks("https://d.example:8443/"), "a site open in the window")
+        #expect(asks("http://a.example/") && asks("https://c.example/") && asks("https://d.example/"), "another scheme or port is another site")
+        #expect(asks("https://x.a.example/") && asks("https://a.example.evil.net/"), "a neighbour of a read site is not it")
+        #expect(!asks("https://evil.example/x", read: []), "nothing read, nothing to carry")
+        #expect(!asks("https://xn--e1a.example/", read: ["xn--e1a.example"]), "sites are compared in their ASCII form")
+        #expect(!ChatLinks.needsConfirmation(URL(string: "https://а.example/")!, read: ["xn--80a.example"], open: []), "Unicode and ASCII forms are one site")
     }
 
     // MARK: History
@@ -90,6 +113,34 @@ struct AIPanelSecurityTests {
         #expect(open.text == "Open new tab · http://a.example/")
         let user = ChatItem(kind: .user, text: "see https://a.example/?q=1")
         #expect(ChatHistory.persistable(user) == user, "what the user wrote is theirs to keep")
+    }
+
+    @Test func bareAddressesWaitedTextAndTitlesAreCutToo() {
+        func kept(_ text: String, _ tool: String, title: String? = nil) -> ChatItem { ChatHistory.persistable(ChatItem(kind: .tool, text: text, title: title, tool: tool)) }
+        #expect(kept("Go to · bank.com/login?token=SECRET", "navigate").text == "Go to · bank.com/login")
+        #expect(kept("Go to · cats and dogs #secret", "navigate").text == "Go to · cats and dogs ")
+        #expect(kept("Open new tab · bank.com?x=SECRET#y", "open_tab").text == "Open new tab · bank.com")
+        #expect(kept("Go to · https://bank.com/a?b=c", "navigate").text == "Go to · https://bank.com/a")
+        let wait = kept("Wait · Your code is 123456", "wait_for")
+        #expect(!wait.text.contains("123456") && wait.text.hasPrefix("Wait · ") && wait.text.contains("19"))
+        #expect(kept("Read page", "read_page", title: "Reading bank.com/login?token=SECRET and https://x.example/?q=1 today").title == "Reading bank.com/login and https://x.example/ today")
+        #expect(kept("Read page", "read_page", title: "Is this the right plan?").title == "Is this the right plan?", "a question is a question")
+        #expect(kept("Click", "click", title: "Choose item #3").title == "Choose item #3")
+    }
+
+    @Test func aTemporaryFileLeftByACutShortWriteIsRemoved() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("hist-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("ai-chats.json")
+        let stale = folder.appendingPathComponent(".ai-chats.json.\(UUID().uuidString).tmp"), other = folder.appendingPathComponent("keep.tmp")
+        try Data("old".utf8).write(to: stale)
+        try Data("x".utf8).write(to: other)
+        let history = ChatHistory(file: file)
+        #expect(!FileManager.default.fileExists(atPath: stale.path) && FileManager.default.fileExists(atPath: other.path))
+        try Data("old".utf8).write(to: stale)
+        history.clear()
+        #expect(!FileManager.default.fileExists(atPath: stale.path))
     }
 
     @Test func theHistoryFileIsMadePrivateFromTheStartAndReplacedWhole() throws {
