@@ -504,7 +504,7 @@ enum ToolCatalog {
     }
 
     @MainActor
-    private static func picture(_ tab: Tab, _ webView: WKWebView, labels: [LabelBox] = []) async -> (ToolResult, drawn: Int) {
+    static func picture(_ tab: Tab, _ webView: WKWebView, labels: [LabelBox] = []) async -> (ToolResult, drawn: Int) {
         let size = await run("return JSON.stringify([innerWidth, innerHeight]);", [:], in: webView, timeout: 5).content.first?["text"] as? String
         let viewport = size.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [Double] }.flatMap { $0.count == 2 && $0[0] >= 1 && $0[1] >= 1 ? $0 : nil }
         let configuration = WKSnapshotConfiguration()
@@ -581,6 +581,8 @@ enum Approvals {
 
     /// Stands for a frame that has no site to name (a sandboxed frame, one that could not be asked): a site of its own.
     nonisolated static let unknownFrame = "\u{1}unknown-frame"
+    /// Stands for an image the user added from outside the browser (a file, the clipboard): a source of its own, which no tab is on.
+    nonisolated static let addedImage = "\u{1}added-image"
 
     /// The site an address is on, as what was read and allowed is remembered: its exact host, lowercased and in the ASCII form
     /// of an international name (www.example.com and shop.example.com are two sites, so are two sites on one hosting service),
@@ -607,7 +609,7 @@ enum Approvals {
     }
 
     nonisolated private static func hasSiteSyntax(_ site: String) -> Bool {
-        !site.isEmpty && site != unknownFrame && !(site.hasSuffix(":") && site.dropLast().allSatisfy(\.isLetter))
+        !site.isEmpty && site != unknownFrame && site != addedImage && !(site.hasSuffix(":") && site.dropLast().allSatisfy(\.isLetter))
     }
 
     /// The site an origin names ("https://example.com:8443"): "" for an origin that has none (a sandboxed frame, a data: page).
@@ -780,6 +782,12 @@ enum Approvals {
         if let site = readHost ?? site(of: tab.url), readHosts[caller, default: []].insert(site).inserted { changes.send() }
     }
 
+    /// Records that the AI was given pictures of these sites (a page screenshot the user attached) or of an unknown source (an image
+    /// the user added): later actions on any other site are asked about, as after reading it.
+    static func noteRead(sites: [String], caller: String) {
+        readHosts[caller, default: []].formUnion(sites)
+    }
+
     /// How an approval was answered. `site` (allow on this site for as long as the chat lasts) is offered to the chat panel and to any
     /// MCP client that the bridge named itself (its chat is its connection); any other caller is only ever asked each time.
     enum Choice {
@@ -926,7 +934,7 @@ enum Approvals {
     }
 
     static func display(_ host: String) -> String {
-        host == unknownFrame ? String(localized: "a frame of an unknown site") : host
+        host == unknownFrame ? String(localized: "a frame of an unknown site") : host == addedImage ? String(localized: "an image you added") : host
     }
 
     /// Per caller, the sites on which the user allowed the AI the actions of the low tier for the rest of the chat.

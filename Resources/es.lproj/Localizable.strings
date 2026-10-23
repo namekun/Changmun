@@ -21,6 +21,7 @@
 "(No username)" = "(sin nombre de usuario)";
 "a frame of an unknown site" = "un marco de un sitio desconocido";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "Una dirección completa se puede editar directamente (⌘L). Con sitio y título, ⌘L abre el campo de búsqueda para editarla.";
+"A private window can't be shown to the AI." = "Una ventana privada no se puede mostrar a la IA.";
 "About Changmun" = "Acerca de Changmun";
 "Action:" = "Acción:";
 "Active" = "Activo";
@@ -58,6 +59,7 @@
 "Allow pop-ups" = "Permitir ventanas emergentes";
 "Always Allow for %@" = "Permitir siempre en %@";
 "Always Allow for This Site" = "Permitir siempre en este sitio";
+"an image you added" = "una imagen que añadiste";
 "and %lld more" = "y %lld más";
 "Archive tabs you haven’t viewed in a while" = "Archivar las pestañas que no has visto en un tiempo";
 "Archived Tabs" = "Pestañas archivadas";
@@ -66,6 +68,7 @@
 "Ask AI" = "Preguntar a la IA";
 "Ask before using other tabs, opening new addresses, or using a page after reading other sites" = "Preguntar antes de usar otras pestañas, abrir direcciones nuevas o usar una página después de leer otros sitios";
 "Ask where to save each download" = "Preguntar dónde guardar cada descarga";
+"Attach a picture of this page. You can also drop or paste images." = "Adjunta una imagen de esta página. También puedes soltar o pegar imágenes.";
 "Authentication is required to copy the saved password" = "Se requiere autenticación para copiar la contraseña guardada";
 "Automatically put new tabs in the right group" = "Colocar automáticamente las pestañas nuevas en el grupo adecuado";
 "Back" = "Atrás";
@@ -185,10 +188,17 @@
 "Edit" = "Editar";
 "Edit Address (⌘L)" = "Editar dirección (⌘L)";
 "Either way, it asks every time before something that looks like it pays, orders, sends, posts, shares, grants access, deletes or cancels." = "Pase lo que pase, pregunta siempre antes de algo que parezca pagar, pedir, enviar, publicar, compartir, dar acceso, eliminar o cancelar.";
+"Image" = "Imagen";
 "It also asks before something that looks like a cookie banner or a setting (save, clear, reset, block), which you can allow for a site until the chat is cleared." = "También pregunta antes de algo que parezca un aviso de cookies o un ajuste (guardar, borrar, restablecer, bloquear), y puedes permitirlo para un sitio hasta que borres el chat.";
+"Remove this image" = "Quitar esta imagen";
+"Screenshot" = "Captura";
+"That image is too large to attach." = "La imagen es demasiado grande para adjuntarla.";
+"That isn't an image Changmun can read." = "Eso no es una imagen que Changmun pueda leer.";
 "The AI wants to do something that can’t be undone" = "La IA quiere hacer algo que no se puede deshacer";
 "The form sends what is typed in it to %@, another site than this page." = "El formulario envía lo que se escribe en él a %@, otro sitio distinto de esta página.";
 "This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "Parece que paga, pide, envía, publica, elimina o da acceso, y eso no se puede deshacer, así que se pregunta siempre.";
+"The page changed while capturing. Try again." = "La página cambió durante la captura. Inténtalo de nuevo.";
+"The page could not be captured." = "No se pudo capturar la página.";
 "The AI wants to accept cookies or change a setting" = "La IA quiere aceptar cookies o cambiar un ajuste";
 "This looks like a cookie banner or a setting, not like paying or sending." = "Parece un aviso de cookies o un ajuste, no pagar ni enviar.";
 "Element hiding" = "Ocultación de elementos";
@@ -488,6 +498,7 @@
 "Where would you like to import from?" = "¿Desde dónde quieres importar?";
 "Window" = "Ventana";
 "Working" = "Trabajando";
+"You can attach up to %lld images to a message." = "Puedes adjuntar hasta %lld imágenes a un mensaje.";
 "You can use this extension in Changmun" = "Puedes usar esta extensión en Changmun";
 "YousList (Korean ads)" = "YousList (anuncios de Corea)";
 "Zoom" = "Zoom";

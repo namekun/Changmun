@@ -27,6 +27,23 @@ final class ComposerTextView: NSTextView {
         onReturn?(string, flags.contains(.command))
     }
 
+    /// A picture on the clipboard (or a picture file copied in Finder) is not text: it becomes an image for the next message.
+    override func paste(_ sender: Any?) {
+        guard ImageIntake.hasPicture(.general) else { return super.paste(sender) }
+        Task { @MainActor in ChatStore.shared.addImages(ImageIntake.sources(on: .general)) }
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        ImageIntake.hasPicture(sender.draggingPasteboard) ? .copy : super.draggingEntered(sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard ImageIntake.hasPicture(sender.draggingPasteboard) else { return super.performDragOperation(sender) }
+        let sources = ImageIntake.sources(on: sender.draggingPasteboard)
+        Task { @MainActor in ChatStore.shared.addImages(sources) }
+        return true
+    }
+
     /// The line break an input method passes on after it committed what it composed is not the user asking for one.
     override func insertNewline(_ sender: Any?) {
         if composingAtKeyDown { return }

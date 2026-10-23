@@ -21,6 +21,7 @@
 "(No username)" = "(Kein Benutzername)";
 "a frame of an unknown site" = "ein Frame einer unbekannten Website";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "Eine vollständige Adresse kannst du direkt an Ort und Stelle bearbeiten (⌘L). Bei „Website und Titel“ öffnet ⌘L das Suchfeld zum Bearbeiten.";
+"A private window can't be shown to the AI." = "Ein privates Fenster kann der KI nicht gezeigt werden.";
 "About Changmun" = "Über Changmun";
 "Action:" = "Aktion:";
 "Active" = "Aktiv";
@@ -58,6 +59,7 @@
 "Allow pop-ups" = "Pop-ups erlauben";
 "Always Allow for %@" = "Für %@ immer erlauben";
 "Always Allow for This Site" = "Für diese Website immer erlauben";
+"an image you added" = "ein von Ihnen hinzugefügtes Bild";
 "and %lld more" = "und %lld weitere";
 "Archive tabs you haven’t viewed in a while" = "Tabs archivieren, die du länger nicht angesehen hast";
 "Archived Tabs" = "Archivierte Tabs";
@@ -66,6 +68,7 @@
 "Ask AI" = "KI fragen";
 "Ask before using other tabs, opening new addresses, or using a page after reading other sites" = "Nachfragen, bevor andere Tabs verwendet, neue Adressen geöffnet oder Seiten nach dem Lesen anderer Websites bedient werden";
 "Ask where to save each download" = "Bei jedem Download nach dem Sichern-Ort fragen";
+"Attach a picture of this page. You can also drop or paste images." = "Hängt ein Bild dieser Seite an. Bilder lassen sich auch ablegen oder einfügen.";
 "Authentication is required to copy the saved password" = "Zum Kopieren des gesicherten Passworts ist eine Authentifizierung erforderlich";
 "Automatically put new tabs in the right group" = "Neue Tabs automatisch in die passende Gruppe legen";
 "Back" = "Zurück";
@@ -185,10 +188,17 @@
 "Edit" = "Bearbeiten";
 "Edit Address (⌘L)" = "Adresse bearbeiten (⌘L)";
 "Either way, it asks every time before something that looks like it pays, orders, sends, posts, shares, grants access, deletes or cancels." = "In beiden Fällen fragt die KI jedes Mal nach, bevor etwas bezahlt, bestellt, gesendet, gepostet, geteilt, Zugriff gewährt, gelöscht oder storniert zu werden scheint.";
+"Image" = "Bild";
 "It also asks before something that looks like a cookie banner or a setting (save, clear, reset, block), which you can allow for a site until the chat is cleared." = "Sie fragt auch nach, bevor etwas wie ein Cookie-Banner oder eine Einstellung (Speichern, Löschen, Zurücksetzen, Blockieren) aussieht; das kannst du für eine Website erlauben, bis der Chat geleert wird.";
+"Remove this image" = "Dieses Bild entfernen";
+"Screenshot" = "Screenshot";
+"That image is too large to attach." = "Das Bild ist zu groß zum Anhängen.";
+"That isn't an image Changmun can read." = "Das ist kein Bild, das Changmun lesen kann.";
 "The AI wants to do something that can’t be undone" = "Die KI möchte etwas tun, das sich nicht rückgängig machen lässt";
 "The form sends what is typed in it to %@, another site than this page." = "Das Formular sendet das Eingegebene an %@, eine andere Website als diese Seite.";
 "This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "Das sieht nach Bezahlen, Bestellen, Senden, Posten, Löschen oder Zugriff gewähren aus und lässt sich nicht zurücknehmen, deshalb wird jedes Mal gefragt.";
+"The page changed while capturing. Try again." = "Die Seite hat sich während der Aufnahme geändert. Versuchen Sie es erneut.";
+"The page could not be captured." = "Die Seite konnte nicht aufgenommen werden.";
 "The AI wants to accept cookies or change a setting" = "Die KI möchte Cookies akzeptieren oder eine Einstellung ändern";
 "This looks like a cookie banner or a setting, not like paying or sending." = "Das sieht nach einem Cookie-Banner oder einer Einstellung aus, nicht nach Bezahlen oder Senden.";
 "Element hiding" = "Elemente ausblenden";
@@ -488,6 +498,7 @@
 "Where would you like to import from?" = "Woher möchtest du importieren?";
 "Window" = "Fenster";
 "Working" = "In Arbeit";
+"You can attach up to %lld images to a message." = "An eine Nachricht lassen sich höchstens %lld Bilder anhängen.";
 "You can use this extension in Changmun" = "Du kannst diese Erweiterung in Changmun verwenden";
 "YousList (Korean ads)" = "YousList (koreanische Werbung)";
 "Zoom" = "Zoom";

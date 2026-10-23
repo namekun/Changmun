@@ -303,6 +303,35 @@ final class ControlServer {
             }
             return
         }
+        // Tests only: pictures for the next message of the AI panel ("sample": how many generated pictures to add; "add": the
+        // base64 of a picture file, as if dropped; "screenshot": the Screenshot button on the front tab; "send": a message that goes
+        // out with them, to no AI: the prompt it would have been given comes back). It answers with how many are waiting and the notice.
+        if Headless.isTestCopy, request.method == "POST", request.path == "/chat-images",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                let chat = ChatStore.shared
+                for number in 0..<(body["sample"] as? Int ?? 0) {
+                    let size = NSSize(width: 640, height: 400)
+                    let picture = NSImage(size: size, flipped: false) { frame in
+                        NSGradient(colors: [NSColor(hue: CGFloat(number) * 0.23 + 0.55, saturation: 0.7, brightness: 0.95, alpha: 1), .white])?.draw(in: frame, angle: 35)
+                        NSAttributedString(string: "Sample \(number + 1)", attributes: [.font: NSFont.systemFont(ofSize: 72, weight: .bold), .foregroundColor: NSColor.white]).draw(at: NSPoint(x: 40, y: 150))
+                        return true
+                    }
+                    if let png = picture.tiffRepresentation.flatMap(NSBitmapImageRep.init(data:))?.representation(using: .png, properties: [:]) { chat.addImages([png]) }
+                }
+                if let encoded = body["add"] as? String { chat.addImages([Data(base64Encoded: encoded) ?? Data()]) }
+                if body["screenshot"] as? Bool == true { await chat.attachScreenshot(of: Browser.recent?.active) }
+                try? await Task.sleep(for: .milliseconds(300))
+                while chat.pendingImages > 0 { try? await Task.sleep(for: .milliseconds(100)) }
+                var prompt = ""
+                if let message = body["send"] as? String {
+                    chat.launch = { _, text in prompt = text; return false }
+                    chat.send(message, images: chat.takeImages())
+                }
+                self.respond(connection, status: "200 OK", body: ["images": chat.images.count, "notice": chat.notice ?? "", "prompt": prompt])
+            }
+            return
+        }
         // Tests only: open the settings window on a page, far off screen, and answer with its picture.
         if Headless.isTestCopy, request.method == "POST", request.path == "/settings-image",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {

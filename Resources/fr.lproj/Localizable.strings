@@ -21,6 +21,7 @@
 "(No username)" = "(Aucun nom d’utilisateur)";
 "a frame of an unknown site" = "un cadre d’un site inconnu";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "Une adresse complète peut être modifiée directement sur place (⌘L). Avec le site et le titre, ⌘L ouvre le champ de recherche pour la modifier.";
+"A private window can't be shown to the AI." = "Une fenêtre privée ne peut pas être montrée à l’IA.";
 "About Changmun" = "À propos de Changmun";
 "Action:" = "Action :";
 "Active" = "Actif";
@@ -58,6 +59,7 @@
 "Allow pop-ups" = "Autoriser les pop-ups";
 "Always Allow for %@" = "Toujours autoriser pour %@";
 "Always Allow for This Site" = "Toujours autoriser pour ce site";
+"an image you added" = "une image que vous avez ajoutée";
 "and %lld more" = "et %lld de plus";
 "Archive tabs you haven’t viewed in a while" = "Archiver les onglets non consultés depuis un moment";
 "Archived Tabs" = "Onglets archivés";
@@ -66,6 +68,7 @@
 "Ask AI" = "Demander à l’IA";
 "Ask before using other tabs, opening new addresses, or using a page after reading other sites" = "Demander avant d’utiliser d’autres onglets, d’ouvrir de nouvelles adresses ou d’utiliser une page après la lecture d’autres sites";
 "Ask where to save each download" = "Demander où enregistrer chaque téléchargement";
+"Attach a picture of this page. You can also drop or paste images." = "Joint une image de cette page. Vous pouvez aussi déposer ou coller des images.";
 "Authentication is required to copy the saved password" = "Une authentification est requise pour copier le mot de passe enregistré";
 "Automatically put new tabs in the right group" = "Placer automatiquement les nouveaux onglets dans le bon groupe";
 "Back" = "Précédent";
@@ -185,10 +188,17 @@
 "Edit" = "Édition";
 "Edit Address (⌘L)" = "Modifier l’adresse (⌘L)";
 "Either way, it asks every time before something that looks like it pays, orders, sends, posts, shares, grants access, deletes or cancels." = "Dans tous les cas, l’IA demande à chaque fois avant ce qui ressemble à un paiement, une commande, un envoi, une publication, un partage, un accès accordé, une suppression ou une annulation.";
+"Image" = "Image";
 "It also asks before something that looks like a cookie banner or a setting (save, clear, reset, block), which you can allow for a site until the chat is cleared." = "Elle demande aussi avant ce qui ressemble à une bannière de cookies ou à un réglage (enregistrer, effacer, réinitialiser, bloquer) ; vous pouvez l’autoriser pour un site jusqu’à l’effacement du chat.";
+"Remove this image" = "Retirer cette image";
+"Screenshot" = "Capture";
+"That image is too large to attach." = "Cette image est trop volumineuse pour être jointe.";
+"That isn't an image Changmun can read." = "Ce n’est pas une image que Changmun peut lire.";
 "The AI wants to do something that can’t be undone" = "L’IA souhaite faire quelque chose d’irréversible";
 "The form sends what is typed in it to %@, another site than this page." = "Le formulaire envoie ce qui y est saisi à %@, un autre site que cette page.";
 "This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "Cela ressemble à un paiement, une commande, un envoi, une publication, une suppression ou un accès accordé, ce qui est irréversible : la question est donc posée à chaque fois.";
+"The page changed while capturing. Try again." = "La page a changé pendant la capture. Réessayez.";
+"The page could not be captured." = "La page n’a pas pu être capturée.";
 "The AI wants to accept cookies or change a setting" = "L’IA souhaite accepter les cookies ou modifier un réglage";
 "This looks like a cookie banner or a setting, not like paying or sending." = "Cela ressemble à une bannière de cookies ou à un réglage, pas à un paiement ni à un envoi.";
 "Element hiding" = "Masquage d’éléments";
@@ -488,6 +498,7 @@
 "Where would you like to import from?" = "D’où souhaitez-vous importer ?";
 "Window" = "Fenêtre";
 "Working" = "En cours";
+"You can attach up to %lld images to a message." = "Vous pouvez joindre jusqu’à %lld images à un message.";
 "You can use this extension in Changmun" = "Vous pouvez utiliser cette extension dans Changmun";
 "YousList (Korean ads)" = "YousList (publicités coréennes)";
 "Zoom" = "Zoom";
