@@ -24,7 +24,7 @@ enum PageTranslator {
     }
 
     enum Outcome: Equatable {
-        case translated, needsDownload, unsupported, failed
+        case translated, needsDownload, unsupported, nothingToTranslate, failed
     }
 
     /// Translates the page from `source` in batches, showing each batch as it comes back, for as long as `current` holds.
@@ -35,16 +35,17 @@ enum PageTranslator {
         let (opened, otherwise) = await openSession(from: source, to: target)
         guard let session = opened else { return otherwise }
         guard let count = try? await webView.callAsyncJavaScript(collectScript, contentWorld: .defaultClient) as? Int else { return .failed }
+        guard count > 0 else { return .nothingToTranslate }
         var start = 0
         var translatedAny = false
         while start < count {
             // A page that went away mid-way (navigated, put to sleep) leaves nothing to read: that is a failure, not the end.
             guard current(), let texts = try? await webView.callAsyncJavaScript("return globalThis.changmunTranslation.texts.slice(start, start + size)",
                                                                                  arguments: ["start": start, "size": 60], contentWorld: .defaultClient) as? [String]
-            else { return .failed }
+            else { return translatedAny ? .translated : .failed }
             guard !texts.isEmpty else { break }
             let pieces = texts.enumerated().map { (id: start + $0, text: $1) }
-            let translated = await translateKeepingWhatWorks(pieces, while: current) { batch in
+            let (translated, gaveUp) = await translateKeepingWhatWorks(pieces, while: current) { batch in
                 let responses = try await session.translations(from: batch.map { TranslationSession.Request(sourceText: $0.text, clientIdentifier: String($0.id)) })
                 return Dictionary(responses.compactMap { r in r.clientIdentifier.flatMap(Int.init).map { ($0, r.targetText) } }) { first, _ in first }
             }
@@ -53,6 +54,8 @@ enum PageTranslator {
                 translatedAny = true
                 _ = try? await webView.appScript(applyScript, arguments: ["texts": Dictionary(uniqueKeysWithValues: translated.map { (String($0.key), $0.value) })])
             }
+            // Pieces refused one by one, all of them: the session is broken, and the rest of the page would be as many calls.
+            if gaveUp { break }
             start += texts.count
         }
         return translatedAny ? .translated : .failed
@@ -63,7 +66,8 @@ enum PageTranslator {
     private static func openSession(from source: Locale.Language, to target: Locale.Language) async -> (TranslationSession?, Outcome) {
         if #available(macOS 26.4, *) {
             // An app built for an older system is given the low latency models unless it says otherwise, while the languages
-            // downloaded in System Settings may be the high fidelity ones: either is good enough, so use whichever is there.
+            // downloaded in System Settings may be the high fidelity ones: either is good enough, so use whichever is there,
+            // low latency first, as it was before: it is the quicker of the two on a big page.
             let found = await firstInstalled([TranslationSession.Strategy.lowLatency, .highFidelity]) {
                 await LanguageAvailability(preferredStrategy: $0).status(from: source, to: target)
             }
@@ -93,16 +97,18 @@ enum PageTranslator {
     }
 
     /// Translates `pieces` (each with a number of its own) in one go, and if the system refuses the whole batch because of
-    /// one piece, one by one, so that only the piece it can't translate stays as it was.
+    /// one piece, one by one, so that only the piece it can't translate stays as it was. When not one piece could be
+    /// translated, `gaveUp` says so, so that the caller doesn't go on to ask for the next batch piece by piece.
     nonisolated static func translateKeepingWhatWorks(_ pieces: [(id: Int, text: String)], while current: () -> Bool,
-                                                      using translate: ([(id: Int, text: String)]) async throws -> [Int: String]) async -> [Int: String] {
-        if let all = try? await translate(pieces) { return all }
+                                                      using translate: ([(id: Int, text: String)]) async throws -> [Int: String])
+        async -> (translated: [Int: String], gaveUp: Bool) {
+        if let all = try? await translate(pieces) { return (all, false) }
         var translated: [Int: String] = [:]
         for piece in pieces {
             guard current() else { break }
             if let one = try? await translate([piece]) { translated.merge(one) { first, _ in first } }
         }
-        return translated
+        return (translated, translated.isEmpty && current())
     }
 
     static func showOriginal(_ webView: WKWebView) async {
