@@ -6,6 +6,22 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.7.0</title>
+      <pubDate>Fri, 23 Oct 2026 09:31:42 +0000</pubDate>
+      <sparkle:version>23</sparkle:version>
+      <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.7.0</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Errors that say what to do.** Not logged in to Claude Code, out of usage, network or server trouble: the panel says which in plain words and offers Try Again.
+- **Chat history.** Finished chats stay on this Mac and can be read again from the clock button. They're read-only, private windows are never recorded, typed text and address data are trimmed before saving, and you can turn it off in Settings › AI.
+- **Better answers.** Code blocks, lists and tables render properly, with copy buttons. Links show where they really go, and after a chat has read other sites, opening a link asks first. Long tasks fold into "N steps" with a summary of the tabs opened and closed, and tabs the AI closed can be reopened.
+- **Easier to drive.** The tab the AI sees shows as a chip; type @ to attach another. ⌘E jumps to the panel, Esc stops, ↑ brings back your last message. Drag the panel's edge to resize it, pick the model from the chip under the box, get suggestions that fit the page, and choose Ask AI About Selection from a page's context menu.
+- **Questions in the panel.** The AI's questions appear as cards above the box instead of covering the window: Return or Esc says no, ⌘Return allows once, ⌥⌘Return allows that site for the chat. Allow keys only work inside the panel and after a short pause. Paying, deleting and signing in still ask in a window sheet. The panel's head shows which sites the chat has read, and you can take back a site you allowed.
+- **Images.** Attach a screenshot of the page, or drop or paste up to four images; they're resized and stripped of location data. Images count as something the AI read, so what it does next is asked about.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.0/Changmun-0.7.0.dmg" length="4832685" type="application/octet-stream" sparkle:edSignature="+6C7h5flnuEmOcXubDeIqFVWNIrDzeirP22zDgBxLPEE/TB4zfuCeLwvdUG2o9uaRDJeazCYrIub+esSlFNuCA==" />
+    </item>
+    <item>
       <title>0.6.4</title>
       <pubDate>Fri, 23 Oct 2026 02:37:01 +0000</pubDate>
       <sparkle:version>22</sparkle:version>
@@ -65,6 +81,6 @@
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: IPYrDaReMnHzUpq/WH7y10u1Zk2Ko4YhZoZrOTcbRvliHw+G2f6I47qbsTMLTwuvXafcpy3E5bAtcdCv4szkAg==
-length: 7171
+edSignature: ZFyxf1iq1A9ipv7SAFbtWIRY8XaEgdSi6ZZhaszfCLc48DTA3Y4JN4Vf+rybBj7z0I6IFuM9Mu7upFKj4bUWCA==
+length: 9665
 -->
