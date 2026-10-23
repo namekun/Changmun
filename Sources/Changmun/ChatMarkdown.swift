@@ -21,17 +21,23 @@ enum MarkdownBlock: Equatable {
 }
 
 enum ChatMarkdown {
-    /// The inline styling of a piece of text, with its line breaks kept.
+    /// How deep quotes nest and how far a list indents: what goes deeper is plain text (a quote) or sits at the deepest level (a list),
+    /// so an answer made of thousands of ">" or of indentation can't take the parser or the view down.
+    static let maxQuoteDepth = 4
+    static let maxListDepth = 6
+
+    /// The inline styling of a piece of text, with its line breaks kept. Only http and https links stay links, and each one says
+    /// where it goes (see `ChatLinks`).
     static func inline(_ text: String) -> AttributedString {
-        (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(text)
+        ChatLinks.annotate((try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(text))
     }
 
     /// Splits an answer into blocks. A code fence that isn't closed yet (the answer is still streaming) runs to the end.
     static func parse(_ text: String) -> [MarkdownBlock] {
-        parse(lines: text.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n"))
+        parse(lines: text.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n"), quoteDepth: 0)
     }
 
-    private static func parse(lines: [String]) -> [MarkdownBlock] {
+    private static func parse(lines: [String], quoteDepth: Int) -> [MarkdownBlock] {
         var blocks: [MarkdownBlock] = []
         var paragraph: [String] = []
         var index = 0
@@ -65,7 +71,7 @@ enum ChatMarkdown {
                 flush()
                 blocks.append(.rule)
                 index += 1
-            } else if trimmed.hasPrefix(">") {
+            } else if trimmed.hasPrefix(">"), quoteDepth < maxQuoteDepth {
                 flush()
                 var quoted: [String] = []
                 while index < lines.count, lines[index].trimmingCharacters(in: .whitespaces).hasPrefix(">") {
@@ -74,7 +80,7 @@ enum ChatMarkdown {
                     quoted.append(String(rest))
                     index += 1
                 }
-                blocks.append(.quote(parse(lines: quoted)))
+                blocks.append(.quote(parse(lines: quoted, quoteDepth: quoteDepth + 1)))
             } else if trimmed.contains("|"), index + 1 < lines.count, isSeparator(lines[index + 1]) {
                 flush()
                 let header = cells(trimmed)
@@ -95,7 +101,7 @@ enum ChatMarkdown {
                     if let (indent, marker, text) = listItem(lines[index]) {
                         while let last = indents.last, indent < last { indents.removeLast() }
                         if indents.last.map({ indent > $0 }) ?? true { indents.append(indent) }
-                        entries.append(.init(depth: indents.count - 1, marker: marker, text: text))
+                        entries.append(.init(depth: min(indents.count - 1, maxListDepth), marker: marker, text: text))
                         index += 1
                     } else if lines[index].trimmingCharacters(in: .whitespaces).isEmpty {
                         // A blank line inside a list that goes on after it.
@@ -186,7 +192,7 @@ struct MarkdownView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(Array(ChatMarkdown.parse(text).enumerated()), id: \.offset) { _, block in
-                MarkdownBlockView(block: block)
+                MarkdownBlockView(block: block, quoteDepth: 0)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -195,13 +201,15 @@ struct MarkdownView: View {
 
 private struct MarkdownBlockView: View {
     let block: MarkdownBlock
+    /// How many quotes this one is inside: past `ChatMarkdown.maxQuoteDepth` it is drawn without a bar, however it was made.
+    let quoteDepth: Int
 
     var body: some View {
         switch block {
         case .paragraph(let text):
             inline(text)
         case .heading(let level, let text):
-            Text(ChatMarkdown.inline(text))
+            linked(text)
                 .font(.system(size: level == 1 ? 16 : level == 2 ? 15 : 13.5, weight: .semibold))
                 .foregroundStyle(Theme.primary)
                 .padding(.top, 2)
@@ -215,27 +223,33 @@ private struct MarkdownBlockView: View {
                             .frame(minWidth: 12, alignment: .trailing)
                         inline(entry.text)
                     }
-                    .padding(.leading, CGFloat(entry.depth) * 14)
+                    .padding(.leading, CGFloat(min(entry.depth, ChatMarkdown.maxListDepth)) * 14)
                 }
             }
         case .code(let language, let text):
             CodeBlockView(language: language, code: text)
         case .quote(let blocks):
-            HStack(alignment: .top, spacing: 8) {
-                RoundedRectangle(cornerRadius: 1, style: .continuous).fill(Theme.hairline).frame(width: 2)
+            if quoteDepth >= ChatMarkdown.maxQuoteDepth {
                 VStack(alignment: .leading, spacing: 6) {
-                    ForEach(Array(blocks.enumerated()), id: \.offset) { _, inner in MarkdownBlockView(block: inner) }
+                    ForEach(Array(blocks.enumerated()), id: \.offset) { _, inner in MarkdownBlockView(block: inner, quoteDepth: quoteDepth) }
                 }
-                .foregroundStyle(Theme.secondary)
+            } else {
+                HStack(alignment: .top, spacing: 8) {
+                    RoundedRectangle(cornerRadius: 1, style: .continuous).fill(Theme.hairline).frame(width: 2)
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(Array(blocks.enumerated()), id: \.offset) { _, inner in MarkdownBlockView(block: inner, quoteDepth: quoteDepth + 1) }
+                    }
+                    .foregroundStyle(Theme.secondary)
+                }
+                .fixedSize(horizontal: false, vertical: true)
             }
-            .fixedSize(horizontal: false, vertical: true)
         case .table(let header, let rows):
             ScrollView(.horizontal) {
                 Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 5) {
-                    GridRow { ForEach(Array(header.enumerated()), id: \.offset) { _, cell in Text(ChatMarkdown.inline(cell)).font(.system(size: 12, weight: .bold)) } }
+                    GridRow { ForEach(Array(header.enumerated()), id: \.offset) { _, cell in linked(cell).font(.system(size: 12, weight: .bold)) } }
                     Divider()
                     ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                        GridRow { ForEach(Array(row.enumerated()), id: \.offset) { _, cell in Text(ChatMarkdown.inline(cell)).font(.system(size: 12, weight: .medium)) } }
+                        GridRow { ForEach(Array(row.enumerated()), id: \.offset) { _, cell in linked(cell).font(.system(size: 12, weight: .medium)) } }
                     }
                 }
                 .padding(8)
@@ -247,7 +261,12 @@ private struct MarkdownBlockView: View {
     }
 
     private func inline(_ text: String) -> some View {
-        Text(ChatMarkdown.inline(text)).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
+        linked(text).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// The text with its links, which show where they go, and the whole addresses as the tooltip.
+    private func linked(_ text: String) -> some View {
+        Text(ChatMarkdown.inline(text)).help(ChatLinks.urls(in: text).map(\.absoluteString).joined(separator: "\n"))
     }
 }
 
@@ -318,5 +337,116 @@ struct CopyTextButton: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("Copy answer"))
+    }
+}
+
+
+/// What an answer's links may be and say. The AI's text can come from a page, so a link in it is a place the page chose: it opens only if it
+/// is http(s) with no user name or password, it names its host next to its words unless they already show it, and when the chat has read
+/// a site and the address itself carries a lot, the user is asked first, with the whole address in front of them.
+enum ChatLinks {
+    /// How long the query and fragment of an address may be before it counts as carrying data.
+    static let carryLimit = 64
+
+    /// Whether the address may be opened from an answer: http or https, with a host and no user name or password.
+    static func isSafe(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
+              let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let host = parts.host, !host.isEmpty, parts.user == nil, parts.password == nil else { return false }
+        return true
+    }
+
+    /// The host as it is shown next to a link, with the port when it isn't the scheme's own.
+    static func host(of url: URL) -> String? {
+        guard isSafe(url), let parts = URLComponents(url: url, resolvingAgainstBaseURL: false), let host = parts.host?.lowercased() else { return nil }
+        let own = parts.scheme?.lowercased() == "https" ? 443 : 80
+        return parts.port.map { $0 == own ? host : "\(host):\($0)" } ?? host
+    }
+
+    /// Whether the words of a link already show its host: the host stands in them as a name of its own, not as the end of a longer one
+    /// ("notevil.example" doesn't show "evil.example") nor as the start of one ("example.com.evil.net" doesn't show "example.com").
+    static func textShows(_ text: String, host: String) -> Bool {
+        let text = Array(text.lowercased()), host = Array(host.lowercased())
+        guard !host.isEmpty, text.count >= host.count else { return false }
+        func word(_ c: Character) -> Bool { c.isLetter || c.isNumber || c == "-" || c == "." || c == "_" }
+        for start in 0...(text.count - host.count) where Array(text[start..<start + host.count]) == host {
+            if start > 0, word(text[start - 1]) { continue }
+            let end = start + host.count
+            if end < text.count {
+                let next = text[end]
+                if next.isLetter || next.isNumber || next == "-" || next == "_" { continue }
+                if next == ".", end + 1 < text.count, text[end + 1].isLetter || text[end + 1].isNumber { continue }
+            }
+            return true
+        }
+        return false
+    }
+
+    /// The links of an answer's text that may be opened.
+    static func urls(in text: String) -> [URL] {
+        guard let parsed = try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) else { return [] }
+        return parsed.runs.compactMap(\.link).filter(isSafe)
+    }
+
+    /// Takes the link off what may not be opened, and puts the host after the words of one whose words don't show it.
+    static func annotate(_ input: AttributedString) -> AttributedString {
+        var output = AttributedString()
+        var group: Range<AttributedString.Index>?
+        var groupLink: URL?
+        func finish() {
+            guard let range = group else { return }
+            var piece = AttributedString(input[range])
+            if let link = groupLink {
+                if let host = host(of: link) {
+                    output.append(piece)
+                    if !textShows(String(piece.characters), host: host) {
+                        var note = AttributedString(" (\(host))")
+                        note.font = .system(size: 10.5, weight: .medium)
+                        note.foregroundColor = Theme.secondary
+                        output.append(note)
+                    }
+                    group = nil
+                    return
+                }
+                piece.link = nil
+            }
+            output.append(piece)
+            group = nil
+        }
+        for run in input.runs {
+            if group != nil, run.link == groupLink {
+                group = group.map { $0.lowerBound..<run.range.upperBound }
+            } else {
+                finish()
+                group = run.range
+                groupLink = run.link
+            }
+        }
+        finish()
+        return output
+    }
+
+    /// Whether to ask before opening: the chat has read something, and the address carries more than `carryLimit` characters in its
+    /// query and fragment, which is where a page could have the AI put what it read.
+    static func needsConfirmation(_ url: URL, chatHasRead: Bool) -> Bool {
+        guard chatHasRead, let parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return false }
+        return (parts.percentEncodedQuery?.count ?? 0) + (parts.percentEncodedFragment?.count ?? 0) > carryLimit
+    }
+
+    /// Opens a link of an answer in a new tab, after the question when it needs one.
+    @MainActor
+    static func open(_ url: URL) -> OpenURLAction.Result {
+        guard isSafe(url) else { return .discarded }
+        if needsConfirmation(url, chatHasRead: !Approvals.sitesRead(caller: ChatStore.caller).isEmpty) {
+            let alert = NSAlert()
+            alert.messageText = String(localized: "This link carries data in its address. Open it?")
+            alert.informativeText = Approvals.shown(url.absoluteString, limit: 1000).text
+            alert.addButton(withTitle: String(localized: "Cancel"))
+            alert.addButton(withTitle: String(localized: "Open"))
+            guard alert.runModal() == .alertSecondButtonReturn else { return .handled }
+        }
+        let browser = Browser.recent ?? BrowserWindow.open()
+        browser.openTab(url: url, after: browser.active)
+        return .handled
     }
 }

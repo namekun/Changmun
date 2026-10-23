@@ -831,13 +831,14 @@ enum Approvals {
 
     /// Where a question is asked. The card in the chat panel is for the panel's own AI, with the panel open in front of the user, and
     /// not for what can't be undone (the sheet is meant to be more trouble: it blocks the window, and no key answers yes in it, so a
-    /// keystroke meant for the composer or the page can't) nor for a choice among accounts (a list the sheet already has).
+    /// keystroke meant for the composer or the page can't), nor for a choice among accounts (a list the sheet already has), nor for a
+    /// sign-in (a saved login is filled in on a yes, so that is asked on the window too).
     enum Route: Equatable {
         case sheet, card
     }
 
-    static func route(caller: String, irreversible: Bool, accounts: [String], panelOpen: Bool) -> Route {
-        caller == ChatStore.caller && panelOpen && !irreversible && accounts.count < 2 ? .card : .sheet
+    static func route(caller: String, irreversible: Bool, accounts: [String], panelOpen: Bool, signIn: Bool = false) -> Route {
+        caller == ChatStore.caller && panelOpen && !irreversible && !signIn && accounts.count < 2 ? .card : .sheet
     }
 
     /// Answers questions in place of the window, and keeps what was asked, newest last.
@@ -997,16 +998,16 @@ enum Approvals {
         // No saved login: the same kind of question, with the same wait, that only says so and can only be closed.
         if accounts.isEmpty {
             _ = await choose(String(localized: "The AI tried to sign in to \(site)"), "\(site)\n\n\(inFrame)" + String(localized: "There is no saved login for this site, so nothing was filled in. The AI is told only that the sign-in wasn't done."),
-                             [(.deny, String(localized: "Close"))], caller: caller)
+                             [(.deny, String(localized: "Close"))], signIn: true, caller: caller)
             return nil
         }
         guard let only = accounts.first, accounts.count == 1 else {
             let answer = await choose(String(localized: "Let the AI sign in to \(site)?"), "\(site)\n\n\(inFrame)" + String(localized: "Pick the account to sign in with.") + "\n\n\(explanation)",
-                                      buttons, accounts: accounts, caller: caller)
+                                      buttons, accounts: accounts, signIn: true, caller: caller)
             return answer.choice == .once && accounts.indices.contains(answer.account) ? accounts[answer.account] : nil
         }
         let account = accountTitle(only)
-        return await choose(String(localized: "Let the AI sign in to \(site) as \(account)?"), "\(site)\n\(account)\n\n\(inFrame)\(explanation)", buttons, caller: caller) == .once ? only : nil
+        return await choose(String(localized: "Let the AI sign in to \(site) as \(account)?"), "\(site)\n\(account)\n\n\(inFrame)\(explanation)", buttons, signIn: true, caller: caller) == .once ? only : nil
     }
 
     /// How a saved account is named in a question: a login saved with no username is said so.
@@ -1087,15 +1088,15 @@ enum Approvals {
         await choose(message, detail, [(.deny, String(localized: "Deny")), (.once, String(localized: "Allow"))], caller: caller) != .deny
     }
 
-    private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], irreversible: Bool = false,
+    private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], irreversible: Bool = false, signIn: Bool = false,
                                parts: Prompt.Parts? = nil, mark: Mark? = nil, caller: String) async -> Choice {
-        await choose(message, detail, buttons, accounts: [], irreversible: irreversible, parts: parts, mark: mark, caller: caller).choice
+        await choose(message, detail, buttons, accounts: [], irreversible: irreversible, signIn: signIn, parts: parts, mark: mark, caller: caller).choice
     }
 
     /// Asks in the chat panel when the panel's AI asks with the panel open (see `route`), else on the browser window, the first button being
     /// the one Return presses; no answer within `timeout` counts as no, so a late yes never runs a stale request. With `accounts`, the
     /// question carries a list to pick one from (the first is chosen to begin with), and says which.
-    private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], accounts: [String], irreversible: Bool = false,
+    private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], accounts: [String], irreversible: Bool = false, signIn: Bool = false,
                                parts: Prompt.Parts? = nil, mark: Mark? = nil, caller: String) async -> (choice: Choice, account: Int) {
         let prompt = Prompt(message: message, detail: detail, choices: buttons.map(\.0), accounts: accounts, irreversible: irreversible, parts: parts)
         let standing = stand ?? (Headless.isOn ? headless : nil)
@@ -1106,7 +1107,7 @@ enum Approvals {
         }
         let panel = Browser.recent.flatMap { browser -> Browser? in browser.showChat && !browser.focusMode ? browser : nil }
         // A stand that holds its questions shows them as the app would, so that what a person would see can be looked at.
-        let inPanel = (standing == nil || standing?.holds == true) && route(caller: caller, irreversible: irreversible, accounts: accounts, panelOpen: panel != nil) == .card
+        let inPanel = (standing == nil || standing?.holds == true) && route(caller: caller, irreversible: irreversible, accounts: accounts, panelOpen: panel != nil, signIn: signIn) == .card
         guard standing != nil || inPanel || Browser.recent?.window != nil else { return (.deny, 0) }
         let list = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 280, height: 26), pullsDown: false)
         if standing == nil { NSApp?.requestUserAttention(.informationalRequest) }

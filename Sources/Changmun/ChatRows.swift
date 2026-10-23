@@ -70,12 +70,7 @@ struct AnswerRow: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onHover { hover = $0 }
-        .environment(\.openURL, OpenURLAction { url in
-            guard url.scheme == "http" || url.scheme == "https" else { return .discarded }
-            let browser = Browser.recent ?? BrowserWindow.open()
-            browser.openTab(url: url, after: browser.active)
-            return .handled
-        })
+        .environment(\.openURL, OpenURLAction { url in ChatLinks.open(url) })
     }
 }
 

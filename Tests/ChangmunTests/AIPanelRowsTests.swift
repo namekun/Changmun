@@ -403,7 +403,7 @@ struct MarkdownBlockTests {
 
     @Test func inlineStylingStillWorksAndLinksStayLinks() {
         let text = ChatMarkdown.inline("**bold** and [a link](https://example.com/) and `code`")
-        #expect(String(text.characters) == "bold and a link and code")
+        #expect(String(text.characters) == "bold and a link (example.com) and code", "a link says where it goes")
         #expect(text.runs.contains { $0.link?.absoluteString == "https://example.com/" })
     }
 }

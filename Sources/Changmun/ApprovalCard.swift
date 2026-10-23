@@ -25,22 +25,31 @@ final class ApprovalCards: ObservableObject {
     private var monitor: Any?
     /// Keyboard focus is on the card itself (set by the card), which the keys that say yes may then act from.
     var cardFocused = false
+    /// When the mouse button last went down in the app: a click on a button that says yes counts only if it began after the card was armed.
+    private(set) var lastMouseDown: Date?
 
     func add(_ card: Card) {
+        if cards.isEmpty { cardFocused = false }
         cards.append(card)
         if monitor == nil {
-            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-                self?.keyDown(event) ?? event
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown]) { [weak self] event in
+                if event.type == .leftMouseDown {
+                    self?.lastMouseDown = Date()
+                    return event
+                }
+                return self?.keyDown(event) ?? event
             }
         }
     }
 
     func remove(_ id: UUID) {
         cards.removeAll { $0.id == id }
+        // The focus was on the card that went: the next one starts without it.
+        cardFocused = false
         if cards.isEmpty, let monitor {
             NSEvent.removeMonitor(monitor)
             self.monitor = nil
-            cardFocused = false
+            lastMouseDown = nil
         }
     }
 
@@ -70,6 +79,8 @@ final class ApprovalCards: ObservableObject {
         let inPanel = window.firstResponder is ComposerTextView || (cardFocused && !(window.firstResponder is NSText))
         guard let choice = ApprovalKeys.choice(keyCode: event.keyCode, flags: event.modifierFlags, offered: card.prompt.choices,
                                                inPage: inPage, typed: typed, inPanel: inPanel, shownFor: Date().timeIntervalSince(card.shownAt)) else { return event }
+        // A key held down answers once, and its repeats are not taken for more (nor passed on to the box).
+        if event.isARepeat { return nil }
         card.answer(choice)
         return nil
     }
@@ -80,6 +91,16 @@ final class ApprovalCards: ObservableObject {
 enum ApprovalKeys {
     /// How long after a card came up the keys that say yes do nothing: a key pressed for something else a moment ago can't answer it.
     static let yesDelay: TimeInterval = 0.5
+
+    /// Whether a card shown this long has its buttons that say yes live: for the keys and for the mouse.
+    static func yesArmed(shownFor: TimeInterval) -> Bool { shownFor >= yesDelay }
+
+    /// Whether a click on a button that says yes counts: the card is armed, and the press began after it was (a press that began on
+    /// something else while the card was still new, or before it was there, is not an answer to it).
+    static func mayClickYes(shownAt: Date, mouseDownAt: Date?, now: Date) -> Bool {
+        guard let mouseDownAt else { return false }
+        return yesArmed(shownFor: now.timeIntervalSince(shownAt)) && yesArmed(shownFor: mouseDownAt.timeIntervalSince(shownAt))
+    }
 
     static func choice(keyCode: UInt16, flags: NSEvent.ModifierFlags, offered: [Approvals.Choice], inPage: Bool, typed: Bool, inPanel: Bool, shownFor: TimeInterval) -> Approvals.Choice? {
         // In a page, Return and Esc are the page's, and ⌘Return sends what the user wrote there.
@@ -96,7 +117,7 @@ enum ApprovalKeys {
         // A message being written in the composer is sent by Return, not answered by it.
         guard !typed, offered.contains(choice) else { return nil }
         guard choice == .deny || inPanel else { return nil }
-        return choice == .deny || shownFor >= yesDelay ? choice : nil
+        return choice == .deny || yesArmed(shownFor: shownFor) ? choice : nil
     }
 }
 
@@ -123,6 +144,8 @@ struct ApprovalCardView: View {
     /// How many more questions are waiting behind this one.
     let waiting: Int
     @FocusState private var focused: Bool
+    /// The buttons that say yes wake up a moment after the card comes: a click meant for what was under it is not an answer.
+    @State private var armed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -157,6 +180,11 @@ struct ApprovalCardView: View {
         .focusEffectDisabled()
         .focused($focused)
         .onChange(of: focused) { ApprovalCards.shared.cardFocused = focused }
+        .task {
+            let wait = ApprovalKeys.yesDelay - Date().timeIntervalSince(card.shownAt)
+            if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+            armed = true
+        }
     }
 
     /// The exact text, whole: scrollable when long, never cut here.
@@ -190,7 +218,11 @@ struct ApprovalCardView: View {
     }
 
     private func button(_ choice: Approvals.Choice, _ title: String) -> some View {
-        Button { card.answer(choice) } label: {
+        let live = choice == .deny || armed
+        return Button {
+            guard choice == .deny || ApprovalKeys.mayClickYes(shownAt: card.shownAt, mouseDownAt: ApprovalCards.shared.lastMouseDown, now: Date()) else { return }
+            card.answer(choice)
+        } label: {
             HStack(spacing: 6) {
                 Text(verbatim: title).font(.system(size: 11.5, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
                 Keycap(choice == .deny ? "↵" : choice == .once ? "⌘↵" : "⌥⌘↵")
@@ -199,7 +231,9 @@ struct ApprovalCardView: View {
             .padding(.horizontal, 8)
             .frame(maxWidth: .infinity, minHeight: 26)
             .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(choice == .deny ? Theme.pill : Theme.hoverTab))
+            .opacity(live ? 1 : 0.5)
         }
         .buttonStyle(.plain)
+        .disabled(!live)
     }
 }

@@ -662,3 +662,7 @@
 "Summarize what the top results say" = "总结排名靠前的结果都说了什么";
 "The model for your next messages (also in Settings › AI)" = "后续消息使用的模型（也可在设置 › AI 中更改）";
 "The tab the AI treats as current: it follows the tab you are viewing" = "AI 视为当前标签页的标签页，会跟随你正在查看的标签页";
+"This link carries data in its address. Open it?" = "此链接的地址中带有数据。要打开吗？";
+"typed %lld characters" = "输入了 %lld 个字符";
+"The history stays on this Mac, and you can turn it off here." = "记录只保存在这台 Mac 上，你可以在这里关闭。";
+"Couldn’t save chat history" = "无法保存对话记录";

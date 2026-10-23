@@ -662,3 +662,7 @@
 "Summarize what the top results say" = "Fasse zusammen, was die ersten Ergebnisse sagen";
 "The model for your next messages (also in Settings › AI)" = "Das Modell für deine nächsten Nachrichten (auch unter Einstellungen › KI)";
 "The tab the AI treats as current: it follows the tab you are viewing" = "Der Tab, den die KI als aktuell behandelt: er folgt dem Tab, den du ansiehst";
+"This link carries data in its address. Open it?" = "Dieser Link trägt Daten in seiner Adresse. Trotzdem öffnen?";
+"typed %lld characters" = "%lld Zeichen eingegeben";
+"The history stays on this Mac, and you can turn it off here." = "Der Verlauf bleibt auf diesem Mac; du kannst ihn hier ausschalten.";
+"Couldn’t save chat history" = "Der Chatverlauf konnte nicht gespeichert werden";

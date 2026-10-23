@@ -36,6 +36,8 @@ final class ChatHistory: ObservableObject {
     static let shared = ChatHistory(file: Library.folder.appendingPathComponent("ai-chats.json"))
 
     @Published private(set) var chats: [StoredChat] = []
+    /// The last write to the file failed: what is shown may not be what is on disk (a delete may not have taken).
+    @Published private(set) var saveFailed = false
     private let file: URL
     private let limit: Int
 
@@ -63,7 +65,7 @@ final class ChatHistory: ObservableObject {
             item.images = []
             return item
         }
-        let chat = StoredChat(id: id, started: started, updated: now, items: kept)
+        let chat = StoredChat(id: id, started: started, updated: now, items: kept.map(Self.persistable))
         if let index = chats.firstIndex(where: { $0.id == id }) { chats[index] = chat } else { chats.append(chat) }
         chats.sort { $0.updated > $1.updated }
         if chats.count > limit { chats.removeLast(chats.count - limit) }
@@ -81,13 +83,63 @@ final class ChatHistory: ObservableObject {
         save()
     }
 
+    /// What is kept of a step: the addresses without their query and fragment (which carry what a page put in them), and what was typed or
+    /// chosen as only how long it was. The panel shows the whole step while the chat is open; this is what goes to the file.
+    static func persistable(_ item: ChatItem) -> ChatItem {
+        guard item.kind == .tool else { return item }
+        var item = item
+        if item.tool == "type_text" || item.tool == "select_option", let separator = item.text.range(of: " · ") {
+            let typed = item.text[separator.upperBound...].count
+            item.text = String(item.text[..<separator.lowerBound]) + " · " + String(localized: "typed \(typed) characters")
+        }
+        item.text = strippingQueries(item.text)
+        item.title = item.title.map(strippingQueries)
+        return item
+    }
+
+    /// The text with every http(s) address cut before its "?" or "#".
+    static func strippingQueries(_ text: String) -> String {
+        guard text.contains("?") || text.contains("#"),
+              let regex = try? NSRegularExpression(pattern: "https?://[^\\s\"”)]*", options: .caseInsensitive) else { return text }
+        var result = text
+        // From the end, so the places found first stay where they were.
+        for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
+            guard let range = Range(match.range, in: result), let cut = result[range].firstIndex(where: { $0 == "?" || $0 == "#" }) else { continue }
+            result.removeSubrange(cut..<range.upperBound)
+        }
+        return result
+    }
+
     private func save() {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        guard let data = try? encoder.encode(Stored(chats: chats)) else { return }
-        try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? data.write(to: file, options: .atomic)
-        try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
+        guard let data = try? encoder.encode(Stored(chats: chats)) else { saveFailed = true; return }
+        saveFailed = !Self.write(data, to: file)
+    }
+
+    /// Writes the file so that it is never readable by anyone else, not even for a moment: a temporary file in the same folder made with
+    /// mode 0600 (and refusing to follow a link or to reuse a name), then renamed over the old one.
+    static func write(_ data: Data, to file: URL) -> Bool {
+        let folder = file.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let temporary = folder.appendingPathComponent(".\(file.lastPathComponent).\(UUID().uuidString).tmp")
+        let descriptor = open(temporary.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0o600)
+        guard descriptor >= 0 else { return false }
+        var written = 0
+        let ok = data.withUnsafeBytes { buffer -> Bool in
+            while written < buffer.count {
+                let count = Darwin.write(descriptor, buffer.baseAddress! + written, buffer.count - written)
+                if count < 0 { return false }
+                written += count
+            }
+            return true
+        }
+        let closed = close(descriptor) == 0
+        guard ok, closed, rename(temporary.path, file.path) == 0 else {
+            unlink(temporary.path)
+            return false
+        }
+        return true
     }
 }
 
@@ -99,13 +151,19 @@ struct ChatHistoryView: View {
     @ObservedObject var history: ChatHistory
 
     var body: some View {
-        if let id = chat.openedHistory, let stored = history.chats.first(where: { $0.id == id }) {
-            ChatHistoryDetail(chat: stored, back: { chat.openedHistory = nil }, delete: {
-                chat.openedHistory = nil
-                history.delete(id)
-            })
-        } else {
-            ChatHistoryList(chat: chat, history: history)
+        VStack(spacing: 0) {
+            if history.saveFailed {
+                Text("Couldn’t save chat history").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waiting)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 10).padding(.top, 6)
+            }
+            if let id = chat.openedHistory, let stored = history.chats.first(where: { $0.id == id }) {
+                ChatHistoryDetail(chat: stored, back: { chat.openedHistory = nil }, delete: {
+                    chat.openedHistory = nil
+                    history.delete(id)
+                })
+            } else {
+                ChatHistoryList(chat: chat, history: history)
+            }
         }
     }
 }

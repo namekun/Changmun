@@ -37,6 +37,8 @@ extension Tab {
                 guard let self, let browser = self.browser, case .success(let value) = result, let text = value as? String,
                       let quote = ComposerQuote.block(from: text) else { return }
                 if browser.activeID != self.id { browser.activate(self.id) }
+                // What the page's text says goes into the message as it is: it counts as read from this site, like the page itself.
+                Approvals.noteRead(self, caller: ChatStore.caller)
                 ChatStore.shared.prefill = quote
                 browser.showChat = true
                 browser.window?.makeKeyAndOrderFront(nil)

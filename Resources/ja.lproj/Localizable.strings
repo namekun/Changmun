@@ -662,3 +662,7 @@
 "Summarize what the top results say" = "上位の結果の内容を要約して";
 "The model for your next messages (also in Settings › AI)" = "次のメッセージから使うモデルです（設定 › AI でも変更できます）";
 "The tab the AI treats as current: it follows the tab you are viewing" = "AIが現在のタブとして扱うタブです。表示中のタブに追従します";
+"This link carries data in its address. Open it?" = "このリンクはアドレスにデータを含んでいます。開きますか？";
+"typed %lld characters" = "%lld 文字を入力";
+"The history stays on this Mac, and you can turn it off here." = "履歴はこの Mac の中だけに保存され、ここでオフにできます。";
+"Couldn’t save chat history" = "チャット履歴を保存できませんでした";

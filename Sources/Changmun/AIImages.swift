@@ -57,7 +57,7 @@ enum ImageIntake {
         guard let width = properties?[kCGImagePropertyPixelWidth] as? Int, let height = properties?[kCGImagePropertyPixelHeight] as? Int,
               width > 0, height > 0 else { return .failure(.unreadable) }
         // A small file can still unpack into a picture too big to hold.
-        guard width * height <= maxPixels else { return .failure(.tooLarge) }
+        guard !exceedsPixelLimit(width: width, height: height) else { return .failure(.tooLarge) }
         var edge = min(max(width, height), maxLongEdge)
         while true {
             let options: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
@@ -70,6 +70,12 @@ enum ImageIntake {
             edge = Int(Double(edge) * 0.75)
             if edge < 256 { return .failure(.tooLarge) }
         }
+    }
+
+    /// Whether a picture of this size is too big to open: the product is checked for overflow too, since a file can claim any size.
+    nonisolated static func exceedsPixelLimit(width: Int, height: Int) -> Bool {
+        let (pixels, overflow) = width.multipliedReportingOverflow(by: height)
+        return overflow || pixels > maxPixels
     }
 
     private nonisolated static func encode(_ image: CGImage, maxBytes: Int) -> (Data, String)? {
@@ -120,10 +126,16 @@ enum ImageIntake {
 
     /// The pictures on a pasteboard (the clipboard, a drag): files of images from Finder, else the picture itself.
     static func sources(on pasteboard: NSPasteboard) -> [Data] {
-        let files = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        let files = fileURLs(on: pasteboard)
         let fromFiles = files.compactMap(read)
         if !files.isEmpty { return fromFiles }
         return [NSPasteboard.PasteboardType.png, .tiff].lazy.compactMap { pasteboard.data(forType: $0) }.first.map { [$0] } ?? []
+    }
+
+    /// The files a pasteboard holds as files. Plain text that reads like a file address ("file:///…") is text, not a file to read.
+    static func fileURLs(on pasteboard: NSPasteboard) -> [URL] {
+        guard pasteboard.types?.contains(.fileURL) == true else { return [] }
+        return pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
     }
 
     /// A file's bytes, mapped rather than loaded: one beyond `maxSourceBytes` is turned away by `prepare` without being read.
@@ -133,7 +145,7 @@ enum ImageIntake {
 
     /// Whether a pasteboard has a picture to paste (and no text, which pasting prefers).
     static func hasPicture(_ pasteboard: NSPasteboard) -> Bool {
-        if pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true, .urlReadingContentsConformToTypes: [UTType.image.identifier]]) { return true }
+        if pasteboard.types?.contains(.fileURL) == true, pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true, .urlReadingContentsConformToTypes: [UTType.image.identifier]]) { return true }
         return pasteboard.string(forType: .string) == nil && (pasteboard.data(forType: .png) != nil || pasteboard.data(forType: .tiff) != nil)
     }
 }
@@ -231,10 +243,20 @@ extension ChatStore {
     /// Takes the picture the AI's screenshot tool takes (JPEG, nil when it failed) and the sites of the frames it shows. Tests stand in for it.
     static var capturePage: (Tab) async -> (Data?, Set<String>) = { tab in
         let webView = tab.wake()
+        // The frames in view on either side of the picture count: one that came or went while it was taken is caught either way.
+        let before = await ToolCatalog.shownFrameHosts(tab, webView)
         let shot = await ToolCatalog.picture(tab, webView).0
-        let frames = await ToolCatalog.shownFrameHosts(tab, webView)
+        let frames = before.union(await ToolCatalog.shownFrameHosts(tab, webView))
         guard !shot.isError, let encoded = shot.content.first?["data"] as? String else { return (nil, frames) }
         return (Data(base64Encoded: encoded), frames)
+    }
+
+    private static func loading(_ tab: Tab) -> Bool { tab.isLoading || tab.webView?.isLoading == true }
+
+    /// Whether the tab is still the page it was: the same address, no navigation committed since (a page that went to another and back
+    /// has the same address), and none under way.
+    static func unchanged(_ tab: Tab, url: URL?, navigations: Int) -> Bool {
+        tab.url == url && tab.navigations == navigations && !loading(tab)
     }
 
     /// Attaches a picture of what the tab shows now, taken the way the AI's screenshot tool takes it (secrets on the page left out).
@@ -248,11 +270,13 @@ extension ChatStore {
         guard !capturing else { return }
         capturing = true
         defer { capturing = false }
-        let url = tab.url, site = Approvals.site(of: url)
+        let url = tab.url, site = Approvals.site(of: url), navigations = tab.navigations
+        // A page still loading is a page that is about to be another one.
+        guard !Self.loading(tab) else { return say(String(localized: "The page changed while capturing. Try again.")) }
         let title = Self.oneLine(tab.displayTitle).prefix(80), address = Self.oneLine(url?.absoluteString ?? "about:blank").prefix(300)
         let (taken, frames) = await Self.capturePage(tab)
         // A page that went elsewhere while the picture was taken may have been caught on either side of it: nothing is guessed.
-        guard tab.url == url else { return say(String(localized: "The page changed while capturing. Try again.")) }
+        guard Self.unchanged(tab, url: url, navigations: navigations) else { return say(String(localized: "The page changed while capturing. Try again.")) }
         guard let jpeg = taken else { return say(String(localized: "The page could not be captured.")) }
         // The tab may have gone private-window-side or been closed while the picture was taken.
         guard ToolCatalog.findTab(tab.id) != nil, images.count + pendingImages < ImageIntake.maxCount else { return }

@@ -31,6 +31,8 @@ extension SharedAgentState {
             #expect(Approvals.route(caller: panel, irreversible: false, accounts: [], panelOpen: false) == .sheet, "the panel is closed")
             #expect(Approvals.route(caller: panel, irreversible: true, accounts: [], panelOpen: true) == .sheet, "what can't be undone stays on the window")
             #expect(Approvals.route(caller: panel, irreversible: false, accounts: ["a", "b"], panelOpen: true) == .sheet, "a list of accounts stays on the window")
+            #expect(Approvals.route(caller: panel, irreversible: false, accounts: [], panelOpen: true, signIn: true) == .sheet, "a sign-in is asked on the window, one account or none")
+            #expect(Approvals.route(caller: panel, irreversible: false, accounts: ["a"], panelOpen: true, signIn: true) == .sheet)
             for caller in [bridgeCaller(), "cli", "mcp-1", ""] {
                 #expect(Approvals.route(caller: caller, irreversible: false, accounts: [], panelOpen: true) == .sheet, "\(caller) is not the panel")
             }
@@ -202,6 +204,12 @@ extension SharedAgentState {
             #expect(key(36, .command, after: 0.1) == nil && key(36, [.command, .option], after: 0.1) == nil, "a key pressed just before can't say yes")
             #expect(key(36, after: 0.1) == .deny && key(53, after: 0) == .deny)
             #expect(key(36, offered: [.deny]) == .deny && key(36, .command, offered: [.deny]) == nil, "a notice can only be closed")
+            #expect(ApprovalKeys.yesArmed(shownFor: 0.49) == false && ApprovalKeys.yesArmed(shownFor: ApprovalKeys.yesDelay) == true, "the buttons that say yes wake up with the keys")
+            let shown = Date(timeIntervalSince1970: 1000)
+            #expect(ApprovalKeys.mayClickYes(shownAt: shown, mouseDownAt: shown.addingTimeInterval(0.6), now: shown.addingTimeInterval(0.7)))
+            #expect(!ApprovalKeys.mayClickYes(shownAt: shown, mouseDownAt: shown.addingTimeInterval(0.1), now: shown.addingTimeInterval(0.7)), "a press that began while the card was new")
+            #expect(!ApprovalKeys.mayClickYes(shownAt: shown, mouseDownAt: shown.addingTimeInterval(-1), now: shown.addingTimeInterval(0.7)), "a press that began before the card was there")
+            #expect(!ApprovalKeys.mayClickYes(shownAt: shown, mouseDownAt: nil, now: shown.addingTimeInterval(5)) && !ApprovalKeys.mayClickYes(shownAt: shown, mouseDownAt: shown.addingTimeInterval(0.2), now: shown.addingTimeInterval(0.3)))
             #expect(key(36, .command, inPanel: false) == nil && key(76, .command, inPanel: false) == nil, "yes once from outside the panel is nothing")
             #expect(key(36, [.command, .option], inPanel: false) == nil && key(76, [.command, .option], inPanel: false) == nil, "yes for the chat from outside the panel is nothing")
             #expect(key(36, .command, inPanel: true) == .once && key(36, [.command, .option], inPanel: true) == .site)
