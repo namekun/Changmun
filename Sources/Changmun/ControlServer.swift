@@ -237,7 +237,7 @@ final class ControlServer {
         }
         // Tests only: the Translate button pressed on the tab in front, answered when it is done with the page's language,
         // where the page stands ("original" or "translated"), what the status line says, and the page's text.
-        if Headless.isOn, request.method == "POST", request.path == "/translate" {
+        if Headless.isTestCopy, request.method == "POST", request.path == "/translate" {
             Task { @MainActor in
                 guard let browser = Browser.recent, let tab = browser.active else { return self.respond(connection, status: "404 Not Found", body: ["error": "no tab"]) }
                 browser.overlay.statusMessage = nil
