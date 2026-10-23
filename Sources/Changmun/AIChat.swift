@@ -732,6 +732,8 @@ struct ChatPanel: View {
     /// Where the "@" is that Esc closed the list of, so that it stays closed while that "@" is the one being typed.
     @State private var mentionClosed: Int?
     @State private var modelMenu = false
+    /// How high the box and what is under it are, which the list of tabs stands over.
+    @State private var composerHeight: CGFloat = 60
     @State private var pageKind = PageKind.general
     /// Until the AI is ready there is nothing to type to.
     private var ready: Bool { chat.availability == .ready }
@@ -793,6 +795,11 @@ struct ChatPanel: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                 .padding(.bottom, 32).padding(.leading, 4)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if let tabs = mentionTabs {
+                TabMentionList(tabs: tabs, selection: mentionSelection, pick: pickMention).padding(.bottom, composerHeight + 4)
             }
         }
         .onAppear { chat.refreshAvailability(); takePrefill() }
@@ -921,12 +928,7 @@ struct ChatPanel: View {
                 .padding(.horizontal, 4)
                 .padding(.bottom, 4)
         }
-        .overlay(alignment: .top) {
-            if let tabs = mentionTabs {
-                TabMentionList(tabs: tabs, selection: mentionSelection, pick: pickMention)
-                    .alignmentGuide(.top) { $0[.bottom] + 4 }
-            }
-        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { composerHeight = $0 }
     }
 
     private func send(_ text: String, steering: Bool = false) {
