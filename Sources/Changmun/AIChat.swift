@@ -889,15 +889,9 @@ struct ChatPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // The page bar's AI button already names the panel; its head says what the chat has read.
             HStack(spacing: 4) {
-                HStack(spacing: 6) {
-                    Image(systemName: "sparkles").font(.system(size: 11, weight: .semibold))
-                    Text("AI").font(.system(size: 12, weight: .semibold))
-                }
-                .foregroundStyle(Theme.primary)
-                .padding(.horizontal, 10)
-                .frame(height: Metrics.control)
-                .background(Capsule().fill(Theme.pill))
+                ReadSitesRow()
                 Spacer()
                 BarButton(symbol: "clock.arrow.circlepath", help: String(localized: "Chat History")) {
                     chat.showHistory.toggle()
@@ -909,7 +903,6 @@ struct ChatPanel: View {
             .padding(.horizontal, 6)
             // Level with the page card's bar beside it.
             .frame(height: BrowserWindow.pageBarHeight)
-            ReadSitesRow()
             if chat.showHistory {
                 ChatHistoryView(chat: chat, history: chat.history)
             } else {
