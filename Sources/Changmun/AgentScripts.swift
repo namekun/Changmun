@@ -937,6 +937,21 @@ extension PageScripts {
     /// Takes the marks off, and ends what is waiting to act (the pause after an outline): the user pressed stop.
     static let clearMarks = lib + "\nglobalThis.changmunStops = (globalThis.changmunStops || 0) + 1;\nclearMark();\nreturn 'ok';"
 
+    /// Outlines what a question in the panel is about and leaves the outline there until `unhighlight` (or a safety timeout) takes it off.
+    /// Nothing is done to the page but scrolling the target into view; a target that is gone, changed or in a frame of another site is not outlined.
+    static let highlight = lib + #"""
+
+    const p = pick(args);
+    if (p.error || p.relay || stale(p.el, args)) return 'ok';
+    p.el.scrollIntoView({block: 'nearest', inline: 'nearest'});
+    await mark([p.el], 0);
+    const m = globalThis.changmunMark;
+    if (m) { clearTimeout(m.timer); m.timer = setTimeout(clearMark, 100000); }
+    return 'ok';
+    """#
+
+    static let unhighlight = lib + "\nclearMark();\nreturn 'ok';"
+
     /// Finds the sign-in form's username and password fields (the form of the element given, else the page's visible password field)
     /// and, in the `fill` stage, puts a saved login in them, for the app, which is the only one that holds it. It says what it found
     /// and nothing of what it was given. Both fields are known as secrets from then on: their values are not read, typed over or

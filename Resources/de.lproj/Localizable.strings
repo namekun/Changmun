@@ -22,7 +22,7 @@
 "a frame of an unknown site" = "ein Frame einer unbekannten Website";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "Eine vollständige Adresse kannst du direkt an Ort und Stelle bearbeiten (⌘L). Bei „Website und Titel“ öffnet ⌘L das Suchfeld zum Bearbeiten.";
 "About Changmun" = "Über Changmun";
-"Action:\n%@\n\nSites read earlier in this conversation: %@\nA page can hide instructions for the AI. Deny if this isn’t what you asked for." = "Aktion:\n%@\n\nIn dieser Unterhaltung zuvor gelesene Websites: %@\nEine Seite kann Anweisungen für die KI verstecken. Lehne ab, wenn du das nicht verlangt hast.";
+"Action:" = "Aktion:";
 "Active" = "Aktiv";
 "Actual Size" = "Tatsächliche Größe";
 "Ad Blocking" = "Werbeblocker";
@@ -188,9 +188,9 @@
 "It also asks before something that looks like a cookie banner or a setting (save, clear, reset, block), which you can allow for a site until the chat is cleared." = "Sie fragt auch nach, bevor etwas wie ein Cookie-Banner oder eine Einstellung (Speichern, Löschen, Zurücksetzen, Blockieren) aussieht; das kannst du für eine Website erlauben, bis der Chat geleert wird.";
 "The AI wants to do something that can’t be undone" = "Die KI möchte etwas tun, das sich nicht rückgängig machen lässt";
 "The form sends what is typed in it to %@, another site than this page." = "Das Formular sendet das Eingegebene an %@, eine andere Website als diese Seite.";
-"This looks like it pays, orders, sends, posts, shares, uploads, grants access, deletes or cancels, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this." = "Das sieht danach aus, als würde etwas bezahlt, bestellt, gesendet, gepostet, geteilt, hochgeladen, Zugriff gewährt, gelöscht oder storniert – und das lässt sich nicht zurücknehmen. Hier wird jedes Mal gefragt.\n\nErlaube es nur, wenn du das verlangt hast.";
+"This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "Das sieht nach Bezahlen, Bestellen, Senden, Posten, Löschen oder Zugriff gewähren aus und lässt sich nicht zurücknehmen, deshalb wird jedes Mal gefragt.";
 "The AI wants to accept cookies or change a setting" = "Die KI möchte Cookies akzeptieren oder eine Einstellung ändern";
-"This looks like a cookie banner or a setting (save, clear, reset, block, enable), not like paying, sending or granting access. You can allow it once, or on this site for the rest of the chat." = "Das sieht nach einem Cookie-Banner oder einer Einstellung aus (Speichern, Löschen, Zurücksetzen, Blockieren, Aktivieren), nicht nach Bezahlen, Senden oder Zugriff gewähren. Du kannst es einmal erlauben oder auf dieser Website für den Rest des Chats.";
+"This looks like a cookie banner or a setting, not like paying or sending." = "Das sieht nach einem Cookie-Banner oder einer Einstellung aus, nicht nach Bezahlen oder Senden.";
 "Element hiding" = "Elemente ausblenden";
 "End Split View" = "Split View beenden";
 "Enter Address" = "Adresse eingeben";
@@ -311,7 +311,7 @@
 "Open Location" = "Adresse öffnen";
 "Open new tab · %@" = "Neuen Tab öffnen · %@";
 "Opening %@" = "Öffne %@";
-"Option to choose:\n%@\n\nSites read earlier in this conversation: %@\nDeny if content from there is mixed in." = "Zu wählende Option:\n%@\n\nIn dieser Unterhaltung zuvor gelesene Websites: %@\nLehne ab, wenn Inhalte von dort enthalten sind.";
+"Option to choose:" = "Zu wählende Option:";
 "Opus (smartest, slower)" = "Opus (am klügsten, langsamer)";
 "Other" = "Andere";
 "Other Bookmarks" = "Weitere Lesezeichen";
@@ -428,7 +428,7 @@
 "System" = "System";
 "Tab %lld" = "Tab %lld";
 "Tab Cleanup" = "Tabs aufräumen";
-"Text to type:\n%@\n\nSites read earlier in this conversation: %@\nDeny if content from there is mixed in." = "Einzugebender Text:\n%@\n\nIn dieser Unterhaltung zuvor gelesene Websites: %@\nLehne ab, wenn Inhalte von dort enthalten sind.";
+"Text to type:" = "Einzugebender Text:";
 "The AI panel uses the Claude Code login (subscription) on this Mac." = "Die KI-Seitenleiste verwendet die Claude-Code-Anmeldung (Abo) auf diesem Mac.";
 "The AI request failed." = "Die KI-Anfrage ist fehlgeschlagen.";
 "The AI response didn't finish (exit code %lld).\n%@" = "Die KI-Antwort wurde nicht abgeschlossen (Exit-Code %lld).\n%@";
@@ -573,7 +573,7 @@
 "There is nothing to continue yet, so your message is queued." = "Es gibt noch nichts fortzusetzen, daher wurde deine Nachricht in die Warteschlange gestellt.";
 "The conversation couldn't be continued after you interrupted it, so your message was sent as a new conversation." = "Die Unterhaltung konnte nach deiner Unterbrechung nicht fortgesetzt werden, deshalb wurde deine Nachricht als neue Unterhaltung gesendet.";
 "The AI wants to click a button in what the page calls a cookie banner" = "Die KI möchte eine Schaltfläche in dem anklicken, was die Seite ein Cookie-Banner nennt";
-"Only the page’s own markup says this is a cookie banner, and a page can say that of anything. It is asked every time.\n\nAllow it only if you asked for this." = "Nur der Code der Seite selbst sagt, dass dies ein Cookie-Banner ist, und eine Seite kann das von allem behaupten. Es wird jedes Mal gefragt.\n\nErlaube es nur, wenn du dies verlangt hast.";
+"Only the page’s own markup says this is a cookie banner, and a page can say that of anything, so you are asked every time." = "Nur die Seite selbst behauptet, dass dies ein Cookie-Banner ist, und eine Seite kann das von allem behaupten, deshalb wird jedes Mal gefragt.";
 "The AI tried to sign in to %@" = "Die KI hat versucht, sich bei %@ anzumelden";
 "There is no saved login for this site, so nothing was filled in. The AI is told only that the sign-in wasn't done." = "Für diese Website ist keine Anmeldung gespeichert, daher wurde nichts eingetragen. Die KI erfährt nur, dass die Anmeldung nicht erfolgt ist.";
 "You declined signing in to %@ earlier in this chat, so the AI isn't asking again." = "Du hast die Anmeldung bei %@ früher in diesem Chat abgelehnt, deshalb fragt die KI nicht erneut.";
@@ -590,3 +590,13 @@
 "Get Claude Code" = "Claude Code herunterladen";
 "Already installed? Enter where it is in Settings › AI." = "Schon installiert? Lege den Pfad unter Einstellungen › KI fest.";
 "The AI panel needs Claude Code, so your question wasn't sent." = "Die KI-Seitenleiste braucht Claude Code, deine Frage wurde deshalb nicht gesendet.";
+"Read earlier in this chat: %@" = "In diesem Chat zuvor gelesene Websites: %@";
+"A page you read earlier could have slipped instructions into this." = "Eine Seite, die du vorher gelesen hast, könnte hier Anweisungen eingeschleust haben.";
+"%lld more waiting" = "%lld weitere warten";
+"Read 1 site" = "1 Website gelesen";
+"Read %lld sites" = "%lld Websites gelesen";
+"Allowed on %lld" = "Erlaubt auf %lld";
+"Allowed for this chat" = "In diesem Chat erlaubt";
+"Revoke" = "Widerrufen";
+"After revoking, the AI asks again before it acts there." = "Nach dem Widerruf fragt die KI dort wieder nach, bevor sie handelt.";
+"Read in this chat" = "In diesem Chat gelesen";
