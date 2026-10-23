@@ -6,6 +6,18 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.6.2</title>
+      <pubDate>Fri, 23 Oct 2026 00:56:16 +0000</pubDate>
+      <sparkle:version>20</sparkle:version>
+      <sparkle:shortVersionString>0.6.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.6.2</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Translation works with the languages you downloaded.** Changmun asked you to download a language even after you had: macOS has a fast and a high-quality translation engine, and Changmun only looked for the fast one. It now uses whichever you have. Text it can't translate stays as it was instead of stopping the whole page, and if nothing could be translated, it says so instead of doing nothing.
+- **A headless Changmun for your agents.** `changmun headless start` runs a separate, invisible Changmun with its own empty profile, and `changmun --headless …` or `changmun --mcp --headless` (for Claude Code) points at it. It doesn't stop to ask before each step, so it refuses anything that can't be undone, like paying, sending, posting or deleting. Your own browser, its logins and its passwords stay out of it. See `changmun help`.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.6.2/Changmun-0.6.2.dmg" length="4299446" type="application/octet-stream" sparkle:edSignature="wTfLq4HIk/HEO27z8j2f88kpQCv3saKwbi/9+9LMoLemJKJe1ovUDOXMQJBtFXkTRJ9yVY4PmknjAWbKvw3vDA==" />
+    </item>
+    <item>
       <title>0.6.1</title>
       <pubDate>Thu, 22 Oct 2026 22:02:23 +0000</pubDate>
       <sparkle:version>19</sparkle:version>
@@ -31,6 +43,6 @@
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: 1gYxSc2KMLJQYkQvjSwtoKQrQrFdpK3yuQmUVlPzGdNYLxv6rrNW1vRGJtpOGTqaTMGfRjqgYLncx+EmpsSgAQ==
-length: 3313
+edSignature: sxv+WJMb0NnYIyecPdxbohnu4Y8oOf4CNjs74Wa3lk/WNAPw6+baXIWu3F9DXOchV1f4vlTxezjAFBYNUz9NBg==
+length: 4968
 -->
