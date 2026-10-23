@@ -6,6 +6,17 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.7.2</title>
+      <pubDate>Fri, 23 Oct 2026 21:19:28 +0000</pubDate>
+      <sparkle:version>25</sparkle:version>
+      <sparkle:shortVersionString>0.7.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.7.2</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **The loading bar keeps clear of the address.** It still touched letters like g and p at the bottom of the address bar. Loading now shows as a thin line along the top edge of the page, in every toolbar layout.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.2/Changmun-0.7.2.dmg" length="4849945" type="application/octet-stream" sparkle:edSignature="VS51dq6qbZlyN7nNTKIszXKEE4mUyOH3NR3qCFshePxaYnnqsShlC+044jpysTLTJk3GYa5+l7ptCPuWu8iODQ==" />
+    </item>
+    <item>
       <title>0.7.1</title>
       <pubDate>Fri, 23 Oct 2026 15:55:47 +0000</pubDate>
       <sparkle:version>24</sparkle:version>
@@ -95,6 +106,6 @@
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: ZFc1vLMNaAAeMPKyl5hNmKQ3+y66Cbj8gDzdnNtU5CyaMz1j5GdkV2yu2uVVEL6Ofuqo0k11+Qdryre1dlLtDw==
-length: 11092
+edSignature: Od18EtP4iyd3Dlg/MSUmsK8Q7T7tmhwRBuVC+LmlIAwlz3ANytT/RMfcPcz4gWcQ8eJ3cH7tE7dKm6ZtIKuICQ==
+length: 12119
 -->
