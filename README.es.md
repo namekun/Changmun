@@ -115,6 +115,14 @@ La IA maneja el navegador con estas herramientas: `list_tabs`, `open_tab`, `swit
 
 Para trabajar con varias pestañas, añádelas bajo el chat con «Añadir pestaña» (una a una, un grupo de pestañas o todas las abiertas): aparecen como etiquetas que puedes quitar, la IA las lee juntas con `read_tabs` y no te pregunta antes de leerlas. Con dos o más añadidas, el panel sugiere compararlas o resumir lo esencial de cada una.
 
+La pestaña que ve la IA aparece como una etiqueta en la fila bajo el chat, y al escribir @ en el cuadro puedes adjuntar otra. ⌘E lleva el cursor al cuadro (desde el cuadro, cierra el panel), Esc detiene la ejecución, ↑ recupera tu último mensaje y el borde izquierdo del panel se arrastra para cambiar su ancho. Las sugerencias se ajustan a la página en la que estás, y «Preguntar a la IA sobre la selección», en el menú contextual de la página, cita el texto seleccionado en el cuadro.
+
+Las respuestas muestran bloques de código, listas y tablas, con botón de copiar en el código. Un enlace dice también a qué sitio va de verdad, y cuando el chat ha leído otros sitios, abrir un enlace de una respuesta pregunta antes. Una tarea larga se pliega en «12 pasos» con una línea de cuántas pestañas abrió y cerró, y «Volver a abrir» recupera las que cerró. Si Claude Code no tiene la sesión iniciada, se agotó su límite de uso o fallan la red o los servidores de Anthropic, el panel lo dice con claridad y ofrece «Reintentar».
+
+Bajo el chat, «Captura» adjunta una imagen de la página en la que estás (lo secreto de la página queda fuera), y también puedes soltar o pegar imágenes en el panel: hasta 4 por mensaje, reducidas a 1568 píxeles en el lado largo y guardadas de nuevo sin el lugar ni la hora que llevaba el archivo. Una imagen cuenta como algo que la IA ha leído (una captura, como su página; cualquier otra, como una imagen añadida por ti), así que lo que haga después se pregunta igual que tras leer otro sitio.
+
+Los chats terminados se guardan solo en este Mac y puedes releerlos con el botón del reloj del panel. Son de solo lectura (un chat no se retoma, porque la sesión de la IA no recuerda lo que se le permitió leer), y las ventanas privadas nunca se registran. Lo que se escribió o eligió se guarda solo como longitud, y las direcciones pierden lo que sigue a ? o #. Se desactiva en Ajustes › IA › Conservar el historial de chats, y puedes borrar un chat o todos desde el panel.
+
 Para que unas instrucciones ocultas en una página no puedan hacer que lleve a otro sitio lo que ha leído, Changmun te pregunta primero (y responde que no tras 90 segundos sin respuesta):
 
 - antes de que use una pestaña que no estás mirando, una vez por pestaña y sitio;
@@ -122,6 +130,8 @@ Para que unas instrucciones ocultas en una página no puedan hacer que lleve a o
 - antes de cada clic, tecla, paso del puntero, arrastre, texto escrito u opción elegida una vez que el chat ha leído otro sitio, mostrándote lo que va a hacer. Puedes permitirlo solo esta vez o en ese sitio hasta que acabe el chat. No preguntan el desplazamiento, mirar la página en primer plano (leer, captura, esperar, lista de pestañas) ni ir atrás, adelante o recargar. Un chat nuevo (⌘⇧E) empieza de cero.
 - antes de lo que parece pagar, pedir, enviar, publicar, comentar, compartir, subir, dar acceso (permitir, conectar, autorizar), borrar, cancelar o darse de baja, siempre, aunque hayas permitido lo demás (solo «permitir una vez» o «no permitir»). Lo mismo para Intro en un cuadro de mensaje, un formulario que envía a otro sitio y Supr o Retroceso fuera de un campo de texto.
 - antes de lo que parece aceptar o permitir en un aviso de cookies, o cambiar un ajuste (guardar, borrar, restablecer, bloquear), una vez por sitio. En el panel de IA puedes permitirlo en ese sitio hasta que acabe el chat, y a un cliente MCP mientras dure su conexión (hasta que termine esa sesión de Claude Code, es decir, su servidor MCP); a la línea de comandos se le pregunta cada vez.
+
+Dentro del panel, las preguntas de la IA salen como una tarjeta sobre el cuadro de mensaje, no como una ventana sobre la página. Return o Esc es «No permitir», ⌘Return es «Permitir una vez» y ⌥⌘Return permite ese sitio en este chat. Las teclas que dicen sí solo funcionan con el cursor dentro del panel y pasado medio segundo desde que sale la tarjeta, para que una pulsación pensada para otra cosa no responda. Las preguntas sobre pagar, borrar o iniciar sesión, y sobre un botón que solo el marcado de la página llama aviso de cookies, siguen saliendo en una ventana, donde ninguna tecla dice sí. La cabecera del panel dice lo que ha leído el chat («3 sitios leídos · Permitido en 1») y lista los sitios que permitiste, cada uno con «Revocar».
 
 Otros agentes, como Claude Code, pueden usar las mismas herramientas mediante MCP, con las mismas preguntas:
 
@@ -223,7 +233,7 @@ En el primer arranque, o desde el menú, Changmun importa marcadores e historial
 - Tu navegación se queda en tu Mac. Changmun no tiene cuentas, servidores ni analíticas.
 - La búsqueda de actualizaciones descarga de GitHub Pages una pequeña lista de versiones (`appcast.xml`). GitHub recibe la petición como cualquier servidor web, con el nombre y la versión de Changmun; el perfil del sistema de Sparkle, que añadiría datos de tu Mac, está desactivado y sigue así (Ajustes › Avanzado desactiva la búsqueda).
 - Las sugerencias de búsqueda envían a tu buscador lo que escribes en la barra de comandos (desactívalas en Ajustes; nunca se envían desde ventanas privadas).
-- El panel de IA envía tus mensajes, y el contenido de las páginas que lee la IA, a Anthropic a través de la CLI `claude`. Ordenar pestañas y la traducción de páginas se ejecutan en tu Mac.
+- El panel de IA envía tus mensajes, las imágenes que adjuntas y el contenido de las páginas que lee la IA, a Anthropic a través de la CLI `claude`. Ordenar pestañas y la traducción de páginas se ejecutan en tu Mac.
 
 ## Contraseñas y seguridad
 
@@ -233,7 +243,8 @@ A los navegadores que sincronizan contraseñas se les hace una pregunta razonabl
 - **No hay copia en ningún otro sitio.** Changmun no tiene cuentas ni servidor, así que no existe una copia cifrada que descifrar, vender, filtrar o heredar. Además de las peticiones que figuran en Privacidad, lo único que la app descarga por su cuenta son las listas de filtros de anuncios, una extensión de Chrome Web Store que hayas pedido y el icono de cada sitio, directamente de ese sitio. Ninguna lleva una contraseña.
 - **Quién puede descifrarlas.** Solo este Mac, una vez que lo has desbloqueado. Se pide Touch ID o la contraseña de tu Mac antes de copiar una contraseña, antes de rellenarla en una página (Ajustes › Privacidad › Pedir Touch ID para rellenar contraseñas, activado por defecto; tras confirmar, los rellenados del minuto siguiente no vuelven a preguntar) y antes de que la IA inicie sesión por ti. Si cancelas, no se rellena nada.
 - **La IA nunca las recibe.** Con `sign_in`, Changmun rellena el formulario por sí mismo y solo le dice a la IA que lo hizo, sin la contraseña ni el nombre de la cuenta. La IA no puede leer los campos de contraseña, escribir en ellos ni pulsar teclas en ellos, y las capturas los ocultan. Si luego lee la página ya con la sesión iniciada, el texto de esa página es contenido de página como cualquier otro.
-- **Qué llega a Anthropic.** Tus mensajes y las páginas que lee la IA, a través de tu propia CLI `claude`, y nada más. Changmun no tiene ninguna clave de Anthropic ni hace peticiones a Anthropic por su cuenta.
+- **Qué llega a Anthropic.** Tus mensajes, las imágenes que adjuntas y las páginas que lee la IA, a través de tu propia CLI `claude`, y nada más. Changmun no tiene ninguna clave de Anthropic ni hace peticiones a Anthropic por su cuenta.
+- **Historial de chats.** Los chats terminados quedan en un archivo de este Mac (Ajustes › IA lo desactiva), sin el texto escrito ni lo que sigue a ? o # en las direcciones, y nunca los de una ventana privada.
 - **Contraseñas importadas.** Se descifran en tu Mac con la clave `Safe Storage` del llavero de cada navegador (macOS pregunta antes) y se guardan en tu llavero de inicio de sesión. No se sube nada por el camino.
 - **Si el proyecto se para.** No hay nada que vender ni que apagar: ni servidor, ni cuentas, ni la base de datos de nadie. Tus contraseñas siguen en tu llavero y la app sigue funcionando mientras funcione macOS. Es de código abierto con licencia MIT, así que cualquiera puede comprobar todo esto, empezando por `Sources/Changmun/Logins.swift`.
 
