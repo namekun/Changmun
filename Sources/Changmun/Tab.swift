@@ -545,20 +545,24 @@ extension Tab: WKNavigationDelegate {
         let page = page
         let current = { [weak self] in self?.page == page && self?.webView === webView && !Task.isCancelled }
         translating = Task {
-            var outcome = PageTranslator.Outcome.failed
-            if let source = await PageTranslator.foreignLanguage(of: webView) {
-                foreignLanguage = source
-                outcome = await PageTranslator.translate(webView, from: source, while: current)
-            } else {
+            guard let source = await PageTranslator.foreignLanguage(of: webView) else {
+                guard current() else { return }
+                translating = nil
+                translation = .original
                 browser?.flashStatus(String(localized: "No text in another language to translate"))
+                return
             }
+            foreignLanguage = source
+            let outcome = await PageTranslator.translate(webView, from: source, while: current)
             guard current() else { return }
             translating = nil
             translation = outcome == .translated ? .translated : .original
             switch outcome {
             case .needsDownload: browser?.flashStatus(String(localized: "Download this language in System Settings › General › Language & Region › Translation Languages"))
             case .unsupported: browser?.flashStatus(String(localized: "This language can’t be translated"))
-            case .translated, .failed: break
+            case .nothingToTranslate: browser?.flashStatus(String(localized: "No text in another language to translate"))
+            case .failed: browser?.flashStatus(String(localized: "Couldn't translate this page"))
+            case .translated: break
             }
         }
     }

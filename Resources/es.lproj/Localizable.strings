@@ -143,6 +143,7 @@
 "Couldn't read '%@' from the Keychain, so passwords and cookies were skipped. Click 'Allow' in the permission dialog to import them." = "No se ha podido leer “%@” del llavero, así que se han omitido las contraseñas y las cookies. Haz clic en “Permitir” en el cuadro de diálogo de permiso para importarlas.";
 "Couldn't run claude: %@" = "No se ha podido ejecutar claude: %@";
 "Couldn't save the page" = "No se pudo guardar la página";
+"Couldn't translate this page" = "No se pudo traducir esta página";
 "Couldn’t run it: %@" = "No se ha podido ejecutar: %@";
 "Current Site" = "Sitio actual";
 "Cut" = "Cortar";

@@ -143,6 +143,7 @@
 "Couldn't read '%@' from the Keychain, so passwords and cookies were skipped. Click 'Allow' in the permission dialog to import them." = "Impossible de lire « %@ » dans le Trousseau ; les mots de passe et les cookies ont donc été ignorés. Cliquez sur « Autoriser » dans la fenêtre d’autorisation pour les importer.";
 "Couldn't run claude: %@" = "Impossible d’exécuter claude : %@";
 "Couldn't save the page" = "Impossible d’enregistrer la page";
+"Couldn't translate this page" = "Impossible de traduire cette page";
 "Couldn’t run it: %@" = "Impossible de l’exécuter : %@";
 "Current Site" = "Site actuel";
 "Cut" = "Couper";

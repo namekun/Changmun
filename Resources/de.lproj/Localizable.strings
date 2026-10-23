@@ -143,6 +143,7 @@
 "Couldn't read '%@' from the Keychain, so passwords and cookies were skipped. Click 'Allow' in the permission dialog to import them." = "„%@“ konnte nicht aus dem Schlüsselbund gelesen werden, daher wurden Passwörter und Cookies übersprungen. Klicke im Dialog auf „Erlauben“, um sie zu importieren.";
 "Couldn't run claude: %@" = "claude konnte nicht ausgeführt werden: %@";
 "Couldn't save the page" = "Die Seite konnte nicht gesichert werden";
+"Couldn't translate this page" = "Diese Seite konnte nicht übersetzt werden";
 "Couldn’t run it: %@" = "Ausführen nicht möglich: %@";
 "Current Site" = "Aktuelle Website";
 "Cut" = "Ausschneiden";

@@ -2674,6 +2674,92 @@ struct TranslationTests {
         #expect(PageTranslator.dominantLanguage("자전거는 19세기에 발명되어 널리 쓰이게 되었다.")?.languageCode == "ko")
     }
 
+    @Test func aBatchTheSystemRefusesIsTranslatedPieceByPiece() async {
+        struct Refused: Error {}
+        var calls = 0
+        let (translated, gaveUp) = await PageTranslator.translateKeepingWhatWorks([(0, "Hello"), (1, "???"), (2, "World")], while: { true }) { batch in
+            calls += 1
+            if batch.contains(where: { $0.text == "???" }) { throw Refused() }
+            return Dictionary(uniqueKeysWithValues: batch.map { ($0.id, $0.text.uppercased()) })
+        }
+        #expect(translated == [0: "HELLO", 2: "WORLD"])
+        #expect(!gaveUp)
+        #expect(calls == 4)
+    }
+
+    @Test func aBatchThatWorksIsAskedForOnce() async {
+        var calls = 0
+        let (translated, gaveUp) = await PageTranslator.translateKeepingWhatWorks([(5, "a"), (6, "b")], while: { true }) { batch in
+            calls += 1
+            return Dictionary(uniqueKeysWithValues: batch.map { ($0.id, $0.text + "!") })
+        }
+        #expect(translated == [5: "a!", 6: "b!"])
+        #expect(!gaveUp)
+        #expect(calls == 1)
+    }
+
+    @Test func nothingIsTranslatedOnceThePageIsNoLongerTheSame() async {
+        struct Refused: Error {}
+        var calls = 0
+        let (translated, gaveUp) = await PageTranslator.translateKeepingWhatWorks([(0, "a"), (1, "b")], while: { false }) { _ in
+            calls += 1
+            throw Refused()
+        }
+        #expect(translated.isEmpty)
+        #expect(!gaveUp)
+        #expect(calls == 1)
+    }
+
+    @Test func aSessionThatRefusesEveryPieceGivesUp() async {
+        struct Refused: Error {}
+        let (translated, gaveUp) = await PageTranslator.translateKeepingWhatWorks([(0, "a"), (1, "b")], while: { true }) { _ in throw Refused() }
+        #expect(translated.isEmpty)
+        #expect(gaveUp)
+    }
+
+    @Test func aPageWithNoTextInAnotherLanguageSaysSoOnce() async throws {
+        let browser = Browser()
+        let tab = Tab(id: 1, url: nil, browser: browser)
+        let view = tab.wake()
+        let window = OffscreenWindow(view)
+        defer { window.close() }
+        view.loadHTMLString("<p>안녕</p>", baseURL: nil)
+        for _ in 0..<60 where view.isLoading || view.url == nil { try await Task.sleep(for: .milliseconds(50)) }
+        try await Task.sleep(for: .milliseconds(200))
+        browser.overlay.statusMessage = nil
+        tab.toggleTranslation()
+        for _ in 0..<100 where browser.overlay.statusMessage == nil { try await Task.sleep(for: .milliseconds(50)) }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(browser.overlay.statusMessage == String(localized: "No text in another language to translate"))
+        #expect(tab.translation == .original)
+    }
+
+    @Test(.enabled(if: Self.modelInstalled)) func aPageWithoutTranslatableTextIsNotAFailure() async throws {
+        let view = WKWebView()
+        let window = OffscreenWindow(view)
+        defer { window.close() }
+        view.loadHTMLString("<pre>The bicycle was invented in the nineteenth century.</pre>", baseURL: nil)
+        for _ in 0..<60 where view.isLoading || view.url == nil { try await Task.sleep(for: .milliseconds(50)) }
+        try await Task.sleep(for: .milliseconds(200))
+        let outcome = await PageTranslator.translate(view, from: Locale.Language(identifier: "en"), to: Locale.Language(identifier: "ko"))
+        #expect(outcome == .nothingToTranslate)
+    }
+
+    @Test func theModelsAreLookedForInEveryEngineBeforeAskingForADownload() async throws {
+        guard #available(macOS 15.0, *) else { return }
+        // Downloaded for the second engine only (what System Settings gave, while the app asks the first one by default).
+        let second = await PageTranslator.firstInstalled(["low", "high"]) { $0 == "high" ? .installed : .supported }
+        #expect(second.installed == "high")
+        let first = await PageTranslator.firstInstalled(["low", "high"]) { _ in .installed }
+        #expect(first.installed == "low")
+        let none = await PageTranslator.firstInstalled(["low", "high"]) { $0 == "high" ? .unsupported : .supported }
+        #expect(none.installed == nil)
+        #expect(none.downloadable)
+        let neither = await PageTranslator.firstInstalled(["low", "high"]) { _ in .unsupported }
+        #expect(neither.installed == nil)
+        #expect(!neither.downloadable)
+    }
+
     @Test(.enabled(if: Self.modelInstalled)) func aPageIsTranslatedInPlaceAndComesBack() async throws {
         let view = WKWebView()
         let window = OffscreenWindow(view)
@@ -2713,7 +2799,12 @@ struct TranslationTests {
         let done = DispatchSemaphore(value: 0)
         nonisolated(unsafe) var installed = false
         Task.detached {
-            installed = await LanguageAvailability().status(from: Locale.Language(identifier: "en"), to: Locale.Language(identifier: "ko")) == .installed
+            let en = Locale.Language(identifier: "en"), ko = Locale.Language(identifier: "ko")
+            installed = await LanguageAvailability().status(from: en, to: ko) == .installed
+            // The app picks whichever of the two kinds of models is there (PageTranslator.openSession), so do these tests.
+            if #available(macOS 26.4, *), !installed {
+                installed = await LanguageAvailability(preferredStrategy: .highFidelity).status(from: en, to: ko) == .installed
+            }
             done.signal()
         }
         done.wait()

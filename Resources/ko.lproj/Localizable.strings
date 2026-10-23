@@ -143,6 +143,7 @@
 "Couldn't read '%@' from the Keychain, so passwords and cookies were skipped. Click 'Allow' in the permission dialog to import them." = "키체인의 '%@'를 읽지 못해서 비밀번호와 쿠키는 건너뛰었어요. 허용 창에서 '허용'을 눌러야 가져올 수 있어요.";
 "Couldn't run claude: %@" = "claude를 실행하지 못했어요: %@";
 "Couldn't save the page" = "페이지를 저장하지 못했어요";
+"Couldn't translate this page" = "이 페이지를 번역하지 못했어요";
 "Couldn’t run it: %@" = "실행하지 못했어요: %@";
 "Current Site" = "지금 사이트";
 "Cut" = "오려두기";
