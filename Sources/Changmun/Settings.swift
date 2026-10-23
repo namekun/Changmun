@@ -870,6 +870,8 @@ struct AISettings: View {
                 Caption(text: "The AI panel uses the Claude Code login (subscription) on this Mac.")
             }
             Section {
+                Toggle("Keep chat history", isOn: $prefs.aiKeepHistory)
+                Caption(text: "Finished chats can be read again from the clock button in the AI panel. Chats in private windows are never kept.")
                 LabeledContent("AI Chat") {
                     Button("Clear Chat") { ChatStore.shared.reset() }
                 }

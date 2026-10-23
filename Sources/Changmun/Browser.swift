@@ -473,6 +473,18 @@ final class Browser: ObservableObject {
     /// Brings back the last closed tab where it was, with its back/forward history.
     func reopenClosedTab() {
         guard let closed = closedTabs.popLast() else { return }
+        reopen(closed)
+    }
+
+    /// Brings back one particular closed tab (the AI panel offers it for the tabs the AI closed); false when it is no longer among them.
+    @discardableResult
+    func reopenClosedTab(id: UUID) -> Bool {
+        guard let index = closedTabs.firstIndex(where: { $0.id == id }) else { return false }
+        reopen(closedTabs.remove(at: index))
+        return true
+    }
+
+    private func reopen(_ closed: ClosedTab) {
         let tab = Tab(id: Self.takeID(), url: closed.url, title: closed.title, state: closed.state, browser: self)
         if spaces.contains(closed.space) { tab.spaceID = closed.space }
         if let key = closed.bookmarkKey, Self.keeps(key, in: spaces.space(tab.spaceID)),

@@ -145,7 +145,10 @@ enum ToolCatalog {
             browser.activate(tab.id)
             return .text("Showing tab #\(tab.id): \(tab.displayTitle)")
         case "close_tab":
+            let lastClosed = browser.closedTabs.last?.id
             browser.close(tab.id)
+            // The panel offers to bring back what its AI closed.
+            if caller == ChatStore.caller, let closed = browser.closedTabs.last, closed.id != lastClosed { ChatStore.shared.noteClosed(closed.id, in: browser) }
             return .text("Closed tab #\(tab.id).")
         case "navigate":
             guard let url = webURL(args["url"]) else { return .text("Give an http(s) URL, a domain, or search words.", error: true) }

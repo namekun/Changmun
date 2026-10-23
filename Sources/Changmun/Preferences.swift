@@ -168,6 +168,8 @@ final class Preferences: ObservableObject {
 
     @Published var aiModel: String { didSet { defaults.set(aiModel, forKey: "aiModel") } }
     @Published var aiApprovals: Bool { didSet { defaults.set(aiApprovals, forKey: "aiApprovals") } }
+    /// Whether the AI panel keeps finished chats to read again (default on); private windows never are.
+    @Published var aiKeepHistory: Bool { didSet { defaults.set(aiKeepHistory, forKey: "aiKeepHistory") } }
     @Published var claudePath: String { didSet { defaults.set(claudePath.isEmpty ? nil : claudePath, forKey: "claudePath") } }
 
     // MARK: Advanced
@@ -213,6 +215,7 @@ final class Preferences: ObservableObject {
         extensionGrants = d.dictionary(forKey: "extensionGrants") as? [String: [String]] ?? [:]
         aiModel = d.string(forKey: "aiModel") ?? "sonnet"
         aiApprovals = d.object(forKey: "aiApprovals") as? Bool ?? true
+        aiKeepHistory = d.object(forKey: "aiKeepHistory") as? Bool ?? true
         claudePath = d.string(forKey: "claudePath") ?? ""
         developerMode = d.bool(forKey: "developerMode")
         addressBar = AddressBarChoice(rawValue: d.string(forKey: "addressBar") ?? "") ?? .automatic
