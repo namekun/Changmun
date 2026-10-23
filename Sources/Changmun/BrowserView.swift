@@ -1289,18 +1289,31 @@ struct DisabledNavigationButtons: View {
 /// Nunsseop's search field: a softly filled rounded box; loading shows as its 3 pt bar along the bottom edge, which the box's corners clip,
 /// so it never runs into the text above it.
 struct FieldBackground: View {
-    @ObservedObject var tab: Tab
     var focused = false
 
     var body: some View {
         RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous)
             .fill(Theme.field)
             .overlay(RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous).strokeBorder(Theme.hairline, lineWidth: focused ? 0.5 : 0))
-            .overlay(alignment: .bottom) {
-                if tab.isLoading { Meter(fraction: tab.progress).transition(.opacity) }
+    }
+}
+
+/// How far the page has loaded: a thin line along the top edge of the page, clear of the address and its letters.
+struct LoadingLine: View {
+    @ObservedObject var tab: Tab
+
+    var body: some View {
+        GeometryReader { geo in
+            if tab.isLoading {
+                Rectangle().fill(Theme.meter)
+                    .frame(width: max(3, geo.size.width * min(1, max(0.05, tab.progress))), height: 2)
+                    .animation(.easeOut(duration: 0.2), value: tab.progress)
+                    .transition(.opacity)
             }
-            .clipShape(RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous))
-            .animation(Motion.quick, value: tab.isLoading)
+        }
+        .frame(height: 2)
+        .allowsHitTesting(false)
+        .animation(Motion.quick, value: tab.isLoading)
     }
 }
 
@@ -1374,7 +1387,7 @@ struct AddressPill: View {
         .padding(.leading, 4)
         .padding(.trailing, 4)
         .frame(height: height)
-        .background(FieldBackground(tab: tab))
+        .background(FieldBackground())
         .overlay {
             RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous)
                 .fill(pressed ? Theme.hoverTab : hover ? Theme.ink(0.03) : .clear)
@@ -1426,7 +1439,7 @@ struct AddressField: View {
         .padding(.leading, 10)
         .padding(.trailing, 4)
         .frame(height: Metrics.control)
-        .background(FieldBackground(tab: tab, focused: focused))
+        .background(FieldBackground(focused: focused))
         .onAppear { text = current }
         .onChange(of: tab.url) { if !focused { text = current } }
         .onChange(of: browser.addressFocusRequest) { focused = true }
@@ -2120,6 +2133,9 @@ struct WebCard: View {
                         if #available(macOS 15.4, *), !browser.isPrivate { WebStoreBar(tab: tab, host: ExtensionHost.shared) }
                     }
                 }
+            }
+            .overlay(alignment: .top) {
+                if let tab = browser.active { LoadingLine(tab: tab) }
             }
             .overlay(alignment: .bottomLeading) {
                 if let text = overlay.statusMessage ?? overlay.hoveredLink.map(StatusLine.display) {
