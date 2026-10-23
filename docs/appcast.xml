@@ -6,6 +6,17 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.6.4</title>
+      <pubDate>Fri, 23 Oct 2026 02:37:01 +0000</pubDate>
+      <sparkle:version>22</sparkle:version>
+      <sparkle:shortVersionString>0.6.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.6.4</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **An even address bar.** There was more room above the address bar than below it. It now has the same space on both sides, the bar is a little shorter, and the window buttons sit level with it.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.6.4/Changmun-0.6.4.dmg" length="4296619" type="application/octet-stream" sparkle:edSignature="Wth5ZEwIJyWoweus39GI+anawX2oRTs1OXAxaQpfvjBDvNzZDN0dAM0mlL6v2Nw/KW5/+55LjXHQHaC7huTWCg==" />
+    </item>
+    <item>
       <title>0.6.3</title>
       <pubDate>Fri, 23 Oct 2026 01:52:45 +0000</pubDate>
       <sparkle:version>21</sparkle:version>
@@ -54,6 +65,6 @@
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: 3amsRV5OBOWB5j/q6v8+9GfnMkrUHna30L99bM1DcyqyUk3+LWuPYk/d822IVImhy6lJpHTCqTmJPn3K67JJAw==
-length: 6160
+edSignature: IPYrDaReMnHzUpq/WH7y10u1Zk2Ko4YhZoZrOTcbRvliHw+G2f6I47qbsTMLTwuvXafcpy3E5bAtcdCv4szkAg==
+length: 7171
 -->
