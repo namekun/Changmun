@@ -742,6 +742,7 @@ struct ChatPanel: View {
             .padding(.horizontal, 6)
             // Level with the page card's bar beside it.
             .frame(height: BrowserWindow.pageBarHeight)
+            ReadSitesRow()
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {
@@ -766,6 +767,7 @@ struct ChatPanel: View {
                 Text(notice).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waiting)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6).padding(.bottom, 6)
             }
+            ApprovalCardHost(browser: browser)
             // A run under way can always be stopped.
             composer.disabled(!ready && !chat.isRunning).opacity(ready || chat.isRunning ? 1 : 0.4)
         }

@@ -22,7 +22,7 @@
 "a frame of an unknown site" = "알 수 없는 사이트의 프레임";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "전체 주소는 그 자리에서 바로 고칠 수 있어요 (⌘L). 사이트와 제목은 ⌘L로 검색 창에서 고쳐요.";
 "About Changmun" = "Changmun 정보";
-"Action:\n%@\n\nSites read earlier in this conversation: %@\nA page can hide instructions for the AI. Deny if this isn’t what you asked for." = "동작:\n%@\n\n이 대화에서 앞서 읽은 사이트: %@\n페이지에 AI를 향한 지시가 숨어 있을 수 있어요. 요청한 일이 아니라면 거부하세요.";
+"Action:" = "동작:";
 "Active" = "적용 중";
 "Actual Size" = "실제 크기";
 "Ad Blocking" = "광고 차단";
@@ -188,9 +188,9 @@
 "It also asks before something that looks like a cookie banner or a setting (save, clear, reset, block), which you can allow for a site until the chat is cleared." = "쿠키 배너나 설정(저장, 지우기, 초기화, 차단)처럼 보이는 일도 먼저 물어보고, 사이트별로 대화를 지울 때까지 허용할 수 있어요.";
 "The AI wants to do something that can’t be undone" = "AI가 되돌릴 수 없는 일을 하려고 해요";
 "The form sends what is typed in it to %@, another site than this page." = "이 양식은 입력한 내용을 이 페이지가 아닌 다른 사이트 %@(으)로 보내요.";
-"This looks like it pays, orders, sends, posts, shares, uploads, grants access, deletes or cancels, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this." = "결제, 주문, 전송, 게시, 공유, 업로드, 접근 허용, 삭제, 취소처럼 되돌릴 수 없는 일로 보여요. 매번 물어봐요.\n\n직접 요청한 일일 때만 허용하세요.";
+"This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "결제, 주문, 전송, 게시, 삭제, 접근 허용처럼 되돌릴 수 없는 일로 보여서 매번 물어봐요.";
 "The AI wants to accept cookies or change a setting" = "AI가 쿠키를 수락하거나 설정을 바꾸려고 해요";
-"This looks like a cookie banner or a setting (save, clear, reset, block, enable), not like paying, sending or granting access. You can allow it once, or on this site for the rest of the chat." = "결제, 전송, 접근 허용이 아니라 쿠키 배너나 설정(저장, 지우기, 초기화, 차단, 사용)처럼 보여요. 한 번만 허용하거나, 대화가 끝날 때까지 이 사이트에서 허용할 수 있어요.";
+"This looks like a cookie banner or a setting, not like paying or sending." = "결제나 전송이 아니라 쿠키 배너나 설정처럼 보여요.";
 "Element hiding" = "요소 숨김";
 "End Split View" = "분할 보기 끝내기";
 "Enter Address" = "주소 입력";
@@ -311,7 +311,7 @@
 "Open Location" = "주소 열기";
 "Open new tab · %@" = "새 탭 열기 · %@";
 "Opening %@" = "%@ 여는 중";
-"Option to choose:\n%@\n\nSites read earlier in this conversation: %@\nDeny if content from there is mixed in." = "고를 옵션:\n%@\n\n이 대화에서 앞서 읽은 사이트: %@\n그곳의 내용이 섞여 있다면 거부하세요.";
+"Option to choose:" = "고를 옵션:";
 "Opus (smartest, slower)" = "Opus (가장 똑똑함, 느림)";
 "Other" = "기타";
 "Other Bookmarks" = "기타 북마크";
@@ -428,7 +428,7 @@
 "System" = "시스템";
 "Tab %lld" = "탭 %lld";
 "Tab Cleanup" = "탭 정리";
-"Text to type:\n%@\n\nSites read earlier in this conversation: %@\nDeny if content from there is mixed in." = "입력할 내용:\n%@\n\n이 대화에서 앞서 읽은 사이트: %@\n그곳의 내용이 섞여 있다면 거부하세요.";
+"Text to type:" = "입력할 내용:";
 "The AI panel uses the Claude Code login (subscription) on this Mac." = "AI 패널은 이 Mac의 Claude Code 로그인(구독)을 써요.";
 "The AI request failed." = "AI 요청이 실패했어요.";
 "The AI response didn't finish (exit code %lld).\n%@" = "AI 응답이 끝나지 않았어요 (종료 코드 %lld).\n%@";
@@ -573,7 +573,7 @@
 "There is nothing to continue yet, so your message is queued." = "아직 이어갈 대화가 없어서 메시지를 대기열에 넣었어요.";
 "The conversation couldn't be continued after you interrupted it, so your message was sent as a new conversation." = "중단한 뒤 대화를 이어갈 수 없어서 메시지를 새 대화로 보냈어요.";
 "The AI wants to click a button in what the page calls a cookie banner" = "AI가 페이지가 쿠키 배너라고 하는 곳의 버튼을 누르려고 해요";
-"Only the page’s own markup says this is a cookie banner, and a page can say that of anything. It is asked every time.\n\nAllow it only if you asked for this." = "이곳이 쿠키 배너라고 말하는 것은 페이지 자체의 마크업뿐이고, 페이지는 무엇에든 그렇게 말할 수 있어요. 매번 물어봐요.\n\n직접 요청한 일일 때만 허용하세요.";
+"Only the page’s own markup says this is a cookie banner, and a page can say that of anything, so you are asked every time." = "쿠키 배너라고 말하는 건 페이지뿐이고, 페이지는 무엇에든 그렇게 말할 수 있어서 매번 물어봐요.";
 "The AI tried to sign in to %@" = "AI가 %@에 로그인을 시도했어요";
 "There is no saved login for this site, so nothing was filled in. The AI is told only that the sign-in wasn't done." = "이 사이트에는 저장된 로그인이 없어서 아무것도 채우지 않았어요. AI에게는 로그인하지 못했다고만 알려요.";
 "You declined signing in to %@ earlier in this chat, so the AI isn't asking again." = "이 대화에서 %@ 로그인을 이미 거부해서 AI가 다시 묻지 않아요.";
@@ -590,3 +590,13 @@
 "Get Claude Code" = "Claude Code 받기";
 "Already installed? Enter where it is in Settings › AI." = "이미 설치했다면 설정 › AI에서 경로를 직접 지정해 주세요.";
 "The AI panel needs Claude Code, so your question wasn't sent." = "AI 패널은 Claude Code가 있어야 해요. 질문은 보내지 않았어요.";
+"Read earlier in this chat: %@" = "이 대화에서 앞서 읽은 사이트: %@";
+"A page you read earlier could have slipped instructions into this." = "앞서 읽은 페이지가 여기에 지시를 몰래 끼워 넣었을 수 있어요.";
+"%lld more waiting" = "%lld개 더 기다리는 중";
+"Read 1 site" = "사이트 1곳 읽음";
+"Read %lld sites" = "사이트 %lld곳 읽음";
+"Allowed on %lld" = "%lld곳 허용";
+"Allowed for this chat" = "이 대화에서 허용한 사이트";
+"Revoke" = "허용 취소";
+"After revoking, the AI asks again before it acts there." = "취소하면 AI가 그곳에서 동작하기 전에 다시 물어봐요.";
+"Read in this chat" = "이 대화에서 읽은 사이트";

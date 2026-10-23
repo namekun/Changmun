@@ -22,7 +22,7 @@
 "a frame of an unknown site" = "不明なサイトのフレーム";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "完全なアドレスはその場で編集できます (⌘L)。サイトとタイトルを表示している場合は、⌘Lで検索フィールドを開いて編集します。";
 "About Changmun" = "Changmunについて";
-"Action:\n%@\n\nSites read earlier in this conversation: %@\nA page can hide instructions for the AI. Deny if this isn’t what you asked for." = "操作:\n%@\n\nこの会話でこれまでに読み取ったサイト: %@\nページにAI宛ての指示が隠されていることがあります。ご自身で依頼した内容でなければ拒否してください。";
+"Action:" = "操作:";
 "Active" = "有効";
 "Actual Size" = "実際のサイズ";
 "Ad Blocking" = "広告ブロック";
@@ -188,9 +188,9 @@
 "It also asks before something that looks like a cookie banner or a setting (save, clear, reset, block), which you can allow for a site until the chat is cleared." = "Cookieバナーや設定（保存・クリア・リセット・ブロック）に見える操作の前にも確認します。会話をクリアするまでサイト単位で許可できます。";
 "The AI wants to do something that can’t be undone" = "AIが元に戻せない操作をしようとしています";
 "The form sends what is typed in it to %@, another site than this page." = "このフォームは、入力した内容をこのページとは別のサイト（%@）に送信します。";
-"This looks like it pays, orders, sends, posts, shares, uploads, grants access, deletes or cancels, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this." = "支払い、注文、送信、投稿、共有、アップロード、アクセスの許可、削除、キャンセルなど、元に戻せない操作のようです。毎回確認します。\n\nご自身で依頼した場合にのみ許可してください。";
+"This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "支払い、注文、送信、投稿、削除、アクセスの許可など、元に戻せない操作のようなので、毎回確認します。";
 "The AI wants to accept cookies or change a setting" = "AIがCookieを受け入れる、または設定を変更しようとしています";
-"This looks like a cookie banner or a setting (save, clear, reset, block, enable), not like paying, sending or granting access. You can allow it once, or on this site for the rest of the chat." = "支払い・送信・アクセスの許可ではなく、Cookieバナーや設定（保存・クリア・リセット・ブロック・有効化）のようです。1回だけ許可するか、この会話の間このサイトで許可できます。";
+"This looks like a cookie banner or a setting, not like paying or sending." = "支払いや送信ではなく、Cookieバナーや設定のようです。";
 "Element hiding" = "要素の非表示";
 "End Split View" = "スプリットビューを終了";
 "Enter Address" = "アドレスを入力";
@@ -311,7 +311,7 @@
 "Open Location" = "場所を開く";
 "Open new tab · %@" = "新規タブを開く · %@";
 "Opening %@" = "%@を開いています";
-"Option to choose:\n%@\n\nSites read earlier in this conversation: %@\nDeny if content from there is mixed in." = "選ぶオプション:\n%@\n\nこの会話でこれまでに読み取ったサイト: %@\nそれらの内容が混ざっている場合は拒否してください。";
+"Option to choose:" = "選ぶオプション:";
 "Opus (smartest, slower)" = "Opus (最も高性能、低速)";
 "Other" = "その他";
 "Other Bookmarks" = "その他のブックマーク";
@@ -428,7 +428,7 @@
 "System" = "システム";
 "Tab %lld" = "タブ %lld";
 "Tab Cleanup" = "タブの整理";
-"Text to type:\n%@\n\nSites read earlier in this conversation: %@\nDeny if content from there is mixed in." = "入力するテキスト:\n%@\n\nこの会話でこれまでに読み取ったサイト: %@\nそれらの内容が混ざっている場合は拒否してください。";
+"Text to type:" = "入力するテキスト:";
 "The AI panel uses the Claude Code login (subscription) on this Mac." = "AIパネルは、このMacのClaude Codeのログイン (サブスクリプション) を使用します。";
 "The AI request failed." = "AIのリクエストに失敗しました。";
 "The AI response didn't finish (exit code %lld).\n%@" = "AIの応答が完了しませんでした (終了コード %lld)。\n%@";
@@ -573,7 +573,7 @@
 "There is nothing to continue yet, so your message is queued." = "まだ続きがないため、メッセージは待機列に入れました。";
 "The conversation couldn't be continued after you interrupted it, so your message was sent as a new conversation." = "中断したあと会話を続けられなかったため、メッセージは新しい会話として送りました。";
 "The AI wants to click a button in what the page calls a cookie banner" = "AIがページの言う「Cookieバナー」の中のボタンを押そうとしています";
-"Only the page’s own markup says this is a cookie banner, and a page can say that of anything. It is asked every time.\n\nAllow it only if you asked for this." = "これがCookieバナーだと言っているのはページ自身のマークアップだけで、ページはどんなものにもそう名乗れます。毎回確認します。\n\nご自身で頼んだことの場合のみ許可してください。";
+"Only the page’s own markup says this is a cookie banner, and a page can say that of anything, so you are asked every time." = "Cookieバナーだと言っているのはページ自身だけで、ページはどんなものにもそう名乗れるため、毎回確認します。";
 "The AI tried to sign in to %@" = "AIが%@へのログインを試みました";
 "There is no saved login for this site, so nothing was filled in. The AI is told only that the sign-in wasn't done." = "このサイトには保存済みのログインがないため、何も入力しませんでした。AIにはログインできなかったとだけ伝わります。";
 "You declined signing in to %@ earlier in this chat, so the AI isn't asking again." = "このチャットで先に%@へのログインを断ったため、AIは再度確認しません。";
@@ -590,3 +590,13 @@
 "Get Claude Code" = "Claude Codeを入手";
 "Already installed? Enter where it is in Settings › AI." = "すでにインストール済みなら、設定 › AIでパスを指定してください。";
 "The AI panel needs Claude Code, so your question wasn't sent." = "AIパネルにはClaude Codeが必要なため、質問は送信されませんでした。";
+"Read earlier in this chat: %@" = "この会話でこれまでに読み取ったサイト: %@";
+"A page you read earlier could have slipped instructions into this." = "先に読んだページが、ここに指示を紛れ込ませた可能性があります。";
+"%lld more waiting" = "あと%lld件待っています";
+"Read 1 site" = "1サイトを読み取り済み";
+"Read %lld sites" = "%lldサイトを読み取り済み";
+"Allowed on %lld" = "%lldサイトで許可";
+"Allowed for this chat" = "この会話で許可したサイト";
+"Revoke" = "取り消す";
+"After revoking, the AI asks again before it acts there." = "取り消すと、AIはそのサイトで操作する前にもう一度確認します。";
+"Read in this chat" = "この会話で読み取ったサイト";

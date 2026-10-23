@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import WebKit
 
 struct ToolResult {
@@ -776,7 +777,7 @@ enum Approvals {
 
     /// Records a read by the site its text came from, or by the tab's own site when the page named none.
     static func noteRead(_ tab: Tab, readHost: String?, caller: String) {
-        if let site = readHost ?? site(of: tab.url) { readHosts[caller, default: []].insert(site) }
+        if let site = readHost ?? site(of: tab.url), readHosts[caller, default: []].insert(site).inserted { changes.send() }
     }
 
     /// How an approval was answered. `site` (allow on this site for as long as the chat lasts) is offered to the chat panel and to any
@@ -794,6 +795,36 @@ enum Approvals {
         /// Whether it is the question of what can't be undone (the high tier of `allowAction`), or of what only the page's markup
         /// puts in a cookie banner.
         var irreversible = false
+        /// What a question about using a page is made of, for the card in the panel (`detail` says the same in one text).
+        var parts: Parts?
+
+        struct Parts: Equatable {
+            var site: String
+            /// "Read earlier in this chat: a.example, b.example", for the questions that depend on what was read.
+            var readLine = ""
+            /// What the text is: "Text to type:".
+            var label: String = ""
+            /// The text to type, the option, the action or the button, whole, or said to be cut.
+            var text: String
+            var why: String
+        }
+    }
+
+    /// What a question shows on the page it is about while it waits: the AI's outline around the target, kept until it is answered.
+    struct Mark {
+        var show: @MainActor () async -> Void
+        var clear: @MainActor () -> Void
+    }
+
+    /// Where a question is asked. The card in the chat panel is for the panel's own AI, with the panel open in front of the user, and
+    /// not for what can't be undone (the sheet is meant to be more trouble: it blocks the window, and no key answers yes in it, so a
+    /// keystroke meant for the composer or the page can't) nor for a choice among accounts (a list the sheet already has).
+    enum Route: Equatable {
+        case sheet, card
+    }
+
+    static func route(caller: String, irreversible: Bool, accounts: [String], panelOpen: Bool) -> Route {
+        caller == ChatStore.caller && panelOpen && !irreversible && accounts.count < 2 ? .card : .sheet
     }
 
     /// Answers questions in place of the window, and keeps what was asked, newest last.
@@ -840,7 +871,7 @@ enum Approvals {
     /// the sites read are those it was allowed with (reading another site takes it back). Typing and choosing show what
     /// is typed or chosen. `site` is where it happens when that isn't the tab's own site: a frame of another site, or "" for
     /// a document with no site, which no allowance covers.
-    static func allowInteraction(_ interaction: Interaction, on tab: Tab, caller: String, site: String? = nil) async -> Bool {
+    static func allowInteraction(_ interaction: Interaction, on tab: Tab, caller: String, site: String? = nil, mark: Mark? = nil) async -> Bool {
         guard Preferences.shared.aiApprovals else { return true }
         let host = site ?? Self.site(of: tab.url) ?? ""
         let read = readHosts[caller, default: []]
@@ -854,24 +885,31 @@ enum Approvals {
         let allowable = text.cut == 0 && !text.altered && hasSite(host)
         if allowable, let granted = allowances[caller]?[host], others.isSubset(of: granted) { return true }
         let target = host.isEmpty ? String(localized: "this page") : display(host)
-        let sites = others.sorted().prefix(5).map(display).joined(separator: ", ")
-        let message: String, detail: String
+        let sites = others.sorted().prefix(5).map(display).joined(separator: ", ") + (others.count > 5 ? " +\(others.count - 5)" : "")
+        let message: String, label: String
         switch interaction {
         case .type:
             message = String(localized: "The AI wants to type into \(target)")
-            detail = "\(target)\n\n" + String(localized: "Text to type:\n\(text.text)\n\nSites read earlier in this conversation: \(sites)\nDeny if content from there is mixed in.")
+            label = String(localized: "Text to type:")
         case .choose:
             message = String(localized: "The AI wants to choose an option on \(target)")
-            detail = "\(target)\n\n" + String(localized: "Option to choose:\n\(text.text)\n\nSites read earlier in this conversation: \(sites)\nDeny if content from there is mixed in.")
+            label = String(localized: "Option to choose:")
         case .act:
             message = String(localized: "The AI wants to use \(target)")
-            detail = "\(target)\n\n" + String(localized: "Action:\n\(text.text)\n\nSites read earlier in this conversation: \(sites)\nA page can hide instructions for the AI. Deny if this isn’t what you asked for.")
+            label = String(localized: "Action:")
         }
+        let why = String(localized: "A page you read earlier could have slipped instructions into this.")
+        let readLine = String(localized: "Read earlier in this chat: \(sites)")
+        let detail = "\(target)\n\n\(label)\n\(text.text)\n\n\(readLine)\n\(why)"
         let forChat = hasChat(caller) && allowable
         let answer = await choose(message, detail,
                                   [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))]
-                                  + (forChat ? [(.site, String(localized: "Allow on \(display(host)) for This Chat"))] : []), caller: caller)
-        if answer == .site, forChat { allowances[caller, default: [:]][host] = read }
+                                  + (forChat ? [(.site, String(localized: "Allow on \(display(host)) for This Chat"))] : []),
+                                  parts: Prompt.Parts(site: target, readLine: readLine, label: label, text: text.text, why: why), mark: mark, caller: caller)
+        if answer == .site, forChat {
+            allowances[caller, default: [:]][host] = read
+            changes.send()
+        }
         return answer != .deny
     }
 
@@ -887,7 +925,7 @@ enum Approvals {
             && UUID(uuidString: String(parts[2])) != nil
     }
 
-    private static func display(_ host: String) -> String {
+    static func display(_ host: String) -> String {
         host == unknownFrame ? String(localized: "a frame of an unknown site") : host
     }
 
@@ -902,13 +940,13 @@ enum Approvals {
     /// `markupOnly`: the low tier is only the page's markup saying the control is in a cookie banner. A page can say that of anything,
     /// so this is asked every time, with no offer to allow the site for the chat, and in words that don't vouch for it.
     static func allowAction(_ tier: IrreversibleAction.Tier, _ name: String, on tab: Tab, caller: String, site: String? = nil, destination: String? = nil,
-                            markupOnly: Bool = false) async -> Bool {
+                            markupOnly: Bool = false, mark: Mark? = nil) async -> Bool {
         let host = site ?? Self.site(of: tab.url) ?? ""
         let allowable = hasSite(host)
         if tier == .low, markupOnly {
             let place = host.isEmpty ? String(localized: "this page") : display(host)
             return await choose(String(localized: "The AI wants to click a button in what the page calls a cookie banner"),
-                                "\(place)\n\n“\(shown(quotable(abbreviated(name))).text)”\n\n" + String(localized: "Only the page’s own markup says this is a cookie banner, and a page can say that of anything. It is asked every time.\n\nAllow it only if you asked for this."),
+                                "\(place)\n\n“\(shown(quotable(abbreviated(name))).text)”\n\n" + String(localized: "Only the page’s own markup says this is a cookie banner, and a page can say that of anything, so you are asked every time."),
                                 [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))], irreversible: true, caller: caller) != .deny
         }
         if tier == .low, allowable, lowAllowed[caller]?.contains(host) == true { return true }
@@ -917,15 +955,20 @@ enum Approvals {
         if tier == .high {
             let sent = destination.map { String(localized: "The form sends what is typed in it to \(display($0)), another site than this page.") + "\n\n" } ?? ""
             return await choose(String(localized: "The AI wants to do something that can’t be undone"),
-                                "\(place)\n\n“\(words)”\n\n" + sent + String(localized: "This looks like it pays, orders, sends, posts, shares, uploads, grants access, deletes or cancels, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this."),
+                                "\(place)\n\n“\(words)”\n\n" + sent + String(localized: "This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time."),
                                 [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))], irreversible: true, caller: caller) != .deny
         }
         let forChat = hasChat(caller) && allowable
+        let why = String(localized: "This looks like a cookie banner or a setting, not like paying or sending.")
         let answer = await choose(String(localized: "The AI wants to accept cookies or change a setting"),
-                                  "\(place)\n\n“\(words)”\n\n" + String(localized: "This looks like a cookie banner or a setting (save, clear, reset, block, enable), not like paying, sending or granting access. You can allow it once, or on this site for the rest of the chat."),
+                                  "\(place)\n\n“\(words)”\n\n" + why,
                                   [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))]
-                                  + (forChat ? [(.site, String(localized: "Allow on \(display(host)) for This Chat"))] : []), caller: caller)
-        if answer == .site, forChat { lowAllowed[caller, default: []].insert(host) }
+                                  + (forChat ? [(.site, String(localized: "Allow on \(display(host)) for This Chat"))] : []),
+                                  parts: Prompt.Parts(site: place, text: "“\(words)”", why: why), mark: mark, caller: caller)
+        if answer == .site, forChat {
+            lowAllowed[caller, default: []].insert(host)
+            changes.send()
+        }
         return answer != .deny
     }
 
@@ -977,6 +1020,31 @@ enum Approvals {
         lowAllowed[caller] = nil
         SignIn.forgetDeclined(caller: caller)
         chatBegan[caller] = Date()
+        changes.send()
+    }
+
+    /// Tells those showing what a caller has read and been allowed that it changed.
+    static let changes = PassthroughSubject<Void, Never>()
+
+    /// The sites the caller's AI has been given the content of since its chat began, in the way they are shown to the user.
+    static func sitesRead(caller: String) -> [String] {
+        (readHosts[caller] ?? []).sorted()
+    }
+
+    /// The sites on which the caller's AI acts without asking for as long as the chat lasts: the actions of the low tier, and the use of
+    /// the page after reading other sites, which holds only for as long as the sites read are those it was allowed with.
+    static func sitesAllowed(caller: String) -> [String] {
+        let read = readHosts[caller] ?? []
+        var sites = lowAllowed[caller] ?? []
+        for (host, granted) in allowances[caller] ?? [:] where read.subtracting([host]).isSubset(of: granted) { sites.insert(host) }
+        return sites.sorted()
+    }
+
+    /// Takes back what the user allowed the caller on a site: the next action there is asked about again. Nothing else changes.
+    static func revoke(site: String, caller: String) {
+        allowances[caller]?[site] = nil
+        lowAllowed[caller]?.remove(site)
+        changes.send()
     }
 
     private final class Once {
@@ -1006,45 +1074,55 @@ enum Approvals {
         await choose(message, detail, [(.deny, String(localized: "Deny")), (.once, String(localized: "Allow"))], caller: caller) != .deny
     }
 
-    private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], irreversible: Bool = false, caller: String) async -> Choice {
-        await choose(message, detail, buttons, accounts: [], irreversible: irreversible, caller: caller).choice
+    private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], irreversible: Bool = false,
+                               parts: Prompt.Parts? = nil, mark: Mark? = nil, caller: String) async -> Choice {
+        await choose(message, detail, buttons, accounts: [], irreversible: irreversible, parts: parts, mark: mark, caller: caller).choice
     }
 
-    /// Asks on the browser window, the first button being the one Return presses; no answer within `timeout` counts as
-    /// no, so a late yes never runs a stale request. With `accounts`, the question carries a list to pick one from (the first
-    /// is chosen to begin with), and says which.
-    private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], accounts: [String], irreversible: Bool = false, caller: String) async -> (choice: Choice, account: Int) {
-        let prompt = Prompt(message: message, detail: detail, choices: buttons.map(\.0), accounts: accounts, irreversible: irreversible)
+    /// Asks in the chat panel when the panel's AI asks with the panel open (see `route`), else on the browser window, the first button being
+    /// the one Return presses; no answer within `timeout` counts as no, so a late yes never runs a stale request. With `accounts`, the
+    /// question carries a list to pick one from (the first is chosen to begin with), and says which.
+    private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], accounts: [String], irreversible: Bool = false,
+                               parts: Prompt.Parts? = nil, mark: Mark? = nil, caller: String) async -> (choice: Choice, account: Int) {
+        let prompt = Prompt(message: message, detail: detail, choices: buttons.map(\.0), accounts: accounts, irreversible: irreversible, parts: parts)
         let standing = stand ?? (Headless.isOn ? headless : nil)
         if let standing {
             if standing.asked.count > 100 { standing.asked.removeFirst(standing.asked.count - 100) }
             standing.asked.append(prompt)
             if !standing.holds { return (standing.answer(prompt), min(max(standing.pick(prompt), 0), max(accounts.count - 1, 0))) }
         }
-        guard standing != nil || Browser.recent?.window != nil else { return (.deny, 0) }
-        let alert = NSAlert()
+        let panel = Browser.recent.flatMap { browser -> Browser? in browser.showChat && !browser.focusMode ? browser : nil }
+        // A stand that holds its questions shows them as the app would, so that what a person would see can be looked at.
+        let inPanel = (standing == nil || standing?.holds == true) && route(caller: caller, irreversible: irreversible, accounts: accounts, panelOpen: panel != nil) == .card
+        guard standing != nil || inPanel || Browser.recent?.window != nil else { return (.deny, 0) }
         let list = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 280, height: 26), pullsDown: false)
-        if standing == nil {
-            alert.messageText = message
-            alert.informativeText = detail
-            for (_, title) in buttons { alert.addButton(withTitle: title) }
-            if accounts.count > 1 {
-                list.addItems(withTitles: accounts.map(accountTitle))
-                alert.accessoryView = list
-            }
-            NSApp.requestUserAttention(.informationalRequest)
-        }
+        if standing == nil { NSApp?.requestUserAttention(.informationalRequest) }
         return await withCheckedContinuation { continuation in
             let once = Once()
             let id = UUID()
+            var end: () -> Void = {}
             let finish = { (choice: Choice, account: Int) in
                 guard !once.done else { return }
                 once.done = true
                 pending.removeAll { $0.id == id }
+                ApprovalCards.shared.remove(id)
+                if inPanel { mark?.clear() }
                 continuation.resume(returning: (choice, account))
             }
-            var end: () -> Void = {}
-            if standing == nil, let window = Browser.recent?.window {
+            let showSheet = {
+                guard standing == nil else { return }
+                guard let window = Browser.recent?.window else {
+                    finish(.deny, 0)
+                    return
+                }
+                let alert = NSAlert()
+                alert.messageText = message
+                alert.informativeText = detail
+                for (_, title) in buttons { alert.addButton(withTitle: title) }
+                if accounts.count > 1 {
+                    list.addItems(withTitles: accounts.map(accountTitle))
+                    alert.accessoryView = list
+                }
                 alert.beginSheetModal(for: window) { response in
                     let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
                     finish(buttons.indices.contains(index) ? buttons[index].0 : .deny, max(list.indexOfSelectedItem, 0))
@@ -1055,6 +1133,18 @@ enum Approvals {
                 finish(choice, 0)
                 end()
             })
+            if inPanel, let panel {
+                // The panel closing with the question open moves it to the window, where it can't be missed.
+                ApprovalCards.shared.add(ApprovalCards.Card(id: id, prompt: prompt, buttons: buttons, browser: panel, answer: { finish($0, 0) }, moveToSheet: showSheet))
+                if let mark {
+                    Task {
+                        if !once.done { await mark.show() }
+                        if once.done { mark.clear() }
+                    }
+                }
+            } else {
+                showSheet()
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
                 guard !once.done else { return }
                 finish(.deny, 0)
