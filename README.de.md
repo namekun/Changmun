@@ -144,6 +144,21 @@ changmun type 3 "hello" --submit
 
 `changmun help` zeigt den Rest. Jeder Befehl ist eines derselben Werkzeuge, mit denselben Rückfragen, und startet Changmun bei Bedarf.
 
+### Changmun ohne Oberfläche, für Agenten
+
+Wenn ein Agent im Browser, den du gerade benutzt, immer wieder dieselben Fragen stellt, nervt das schnell. Für Agenten gibt es ein zweites Changmun ohne Fenster: unsichtbar, ohne Fokus und ohne Ton, mit eigenem Profil, also ohne deine Cookies, deinen Verlauf, deine Passwörter und den Schlüsselbund.
+
+```sh
+changmun headless start     # kopiert die App, aus der du es startest, nach ~/Library/Application Support/Changmun Agent und startet sie
+changmun headless status    # läuft oder nicht, pid, Version, Profilordner
+changmun --headless open example.com
+changmun --headless read
+changmun headless stop
+claude mcp add changmun-headless -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp --headless
+```
+
+Mit `--headless` bei einem beliebigen Befehl geht er dorthin statt an deinen Browser; `--mcp --headless` ist die MCP-Form. Beide starten es, falls es nicht läuft. Darin wird die KI nicht gefragt, bevor sie andere Tabs nutzt, neue Adressen öffnet oder nach dem Lesen anderer Seiten handelt: Diese Rückfragen, die vor in Seiten versteckten Anweisungen schützen, sind aus. Darum ist es eine eigene Kopie mit leerem Profil, und darum lehnt es ab, was sich nicht rückgängig machen lässt: Was nach Bezahlen, Bestellen, Senden, Posten, Löschen oder Zugriff-Gewähren aussieht, und alles in einem Bereich, den eine Seite nur Cookie-Banner nennt, bekommt den Fehler „braucht einen Menschen“, denn niemand schaut zu, und eine Seite, bei der du dich darin anmeldest, stünde der KI offen. Alles andere ist erlaubt. Website-Berechtigungen (Kamera, Standort …) werden verweigert. Die Kopie entsteht aus der App, die den Befehl ausführt, und wird neu gemacht, wenn diese eine andere Version ist (`changmun headless status` sagt es dir); sie aktualisiert sich nie selbst.
+
 ## Tastenkurzbefehle
 
 Wähle in den Einstellungen (⌘,) „Wie in Safari“ oder „Wie in Chrome“. Es ändern sich nur die Tasten, bei denen sich die beiden Browser unterscheiden.
@@ -235,7 +250,7 @@ Releases werden für Sparkle mit einem EdDSA-Schlüssel signiert. Trage den Pfad
 
 Der Text der Oberfläche steht im Code auf Englisch und wird in `Resources/<Sprache>.lproj/Localizable.strings` übersetzt; trage jeden neuen String in alle sechs Tabellen ein.
 
-`scripts/headless.sh` startet ein Changmun ohne Oberfläche für Tests und Agenten: außerhalb des Bildschirms, ohne je den Fokus zu nehmen oder Ton abzuspielen, mit eigenem Profil in `~/Library/Application Support/Changmun Headless`. Es berührt den Schlüsselbund nicht und beantwortet KI-Rückfragen, Website-Berechtigungen und JavaScript-Dialoge selbst (Berechtigungen werden abgelehnt).
+`scripts/headless.sh` startet die Testkopie `Changmun Headless.app` (sie teilt nie ein Profil mit dem `changmun headless` aus dem KI-Abschnitt, das für Agenten da ist), ein Changmun ohne Oberfläche für Tests und Agenten: außerhalb des Bildschirms, ohne je den Fokus zu nehmen oder Ton abzuspielen, mit eigenem Profil in `~/Library/Application Support/Changmun Headless`. Es berührt den Schlüsselbund nicht und beantwortet KI-Rückfragen, Website-Berechtigungen und JavaScript-Dialoge selbst (Berechtigungen werden abgelehnt).
 
 ```sh
 scripts/headless.sh start                                   # copy build/Changmun.app as the headless app and start it

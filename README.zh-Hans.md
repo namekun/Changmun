@@ -144,6 +144,21 @@ changmun type 3 "hello" --submit
 
 其余命令见 `changmun help`。每条命令调用一个相同的工具，经过同样的确认，必要时会启动 Changmun。
 
+### 给智能体用的无界面 Changmun
+
+智能体在你正用的浏览器里一遍遍问你，很快就让人心累。所以我们另备了一个没有窗口的 Changmun：看不见，不抢焦点，也不出声，配置也是独立的，里面没有你的 Cookie、历史记录、密码和钥匙串。
+
+```sh
+changmun headless start     # 把你运行命令的这个应用复制到 ~/Library/Application Support/Changmun Agent 并启动
+changmun headless status    # 是否在运行、pid、版本、配置文件夹
+changmun --headless open example.com
+changmun --headless read
+changmun headless stop
+claude mcp add changmun-headless -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp --headless
+```
+
+任何命令加上 `--headless`，就会发给它，而不是你正用的浏览器；MCP 的写法是 `--mcp --headless`。没在运行时，两者都会先把它启动。在这里，AI 使用其他标签页、打开新地址、读过其他网站后再操作之前，都不会询问：这些用来防范网页暗藏指令的询问是关闭的。所以它是一个配置为空的独立副本，并且会拒绝无法撤销的操作：看起来像付款、下单、发送、发布、删除或授予访问权限的操作，以及只是被网页自称为 Cookie 横幅的区域里的操作，都会收到“需要真人”的错误，因为没有人在旁边看着，而你在里面登录过的网站就等于交给了 AI。其余一律放行。网站权限（摄像头、位置等）一律拒绝。副本由运行命令的应用生成，该应用换了版本就会重新生成（`changmun headless status` 会告诉你）；它自己不会更新。
+
 ## 快捷键
 
 可在设置 (⌘,) 中选择 Safari 风格或 Chrome 风格。只有两款浏览器不一致的按键会随之改变。
@@ -235,7 +250,7 @@ scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
 
 界面文本在代码中是英文，翻译放在 `Resources/<language>.lproj/Localizable.strings` 中；新增的每条字符串都要加进全部六个表。
 
-`scripts/headless.sh` 为测试和智能体运行无界面的 Changmun：不在屏幕上显示，从不抢占焦点或发出声音，使用 `~/Library/Application Support/Changmun Headless` 中独立的配置。它不会触碰钥匙串，并会自行应答 AI 确认、网站权限和 JavaScript 对话框（权限一律拒绝）。
+`scripts/headless.sh` 运行的是测试用副本 `Changmun Headless.app`（它与上文 AI 一节里面向智能体的 `changmun headless` 从不共用配置），即为测试和智能体运行的无界面 Changmun：不在屏幕上显示，从不抢占焦点或发出声音，使用 `~/Library/Application Support/Changmun Headless` 中独立的配置。它不会触碰钥匙串，并会自行应答 AI 确认、网站权限和 JavaScript 对话框（权限一律拒绝）。
 
 ```sh
 scripts/headless.sh start                                   # copy build/Changmun.app as the headless app and start it

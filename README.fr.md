@@ -144,6 +144,21 @@ changmun type 3 "hello" --submit
 
 `changmun help` liste le reste. Chaque commande est l’un des mêmes outils, avec les mêmes questions, et lance Changmun si besoin.
 
+### Changmun sans interface, pour les agents
+
+Qu’un agent vous pose sans cesse les mêmes questions dans le navigateur que vous utilisez, ça lasse vite. Pour les agents, il y a un second Changmun sans fenêtre : invisible, sans prendre le focus ni faire de bruit, avec un profil à lui, donc sans aucun de vos cookies, historique, mots de passe ni Trousseau.
+
+```sh
+changmun headless start     # copie l’app depuis laquelle vous lancez la commande dans ~/Library/Application Support/Changmun Agent et la démarre
+changmun headless status    # en marche ou non, pid, version, dossier du profil
+changmun --headless open example.com
+changmun --headless read
+changmun headless stop
+claude mcp add changmun-headless -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp --headless
+```
+
+Ajoutez `--headless` à n’importe quelle commande pour l’envoyer là plutôt qu’à votre navigateur ; `--mcp --headless` est la forme MCP. Les deux le lancent s’il n’est pas en marche. Ici, l’IA n’est pas interrogée avant d’utiliser d’autres onglets, d’ouvrir de nouvelles adresses ou d’agir après avoir lu d’autres sites : ces questions, qui protègent des instructions cachées dans les pages, sont désactivées. C’est pourquoi c’est une copie à part au profil vide, et pourquoi elle refuse ce qui ne peut pas être défait : ce qui ressemble à payer, commander, envoyer, publier, supprimer ou accorder un accès, et tout ce qui se trouve dans ce qu’une page appelle seulement une bannière de cookies, reçoit une erreur « il faut une personne », car personne ne regarde et un site où vous vous connectez là-dedans serait à la disposition de l’IA. Tout le reste est autorisé. Les autorisations de sites (caméra, position…) sont refusées. La copie est faite à partir de l’app qui lance la commande et refaite quand c’est une autre version (`changmun headless status` vous le dit) ; elle ne se met jamais à jour toute seule.
+
 ## Raccourcis
 
 Choisissez le style Safari ou le style Chrome dans les Réglages (⌘,). Seules les touches sur lesquelles les deux navigateurs divergent changent.
@@ -235,7 +250,7 @@ Les versions sont signées pour Sparkle avec une clé EdDSA. Indiquez le chemin 
 
 Le texte de l’interface est en anglais dans le code et traduit dans `Resources/<language>.lproj/Localizable.strings` ; ajoutez chaque nouvelle chaîne aux six tables.
 
-`scripts/headless.sh` lance un Changmun sans interface pour les tests et les agents : hors écran, sans jamais prendre le focus ni émettre de son, avec son propre profil dans `~/Library/Application Support/Changmun Headless`. Il ne touche pas au Trousseau et répond lui-même aux confirmations de l’IA, aux autorisations des sites et aux boîtes de dialogue JavaScript (les autorisations sont refusées).
+`scripts/headless.sh` lance la copie de test, `Changmun Headless.app` (elle ne partage jamais son profil avec le `changmun headless` de la section IA, celui des agents), un Changmun sans interface pour les tests et les agents : hors écran, sans jamais prendre le focus ni émettre de son, avec son propre profil dans `~/Library/Application Support/Changmun Headless`. Il ne touche pas au Trousseau et répond lui-même aux confirmations de l’IA, aux autorisations des sites et aux boîtes de dialogue JavaScript (les autorisations sont refusées).
 
 ```sh
 scripts/headless.sh start                                   # copy build/Changmun.app as the headless app and start it

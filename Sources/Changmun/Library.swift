@@ -12,7 +12,7 @@ final class Library: @unchecked Sendable {
     static func isFavorites(_ folder: String) -> Bool { folder.isEmpty || folder.hasPrefix(favoritesPrefix) }
     static let shared = Library(path: Library.folder.appendingPathComponent("library.sqlite").path)
 
-    /// The user's data folder, for the app and for Changmun Headless only. Anything else (the test runner, a bare
+    /// The user's data folder, for the app and for the headless apps only. Anything else (the test runner, a bare
     /// `swift run` binary) gets a folder of its own in the temporary directory, so it can never touch that data.
     static var folder: URL {
         let url = location(forBundle: Bundle.main.bundleIdentifier)
@@ -25,7 +25,7 @@ final class Library: @unchecked Sendable {
     static func location(forBundle bundleID: String?) -> URL {
         guard bundleID?.hasPrefix("io.github.namekun.Changmun") == true else { return scratch }
         return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent(bundleID == Headless.bundleID ? "Changmun Headless" : "Changmun", isDirectory: true)
+            .appendingPathComponent(Headless.profileName(forBundle: bundleID) ?? "Changmun", isDirectory: true)
     }
 
     struct Entry: Equatable {

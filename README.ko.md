@@ -144,6 +144,21 @@ changmun type 3 "hello" --submit
 
 나머지 명령은 `changmun help`에 있어요. 명령 하나가 도구 하나에 대응하고, 확인 절차도 똑같고, 필요하면 Changmun을 먼저 띄워요.
 
+### 에이전트용 화면 없는 Changmun
+
+지금 쓰는 브라우저에서 에이전트가 계속 물어보면 금방 지쳐요. 그래서 창 없는 Changmun을 하나 더 뒀어요. 눈에 보이지 않고, 포커스를 가져가지도 소리를 내지도 않아요. 프로필도 따로라서 내 쿠키, 방문 기록, 비밀번호, 키체인은 하나도 없어요.
+
+```sh
+changmun headless start     # 명령을 실행한 앱을 ~/Library/Application Support/Changmun Agent에 복사해 띄워요
+changmun headless status    # 실행 중인지, pid, 버전, 프로필 폴더
+changmun --headless open example.com
+changmun --headless read
+changmun headless stop
+claude mcp add changmun-headless -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp --headless
+```
+
+아무 명령에나 `--headless`를 붙이면 지금 쓰는 브라우저 대신 이쪽으로 가요. MCP는 `--mcp --headless`고요. 꺼져 있으면 둘 다 먼저 띄워요. 여기서는 AI가 다른 탭을 쓰거나, 새 주소를 열거나, 다른 사이트를 읽은 뒤 행동하기 전에 묻지 않아요. 페이지에 숨은 지시를 막으려고 평소에는 묻던 질문을 꺼 둔 거예요. 그래서 빈 프로필의 별도 복사본으로 두고, 되돌릴 수 없는 일은 거절해요. 결제, 주문, 전송, 게시, 삭제, 접근 허용처럼 보이는 동작과, 페이지가 쿠키 배너라고 우기기만 하는 영역 안의 동작은 "사람이 필요하다"는 오류가 가요. 지켜보는 사람이 없고, 그 안에서 로그인한 사이트는 AI가 마음대로 쓸 수 있으니까요. 나머지는 모두 허용해요. 사이트 권한(카메라, 위치 등)은 거부하고요. 복사본은 명령을 실행한 앱으로 만들고, 그 앱의 버전이 바뀌면 다시 만들어요(`changmun headless status`가 알려 줘요). 스스로 업데이트하지는 않아요.
+
 ## 단축키
 
 설정(⌘,)에서 Safari식과 Chrome식 중에 골라요. 두 브라우저가 서로 다른 키만 달라져요.
@@ -235,7 +250,7 @@ scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
 
 UI 문구는 코드에서는 영어이고 `Resources/<language>.lproj/Localizable.strings`에서 번역해요. 새 문구는 여섯 개 표 모두에 추가하세요.
 
-`scripts/headless.sh`는 테스트나 에이전트가 쓰는 화면 없는 Changmun을 띄워요. 창은 화면 밖에 두고, 포커스를 가져가지도 소리를 내지도 않으며, `~/Library/Application Support/Changmun Headless`에 자기만의 프로필을 둬요. 키체인은 건드리지 않고, AI 확인 창·사이트 권한·JavaScript 대화상자에는 알아서 답해요(권한은 거부).
+`scripts/headless.sh`는 테스트용 복사본인 `Changmun Headless.app`을 띄워요(위 AI 절의 `changmun headless`와는 프로필을 나누지 않아요. 그쪽이 에이전트용이에요). 테스트나 에이전트가 쓰는 화면 없는 Changmun이에요. 창은 화면 밖에 두고, 포커스를 가져가지도 소리를 내지도 않으며, `~/Library/Application Support/Changmun Headless`에 자기만의 프로필을 둬요. 키체인은 건드리지 않고, AI 확인 창·사이트 권한·JavaScript 대화상자에는 알아서 답해요(권한은 거부).
 
 ```sh
 scripts/headless.sh start                                   # copy build/Changmun.app as the headless app and start it

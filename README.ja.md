@@ -144,6 +144,21 @@ changmun type 3 "hello" --submit
 
 ほかのコマンドは`changmun help`で確認できます。各コマンドは同じツールを1つずつ呼び出し、同じ確認を経て、必要ならChangmunを起動します。
 
+### エージェント向けのヘッドレスChangmun
+
+いま使っているブラウザでエージェントに何度も確認されると、すぐに疲れてしまいます。そこで、ウィンドウのないChangmunをもう1つ用意しました。画面には現れず、フォーカスも奪わず、音も鳴らしません。プロファイルも別なので、あなたのCookie、履歴、パスワード、キーチェーンは入っていません。
+
+```sh
+changmun headless start     # 実行したアプリを ~/Library/Application Support/Changmun Agent にコピーして起動します
+changmun headless status    # 起動中かどうか、pid、バージョン、プロファイルのフォルダ
+changmun --headless open example.com
+changmun --headless read
+changmun headless stop
+claude mcp add changmun-headless -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp --headless
+```
+
+どのコマンドにも`--headless`を付けると、いまのブラウザではなくこちらに送られます。MCPなら`--mcp --headless`です。起動していなければ、どちらも先に起動します。ここではAIが他のタブを使うとき、新しいアドレスを開くとき、他のサイトを読んだあとに操作するときに確認しません。ページに仕込まれた指示から守るための確認を、オフにしてあるのです。だからプロファイルが空の別コピーにしてあり、取り消せない操作は拒否します。支払い、注文、送信、投稿、削除、アクセス許可に見える操作や、ページがCookieバナーと称しているだけの領域内の操作には、「人が必要」というエラーを返します。見ている人がいませんし、その中でログインしたサイトはAIが自由に使えてしまうからです。それ以外はすべて許可します。サイトの権限 (カメラ、位置情報など) は拒否します。コピーはコマンドを実行したアプリから作られ、そのバージョンが変わると作り直します (`changmun headless status`でわかります)。自分で更新することはありません。
+
 ## ショートカット
 
 設定 (⌘,) でSafari方式かChrome方式かを選べます。切り替わるのは、2つのブラウザで異なるキーだけです。
@@ -235,7 +250,7 @@ scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
 
 UIのテキストはコード内では英語で、`Resources/<language>.lproj/Localizable.strings`で翻訳されます。新しい文字列は6つの表すべてに追加してください。
 
-`scripts/headless.sh`は、テストやエージェント向けにヘッドレスのChangmunを実行します。画面の外で動作し、フォーカスを奪わず、音も鳴らさず、`~/Library/Application Support/Changmun Headless`に専用のプロファイルを持ちます。キーチェーンには触れず、AIの確認、サイトの権限、JavaScriptのダイアログには自動で応答します (権限は拒否されます)。
+`scripts/headless.sh`は、テスト用のコピーである`Changmun Headless.app`を実行します (上のAIの節にある`changmun headless`とはプロファイルを共有しません。そちらはエージェント向けです)。テストやエージェント向けのヘッドレスのChangmunです。画面の外で動作し、フォーカスを奪わず、音も鳴らさず、`~/Library/Application Support/Changmun Headless`に専用のプロファイルを持ちます。キーチェーンには触れず、AIの確認、サイトの権限、JavaScriptのダイアログには自動で応答します (権限は拒否されます)。
 
 ```sh
 scripts/headless.sh start                                   # copy build/Changmun.app as the headless app and start it

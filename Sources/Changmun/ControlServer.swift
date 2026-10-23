@@ -10,7 +10,7 @@ struct ControlEndpoint: Codable {
 
     static var file: URL { Library.folder.appendingPathComponent("control.json") }
 
-    static func read() -> ControlEndpoint? {
+    static func read(file: URL = file) -> ControlEndpoint? {
         guard let data = try? Data(contentsOf: file), let endpoint = try? JSONDecoder().decode(ControlEndpoint.self, from: data),
               kill(endpoint.pid, 0) == 0 else { return nil }
         return endpoint
@@ -71,7 +71,7 @@ final class ControlServer {
 
     private func handle(_ request: HTTPRequest, on connection: NWConnection) {
         // Tests only: a picture of the front window, sidebar and all.
-        if Headless.isOn, request.method == "POST", request.path == "/window-image" {
+        if Headless.isTestCopy, request.method == "POST", request.path == "/window-image" {
             Task { @MainActor in
                 guard let window = Browser.current?.window, let png = await WindowImage.png(of: window) else {
                     return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
@@ -82,7 +82,7 @@ final class ControlServer {
         }
         // Tests only: a mouse event at a point in the window (from its top left), handed to the app as if it came
         // from the window server, so the headless app can be clicked without touching the real pointer.
-        if Headless.isOn, request.method == "POST", request.path == "/window-event",
+        if Headless.isTestCopy, request.method == "POST", request.path == "/window-event",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any],
            let kind = body["type"] as? String, let x = body["x"] as? Double, let y = body["y"] as? Double {
             Task { @MainActor in
@@ -100,7 +100,7 @@ final class ControlServer {
         }
         // Tests only: the front window's spaces. "action" is list, create (name, symbol, tint, profile), switch, delete (by
         // name), or sheet (shows the new-space sheet, or the edit sheet of the space named); the answer lists the spaces.
-        if Headless.isOn, request.method == "POST", request.path == "/spaces",
+        if Headless.isTestCopy, request.method == "POST", request.path == "/spaces",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
             Task { @MainActor in
                 guard let browser = Browser.current else {
@@ -130,7 +130,7 @@ final class ControlServer {
         }
         // Tests only: a tab (the active one unless "tab_id" names another) as a PDF or a full-page picture, written to a
         // path without the save panel. Private windows are refused.
-        if Headless.isOn, request.method == "POST", request.path == "/save-page",
+        if Headless.isTestCopy, request.method == "POST", request.path == "/save-page",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any],
            let kind = body["format"] as? String, let path = body["path"] as? String {
             Task { @MainActor in
@@ -145,7 +145,7 @@ final class ControlServer {
         // Tests only: split view and peek, run on the front window. "action" is split (tab_id: shown next to the active tab),
         // unsplit, toggle, peek (url), closePeek or keepPeek; the answer says, for every tab on screen, whether its web view
         // is in the window with a size, after a moment for the views to settle.
-        if Headless.isOn, request.method == "POST", request.path == "/views",
+        if Headless.isTestCopy, request.method == "POST", request.path == "/views",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
             Task { @MainActor in
                 guard let browser = Browser.current else {
@@ -176,7 +176,7 @@ final class ControlServer {
         // other than "tab_id"; "eval" runs a script in the page of that tab as the browser's own calls do (with a user gesture),
         // and its value comes back as "result". The answer is the number of tabs, the last few of them (the page's opener, its title and address),
         // the active tab, and every bar that is showing.
-        if Headless.isOn, request.method == "POST", request.path == "/popups",
+        if Headless.isTestCopy, request.method == "POST", request.path == "/popups",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
             Task { @MainActor in
                 guard let browser = Browser.current else {
@@ -213,7 +213,7 @@ final class ControlServer {
         }
         // Tests only: the saved logins of the headless app, which keeps them in memory (it never touches the keychain). "host",
         // "username" and "password" add one; "clear" empties them; the answer is how many there are.
-        if Headless.isOn, request.method == "POST", request.path == "/logins",
+        if Headless.isTestCopy, request.method == "POST", request.path == "/logins",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
             Task { @MainActor in
                 if body["clear"] as? Bool == true { MemoryLogins.shared.items = [] }
@@ -225,7 +225,7 @@ final class ControlServer {
             return
         }
         // Tests only: a page of "html" in the tab in front, as if it came from the address "base" (https://lab.test/, say).
-        if Headless.isOn, request.method == "POST", request.path == "/load-html",
+        if Headless.isTestCopy, request.method == "POST", request.path == "/load-html",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any], let html = body["html"] as? String {
             Task { @MainActor in
                 guard let tab = Browser.recent?.active else { return self.respond(connection, status: "404 Not Found", body: ["error": "no tab"]) }
@@ -243,7 +243,7 @@ final class ControlServer {
         // the name the panel's calls carry ("panelSecret": its secret and the token of the run under way, which only a headless app
         // gives out; "panelRun" starts a run's token), and what was
         // asked, newest last ("clear" empties that list).
-        if Headless.isOn, request.method == "POST", request.path == "/approvals",
+        if Headless.isTestCopy, request.method == "POST", request.path == "/approvals",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
             Task { @MainActor in
                 if let answer = body["answer"] as? String {
@@ -265,7 +265,7 @@ final class ControlServer {
         }
         // Tests only: what the AI tools on this Mac look like to the app. "state" is ready, coming (Claude Code missing, Codex and
         // opencode found) or none; "show" is onboarding (opens it, at its first step) or panel (opens the AI panel on a new chat).
-        if Headless.isOn, request.method == "POST", request.path == "/ai-tools",
+        if Headless.isTestCopy, request.method == "POST", request.path == "/ai-tools",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
             Task { @MainActor in
                 switch body["state"] as? String {
@@ -288,7 +288,7 @@ final class ControlServer {
             return
         }
         // Tests only: open the settings window on a page, far off screen, and answer with its picture.
-        if Headless.isOn, request.method == "POST", request.path == "/settings-image",
+        if Headless.isTestCopy, request.method == "POST", request.path == "/settings-image",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
             Task { @MainActor in
                 UserDefaults.standard.set(body["page"] as? String ?? SettingsPage.general.rawValue, forKey: "settingsPage")
