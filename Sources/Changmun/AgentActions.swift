@@ -958,7 +958,7 @@ extension ToolCatalog {
     static func approve(_ interaction: Approvals.Interaction?, aims: [Aim], irreversible: [Aim] = [], tab: Tab, session: Session) async throws {
         if session.stopped { throw ToolFailure(result: stopped) }
         if let interaction {
-            let allowed = await Approvals.allowInteraction(interaction, on: tab, caller: session.caller, site: aims[0].host)
+            let allowed = await Approvals.allowInteraction(interaction, on: tab, caller: session.caller, site: aims[0].host, mark: highlighting(aims[0], on: tab))
             if session.stopped { throw ToolFailure(result: stopped) }
             if !allowed { throw ToolFailure(result: declined) }
         }
@@ -970,10 +970,18 @@ extension ToolCatalog {
             let name = IrreversibleAction.name(of: aim.facts, tier: tier)
             let markupOnly = destination == nil && IrreversibleAction.restsOnMarkup(aim.facts)
             let allowed = await Approvals.allowAction(tier, name.isEmpty ? aim.label : name, on: tab, caller: session.caller, site: aim.host, destination: destination,
-                                                      markupOnly: markupOnly)
+                                                      markupOnly: markupOnly, mark: highlighting(aim, on: tab))
             if session.stopped { throw ToolFailure(result: stopped) }
             if !allowed { throw ToolFailure(result: declined(tier, markupOnly: markupOnly)) }
         }
+    }
+
+    /// What a question in the panel shows of its target while it waits: the AI's outline around it.
+    @MainActor
+    private static func highlighting(_ aim: Aim, on tab: Tab) -> Approvals.Mark? {
+        guard let webView = tab.webView else { return nil }
+        return Approvals.Mark(show: { _ = await run(PageScripts.highlight, aim.script(), in: webView, frame: aim.frame) },
+                              clear: { webView.appScript(PageScripts.unhighlight, in: aim.frame) })
     }
 
     /// The site a form is sent to, when the action submits one to a site other than the one it is on.

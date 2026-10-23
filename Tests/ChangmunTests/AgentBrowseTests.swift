@@ -862,7 +862,7 @@ extension SharedAgentState {
                 let cut = stand.asked.last!
                 #expect(cut.choices == [.deny, .once])
                 #expect(cut.detail.contains("(\(long.count - 500) more characters are not shown)") && !cut.detail.contains("SECRET-FROM-A"))
-                #expect(cut.detail.hasSuffix("Deny if content from there is mixed in.") && cut.detail.contains("Sites read earlier"), "the warning is still there")
+                #expect(cut.detail.hasSuffix("slipped instructions into this.") && cut.detail.contains("Read earlier in this chat"), "the warning is still there")
                 // After the short one was allowed for the chat, the cut one is still asked about; the short one is not.
                 #expect(await Approvals.allowInteraction(.type("short"), on: tabs[1], caller: panel))
                 #expect(stand.asked.count == 3)
@@ -1038,13 +1038,13 @@ extension SharedAgentState {
                 stand.asked.removeAll()
                 // The tabs that were told are read; the one that was only named is not.
                 #expect(await Approvals.allowInteraction(.type("x"), on: tabs[1], caller: caller))
-                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("conversation: c.example") && !stand.asked[0].detail.contains("a.example"))
+                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("chat: c.example") && !stand.asked[0].detail.contains("a.example"))
                 Approvals.forgetReads(caller: caller)
                 Approvals.noteRead(tabs[1], caller: caller)
                 _ = await ToolCatalog.call("list_tabs", [:], caller: caller)
                 stand.asked.removeAll()
                 #expect(await Approvals.allowInteraction(.type("x"), on: tabs[0], caller: caller))
-                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("conversation: b.example") && !stand.asked[0].detail.contains("conversation: a.example"))
+                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("chat: b.example") && !stand.asked[0].detail.contains("chat: a.example"))
             }
         }
 
@@ -1231,7 +1231,7 @@ extension SharedAgentState {
             chat.noteAttachedRead()
             await asking({ _ in .once }) { stand in
                 #expect(await Approvals.allowInteraction(.type("x"), on: tabs[1], caller: panel))
-                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("conversation: front.example"))
+                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("chat: front.example"))
             }
         }
 
@@ -3726,7 +3726,7 @@ extension SharedAgentState {
                 let line = try #require(read.split(separator: "\n").first { $0.contains("--- Frame: https://tracker-free.example/") })
                 #expect(line.count < 320 && line.contains("…") && line.contains("could not be read"), "\(line.count): the address is cut")
                 #expect(await Approvals.allowInteraction(.act("Clicking “Go”"), on: tab, caller: panel))
-                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("conversation: tracker-free.example"), "the address it was told is a site it was told of: \(stand.asked.map(\.detail))")
+                #expect(stand.asked.count == 1 && stand.asked[0].detail.contains("chat: tracker-free.example"), "the address it was told is a site it was told of: \(stand.asked.map(\.detail))")
             }
         }
 

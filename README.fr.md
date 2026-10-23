@@ -102,7 +102,7 @@ Le blocage des publicités et des traqueurs est décrit dans [Blocage des public
 
 ## IA
 
-Le panneau de droite (⌘E) utilise la CLI `claude` que vous avez déjà, il fonctionne donc avec votre abonnement Claude Code. Le modèle par défaut est Sonnet ; pour en changer, utilisez `defaults write io.github.namekun.Changmun aiModel opus`.
+Le panneau de droite (⌘E) utilise la CLI `claude` que vous avez déjà, il fonctionne donc avec votre abonnement Claude Code. Le modèle par défaut est Sonnet ; pour en changer, utilisez la pastille du modèle sous la zone de message ou Réglages › IA.
 
 L’IA pilote le navigateur grâce à ces outils : `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `click_at`, `type_text`, `press_key`, `select_option`, `hover`, `drag`, `wait_for`, `scroll`, `screenshot`, `sign_in`. Elle ne peut ni lire, ni remplir, ni toucher au clavier les champs de mot de passe, de code à usage unique et de carte, et les captures d’écran les masquent. Elle ne peut pas non plus téléverser de fichiers.
 
@@ -115,6 +115,14 @@ L’IA pilote le navigateur grâce à ces outils : `list_tabs`, `open_tab`, `swi
 
 Pour travailler sur plusieurs onglets, ajoutez-les sous le chat avec « Ajouter un onglet » (un par un, un groupe d’onglets ou tous les onglets ouverts) : ils apparaissent sous forme de pastilles que vous pouvez retirer, l’IA les lit ensemble avec `read_tabs` et ne vous demande rien avant de les lire. Avec deux onglets ou plus, le panneau propose de les comparer ou de résumer l’essentiel de chacun.
 
+L’onglet que voit l’IA s’affiche en pastille sur la ligne sous le chat, et taper @ dans la zone en joint un autre. ⌘E place le curseur dans la zone (depuis la zone, il ferme le panneau), Échap arrête une exécution, ↑ rappelle votre dernier message, et le bord gauche du panneau se fait glisser pour l’élargir. Les suggestions suivent la page où vous êtes, et « Demander à l’IA à propos de la sélection », dans le menu contextuel d’une page, cite le texte sélectionné dans la zone.
+
+Les réponses affichent blocs de code, listes et tableaux, avec un bouton Copier sur le code. Un lien indique aussi le site où il mène vraiment, et une fois que le chat a lu d’autres sites, ouvrir un lien d’une réponse demande d’abord. Une longue exécution se replie en « 12 étapes » avec une ligne sur les onglets ouverts et fermés, et « Rouvrir » ramène ceux qu’elle a fermés. Si Claude Code n’est pas connecté, si sa limite d’usage est atteinte ou si le réseau ou les serveurs d’Anthropic flanchent, le panneau le dit en clair, avec « Réessayer ».
+
+Sous le chat, « Capture » joint une image de la page où vous êtes (les secrets de la page restent hors champ), et vous pouvez aussi déposer ou coller des images dans le panneau : jusqu’à 4 par message, réduites à 1568 pixels sur le grand côté et réenregistrées sans le lieu ni l’heure que portait le fichier. Une image compte comme lue par l’IA (une capture comme sa page, toute autre comme une image que vous avez ajoutée), donc ce qu’elle fait ensuite est demandé comme après la lecture d’un autre site.
+
+Les chats terminés ne restent que sur ce Mac et se relisent avec le bouton horloge du panneau. Ils sont en lecture seule (un chat ne reprend jamais : l’IA se souviendrait encore des pages lues, mais Changmun ne saurait plus de quels sites elles viennent, et la question posée après la lecture d’autres sites serait sautée), et les fenêtres privées ne sont jamais enregistrées. Le texte saisi ou choisi n’est gardé que par sa longueur, et les adresses perdent ce qui suit ? ou #. On l’éteint dans Réglages › IA › Conserver l’historique des conversations, et on supprime un chat ou tous depuis le panneau.
+
 Pour que des instructions cachées dans une page ne puissent pas lui faire emporter ailleurs ce qu’elle a lu, Changmun vous demande d’abord (et refuse après 90 secondes sans réponse) :
 
 - avant qu’elle utilise un onglet que vous ne regardez pas, une fois par onglet et par site ;
@@ -122,6 +130,8 @@ Pour que des instructions cachées dans une page ne puissent pas lui faire empor
 - avant chaque clic, touche, survol, glisser-déposer, texte saisi ou option choisie une fois que la conversation a lu un autre site, en vous montrant ce qu’elle va faire. Vous pouvez l’autoriser une fois, ou sur ce site jusqu’à la fin de la conversation. Le défilement, le regard sur la page au premier plan (lecture, capture, attente, liste des onglets) et le retour, l’avance ou le rechargement ne demandent rien. Une nouvelle conversation (⌘⇧E) repart de zéro.
 - avant tout ce qui ressemble à un paiement, une commande, un envoi, une publication, un commentaire, un partage, un téléversement, un accès accordé (autoriser, connecter), une suppression, une annulation ou une résiliation, à chaque fois, quoi que vous ayez autorisé (seulement « Autoriser une fois » ou « Ne pas autoriser »). De même pour Entrée dans une zone de message, un formulaire qui envoie vers un autre site et Suppr ou Retour arrière hors d’un champ de texte.
 - avant tout ce qui ressemble à accepter ou autoriser dans une bannière de cookies, ou à un réglage (enregistrer, effacer, réinitialiser, bloquer), une fois par site. Dans le panneau IA, vous pouvez l’autoriser sur ce site jusqu’à la fin de la conversation, et pour un client MCP tant que sa connexion dure (jusqu’à la fin de cette session Claude Code, c’est-à-dire de son serveur MCP) ; la ligne de commande est interrogée à chaque fois.
+
+Dans le panneau, les questions de l’IA s’affichent en carte au-dessus de la zone de message, et non dans une fenêtre sur la page. Retour ou Échap vaut « Ne pas autoriser », ⌘Retour « Autoriser une fois », ⌥⌘Retour autorise le site pour ce chat. Les touches qui disent oui ne marchent que si le curseur est dans le panneau et une demi-seconde après l’apparition de la carte, pour qu’une frappe destinée à autre chose ne réponde pas. Les questions sur payer, supprimer ou se connecter, et sur un bouton que seul le balisage de la page appelle bannière de cookies, restent dans une fenêtre, où aucune touche ne dit oui. L’en-tête du panneau indique ce que le chat a lu (« 3 sites lus · Autorisé sur 1 ») et liste les sites autorisés, chacun avec « Révoquer ».
 
 D’autres agents, comme Claude Code, peuvent utiliser les mêmes outils via MCP, avec les mêmes questions :
 
@@ -223,7 +233,7 @@ Au premier lancement, ou depuis le menu, Changmun importe les signets et l’his
 - Votre navigation reste sur votre Mac. Changmun n’a ni compte, ni serveur, ni outil d’analyse.
 - La recherche de mises à jour récupère sur GitHub Pages une petite liste de versions (`appcast.xml`). GitHub reçoit la requête comme n’importe quel serveur web, avec le nom et la version de Changmun ; le profil système de Sparkle, qui ajouterait des détails sur votre Mac, est désactivé et le reste (Réglages › Avancé désactive la vérification).
 - Les suggestions de recherche envoient à votre moteur de recherche ce que vous saisissez dans la barre de commande (désactivez-les dans les Réglages ; jamais envoyées depuis les fenêtres privées).
-- Le panneau IA envoie vos messages, ainsi que le contenu des pages que l’IA lit, à Anthropic via la CLI `claude`. Le rangement des onglets et la traduction des pages s’exécutent sur votre Mac.
+- Le panneau IA envoie vos messages, les images que vous joignez et le contenu des pages que l’IA lit, à Anthropic via la CLI `claude`. Le rangement des onglets et la traduction des pages s’exécutent sur votre Mac.
 
 ## Mots de passe et sécurité
 
@@ -233,7 +243,8 @@ On pose aux navigateurs qui synchronisent les mots de passe une question légiti
 - **Aucune copie ailleurs.** Changmun n’a ni compte ni serveur : il n’existe donc aucune copie chiffrée à déchiffrer, vendre, divulguer ou hériter. En dehors des requêtes listées sous Confidentialité, l’app ne télécharge d’elle-même que les listes de filtres publicitaires, une extension du Chrome Web Store que vous avez demandée, et l’icône de chaque site, directement depuis ce site. Aucune ne transporte de mot de passe.
 - **Qui peut les déchiffrer.** Seulement ce Mac, une fois que vous l’avez déverrouillé. Touch ID ou le mot de passe de votre Mac est demandé avant que Changmun copie un mot de passe, avant qu’il en remplisse un dans une page (Réglages › Confidentialité › Exiger Touch ID pour remplir les mots de passe, activé par défaut ; une fois confirmé, les remplissages de la minute suivante ne redemandent rien) et avant que l’IA se connecte pour vous. Si vous annulez, rien n’est rempli.
 - **L’IA ne les reçoit jamais.** Avec `sign_in`, Changmun remplit lui-même le formulaire et dit seulement à l’IA qu’il l’a fait, sans le mot de passe ni le nom du compte. L’IA ne peut ni lire les champs de mot de passe, ni y saisir du texte, ni y appuyer sur des touches, et les captures d’écran les masquent. Si elle lit ensuite la page connectée, le texte de cette page est du contenu de page comme un autre.
-- **Ce qui part chez Anthropic.** Vos messages et les pages que lit l’IA, via votre propre CLI `claude`, et rien d’autre. Changmun ne détient aucune clé Anthropic et n’adresse lui-même aucune requête à Anthropic.
+- **Ce qui part chez Anthropic.** Vos messages, les images que vous joignez et les pages que lit l’IA, via votre propre CLI `claude`, et rien d’autre. Changmun ne détient aucune clé Anthropic et n’adresse lui-même aucune requête à Anthropic.
+- **Historique des conversations.** Les chats terminés restent dans un fichier de ce Mac (Réglages › IA le désactive), sans le texte saisi ni la partie d’une adresse à partir de ? ou #, et jamais ceux d’une fenêtre privée.
 - **Mots de passe importés.** Déchiffrés sur votre Mac avec la clé `Safe Storage` du Trousseau de chaque navigateur (macOS demande d’abord) et enregistrés dans votre Trousseau de session. Rien n’est envoyé en chemin.
 - **Si le projet s’arrête.** Il n’y a rien à vendre ni à éteindre : pas de serveur, pas de compte, la base de données de personne. Vos mots de passe restent dans votre Trousseau et l’app fonctionne tant que macOS fonctionne. Le code est ouvert sous licence MIT : chacun peut tout vérifier, en commençant par `Sources/Changmun/Logins.swift`.
 

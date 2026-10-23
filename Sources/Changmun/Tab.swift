@@ -21,6 +21,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     @Published var title: String
     @Published var url: URL?
     @Published var isLoading = false
+    /// How many navigations have committed in this tab: a count that did not change says no page came and went in between (A to B to A).
+    private(set) var navigations = 0
     @Published var progress: Double = 0
     @Published var favicon: NSImage?
     @Published var canGoBack = false
@@ -110,7 +112,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         self.browser = browser
         spaceID = browser.spaceID
         super.init()
-        attach(WKWebView(frame: .zero, configuration: configuration))
+        attach(PageWebView(frame: .zero, configuration: configuration))
     }
 
     var sortItem: TabSorter.Item {
@@ -126,7 +128,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     func wake() -> WKWebView {
         lastShown = Date()
         if let webView { return webView }
-        let view = WKWebView(frame: .zero, configuration: browser?.configuration(for: spaceID) ?? Browser.configuration)
+        let view = PageWebView(frame: .zero, configuration: browser?.configuration(for: spaceID) ?? Browser.configuration)
         attach(view)
         // A file the user opened is allowed to load again, also when it comes back from a saved back/forward list.
         if let url, url.isFileURL { userFileLoad = url }
@@ -196,6 +198,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     private func attach(_ view: WKWebView) {
         view.navigationDelegate = self
         view.uiDelegate = self
+        (view as? PageWebView)?.owner = self
         view.allowsBackForwardNavigationGestures = true
         view.allowsMagnification = true
         view.isInspectable = true
@@ -408,6 +411,7 @@ extension Tab: WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        navigations += 1
         if webView.url?.isFileURL != true { userFileLoad = nil }
         // A new site gets its own zoom; staying on the same one keeps what the user set (a private tab never saves it).
         let host = webView.url?.host()

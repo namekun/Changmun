@@ -303,6 +303,80 @@ final class ControlServer {
             }
             return
         }
+        // Tests only: pictures for the next message of the AI panel ("sample": how many generated pictures to add; "add": the
+        // base64 of a picture file, as if dropped; "screenshot": the Screenshot button on the front tab; "send": a message that goes
+        // out with them, to no AI: the prompt it would have been given comes back). It answers with how many are waiting and the notice.
+        if Headless.isTestCopy, request.method == "POST", request.path == "/chat-images",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                let chat = ChatStore.shared
+                for number in 0..<(body["sample"] as? Int ?? 0) {
+                    let size = NSSize(width: 640, height: 400)
+                    let picture = NSImage(size: size, flipped: false) { frame in
+                        NSGradient(colors: [NSColor(hue: CGFloat(number) * 0.23 + 0.55, saturation: 0.7, brightness: 0.95, alpha: 1), .white])?.draw(in: frame, angle: 35)
+                        NSAttributedString(string: "Sample \(number + 1)", attributes: [.font: NSFont.systemFont(ofSize: 72, weight: .bold), .foregroundColor: NSColor.white]).draw(at: NSPoint(x: 40, y: 150))
+                        return true
+                    }
+                    if let png = picture.tiffRepresentation.flatMap(NSBitmapImageRep.init(data:))?.representation(using: .png, properties: [:]) { chat.addImages([png]) }
+                }
+                if let encoded = body["add"] as? String { chat.addImages([Data(base64Encoded: encoded) ?? Data()]) }
+                if body["screenshot"] as? Bool == true { await chat.attachScreenshot(of: Browser.recent?.active) }
+                try? await Task.sleep(for: .milliseconds(300))
+                while chat.pendingImages > 0 { try? await Task.sleep(for: .milliseconds(100)) }
+                var prompt = ""
+                if let message = body["send"] as? String {
+                    chat.launch = { _, text in prompt = text; return false }
+                    chat.send(message, images: chat.takeImages())
+                }
+                self.respond(connection, status: "200 OK", body: ["images": chat.images.count, "notice": chat.notice ?? "", "prompt": prompt])
+            }
+            return
+        }
+        // Tests only: puts a conversation into the AI panel and opens the panel on it ("items": the chat's items as the history keeps
+        // them: kind, text, symbol, title, tool, outcome, failure), keeps chats in its history ("history": a list of {"items", "ago"
+        // in seconds}; "clearHistory" first empties it), and shows the history list ("showHistory") or a chat of it ("open": its index,
+        // newest first).
+        if Headless.isTestCopy, request.method == "POST", request.path == "/ai-chat",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                let chat = ChatStore.shared
+                func items(_ value: Any?) -> [ChatItem] {
+                    guard let value, let data = try? JSONSerialization.data(withJSONObject: value) else { return [] }
+                    return (try? JSONDecoder().decode([ChatItem].self, from: data)) ?? []
+                }
+                if body["clearHistory"] as? Bool == true { chat.history.clear() }
+                for kept in body["history"] as? [[String: Any]] ?? [] {
+                    let ago = kept["ago"] as? Double ?? 0
+                    chat.history.record(id: UUID(), started: Date(timeIntervalSinceNow: -ago), items: items(kept["items"]), now: Date(timeIntervalSinceNow: -ago))
+                }
+                chat.reset()
+                if body["items"] != nil { chat.load(items(body["items"])) }
+                if body["showHistory"] as? Bool == true || body["open"] != nil {
+                    chat.showHistory = true
+                    if let index = body["open"] as? Int, chat.history.chats.indices.contains(index) { chat.openedHistory = chat.history.chats[index].id }
+                }
+                Browser.current?.showChat = true
+                self.respond(connection, status: "200 OK", body: ["chats": chat.history.chats.count])
+            }
+            return
+        }
+        // Tests only: the AI panel's box and width. "open" shows or hides the panel, "width" sets its width, "model" the model, "prefill"
+        // puts text in the box (with the cursor at its end), and "selection" asks the AI about the selection in the page in front.
+        if Headless.isTestCopy, request.method == "POST", request.path == "/panel",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                guard let browser = Browser.current else {
+                    return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
+                }
+                if let width = body["width"] as? Double { Preferences.shared.aiPanelWidth = Preferences.clampedAIPanelWidth(width) }
+                if let model = body["model"] as? String { Preferences.shared.aiModel = model }
+                if let open = body["open"] as? Bool { browser.showChat = open }
+                if let text = body["prefill"] as? String { ChatStore.shared.prefill = text }
+                if body["selection"] as? Bool == true { browser.active?.askAIAboutSelection() }
+                self.respond(connection, status: "200 OK", body: ["width": Preferences.shared.aiPanelWidth, "model": Preferences.shared.aiModel])
+            }
+            return
+        }
         // Tests only: open the settings window on a page, far off screen, and answer with its picture.
         if Headless.isTestCopy, request.method == "POST", request.path == "/settings-image",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
