@@ -332,6 +332,34 @@ final class ControlServer {
             }
             return
         }
+        // Tests only: puts a conversation into the AI panel and opens the panel on it ("items": the chat's items as the history keeps
+        // them: kind, text, symbol, title, tool, outcome, failure), keeps chats in its history ("history": a list of {"items", "ago"
+        // in seconds}; "clearHistory" first empties it), and shows the history list ("showHistory") or a chat of it ("open": its index,
+        // newest first).
+        if Headless.isTestCopy, request.method == "POST", request.path == "/ai-chat",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                let chat = ChatStore.shared
+                func items(_ value: Any?) -> [ChatItem] {
+                    guard let value, let data = try? JSONSerialization.data(withJSONObject: value) else { return [] }
+                    return (try? JSONDecoder().decode([ChatItem].self, from: data)) ?? []
+                }
+                if body["clearHistory"] as? Bool == true { chat.history.clear() }
+                for kept in body["history"] as? [[String: Any]] ?? [] {
+                    let ago = kept["ago"] as? Double ?? 0
+                    chat.history.record(id: UUID(), started: Date(timeIntervalSinceNow: -ago), items: items(kept["items"]), now: Date(timeIntervalSinceNow: -ago))
+                }
+                chat.reset()
+                if body["items"] != nil { chat.load(items(body["items"])) }
+                if body["showHistory"] as? Bool == true || body["open"] != nil {
+                    chat.showHistory = true
+                    if let index = body["open"] as? Int, chat.history.chats.indices.contains(index) { chat.openedHistory = chat.history.chats[index].id }
+                }
+                Browser.current?.showChat = true
+                self.respond(connection, status: "200 OK", body: ["chats": chat.history.chats.count])
+            }
+            return
+        }
         // Tests only: open the settings window on a page, far off screen, and answer with its picture.
         if Headless.isTestCopy, request.method == "POST", request.path == "/settings-image",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
