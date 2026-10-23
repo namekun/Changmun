@@ -968,10 +968,11 @@ extension ToolCatalog {
             let tier = destination == nil ? IrreversibleAction.tier(of: aim.facts) : .high
             guard tier != .none else { continue }
             let name = IrreversibleAction.name(of: aim.facts, tier: tier)
+            let markupOnly = destination == nil && IrreversibleAction.restsOnMarkup(aim.facts)
             let allowed = await Approvals.allowAction(tier, name.isEmpty ? aim.label : name, on: tab, caller: session.caller, site: aim.host, destination: destination,
-                                                      markupOnly: destination == nil && IrreversibleAction.restsOnMarkup(aim.facts))
+                                                      markupOnly: markupOnly)
             if session.stopped { throw ToolFailure(result: stopped) }
-            if !allowed { throw ToolFailure(result: declined) }
+            if !allowed { throw ToolFailure(result: declined(tier, markupOnly: markupOnly)) }
         }
     }
 

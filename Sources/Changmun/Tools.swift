@@ -297,6 +297,14 @@ enum ToolCatalog {
 
     static let declined = ToolResult.text("The user declined this in Changmun. Don't retry it; tell the user what you wanted to do.", error: true)
 
+    /// What the user's headless app tells an AI whose pay, send, post or delete it refused, in place of a person who would be asked.
+    static let needsAPerson = ToolResult.text("Refused: this looks like paying, ordering, sending, posting, deleting or granting access, and the headless Changmun never does that without a person. Don't retry it; tell the user what you wanted to do.", error: true)
+
+    /// What an action the user (or, in the user's headless app, the rule for it) said no to answers with.
+    static func declined(_ tier: IrreversibleAction.Tier, markupOnly: Bool = false, inUserHeadless: Bool = Headless.isUser) -> ToolResult {
+        inUserHeadless && (tier == .high || markupOnly) ? needsAPerson : declined
+    }
+
     /// The AI only ever opens web pages: never file:, data: or other schemes a page could talk it into.
     static func webURL(_ value: Any?) -> URL? {
         guard let input = value as? String, let url = AddressInput.resolve(input), let scheme = url.scheme?.lowercased(),
@@ -783,6 +791,9 @@ enum Approvals {
         var choices: [Choice]
         /// The accounts the user is to pick one of (a sign-in with several saved logins); empty for any other question.
         var accounts: [String] = []
+        /// Whether it is the question of what can't be undone (the high tier of `allowAction`), or of what only the page's markup
+        /// puts in a cookie banner.
+        var irreversible = false
     }
 
     /// Answers questions in place of the window, and keeps what was asked, newest last.
@@ -801,8 +812,15 @@ enum Approvals {
 
     /// Stands in for the user in the code run inside `$stand.withValue`: the tests, each for itself.
     @TaskLocal static var stand: Stand?
-    /// Changmun Headless has nobody to ask, and its own profile holds nothing of the user's to leak; its tests set the answers.
-    static let headless = Stand { _ in .once }
+    /// The headless apps have nobody to ask, and their own profiles hold nothing of the user's to leak. The test copy allows
+    /// everything unless a test says otherwise.
+    static let headless = Stand(Headless.isUser ? userHeadlessAnswer : { _ in .once })
+
+    /// What the user's headless app answers: yes to everything but what can't be undone (pays, orders, sends, posts, deletes,
+    /// grants access: the high tier, and what only a page's markup calls a cookie banner, which a page can say of anything), which
+    /// waits for a person and so is refused. Anything the AI signed in to inside that app,
+    /// it could otherwise pay, post or delete with, and nobody is there to see it happen.
+    static func userHeadlessAnswer(_ prompt: Prompt) -> Choice { prompt.irreversible ? .deny : .once }
     /// Per caller and site, the sites the AI had read when the user allowed it to use that site for the rest of the chat.
     /// A caller's chat is the panel's chat, or an MCP client's connection (its name is its process's and never used again).
     private static var allowances: [String: [String: Set<String>]] = [:]
@@ -891,7 +909,7 @@ enum Approvals {
             let place = host.isEmpty ? String(localized: "this page") : display(host)
             return await choose(String(localized: "The AI wants to click a button in what the page calls a cookie banner"),
                                 "\(place)\n\n“\(shown(quotable(abbreviated(name))).text)”\n\n" + String(localized: "Only the page’s own markup says this is a cookie banner, and a page can say that of anything. It is asked every time.\n\nAllow it only if you asked for this."),
-                                [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))], caller: caller) != .deny
+                                [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))], irreversible: true, caller: caller) != .deny
         }
         if tier == .low, allowable, lowAllowed[caller]?.contains(host) == true { return true }
         let place = host.isEmpty ? String(localized: "this page") : display(host)
@@ -900,7 +918,7 @@ enum Approvals {
             let sent = destination.map { String(localized: "The form sends what is typed in it to \(display($0)), another site than this page.") + "\n\n" } ?? ""
             return await choose(String(localized: "The AI wants to do something that can’t be undone"),
                                 "\(place)\n\n“\(words)”\n\n" + sent + String(localized: "This looks like it pays, orders, sends, posts, shares, uploads, grants access, deletes or cancels, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this."),
-                                [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))], caller: caller) != .deny
+                                [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))], irreversible: true, caller: caller) != .deny
         }
         let forChat = hasChat(caller) && allowable
         let answer = await choose(String(localized: "The AI wants to accept cookies or change a setting"),
@@ -988,15 +1006,15 @@ enum Approvals {
         await choose(message, detail, [(.deny, String(localized: "Deny")), (.once, String(localized: "Allow"))], caller: caller) != .deny
     }
 
-    private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], caller: String) async -> Choice {
-        await choose(message, detail, buttons, accounts: [], caller: caller).choice
+    private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], irreversible: Bool = false, caller: String) async -> Choice {
+        await choose(message, detail, buttons, accounts: [], irreversible: irreversible, caller: caller).choice
     }
 
     /// Asks on the browser window, the first button being the one Return presses; no answer within `timeout` counts as
     /// no, so a late yes never runs a stale request. With `accounts`, the question carries a list to pick one from (the first
     /// is chosen to begin with), and says which.
-    private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], accounts: [String], caller: String) async -> (choice: Choice, account: Int) {
-        let prompt = Prompt(message: message, detail: detail, choices: buttons.map(\.0), accounts: accounts)
+    private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], accounts: [String], irreversible: Bool = false, caller: String) async -> (choice: Choice, account: Int) {
+        let prompt = Prompt(message: message, detail: detail, choices: buttons.map(\.0), accounts: accounts, irreversible: irreversible)
         let standing = stand ?? (Headless.isOn ? headless : nil)
         if let standing {
             if standing.asked.count > 100 { standing.asked.removeFirst(standing.asked.count - 100) }

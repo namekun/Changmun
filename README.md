@@ -163,6 +163,21 @@ changmun wait "Results"
 
 `changmun help` lists the rest. Each command is one of the same tools, with the same questions, and starts Changmun if needed.
 
+### Headless, for agents
+
+An agent asking you the same questions in the browser you're using gets old fast. For agents there is a second Changmun with no window: it stays invisible, takes no focus and makes no sound, and keeps a profile of its own, so none of your cookies, history, passwords or Keychain are in it.
+
+```sh
+changmun headless start     # copies the app you ran this from into ~/Library/Application Support/Changmun Agent and starts it
+changmun headless status    # running or not, pid, version, profile folder
+changmun --headless open example.com
+changmun --headless read
+changmun headless stop
+claude mcp add changmun-headless -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp --headless
+```
+
+Put `--headless` on any command to send it there instead of to your browser; `--mcp --headless` is the MCP form. Both start it if it isn't running. In it the AI is not asked before it uses other tabs, opens new addresses or acts after reading other sites: those questions, which guard against instructions hidden in pages, are off. That is why it is a separate copy with an empty profile, and why it refuses what can't be undone: anything that looks like paying, ordering, sending, posting, deleting or granting access, and anything in what a page only calls a cookie banner, gets a "needs a person" error, because nobody is watching and a site you sign in to inside it would be the AI's to use. Everything else is allowed. Site permissions (camera, location…) are denied. The copy is made from the app that runs the command and made again when that is another release (`changmun headless status` tells you); it never updates itself.
+
 ## Shortcuts
 
 Pick Safari-style or Chrome-style in Settings (⌘,). Only the keys the two browsers disagree on change.
@@ -254,7 +269,7 @@ Releases are signed for Sparkle with an EdDSA key. Put the path of its private k
 
 UI text is English in the code and translated in `Resources/<language>.lproj/Localizable.strings`; add every new string to all six tables.
 
-`scripts/headless.sh` runs a headless Changmun for tests and agents: off screen, never takes focus or plays sound, with its own profile in `~/Library/Application Support/Changmun Headless`. It doesn't touch the Keychain, and answers AI confirmations, site permissions and JavaScript dialogs by itself (permissions are denied).
+`scripts/headless.sh` runs the test copy, `Changmun Headless.app` (it never shares a profile with the `changmun headless` of the AI section, which is the one for agents), a headless Changmun for tests and agents: off screen, never takes focus or plays sound, with its own profile in `~/Library/Application Support/Changmun Headless`. It doesn't touch the Keychain, and answers AI confirmations, site permissions and JavaScript dialogs by itself (permissions are denied).
 
 ```sh
 scripts/headless.sh start                                   # copy build/Changmun.app as the headless app and start it

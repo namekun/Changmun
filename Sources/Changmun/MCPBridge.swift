@@ -22,7 +22,9 @@ enum MCPBridge {
                 "protocolVersion": params["protocolVersion"] as? String ?? "2025-06-18",
                 "capabilities": ["tools": [:]],
                 "serverInfo": ["name": "changmun", "version": "0.1.0"],
-                "instructions": "Tools to see and operate the Changmun web browser the user is using.",
+                "instructions": headless
+                    ? "Tools to see and operate Changmun's headless browser: invisible, with a profile of its own (none of the user's cookies or logins). Anything that looks like paying, ordering, sending, posting or deleting is refused; tell the user instead."
+                    : "Tools to see and operate the Changmun web browser the user is using.",
             ])
         case "ping":
             return reply(id, [:])
@@ -44,8 +46,11 @@ enum MCPBridge {
         return "mcp-\(getpid())-\(UUID().uuidString)"
     }()
 
+    /// `Changmun --mcp --headless`: the tools of the user's headless Changmun (`changmun headless`), not of the browser in use.
+    static let headless = CommandLine.arguments.contains("--headless")
+
     private static func forward(_ name: String, _ arguments: [String: Any]) -> [String: Any] {
-        ControlClient.call(name, arguments, caller: caller)
+        ControlClient.call(name, arguments, caller: caller, headless: headless)
     }
 
     private static func reply(_ id: Any, _ result: [String: Any]) -> [String: Any] {
@@ -66,8 +71,19 @@ enum MCPBridge {
 /// Talks to the running app's control server, for the MCP bridge and the command line.
 enum ControlClient {
     /// Carries out one tool call in the running app (starting it first if needed) and returns the tool's result.
-    static func call(_ name: String, _ arguments: [String: Any], caller: String) -> [String: Any] {
-        guard let endpoint = ControlEndpoint.read() ?? launchApp() else {
+    /// With `headless`, in the user's headless Changmun (started first when it isn't running) in place of the browser in use.
+    static func call(_ name: String, _ arguments: [String: Any], caller: String, headless: Bool = false) -> [String: Any] {
+        let found: ControlEndpoint?
+        if headless {
+            do { found = try UserHeadless.start(from: ownBundle) } catch let error as UserHeadless.Failure {
+                return ToolResult.text("The headless Changmun is not running and could not be started: \(error.message)", error: true).json
+            } catch {
+                return ToolResult.text("The headless Changmun is not running and could not be started: \(error.localizedDescription)", error: true).json
+            }
+        } else {
+            found = ControlEndpoint.read() ?? launchApp()
+        }
+        guard let endpoint = found else {
             return ToolResult.text("Changmun is not running and could not be started.", error: true).json
         }
         var request = URLRequest(url: URL(string: "http://127.0.0.1:\(endpoint.port)/call")!, timeoutInterval: 120)
@@ -96,10 +112,15 @@ enum ControlClient {
         return result ?? ToolResult.text("Could not reach Changmun: \(failure)", error: true).json
     }
 
-    private static func launchApp() -> ControlEndpoint? {
+    /// The app this binary is in; nil for a bare binary.
+    static var ownBundle: URL? {
         let bundle = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        guard bundle.pathExtension == "app" else { return nil }
+        return bundle.pathExtension == "app" ? bundle : nil
+    }
+
+    private static func launchApp() -> ControlEndpoint? {
+        guard let bundle = ownBundle else { return nil }
         let open = Process()
         open.executableURL = URL(fileURLWithPath: "/usr/bin/open")
         open.arguments = Headless.isOn ? ["-g", bundle.path] : [bundle.path]

@@ -1081,6 +1081,71 @@ extension SharedAgentState {
             }
         }
 
+        @Test func theUserHeadlessAppAllowsEverythingButWhatCantBeUndone() async {
+            let (browser, tabs) = open(["https://a.example/", "https://b.example/"])
+            defer { browser.windowClosed() }
+            let caller = bridgeCaller()
+            Approvals.forgetReads(caller: caller)
+            defer { Approvals.forgetReads(caller: caller) }
+            await asking(Approvals.userHeadlessAnswer) { stand in
+                #expect(!(await Approvals.allowAction(.high, "Pay", on: tabs[0], caller: caller)))
+                #expect(!(await Approvals.allowAction(.high, "Continue", on: tabs[0], caller: caller, destination: "collector.example")), "a form sent to another site too")
+                #expect(stand.asked.count == 2 && stand.asked.allSatisfy(\.irreversible))
+                #expect(await Approvals.allowAction(.low, "Save", on: tabs[0], caller: caller))
+                #expect(await Approvals.allowTab(tabs[1], caller: caller))
+                Approvals.noteRead(tabs[0], caller: caller)
+                #expect(await Approvals.allowInteraction(.type("x"), on: tabs[1], caller: caller))
+                #expect(await Approvals.allowNavigation(URL(string: "https://c.example/page?q=1")!, caller: caller))
+                #expect(stand.asked.count > 5 && stand.asked.dropFirst(2).allSatisfy { !$0.irreversible }, "every other question was asked, and allowed")
+            }
+            // Whatever the setting, what can't be undone is asked about, so it is refused here as well.
+            await asking(Approvals.userHeadlessAnswer) { _ in
+                Preferences.shared.aiApprovals = false
+                #expect(!(await Approvals.allowAction(.high, "Buy", on: tabs[0], caller: caller)))
+            }
+        }
+
+        @Test func inTheUserHeadlessAppWhatOnlyAPagesMarkupCallsACookieBannerIsRefusedToo() async {
+            let (browser, tabs) = open(["https://a.example/"])
+            defer { browser.windowClosed() }
+            let caller = bridgeCaller()
+            defer { Approvals.forgetReads(caller: caller) }
+            await asking(Approvals.userHeadlessAnswer) { stand in
+                // A page can wrap "Delete account" in what it says is a consent manager's banner: the low tier, by markup alone.
+                #expect(!(await Approvals.allowAction(.low, "Delete account", on: tabs[0], caller: caller, markupOnly: true)))
+                #expect(stand.asked.count == 1 && stand.asked[0].irreversible && stand.asked[0].choices == [.deny, .once])
+                #expect(await Approvals.allowAction(.low, "Accept all", on: tabs[0], caller: caller), "a cookie banner's own consent is a setting, and allowed")
+                #expect(!stand.asked[1].irreversible)
+            }
+            // Anywhere else the same question is answered as it always was.
+            await asking({ _ in .once }) { stand in
+                #expect(await Approvals.allowAction(.low, "Delete account", on: tabs[0], caller: caller, markupOnly: true))
+                #expect(stand.asked.count == 1)
+            }
+            #expect(Approvals.headless.answer(Approvals.Prompt(message: "m", detail: "d", choices: [.deny, .once], irreversible: true)) == .once, "the test copy too")
+            #expect(ToolCatalog.declined(.low, markupOnly: true, inUserHeadless: true).content.first?["text"] as? String == ToolCatalog.needsAPerson.content.first?["text"] as? String)
+            #expect(ToolCatalog.declined(.low, markupOnly: true, inUserHeadless: false).content.first?["text"] as? String == ToolCatalog.declined.content.first?["text"] as? String)
+            #expect(ToolCatalog.declined(.low, inUserHeadless: true).content.first?["text"] as? String == ToolCatalog.declined.content.first?["text"] as? String)
+        }
+
+        @Test func theUserHeadlessAppsRefusalSaysAPersonIsNeededAndTheOthersDoNot() {
+            let refused = ToolCatalog.declined(.high, inUserHeadless: true)
+            #expect(refused.isError && refused.content.first?["text"] as? String == ToolCatalog.needsAPerson.content.first?["text"] as? String)
+            #expect((refused.content.first?["text"] as? String)?.contains("without a person") == true)
+            #expect(ToolCatalog.declined(.low, inUserHeadless: true).content.first?["text"] as? String == ToolCatalog.declined.content.first?["text"] as? String)
+            #expect(ToolCatalog.declined(.high, inUserHeadless: false).content.first?["text"] as? String == ToolCatalog.declined.content.first?["text"] as? String)
+            #expect(ToolCatalog.declined(.high).content.first?["text"] as? String == ToolCatalog.declined.content.first?["text"] as? String, "this process is not the user's headless app")
+        }
+
+        @Test func theTestCopyOfHeadlessStillAllowsEverythingAndTheUserHeadlessRuleIsPureOfIt() {
+            let high = Approvals.Prompt(message: "m", detail: "d", choices: [.deny, .once], irreversible: true)
+            let low = Approvals.Prompt(message: "m", detail: "d", choices: [.deny, .once, .site])
+            #expect(Approvals.headless.answer(high) == .once && Approvals.headless.answer(low) == .once, "scripts/headless.sh keeps what it had")
+            #expect(Approvals.userHeadlessAnswer(high) == .deny)
+            #expect(Approvals.userHeadlessAnswer(low) == .once)
+            #expect(Approvals.userHeadlessAnswer(Approvals.Prompt(message: "m", detail: "d", choices: [.deny])) == .once, "a notice that can only be closed")
+        }
+
         @Test func theSiteIsNamedFirstOnALineOfItsOwnAndAPageGivenNameCantEndItsQuotation() async {
             let (browser, tabs) = open(["https://bank.example/", "https://аррӏе.com/"])
             defer { browser.windowClosed() }

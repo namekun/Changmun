@@ -1,12 +1,26 @@
 import AppKit
 import WebKit
 
-/// `Changmun Headless.app` (scripts/headless.sh): the same browser for tests and agents, driven through the control
-/// server. It never shows a window, takes focus or makes a sound, and keeps its own profile: its bundle ID gives it
-/// separate settings and website data, and its files live in their own folder. The user's keychain is left alone.
+/// A headless Changmun: the same browser driven through the control server. It never shows a window, takes focus or
+/// makes a sound, and keeps its own profile: its bundle ID gives it separate settings and website data, and its files live
+/// in their own folder. The user's keychain is left alone. There are two, which never share a profile or an endpoint:
+/// `Changmun Headless.app` (scripts/headless.sh), the copy for tests, and `Changmun Agent.app` (`changmun headless start`,
+/// UserHeadless.swift), the one the user's agents drive.
 enum Headless {
     static let bundleID = "io.github.namekun.Changmun.headless"
-    static let isOn = Bundle.main.bundleIdentifier == bundleID
+    static let userBundleID = "io.github.namekun.Changmun.agent"
+
+    static func isHeadless(bundleID id: String?) -> Bool { id == bundleID || id == userBundleID }
+    /// The name of a headless app's profile folder in Application Support; nil for any other app.
+    static func profileName(forBundle id: String?) -> String? {
+        id == bundleID ? "Changmun Headless" : id == userBundleID ? "Changmun Agent" : nil
+    }
+
+    static let isOn = isHeadless(bundleID: Bundle.main.bundleIdentifier)
+    /// The user's headless app, whose AI questions the user's agents get answered by Approvals.userHeadlessAnswer.
+    static let isUser = Bundle.main.bundleIdentifier == userBundleID
+    /// What only the test copy has: the endpoints that put the app into a state for a test.
+    static let isTestCopy = Bundle.main.bundleIdentifier == bundleID
 
     /// Far off every screen, where windows still draw (and can be captured by window number) but nobody sees them.
     static let origin = NSPoint(x: -32000, y: -32000)

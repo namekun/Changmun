@@ -515,6 +515,43 @@ extension SharedAgentState {
             #expect(throws: CLI.UsageError.self) { try CLI.parse(["call", "scroll", "not json"]) }
         }
 
+        @Test func headlessCommandsAndTheHeadlessFlagAreParsed() throws {
+            #expect(try CLI.parse(["headless", "start"]) == .headless(.start))
+            #expect(try CLI.parse(["headless", "stop"]) == .headless(.stop))
+            #expect(try CLI.parse(["headless", "status"]) == .headless(.status))
+            #expect(throws: CLI.UsageError.self) { try CLI.parse(["headless"]) }
+            #expect(throws: CLI.UsageError.self) { try CLI.parse(["headless", "restart"]) }
+            #expect(throws: CLI.UsageError.self) { try CLI.parse(["headless", "start", "now"]) }
+            #expect(throws: CLI.UsageError.self) { try CLI.parse(["headless", "start", "--tab", "1"]) }
+            #expect(throws: CLI.UsageError.self) { try CLI.parse(["--headless", "headless", "start"]) }
+            // The flag goes anywhere, for any command, and changes only where the call goes.
+            #expect(try CLI.parse(["--headless", "open", "example.com"]) == .headlessCall("open_tab", ["url": "example.com"], output: nil))
+            #expect(try CLI.parse(["read", "--headless", "--tab", "3", "--max", "500"]) == .headlessCall("read_page", ["tab_id": 3, "max_chars": 500], output: nil))
+            #expect(try CLI.parse(["screenshot", "-o", "a.jpg", "--headless"]) == .headlessCall("screenshot", [:], output: "a.jpg"))
+            #expect(try CLI.parse(["tabs", "--headless"]) == .headlessCall("list_tabs", [:], output: nil))
+            #expect(try CLI.parse(["--headless", "call", "scroll", #"{"direction":"down"}"#]) == .headlessCall("scroll", ["direction": "down"], output: nil))
+            // After a command with free text the word could be part of the text: refused, not sent to the browser in use or dropped.
+            #expect(try CLI.parse(["--headless", "type", "3", "hello"]) == .headlessCall("type_text", ["element_id": 3, "text": "hello"], output: nil))
+            #expect(try CLI.parse(["click", "3", "--headless"]) == .headlessCall("click", ["element_id": 3], output: nil))
+            #expect(try CLI.parse(["call", "scroll", #"{"direction":"down"}"#, "--headless"]) == .headlessCall("scroll", ["direction": "down"], output: nil))
+            for line in [["type", "3", "--headless"], ["open", "example.com", "--headless"], ["go", "--headless", "x"], ["select", "2", "--headless"], ["wait", "--headless"]] {
+                #expect(throws: CLI.UsageError.self) { try CLI.parse(line) }
+            }
+            #expect(try CLI.parse(["--headless"]) == .help)
+            #expect(try CLI.parse(["--headless", "tools"]) == .tools)
+            #expect(throws: CLI.UsageError.self) { try CLI.parse(["--headless", "click"]) }
+            #expect(throws: CLI.UsageError.self) { try CLI.parse(["--headless", "frobnicate"]) }
+            // Without it nothing changes.
+            #expect(try CLI.parse(["open", "example.com"]) == .call("open_tab", ["url": "example.com"], output: nil))
+        }
+
+        @Test func theHelpTellsAboutHeadless() {
+            #expect(CLI.usage.contains("changmun headless start|stop|status"))
+            #expect(CLI.usage.contains("changmun --headless <command>"))
+            #expect(CLI.usage.contains("--mcp --headless"))
+            #expect(CLI.usage.contains("refuses"))
+        }
+
         @Test func linksDroppedOnTheSidebarOpenWhereTheyLand() throws {
             #expect(SidebarDrag.link(["https://a.example/x?y=1"])?.absoluteString == "https://a.example/x?y=1")
             #expect(SidebarDrag.link(["  https://a.example/  "]) != nil)
@@ -1765,6 +1802,149 @@ struct HeadlessTests {
             #expect(!Library.location(forBundle: other).path.contains("Application Support"))
         }
         #expect(Library.folder == Library.location(forBundle: Bundle.main.bundleIdentifier) && !Library.folder.path.contains("Application Support"))
+    }
+
+    @Test func bothHeadlessAppsAreHeadlessAndHaveProfilesOfTheirOwn() {
+        #expect(Headless.isHeadless(bundleID: Headless.bundleID) && Headless.isHeadless(bundleID: Headless.userBundleID))
+        for other in [nil, "io.github.namekun.Changmun", "io.github.namekun.Changmun.dev", "io.github.namekun.Changmun.headless.user", "com.apple.dt.xctest.tool"] {
+            #expect(!Headless.isHeadless(bundleID: other))
+            #expect(Headless.profileName(forBundle: other) == nil)
+        }
+        #expect(Headless.bundleID != Headless.userBundleID)
+        #expect(Headless.profileName(forBundle: Headless.bundleID) == "Changmun Headless")
+        #expect(Headless.profileName(forBundle: Headless.userBundleID) == "Changmun Agent")
+        let real = Library.location(forBundle: "io.github.namekun.Changmun")
+        let test = Library.location(forBundle: Headless.bundleID)
+        let user = Library.location(forBundle: Headless.userBundleID)
+        #expect(user.lastPathComponent == "Changmun Agent" && user.path.contains("Application Support"))
+        #expect(Set([real, test, user]).count == 3, "no two of them share a folder, so none shares a control.json")
+        #expect(UserHeadless.folder == user)
+        #expect(UserHeadless.endpointFile() == user.appendingPathComponent("control.json") && UserHeadless.endpointFile() != test.appendingPathComponent("control.json"))
+        #expect(UserHeadless.app().path == user.path + "/Changmun Agent.app" && !UserHeadless.app().path.hasPrefix("/Applications"))
+        #expect(!UserHeadless.app().path.contains("Changmun Headless.app"), "scripts/headless.sh's pgrep for the test copy never matches it")
+        // This process is neither, so the endpoints only the test copy has are off here as well.
+        #expect(!Headless.isOn && !Headless.isUser && !Headless.isTestCopy)
+    }
+
+    private let sourceInfo: [String: Any] = [
+        "CFBundleIdentifier": "io.github.namekun.Changmun", "CFBundleName": "Changmun", "CFBundleShortVersionString": "0.6.1", "CFBundleVersion": "19",
+        "CFBundleURLTypes": [["CFBundleURLSchemes": ["http", "https"]]], "CFBundleDocumentTypes": [["CFBundleTypeName": "Web page"]],
+        "SUFeedURL": "https://example.com/appcast.xml", "SUEnableAutomaticChecks": true, "SUPublicEDKey": "key", "CFBundleExecutable": "Changmun",
+    ]
+
+    @Test func theHeadlessCopysInfoIsAnotherAppThatIsNotABrowserAndNeverUpdates() {
+        let info = UserHeadless.headlessInfo(from: sourceInfo)
+        #expect(info["CFBundleIdentifier"] as? String == Headless.userBundleID && info["CFBundleName"] as? String == "Changmun Agent")
+        #expect(info["LSBackgroundOnly"] as? Bool == true)
+        for key in ["CFBundleURLTypes", "CFBundleDocumentTypes", "SUFeedURL", "SUEnableAutomaticChecks"] { #expect(info[key] == nil, "\(key)") }
+        #expect(info["CFBundleDisplayName"] as? String == "Changmun Agent")
+        #expect(info["CFBundleExecutable"] as? String == "Changmun" && info["CFBundleShortVersionString"] as? String == "0.6.1" && info["SUPublicEDKey"] as? String == "key")
+        #expect(UserHeadless.version(of: info) == "0.6.1 (19)")
+    }
+
+    @Test func theCopyIsMadeAgainOnlyWhenItIsMissingOrAnotherRelease() {
+        let copy = UserHeadless.headlessInfo(from: sourceInfo)
+        #expect(UserHeadless.needsCopy(copy: nil, source: sourceInfo))
+        #expect(!UserHeadless.needsCopy(copy: copy, source: sourceInfo))
+        var newer = sourceInfo
+        newer["CFBundleShortVersionString"] = "0.7.0"
+        #expect(UserHeadless.needsCopy(copy: copy, source: newer))
+        newer = sourceInfo
+        newer["CFBundleVersion"] = "20"
+        #expect(UserHeadless.needsCopy(copy: copy, source: newer))
+        #expect(UserHeadless.needsCopy(copy: sourceInfo, source: sourceInfo), "a copy of the app that is not the headless one doesn't count")
+    }
+
+    /// A folder to stand in for Application Support, with a small app in it standing in for the installed one.
+    private func fakeApp(version: String) throws -> (root: URL, source: URL) {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("headless-copy-\(UUID().uuidString)", isDirectory: true)
+        let source = root.appendingPathComponent("Changmun.app", isDirectory: true)
+        try FileManager.default.createDirectory(at: source.appendingPathComponent("Contents/MacOS"), withIntermediateDirectories: true)
+        var info = sourceInfo
+        info["CFBundleShortVersionString"] = version
+        try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0).write(to: source.appendingPathComponent("Contents/Info.plist"))
+        try Data("binary".utf8).write(to: source.appendingPathComponent("Contents/MacOS/Changmun"))
+        return (root, source)
+    }
+
+    @Test func preparingTheCopyCopiesEditsSignsAndReplacesAnOldOneWithoutLaunchingAnything() throws {
+        let (root, source) = try fakeApp(version: "0.6.1")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let profile = root.appendingPathComponent("Changmun Agent", isDirectory: true)
+        var commands: [[String]] = []
+        let runner: UserHeadless.Runner = { program, arguments in
+            commands.append([program] + arguments)
+            if program == "/usr/bin/ditto" { try FileManager.default.copyItem(atPath: arguments[0], toPath: arguments[1]) }
+        }
+        #expect(try UserHeadless.prepare(from: source, in: profile, run: runner))
+        let app = UserHeadless.app(in: profile)
+        let info = try #require(UserHeadless.info(ofApp: app))
+        #expect(info["CFBundleIdentifier"] as? String == Headless.userBundleID && info["LSBackgroundOnly"] as? Bool == true && info["CFBundleURLTypes"] == nil)
+        #expect(FileManager.default.fileExists(atPath: app.appendingPathComponent("Contents/MacOS/Changmun").path))
+        #expect(commands.map { $0[0] } == ["/usr/bin/ditto", "/usr/bin/xattr", "/usr/bin/codesign"], "\(commands)")
+        #expect(commands[1].contains("-cr") && commands[2].contains("--force") && commands[2].contains("-"), "ad hoc, after the edit")
+        #expect(commands.allSatisfy { !$0.joined(separator: " ").contains("/Applications") && !$0.contains(source.path + "/Contents/Info.plist") })
+        #expect(UserHeadless.info(ofApp: source)?["CFBundleIdentifier"] as? String == "io.github.namekun.Changmun", "the installed app is left as it was")
+        // The same release: nothing to do. Another: made again.
+        commands = []
+        #expect(try !UserHeadless.prepare(from: source, in: profile, run: runner) && commands.isEmpty)
+        let (newRoot, newer) = try fakeApp(version: "0.7.0")
+        defer { try? FileManager.default.removeItem(at: newRoot) }
+        #expect(try UserHeadless.prepare(from: newer, in: profile, run: runner))
+        #expect(UserHeadless.version(of: UserHeadless.info(ofApp: app)) == "0.7.0 (19)")
+        // A failing tool leaves the old copy alone and says what failed.
+        let (failRoot, failing) = try fakeApp(version: "0.8.0")
+        defer { try? FileManager.default.removeItem(at: failRoot) }
+        #expect(throws: UserHeadless.Failure.self) {
+            try UserHeadless.prepare(from: failing, in: profile) { program, arguments in
+                if program == "/usr/bin/codesign" { throw UserHeadless.Failure(message: "codesign failed") }
+                try runner(program, arguments)
+            }
+        }
+        #expect(UserHeadless.version(of: UserHeadless.info(ofApp: app)) == "0.7.0 (19)")
+        #expect(throws: UserHeadless.Failure.self) { try UserHeadless.prepare(from: root.appendingPathComponent("Missing.app"), in: profile, run: runner) }
+    }
+
+    @Test func aCopyOfAnotherReleaseThanTheInstalledAppIsSaidSo() throws {
+        let (root, source) = try fakeApp(version: "0.6.1")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let profile = root.appendingPathComponent("Changmun Agent", isDirectory: true)
+        try UserHeadless.prepare(from: source, in: profile) { program, arguments in
+            if program == "/usr/bin/ditto" { try FileManager.default.copyItem(atPath: arguments[0], toPath: arguments[1]) }
+        }
+        #expect(UserHeadless.updateHint(installed: UserHeadless.info(ofApp: source), running: true, in: profile) == nil)
+        var newer = sourceInfo
+        newer["CFBundleShortVersionString"] = "0.7.0"
+        let running = try #require(UserHeadless.updateHint(installed: newer, running: true, in: profile))
+        #expect(running.contains("0.7.0 (19)") && running.contains("0.6.1 (19)") && running.contains("headless stop") && running.contains("headless start"))
+        #expect(try #require(UserHeadless.updateHint(installed: newer, running: false, in: profile)).contains("`changmun headless start` updates it"))
+        #expect(UserHeadless.status(installed: newer, in: profile).text.contains("0.7.0 (19)"))
+        #expect(UserHeadless.updateHint(installed: nil, running: true, in: profile) == nil)
+    }
+
+    @Test func theCopyIsRunningOnlyWhenItsEndpointNamesItsOwnProcess() throws {
+        let profile = FileManager.default.temporaryDirectory.appendingPathComponent("headless-status-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: profile, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: profile) }
+        #expect(UserHeadless.endpoint(in: profile) == nil)
+        let notRunning = UserHeadless.status(installed: sourceInfo, in: profile)
+        #expect(!notRunning.running && notRunning.text.contains("not running") && notRunning.text.contains("profile: \(profile.path)") && notRunning.text.contains("not made yet"))
+        // The test process is alive but is not the copy: a stale endpoint whose process ID has been taken by another program is not it.
+        let stale = ControlEndpoint(port: 1, token: "t", pid: getpid())
+        try JSONEncoder().encode(stale).write(to: UserHeadless.endpointFile(in: profile))
+        #expect(UserHeadless.endpoint(in: profile) == nil)
+        #expect(UserHeadless.stop(in: profile) == .notRunning, "and stopping it signals nobody")
+        #expect(kill(getpid(), 0) == 0)
+        #expect(!UserHeadless.status(installed: nil, in: profile).running)
+    }
+
+    @Test func theEndpointFileIsReadFromTheGivenFolder() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("endpoint-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: file) }
+        #expect(ControlEndpoint.read(file: file) == nil)
+        try JSONEncoder().encode(ControlEndpoint(port: 4321, token: "abc", pid: getpid())).write(to: file)
+        #expect(ControlEndpoint.read(file: file)?.port == 4321)
+        #expect(ControlEndpoint.file == Library.folder.appendingPathComponent("control.json"), "the default is this app's own")
     }
 
     @Test func windowImagesDrawWithoutTheWindowOnScreen() async throws {

@@ -29,9 +29,15 @@ enum CLI {
                                              --labels draws each element's number over it, as `read` numbers them
       changmun call <tool> [json]            any tool by name, with JSON arguments
       changmun tools                         the tools and their arguments, as JSON
+      changmun headless start|stop|status    a second, invisible Changmun with a profile of its own (below)
+      changmun --headless <command>          any command above, in that headless Changmun (`changmun --mcp --headless` for MCP)
 
     Without --tab, a command acts on the tab the user is looking at. Changmun starts if it isn't running.
     Asking for something new (another site, typing after reading other sites) may ask the user first.
+
+    The headless Changmun has no window, takes no focus and makes no sound. Its profile is separate (none of your cookies, history
+    or passwords), it asks nothing and allows everything, except what looks like paying, ordering, sending, posting or deleting,
+    which it refuses because it needs a person. `--headless` commands start it if it isn't running; `headless status` exits 1 if not.
     """
 
     static func run(_ arguments: [String]) -> Never {
@@ -48,6 +54,10 @@ enum CLI {
             case .call(let name, let args, let output):
                 // One caller for every command: what one command read still counts when the next one types.
                 exit(show(ControlClient.call(name, args.mapValues(\.base), caller: "cli"), saveImageTo: output))
+            case .headlessCall(let name, let args, let output):
+                exit(show(ControlClient.call(name, args.mapValues(\.base), caller: "cli", headless: true), saveImageTo: output))
+            case .headless(let verb):
+                exit(runHeadless(verb))
             }
         } catch let error as UsageError {
             FileHandle.standardError.write(Data("changmun: \(error.message)\n\nRun `changmun help` for the commands.\n".utf8))
@@ -63,6 +73,45 @@ enum CLI {
     enum Command: Equatable {
         case help, tools
         case call(String, [String: AnyHashable], output: String?)
+        /// The same, in the user's headless Changmun (`--headless`).
+        case headlessCall(String, [String: AnyHashable], output: String?)
+        case headless(HeadlessVerb)
+    }
+
+    enum HeadlessVerb: String, Equatable {
+        case start, stop, status
+    }
+
+    /// `changmun headless start | stop | status`. Returns the exit status.
+    static func runHeadless(_ verb: HeadlessVerb) -> Int32 {
+        switch verb {
+        case .start:
+            do {
+                let wasRunning = UserHeadless.endpoint() != nil
+                let endpoint = try UserHeadless.start(from: ControlClient.ownBundle)
+                print((wasRunning ? "already running" : "started") + " (pid \(endpoint.pid)); profile: \(UserHeadless.folder.path)")
+                if wasRunning, let hint = UserHeadless.updateHint(installed: ControlClient.ownBundle.flatMap(UserHeadless.info(ofApp:)), running: true) { print(hint) }
+                return 0
+            } catch {
+                let message = (error as? UserHeadless.Failure)?.message ?? error.localizedDescription
+                FileHandle.standardError.write(Data("changmun: couldn't start the headless Changmun: \(message)\n".utf8))
+                return 1
+            }
+        case .stop:
+            switch UserHeadless.stop() {
+            case .notRunning: print("not running")
+            case .stopped: print("stopped")
+            case .stillRunning(let pid):
+                FileHandle.standardError.write(Data("changmun: the headless Changmun (pid \(pid)) is still running\n".utf8))
+                return 1
+            }
+            return 0
+        case .status:
+            let installed = ControlClient.ownBundle.flatMap(UserHeadless.info(ofApp:))
+            let status = UserHeadless.status(installed: installed)
+            print(status.text)
+            return status.running ? 0 : 1
+        }
     }
 
     /// The commands each flag is for.
@@ -74,8 +123,24 @@ enum CLI {
         return table
     }()
 
-    /// The command line as a tool call. Flags may come anywhere after the command.
+    /// The commands whose operands are free text, where a word that looks like a flag may be part of it.
+    private static let freeText: Set<String> = ["open", "go", "type", "select", "wait"]
+
+    /// The command line as a tool call. Flags may come anywhere after the command. `--headless` sends the tool call to the user's
+    /// headless Changmun: before the command, or after it where no free text could include the word (a `type 3 --headless`
+    /// is refused, not guessed at: sent to the browser in use, a command meant for the headless one would act on the wrong browser).
     static func parse(_ arguments: [String]) throws -> Command {
+        var headless = false
+        let command = try parseTool(arguments, headless: &headless)
+        guard headless else { return command }
+        switch command {
+        case .call(let name, let args, let output): return .headlessCall(name, args, output: output)
+        case .help, .tools, .headlessCall: return command
+        case .headless: throw UsageError(message: "--headless doesn't apply to headless")
+        }
+    }
+
+    private static func parseTool(_ arguments: [String], headless: inout Bool) throws -> Command {
         var words: [String] = []
         var tab: Int?, max: Int?, output: String?, submit = false, labels = false, gone = false, element: Int?, timeout: Double?
         var modifiers: [String] = []
@@ -84,6 +149,11 @@ enum CLI {
         while let word = rest.next() {
             if word.hasPrefix("-"), word.count > 1, appliesTo[word] != nil { flags.append(word) }
             switch word {
+            case "--headless":
+                if let command = words.first, freeText.contains(command) {
+                    throw UsageError(message: "--headless goes before \(command) (changmun --headless \(command) …); to use the word itself, give it to `changmun call`")
+                }
+                headless = true
             case "--tab":
                 guard let value = rest.next(), let id = Int(value.trimmingCharacters(in: CharacterSet(charactersIn: "#"))) else { throw UsageError(message: "--tab needs a tab number") }
                 tab = id
@@ -135,6 +205,9 @@ enum CLI {
         switch name {
         case "help", "-h", "--help": return .help
         case "tools": return .tools
+        case "headless":
+            guard operands.count == 1, let verb = HeadlessVerb(rawValue: operands[0]) else { throw UsageError(message: "headless needs start, stop or status") }
+            return .headless(verb)
         case "tabs": return .call("list_tabs", [:], output: nil)
         case "open": return .call("open_tab", ["url": try text(from: 0, "a URL or search words")], output: nil)
         case "show": return .call("switch_tab", ["tab_id": try tab ?? number(0, "a tab number")], output: nil)
