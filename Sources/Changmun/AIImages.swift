@@ -228,6 +228,15 @@ extension ChatStore {
         return images.count + pendingImages < ImageIntake.maxCount && !capturing
     }
 
+    /// Takes the picture the AI's screenshot tool takes (JPEG, nil when it failed) and the sites of the frames it shows. Tests stand in for it.
+    static var capturePage: (Tab) async -> (Data?, Set<String>) = { tab in
+        let webView = tab.wake()
+        let shot = await ToolCatalog.picture(tab, webView).0
+        let frames = await ToolCatalog.shownFrameHosts(tab, webView)
+        guard !shot.isError, let encoded = shot.content.first?["data"] as? String else { return (nil, frames) }
+        return (Data(base64Encoded: encoded), frames)
+    }
+
     /// Attaches a picture of what the tab shows now, taken the way the AI's screenshot tool takes it (secrets on the page left out).
     func attachScreenshot(of tab: Tab?) async {
         guard let tab, !tab.isPrivate, ToolCatalog.findTab(tab.id) != nil else {
@@ -239,19 +248,20 @@ extension ChatStore {
         guard !capturing else { return }
         capturing = true
         defer { capturing = false }
-        let webView = tab.wake()
-        let site = Approvals.site(of: tab.url)
-        let title = Self.oneLine(tab.displayTitle).prefix(80), address = Self.oneLine(tab.url?.absoluteString ?? "about:blank").prefix(300)
-        let shot = await ToolCatalog.picture(tab, webView).0
-        let frames = await ToolCatalog.shownFrameHosts(tab, webView)
-        guard !shot.isError, let encoded = shot.content.first?["data"] as? String, let jpeg = Data(base64Encoded: encoded) else {
-            return say(String(localized: "The page could not be captured."))
-        }
+        let url = tab.url, site = Approvals.site(of: url)
+        let title = Self.oneLine(tab.displayTitle).prefix(80), address = Self.oneLine(url?.absoluteString ?? "about:blank").prefix(300)
+        let (taken, frames) = await Self.capturePage(tab)
+        // A page that went elsewhere while the picture was taken may have been caught on either side of it: nothing is guessed.
+        guard tab.url == url else { return say(String(localized: "The page changed while capturing. Try again.")) }
+        guard let jpeg = taken else { return say(String(localized: "The page could not be captured.")) }
         // The tab may have gone private-window-side or been closed while the picture was taken.
         guard ToolCatalog.findTab(tab.id) != nil, images.count + pendingImages < ImageIntake.maxCount else { return }
         let result = await Task.detached { ImageIntake.prepare(jpeg) }.value
         guard case .success(let prepared) = result else { return say(String(localized: "The page could not be captured.")) }
-        add(prepared, label: "a screenshot of tab #\(tab.id), title set by the page \"\(title)\", address \(address)", sites: ([site].compactMap { $0 } + frames.sorted()))
+        // The site as it is now counts too, however little it can differ from the one before the picture.
+        var sites = [site, Approvals.site(of: tab.url)].compactMap { $0 }
+        sites = sites.enumerated().filter { sites.firstIndex(of: $0.element) == $0.offset }.map(\.element) + frames.sorted()
+        add(prepared, label: "a screenshot of tab #\(tab.id), title set by the page \"\(title)\", address \(address)", sites: sites)
     }
 }
 
@@ -318,7 +328,7 @@ struct SentImages: ViewModifier {
                 HStack(spacing: 6) {
                     Spacer(minLength: 40)
                     ForEach(images) { image in
-                        Image(nsImage: image.thumbnail).resizable().scaledToFill().frame(width: 56, height: 56)
+                        Image(nsImage: image.thumbnail).resizable().scaledToFit().frame(maxWidth: 96, maxHeight: 56)
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                             .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Theme.hairline.opacity(0.5), lineWidth: 0.5))
                             .accessibilityLabel(Text("Image"))

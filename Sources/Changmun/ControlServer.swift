@@ -321,7 +321,8 @@ final class ControlServer {
                 }
                 if let encoded = body["add"] as? String { chat.addImages([Data(base64Encoded: encoded) ?? Data()]) }
                 if body["screenshot"] as? Bool == true { await chat.attachScreenshot(of: Browser.recent?.active) }
-                for _ in 0..<50 where chat.pendingImages > 0 { try? await Task.sleep(for: .milliseconds(100)) }
+                try? await Task.sleep(for: .milliseconds(300))
+                while chat.pendingImages > 0 { try? await Task.sleep(for: .milliseconds(100)) }
                 var prompt = ""
                 if let message = body["send"] as? String {
                     chat.launch = { _, text in prompt = text; return false }

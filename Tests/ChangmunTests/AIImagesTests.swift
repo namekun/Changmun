@@ -227,6 +227,33 @@ extension SharedAgentState {
             #expect(!chat.canAttachScreenshot(of: nil))
         }
 
+        @Test func aScreenshotOfAPageThatWentElsewhereWhileItWasTakenIsRefused() async {
+            let (browser, tabs) = open(["https://a.example/"])
+            defer { browser.windowClosed() }
+            let chat = ChatStore()
+            let before = ChatStore.capturePage
+            defer { ChatStore.capturePage = before }
+            ChatStore.capturePage = { tab in
+                tab.url = URL(string: "https://evil.example/")
+                return (picture(80, 40), [])
+            }
+            await chat.attachScreenshot(of: tabs[0])
+            #expect(chat.images.isEmpty, "nothing guessed about what the picture shows")
+            #expect(chat.notice == String(localized: "The page changed while capturing. Try again."))
+        }
+
+        @Test func aScreenshotTakenWhereItStoodCountsItsPageAndItsFrames() async {
+            let (browser, tabs) = open(["https://a.example/page"])
+            defer { browser.windowClosed() }
+            let chat = ChatStore()
+            let before = ChatStore.capturePage
+            defer { ChatStore.capturePage = before }
+            ChatStore.capturePage = { _ in (picture(80, 40), ["ads.example"]) }
+            await chat.attachScreenshot(of: tabs[0])
+            #expect(chat.images.count == 1 && chat.images[0].sites == ["a.example", "ads.example"])
+            #expect(chat.images[0].label.contains("tab #\(tabs[0].id)"))
+        }
+
         // MARK: Approvals
 
         @Test func aScreenshotCountsAsHavingReadItsPageSoOtherSitesAreAskedAboutAndItsOwnIsNot() async throws {

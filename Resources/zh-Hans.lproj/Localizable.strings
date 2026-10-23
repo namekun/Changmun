@@ -196,6 +196,7 @@
 "That isn't an image Changmun can read." = "这不是 Changmun 能读取的图片。";
 "The AI wants to do something that can’t be undone" = "AI 想要执行无法撤销的操作";
 "The form sends what is typed in it to %@, another site than this page." = "此表单会把填写的内容发送到 %@，这是与当前页面不同的网站。";
+"The page changed while capturing. Try again." = "截图过程中页面发生了变化,请重试。";
 "The page could not be captured." = "无法截取该页面。";
 "This looks like it pays, orders, sends, posts, shares, uploads, grants access, deletes or cancels, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this." = "这看起来像是付款、下单、发送、发布、分享、上传、授予访问权限、删除或取消，无法收回。每次都会询问。\n\n只有在你自己要求时才允许。";
 "The AI wants to accept cookies or change a setting" = "AI 想要接受 Cookie 或更改设置";

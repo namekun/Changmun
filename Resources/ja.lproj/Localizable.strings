@@ -196,6 +196,7 @@
 "That isn't an image Changmun can read." = "Changmunで読み取れる画像ではありません。";
 "The AI wants to do something that can’t be undone" = "AIが元に戻せない操作をしようとしています";
 "The form sends what is typed in it to %@, another site than this page." = "このフォームは、入力した内容をこのページとは別のサイト（%@）に送信します。";
+"The page changed while capturing. Try again." = "キャプチャ中にページが変わりました。もう一度お試しください。";
 "The page could not be captured." = "ページをキャプチャできませんでした。";
 "This looks like it pays, orders, sends, posts, shares, uploads, grants access, deletes or cancels, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this." = "支払い、注文、送信、投稿、共有、アップロード、アクセスの許可、削除、キャンセルなど、元に戻せない操作のようです。毎回確認します。\n\nご自身で依頼した場合にのみ許可してください。";
 "The AI wants to accept cookies or change a setting" = "AIがCookieを受け入れる、または設定を変更しようとしています";

@@ -196,6 +196,7 @@
 "That isn't an image Changmun can read." = "Ce n’est pas une image que Changmun peut lire.";
 "The AI wants to do something that can’t be undone" = "L’IA souhaite faire quelque chose d’irréversible";
 "The form sends what is typed in it to %@, another site than this page." = "Le formulaire envoie ce qui y est saisi à %@, un autre site que cette page.";
+"The page changed while capturing. Try again." = "La page a changé pendant la capture. Réessayez.";
 "The page could not be captured." = "La page n’a pas pu être capturée.";
 "This looks like it pays, orders, sends, posts, shares, uploads, grants access, deletes or cancels, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this." = "Cela ressemble à un paiement, une commande, un envoi, une publication, un partage, un téléversement, un accès accordé, une suppression ou une annulation, ce qui est irréversible. La question est posée à chaque fois.\n\nN’autorisez que si vous l’avez demandé.";
 "The AI wants to accept cookies or change a setting" = "L’IA souhaite accepter les cookies ou modifier un réglage";
