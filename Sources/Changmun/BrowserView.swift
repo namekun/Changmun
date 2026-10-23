@@ -38,6 +38,8 @@ enum Theme {
     static let meter = ink(0.75)
     static let waiting = Color(red: 1.0, green: 0.62, blue: 0.2)
     static let working = Color(red: 0.31, green: 0.82, blue: 0.47)
+    /// The orange for text and small glyphs: `waiting` is too light to read on the light ground (about 2:1), so light mode gets a deeper one (4.5:1 or better on the ground and on a tinted chip).
+    static let waitingText = dynamic(light: NSColor(red: 0.58, green: 0.30, blue: 0, alpha: 1), dark: NSColor(red: 1.0, green: 0.62, blue: 0.2, alpha: 1))
 
     private static func dynamic(light: NSColor, dark: NSColor) -> Color {
         Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light })
@@ -60,7 +62,7 @@ struct Hairline: View {
 /// Sizes on a 4 pt grid. Rows share one height, and a row inside another steps in by one icon column, so its icon
 /// lines up with the text above it.
 enum Metrics {
-    /// From the window's edge to the sidebar's contents and to the page card.
+    /// From the window's edge to the sidebar's contents and to the AI panel's.
     static let inset: CGFloat = 8
     static let row: CGFloat = 28
     static let rowGap: CGFloat = 2
@@ -403,6 +405,17 @@ extension NSImage {
     }
 }
 
+/// Where the page is: right of the sidebar and left of the AI panel, when they are showing. What opens over the page (the command bar,
+/// the peek card) is centred in it, so it never covers the sidebar.
+struct PageArea: Equatable {
+    var leading: CGFloat
+    var trailing: CGFloat
+    /// The room between the two.
+    var width: CGFloat
+
+    static let window = PageArea(leading: 0, trailing: 0, width: 10_000)
+}
+
 struct BrowserView: View {
     @ObservedObject var browser: Browser
     @ObservedObject var chat: ChatStore
@@ -413,6 +426,9 @@ struct BrowserView: View {
     var body: some View {
         let sidebar = browser.showSidebar && !browser.focusMode
         let chatWidth = Preferences.aiPanelWidth(prefs.aiPanelWidth, available: contentWidth)
+        let chatShown = browser.showChat && !browser.focusMode
+        let area = PageArea(leading: sidebar ? prefs.sidebarWidth : 0, trailing: chatShown ? chatWidth : 0,
+                            width: contentWidth - (chatShown ? chatWidth : 0))
         ZStack {
             WindowMaterial()
             if browser.focusMode { WindowDragArea() }
@@ -445,13 +461,13 @@ struct BrowserView: View {
                 .onGeometryChange(for: Double.self) { $0.size.width } action: { contentWidth = $0 }
             }
             if let peek = browser.peek {
-                PeekCard(tab: peek, browser: browser).transition(Motion.pop(.center))
+                PeekCard(tab: peek, browser: browser, area: area).transition(Motion.pop(.center))
             }
             if let switcher = browser.tabSwitcher {
                 TabSwitcherView(browser: browser, switcher: switcher)
             }
             if let mode = browser.commandBar, !browser.showOnboarding {
-                CommandBar(browser: browser, chat: chat, mode: mode).transition(Motion.pop(.top))
+                CommandBar(browser: browser, chat: chat, area: area, mode: mode).transition(Motion.pop(.top))
             }
             if let mode = browser.spaceSheet {
                 SpaceSheet(browser: browser, mode: mode).id(mode).transition(Motion.pop(.center))
@@ -1519,7 +1535,7 @@ struct AdBlockShield: View {
             Button { AdBlocker.shared.toggleSite(host) } label: {
                 Image(systemName: off ? "shield.slash" : "shield.fill")
                     .font(.system(size: 10.5, weight: .medium))
-                    .foregroundStyle(off ? Theme.waiting : Theme.dim)
+                    .foregroundStyle(off ? Theme.waitingText : Theme.dim)
                     .frame(width: 20, height: 22)
                     .contentShape(Rectangle())
             }
@@ -2160,6 +2176,8 @@ struct LoginOfferBar: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
+                    .layoutPriority(1)
+                // The user name gives way first, so the site stays readable.
                 if !offer.username.isEmpty {
                     Text(offer.username).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
                 }
@@ -2178,6 +2196,8 @@ struct LoginOfferBar: View {
                 .buttonStyle(.plain)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Theme.secondary)
+                .lineLimit(1)
+                .fixedSize()
                 .padding(.horizontal, 4)
                 BarButton(symbol: "xmark", help: String(localized: "Close")) { tab.loginOffer = nil }
             }
@@ -2253,7 +2273,7 @@ struct WebStoreBar: View {
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
                 if let error = host.storeErrors[id] {
-                    Text(error).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.waiting).lineLimit(1)
+                    Text(error).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.waitingText).lineLimit(1)
                 }
                 Spacer(minLength: 8)
                 if host.installing.contains(id) {
@@ -2312,6 +2332,7 @@ struct SplitDivider: View {
 struct PeekCard: View {
     @ObservedObject var tab: Tab
     @ObservedObject var browser: Browser
+    var area = PageArea.window
 
     var body: some View {
         ZStack {
@@ -2349,7 +2370,10 @@ struct PeekCard: View {
             .padding(10)
             .floatingPanel(radius: 16)
             .frame(maxWidth: 1180)
-            .padding(.horizontal, 64)
+            // 64 pt from the page's sides, less where the page is narrow.
+            .padding(.horizontal, min(64, max(16, (area.width - 480) / 2)))
+            .padding(.leading, area.leading)
+            .padding(.trailing, area.trailing)
             .padding(.top, BrowserWindow.barHeight)
             .padding(.bottom, 32)
         }
@@ -2646,6 +2670,7 @@ struct CommandBar: View {
     @ObservedObject var browser: Browser
     @ObservedObject var chat: ChatStore
     @ObservedObject private var prefs = Preferences.shared
+    var area = PageArea.window
     let mode: CommandBarMode
     @State private var text = ""
     @State private var selection = 0
@@ -2730,9 +2755,11 @@ struct CommandBar: View {
                 }
             }
             .padding(10)
-            .frame(width: 620)
+            .frame(width: min(620, max(320, area.width - 32)))
             .floatingPanel(radius: 16)
             .padding(.top, 96)
+            .padding(.leading, area.leading)
+            .padding(.trailing, area.trailing)
             .onKeyPress(.downArrow) { selection = max(0, min(selection + 1, items.count - 1)); return .handled }
             .onKeyPress(.upArrow) { selection = max(selection - 1, 0); return .handled }
             .onKeyPress(.escape) { dismiss(); return .handled }

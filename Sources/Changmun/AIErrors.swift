@@ -155,7 +155,7 @@ struct ChatErrorRow: View {
                     .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.selected))
             }
         }
-        .foregroundStyle(Theme.waiting)
+        .foregroundStyle(Theme.waitingText)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(failure.title + (failure.explanation.isEmpty ? "" : ". " + failure.explanation))
     }

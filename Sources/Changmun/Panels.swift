@@ -375,7 +375,7 @@ struct DownloadRow: View {
         case .cancelled:
             Text("Cancelled").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.faint)
         case .failed(let reason):
-            Text("Failed: \(reason)").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waiting).lineLimit(1)
+            Text("Failed: \(reason)").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waitingText).lineLimit(1)
         }
     }
 
@@ -432,7 +432,7 @@ struct FindBar: View {
             if let matches = overlay.findMatches, !overlay.findText.isEmpty {
                 Text(matches == 0 ? String(localized: "None") : matches == 1 ? String(localized: "\(matches) match") : String(localized: "\(matches) matches"))
                     .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                    .foregroundStyle(matches == 0 ? Theme.waiting : Theme.secondary)
+                    .foregroundStyle(matches == 0 ? Theme.waitingText : Theme.secondary)
             }
             BarButton(symbol: "chevron.up", help: String(localized: "Previous (⌘⇧G)")) { browser.find(backwards: true) }.disabled(overlay.findText.isEmpty)
             BarButton(symbol: "chevron.down", help: String(localized: "Next (⌘G)")) { browser.find() }.disabled(overlay.findText.isEmpty)

@@ -927,7 +927,7 @@ struct ChatPanel: View {
             attachments
             if !chat.queue.isEmpty { queued }
             if let notice = chat.notice {
-                Text(notice).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waiting)
+                Text(notice).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waitingText)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6).padding(.bottom, 6)
             }
             // A run under way can always be stopped.

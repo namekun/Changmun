@@ -130,7 +130,7 @@ struct StepChip: View {
             }
         }
         .font(.system(size: 11, weight: .semibold))
-        .foregroundStyle(item.outcome?.isProblem == true ? Theme.waiting : Theme.secondary)
+        .foregroundStyle(item.outcome?.isProblem == true ? Theme.waitingText : Theme.secondary)
         .padding(.horizontal, 9)
         .frame(height: 22)
         .background(Capsule().fill(Theme.selected))
