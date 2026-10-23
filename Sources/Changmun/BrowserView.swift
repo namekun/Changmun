@@ -1270,7 +1270,8 @@ struct DisabledNavigationButtons: View {
     }
 }
 
-/// Nunsseop's search field: a softly filled rounded box; loading shows as its 3 pt bar along the bottom.
+/// Nunsseop's search field: a softly filled rounded box; loading shows as its 3 pt bar along the bottom edge, which the box's corners clip,
+/// so it never runs into the text above it.
 struct FieldBackground: View {
     @ObservedObject var tab: Tab
     var focused = false
@@ -1280,8 +1281,9 @@ struct FieldBackground: View {
             .fill(Theme.field)
             .overlay(RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous).strokeBorder(Theme.hairline, lineWidth: focused ? 0.5 : 0))
             .overlay(alignment: .bottom) {
-                if tab.isLoading { Meter(fraction: tab.progress).padding(.horizontal, 10).padding(.bottom, 3).transition(.opacity) }
+                if tab.isLoading { Meter(fraction: tab.progress).transition(.opacity) }
             }
+            .clipShape(RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous))
             .animation(Motion.quick, value: tab.isLoading)
     }
 }
