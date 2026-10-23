@@ -6,6 +6,20 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.7.1</title>
+      <pubDate>Fri, 23 Oct 2026 15:55:47 +0000</pubDate>
+      <sparkle:version>24</sparkle:version>
+      <sparkle:shortVersionString>0.7.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.7.1</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **The loading bar sits on the address bar's edge.** It used to float just under the address text and touch letters like g and p. It now runs along the bottom edge of the address bar, rounded with it.
+- **The command bar and page previews open over the page.** They're centred on the page instead of the window, so they no longer cover the sidebar.
+- **Orange text you can read in light mode.** Errors, approval questions and "no results" use a darker orange in light mode.
+- **Small fixes.** The save-login bar shortens the user name before the site name, and the list in onboarding lines up with its buttons.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.1/Changmun-0.7.1.dmg" length="4850465" type="application/octet-stream" sparkle:edSignature="GgkOOcPAJS6N8ZiWs0WXZoY9Tsv20lGYWR7sDQ7loOLGcawm2rmNoYEFoyRelCAtjpIQnWFRhzL8dU4BwJFfAw==" />
+    </item>
+    <item>
       <title>0.7.0</title>
       <pubDate>Fri, 23 Oct 2026 09:31:42 +0000</pubDate>
       <sparkle:version>23</sparkle:version>
@@ -81,6 +95,6 @@
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: ZFyxf1iq1A9ipv7SAFbtWIRY8XaEgdSi6ZZhaszfCLc48DTA3Y4JN4Vf+rybBj7z0I6IFuM9Mu7upFKj4bUWCA==
-length: 9665
+edSignature: ZFc1vLMNaAAeMPKyl5hNmKQ3+y66Cbj8gDzdnNtU5CyaMz1j5GdkV2yu2uVVEL6Ofuqo0k11+Qdryre1dlLtDw==
+length: 11092
 -->
