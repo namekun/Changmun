@@ -35,6 +35,8 @@ enum WindowImage {
     static func png(of window: NSWindow) async -> Data? {
         // The window's frame view, so the window buttons above the content show too.
         guard let view = window.contentView?.superview ?? window.contentView else { return nil }
+        // A window that isn't key is never told to put its window buttons back, which AppKit may have moved since.
+        (window as? BrowserWindow)?.layoutTrafficLights()
         view.layoutSubtreeIfNeeded()
         var stand: [NSView] = []
         for webView in webViews(in: view) where !webView.isHiddenOrHasHiddenAncestor {

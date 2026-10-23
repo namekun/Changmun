@@ -48,6 +48,9 @@ final class ImportModel: ObservableObject {
 }
 
 struct OnboardingView: View {
+    private static var scrollerGutter: CGFloat {
+        NSScroller.preferredScrollerStyle == .legacy ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0
+    }
     @ObservedObject var browser: Browser
     @StateObject private var model = ImportModel()
 
@@ -104,6 +107,8 @@ struct OnboardingView: View {
                 }
             }
             .frame(maxHeight: 230)
+            // The scroll bar's gutter (where bars always show) lies in the card's margin, so the rows end where the buttons do.
+            .padding(.trailing, -Self.scrollerGutter)
             Divider().opacity(0.5)
             HStack(spacing: 16) {
                 Toggle("Bookmarks", isOn: $model.options.bookmarks)
@@ -152,7 +157,7 @@ struct OnboardingView: View {
                     ForEach(report.problems, id: \.self) { problem in
                         Label(problem, systemImage: "exclamationmark.triangle")
                             .font(.system(size: 11.5))
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Theme.waitingText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }

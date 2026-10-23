@@ -224,6 +224,55 @@ final class ControlServer {
             }
             return
         }
+        // Tests only: the front window put into a look. "appearance" is system, light or dark; "toolbar" is page or sidebar; "sidebar",
+        // "focus", "find" (with "findText"), "downloads" and "onboarding" show or hide that part; "command" is newTab, editCurrent or
+        // none; "progress" (0...1) holds the tab in front as loading at that point, and a negative one lets it be ("peek": true for the peek card's tab); "popup" (a link), "login"
+        // (a user name) and "foreign" (a language) put up the bar or button for that on the tab in front, "" taking it down again; "reader" toggles Reader Mode; "group" ({"ids", "name"}) gathers tabs into a group;
+        // "folder" ({"name", "pages": [[url, title]], "pin", "open"}) fills a bookmark folder, pinned and opened in the sidebar.
+        if Headless.isTestCopy, request.method == "POST", request.path == "/ui",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                guard let browser = Browser.current else {
+                    return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
+                }
+                if let name = body["appearance"] as? String, let appearance = AppAppearance(rawValue: name) { Preferences.shared.appearance = appearance }
+                if let name = body["toolbar"] as? String, let place = ToolbarPlace(rawValue: name) { Preferences.shared.toolbarPlace = place }
+                if let on = body["sidebar"] as? Bool { browser.showSidebar = on }
+                if let on = body["focus"] as? Bool { browser.focusMode = on }
+                if let on = body["onboarding"] as? Bool { browser.showOnboarding = on }
+                if let on = body["downloads"] as? Bool { browser.showDownloads = on }
+                if let text = body["findText"] as? String { browser.overlay.findText = text }
+                if let on = body["find"] as? Bool { if on { browser.showFindBar() } else { browser.hideFindBar() } }
+                switch body["command"] as? String {
+                case "newTab": browser.commandBar = .newTab
+                case "editCurrent": browser.commandBar = .editCurrent
+                case "none": browser.commandBar = nil
+                default: break
+                }
+                if let group = body["group"] as? [String: Any], let ids = group["ids"] as? [Int] {
+                    browser.group(ids, name: group["name"] as? String ?? "Group")
+                    browser.renamingGroup = nil
+                }
+                if let folder = body["folder"] as? [String: Any], let name = folder["name"] as? String {
+                    for page in folder["pages"] as? [[String]] ?? [] where page.count == 2 { Library.shared.addBookmark(url: page[0], title: page[1], folder: name) }
+                    if folder["pin"] as? Bool == true { browser.spaces.pinFolder(name, before: nil, in: browser.spaceID) }
+                    if folder["open"] as? Bool == true, !browser.space.openFolders.contains("pin:" + name) { browser.spaces.toggleOpen("pin:" + name, in: browser.spaceID) }
+                }
+                if let tab = browser.active {
+                    if let popup = body["popup"] as? String { tab.blockedPopup = URL(string: popup) }
+                    if let login = body["login"] as? String { tab.loginOffer = login.isEmpty ? nil : LoginOffer(host: "accounts.example.com", username: login, password: "x") }
+                    if let language = body["foreign"] as? String { tab.foreignLanguage = language.isEmpty ? nil : Locale.Language(identifier: language) }
+                    if body["reader"] as? Bool == true { tab.toggleReader() }
+                }
+                if let progress = body["progress"] as? Double, let tab = (body["peek"] as? Bool == true ? browser.peek : browser.active) {
+                    tab.isLoading = progress >= 0
+                    tab.progress = max(0, progress)
+                }
+                try? await Task.sleep(for: .milliseconds(500))
+                self.respond(connection, status: "200 OK", body: [:])
+            }
+            return
+        }
         // Tests only: a page of "html" in the tab in front, as if it came from the address "base" (https://lab.test/, say).
         if Headless.isTestCopy, request.method == "POST", request.path == "/load-html",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any], let html = body["html"] as? String {

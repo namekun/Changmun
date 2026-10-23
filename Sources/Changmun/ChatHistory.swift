@@ -179,7 +179,7 @@ struct ChatHistoryView: View {
     var body: some View {
         VStack(spacing: 0) {
             if history.saveFailed {
-                Text("Couldn’t save chat history").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waiting)
+                Text("Couldn’t save chat history").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waitingText)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 10).padding(.top, 6)
             }
             if let id = chat.openedHistory, let stored = history.chats.first(where: { $0.id == id }) {
@@ -206,7 +206,7 @@ private struct HistoryAction: View {
                 Image(systemName: symbol).font(.system(size: 9, weight: .bold))
                 Text(title).font(.system(size: 11, weight: .semibold))
             }
-            .foregroundStyle(prominent ? Theme.waiting : Theme.primary)
+            .foregroundStyle(prominent ? Theme.waitingText : Theme.primary)
             .padding(.horizontal, 9).frame(height: 22)
             .background(Capsule().fill(Theme.pill))
         }
