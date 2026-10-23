@@ -662,8 +662,9 @@
 "Summarize what the top results say" = "상위 결과들이 뭐라고 하는지 요약해 줘";
 "The model for your next messages (also in Settings › AI)" = "다음 메시지부터 쓸 모델이에요 (설정 › AI에서도 바꿀 수 있어요)";
 "The tab the AI treats as current: it follows the tab you are viewing" = "AI가 현재 탭으로 보는 탭이에요. 보고 있는 탭을 따라가요";
-"This link carries data in its address. Open it?" = "이 링크는 주소에 데이터를 담고 있어요. 열까요?";
 "typed %lld characters" = "%lld자 입력함";
 "The history stays on this Mac, and you can turn it off here." = "기록은 이 Mac에만 남고, 여기서 끌 수 있어요.";
 "Couldn’t save chat history" = "대화 기록을 저장하지 못했어요";
 "%lld characters" = "%lld자";
+"Open a link to %@?" = "%@ 링크를 열까요?";
+"This chat has read other sites, and a page could have slipped this link in to send what the AI read there." = "이 대화에서 다른 사이트를 읽었어요. AI가 읽은 내용을 그곳으로 보내려고 페이지가 이 링크를 끼워 넣었을 수도 있어요.";

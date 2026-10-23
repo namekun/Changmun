@@ -343,8 +343,8 @@ struct CopyTextButton: View {
 
 /// What an answer's links may be and say. The AI's text can come from a page, so a link in it is a place the page chose: it opens only if it
 /// is http(s) with no user name or password, it always names its host in ASCII next to its words (unless the words are that very address),
-/// and once the chat has read a site, a link to any site that isn't one the chat has read or one open in the window is asked about first,
-/// with the whole address in front of the user: what was read can ride out in any part of an address.
+/// and once the chat has read a site other than the one a link goes to, the link is asked about first, with the whole address in front of
+/// the user: what was read can ride out in any part of an address.
 enum ChatLinks {
     /// Whether the address may be opened from an answer: http or https, with a host and no user name or password.
     static func isSafe(_ url: URL) -> Bool {
@@ -417,30 +417,29 @@ enum ChatLinks {
         return output
     }
 
-    /// Whether to ask before opening: the chat has read a site (`read`, as `Approvals.sitesRead` lists them), and the link goes to a site
-    /// that is neither one of those nor one open in the window (`open`, written the same way). The whole address is where a page could
-    /// have the AI put what it read: its path, its subdomain, its query.
-    static func needsConfirmation(_ url: URL, read: [String], open: [String]) -> Bool {
-        guard !read.isEmpty else { return false }
-        guard let site = Approvals.site(of: url) else { return true }
-        return !read.contains(site) && !open.contains(site)
+    /// Whether to ask before opening, as `Approvals.allowInteraction` asks about using a page: the chat has read a site other than the one
+    /// the link goes to (`read`, as `Approvals.sitesRead` lists them). Then a page it read could have slipped the link in to carry what it
+    /// read elsewhere to the destination, in any part of the address; a site that is open in a tab is no safer, so that doesn't count.
+    static func needsConfirmation(_ url: URL, read: [String]) -> Bool {
+        guard let site = Approvals.site(of: url) else { return !read.isEmpty }
+        return !Set(read).subtracting([site]).isEmpty
     }
 
     /// Opens a link of an answer in a new tab, after the question when it needs one.
     @MainActor
     static func open(_ url: URL) -> OpenURLAction.Result {
         guard isSafe(url) else { return .discarded }
-        let browser = Browser.recent
-        let openSites = (browser?.tabs ?? []).filter { !$0.isPrivate }.compactMap { Approvals.site(of: $0.url) }
-        if needsConfirmation(url, read: Approvals.sitesRead(caller: ChatStore.caller), open: openSites) {
+        if needsConfirmation(url, read: Approvals.sitesRead(caller: ChatStore.caller)) {
             let alert = NSAlert()
-            alert.messageText = String(localized: "This link carries data in its address. Open it?")
-            alert.informativeText = Approvals.shown(url.absoluteString, limit: 1000).text
+            let host = host(of: url) ?? ""
+            alert.messageText = String(localized: "Open a link to \(host)?")
+            alert.informativeText = String(localized: "This chat has read other sites, and a page could have slipped this link in to send what the AI read there.")
+                + "\n\n" + Approvals.shown(url.absoluteString, limit: 1000).text
             alert.addButton(withTitle: String(localized: "Cancel"))
             alert.addButton(withTitle: String(localized: "Open"))
             guard alert.runModal() == .alertSecondButtonReturn else { return .handled }
         }
-        let target = browser ?? BrowserWindow.open()
+        let target = Browser.recent ?? BrowserWindow.open()
         target.openTab(url: url, after: target.active)
         return .handled
     }

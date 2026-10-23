@@ -82,22 +82,19 @@ struct AIPanelSecurityTests {
         #expect(ChatLinks.host(of: URL(string: "https://example.com:443/")!) == "example.com")
     }
 
-    @Test func onceASiteWasReadALinkToAnyOtherSiteAsksWhateverPartCarriesTheData() {
-        let read = ["a.example"], open = ["b.example", "http://c.example", "d.example:8443"]
-        func asks(_ link: String, read: [String] = read, open: [String] = open) -> Bool {
-            ChatLinks.needsConfirmation(URL(string: link)!, read: read, open: open)
+    @Test func aLinkAsksWhenTheChatHasReadASiteOtherThanTheOneItGoesTo() {
+        func asks(_ link: String, read: [String]) -> Bool { ChatLinks.needsConfirmation(URL(string: link)!, read: read) }
+        let both = ["a.example", "b.example"]
+        #expect(asks("https://a.example/", read: both) && asks("https://b.example/", read: both) && asks("https://c.example/", read: both), "what one read can ride to the other")
+        #expect(!asks("https://a.example/anything?q=" + String(repeating: "x", count: 200), read: ["a.example"]), "only the destination itself was read")
+        #expect(asks("https://c.example/", read: ["a.example"]))
+        for link in ["https://evil.example/x/SECRETDATA", "https://SECRETDATA.evil.example/", "https://evil.example/?q=SECRETDATA", "https://evil.example/#SECRETDATA"] {
+            #expect(asks(link, read: ["a.example"]), "\(link): data in any part of the address")
         }
-        #expect(asks("https://evil.example/x/SECRETDATA"), "in the path")
-        #expect(asks("https://SECRETDATA.evil.example/"), "in a subdomain")
-        #expect(asks("https://evil.example/?q=SECRETDATA") && asks("https://evil.example/#SECRETDATA"))
-        #expect(asks("https://evil.example/"), "even a short address: the site itself is new")
-        #expect(!asks("https://a.example/anything?q=" + String(repeating: "x", count: 200)), "a site that was read")
-        #expect(!asks("https://b.example/") && !asks("http://c.example/x") && !asks("https://d.example:8443/"), "a site open in the window")
-        #expect(asks("http://a.example/") && asks("https://c.example/") && asks("https://d.example/"), "another scheme or port is another site")
-        #expect(asks("https://x.a.example/") && asks("https://a.example.evil.net/"), "a neighbour of a read site is not it")
         #expect(!asks("https://evil.example/x", read: []), "nothing read, nothing to carry")
-        #expect(!asks("https://xn--e1a.example/", read: ["xn--e1a.example"]), "sites are compared in their ASCII form")
-        #expect(!ChatLinks.needsConfirmation(URL(string: "https://а.example/")!, read: ["xn--80a.example"], open: []), "Unicode and ASCII forms are one site")
+        #expect(asks("http://a.example/", read: ["a.example"]) && asks("https://a.example:8443/", read: ["a.example"]), "another scheme or port is another site")
+        #expect(!asks("https://xn--80a.example/", read: ["xn--80a.example"]) && !ChatLinks.needsConfirmation(URL(string: "https://а.example/")!, read: ["xn--80a.example"]), "sites are compared in their ASCII form")
+        #expect(asks("https://c.example/", read: [Approvals.addedImage]), "a picture from outside is a source too")
     }
 
     // MARK: History
