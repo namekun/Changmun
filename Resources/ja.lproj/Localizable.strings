@@ -21,6 +21,7 @@
 "(No username)" = "(ユーザ名なし)";
 "a frame of an unknown site" = "不明なサイトのフレーム";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "完全なアドレスはその場で編集できます (⌘L)。サイトとタイトルを表示している場合は、⌘Lで検索フィールドを開いて編集します。";
+"A private window can't be shown to the AI." = "プライベートウインドウはAIに見せられません。";
 "About Changmun" = "Changmunについて";
 "Action:\n%@\n\nSites read earlier in this conversation: %@\nA page can hide instructions for the AI. Deny if this isn’t what you asked for." = "操作:\n%@\n\nこの会話でこれまでに読み取ったサイト: %@\nページにAI宛ての指示が隠されていることがあります。ご自身で依頼した内容でなければ拒否してください。";
 "Active" = "有効";
@@ -58,6 +59,7 @@
 "Allow pop-ups" = "ポップアップを許可";
 "Always Allow for %@" = "%@では常に許可";
 "Always Allow for This Site" = "このサイトでは常に許可";
+"an image you added" = "追加した画像";
 "and %lld more" = "ほか%lld件";
 "Archive tabs you haven’t viewed in a while" = "しばらく見ていないタブをアーカイブ";
 "Archived Tabs" = "アーカイブしたタブ";
@@ -66,6 +68,7 @@
 "Ask AI" = "AIに質問";
 "Ask before using other tabs, opening new addresses, or using a page after reading other sites" = "ほかのタブの使用、新しいアドレスを開く操作、ほかのサイトを読み取ったあとのページ操作の前に確認";
 "Ask where to save each download" = "ダウンロードごとに保存先を確認";
+"Attach a picture of this page. You can also drop or paste images." = "このページの画像を添付します。画像のドロップやペーストもできます。";
 "Authentication is required to copy the saved password" = "保存されたパスワードをコピーするには認証が必要です";
 "Automatically put new tabs in the right group" = "新しいタブを適切なグループに自動で追加";
 "Back" = "戻る";
@@ -185,9 +188,15 @@
 "Edit" = "編集";
 "Edit Address (⌘L)" = "アドレスを編集 (⌘L)";
 "Either way, it asks every time before something that looks like it pays, orders, sends, posts, shares, grants access, deletes or cancels." = "どちらの設定でも、支払い・注文・送信・投稿・共有・アクセスの許可・削除・キャンセルに見える操作の前には毎回確認します。";
+"Image" = "画像";
 "It also asks before something that looks like a cookie banner or a setting (save, clear, reset, block), which you can allow for a site until the chat is cleared." = "Cookieバナーや設定（保存・クリア・リセット・ブロック）に見える操作の前にも確認します。会話をクリアするまでサイト単位で許可できます。";
+"Remove this image" = "この画像を外す";
+"Screenshot" = "スクリーンショット";
+"That image is too large to attach." = "画像が大きすぎて添付できません。";
+"That isn't an image Changmun can read." = "Changmunで読み取れる画像ではありません。";
 "The AI wants to do something that can’t be undone" = "AIが元に戻せない操作をしようとしています";
 "The form sends what is typed in it to %@, another site than this page." = "このフォームは、入力した内容をこのページとは別のサイト（%@）に送信します。";
+"The page could not be captured." = "ページをキャプチャできませんでした。";
 "This looks like it pays, orders, sends, posts, shares, uploads, grants access, deletes or cancels, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this." = "支払い、注文、送信、投稿、共有、アップロード、アクセスの許可、削除、キャンセルなど、元に戻せない操作のようです。毎回確認します。\n\nご自身で依頼した場合にのみ許可してください。";
 "The AI wants to accept cookies or change a setting" = "AIがCookieを受け入れる、または設定を変更しようとしています";
 "This looks like a cookie banner or a setting (save, clear, reset, block, enable), not like paying, sending or granting access. You can allow it once, or on this site for the rest of the chat." = "支払い・送信・アクセスの許可ではなく、Cookieバナーや設定（保存・クリア・リセット・ブロック・有効化）のようです。1回だけ許可するか、この会話の間このサイトで許可できます。";
@@ -488,6 +497,7 @@
 "Where would you like to import from?" = "どこから読み込みますか？";
 "Window" = "ウインドウ";
 "Working" = "作業中";
+"You can attach up to %lld images to a message." = "1つのメッセージに添付できる画像は%lld枚までです。";
 "You can use this extension in Changmun" = "この機能拡張はChangmunで使用できます";
 "YousList (Korean ads)" = "YousList (韓国の広告)";
 "Zoom" = "ズーム";

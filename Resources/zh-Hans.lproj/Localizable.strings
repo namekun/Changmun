@@ -21,6 +21,7 @@
 "(No username)" = "（无用户名）";
 "a frame of an unknown site" = "来源不明的框架";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "完整地址可以直接在原位编辑（⌘L）。若显示网站和标题，按 ⌘L 会打开搜索栏进行编辑。";
+"A private window can't be shown to the AI." = "无法向 AI 展示隐私窗口。";
 "About Changmun" = "关于 Changmun";
 "Action:\n%@\n\nSites read earlier in this conversation: %@\nA page can hide instructions for the AI. Deny if this isn’t what you asked for." = "操作：\n%@\n\n此对话中先前读取过的网站：%@\n网页可能藏有针对 AI 的指令。如果这不是你要求的，请拒绝。";
 "Active" = "已启用";
@@ -58,6 +59,7 @@
 "Allow pop-ups" = "允许弹出式窗口";
 "Always Allow for %@" = "始终允许 %@";
 "Always Allow for This Site" = "始终允许此网站";
+"an image you added" = "你添加的图片";
 "and %lld more" = "另外 %lld 个";
 "Archive tabs you haven’t viewed in a while" = "归档一段时间未查看的标签页";
 "Archived Tabs" = "已归档的标签页";
@@ -66,6 +68,7 @@
 "Ask AI" = "询问 AI";
 "Ask before using other tabs, opening new addresses, or using a page after reading other sites" = "使用其他标签页、打开新地址，或在读取其他网站后操作页面前先询问";
 "Ask where to save each download" = "每次下载时询问存储位置";
+"Attach a picture of this page. You can also drop or paste images." = "附加此页面的截图。也可以拖放或粘贴图片。";
 "Authentication is required to copy the saved password" = "需要验证身份才能拷贝已存储的密码";
 "Automatically put new tabs in the right group" = "自动将新标签页放入合适的群组";
 "Back" = "后退";
@@ -185,9 +188,15 @@
 "Edit" = "编辑";
 "Edit Address (⌘L)" = "编辑地址 (⌘L)";
 "Either way, it asks every time before something that looks like it pays, orders, sends, posts, shares, grants access, deletes or cancels." = "无论如何设置，遇到看起来像付款、下单、发送、发布、分享、授予访问权限、删除或取消的操作，每次都会先询问。";
+"Image" = "图片";
 "It also asks before something that looks like a cookie banner or a setting (save, clear, reset, block), which you can allow for a site until the chat is cleared." = "遇到看起来像 Cookie 横幅或设置（保存、清除、重置、屏蔽）的操作也会先询问，你可以对某个网站允许，直到清除对话。";
+"Remove this image" = "移除此图片";
+"Screenshot" = "截图";
+"That image is too large to attach." = "图片太大,无法附加。";
+"That isn't an image Changmun can read." = "这不是 Changmun 能读取的图片。";
 "The AI wants to do something that can’t be undone" = "AI 想要执行无法撤销的操作";
 "The form sends what is typed in it to %@, another site than this page." = "此表单会把填写的内容发送到 %@，这是与当前页面不同的网站。";
+"The page could not be captured." = "无法截取该页面。";
 "This looks like it pays, orders, sends, posts, shares, uploads, grants access, deletes or cancels, and that can’t be taken back. It is asked every time.\n\nAllow it only if you asked for this." = "这看起来像是付款、下单、发送、发布、分享、上传、授予访问权限、删除或取消，无法收回。每次都会询问。\n\n只有在你自己要求时才允许。";
 "The AI wants to accept cookies or change a setting" = "AI 想要接受 Cookie 或更改设置";
 "This looks like a cookie banner or a setting (save, clear, reset, block, enable), not like paying, sending or granting access. You can allow it once, or on this site for the rest of the chat." = "这看起来像是 Cookie 横幅或设置（保存、清除、重置、屏蔽、启用），而不是付款、发送或授予访问权限。你可以只允许一次，或在此对话的剩余时间内允许此网站。";
@@ -488,6 +497,7 @@
 "Where would you like to import from?" = "要从哪里导入？";
 "Window" = "窗口";
 "Working" = "处理中";
+"You can attach up to %lld images to a message." = "每条消息最多可附加 %lld 张图片。";
 "You can use this extension in Changmun" = "你可以在 Changmun 中使用此扩展";
 "YousList (Korean ads)" = "YousList（韩国广告）";
 "Zoom" = "缩放";
