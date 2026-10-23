@@ -235,6 +235,22 @@ final class ControlServer {
             }
             return
         }
+        // Tests only: the Translate button pressed on the tab in front, answered when it is done with the page's language,
+        // where the page stands ("original" or "translated"), what the status line says, and the page's text.
+        if Headless.isOn, request.method == "POST", request.path == "/translate" {
+            Task { @MainActor in
+                guard let browser = Browser.recent, let tab = browser.active else { return self.respond(connection, status: "404 Not Found", body: ["error": "no tab"]) }
+                browser.overlay.statusMessage = nil
+                tab.toggleTranslation()
+                for _ in 0..<1200 where tab.translation == .translating { try? await Task.sleep(for: .milliseconds(100)) }
+                let text = try? await tab.webView?.callAsyncJavaScript("return document.body.innerText", contentWorld: .page) as? String
+                self.respond(connection, status: "200 OK", body: [
+                    "language": tab.foreignLanguage?.minimalIdentifier ?? "", "state": tab.translation == .translated ? "translated" : "original",
+                    "status": browser.overlay.statusMessage ?? "", "text": text ?? "",
+                ])
+            }
+            return
+        }
         // Tests only: how the AI's approvals are answered ("answer": allow, site or deny; any other value goes back to
         // allowing), whether questions wait for an answer instead ("hold"), the answer given to those waiting ("release":
         // allow, site or deny), a caller's stop button ("stop": the caller's name), the chat started over ("newChat", as

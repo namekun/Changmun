@@ -558,7 +558,8 @@ extension Tab: WKNavigationDelegate {
             switch outcome {
             case .needsDownload: browser?.flashStatus(String(localized: "Download this language in System Settings › General › Language & Region › Translation Languages"))
             case .unsupported: browser?.flashStatus(String(localized: "This language can’t be translated"))
-            case .translated, .failed: break
+            case .failed: browser?.flashStatus(String(localized: "Couldn't translate this page"))
+            case .translated: break
             }
         }
     }

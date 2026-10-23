@@ -143,6 +143,7 @@
 "Couldn't read '%@' from the Keychain, so passwords and cookies were skipped. Click 'Allow' in the permission dialog to import them." = "キーチェーンから「%@」を読み取れなかったため、パスワードとCookieをスキップしました。読み込むには、許可のダイアログで「許可」をクリックしてください。";
 "Couldn't run claude: %@" = "claudeを実行できませんでした: %@";
 "Couldn't save the page" = "ページを保存できませんでした";
+"Couldn't translate this page" = "このページを翻訳できませんでした";
 "Couldn’t run it: %@" = "実行できませんでした: %@";
 "Current Site" = "現在のサイト";
 "Cut" = "カット";

@@ -143,6 +143,7 @@
 "Couldn't read '%@' from the Keychain, so passwords and cookies were skipped. Click 'Allow' in the permission dialog to import them." = "无法从钥匙串读取“%@”，因此已跳过密码和 Cookie。请在权限对话框中点按“允许”以导入。";
 "Couldn't run claude: %@" = "无法运行 claude：%@";
 "Couldn't save the page" = "无法存储页面";
+"Couldn't translate this page" = "无法翻译此页面";
 "Couldn’t run it: %@" = "无法运行：%@";
 "Current Site" = "当前网站";
 "Cut" = "剪切";
