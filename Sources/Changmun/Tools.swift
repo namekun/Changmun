@@ -788,7 +788,9 @@ enum Approvals {
     /// Records that the AI was given pictures of these sites (a page screenshot the user attached) or of an unknown source (an image
     /// the user added): later actions on any other site are asked about, as after reading it.
     static func noteRead(sites: [String], caller: String) {
+        let before = readHosts[caller]?.count ?? 0
         readHosts[caller, default: []].formUnion(sites)
+        if (readHosts[caller]?.count ?? 0) != before { changes.send() }
     }
 
     /// How an approval was answered. `site` (allow on this site for as long as the chat lasts) is offered to the chat panel and to any
