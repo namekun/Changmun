@@ -102,7 +102,7 @@ open build/Changmun.app
 
 ## AI
 
-右侧的面板 (⌘E) 使用你已有的 `claude` CLI，因此直接消耗你的 Claude Code 订阅。默认模型是 Sonnet；可用 `defaults write io.github.namekun.Changmun aiModel opus` 切换。
+右侧的面板 (⌘E) 使用你已有的 `claude` CLI，因此直接消耗你的 Claude Code 订阅。默认模型是 Sonnet；可通过输入框下方的模型标签或设置 › AI 切换。
 
 AI 通过以下工具操作浏览器：`list_tabs`、`open_tab`、`switch_tab`、`close_tab`、`navigate`、`go_back`、`go_forward`、`reload`、`read_page`、`read_tabs`、`click`、`click_at`、`type_text`、`press_key`、`select_option`、`hover`、`drag`、`wait_for`、`scroll`、`screenshot`、`sign_in`。密码、一次性验证码和银行卡栏位，它无法读取其值、无法输入或按键，截图中也会被遮住。它也无法上传文件。
 

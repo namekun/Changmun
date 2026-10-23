@@ -23,6 +23,8 @@ final class ApprovalCards: ObservableObject {
     /// Oldest first: the AI may ask for several things at once, and they are answered in the order they came.
     @Published private(set) var cards: [Card] = []
     private var monitor: Any?
+    /// Keyboard focus is on the card itself (set by the card), which the keys that say yes may then act from.
+    var cardFocused = false
 
     func add(_ card: Card) {
         cards.append(card)
@@ -38,6 +40,7 @@ final class ApprovalCards: ObservableObject {
         if cards.isEmpty, let monitor {
             NSEvent.removeMonitor(monitor)
             self.monitor = nil
+            cardFocused = false
         }
     }
 
@@ -63,19 +66,22 @@ final class ApprovalCards: ObservableObject {
             responder = current.nextResponder
         }
         let typed = (window.firstResponder as? NSTextView).map { !$0.string.isEmpty } ?? false
+        // The keys that say yes work only from the panel: its box, or the card (but not from a text field elsewhere, like the address bar).
+        let inPanel = window.firstResponder is ComposerTextView || (cardFocused && !(window.firstResponder is NSText))
         guard let choice = ApprovalKeys.choice(keyCode: event.keyCode, flags: event.modifierFlags, offered: card.prompt.choices,
-                                               inPage: inPage, typed: typed, shownFor: Date().timeIntervalSince(card.shownAt)) else { return event }
+                                               inPage: inPage, typed: typed, inPanel: inPanel, shownFor: Date().timeIntervalSince(card.shownAt)) else { return event }
         card.answer(choice)
         return nil
     }
 }
 
-/// What the keys answer: Return no (the safe one), ⌘Return yes once, ⌥⌘Return yes for the chat, Esc no.
+/// What the keys answer: Return no (the safe one), ⌘Return yes once, ⌥⌘Return yes for the chat, Esc no. The keys that say yes answer only
+/// when keyboard focus is in the panel (its box or the card): never from the address bar, the sidebar, the find bar or the page.
 enum ApprovalKeys {
     /// How long after a card came up the keys that say yes do nothing: a key pressed for something else a moment ago can't answer it.
     static let yesDelay: TimeInterval = 0.5
 
-    static func choice(keyCode: UInt16, flags: NSEvent.ModifierFlags, offered: [Approvals.Choice], inPage: Bool, typed: Bool, shownFor: TimeInterval) -> Approvals.Choice? {
+    static func choice(keyCode: UInt16, flags: NSEvent.ModifierFlags, offered: [Approvals.Choice], inPage: Bool, typed: Bool, inPanel: Bool, shownFor: TimeInterval) -> Approvals.Choice? {
         // In a page, Return and Esc are the page's, and ⌘Return sends what the user wrote there.
         guard !inPage else { return nil }
         let held = flags.intersection([.command, .option, .shift, .control])
@@ -89,6 +95,7 @@ enum ApprovalKeys {
         }
         // A message being written in the composer is sent by Return, not answered by it.
         guard !typed, offered.contains(choice) else { return nil }
+        guard choice == .deny || inPanel else { return nil }
         return choice == .deny || shownFor >= yesDelay ? choice : nil
     }
 }
@@ -115,6 +122,7 @@ struct ApprovalCardView: View {
     let card: ApprovalCards.Card
     /// How many more questions are waiting behind this one.
     let waiting: Int
+    @FocusState private var focused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -145,6 +153,10 @@ struct ApprovalCardView: View {
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.card))
         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.waiting.opacity(0.6), lineWidth: 1))
         .shadow(color: Theme.cardShadow, radius: 6, y: 2)
+        .focusable()
+        .focusEffectDisabled()
+        .focused($focused)
+        .onChange(of: focused) { ApprovalCards.shared.cardFocused = focused }
     }
 
     /// The exact text, whole: scrollable when long, never cut here.

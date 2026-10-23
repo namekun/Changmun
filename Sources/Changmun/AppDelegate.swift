@@ -295,8 +295,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func goForward(_ sender: Any?) { frontPage?.goForward() }
     @objc func toggleChat(_ sender: Any?) {
         if browser.isPrivate { return NSSound.beep() }
-        // In focus mode the panel is hidden whatever its setting: the key opens it, which ends focus mode.
-        browser.showChat = browser.focusMode || !browser.showChat
+        // Closed: it opens, with the cursor in its box. Open with the cursor elsewhere: the cursor goes to the box. In the box: it closes.
+        let box = ComposerTextView.find(in: browser.window)
+        let place: AIPanelShortcut.Box = box == nil ? .missing : browser.window?.firstResponder === box ? .focused : .elsewhere
+        switch AIPanelShortcut.action(panelOpen: browser.showChat, focusMode: browser.focusMode, box: place) {
+        case .open: browser.showChat = true
+        case .focusBox: browser.window?.makeFirstResponder(box)
+        case .close: browser.closeChat()
+        }
     }
     @objc func toggleBrowserSidebar(_ sender: Any?) { browser.showSidebar = browser.focusMode || !browser.showSidebar }
     @objc func toggleFocusMode(_ sender: Any?) { browser.focusMode.toggle() }

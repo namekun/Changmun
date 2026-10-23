@@ -102,7 +102,7 @@ Command Line Tools만 깔려 있으면 스크립트가 macOS 26 SDK로 빌드해
 
 ## AI
 
-오른쪽 패널(⌘E)은 이미 설치된 `claude` CLI를 쓰니 Claude Code 구독으로 돌아가요. 기본 모델은 Sonnet이고, `defaults write io.github.namekun.Changmun aiModel opus`로 바꿀 수 있어요.
+오른쪽 패널(⌘E)은 이미 설치된 `claude` CLI를 쓰니 Claude Code 구독으로 돌아가요. 기본 모델은 Sonnet이고, 메시지 입력창 아래 모델 칩이나 설정 › AI에서 바꿀 수 있어요.
 
 AI는 이 도구들로 브라우저를 다뤄요: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `click_at`, `type_text`, `press_key`, `select_option`, `hover`, `drag`, `wait_for`, `scroll`, `screenshot`, `sign_in`. 비밀번호·인증 코드·카드 칸은 읽지도, 입력하거나 키를 누르지도 못하고, 스크린샷에서도 가려져요. 파일 업로드도 못 해요.
 

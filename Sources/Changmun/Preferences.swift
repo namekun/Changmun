@@ -167,6 +167,8 @@ final class Preferences: ObservableObject {
     // MARK: AI
 
     @Published var aiModel: String { didSet { defaults.set(aiModel, forKey: "aiModel") } }
+    /// How wide the AI panel is, dragged from its left edge.
+    @Published var aiPanelWidth: Double { didSet { defaults.set(aiPanelWidth, forKey: "aiPanelWidth") } }
     @Published var aiApprovals: Bool { didSet { defaults.set(aiApprovals, forKey: "aiApprovals") } }
     /// Whether the AI panel keeps finished chats to read again (default on); private windows never are.
     @Published var aiKeepHistory: Bool { didSet { defaults.set(aiKeepHistory, forKey: "aiKeepHistory") } }
@@ -214,6 +216,7 @@ final class Preferences: ObservableObject {
         enabledExtensions = d.stringArray(forKey: "enabledExtensions") ?? []
         extensionGrants = d.dictionary(forKey: "extensionGrants") as? [String: [String]] ?? [:]
         aiModel = d.string(forKey: "aiModel") ?? "sonnet"
+        aiPanelWidth = Self.clampedAIPanelWidth(d.object(forKey: "aiPanelWidth") as? Double ?? Self.defaultAIPanelWidth)
         aiApprovals = d.object(forKey: "aiApprovals") as? Bool ?? true
         aiKeepHistory = d.object(forKey: "aiKeepHistory") as? Bool ?? true
         claudePath = d.string(forKey: "claudePath") ?? ""
@@ -229,6 +232,18 @@ final class Preferences: ObservableObject {
 
     nonisolated static func clampedSidebarWidth(_ width: Double) -> Double {
         min(max(width, 200), 420)
+    }
+
+    static let defaultAIPanelWidth = 360.0
+    static let aiPanelWidths = 300.0...560.0
+
+    nonisolated static func clampedAIPanelWidth(_ width: Double) -> Double {
+        min(max(width, 300), 560)
+    }
+
+    /// The panel's width as chosen, but never so wide that the page beside it (within `available`, both together) gets less than 320.
+    nonisolated static func aiPanelWidth(_ chosen: Double, available: Double) -> Double {
+        max(300, min(clampedAIPanelWidth(chosen), available - 320))
     }
 
     nonisolated static func onTop(_ choice: AddressBarChoice, developerMode: Bool) -> Bool {

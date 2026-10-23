@@ -187,8 +187,8 @@ extension SharedAgentState {
 
         @Test func theKeysAnswerAsTheCardSays() {
             let all: [Approvals.Choice] = [.deny, .once, .site]
-            func key(_ code: UInt16, _ flags: NSEvent.ModifierFlags = [], offered: [Approvals.Choice] = all, inPage: Bool = false, typed: Bool = false, after: TimeInterval = 5) -> Approvals.Choice? {
-                ApprovalKeys.choice(keyCode: code, flags: flags, offered: offered, inPage: inPage, typed: typed, shownFor: after)
+            func key(_ code: UInt16, _ flags: NSEvent.ModifierFlags = [], offered: [Approvals.Choice] = all, inPage: Bool = false, typed: Bool = false, inPanel: Bool = true, after: TimeInterval = 5) -> Approvals.Choice? {
+                ApprovalKeys.choice(keyCode: code, flags: flags, offered: offered, inPage: inPage, typed: typed, inPanel: inPanel, shownFor: after)
             }
             #expect(key(36) == .deny && key(76) == .deny, "Return is the safe one")
             #expect(key(36, .command) == .once)
@@ -202,6 +202,10 @@ extension SharedAgentState {
             #expect(key(36, .command, after: 0.1) == nil && key(36, [.command, .option], after: 0.1) == nil, "a key pressed just before can't say yes")
             #expect(key(36, after: 0.1) == .deny && key(53, after: 0) == .deny)
             #expect(key(36, offered: [.deny]) == .deny && key(36, .command, offered: [.deny]) == nil, "a notice can only be closed")
+            #expect(key(36, .command, inPanel: false) == nil && key(76, .command, inPanel: false) == nil, "yes once from outside the panel is nothing")
+            #expect(key(36, [.command, .option], inPanel: false) == nil && key(76, [.command, .option], inPanel: false) == nil, "yes for the chat from outside the panel is nothing")
+            #expect(key(36, .command, inPanel: true) == .once && key(36, [.command, .option], inPanel: true) == .site)
+            #expect(key(36, inPanel: false) == .deny && key(53, inPanel: false) == .deny, "no may be said from anywhere but a page")
         }
 
         // MARK: What was read and allowed

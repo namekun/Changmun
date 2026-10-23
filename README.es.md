@@ -102,7 +102,7 @@ El bloqueo de anuncios y rastreadores se explica en [Bloqueo de anuncios](#bloqu
 
 ## IA
 
-El panel de la derecha (⌘E) usa la CLI `claude` que ya tienes, así que funciona con tu suscripción a Claude Code. El modelo por defecto es Sonnet; cámbialo con `defaults write io.github.namekun.Changmun aiModel opus`.
+El panel de la derecha (⌘E) usa la CLI `claude` que ya tienes, así que funciona con tu suscripción a Claude Code. El modelo por defecto es Sonnet; cámbialo con la etiqueta del modelo bajo el cuadro de mensaje o en Ajustes › IA.
 
 La IA maneja el navegador con estas herramientas: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `click_at`, `type_text`, `press_key`, `select_option`, `hover`, `drag`, `wait_for`, `scroll`, `screenshot`, `sign_in`. Los campos de contraseña, los códigos de un solo uso y los de tarjeta no puede leerlos ni rellenarlos ni pulsar teclas en ellos, y las capturas los ocultan. Tampoco puede subir archivos.
 

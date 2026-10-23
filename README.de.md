@@ -102,7 +102,7 @@ Werbe- und Tracker-Blocker werden unter [Werbeblocker](#werbeblocker) beschriebe
 
 ## KI
 
-Die Seitenleiste rechts (⌘E) nutzt das `claude`-CLI, das du schon hast, und läuft damit über dein Claude-Code-Abo. Das Standardmodell ist Sonnet; wechseln kannst du mit `defaults write io.github.namekun.Changmun aiModel opus`.
+Die Seitenleiste rechts (⌘E) nutzt das `claude`-CLI, das du schon hast, und läuft damit über dein Claude-Code-Abo. Das Standardmodell ist Sonnet; wechseln kannst du über den Modell-Chip unter dem Nachrichtenfeld oder unter Einstellungen › KI.
 
 Die KI bedient den Browser mit diesen Werkzeugen: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `click_at`, `type_text`, `press_key`, `select_option`, `hover`, `drag`, `wait_for`, `scroll`, `screenshot`, `sign_in`. Passwörter, Einmalcodes und Kartenfelder kann sie weder lesen noch ausfüllen noch Tasten darin drücken; Screenshots verdecken sie. Dateien hochladen kann sie auch nicht.
 

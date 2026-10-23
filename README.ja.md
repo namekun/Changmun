@@ -102,7 +102,7 @@ Command Line Toolsだけがインストールされている場合、スクリ�
 
 ## AI
 
-右側のパネル (⌘E) は、すでにお使いの`claude` CLIを利用するので、Claude Codeのサブスクリプションで動作します。デフォルトのモデルはSonnetで、`defaults write io.github.namekun.Changmun aiModel opus`で切り替えられます。
+右側のパネル (⌘E) は、すでにお使いの`claude` CLIを利用するので、Claude Codeのサブスクリプションで動作します。デフォルトのモデルはSonnetで、メッセージ欄の下にあるモデルのチップ、または設定 › AI で切り替えられます。
 
 AIは次のツールでブラウザを操作します: `list_tabs`、`open_tab`、`switch_tab`、`close_tab`、`navigate`、`go_back`、`go_forward`、`reload`、`read_page`、`read_tabs`、`click`、`click_at`、`type_text`、`press_key`、`select_option`、`hover`、`drag`、`wait_for`、`scroll`、`screenshot`、`sign_in`。パスワード、ワンタイムコード、カード番号の欄は、値の読み取りも入力もキー操作もできず、スクリーンショットでも隠されます。ファイルのアップロードもできません。
 

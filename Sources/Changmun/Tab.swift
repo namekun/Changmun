@@ -110,7 +110,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         self.browser = browser
         spaceID = browser.spaceID
         super.init()
-        attach(WKWebView(frame: .zero, configuration: configuration))
+        attach(PageWebView(frame: .zero, configuration: configuration))
     }
 
     var sortItem: TabSorter.Item {
@@ -126,7 +126,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     func wake() -> WKWebView {
         lastShown = Date()
         if let webView { return webView }
-        let view = WKWebView(frame: .zero, configuration: browser?.configuration(for: spaceID) ?? Browser.configuration)
+        let view = PageWebView(frame: .zero, configuration: browser?.configuration(for: spaceID) ?? Browser.configuration)
         attach(view)
         // A file the user opened is allowed to load again, also when it comes back from a saved back/forward list.
         if let url, url.isFileURL { userFileLoad = url }
@@ -196,6 +196,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     private func attach(_ view: WKWebView) {
         view.navigationDelegate = self
         view.uiDelegate = self
+        (view as? PageWebView)?.owner = self
         view.allowsBackForwardNavigationGestures = true
         view.allowsMagnification = true
         view.isInspectable = true
