@@ -6,6 +6,17 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.6.3</title>
+      <pubDate>Fri, 23 Oct 2026 01:52:45 +0000</pubDate>
+      <sparkle:version>21</sparkle:version>
+      <sparkle:shortVersionString>0.6.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.6.3</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **The page reaches the edges of the window.** The page used to sit on a card with a gap above, below and to the right of it, which showed as an empty band, most of all on a tall screen. It now runs to the window's top, bottom and right edge, and the AI panel does too, with a thin line between them. With the sidebar hidden or in focus mode, the page fills the whole window.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.6.3/Changmun-0.6.3.dmg" length="4297082" type="application/octet-stream" sparkle:edSignature="55HXhdu/BCwZmczxxmz8I2c4oPd/e8Vf7zHs5jURYlM9VpviGN5XAX/l1NGPZ3xOJ/bfLD1WkYiLarzOGW99BA==" />
+    </item>
+    <item>
       <title>0.6.2</title>
       <pubDate>Fri, 23 Oct 2026 00:56:16 +0000</pubDate>
       <sparkle:version>20</sparkle:version>
@@ -43,6 +54,6 @@
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: sxv+WJMb0NnYIyecPdxbohnu4Y8oOf4CNjs74Wa3lk/WNAPw6+baXIWu3F9DXOchV1f4vlTxezjAFBYNUz9NBg==
-length: 4968
+edSignature: 3amsRV5OBOWB5j/q6v8+9GfnMkrUHna30L99bM1DcyqyUk3+LWuPYk/d822IVImhy6lJpHTCqTmJPn3K67JJAw==
+length: 6160
 -->
