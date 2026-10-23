@@ -4,7 +4,7 @@ import WebKit
 
 /// Nunsseop's look: a dark gray (or, in light mode, light gray) ground, ink at a few fixed opacities, hairlines,
 /// and colour only where it means something: orange when something needs you, green while work is going on.
-/// The page sits on a lighter card with its bar, so a dark site never runs into the sidebar.
+/// The page sits on a lighter card with its bar, filling the window beside the sidebar, so a dark site never runs into it.
 enum Theme {
     private static let lightGround = NSColor(red: 0.925, green: 0.925, blue: 0.93, alpha: 1)
     private static let darkGround = NSColor(white: 0.13, alpha: 1)
@@ -427,24 +427,17 @@ struct BrowserView: View {
                         WebCard(browser: browser)
                     }
                     .background(Theme.card)
-                    .clipShape(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5))
-                    // The shadow comes from a shape behind the card, not from the web views in it.
-                    .background {
-                        RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous)
-                            .fill(Theme.card)
-                            .shadow(color: Theme.cardShadow, radius: 14, y: 6)
-                    }
+                    // The card runs to the window's edges, which clip its corners; only the sidebar gets a hairline.
+                    .overlay(alignment: .leading) { if sidebar { Rectangle().fill(Theme.cardEdge).frame(width: 1) } }
                     if browser.showChat && !browser.focusMode {
                         ChatPanel(chat: chat, browser: browser)
-                            .padding(.leading, Metrics.inset)
+                            .padding(.top, BrowserWindow.cardInset)
+                            .padding([.leading, .trailing, .bottom], Metrics.inset)
                             .frame(minWidth: 300, maxWidth: 360)
+                            .overlay(alignment: .leading) { Rectangle().fill(Theme.cardEdge).frame(width: 1) }
                             .transition(Motion.slide(.trailing))
                     }
                 }
-                .padding(.top, BrowserWindow.cardInset)
-                .padding([.trailing, .bottom], Metrics.inset)
-                .padding(.leading, sidebar ? 0 : Metrics.inset)
             }
             if let peek = browser.peek {
                 PeekCard(tab: peek, browser: browser).transition(Motion.pop(.center))
@@ -1246,6 +1239,7 @@ struct PageBar: View {
         }
         .padding(.horizontal, 6)
         .frame(height: BrowserWindow.pageBarHeight)
+        .padding(.top, BrowserWindow.cardInset)
         .background(WindowDragArea())
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.cardEdge).frame(height: 1) }
     }
@@ -2132,7 +2126,6 @@ struct WebCard: View {
     private func pane(_ tab: Tab?) -> some View {
         // In a split, the pane with the active tab (what the address bar and keys act on) wears the hairline.
         let focused = browser.shownSplit != nil && tab?.id == browser.activeID
-        let shape = UnevenRoundedRectangle(bottomLeadingRadius: 12, bottomTrailingRadius: 12, style: .continuous)
         return ZStack {
             if let tab {
                 Theme.page
@@ -2142,8 +2135,8 @@ struct WebCard: View {
                 EmptyPage()
             }
         }
-        .clipShape(shape)
-        .overlay(shape.strokeBorder(focused ? Theme.secondary : .clear, lineWidth: 1))
+        .clipped()
+        .overlay(Rectangle().strokeBorder(focused ? Theme.secondary : .clear, lineWidth: 1))
     }
 }
 
