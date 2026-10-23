@@ -294,6 +294,58 @@ extension SharedAgentState {
             #expect(chat.history.chats.map(\.title) == ["open again"], "a new chat is kept again")
         }
 
+        @Test func aMessageWrittenInAPrivateWindowKeepsTheChatPrivateWhenItIsSentLaterFromAnotherWindow() {
+            let normal = Browser()
+            normal.focused()
+            defer { normal.windowClosed() }
+            let (queued, launched, _) = standIn()
+            queued.submit("in the open")
+            let hidden = Browser(isPrivate: true)
+            hidden.focused()
+            defer { hidden.windowClosed() }
+            #expect(queued.submit("written in private"), "queued while the run lasts")
+            hidden.windowClosed()
+            #expect(Browser.current === normal)
+            queued.endRun()
+            #expect(launched() == ["in the open", "written in private"], "sent now, with a normal window in front")
+            queued.endRun()
+            #expect(queued.history.chats.isEmpty, "a chat that ever had a private message is never kept")
+
+            let (steered, _, _) = standIn()
+            steered.submit("in the open")
+            steered.handle(["type": "system", "subtype": "init", "session_id": "s-private"])
+            let hiddenAgain = Browser(isPrivate: true)
+            hiddenAgain.focused()
+            defer { hiddenAgain.windowClosed() }
+            #expect(steered.steer("redirect, written in private"))
+            hiddenAgain.windowClosed()
+            steered.endRun()
+            #expect(steered.history.chats.isEmpty)
+
+            let (open, _, _) = standIn()
+            open.submit("in the open")
+            open.submit("also in the open")
+            open.endRun()
+            open.endRun()
+            #expect(open.history.chats.count == 1 && open.history.chats[0].items.count == 2)
+        }
+
+        @Test func aPrivateMessageThatWaitsInTheQueueDeletesWhatWasKeptAtOnce() {
+            let normal = Browser()
+            normal.focused()
+            defer { normal.windowClosed() }
+            let (chat, _, _) = standIn()
+            chat.submit("first")
+            chat.endRun()
+            #expect(chat.history.chats.count == 1)
+            chat.submit("second")
+            let hidden = Browser(isPrivate: true)
+            hidden.focused()
+            defer { hidden.windowClosed() }
+            chat.submit("third, private")
+            #expect(chat.history.chats.isEmpty, "gone when the message is written, not when it goes out")
+        }
+
         @Test func aChatReadsBackAsText() {
             let stored = StoredChat(id: UUID(), started: Date(), updated: Date(), items: [
                 ChatItem(kind: .user, text: "q1\nq2"), step("read_page"), ChatItem(kind: .assistant, text: "the **answer**"), ChatItem(kind: .error, text: "boom"),

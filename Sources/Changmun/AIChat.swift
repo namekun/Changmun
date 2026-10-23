@@ -187,6 +187,14 @@ final class ChatStore: ObservableObject {
     table or a code block only where it makes the answer easier to read.
     """
 
+    /// Called when a message is written (not when it is sent, which may be later and with another window in front): a message written
+    /// in a private window makes the whole chat private, so it is never kept, and what was kept of it before goes.
+    private func notePrivacy() {
+        guard Browser.current?.isPrivate == true, !privateChat else { return }
+        privateChat = true
+        history.delete(recordID)
+    }
+
     /// What the composer does with a message: sent at once when the AI is idle, otherwise queued to go out when the run ends. Behind
     /// messages that are held for the user's say-so it is queued too, so nothing goes out ahead of them.
     /// False when it was neither (blank, or the queue is full, which the notice then says).
@@ -194,8 +202,9 @@ final class ChatStore: ObservableObject {
     func submit(_ text: String) -> Bool {
         let message = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty else { return false }
+        notePrivacy()
         guard isRunning || (queueHeld && !queue.isEmpty) else {
-            send(message)
+            send(message, noting: false)
             return true
         }
         guard queue.count < Self.maxQueued else {
@@ -224,6 +233,7 @@ final class ChatStore: ObservableObject {
     func steer(_ text: String) -> Bool {
         let message = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty else { return false }
+        notePrivacy()
         if let pending = pendingSteer {
             pendingSteer = pending + "\n\n" + message
             return true
@@ -238,7 +248,7 @@ final class ChatStore: ObservableObject {
         stopRun()
         steerRetry = message
         guard let old, old.isRunning else {
-            send(message)
+            send(message, noting: false)
             return true
         }
         // The new run is about to begin: the panel stays busy meanwhile, and a stop in the meantime drops it.
@@ -260,7 +270,7 @@ final class ChatStore: ObservableObject {
         pendingSteer = nil
         isRunning = false
         steerRetry = message
-        send(message)
+        send(message, noting: false)
     }
 
     func removeQueued(_ id: UUID) {
@@ -273,7 +283,7 @@ final class ChatStore: ObservableObject {
         guard !isRunning, !queue.isEmpty else { return }
         queueHeld = false
         let next = queue.removeFirst()
-        send(next.text, context: next.context)
+        send(next.text, context: next.context, noting: false)
     }
 
     /// The run is over, however it ended. If it ended well, the next queued message goes out; if it failed or was cut short, the
@@ -310,7 +320,7 @@ final class ChatStore: ObservableObject {
         sessionID = nil
         items.append(ChatItem(kind: .note, text: String(localized: "The conversation couldn't be continued after you interrupted it, so your message was sent as a new conversation.")))
         let about = earlier.map { " The user's earlier request there was “\(Self.oneLine(String($0.prefix(300))))”." } ?? ""
-        send(message, resumeNote: "[Note: the user interrupted your previous work and that conversation could not be continued, so this is a new one.\(about) The browser is as the previous work left it; use list_tabs and read_page to see it.]")
+        send(message, resumeNote: "[Note: the user interrupted your previous work and that conversation could not be continued, so this is a new one.\(about) The browser is as the previous work left it; use list_tabs and read_page to see it.]", noting: false)
     }
 
     /// The tabs a queued message goes with, as they are now: one that has gone, or was detached since, is left out, and one that is on
@@ -337,7 +347,7 @@ final class ChatStore: ObservableObject {
 
     /// `resumeNote` is given when the message goes again as a new conversation after a resume failed: it is not shown as a second
     /// message of the user, and the AI is told in a line what happened.
-    func send(_ text: String, context: Context? = nil, resumeNote: String? = nil) {
+    func send(_ text: String, context: Context? = nil, resumeNote: String? = nil, noting: Bool = true) {
         let message = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty, !isRunning else { return }
         if resumeNote == nil { items.append(ChatItem(kind: .user, text: message)) }
@@ -349,11 +359,7 @@ final class ChatStore: ObservableObject {
         notice = nil
         apiError = nil
         hiddenTitles.removeAll()
-        if Browser.current?.isPrivate == true, !privateChat {
-            // Nothing said in a private window is kept, and what was kept of this chat before goes too.
-            privateChat = true
-            history.delete(recordID)
-        }
+        if noting { notePrivacy() }
         // Without a tab_id the AI's tools work on the tab the user is looking at; for a message that waited, on the one they were
         // looking at then if it is still on the same site, else on none until the AI names one.
         runDefaultTab = context == nil ? .front : tabs.front.map { .tab($0.id) } ?? .none
@@ -640,7 +646,7 @@ final class ChatStore: ObservableObject {
         let earlier = items.filter { $0.kind == .user }.count > 1
         items.remove(at: error)
         let lost = sessionID == nil && earlier ? " Earlier messages of this chat are not available to you; use list_tabs and read_page to see the browser as it is." : ""
-        send(message, resumeNote: "[Note: the previous attempt at this message failed, so the user is asking again.\(lost)]")
+        send(message, resumeNote: "[Note: the previous attempt at this message failed, so the user is asking again.\(lost)]", noting: false)
     }
 
     /// The turn (the count of the user's messages so far) a step belongs to.
