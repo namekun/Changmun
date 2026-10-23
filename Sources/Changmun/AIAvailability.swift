@@ -97,11 +97,12 @@ struct AIGuidance: View {
 struct ChatEmptyState: View {
     let availability: AIAvailability
     var several = false
+    var kind = PageKind.general
     let send: (String) -> Void
 
     var body: some View {
         if availability == .ready {
-            ChatWelcome(several: several, send: send)
+            ChatWelcome(several: several, kind: kind, send: send)
         } else {
             AIGuidance(availability: availability, compact: true).padding(.top, 4)
         }

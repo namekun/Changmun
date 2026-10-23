@@ -102,7 +102,7 @@ Le blocage des publicités et des traqueurs est décrit dans [Blocage des public
 
 ## IA
 
-Le panneau de droite (⌘E) utilise la CLI `claude` que vous avez déjà, il fonctionne donc avec votre abonnement Claude Code. Le modèle par défaut est Sonnet ; pour en changer, utilisez `defaults write io.github.namekun.Changmun aiModel opus`.
+Le panneau de droite (⌘E) utilise la CLI `claude` que vous avez déjà, il fonctionne donc avec votre abonnement Claude Code. Le modèle par défaut est Sonnet ; pour en changer, utilisez la pastille du modèle sous la zone de message ou Réglages › IA.
 
 L’IA pilote le navigateur grâce à ces outils : `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `click_at`, `type_text`, `press_key`, `select_option`, `hover`, `drag`, `wait_for`, `scroll`, `screenshot`, `sign_in`. Elle ne peut ni lire, ni remplir, ni toucher au clavier les champs de mot de passe, de code à usage unique et de carte, et les captures d’écran les masquent. Elle ne peut pas non plus téléverser de fichiers.
 

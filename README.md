@@ -102,7 +102,7 @@ Ad and tracker blocking is covered under [Ad blocking](#ad-blocking), and what s
 
 ## AI
 
-The panel on the right (⌘E) uses the `claude` CLI you already have, so it runs on your Claude Code subscription. The default model is Sonnet; switch with `defaults write io.github.namekun.Changmun aiModel opus`.
+The panel on the right (⌘E) uses the `claude` CLI you already have, so it runs on your Claude Code subscription. The default model is Sonnet; change it with the model chip under the message box or in Settings › AI.
 
 The AI gets these tools: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `click`, `click_at`, `type_text`, `press_key`, `select_option`, `hover`, `drag`, `wait_for`, `scroll`, `screenshot`, `sign_in`. Passwords, one-time codes and card fields are off limits: it can't read their values, type or press keys in them, and screenshots mask them. A password field is known as one from the moment its page begins, also when the page turns it into a plain text field at once or after a "show password" button; a field is taken for one by its name, its label, its placeholder or when it is drawn as dots. It can't upload files either.
 

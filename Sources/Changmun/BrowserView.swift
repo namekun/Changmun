@@ -407,9 +407,12 @@ struct BrowserView: View {
     @ObservedObject var browser: Browser
     @ObservedObject var chat: ChatStore
     @ObservedObject private var prefs = Preferences.shared
+    /// The room the page and the AI panel share, which the panel's width is held within.
+    @State private var contentWidth = 10_000.0
 
     var body: some View {
         let sidebar = browser.showSidebar && !browser.focusMode
+        let chatWidth = Preferences.aiPanelWidth(prefs.aiPanelWidth, available: contentWidth)
         ZStack {
             WindowMaterial()
             if browser.focusMode { WindowDragArea() }
@@ -433,11 +436,13 @@ struct BrowserView: View {
                         ChatPanel(chat: chat, browser: browser)
                             .padding(.top, BrowserWindow.cardInset)
                             .padding([.leading, .trailing, .bottom], Metrics.inset)
-                            .frame(minWidth: 300, maxWidth: 360)
+                            .frame(width: chatWidth)
                             .overlay(alignment: .leading) { Rectangle().fill(Theme.cardEdge).frame(width: 1) }
+                            .overlay(alignment: .leading) { AIPanelResizeHandle(width: Binding(get: { chatWidth }, set: { prefs.aiPanelWidth = $0 })) }
                             .transition(Motion.slide(.trailing))
                     }
                 }
+                .onGeometryChange(for: Double.self) { $0.size.width } action: { contentWidth = $0 }
             }
             if let peek = browser.peek {
                 PeekCard(tab: peek, browser: browser).transition(Motion.pop(.center))

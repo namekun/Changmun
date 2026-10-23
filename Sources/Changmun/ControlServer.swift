@@ -303,6 +303,23 @@ final class ControlServer {
             }
             return
         }
+        // Tests only: the AI panel's box and width. "open" shows or hides the panel, "width" sets its width, "model" the model, "prefill"
+        // puts text in the box (with the cursor at its end), and "selection" asks the AI about the selection in the page in front.
+        if Headless.isTestCopy, request.method == "POST", request.path == "/panel",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                guard let browser = Browser.current else {
+                    return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
+                }
+                if let width = body["width"] as? Double { Preferences.shared.aiPanelWidth = Preferences.clampedAIPanelWidth(width) }
+                if let model = body["model"] as? String { Preferences.shared.aiModel = model }
+                if let open = body["open"] as? Bool { browser.showChat = open }
+                if let text = body["prefill"] as? String { ChatStore.shared.prefill = text }
+                if body["selection"] as? Bool == true { browser.active?.askAIAboutSelection() }
+                self.respond(connection, status: "200 OK", body: ["width": Preferences.shared.aiPanelWidth, "model": Preferences.shared.aiModel])
+            }
+            return
+        }
         // Tests only: open the settings window on a page, far off screen, and answer with its picture.
         if Headless.isTestCopy, request.method == "POST", request.path == "/settings-image",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
