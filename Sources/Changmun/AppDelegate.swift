@@ -336,7 +336,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 /// A window without a visible title bar: the traffic lights sit at the top of the sidebar, level with the page card's bar.
 final class BrowserWindow: NSWindow, NSWindowDelegate {
-    /// The gap above the page card, and the card's own bar: the traffic lights sit level with the bar.
+    /// The space above the page bar's controls (the card itself runs to the window's top), and the bar: the traffic lights sit level with the bar.
     static let cardInset: CGFloat = 8
     static let pageBarHeight: CGFloat = 40
     static let barHeight = cardInset + pageBarHeight
