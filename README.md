@@ -128,7 +128,7 @@ Answers draw code blocks, lists and tables, with a copy button on the code. A li
 
 Under the chat, Screenshot attaches a picture of the page you're on (secrets on the page left out), and you can also drop or paste images into the panel: up to 4 per message, cut down to 1568 pixels on the long side and saved again without the place and time the file carried. A picture counts as something the AI read (a screenshot as its page, any other as "an image you added"), so what it does next is asked about, as after reading another site.
 
-Finished chats are kept on this Mac only, to read again from the clock button in the panel. They are read-only (a chat is never resumed, since the AI's session can't remember what it was allowed to read), and private windows are never recorded. Typed or chosen text is saved as its length only, and addresses lose everything from ? or #. Turn it off in Settings › AI › Keep chat history; delete one chat or all of them from the panel.
+Finished chats are kept on this Mac only, to read again from the clock button in the panel. They are read-only (a chat is never resumed: the AI would still remember the pages it read, but Changmun would no longer know which sites they were, and the question after reading other sites would be skipped), and private windows are never recorded. Typed or chosen text is saved as its length only, and addresses lose everything from ? or #. Turn it off in Settings › AI › Keep chat history; delete one chat or all of them from the panel.
 
 A web page can hide instructions meant for an AI. So that such instructions can't make it carry what it read somewhere else, Changmun asks you first. No answer after 90 seconds counts as no:
 
