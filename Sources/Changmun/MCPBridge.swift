@@ -6,8 +6,8 @@ enum MCPBridge {
     static func run() -> Never {
         let session = MCPSession(call: forward) { write($0) }
         while let line = readLine(strippingNewline: true) { session.receive(line) }
-        // The client closed its end: the calls under way get a few seconds to answer, not their full 120.
-        session.finish(timeout: 10)
+        // The client closed its end: the calls under way (one at a time, each up to its 120 s request timeout, plus an app launch) still get their answers.
+        session.finish(timeout: 150)
         exit(0)
     }
 
@@ -73,17 +73,21 @@ enum MCPBridge {
     }
 }
 
-/// One MCP connection: the lines the client sends, and the replies. A tool call can take minutes, so calls run side by side and
-/// every reply carries its request's id, in the order they finish; everything else (ping, initialize, tools/list) is answered
-/// at once, even while a call is under way. Replies are written one at a time, so lines never interleave.
+/// One MCP connection: the lines the client sends, and the replies. A tool call can take minutes, so calls run on a queue of
+/// their own, one after another in the order they came (a client that sends click then type without waiting must not see them
+/// swapped, and the user is asked about one thing at a time); everything else (ping, initialize, tools/list, notifications) is
+/// answered at once, even while a call is under way. A call cancelled (`notifications/cancelled`) before it started gets no reply.
+/// Replies are written one at a time, so lines never interleave.
 final class MCPSession: @unchecked Sendable {
     typealias Call = (String, [String: Any]) -> [String: Any]
 
     private let call: Call
     private let send: ([String: Any]) -> Void
     private let writes = DispatchQueue(label: "changmun.mcp.write")
-    private let calls = DispatchQueue(label: "changmun.mcp.calls", attributes: .concurrent)
+    private let calls = DispatchQueue(label: "changmun.mcp.calls")
     private let running = DispatchGroup()
+    private let lock = NSLock()
+    private var cancelled: [String] = []
 
     init(call: @escaping Call, send: @escaping ([String: Any]) -> Void) {
         self.call = call
@@ -104,15 +108,28 @@ final class MCPSession: @unchecked Sendable {
             if message["id"] != nil, message["result"] != nil || message["error"] != nil { return }
             return reply(MCPBridge.error(message["id"] ?? NSNull(), -32600, "invalid request: no method"))
         }
-        guard method == "tools/call", message["id"] != nil else {
+        if method == "notifications/cancelled", let id = (message["params"] as? [String: Any])?["requestId"] {
+            lock.lock(); cancelled.append("\(id)"); lock.unlock()
+            return
+        }
+        guard method == "tools/call", let id = message["id"] else {
             if let answer = MCPBridge.handle(message, call: call) { reply(answer) }
             return
         }
         running.enter()
         calls.async {
             defer { self.running.leave() }
+            if self.takeCancellation(of: id) { return }
             if let answer = MCPBridge.handle(message, call: self.call) { self.reply(answer) }
         }
+    }
+
+    /// Whether the client cancelled request `id` before it started (a cancellation for a call under way, or a finished one, is ignored).
+    private func takeCancellation(of id: Any) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        guard let index = cancelled.firstIndex(of: "\(id)") else { return false }
+        cancelled.remove(at: index)
+        return true
     }
 
     /// Waits for the calls under way (at most `timeout` seconds) and for their replies to be written.
@@ -150,7 +167,7 @@ enum ControlClient {
         if fromFile {
             if case .refused = outcome {
                 // Nobody listens: the app that wrote the file is gone (a crash leaves it behind). Start it once more.
-                try? FileManager.default.removeItem(at: ControlEndpoint.file)
+                ControlEndpoint.remove(ifHolding: endpoint)
                 if let again = Self.endpoint(caller: caller, read: { nil }, launch: launchApp) { outcome = perform(name, arguments, caller: caller, to: again) }
             } else if case .unauthorized = outcome, let again = ControlEndpoint.read(), again.token != endpoint.token {
                 // The app was restarted after the file was read.

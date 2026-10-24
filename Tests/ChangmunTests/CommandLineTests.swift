@@ -69,6 +69,17 @@ struct ControlEndpointProcessTests {
         defer { try? FileManager.default.removeItem(at: dead) }
         #expect(ControlEndpoint.read(file: dead) == nil)
     }
+
+    @Test func aRefusedConnectionDeletesTheFileOnlyIfItStillHoldsTheEndpointThatWasRead() throws {
+        let read = ControlEndpoint(port: 1, token: "old", pid: 99_999_999)
+        let same = try write(read)
+        ControlEndpoint.remove(ifHolding: read, file: same)
+        #expect(!FileManager.default.fileExists(atPath: same.path), "the stale file goes")
+        let rewritten = try write(ControlEndpoint(port: 2, token: "new", pid: getpid()))
+        defer { try? FileManager.default.removeItem(at: rewritten) }
+        ControlEndpoint.remove(ifHolding: read, file: rewritten)
+        #expect(FileManager.default.fileExists(atPath: rewritten.path), "a file the restarted app just wrote stays")
+    }
 }
 
 struct LaunchModeTests {
@@ -189,21 +200,37 @@ struct MCPSessionTests {
         session.finish(timeout: 2)
     }
 
-    @Test func toolCallsRunSideBySideAndEachReplyCarriesItsID() {
+    @Test func toolCallsRunOneAfterAnotherInTheOrderTheyCameAndEachReplyCarriesItsID() {
         let sink = Sink()
-        let slow = DispatchSemaphore(value: 0), fastDone = DispatchSemaphore(value: 0)
+        let order = Sink()
         let session = MCPSession(call: { name, _ in
-            if name == "slow" { slow.wait() } else { fastDone.signal() }
+            if name == "slow" { Thread.sleep(forTimeInterval: 0.3) }
+            order.add(["name": name])
             return ToolResult.text(name).json
         }, send: sink.add)
         session.receive(#"{"jsonrpc":"2.0","id":"a","method":"tools/call","params":{"name":"slow"}}"#)
         session.receive(#"{"jsonrpc":"2.0","id":"b","method":"tools/call","params":{"name":"fast"}}"#)
-        let first = sink.wait(for: 1)
-        #expect(first.first?["id"] as? String == "b", "the second call did not wait for the first")
-        slow.signal()
         let both = sink.wait(for: 2)
-        #expect(both.map { $0["id"] as? String } == ["b", "a"])
+        #expect(both.map { $0["id"] as? String } == ["a", "b"])
+        #expect(order.all.map { $0["name"] as? String } == ["slow", "fast"])
         session.finish(timeout: 2)
+    }
+
+    @Test func aCallCancelledBeforeItStartsGetsNoReplyAndTheOthersStillDo() {
+        let sink = Sink()
+        let release = DispatchSemaphore(value: 0)
+        let session = MCPSession(call: { name, _ in
+            if name == "first" { release.wait() }
+            return ToolResult.text(name).json
+        }, send: sink.add)
+        session.receive(#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"first"}}"#)
+        session.receive(#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"second"}}"#)
+        session.receive(#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"third"}}"#)
+        session.receive(#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":2}}"#)
+        session.receive(#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":99}}"#)
+        release.signal()
+        session.finish(timeout: 5)
+        #expect(sink.all.map { $0["id"] as? Int } == [1, 3])
     }
 
     @Test func finishWaitsForCallsUnderWayButNotForever() {

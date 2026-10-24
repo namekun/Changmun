@@ -16,6 +16,14 @@ struct ControlEndpoint: Codable {
         return endpoint
     }
 
+    /// Deletes the file if it still holds `endpoint`'s token and port: an app that restarts rewrites it within a second, and
+    /// that new file must not go with the old one.
+    static func remove(ifHolding endpoint: ControlEndpoint, file: URL = file) {
+        guard let data = try? Data(contentsOf: file), let current = try? JSONDecoder().decode(ControlEndpoint.self, from: data),
+              current.token == endpoint.token, current.port == endpoint.port else { return }
+        try? FileManager.default.removeItem(at: file)
+    }
+
     /// Whether the process is alive and a program of the name this one has (Changmun, the app or a copy of it). A crash leaves
     /// `control.json` behind, and its process ID may be another program's by the time it is read.
     static func isChangmun(pid: Int32) -> Bool {
