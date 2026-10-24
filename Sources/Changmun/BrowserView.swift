@@ -2188,13 +2188,13 @@ struct LoginOfferBar: View {
             let site = offer.host.hasPrefix("www.") ? String(offer.host.dropFirst(4)) : offer.host
             HStack(spacing: 8) {
                 Image(systemName: "key.fill").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
-                Text("Save login info for \(site)?")
+                Text(offer.updatesExisting && !offer.username.isEmpty ? String(localized: "Update password for \(offer.username)?") : String(localized: "Save login info for \(site)?"))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
                     .layoutPriority(1)
                 // The user name gives way first, so the site stays readable.
-                if !offer.username.isEmpty {
+                if !offer.username.isEmpty, !offer.updatesExisting {
                     Text(offer.username).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
                 }
                 Spacer(minLength: 8)
@@ -2206,7 +2206,7 @@ struct LoginOfferBar: View {
                     tab.checkForLogins()
                 }
                 Button("Never for This Site") {
-                    Preferences.shared.neverSaveLoginHosts.append(site.lowercased())
+                    Preferences.shared.neverSaveLoginHosts.append(Logins.hostname(ofKey: site).lowercased())
                     tab.loginOffer = nil
                 }
                 .buttonStyle(.plain)

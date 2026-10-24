@@ -19,26 +19,56 @@ final class TabArchive: ObservableObject {
 
     @Published private(set) var entries: [Entry]
     private let file: URL
+    /// False when the file is there but couldn't be read, or couldn't be kept as it was before starting over: nothing is written over it.
+    private var writable = true
 
     init(file: URL) {
         self.file = file
-        entries = (try? JSONDecoder().decode([Entry].self, from: Data(contentsOf: file))) ?? []
+        switch Library.FileRead(file) {
+        case .missing:
+            entries = []
+        case .unreadable:
+            entries = []
+            writable = false
+        case .data(let data):
+            if let all = try? JSONDecoder().decode([Browser.Lossy<Entry>].self, from: data) {
+                entries = all.compactMap(\.value)
+                // An entry that doesn't decode is lost to the next write: the file is kept as it was.
+                if entries.count < all.count { writable = Library.keepDamaged(file) }
+            } else {
+                entries = []
+                writable = Library.keepDamaged(file)
+            }
+        }
     }
 
-    func add(_ new: [Entry]) {
+    /// Adds the entries; false (and nothing added) when they couldn't be written, so the tabs they stand for must stay open.
+    @discardableResult
+    func add(_ new: [Entry]) -> Bool {
+        let before = entries
         entries.insert(contentsOf: new, at: 0)
         if entries.count > Self.limit { entries.removeLast(entries.count - Self.limit) }
-        save()
+        guard save() else {
+            entries = before
+            return false
+        }
+        return true
     }
 
     func remove(_ id: Entry.ID) {
         entries.removeAll { $0.id == id }
-        save()
+        _ = save()
+    }
+
+    /// Forgets what was archived since the date (Clear History).
+    func remove(since date: Date) {
+        entries.removeAll { $0.archived >= date }
+        _ = save()
     }
 
     func removeAll() {
         entries = []
-        save()
+        _ = save()
     }
 
     func matching(_ search: String) -> [Entry] {
@@ -47,7 +77,8 @@ final class TabArchive: ObservableObject {
         return entries.filter { $0.title.localizedCaseInsensitiveContains(search) || $0.url.localizedCaseInsensitiveContains(search) }
     }
 
-    private func save() {
-        try? JSONEncoder().encode(entries).write(to: file, options: .atomic)
+    private func save() -> Bool {
+        guard writable else { return false }
+        return (try? JSONEncoder().encode(entries).write(to: file, options: .atomic)) != nil
     }
 }

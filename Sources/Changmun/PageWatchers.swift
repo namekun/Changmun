@@ -27,9 +27,23 @@ final class AudioWatcher: NSObject {
 
 /// A sign-in the user just submitted. The password stays in memory until it is saved or turned down.
 struct LoginOffer: Equatable {
+    /// The key the login is saved under: the host, with its port when that isn't https's own.
     var host: String
     var username: String
     var password: String
+    /// The account is saved already: what is offered is the new password for it.
+    var updatesExisting = false
+
+    /// The user name to offer the login under. A sign-in in two steps (the password page without the name) has none: it is the one account
+    /// saved for the site when there is only one, and when there are several nobody can tell which (nil: nothing is offered).
+    static func username(captured: String, saved accounts: [String]) -> String? {
+        guard captured.isEmpty, !accounts.contains("") else { return captured }
+        switch accounts.count {
+        case 0: return captured
+        case 1: return accounts[0]
+        default: return nil
+        }
+    }
 }
 
 /// Notices sign-in forms being submitted, so the browser can offer to save the password. Runs in an isolated world:
@@ -75,12 +89,14 @@ final class LoginCapture: NSObject, WKScriptMessageHandler {
         guard let body = message.body as? [String: Any], let password = body["password"] as? String, !password.isEmpty else { return }
         let username = body["username"] as? String ?? ""
         MainActor.assumeIsolated {
-            guard let webView = message.webView, let url = webView.url, url.scheme == "https", let host = url.host(),
+            guard let webView = message.webView, let url = webView.url, url.scheme == "https", let host = Logins.key(for: url), let site = url.host(),
                   let tab = Browser.tab(showing: webView), !tab.isPrivate else { return }
-            let offer = LoginOffer(host: host, username: username, password: password)
-            // The saved secret is read only when that account is already saved here.
-            guard Self.worthOffering(offer, neverHosts: Preferences.shared.neverSaveLoginHosts, saved: {
-                Logins.accounts(for: host).contains(username) ? Logins.password(host: host, username: username) : nil
+            let accounts = Logins.accounts(for: host)
+            guard let username = LoginOffer.username(captured: username, saved: accounts) else { return }
+            let offer = LoginOffer(host: host, username: username, password: password, updatesExisting: accounts.contains(username))
+            // The saved secret is read only when that account is already saved here. The never-list names sites, not ports.
+            guard Self.worthOffering(LoginOffer(host: site, username: username, password: password), neverHosts: Preferences.shared.neverSaveLoginHosts, saved: {
+                offer.updatesExisting ? Logins.password(host: host, username: username) : nil
             }) else { return }
             tab.loginOffer = offer
         }

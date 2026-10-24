@@ -19,6 +19,10 @@
 "'%@' is updating and asks for more permissions" = "« %@ » est en cours de mise à jour et demande des autorisations supplémentaires";
 "'%@' wants to access this site" = "« %@ » souhaite accéder à ce site";
 "(No username)" = "(Aucun nom d’utilisateur)";
+"Couldn’t delete the space: its favorites couldn’t be moved" = "Impossible de supprimer l’espace : ses favoris n’ont pas pu être déplacés";
+"Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "Impossible d’ouvrir le fichier des signets et de l’historique : rien de nouveau n’y est enregistré";
+"Kept your newer passwords %@" = "Mots de passe plus récents conservés %@";
+"Update password for %@?" = "Mettre à jour le mot de passe de %@ ?";
 "a frame of an unknown site" = "un cadre d’un site inconnu";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "Une adresse complète peut être modifiée directement sur place (⌘L). Avec le site et le titre, ⌘L ouvre le champ de recherche pour la modifier.";
 "A private window can't be shown to the AI." = "Une fenêtre privée ne peut pas être montrée à l’IA.";

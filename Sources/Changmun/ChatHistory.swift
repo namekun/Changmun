@@ -40,10 +40,31 @@ final class ChatHistory: ObservableObject {
     @Published private(set) var saveFailed = false
     private let file: URL
     private let limit: Int
+    /// False when the file is there but couldn't be read, or couldn't be kept as it was before starting over: nothing is written over it.
+    private var writable = true
 
     private struct Stored: Codable {
         var version = 1
         var chats: [StoredChat]
+
+        init(chats: [StoredChat]) { self.chats = chats }
+
+        /// Decodes the chats one by one: one that doesn't decode doesn't take the rest with it.
+        var skipped = 0
+        enum CodingKeys: String, CodingKey { case version, chats }
+        init(from decoder: Decoder) throws {
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            version = (try? values.decode(Int.self, forKey: .version)) ?? 1
+            let all = try values.decode([Browser.Lossy<StoredChat>].self, forKey: .chats)
+            chats = all.compactMap(\.value)
+            skipped = all.count - chats.count
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var values = encoder.container(keyedBy: CodingKeys.self)
+            try values.encode(version, forKey: .version)
+            try values.encode(chats, forKey: .chats)
+        }
     }
 
     init(file: URL, limit: Int = ChatHistory.maxChats) {
@@ -51,7 +72,19 @@ final class ChatHistory: ObservableObject {
         self.limit = limit
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        chats = (try? Data(contentsOf: file)).flatMap { try? decoder.decode(Stored.self, from: $0) }?.chats ?? []
+        switch Library.FileRead(file) {
+        case .missing:
+            break
+        case .unreadable:
+            writable = false
+        case .data(let data):
+            if let stored = try? decoder.decode(Stored.self, from: data) {
+                chats = stored.chats
+                if stored.skipped > 0 { writable = Library.keepDamaged(file) }
+            } else {
+                writable = Library.keepDamaged(file)
+            }
+        }
         Self.removeStaleTemporaries(beside: file)
     }
 
@@ -139,7 +172,7 @@ final class ChatHistory: ObservableObject {
     private func save() {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        guard let data = try? encoder.encode(Stored(chats: chats)) else { saveFailed = true; return }
+        guard writable, let data = try? encoder.encode(Stored(chats: chats)) else { saveFailed = true; return }
         saveFailed = !Self.write(data, to: file)
     }
 

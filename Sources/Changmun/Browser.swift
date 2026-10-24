@@ -58,6 +58,15 @@ final class Browser: ObservableObject {
     func focused() {
         Self.all.removeAll { $0 === self }
         Self.all.insert(self, at: 0)
+        reportLibraryProblem()
+    }
+
+    private static var reportedLibraries = Set<ObjectIdentifier>()
+
+    /// Says once that bookmarks and history can't be saved, when the library couldn't be opened: until then every write to it fails silently.
+    func reportLibraryProblem(_ library: Library = .shared) {
+        guard !isPrivate, library.problem != nil, Self.reportedLibraries.insert(ObjectIdentifier(library)).inserted else { return }
+        flashStatus(String(localized: "Couldn’t open the bookmarks and history file, so nothing new is saved in it"))
     }
 
     /// The window closed: its tabs give up their pages and the browser stops being one of `all`.
@@ -370,8 +379,13 @@ final class Browser: ObservableObject {
     /// Its favorites move to the first space left, in one change, so they are still somewhere to be found.
     static func deleteSpace(_ id: UUID, from store: SpaceStore? = nil, library: Library = .shared) {
         let store = store ?? .shared
-        guard let next = store.neighbour(afterRemoving: id), let removed = store.remove(id) else { return }
-        if let target = store.spaces.first { library.moveFavorites(from: removed.favoritesFolder, to: target.favoritesFolder) }
+        guard let next = store.neighbour(afterRemoving: id), let leaving = store.spaces.first(where: { $0.id == id }) else { return }
+        // The favorites move first: a space whose favorites couldn't be moved stays, so they are not left where nothing shows them.
+        if let target = store.spaces.first(where: { $0.id != id }), !library.moveFavorites(from: leaving.favoritesFolder, to: target.favoritesFolder) {
+            current?.flashStatus(String(localized: "Couldn’t delete the space: its favorites couldn’t be moved"))
+            return
+        }
+        guard let removed = store.remove(id) else { return }
         for browser in all where browser.spaces === store { browser.spaceRemoved(id, to: next) }
         if removed.isProfile { Profiles.startDraining(store) }
     }
@@ -1148,6 +1162,31 @@ final class Browser: ObservableObject {
         return image
     }
 
+    /// Deletes the cached icons of sites that no page, bookmark, tab or archived tab is left from: Clear History, and the history's
+    /// year, leave none behind. Which hosts are still in use is `keeping` (lowercase).
+    static func pruneIcons(keeping hosts: Set<String>, in folder: URL? = nil) {
+        let folder = folder ?? iconFolder
+        for name in (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? [] where name.hasSuffix(".png") {
+            let host = String(name.dropLast(4))
+            guard !hosts.contains(host.lowercased()) else { continue }
+            try? FileManager.default.removeItem(at: folder.appendingPathComponent(name))
+        }
+        for host in favicons.keys where !hosts.contains(host.lowercased()) { favicons[host] = nil }
+    }
+
+    /// The hosts of the open tabs and the archived ones.
+    static func hostsInUse(archive: TabArchive = .shared) -> Set<String> {
+        var hosts = Set(all.flatMap(\.tabs).compactMap { $0.url?.host()?.lowercased() })
+        hosts.formUnion(archive.entries.compactMap { URL(string: $0.url)?.host()?.lowercased() })
+        return hosts
+    }
+
+    /// Prunes the icon cache by what the library, the tabs and the archive still hold. Nothing is pruned when the library can't be read.
+    static func pruneIcons(archive: TabArchive = .shared, library: Library = .shared) async {
+        guard let known = await library.inBackground({ $0.knownHosts() }) else { return }
+        pruneIcons(keeping: known.union(hostsInUse(archive: archive)))
+    }
+
     static func storeIcon(_ image: NSImage, host: String) {
         guard let tiff = image.tiffRepresentation, let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: iconFolder.appendingPathComponent(host + ".png"))
@@ -1220,9 +1259,10 @@ final class Browser: ObservableObject {
                 && tab.webView.map { $0.cameraCaptureState == .none && $0.microphoneCaptureState == .none } != false
         }
         guard !idle.isEmpty else { return }
-        archive.add(idle.map { tab in
+        // A tab closes only once its entry is saved: an archive that can't be written keeps the tabs open.
+        guard archive.add(idle.map { tab in
             TabArchive.Entry(url: tab.url?.absoluteString ?? "", title: tab.displayTitle, archived: now, group: groups.first { $0.id == tab.groupID }?.name, space: tab.spaceID)
-        })
+        }) else { return }
         for tab in idle { close(tab.id, remember: false) }
     }
 

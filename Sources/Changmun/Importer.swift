@@ -34,6 +34,8 @@ struct ImportReport {
     var bookmarks = 0
     var history = 0
     var passwords = 0
+    /// Logins that Changmun had already for the same site and account, which were not written over.
+    var keptPasswords = 0
     var cookies = 0
     var problems: [String] = []
 
@@ -43,6 +45,7 @@ struct ImportReport {
         if history > 0 { parts.append(String(localized: "History \(history.formatted())")) }
         if passwords > 0 { parts.append(String(localized: "Passwords \(passwords.formatted())")) }
         if cookies > 0 { parts.append(String(localized: "Cookies \(cookies.formatted())")) }
+        if keptPasswords > 0 { parts.append(String(localized: "Kept your newer passwords \(keptPasswords.formatted())")) }
         return parts.isEmpty ? String(localized: "No items imported") : parts.joined(separator: " · ")
     }
 }
@@ -265,7 +268,7 @@ struct ChromiumImporter {
     func passwords(key: Data) throws -> [(host: String, username: String, password: String)] {
         try withCopy(of: "Login Data") { db in
             try db.query("SELECT origin_url, username_value, password_value FROM logins WHERE blacklisted_by_user = 0").compactMap { row in
-                guard let origin = row[0] as? String, let host = URL(string: origin)?.host(), origin.hasPrefix("http"),
+                guard let origin = row[0] as? String, let host = URL(string: origin).flatMap(Logins.key(for:)), origin.hasPrefix("http"),
                       let blob = row[2] as? Data, let plain = ChromiumCrypto.decrypt(blob, key: key),
                       let password = String(data: plain, encoding: .utf8), !password.isEmpty else { return nil }
                 return (host, row[1] as? String ?? "", password)
@@ -398,8 +401,12 @@ enum ImportRunner {
                 if options.passwords {
                     progress(String(localized: "\(source.title) passwords"))
                     do {
-                        for login in try importer.passwords(key: key) where Logins.save(host: login.host, username: login.username, password: login.password) {
-                            report.passwords += 1
+                        for login in try importer.passwords(key: key) {
+                            switch Logins.importLogin(host: login.host, username: login.username, password: login.password) {
+                            case .saved: report.passwords += 1
+                            case .kept: report.keptPasswords += 1
+                            case .unchanged, .failed: break
+                            }
                         }
                     } catch { report.problems.append(String(localized: "Passwords: \(error.localizedDescription)")) }
                 }
@@ -415,11 +422,20 @@ enum ImportRunner {
         return report
     }
 
+    /// The cookies that are not in the browser already: one with the same name, domain and path is Changmun's own, and newer.
+    static func newCookies(_ incoming: [HTTPCookie], existing: [HTTPCookie]) -> [HTTPCookie] {
+        func key(_ cookie: HTTPCookie) -> String { [cookie.domain.lowercased(), cookie.name, cookie.path].joined(separator: "\n") }
+        let have = Set(existing.map(key))
+        return incoming.filter { !have.contains(key($0)) }
+    }
+
+    /// Sets the cookies that are new; the number of them. They go to the default store only (not to a space's profile).
     @MainActor
     private static func store(_ cookies: [HTTPCookie]) async -> Int {
         let store = WKWebsiteDataStore.default().httpCookieStore
-        for cookie in cookies { await store.setCookie(cookie) }
-        return cookies.count
+        let fresh = newCookies(cookies, existing: await store.allCookies())
+        for cookie in fresh { await store.setCookie(cookie) }
+        return fresh.count
     }
 
     static var fullDiskAccessProblem: String {
