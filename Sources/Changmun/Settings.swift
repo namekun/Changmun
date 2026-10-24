@@ -887,8 +887,17 @@ struct AISettings: View {
 
     static func checkClaude() async -> String {
         guard let path = await MainActor.run(body: { ChatStore.claudePath() }) else { return String(localized: "Not found. Install Claude Code or specify the path.") }
-        let version = await Task.detached { ProcessOutput.run(path, ["--version"], timeout: 5)?.trimmingCharacters(in: .whitespacesAndNewlines) }.value
-        return version.map { "\($0)\n\(path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))" } ?? String(localized: "Couldn’t run it: \(path)")
+        // The first run after an install can wait a good while on Gatekeeper.
+        let result = await Task.detached { ProcessOutput.result(path, ["--version"], timeout: 15) }.value
+        return describe(result, path: path)
+    }
+
+    static func describe(_ result: ProcessOutput.Result, path: String) -> String {
+        switch result {
+        case .output(let text): return "\(text.trimmingCharacters(in: .whitespacesAndNewlines))\n\(path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))"
+        case .timedOut: return String(localized: "Didn’t answer in time: \(path)")
+        case .failed: return String(localized: "Couldn’t run it: \(path)")
+        }
     }
 }
 

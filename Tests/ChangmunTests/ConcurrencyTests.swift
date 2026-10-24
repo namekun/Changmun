@@ -15,6 +15,16 @@ struct ProcessOutputTests {
         #expect(output?.count == 300_000)
     }
 
+    @Test func aSlowProgramIsToldApartFromOneThatFails() {
+        #expect(ProcessOutput.result("/bin/sleep", ["30"], timeout: 0.3) == .timedOut)
+        #expect(ProcessOutput.result("/nonexistent/program", [], timeout: 1) == .failed)
+        #expect(ProcessOutput.result("/bin/echo", ["hi"], timeout: 5) == .output("hi\n"))
+        let slow = AISettings.describe(.timedOut, path: "/x/claude")
+        let failed = AISettings.describe(.failed, path: "/x/claude")
+        #expect(slow.contains("/x/claude") && failed.contains("/x/claude") && slow != failed)
+        #expect(AISettings.describe(.output("2.1.0\n"), path: "/x/claude").hasPrefix("2.1.0\n"))
+    }
+
     @Test func aProgramThatCannotBeStartedGivesNothing() {
         #expect(ProcessOutput.run("/nonexistent/program", [], timeout: 1) == nil)
     }

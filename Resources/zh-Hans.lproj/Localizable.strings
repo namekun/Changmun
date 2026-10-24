@@ -153,6 +153,7 @@
 "Couldn't translate this page" = "无法翻译此页面";
 "Couldn't translate this page. macOS’s translation didn’t respond — try again, or check System Settings › General › Language & Region › Translation Languages." = "无法翻译此页面。macOS 的翻译没有响应，请重试，或检查“系统设置 › 通用 › 语言与地区 › 翻译语言”。";
 "Couldn’t run it: %@" = "无法运行：%@";
+"Didn’t answer in time: %@" = "未在时间内响应：%@";
 "Current Site" = "当前网站";
 "Cut" = "剪切";
 "Dark" = "深色";

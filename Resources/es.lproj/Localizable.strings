@@ -153,6 +153,7 @@
 "Couldn't translate this page" = "No se pudo traducir esta página";
 "Couldn't translate this page. macOS’s translation didn’t respond — try again, or check System Settings › General › Language & Region › Translation Languages." = "No se pudo traducir esta página. La traducción de macOS no respondió; inténtalo de nuevo o revisa Ajustes del Sistema › General › Idioma y región › Idiomas de traducción.";
 "Couldn’t run it: %@" = "No se ha podido ejecutar: %@";
+"Didn’t answer in time: %@" = "No ha respondido a tiempo: %@";
 "Current Site" = "Sitio actual";
 "Cut" = "Cortar";
 "Dark" = "Oscuro";

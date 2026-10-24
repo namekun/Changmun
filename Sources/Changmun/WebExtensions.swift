@@ -53,7 +53,7 @@ final class ExtensionHost: NSObject, ObservableObject {
     }
 
     /// `pluginkit` knows every Safari web extension the system has registered.
-    nonisolated static func installedSafariExtensions(executable: String = "/usr/bin/pluginkit", timeout: TimeInterval = 5) -> [String] {
+    nonisolated static func installedSafariExtensions(executable: String = "/usr/bin/pluginkit", timeout: TimeInterval = 15) -> [String] {
         let output = ProcessOutput.run(executable, ["-mAvvv", "-p", "com.apple.Safari.web-extension"], timeout: timeout) ?? ""
         return parsePaths(output)
     }
