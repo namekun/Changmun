@@ -40,6 +40,20 @@ enum CLI {
     which it refuses because it needs a person. `--headless` commands start it if it isn't running; `headless status` exits 1 if not.
     """
 
+    /// What `Changmun` was started to do: a mode flag counts only as the first argument, so a `--mcp` further along (a word to type,
+    /// say) can't turn a `--cli` run into the MCP server.
+    enum LaunchMode: Equatable {
+        case app, cli, mcp
+
+        static func of(_ arguments: [String]) -> LaunchMode {
+            switch arguments.count > 1 ? arguments[1] : nil {
+            case "--cli": return .cli
+            case "--mcp": return .mcp
+            default: return .app
+            }
+        }
+    }
+
     static func run(_ arguments: [String]) -> Never {
         do {
             let command = try parse(arguments)
@@ -90,7 +104,7 @@ enum CLI {
                 let wasRunning = UserHeadless.endpoint() != nil
                 let endpoint = try UserHeadless.start(from: ControlClient.ownBundle)
                 print((wasRunning ? "already running" : "started") + " (pid \(endpoint.pid)); profile: \(UserHeadless.folder.path)")
-                if wasRunning, let hint = UserHeadless.updateHint(installed: ControlClient.ownBundle.flatMap(UserHeadless.info(ofApp:)), running: true) { print(hint) }
+                if wasRunning, let hint = UserHeadless.updateHint(installed: ControlClient.ownBundle.flatMap(UserHeadless.info(ofApp:)), installedApp: ControlClient.ownBundle, running: true) { print(hint) }
                 return 0
             } catch {
                 let message = (error as? UserHeadless.Failure)?.message ?? error.localizedDescription
@@ -108,7 +122,7 @@ enum CLI {
             return 0
         case .status:
             let installed = ControlClient.ownBundle.flatMap(UserHeadless.info(ofApp:))
-            let status = UserHeadless.status(installed: installed)
+            let status = UserHeadless.status(installed: installed, installedApp: ControlClient.ownBundle)
             print(status.text)
             return status.running ? 0 : 1
         }
@@ -121,6 +135,23 @@ enum CLI {
                                             "--submit": ["type"], "--labels": ["screenshot"], "--gone": ["wait"], "--timeout": ["wait"], "--element": ["press"]]
         for modifier in AgentKey.modifierNames { table["--" + modifier] = ["press"] }
         return table
+    }()
+
+    /// How many words each command takes, and what to say when there are more: a word that did nothing (`reload 3` reloads the tab
+    /// in front, not tab 3) is a mistake, not something to skip. The commands left out take free text or as many as they are given.
+    private static let operandLimits: [String: (count: Int, hint: String)] = {
+        let tab = "it acts on the tab in front; --tab N picks another"
+        return [
+            "tabs": (0, "it lists every tab"), "tools": (0, "it lists every tool"),
+            "back": (0, tab), "forward": (0, tab), "reload": (0, tab),
+            "read": (0, "\(tab); --max N limits the text"),
+            "screenshot": (0, "\(tab); -o file.jpg names the file"),
+            "show": (1, "it takes one tab number"), "close": (1, "it takes one tab number"),
+            "click": (1, "it takes one element number from `changmun read`; to click a point use `changmun click-at <x> <y>`"),
+            "hover": (1, "it takes one element number from `changmun read`"),
+            "click-at": (2, "it takes x and y"),
+            "scroll": (1, "it takes one of down, up, top, bottom; \(tab)"),
+        ]
     }()
 
     /// The commands whose operands are free text, where a word that looks like a flag may be part of it.
@@ -187,6 +218,12 @@ enum CLI {
             throw UsageError(message: "\(flag) doesn't apply to \(name)")
         }
         let operands = Array(words.dropFirst())
+        if let limit = operandLimits[name], operands.count > limit.count {
+            throw UsageError(message: "\(name) doesn't take “\(operands.dropFirst(limit.count).joined(separator: " "))”: \(limit.hint)")
+        }
+        if ["show", "close"].contains(name), tab != nil, !operands.isEmpty {
+            throw UsageError(message: "\(name) takes the tab once: `\(name) 3` or `\(name) --tab 3`")
+        }
         var args: [String: AnyHashable] = [:]
         if let tab { args["tab_id"] = tab }
 
@@ -304,15 +341,35 @@ enum CLI {
         }
     }
 
+    /// Where the `index`th (from 0) image of one call goes. A name given with -o is used as it is for the first image and gets
+    /// -2, -3… before its extension for the others. Without one it is changmun-<milliseconds>.<ext>, with -2, -3… when the file is
+    /// there already (two screenshots in one millisecond, or several images in one reply): none overwrites another.
+    static func imagePath(output: String?, ext: String, index: Int, now: Date = Date(),
+                          exists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }) -> String {
+        func numbered(_ stem: String, _ n: Int, _ ext: String) -> String { n == 1 ? "\(stem).\(ext)" : "\(stem)-\(n).\(ext)" }
+        if let output {
+            guard index > 0 else { return output }
+            let url = URL(fileURLWithPath: output)
+            let stem = url.pathExtension.isEmpty ? output : String(output.dropLast(url.pathExtension.count + 1))
+            return numbered(stem, index + 1, url.pathExtension.isEmpty ? ext : url.pathExtension)
+        }
+        let stem = "changmun-\(Int(now.timeIntervalSince1970 * 1000))"
+        var n = index + 1
+        while exists(numbered(stem, n, ext)) { n += 1 }
+        return numbered(stem, n, ext)
+    }
+
     /// Prints the tool's text; an image is saved to a file whose path is printed. Returns the exit status.
     static func show(_ result: [String: Any], saveImageTo output: String?) -> Int32 {
         let failed = result["isError"] as? Bool ?? false
+        var images = 0
         for item in result["content"] as? [[String: Any]] ?? [] {
             if let text = item["text"] as? String {
                 if failed { FileHandle.standardError.write(Data((text + "\n").utf8)) } else { print(text) }
             } else if item["type"] as? String == "image", let base64 = item["data"] as? String, let data = Data(base64Encoded: base64) {
                 let ext = (item["mimeType"] as? String) == "image/png" ? "png" : "jpg"
-                let path = output ?? "changmun-\(Int(Date().timeIntervalSince1970)).\(ext)"
+                let path = imagePath(output: output, ext: ext, index: images)
+                images += 1
                 do {
                     try data.write(to: URL(fileURLWithPath: path))
                     print(path)
