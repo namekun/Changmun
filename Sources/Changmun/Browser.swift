@@ -487,13 +487,14 @@ final class Browser: ObservableObject {
     private func reopen(_ closed: ClosedTab) {
         let tab = Tab(id: Self.takeID(), url: closed.url, title: closed.title, state: closed.state, browser: self)
         if spaces.contains(closed.space) { tab.spaceID = closed.space }
-        if let key = closed.bookmarkKey, Self.keeps(key, in: spaces.space(tab.spaceID)),
+        // Not the bookmark of a tab whose bookmark was deleted meanwhile: it would be out of sight in the tab list.
+        if let key = closed.bookmarkKey, Self.keeps(key, in: spaces.space(tab.spaceID)), (Self.libraryKeys()?.contains(key) ?? true),
            !tabs.contains(where: { $0.spaceID == tab.spaceID && $0.bookmarkKey == key }) { tab.bookmarkKey = key }
         tabs.insert(tab, at: min(closed.index, tabs.count))
-        // Back into its group, made again if it went away with its last tab.
+        // Back into its group, made again if it went away with its last tab; in its place, so a group closed all at once comes back in order.
         if let group = closed.group, tab.bookmarkKey == nil {
             if !groups.contains(where: { $0.id == group.id }) { groups.append(group) }
-            join(tab, group.id)
+            tab.groupID = group.id
         }
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
         activate(tab.id)
@@ -581,6 +582,15 @@ final class Browser: ObservableObject {
         return !Library.isFavorites(folder) || folder == space.favoritesFolder
     }
 
+    /// The key of every bookmark the library holds, or nil when it can't be read (a tab then keeps its bookmark, as in the sidebar).
+    private static func libraryKeys() -> Set<String>? {
+        guard let read = Library.shared.readBookmarks() else { return nil }
+        var keys = Set<String>()
+        for (folder, entries) in read.favorites { for entry in entries { keys.insert(bookmarkKey(url: entry.url, folder: folder)) } }
+        for folder in read.folders { for entry in folder.entries { keys.insert(bookmarkKey(url: entry.url, folder: folder.name)) } }
+        return keys
+    }
+
     var space: Space { spaces.space(spaceID) }
     var favoritesFolder: String { space.favoritesFolder }
 
@@ -635,8 +645,13 @@ final class Browser: ObservableObject {
         guard Library.shared.moveBookmark(url: url, from: from, to: to) else { return }
         let old = bookmarkKey(url: url, folder: from), new = bookmarkKey(url: url, folder: to)
         for browser in all {
-            for tab in browser.tabs where tab.bookmarkKey == old && !browser.tabs.contains(where: { $0.spaceID == tab.spaceID && $0.bookmarkKey == new }) {
-                tab.bookmarkKey = new
+            for tab in browser.tabs where tab.bookmarkKey == old {
+                // A favorite belongs to its own space: a tab of another space becomes a plain tab rather than go out of sight.
+                if !keeps(new, in: browser.spaces.space(tab.spaceID)) {
+                    tab.bookmarkKey = nil
+                } else if !browser.tabs.contains(where: { $0.spaceID == tab.spaceID && $0.bookmarkKey == new }) {
+                    tab.bookmarkKey = new
+                }
                 browser.objectWillChange.send()
             }
         }
@@ -875,7 +890,7 @@ final class Browser: ObservableObject {
     /// reloads; a tab with no web page, or on a page already open as a bookmark, stays a plain tab. Offers to undo it.
     @discardableResult
     func saveGroup(_ id: UUID, to destination: GroupDestination, library: Library = .shared) -> Bool {
-        guard let group = groups.first(where: { $0.id == id }) else { return false }
+        guard !isPrivate, let group = groups.first(where: { $0.id == id }) else { return false }
         let members = tabs.filter { $0.groupID == id && $0.spaceID == spaceID }
         var seen = Set<String>()
         let pages = members.compactMap { tab -> (tab: Tab, url: String)? in
@@ -1019,6 +1034,8 @@ final class Browser: ObservableObject {
         var made: [UUID]
         /// Each tab it put in a group, and the group.
         var placed: [Int: UUID]
+        /// The order of all the tabs before it.
+        var order: [Int] = []
         var tabs: Int { placed.count }
     }
 
@@ -1046,7 +1063,7 @@ final class Browser: ObservableObject {
     /// Puts the planned tabs (those still loose) into their groups: one with the same name if the window has it, else a new one.
     func apply(_ plan: [TabSorter.Group], in space: UUID? = nil) {
         let space = space ?? spaceID
-        var tidy = Tidy(made: [], placed: [:])
+        var tidy = Tidy(made: [], placed: [:], order: tabs.map(\.id))
         for entry in plan {
             let members = entry.ids.compactMap { tab($0) }.filter { $0.spaceID == space && $0.groupID == nil && $0.bookmarkKey == nil }
             let group: UUID
@@ -1074,12 +1091,18 @@ final class Browser: ObservableObject {
         }
     }
 
-    /// Takes the tidied tabs out of their groups again, those still where the tidy put them; a group it made goes
-    /// away with its last tab, unless the user has put others in it since.
+    /// Takes the tidied tabs out of their groups again, those still where the tidy put them, and back to where they were
+    /// in the list; a group it made goes away with its last tab, unless the user has put others in it since.
     func undoTidy() {
         guard let tidy = lastTidy else { return }
         lastTidy = nil
-        for (id, group) in tidy.placed where tab(id)?.groupID == group { removeFromGroup(id) }
+        let undone = tidy.order.filter { id in tidy.placed[id].map { tab(id)?.groupID == $0 } == true }
+        for id in undone { removeFromGroup(id) }
+        // Last to first, each just above the tab that followed it, so the ones after it are already back.
+        for id in undone.reversed() {
+            let after = tidy.order[(tidy.order.firstIndex(of: id) ?? 0)...].dropFirst().first { tab($0) != nil }
+            moveTab(id, to: after)
+        }
     }
 
     /// A new tab whose first page has loaded joins the group it plainly belongs in, if there is one.
@@ -1326,13 +1349,18 @@ final class Browser: ObservableObject {
 
     /// Saves whenever the ordinary windows' tabs or addresses changed, so a crash or a forced quit loses little.
     static func saveSessionIfChanged() {
-        let signature = all.filter { !$0.isPrivate }.map { browser in
-            browser.tabs.map { "\($0.id) \($0.spaceID) \($0.groupID?.uuidString ?? "") \($0.url?.absoluteString ?? "")" }.joined(separator: "|")
-                + " #\(browser.activeID ?? 0) \(browser.spaceID) " + browser.groups.map { "\($0.id) \($0.isOpen) \($0.name)" }.joined(separator: "|")
-        }
+        let signature = sessionSignature()
         guard signature != savedSignature else { return }
         savedSignature = signature
         saveSession(inBackground: true)
+    }
+
+    /// What `saveSessionIfChanged` compares: the parts of the ordinary windows that the session file keeps.
+    static func sessionSignature() -> [String] {
+        all.filter { !$0.isPrivate }.map { browser in
+            browser.tabs.map { "\($0.id) \($0.spaceID) \($0.groupID?.uuidString ?? "") \($0.bookmarkKey ?? "") \($0.url?.absoluteString ?? "")" }.joined(separator: "|")
+                + " #\(browser.activeID ?? 0) \(browser.spaceID) " + browser.groups.map { "\($0.id) \($0.isOpen) \($0.name)" }.joined(separator: "|")
+        }
     }
 
     /// Ordinary windows closed while others stayed open, most recent last; ⌘⇧T brings them back once no tab is left to reopen.
@@ -1351,10 +1379,12 @@ final class Browser: ObservableObject {
 
     /// Restores a saved window asleep, apart from the tab that was shown.
     func restore(_ saved: SavedSession) {
+        // A tab whose bookmark was deleted since (by a crash before the next save, or another window) is a plain tab.
+        let known = saved.tabs.contains { $0.bookmarkKey != nil } ? Self.libraryKeys() : nil
         for item in saved.tabs {
             let tab = Tab(id: Self.takeID(), url: item.url.flatMap(URL.init(string:)), title: item.title, state: item.state, browser: self)
             tab.spaceID = spaces.space(item.space).id
-            tab.bookmarkKey = item.bookmarkKey.flatMap { Self.keeps($0, in: spaces.space(tab.spaceID)) ? $0 : nil }
+            tab.bookmarkKey = item.bookmarkKey.flatMap { Self.keeps($0, in: spaces.space(tab.spaceID)) && (known?.contains($0) ?? true) ? $0 : nil }
             tab.groupID = item.group
             if item.selected == true { spaceSelection[tab.spaceID] = tab.id }
             if let shown = item.shown { tab.lastShown = Date(timeIntervalSinceNow: -max(0, (saved.saved ?? shown).timeIntervalSince(shown))) }
