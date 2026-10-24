@@ -32,6 +32,8 @@ final class DownloadItem: ObservableObject, Identifiable {
     var resumeData: Data?
     /// Where it came from and goes, kept for a resumed download's quarantine.
     var origin: (file: URL?, page: URL?, destination: URL?)?
+    /// Where a download that broke off was being written, kept with its resume data.
+    var landing: Downloads.Landing?
     private var observation: NSKeyValueObservation?
 
     convenience init(_ download: WKDownload, owner: Browser?) {
@@ -88,6 +90,14 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
     private var relays: [UUID: AnyCancellable] = [:]
     /// Where each download came from and goes, kept apart from the list so a forgotten item still gets quarantined.
     private var origins: [ObjectIdentifier: (file: URL?, page: URL?, destination: URL?)] = [:]
+
+    /// Where WebKit writes a download (`place`) and where it is to end up (`target`). They differ when a file is already at the target:
+    /// that file stays until the new one is whole.
+    struct Landing {
+        var place: URL
+        var target: URL
+    }
+    private var landings: [ObjectIdentifier: Landing] = [:]
 
     func track(_ download: WKDownload, from tab: Tab) {
         download.delegate = self
@@ -206,6 +216,20 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         return candidate
     }
 
+    /// The folder is made if it is gone. A file at the target is not touched: the download is written beside it under a temporary name.
+    nonisolated static func landing(for target: URL) -> Landing {
+        let folder = target.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        guard FileManager.default.fileExists(atPath: target.path) else { return Landing(place: target, target: target) }
+        return Landing(place: folder.appendingPathComponent(".changmun-\(UUID().uuidString).part"), target: target)
+    }
+
+    /// Puts the finished file where it was to go, replacing what was there.
+    nonisolated static func install(_ landing: Landing) throws {
+        guard landing.place != landing.target else { return }
+        _ = try FileManager.default.replaceItemAt(landing.target, withItemAt: landing.place)
+    }
+
     func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String) async -> URL? {
         let item = item(download)
         item?.filename = suggestedFilename
@@ -220,19 +244,31 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
                 item.map(dismiss)
                 return nil
             }
-            try? FileManager.default.removeItem(at: chosen)
             destination = chosen
         } else {
             destination = Self.uniqueURL(in: Self.folder, for: suggestedFilename)
         }
+        let landing = Self.landing(for: destination)
+        landings[ObjectIdentifier(download)] = landing
         item?.filename = destination.lastPathComponent
         item?.destination = destination
         origins[ObjectIdentifier(download)]?.destination = destination
-        return destination
+        return landing.place
     }
 
     func downloadDidFinish(_ download: WKDownload) {
-        if let origin = origins.removeValue(forKey: ObjectIdentifier(download)), let destination = origin.destination {
+        let origin = origins.removeValue(forKey: ObjectIdentifier(download))
+        if let landing = landings.removeValue(forKey: ObjectIdentifier(download)) {
+            do {
+                try Self.install(landing)
+            } catch {
+                try? FileManager.default.removeItem(at: landing.place)
+                item(download)?.state = .failed(error.localizedDescription)
+                settle(item(download))
+                return
+            }
+        }
+        if let origin, let destination = origin.destination {
             Self.quarantine(destination, from: origin.file, page: origin.page)
         }
         item(download)?.progress = 1
@@ -246,12 +282,22 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
         let origin = origins.removeValue(forKey: ObjectIdentifier(download))
         let cancelled = (error as NSError).code == NSURLErrorCancelled
+        // What was written so far is kept only to be picked up again, and marked like any download; otherwise it goes.
+        let landing = landings.removeValue(forKey: ObjectIdentifier(download))
+        if let landing {
+            if !cancelled, resumeData != nil {
+                Self.quarantine(landing.place, from: origin?.file, page: origin?.page)
+            } else {
+                try? FileManager.default.removeItem(at: landing.place)
+            }
+        }
         guard let item = item(download) else { return }
         resumers[item.id] = nil
         item.state = cancelled ? .cancelled : .failed(error.localizedDescription)
         if !cancelled {
             item.resumeData = resumeData
             item.origin = origin
+            item.landing = resumeData == nil ? nil : landing
         }
         if cancelled { dismiss(item) } else { settle(item) }
     }
@@ -283,6 +329,8 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
             let download = await webView.resumeDownload(fromResumeData: data)
             download.delegate = self
             origins[ObjectIdentifier(download)] = item.origin ?? (nil, nil, nil)
+            if let landing = item.landing { landings[ObjectIdentifier(download)] = landing }
+            item.landing = nil
             item.download = download
             item.state = .running
             item.watch(download.progress)
