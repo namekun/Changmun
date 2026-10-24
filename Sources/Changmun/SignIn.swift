@@ -75,6 +75,7 @@ enum SignIn {
     @MainActor static func noteDeclined(host: String, caller: String) { declined[caller, default: []].insert(host) }
     @MainActor static func wasDeclined(host: String, caller: String) -> Bool { declined[caller]?.contains(host) == true }
     @MainActor static func forgetDeclined(caller: String) { declined[caller] = nil }
+    @MainActor static func wasDeclinedAnywhere(caller: String) -> Bool { declined[caller] != nil }
 
     /// The host a saved login must be filed under for a document of this origin: only a page on https, with a host of its own
     /// and no port of its own (another port is another site). nil for anything else (http, a sandboxed frame, a data: page).

@@ -48,7 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         Browser.saveSession()
-        ChatStore.shared.stop()
+        ChatStore.shared.stopForQuit()
         ChatStore.removeOldConfigs()
         ControlServer.shared.stop()
     }

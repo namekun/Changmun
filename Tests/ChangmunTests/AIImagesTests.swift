@@ -254,6 +254,34 @@ extension SharedAgentState {
             #expect(chat.images[0].label.contains("tab #\(tabs[0].id)"))
         }
 
+        @Test func aScreenshotFinishingAfterNewChatIsNotAttachedToTheNewChat() async {
+            let (browser, tabs) = open(["https://a.example/page"])
+            defer { browser.windowClosed() }
+            let chat = ChatStore()
+            let before = ChatStore.capturePage
+            defer { ChatStore.capturePage = before }
+            ChatStore.capturePage = { _ in
+                // The user clears the chat while the picture is being taken.
+                await MainActor.run { chat.reset() }
+                return (picture(80, 40), [])
+            }
+            await chat.attachScreenshot(of: tabs[0])
+            #expect(chat.images.isEmpty, "the picture belonged to the chat that is gone")
+        }
+
+        @Test func picturesBeingReadWhenTheChatIsClearedAreNotAddedToTheNewChat() async {
+            let chat = ChatStore()
+            let sources = [picture(64, 48), picture(64, 48)]
+            let loading = Task { await chat.load(sources) }
+            await Task.yield()
+            #expect(chat.pendingImages == 1, "the first picture is being read")
+            chat.reset()
+            await loading.value
+            #expect(chat.images.isEmpty && chat.pendingImages == 0)
+            await chat.load([picture(64, 48)])
+            #expect(chat.images.count == 1, "pictures added after the new chat began are taken")
+        }
+
         // MARK: Approvals
 
         @Test func aScreenshotCountsAsHavingReadItsPageSoOtherSitesAreAskedAboutAndItsOwnIsNot() async throws {

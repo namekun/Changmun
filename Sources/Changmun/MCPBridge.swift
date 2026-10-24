@@ -81,7 +81,7 @@ enum ControlClient {
                 return ToolResult.text("The headless Changmun is not running and could not be started: \(error.localizedDescription)", error: true).json
             }
         } else {
-            found = ControlEndpoint.read() ?? launchApp()
+            found = endpoint(caller: caller, read: { ControlEndpoint.read() }, launch: launchApp)
         }
         guard let endpoint = found else {
             return ToolResult.text("Changmun is not running and could not be started.", error: true).json
@@ -110,6 +110,12 @@ enum ControlClient {
         }.resume()
         done.wait()
         return result ?? ToolResult.text("Could not reach Changmun: \(failure)", error: true).json
+    }
+
+    /// Where the app listens. The chat panel's own bridge never starts the app: it runs for the panel's AI, and if the app is gone
+    /// (the user quit it) a tool call that comes late must not bring it back.
+    static func endpoint(caller: String, read: () -> ControlEndpoint?, launch: () -> ControlEndpoint?) -> ControlEndpoint? {
+        read() ?? (caller == ChatStore.caller ? nil : launch())
     }
 
     /// The app this binary is in; nil for a bare binary.

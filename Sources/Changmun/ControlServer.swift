@@ -24,16 +24,39 @@ final class ControlServer {
     private var listener: NWListener?
     private let queue = DispatchQueue(label: "changmun.control")
     private let token = UUID().uuidString + UUID().uuidString
+    private let file: URL
+    /// How long a connection has to send the head of its request (the part with the token) before it is dropped.
+    private let headDeadline: TimeInterval
+    private var stopped = false
+
+    init(file: URL = ControlEndpoint.file, headDeadline: TimeInterval = 10) {
+        self.file = file
+        self.headDeadline = headDeadline
+    }
 
     func start() {
         let parameters = NWParameters.tcp
         parameters.requiredLocalEndpoint = NWEndpoint.hostPort(host: "127.0.0.1", port: .any)
         guard let listener = try? NWListener(using: parameters) else { return }
-        listener.stateUpdateHandler = { [weak self] state in
-            guard case .ready = state, let self, let port = listener.port?.rawValue else { return }
-            let endpoint = ControlEndpoint(port: port, token: self.token, pid: getpid())
-            if let data = try? JSONEncoder().encode(endpoint) {
-                FileManager.default.createFile(atPath: ControlEndpoint.file.path, contents: data, attributes: [.posixPermissions: 0o600])
+        listener.stateUpdateHandler = { [weak self, weak listener] state in
+            guard let self, let listener else { return }
+            switch state {
+            case .ready:
+                guard let port = listener.port?.rawValue else { return }
+                let endpoint = ControlEndpoint(port: port, token: self.token, pid: getpid())
+                if let data = try? JSONEncoder().encode(endpoint) {
+                    FileManager.default.createFile(atPath: self.file.path, contents: data, attributes: [.posixPermissions: 0o600])
+                }
+            case .failed:
+                // A listener that failed (the network stack was reset, say) accepts nothing anymore: it is replaced, and the new port
+                // is written to the file the bridges read.
+                listener.cancel()
+                self.queue.asyncAfter(deadline: .now() + 1) {
+                    guard !self.stopped, self.listener === listener else { return }
+                    self.listener = nil
+                    self.start()
+                }
+            default: break
             }
         }
         listener.newConnectionHandler = { [weak self] connection in self?.serve(connection) }
@@ -42,29 +65,39 @@ final class ControlServer {
     }
 
     func stop() {
-        listener?.cancel()
-        if ControlEndpoint.read()?.pid == getpid() { try? FileManager.default.removeItem(at: ControlEndpoint.file) }
+        queue.sync {
+            stopped = true
+            listener?.cancel()
+        }
+        if ControlEndpoint.read(file: file)?.pid == getpid() { try? FileManager.default.removeItem(at: file) }
     }
 
     private func serve(_ connection: NWConnection) {
         connection.start(queue: queue)
         // No request, tool call included, takes this long; a client that stalls is dropped.
         queue.asyncAfter(deadline: .now() + 150) { connection.cancel() }
-        receive(connection, buffer: Data())
+        // The head of a request, with the token, comes at once. A connection that hasn't sent it holds nothing useful: it is dropped.
+        let head = Head()
+        queue.asyncAfter(deadline: .now() + headDeadline) { if !head.received { connection.cancel() } }
+        receive(connection, buffer: Data(), head: head)
     }
 
-    private func receive(_ connection: NWConnection, buffer: Data) {
+    /// Whether a connection has sent the end of its request's head.
+    private final class Head { var received = false }
+
+    private func receive(_ connection: NWConnection, buffer: Data, head: Head) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, complete, error in
             guard let self else { return }
             var buffer = buffer
             if let data { buffer.append(data) }
+            if buffer.range(of: Data("\r\n\r\n".utf8)) != nil { head.received = true }
             switch HTTPRequest.parse(buffer, token: self.token) {
             case .complete(let request):
                 self.handle(request, on: connection)
             case .rejected(let status):
                 self.respond(connection, status: status, body: ["error": status])
             case .incomplete:
-                if complete || error != nil { connection.cancel() } else { self.receive(connection, buffer: buffer) }
+                if complete || error != nil { connection.cancel() } else { self.receive(connection, buffer: buffer, head: head) }
             }
         }
     }

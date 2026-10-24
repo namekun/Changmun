@@ -84,7 +84,7 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
     @Published private(set) var items: [DownloadItem] = []
     /// Shown at the bottom of the sidebar: running downloads, and finished ones for a few seconds after.
     @Published private(set) var shelf: [DownloadItem] = []
-    static let shelfTime: Duration = .seconds(8)
+    static var shelfTime: Duration = .seconds(8)
     private var relays: [UUID: AnyCancellable] = [:]
     /// Where each download came from and goes, kept apart from the list so a forgotten item still gets quarantined.
     private var origins: [ObjectIdentifier: (file: URL?, page: URL?, destination: URL?)] = [:]
@@ -146,11 +146,12 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         relays = relays.filter { id, _ in items.contains { $0.id == id } }
     }
 
-    private func settle(_ item: DownloadItem?) {
+    func settle(_ item: DownloadItem?) {
         guard let item else { return }
         Task {
             try? await Task.sleep(for: Self.shelfTime)
-            while item.isHovered { try? await Task.sleep(for: .seconds(1)) }
+            // Not while the pointer rests on it, but a row that is gone from the shelf can't be hovered anymore.
+            while item.isHovered && shelf.contains(where: { $0 === item }) { try? await Task.sleep(for: .seconds(1)) }
             // Picked up again meanwhile (Try Again): it stays while it runs.
             if item.isDone { dismiss(item) }
         }
