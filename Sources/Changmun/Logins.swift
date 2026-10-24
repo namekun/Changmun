@@ -82,10 +82,20 @@ enum Logins {
     }
 
     /// Updates the account where it is already saved (`example.com` or its `www.` twin), so filling never finds an old one.
+    /// For a port's key with no login of its own but one saved before ports were part of the key (under the bare host or its twin),
+    /// the login moves to the port's key and the old item goes, so the old password is not left to fill elsewhere.
     static func save(host: String, username: String, password: String) -> Bool {
         guard !Headless.isOn, !host.isEmpty, !password.isEmpty, let secret = password.data(using: .utf8) else { return false }
-        let server = hostVariants(host).first { exists(server: $0, username: username) } ?? host
-        return backend.set(server: server, account: username, secret: secret)
+        if let server = hostVariants(host).first(where: { exists(server: $0, username: username) }) {
+            return backend.set(server: server, account: username, secret: secret)
+        }
+        let bare = hostname(ofKey: host)
+        guard bare != host, let legacy = hostVariants(bare).first(where: { exists(server: $0, username: username) }) else {
+            return backend.set(server: host, account: username, secret: secret)
+        }
+        guard backend.set(server: host, account: username, secret: secret) else { return false }
+        _ = backend.remove(server: legacy, account: username)
+        return true
     }
 
     enum ImportOutcome: Equatable {

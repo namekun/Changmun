@@ -44,6 +44,13 @@ struct LoginOffer: Equatable {
         default: return nil
         }
     }
+
+    /// The offer for a sign-in captured on a page whose logins are saved under `host`. A sign-in in two steps is the one account saved
+    /// under exactly that key; the accounts of its www twin, or saved for the bare host before ports counted, are other sites' to it.
+    static func make(host: String, captured: String, password: String) -> LoginOffer? {
+        guard let username = username(captured: captured, saved: Logins.accounts(exactly: host)) else { return nil }
+        return LoginOffer(host: host, username: username, password: password, updatesExisting: Logins.accounts(for: host).contains(username))
+    }
 }
 
 /// Notices sign-in forms being submitted, so the browser can offer to save the password. Runs in an isolated world:
@@ -91,12 +98,10 @@ final class LoginCapture: NSObject, WKScriptMessageHandler {
         MainActor.assumeIsolated {
             guard let webView = message.webView, let url = webView.url, url.scheme == "https", let host = Logins.key(for: url), let site = url.host(),
                   let tab = Browser.tab(showing: webView), !tab.isPrivate else { return }
-            let accounts = Logins.accounts(for: host)
-            guard let username = LoginOffer.username(captured: username, saved: accounts) else { return }
-            let offer = LoginOffer(host: host, username: username, password: password, updatesExisting: accounts.contains(username))
+            guard let offer = LoginOffer.make(host: host, captured: username, password: password) else { return }
             // The saved secret is read only when that account is already saved here. The never-list names sites, not ports.
-            guard Self.worthOffering(LoginOffer(host: site, username: username, password: password), neverHosts: Preferences.shared.neverSaveLoginHosts, saved: {
-                offer.updatesExisting ? Logins.password(host: host, username: username) : nil
+            guard Self.worthOffering(LoginOffer(host: site, username: offer.username, password: password), neverHosts: Preferences.shared.neverSaveLoginHosts, saved: {
+                offer.updatesExisting ? Logins.password(host: host, username: offer.username) : nil
             }) else { return }
             tab.loginOffer = offer
         }

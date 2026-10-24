@@ -621,7 +621,7 @@ struct PasswordsSheet: View {
             let context = LAContext()
             unlocked = (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: String(localized: "Authentication is required to copy the saved password"))) == true
         }
-        guard unlocked, let password = Logins.password(host: login.host, username: login.username) else { return }
+        guard unlocked, let password = Logins.password(exactly: login.host, username: login.username) else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(password, forType: .string)
         copied = login.id

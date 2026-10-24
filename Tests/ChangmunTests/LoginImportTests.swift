@@ -91,6 +91,51 @@ struct LoginImportTests {
         }
     }
 
+    @Test func updatingAPasswordOnAPortPageMovesTheLegacyHostOnlyItemToThePortsKey() {
+        with {
+            #expect(Logins.save(host: "dev.test", username: "me", password: "legacy"))
+            #expect(Logins.save(host: "dev.test:9000", username: "me", password: "fresh"))
+            #expect(Logins.all().map { $0.host + "/" + $0.username } == ["dev.test:9000/me"], "one item, under the port's key; no parallel one")
+            #expect(Logins.password(host: "dev.test:9000", username: "me") == "fresh")
+            #expect(Logins.password(host: "dev.test:8080", username: "me") == nil, "the old password no longer fills another port")
+            #expect(Logins.save(host: "dev.test:9000", username: "me", password: "again"))
+            #expect(Logins.all().count == 1 && Logins.password(exactly: "dev.test:9000", username: "me") == "again")
+            // Another account on the legacy key is left alone.
+            #expect(Logins.save(host: "dev.test", username: "other", password: "o"))
+            #expect(Logins.save(host: "dev.test:9000", username: "me", password: "x"))
+            #expect(Logins.all().map { $0.host + "/" + $0.username } == ["dev.test/other", "dev.test:9000/me"])
+        }
+    }
+
+    @Test func copyingFromTheSettingsReadsTheExactItemOnly() {
+        with {
+            #expect(Logins.importLogin(host: "dev.test", username: "me", password: "legacy") == .saved)
+            #expect(Logins.importLogin(host: "dev.test:9000", username: "me", password: "nine") == .saved)
+            #expect(Logins.password(exactly: "dev.test", username: "me") == "legacy")
+            #expect(Logins.password(exactly: "dev.test:8080", username: "me") == nil, "not the bare host's, which the lookup for a page would use")
+            #expect(Logins.password(exactly: "dev.test:9000", username: "me") == "nine")
+            #expect(Logins.password(exactly: "www.dev.test", username: "me") == nil, "not the twin's")
+        }
+    }
+
+    @Test func aTwoStepSignInIsTheOneAccountSavedUnderExactlyTheKey() {
+        with {
+            #expect(Logins.save(host: "www.example.com", username: "twin", password: "t"))
+            #expect(Logins.save(host: "dev.test", username: "legacy", password: "l"))
+            let onExample = LoginOffer.make(host: "example.com", captured: "", password: "p")
+            #expect(onExample?.username == "", "the www twin's account is not this site's one account: \(String(describing: onExample))")
+            let onPort = LoginOffer.make(host: "dev.test:9000", captured: "", password: "p")
+            #expect(onPort?.username == "")
+            #expect(Logins.save(host: "example.com", username: "alice", password: "a"))
+            let one = LoginOffer.make(host: "example.com", captured: "", password: "new")
+            #expect(one?.username == "alice" && one?.updatesExisting == true)
+            #expect(Logins.save(host: "example.com", username: "bob", password: "b"))
+            #expect(LoginOffer.make(host: "example.com", captured: "", password: "new") == nil, "two accounts: which one is not known")
+            let typed = LoginOffer.make(host: "dev.test:9000", captured: "legacy", password: "n")
+            #expect(typed?.updatesExisting == true, "a typed name that is saved for the bare host still updates it")
+        }
+    }
+
     @Test func importedCookiesDoNotReplaceTheOnesThereAlready() throws {
         func cookie(_ domain: String, _ name: String, _ path: String, _ value: String) throws -> HTTPCookie {
             try #require(HTTPCookie(properties: [.domain: domain, .name: name, .path: path, .value: value, .originURL: URL(string: "https://example.com/")!]))
