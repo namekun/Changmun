@@ -566,6 +566,7 @@ extension Tab: WKNavigationDelegate {
             case .unsupported: browser?.flashStatus(String(localized: "This language can’t be translated"))
             case .nothingToTranslate: browser?.flashStatus(String(localized: "No text in another language to translate"))
             case .failed: browser?.flashStatus(String(localized: "Couldn't translate this page"))
+            case .engineFailed: browser?.flashStatus(String(localized: "Couldn't translate this page. macOS’s translation didn’t respond — try again, or check System Settings › General › Language & Region › Translation Languages."))
             case .translated: break
             }
         }

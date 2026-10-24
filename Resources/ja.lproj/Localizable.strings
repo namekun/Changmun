@@ -147,6 +147,7 @@
 "Couldn't run claude: %@" = "claudeを実行できませんでした: %@";
 "Couldn't save the page" = "ページを保存できませんでした";
 "Couldn't translate this page" = "このページを翻訳できませんでした";
+"Couldn't translate this page. macOS’s translation didn’t respond — try again, or check System Settings › General › Language & Region › Translation Languages." = "このページを翻訳できませんでした。macOSの翻訳が応答しませんでした。もう一度お試しいただくか、システム設定 › 一般 › 言語と地域 › 翻訳言語をご確認ください。";
 "Couldn’t run it: %@" = "実行できませんでした: %@";
 "Current Site" = "現在のサイト";
 "Cut" = "カット";
