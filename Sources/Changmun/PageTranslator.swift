@@ -133,10 +133,13 @@ enum PageTranslator {
         return translatedAny ? .translated : .failed
     }
 
-    /// The error, as it reads in Console: its type and fields, and the domain and code it has as an NSError.
+    /// The error for the log: its type and the domain and code it has as an NSError, and no more than the Translation framework says.
     nonisolated static func describe(_ error: Error) -> String {
         let bridged = error as NSError
-        return "\(String(reflecting: error).prefix(300)) [\(bridged.domain) \(bridged.code)]"
+        var text = "\(type(of: error)) [\(bridged.domain) \(bridged.code)]"
+        // Only the Translation framework's own wording: a web view's error can carry the page's script, text or address.
+        if #available(macOS 15.0, *), let translation = error as? TranslationError { text += " " + String(translation.localizedDescription.prefix(200)) }
+        return text
     }
 
     /// The models that can be asked for a session, best guess first, or why there are none: they aren't downloaded, or can't
