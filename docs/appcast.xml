@@ -6,6 +6,17 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.7.4</title>
+      <pubDate>Sat, 24 Oct 2026 15:36:13 +0000</pubDate>
+      <sparkle:version>27</sparkle:version>
+      <sparkle:shortVersionString>0.7.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.7.4</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **No more white page after full-screen video.** Leaving a video's full screen (YouTube's f key, for one) could leave the page blank and white until something else happened. Changmun redrew the tab while the video was full screen and lost the spot the page had to come back to. It now leaves the page alone during full screen and puts it back in place when you leave it.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.4/Changmun-0.7.4.dmg" length="4873284" type="application/octet-stream" sparkle:edSignature="gsG6GcBaEfKc6zk6FPXVBKOLFajkzq7APGK3YQiIBh37n4WhJJhzNuALTONH0m88I0r2s0BZBbc8851OgezhDQ==" />
+    </item>
+    <item>
       <title>0.7.3</title>
       <pubDate>Sat, 24 Oct 2026 06:23:24 +0000</pubDate>
       <sparkle:version>26</sparkle:version>
@@ -118,6 +129,6 @@
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: eSBjA+vWmHaio2Q0WuZRYRGQa+XecfdfbNHumqr+Vm39gX8X0ip6BqPupULepgpHPyrXMLshjf0Q86AcgEoIAw==
-length: 13684
+edSignature: DD+mGE0lhhK1lXIHu+65h76BNMFyGtpRbQB1vJIe1NNIeQhNbAe/uueUKFHG2EeIvWdkM7D2EWKwXy1C3PuWCQ==
+length: 14871
 -->
