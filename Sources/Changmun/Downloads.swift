@@ -225,6 +225,19 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         return Landing(place: folder.appendingPathComponent(".changmun-\(UUID().uuidString).part"), target: target)
     }
 
+    /// Removes the temporary files of downloads that broke off and were never picked up again ("`.changmun-<id>.part`", and nothing
+    /// else) that were last written to before `date`. A download resumed in the same session is written to often, so it is not one of them.
+    nonisolated static func removeOrphanedParts(in folder: URL, olderThan date: Date) {
+        let manager = FileManager.default
+        let pattern = "^\\.changmun-[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}\\.part$"
+        for name in (try? manager.contentsOfDirectory(atPath: folder.path)) ?? [] where name.range(of: pattern, options: .regularExpression) != nil {
+            let file = folder.appendingPathComponent(name)
+            guard let values = try? file.resourceValues(forKeys: [.contentModificationDateKey, .isRegularFileKey]),
+                  values.isRegularFile == true, let modified = values.contentModificationDate, modified < date else { continue }
+            try? manager.removeItem(at: file)
+        }
+    }
+
     /// Puts the finished file where it was to go, replacing what was there.
     nonisolated static func install(_ landing: Landing) throws {
         guard landing.place != landing.target else { return }
@@ -233,6 +246,8 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
 
     func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String) async -> URL? {
         let item = item(download)
+        // A download picked up again (see `retry`) goes on in the file it was writing to, which its resume data names.
+        if let kept = landings[ObjectIdentifier(download)] { return kept.place }
         item?.filename = suggestedFilename
         let prefs = Preferences.shared
         var destination: URL

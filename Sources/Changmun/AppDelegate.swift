@@ -20,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Once the windows are back: the icons of sites nothing is left from go.
         Task { await Browser.pruneIcons() }
         ChatStore.removeOldConfigs()
+        let downloads = Downloads.folder
+        DispatchQueue.global(qos: .utility).async { Downloads.removeOrphanedParts(in: downloads, olderThan: Date().addingTimeInterval(-86_400)) }
         // Watching the library from the start, so no change goes unseen before a sidebar first shows.
         _ = LibraryWatcher.shared
         // Profiles deleted last time whose data couldn't be erased yet.
