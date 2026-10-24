@@ -6,6 +6,18 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.7.3</title>
+      <pubDate>Sat, 24 Oct 2026 06:23:24 +0000</pubDate>
+      <sparkle:version>26</sparkle:version>
+      <sparkle:shortVersionString>0.7.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.7.3</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Translation tries the other engine.** On some Macs, the translation engine macOS reports as ready refuses to translate. When one engine turns down the whole page, Changmun now tries the other one, then the system's default, before giving up. If macOS's translation doesn't respond at all, it says so and points to Translation Languages in System Settings.
+- **A record of why a translation failed.** Changmun notes in the system log which languages and engines it tried and what macOS answered, never the page's text or address. If a page still won't translate, run `log show --last 10m --style compact --predicate 'subsystem == "io.github.namekun.Changmun" AND category == "translation"'` in Terminal and send the output along with your report.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.3/Changmun-0.7.3.dmg" length="4864175" type="application/octet-stream" sparkle:edSignature="W5Jt6Tz7qr23Dw5WBOt9p6x777mP+glATcbCNbMvzMoABTinofw/iIO7qhWLaAi5gcgcVSyIEoCpiPc5zoS0DQ==" />
+    </item>
+    <item>
       <title>0.7.2</title>
       <pubDate>Fri, 23 Oct 2026 21:19:28 +0000</pubDate>
       <sparkle:version>25</sparkle:version>
@@ -106,6 +118,6 @@
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: Od18EtP4iyd3Dlg/MSUmsK8Q7T7tmhwRBuVC+LmlIAwlz3ANytT/RMfcPcz4gWcQ8eJ3cH7tE7dKm6ZtIKuICQ==
-length: 12119
+edSignature: eSBjA+vWmHaio2Q0WuZRYRGQa+XecfdfbNHumqr+Vm39gX8X0ip6BqPupULepgpHPyrXMLshjf0Q86AcgEoIAw==
+length: 13684
 -->
