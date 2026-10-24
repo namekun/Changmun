@@ -197,6 +197,41 @@ struct LibraryDataTests {
         #expect(Library(path: old.path).favorites().map(\.url) == ["https://c.example/", "https://b.example/", "https://a.example/"])
     }
 
+    @Test func aReadOnlyLibraryIsStillReadAndOnlyAFailedOrderMigrationIsAProblem() throws {
+        let old = try oldLibrary([("https://a.example/", "", 10), ("https://b.example/", "", 5), ("https://x.example/", "Chrome Bookmarks Bar", 7)])
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: old.folder.path)
+            try? FileManager.default.removeItem(at: old.folder)
+        }
+        // Read-only file in a read-only folder: no WAL, no ALTER, no CREATE can happen.
+        try FileManager.default.setAttributes([.posixPermissions: 0o444], ofItemAtPath: old.path)
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: old.folder.path)
+        let library = Library(path: old.path)
+        #expect(library.problem != nil, "the order column could not be added")
+        #expect(library.favorites().map(\.url) == ["https://b.example/", "https://a.example/"], "read in the order they were added")
+        #expect(library.folders().first?.entries.map(\.url) == ["https://x.example/"])
+        #expect(library.readBookmarks() != nil)
+    }
+
+    @Test func aReadOnlyLibraryThatIsUpToDateHasNoProblem() throws {
+        let (library, folder) = try library()
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.path)
+            try? FileManager.default.removeItem(at: folder)
+        }
+        library.addBookmark(url: "https://a.example/", title: "a", folder: "")
+        let path = folder.appendingPathComponent("library.sqlite").path
+        let before = Library(path: path)
+        #expect(before.favorites().count == 1)
+        for file in try FileManager.default.contentsOfDirectory(atPath: folder.path) {
+            try FileManager.default.setAttributes([.posixPermissions: 0o444], ofItemAtPath: folder.appendingPathComponent(file).path)
+        }
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: folder.path)
+        let readOnly = Library(path: path)
+        #expect(readOnly.problem == nil)
+        #expect(readOnly.favorites().map(\.url) == ["https://a.example/"])
+    }
+
     @Test func aSpaceDeletedKeepsTheOrderOfItsFavoritesInTheNextOne() throws {
         let (library, folder) = try library()
         defer { try? FileManager.default.removeItem(at: folder) }

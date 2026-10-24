@@ -64,31 +64,45 @@ final class Library: @unchecked Sendable {
 
     private let db: SQLite?
     private let path: String
-    /// Why the database can't be used (it wouldn't open, or its tables couldn't be made or brought up to date), or nil. Every write
+    /// Why the database can't be used (it wouldn't open, or its bookmarks couldn't be brought up to date), or nil. Every write
     /// then fails without a word, so the app tells the user once.
     private(set) var problem: String?
+    /// How the favorites are ordered: by their positions, or by when they were added while the database has no position column to read.
+    private let favoriteOrder: String
 
     init(path: String) {
         self.path = path
         var opened: SQLite?
+        var ordered = false
         do {
             let db = try SQLite(path: path)
             opened = db
             db.addFunction("fold", Self.fold)
-            try db.execute("""
-            PRAGMA journal_mode=WAL;
-            PRAGMA synchronous=NORMAL;
-            CREATE TABLE IF NOT EXISTS history (url TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', visits INTEGER NOT NULL DEFAULT 1, last_visit REAL NOT NULL);
-            CREATE TABLE IF NOT EXISTS bookmarks (id INTEGER PRIMARY KEY, url TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', folder TEXT NOT NULL DEFAULT '', added REAL NOT NULL, position REAL, UNIQUE(url, folder));
-            CREATE INDEX IF NOT EXISTS history_recent ON history(last_visit DESC);
-            """)
-            try Self.addPositionColumn(db)
+            // One statement at a time, each allowed to fail (a read-only file, a full disk, a lock that times out): the library
+            // is still read from what is there. Only a database that won't open at all, or whose order column can't be added, is a problem.
+            for statement in [
+                "PRAGMA journal_mode=WAL",
+                "PRAGMA synchronous=NORMAL",
+                "CREATE TABLE IF NOT EXISTS history (url TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', visits INTEGER NOT NULL DEFAULT 1, last_visit REAL NOT NULL)",
+                "CREATE TABLE IF NOT EXISTS bookmarks (id INTEGER PRIMARY KEY, url TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', folder TEXT NOT NULL DEFAULT '', added REAL NOT NULL, position REAL, UNIQUE(url, folder))",
+                "CREATE INDEX IF NOT EXISTS history_recent ON history(last_visit DESC)",
+            ] {
+                do { try db.execute(statement) } catch { NSLog("Changmun: the library at %@ could not run \"%@\": %@", path, statement, error.localizedDescription) }
+            }
+            do {
+                try Self.addPositionColumn(db)
+            } catch {
+                problem = error.localizedDescription
+                NSLog("Changmun: the library at %@ could not be brought up to date: %@", path, error.localizedDescription)
+            }
+            ordered = (try? db.query("PRAGMA table_info(bookmarks)").contains { $0[1] as? String == "position" }) ?? false
         } catch {
             opened = nil
             problem = error.localizedDescription
             NSLog("Changmun: the library at %@ can't be used: %@", path, error.localizedDescription)
         }
         db = opened
+        favoriteOrder = ordered ? Self.byPosition : "added, id"
     }
 
     /// Bookmarks had their order in `added`, which a move of a favorite overwrote with positions (so "recent bookmarks" was wrong).
@@ -240,7 +254,7 @@ final class Library: @unchecked Sendable {
 
     /// The bookmarks pinned in a space's tile grid: the ones added in Changmun itself.
     func favorites(in folder: String = Library.favoritesFolder) -> [Entry] {
-        rows("SELECT url, title FROM bookmarks WHERE folder = ? ORDER BY \(Self.byPosition)", [folder])
+        rows("SELECT url, title FROM bookmarks WHERE folder = ? ORDER BY \(favoriteOrder)", [folder])
     }
 
     /// Imported bookmarks grouped by folder, folders in the order they were first imported.
@@ -254,7 +268,7 @@ final class Library: @unchecked Sendable {
         guard let db, (try? db.execute("BEGIN")) != nil else { return nil }
         // One snapshot: a bookmark moving between folders meanwhile is in one place or the other, never neither.
         defer { try? db.execute("COMMIT") }
-        guard let favorites = try? db.query("SELECT folder, url, title FROM bookmarks WHERE folder = '' OR substr(folder, 1, 1) = char(1) ORDER BY \(Self.byPosition)"),
+        guard let favorites = try? db.query("SELECT folder, url, title FROM bookmarks WHERE folder = '' OR substr(folder, 1, 1) = char(1) ORDER BY \(favoriteOrder)"),
               let folders = try? db.query(Self.foldersQuery) else { return nil }
         var byFolder: [String: [Entry]] = [:]
         for row in favorites {
