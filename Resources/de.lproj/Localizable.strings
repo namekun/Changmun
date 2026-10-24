@@ -19,6 +19,10 @@
 "'%@' is updating and asks for more permissions" = "„%@“ wird aktualisiert und fordert weitere Berechtigungen an";
 "'%@' wants to access this site" = "„%@“ möchte auf diese Website zugreifen";
 "(No username)" = "(Kein Benutzername)";
+"Couldn’t delete the space: its favorites couldn’t be moved" = "Der Space konnte nicht gelöscht werden: Seine Favoriten ließen sich nicht verschieben";
+"Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "Die Datei mit Lesezeichen und Verlauf konnte nicht geöffnet werden, daher wird nichts Neues darin gesichert";
+"Kept your newer passwords %@" = "Neuere Passwörter behalten %@";
+"Update password for %@?" = "Passwort für %@ aktualisieren?";
 "a frame of an unknown site" = "ein Frame einer unbekannten Website";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "Eine vollständige Adresse kannst du direkt an Ort und Stelle bearbeiten (⌘L). Bei „Website und Titel“ öffnet ⌘L das Suchfeld zum Bearbeiten.";
 "A private window can't be shown to the AI." = "Ein privates Fenster kann der KI nicht gezeigt werden.";

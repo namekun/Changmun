@@ -19,6 +19,10 @@
 "'%@' is updating and asks for more permissions" = "「%@」はアップデート中で、追加の権限を要求しています";
 "'%@' wants to access this site" = "「%@」がこのサイトにアクセスしようとしています";
 "(No username)" = "(ユーザ名なし)";
+"Couldn’t delete the space: its favorites couldn’t be moved" = "スペースを削除できませんでした。お気に入りを移動できませんでした";
+"Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "ブックマークと履歴のファイルを開けないため、新しい内容は保存されません";
+"Kept your newer passwords %@" = "新しいパスワードを維持 %@";
+"Update password for %@?" = "%@のパスワードを更新しますか？";
 "a frame of an unknown site" = "不明なサイトのフレーム";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "完全なアドレスはその場で編集できます (⌘L)。サイトとタイトルを表示している場合は、⌘Lで検索フィールドを開いて編集します。";
 "A private window can't be shown to the AI." = "プライベートウインドウはAIに見せられません。";

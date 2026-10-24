@@ -548,6 +548,9 @@ struct PrivacySettings: View {
             // Remembered zoom sizes and closed windows name the sites too.
             if range == .all { prefs.siteZoom = [:] }
             Browser.closedWindows = []
+            // The tab archive names the sites too, and so do the icons cached for them.
+            TabArchive.shared.remove(since: since)
+            Task { await Browser.pruneIcons() }
         }
         if clearSiteData {
             for store in [WKWebsiteDataStore.default()] + Profiles.stores(SpaceStore.shared.spaces) {

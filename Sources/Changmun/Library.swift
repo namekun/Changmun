@@ -28,6 +28,35 @@ final class Library: @unchecked Sendable {
             .appendingPathComponent(Headless.profileName(forBundle: bundleID) ?? "Changmun", isDirectory: true)
     }
 
+    /// What reading a data file gave: nothing yet, its bytes, or an error (permissions, a disk fault) that says nothing about what it holds.
+    enum FileRead {
+        case missing, unreadable
+        case data(Data)
+
+        init(_ file: URL) {
+            do {
+                self = .data(try Data(contentsOf: file))
+            } catch {
+                let nsError = error as NSError
+                self = nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileReadNoSuchFileError ? .missing : .unreadable
+            }
+        }
+    }
+
+    /// Copies a file that couldn't be read whole to "<name>-damaged-<time>.<ext>" beside it, so starting over never costs what it held.
+    /// Returns whether the copy is there.
+    static func keepDamaged(_ file: URL) -> Bool {
+        let stem = file.deletingPathExtension().lastPathComponent, ext = file.pathExtension
+        let time = Int(Date().timeIntervalSince1970)
+        for attempt in 0..<100 {
+            let name = "\(stem)-damaged-\(time)" + (attempt == 0 ? "" : "-\(attempt)") + (ext.isEmpty ? "" : "." + ext)
+            let copy = file.deletingLastPathComponent().appendingPathComponent(name)
+            if FileManager.default.fileExists(atPath: copy.path) { continue }
+            return (try? FileManager.default.copyItem(at: file, to: copy)) != nil
+        }
+        return false
+    }
+
     struct Entry: Equatable {
         var url: String
         var title: String
@@ -35,17 +64,63 @@ final class Library: @unchecked Sendable {
 
     private let db: SQLite?
     private let path: String
+    /// Why the database can't be used (it wouldn't open, or its tables couldn't be made or brought up to date), or nil. Every write
+    /// then fails without a word, so the app tells the user once.
+    private(set) var problem: String?
 
     init(path: String) {
         self.path = path
-        db = try? SQLite(path: path)
-        try? db?.execute("""
-        PRAGMA journal_mode=WAL;
-        PRAGMA synchronous=NORMAL;
-        CREATE TABLE IF NOT EXISTS history (url TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', visits INTEGER NOT NULL DEFAULT 1, last_visit REAL NOT NULL);
-        CREATE TABLE IF NOT EXISTS bookmarks (id INTEGER PRIMARY KEY, url TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', folder TEXT NOT NULL DEFAULT '', added REAL NOT NULL, UNIQUE(url, folder));
-        CREATE INDEX IF NOT EXISTS history_recent ON history(last_visit DESC);
-        """)
+        var opened: SQLite?
+        do {
+            let db = try SQLite(path: path)
+            opened = db
+            db.addFunction("fold", Self.fold)
+            try db.execute("""
+            PRAGMA journal_mode=WAL;
+            PRAGMA synchronous=NORMAL;
+            CREATE TABLE IF NOT EXISTS history (url TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', visits INTEGER NOT NULL DEFAULT 1, last_visit REAL NOT NULL);
+            CREATE TABLE IF NOT EXISTS bookmarks (id INTEGER PRIMARY KEY, url TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', folder TEXT NOT NULL DEFAULT '', added REAL NOT NULL, position REAL, UNIQUE(url, folder));
+            CREATE INDEX IF NOT EXISTS history_recent ON history(last_visit DESC);
+            """)
+            try Self.addPositionColumn(db)
+        } catch {
+            opened = nil
+            problem = error.localizedDescription
+            NSLog("Changmun: the library at %@ can't be used: %@", path, error.localizedDescription)
+        }
+        db = opened
+    }
+
+    /// Bookmarks had their order in `added`, which a move of a favorite overwrote with positions (so "recent bookmarks" was wrong).
+    /// The order has a column of its own, set from the order the favorites are in now; `added` is left as it is.
+    private static func addPositionColumn(_ db: SQLite) throws {
+        func hasPosition() throws -> Bool {
+            try db.query("PRAGMA table_info(bookmarks)").contains { $0[1] as? String == "position" }
+        }
+        guard try !hasPosition() else { return }
+        do {
+            try db.transaction {
+                try db.execute("ALTER TABLE bookmarks ADD COLUMN position REAL")
+                try db.execute("""
+                UPDATE bookmarks SET position = ordered.place FROM
+                  (SELECT id, ROW_NUMBER() OVER (PARTITION BY folder ORDER BY added, id) - 1 AS place FROM bookmarks) AS ordered
+                WHERE ordered.id = bookmarks.id
+                """)
+            }
+        } catch {
+            // Another connection (a background read opening the library at the same moment) did it first.
+            guard try hasPosition() else { throw error }
+        }
+    }
+
+    /// Where bookmarks put at the end of the folder start: after those in it, which are numbered (in the order they show) first.
+    private static func nextPosition(_ db: SQLite, in folder: String) throws -> Double {
+        try db.run("""
+        UPDATE bookmarks SET position = ordered.place FROM
+          (SELECT id, ROW_NUMBER() OVER (ORDER BY \(byPosition)) - 1 AS place FROM bookmarks WHERE folder = ?) AS ordered
+        WHERE ordered.id = bookmarks.id
+        """, [folder])
+        return (try db.query("SELECT MAX(position) FROM bookmarks WHERE folder = ?", [folder]).first?.first as? Double).map { $0 + 1 } ?? 0
     }
 
     func recordVisit(url: String, title: String, at date: Date = Date()) {
@@ -124,16 +199,35 @@ final class Library: @unchecked Sendable {
 
     /// Removes a folder and the folders inside it.
     func removeFolder(_ folder: String) {
-        try? db?.run("DELETE FROM bookmarks WHERE folder = ? OR folder LIKE ? ESCAPE '\\'", [folder, Self.likeEscaped(folder) + " / %"])
+        try? db?.run("DELETE FROM bookmarks WHERE folder = ? OR substr(folder, 1, ?) = ?", [folder, (folder + " / ").unicodeScalars.count, folder + " / "])
         changed()
     }
 
     /// Removes everything imported from one browser (folders named "<source> …").
     func removeSource(_ source: String) {
         guard !source.isEmpty else { return }
-        try? db?.run("DELETE FROM bookmarks WHERE folder <> '' AND (folder = ? OR folder LIKE ? ESCAPE '\\')", [source, Self.likeEscaped(source) + " %"])
+        // Compared as it is written, not with LIKE, which ignores the case of ASCII letters: "Arc" must not take a folder named "arc …".
+        try? db?.run("DELETE FROM bookmarks WHERE folder <> '' AND (folder = ? OR substr(folder, 1, ?) = ?)", [source, (source + " ").unicodeScalars.count, source + " "])
         changed()
     }
+
+    /// The condition that the title or the address of a row has every word in it, with its values. `%` and `_` in a word are plain characters.
+    /// LIKE ignores case for ASCII letters only, so a word with cased letters beyond ASCII (é, Ж) is compared as Swift folds it, both sides.
+    private static func containing(_ words: [String]) -> (clause: String, values: [Any?]) {
+        guard !words.isEmpty else { return ("1", []) }
+        var parts: [String] = []
+        var values: [Any?] = []
+        for word in words {
+            let folded = word.contains { !$0.isASCII && $0.isCased }
+            let pattern = "%" + likeEscaped(folded ? fold(word) : word) + "%"
+            let (title, url) = folded ? ("fold(title)", "fold(url)") : ("title", "url")
+            parts.append("(\(title) LIKE ? ESCAPE '\\' OR \(url) LIKE ? ESCAPE '\\')")
+            values += [pattern, pattern]
+        }
+        return (parts.joined(separator: " AND "), values)
+    }
+
+    static func fold(_ text: String) -> String { text.folding(options: .caseInsensitive, locale: nil) }
 
     static func likeEscaped(_ text: String) -> String {
         text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "%", with: "\\%").replacingOccurrences(of: "_", with: "\\_")
@@ -146,7 +240,7 @@ final class Library: @unchecked Sendable {
 
     /// The bookmarks pinned in a space's tile grid: the ones added in Changmun itself.
     func favorites(in folder: String = Library.favoritesFolder) -> [Entry] {
-        rows("SELECT url, title FROM bookmarks WHERE folder = ? ORDER BY added, id", [folder])
+        rows("SELECT url, title FROM bookmarks WHERE folder = ? ORDER BY \(Self.byPosition)", [folder])
     }
 
     /// Imported bookmarks grouped by folder, folders in the order they were first imported.
@@ -160,7 +254,7 @@ final class Library: @unchecked Sendable {
         guard let db, (try? db.execute("BEGIN")) != nil else { return nil }
         // One snapshot: a bookmark moving between folders meanwhile is in one place or the other, never neither.
         defer { try? db.execute("COMMIT") }
-        guard let favorites = try? db.query("SELECT folder, url, title FROM bookmarks WHERE folder = '' OR substr(folder, 1, 1) = char(1) ORDER BY added, id"),
+        guard let favorites = try? db.query("SELECT folder, url, title FROM bookmarks WHERE folder = '' OR substr(folder, 1, 1) = char(1) ORDER BY \(Self.byPosition)"),
               let folders = try? db.query(Self.foldersQuery) else { return nil }
         var byFolder: [String: [Entry]] = [:]
         for row in favorites {
@@ -169,6 +263,9 @@ final class Library: @unchecked Sendable {
         }
         return (byFolder, Self.grouped(folders))
     }
+
+    /// Favorites in the order the user put them in; those without a position yet (added since) come after, in the order they were added.
+    private static let byPosition = "position IS NULL, position, added, id"
 
     private static let foldersQuery = "SELECT folder, url, title FROM bookmarks WHERE folder <> '' AND substr(folder, 1, 1) <> char(1) ORDER BY id"
 
@@ -193,6 +290,12 @@ final class Library: @unchecked Sendable {
         return !((try? db?.query("SELECT 1 FROM history WHERE url = ? AND last_visit < ? UNION ALL SELECT 1 FROM bookmarks WHERE url = ? AND added < ? LIMIT 1", [url, time, url, time])) ?? []).isEmpty
     }
 
+    /// The hosts of every address in the history and the bookmarks; nil when the database can't be read (that must not look like none).
+    func knownHosts() -> Set<String>? {
+        guard let rows = try? db?.query("SELECT url FROM history UNION SELECT url FROM bookmarks") else { return nil }
+        return Set(rows.compactMap { ($0[0] as? String).flatMap { URL(string: $0)?.host()?.lowercased() } })
+    }
+
     /// Whether the user has been to, or bookmarked, a page on this host.
     func knowsHost(_ host: String) -> Bool {
         let escaped = host.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "%", with: "\\%").replacingOccurrences(of: "_", with: "\\_")
@@ -211,9 +314,7 @@ final class Library: @unchecked Sendable {
 
     /// Most recent first, optionally only pages whose title or address contains every word.
     func history(matching text: String = "", limit: Int = 500) -> [Visit] {
-        let words = text.lowercased().split(separator: " ").map(String.init)
-        let clause = words.isEmpty ? "1" : words.map { _ in "(lower(title) LIKE ? OR lower(url) LIKE ?)" }.joined(separator: " AND ")
-        let values: [Any?] = words.flatMap { word -> [String] in ["%\(word)%", "%\(word)%"] }
+        let (clause, values) = Self.containing(text.lowercased().split(separator: " ").map(String.init))
         let rows = (try? db?.query("SELECT url, title, last_visit FROM history WHERE \(clause) ORDER BY last_visit DESC LIMIT ?", values + [limit])) ?? []
         return rows.compactMap { row in
             guard let url = row[0] as? String else { return nil }
@@ -262,7 +363,7 @@ final class Library: @unchecked Sendable {
         guard let db else { return }
         try? db.transaction {
             for (position, item) in order.enumerated() {
-                try db.run("UPDATE bookmarks SET added = ? WHERE url = ? AND folder = ?", [Double(position), item, folder])
+                try db.run("UPDATE bookmarks SET position = ? WHERE url = ? AND folder = ?", [Double(position), item, folder])
             }
         }
         changed()
@@ -274,7 +375,10 @@ final class Library: @unchecked Sendable {
         guard from != to, let db else { return false }
         do {
             try db.transaction {
-                try db.run("INSERT OR IGNORE INTO bookmarks (url, title, folder, added) SELECT url, title, ?, added FROM bookmarks WHERE folder = ?", [to, from])
+                // They keep their order, after what is in the other space already.
+                let start = try Self.nextPosition(db, in: to)
+                try db.run("INSERT OR IGNORE INTO bookmarks (url, title, folder, added, position) SELECT url, title, ?, added, position + ? FROM bookmarks WHERE folder = ?",
+                           [to, start, from])
                 try db.run("DELETE FROM bookmarks WHERE folder = ?", [from])
             }
         } catch {
@@ -334,8 +438,7 @@ final class Library: @unchecked Sendable {
     func search(_ text: String, limit: Int = 6, hiding folders: [String] = []) -> [Entry] {
         let words = text.lowercased().split(separator: " ").map(String.init).filter { !$0.isEmpty }
         guard !words.isEmpty else { return [] }
-        let clause = words.map { _ in "(lower(title) LIKE ? OR lower(url) LIKE ?)" }.joined(separator: " AND ")
-        let values: [Any?] = words.flatMap { word -> [String] in ["%\(word)%", "%\(word)%"] }
+        let (clause, values) = Self.containing(words)
         let hidden = Self.notIn(folders)
         let marks = rows("SELECT url, title FROM bookmarks WHERE \(clause) AND \(hidden.clause) LIMIT ?", values + hidden.values + [limit])
         let recent = rows("""

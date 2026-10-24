@@ -431,7 +431,7 @@ extension Tab: WKNavigationDelegate {
             if webView.pageZoom != zoom { webView.pageZoom = zoom }
         }
         // Sign-ins often land on another host of the same site (login.example.com → www.example.com).
-        if let offer = loginOffer, !Self.sameSite(offer.host, host) { loginOffer = nil }
+        if let offer = loginOffer, !Self.sameSite(Logins.hostname(ofKey: offer.host), host) { loginOffer = nil }
         forgetPage()
         agent.reset()
         if let host = webView.url?.host(), let cached = Browser.favicons[host] { favicon = cached }

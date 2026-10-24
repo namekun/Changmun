@@ -17,6 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.appearance = Preferences.shared.appearance.nsAppearance
         Task { await AdBlocker.shared.start() }
         Library.shared.pruneHistory()
+        // Once the windows are back: the icons of sites nothing is left from go.
+        Task { await Browser.pruneIcons() }
         ChatStore.removeOldConfigs()
         // Watching the library from the start, so no change goes unseen before a sidebar first shows.
         _ = LibraryWatcher.shared
