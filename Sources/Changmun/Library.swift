@@ -44,18 +44,37 @@ final class Library: @unchecked Sendable {
     }
 
     /// Copies a file that couldn't be read whole to "<name>-damaged-<time>.<ext>" beside it, so starting over never costs what it held.
-    /// Returns whether the copy is there.
+    /// The same damage found again at the next launch is not copied again, and only the newest `damagedCopies` copies are kept.
+    /// Returns whether a copy of it is there.
     static func keepDamaged(_ file: URL) -> Bool {
+        let manager = FileManager.default
+        let folder = file.deletingLastPathComponent()
         let stem = file.deletingPathExtension().lastPathComponent, ext = file.pathExtension
-        let time = Int(Date().timeIntervalSince1970)
-        for attempt in 0..<100 {
-            let name = "\(stem)-damaged-\(time)" + (attempt == 0 ? "" : "-\(attempt)") + (ext.isEmpty ? "" : "." + ext)
-            let copy = file.deletingLastPathComponent().appendingPathComponent(name)
-            if FileManager.default.fileExists(atPath: copy.path) { continue }
-            return (try? FileManager.default.copyItem(at: file, to: copy)) != nil
+        let suffix = ext.isEmpty ? "" : "." + ext
+        /// The copies beside it, oldest first: by the time in the name, then by the number after it.
+        func copies() -> [(order: [Int], url: URL)] {
+            var found: [(order: [Int], url: URL)] = []
+            for name in (try? manager.contentsOfDirectory(atPath: folder.path)) ?? [] where name.hasPrefix("\(stem)-damaged-") && name.hasSuffix(suffix) {
+                let parts = name.dropFirst("\(stem)-damaged-".count).dropLast(suffix.count).split(separator: "-", omittingEmptySubsequences: false).map { Int($0) }
+                if (1...2).contains(parts.count), !parts.contains(nil) { found.append((parts.compactMap { $0 }, folder.appendingPathComponent(name))) }
+            }
+            return found.sorted { $0.order.lexicographicallyPrecedes($1.order) }
         }
-        return false
+        let damaged = try? Data(contentsOf: file)
+        if let damaged, copies().contains(where: { (try? Data(contentsOf: $0.url)) == damaged }) { return true }
+        // Named after the newest copy there is, so a copy never takes the place (and the age) of an older one that was pruned.
+        var time = Int(Date().timeIntervalSince1970), attempt = 0
+        if let last = copies().last?.order, last[0] >= time {
+            time = last[0]
+            attempt = (last.count > 1 ? last[1] : 0) + 1
+        }
+        let copy = folder.appendingPathComponent("\(stem)-damaged-\(time)" + (attempt == 0 ? "" : "-\(attempt)") + suffix)
+        guard (try? manager.copyItem(at: file, to: copy)) != nil else { return false }
+        for old in copies().dropLast(damagedCopies) { try? manager.removeItem(at: old.url) }
+        return true
     }
+
+    static let damagedCopies = 3
 
     struct Entry: Equatable {
         var url: String

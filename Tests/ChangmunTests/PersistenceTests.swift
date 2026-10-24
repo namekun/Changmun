@@ -32,6 +32,23 @@ struct DataFileSafetyTests {
         #expect(TabArchive(file: file).entries.map(\.url) == ["https://new.example/"])
     }
 
+    @Test func theSameDamageFoundAtEveryLaunchIsKeptOnceAndOnlyTheNewestCopiesStay() throws {
+        let folder = try persistenceScratchFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("archive.json")
+        try Data("not json {".utf8).write(to: file)
+        for _ in 0..<4 { #expect(Library.keepDamaged(file)) }
+        #expect(try damagedCopies(in: folder, of: "archive.json").count == 1, "the same damage again is no new copy")
+        for n in 0..<6 {
+            try Data("broken \(n)".utf8).write(to: file)
+            #expect(Library.keepDamaged(file))
+        }
+        let kept = try damagedCopies(in: folder, of: "archive.json")
+        #expect(kept.count == Library.damagedCopies)
+        let contents = try kept.map { String(decoding: try Data(contentsOf: $0), as: UTF8.self) }.sorted()
+        #expect(contents == ["broken 3", "broken 4", "broken 5"], "the newest are the ones kept: \(contents)")
+    }
+
     @Test func anArchiveEntryThatDoesNotDecodeDoesNotTakeTheOthersWithIt() throws {
         let folder = try persistenceScratchFolder()
         defer { try? FileManager.default.removeItem(at: folder) }

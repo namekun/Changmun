@@ -138,7 +138,7 @@ final class SpaceStore: ObservableObject {
                 return
             }
             // Damaged: kept as it is, and the browser starts over from one space holding everything.
-            try? FileManager.default.copyItem(at: file, to: folder.appendingPathComponent("spaces-damaged-\(Int(Date().timeIntervalSince1970)).json"))
+            _ = Library.keepDamaged(file)
         }
         var first = Space(id: Space.defaultID, name: String(localized: "Personal"), symbol: "house", tint: .gray)
         first.pinnedFolders = defaults.stringArray(forKey: "pinnedFolders") ?? []
