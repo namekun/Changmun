@@ -151,7 +151,7 @@ enum ControlClient {
             if case .refused = outcome {
                 // Nobody listens: the app that wrote the file is gone (a crash leaves it behind). Start it once more.
                 try? FileManager.default.removeItem(at: ControlEndpoint.file)
-                if let again = endpoint(caller: caller, read: { nil }, launch: launchApp) { outcome = perform(name, arguments, caller: caller, to: again) }
+                if let again = Self.endpoint(caller: caller, read: { nil }, launch: launchApp) { outcome = perform(name, arguments, caller: caller, to: again) }
             } else if case .unauthorized = outcome, let again = ControlEndpoint.read(), again.token != endpoint.token {
                 // The app was restarted after the file was read.
                 outcome = perform(name, arguments, caller: caller, to: again)
