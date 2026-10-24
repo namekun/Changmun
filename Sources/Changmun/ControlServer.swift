@@ -12,8 +12,19 @@ struct ControlEndpoint: Codable {
 
     static func read(file: URL = file) -> ControlEndpoint? {
         guard let data = try? Data(contentsOf: file), let endpoint = try? JSONDecoder().decode(ControlEndpoint.self, from: data),
-              kill(endpoint.pid, 0) == 0 else { return nil }
+              isChangmun(pid: endpoint.pid) else { return nil }
         return endpoint
+    }
+
+    /// Whether the process is alive and a program of the name this one has (Changmun, the app or a copy of it). A crash leaves
+    /// `control.json` behind, and its process ID may be another program's by the time it is read.
+    static func isChangmun(pid: Int32) -> Bool {
+        func name(_ pid: Int32) -> String? {
+            var path = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
+            return proc_pidpath(pid, &path, UInt32(path.count)) > 0 ? URL(fileURLWithPath: String(cString: path)).lastPathComponent : nil
+        }
+        guard kill(pid, 0) == 0, let theirs = name(pid), let ours = name(getpid()) else { return false }
+        return theirs == ours
     }
 }
 
@@ -37,15 +48,16 @@ final class ControlServer {
     func start() {
         let parameters = NWParameters.tcp
         parameters.requiredLocalEndpoint = NWEndpoint.hostPort(host: "127.0.0.1", port: .any)
-        guard let listener = try? NWListener(using: parameters) else { return }
+        guard let listener = try? NWListener(using: parameters) else { return listenFailed("couldn't create the listener") }
         listener.stateUpdateHandler = { [weak self, weak listener] state in
             guard let self, let listener else { return }
             switch state {
             case .ready:
                 guard let port = listener.port?.rawValue else { return }
                 let endpoint = ControlEndpoint(port: port, token: self.token, pid: getpid())
-                if let data = try? JSONEncoder().encode(endpoint) {
-                    FileManager.default.createFile(atPath: self.file.path, contents: data, attributes: [.posixPermissions: 0o600])
+                guard let data = try? JSONEncoder().encode(endpoint),
+                      FileManager.default.createFile(atPath: self.file.path, contents: data, attributes: [.posixPermissions: 0o600]) else {
+                    return self.listenFailed("couldn't write control.json")
                 }
             case .failed:
                 // A listener that failed (the network stack was reset, say) accepts nothing anymore: it is replaced, and the new port
@@ -62,6 +74,13 @@ final class ControlServer {
         listener.newConnectionHandler = { [weak self] connection in self?.serve(connection) }
         listener.start(queue: queue)
         self.listener = listener
+    }
+
+    /// A headless copy has no window, and its control server is the only way to it: without one it would run on, unseen and out of
+    /// reach, and `changmun headless start` could not tell. So it quits.
+    private func listenFailed(_ reason: String) {
+        FileHandle.standardError.write(Data("changmun: the control server isn't up: \(reason)\n".utf8))
+        if Headless.isOn { DispatchQueue.main.async { NSApp.terminate(nil) } }
     }
 
     func stop() {

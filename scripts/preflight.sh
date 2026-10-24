@@ -35,6 +35,9 @@ step "Tests"
 ./scripts/test.sh >"$LOG/test.txt" 2>&1 || { grep -E "✘|error:" "$LOG/test.txt" | head -40 >&2; fail "Tests failed"; }
 grep -E "Test run with" "$LOG/test.txt" >&2
 
+step "Release scripts"
+./scripts/test-scripts.sh >"$LOG/scripts.txt" 2>&1 || { grep "FAIL" "$LOG/scripts.txt" >&2; fail "A release script test failed"; }
+
 step "Every string is translated"
 ./scripts/check-strings.sh >&2 || fail "Translations are missing"
 

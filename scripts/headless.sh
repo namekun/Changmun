@@ -12,9 +12,11 @@ cd "$(dirname "$0")/.."
 
 APP="build/Changmun Headless.app"
 ENDPOINT="$HOME/Library/Application Support/Changmun Headless/control.json"
+source scripts/headless-lib.sh
 
 field() { python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])' "$ENDPOINT" "$1"; }
-running() { [[ -f "$ENDPOINT" ]] && kill -0 "$(field pid)" 2>/dev/null; }
+# The process in control.json has to be the test copy: after a crash its ID may have gone to something else.
+running() { [[ -f "$ENDPOINT" ]] && is_headless_pid "$(field pid 2>/dev/null)"; }
 post() {
     curl -sf -X POST "http://127.0.0.1:$(field port)$1" -H "Authorization: Bearer $(field token)" \
         -H "X-Changmun-Caller: headless.sh" -H "Content-Type: application/json" --data-binary "$2"
@@ -66,7 +68,16 @@ mouse)
     echo
     ;;
 stop)
-    if running; then kill "$(field pid)"; echo stopped; else echo "not running"; fi
+    if running; then
+        PID="$(field pid)"
+        kill "$PID"
+        for _ in $(seq 50); do is_headless_pid "$PID" || break; sleep 0.1; done
+        rm -f "$ENDPOINT"
+        echo stopped
+    else
+        rm -f "$ENDPOINT"
+        echo "not running"
+    fi
     ;;
 *)
     sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'

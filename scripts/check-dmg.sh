@@ -4,6 +4,10 @@
 # running Changmun and its data are left alone.
 #
 #   scripts/check-dmg.sh build/Changmun-<version>.dmg <version>
+#
+# With RELEASE=1 (release.sh sets it) the DMG must also be what users can open: signed with a Developer ID under the hardened
+# runtime, notarized and stapled, and accepted by Gatekeeper. SKIP_NOTARIZE doesn't loosen that. Without it an ad-hoc signed
+# DMG passes, which is fine for trying a build on this Mac and for nothing else.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -12,9 +16,10 @@ VERSION="${2:?usage: scripts/check-dmg.sh <dmg> <version>}"
 step() { echo "▸ $*" >&2; }
 fail() { echo "✘ $*" >&2; exit 1; }
 
-ENDPOINT="$HOME/Library/Application Support/Changmun Headless/control.json"
+source scripts/headless-lib.sh
+ENDPOINT="${CHANGMUN_ENDPOINT:-$HOME/Library/Application Support/Changmun Headless/control.json}"
 field() { python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])' "$ENDPOINT" "$1"; }
-if [[ -f "$ENDPOINT" ]] && kill -0 "$(field pid)" 2>/dev/null; then
+if [[ -f "$ENDPOINT" ]] && is_headless_pid "$(field pid 2>/dev/null)"; then
     fail "Changmun Headless is running; scripts/headless.sh stop first"
 fi
 
@@ -22,7 +27,11 @@ WORK="$(mktemp -d)"
 MOUNT="$WORK/mount"
 PID=""
 cleanup() {
-    [[ -n "$PID" ]] && kill "$PID" 2>/dev/null || true
+    if [[ -n "$PID" ]]; then
+        kill "$PID" 2>/dev/null || true
+        wait "$PID" 2>/dev/null || true
+        rm -f "$ENDPOINT"
+    fi
     hdiutil detach -quiet "$MOUNT" 2>/dev/null || true
     rm -rf "$WORK"
 }
@@ -48,12 +57,15 @@ step "Signature"
 codesign --verify --deep --strict "$APP" || fail "Signature is broken"
 # Read codesign's output whole: grep -q quits at the first match, and under pipefail the cut-off codesign fails the test.
 SIGNING="$(codesign -dvv "$APP" 2>&1)"
+if [[ -n "${RELEASE:-}" ]] && ! grep -q "^Authority=Developer ID Application" <<<"$SIGNING"; then
+    fail "A release needs a Developer ID signature: this app is ad-hoc signed or signed by someone else"
+fi
 if grep -q "^Authority=Developer ID Application" <<<"$SIGNING"; then
     step "Developer ID, hardened runtime, notarized"
     grep -q "flags=.*runtime" <<<"$SIGNING" || fail "The hardened runtime is off"
     grep -q "com.apple.security.device.camera" <<<"$(codesign -d --entitlements - "$APP" 2>/dev/null)" \
         || fail "The camera entitlement is missing, so sites couldn't use the camera"
-    if [[ -n "${SKIP_NOTARIZE:-}" ]]; then
+    if [[ -n "${SKIP_NOTARIZE:-}" && -z "${RELEASE:-}" ]]; then
         step "Not notarized (SKIP_NOTARIZE): Gatekeeper checks skipped"
     else
         xcrun stapler validate -q "$DMG" || fail "The DMG has no notarization ticket"
@@ -121,6 +133,7 @@ TABS="$(curl -sf -m 5 -X POST "http://127.0.0.1:$(field port)/call" -H "Authoriz
     || fail "list_tabs didn't answer"
 [[ -n "$TABS" ]] || fail "list_tabs answered nothing"
 kill "$PID"; wait "$PID" 2>/dev/null || true
+rm -f "$ENDPOINT"
 PID=""
 
 echo "✔ $DMG is ready to ship" >&2
