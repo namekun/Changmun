@@ -211,6 +211,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
             view.observe(\.estimatedProgress) { [weak self] v, _ in Task { @MainActor in self?.progress = v.estimatedProgress } },
             view.observe(\.canGoBack) { [weak self] v, _ in Task { @MainActor in self?.canGoBack = v.canGoBack } },
             view.observe(\.canGoForward) { [weak self] v, _ in Task { @MainActor in self?.canGoForward = v.canGoForward } },
+            // WebKit moves the page into a full screen window and back; the host that shows it makes sure it is back (see WebViewHost.Container.restore).
+            view.observe(\.fullscreenState) { [weak self] v, _ in
+                Task { @MainActor in if v.fullscreenState == .notInFullscreen { self?.pageOwner.host?.restore() } }
+            },
         ]
         webView = view
         audioWatcher = AudioWatcher(view) { [weak self] playing in

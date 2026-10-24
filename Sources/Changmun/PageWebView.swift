@@ -5,6 +5,10 @@ import WebKit
 final class PageWebView: WKWebView {
     weak var owner: Tab?
 
+    /// Tests only: what to say instead of WebKit's, which only a real full screen window changes.
+    var fullscreenStateForTests: WKWebView.FullscreenState?
+    override var fullscreenState: WKWebView.FullscreenState { fullscreenStateForTests ?? super.fullscreenState }
+
     /// WebKit's identifier for the menu's "Copy", which is there when text is selected.
     private static let copyItem = "WKMenuItemIdentifierCopy"
 
