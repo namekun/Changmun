@@ -12,6 +12,8 @@ struct FilterListUpdateTests {
         var body = Data(("! Title: a list\n" + String(repeating: "||ads.example^\n", count: 20)).utf8)
         var delay: Duration = .zero
         var failCompile = false
+        /// Identifiers whose build fails (the others succeed).
+        var failing: Set<String> = []
     }
 
     struct Rig {
@@ -39,7 +41,7 @@ struct FilterListUpdateTests {
             return (calls.body, HTTPURLResponse(url: url, statusCode: calls.status, httpVersion: nil, headerFields: nil)!)
         }, compile: { id, _ in
             calls.compiled.append(id)
-            if calls.failCompile { throw URLError(.cannotParseResponse) }
+            if calls.failCompile || calls.failing.contains(where: { id.contains($0) }) { throw URLError(.cannotParseResponse) }
             return nil
         })
         return Rig(blocker: blocker, calls: calls, folder: folder, defaults: defaults, restore: {
@@ -126,6 +128,35 @@ struct FilterListUpdateTests {
         await rig.blocker.recompile()
         #expect(rig.blocker.status.hasPrefix("[ERROR]"))
         #expect(rig.blocker.ruleCount == count, "what is in use is still what was built before")
+    }
+
+    @Test func oneListThatCompilesIsInstalledEvenWhenTheOtherFailsAndNothingWasThereBefore() async throws {
+        let body = Data(("! Title: a list\n" + String(repeating: "||ads.example^\n", count: 20) + "##.banner\n##.promo\n").utf8)
+        let rig = try rig { $0.body = body; $0.failing = ["-network-"] }
+        defer { rig.restore() }
+        await rig.blocker.update()
+        #expect(rig.blocker.status.hasPrefix("[ERROR]"))
+        #expect(rig.blocker.ruleCount > 0, "the element hiding rules are in use: \(rig.blocker.ruleCount)")
+    }
+
+    @Test func aKindThatFailsKeepsItsOldRulesWhileTheOtherKindIsReplaced() async throws {
+        let rig = try rig { $0.body = Data(("! Title: a list\n" + String(repeating: "||ads.example^\n", count: 20) + "##.banner\n").utf8) }
+        defer { rig.restore() }
+        await rig.blocker.update()
+        let before = rig.blocker.ruleCount
+        rig.calls.body = Data(("! Title: a list\n" + String(repeating: "||ads.example^\n", count: 20) + "##.banner\nexample.com##.promo\n").utf8)
+        rig.calls.failing = ["-network-"]
+        await rig.blocker.update()
+        #expect(rig.blocker.ruleCount > before, "old network rules stay, the new element hiding rules replace the old: \(before) -> \(rig.blocker.ruleCount)")
+        rig.calls.failing = ["-cosmetic-"]
+        let withBoth = rig.blocker.ruleCount
+        await rig.blocker.recompile()
+        #expect(rig.blocker.ruleCount == withBoth)
+    }
+
+    @Test func compiledListsOfOtherConverterVersionsAreFoundForRemoval() {
+        let names = ["x-network-v1", "x-network-v2", "x-cosmetic-v1", "x-cosmetic-v2", "x-network", "y-network-v1", "x-network-vabc", "x-other-v1"]
+        #expect(AdBlocker.outdatedLists(among: names, identifier: "x", version: 2) == ["x-network-v1", "x-cosmetic-v1"])
     }
 }
 

@@ -209,6 +209,9 @@ final class AdBlocker: ObservableObject {
     private var cosmeticID: String { "\(identifier)-cosmetic-v\(FilterConverter.version)" }
 
     private var applied: [WKContentRuleList] = []
+    /// What is in use, by kind ("network", "cosmetic"): a kind whose rebuild fails keeps its own, and only its own.
+    private var appliedByKind: [String: WKContentRuleList] = [:]
+    private var countByKind: [String: Int] = [:]
     /// The ordinary configuration's and each private window's; a private window's goes when the window does.
     private let controllers = NSHashTable<WKUserContentController>.weakObjects()
 
@@ -259,8 +262,11 @@ final class AdBlocker: ObservableObject {
     func start() async {
         // The fixed tracker list of earlier versions now lives inside these rules.
         // So are the rule lists named before they carried the converter's version.
-        for old in ["changmun-trackers-v1", "\(identifier)-network", "\(identifier)-cosmetic"] {
-            try? await WKContentRuleListStore.default()?.removeContentRuleList(forIdentifier: old)
+        // Rule lists of other converter versions (an update made a newer or older one) are left over in WebKit's store too.
+        var old = ["changmun-trackers-v1", "\(identifier)-network", "\(identifier)-cosmetic"]
+        old += Self.outdatedLists(among: await Self.storedLists(), identifier: identifier, version: FilterConverter.version)
+        for name in old {
+            try? await WKContentRuleListStore.default()?.removeContentRuleList(forIdentifier: name)
         }
         guard Preferences.shared.blockTrackers else { return await apply(enabled: false) }
         let missing = enabledLists.contains { !FileManager.default.fileExists(atPath: folder.appendingPathComponent($0.id + ".txt").path) }
@@ -270,6 +276,23 @@ final class AdBlocker: ObservableObject {
         } else if !loaded {
             // Rules of another converter version (or none): built again from the lists already saved, with no download.
             await recompile()
+        }
+    }
+
+    private static func storedLists() async -> [String] {
+        guard let store = WKContentRuleListStore.default() else { return [] }
+        return await withCheckedContinuation { continuation in
+            store.getAvailableContentRuleListIdentifiers { continuation.resume(returning: $0 ?? []) }
+        }
+    }
+
+    /// The compiled lists of this blocker named by another converter version than `version`.
+    nonisolated static func outdatedLists(among available: [String], identifier: String, version: Int) -> [String] {
+        available.filter { name in
+            ["network", "cosmetic"].contains { kind in
+                let prefix = "\(identifier)-\(kind)-v"
+                return name.hasPrefix(prefix) && Int(name.dropFirst(prefix.count)) != nil && name != "\(prefix)\(version)"
+            }
         }
     }
 
@@ -345,7 +368,7 @@ final class AdBlocker: ObservableObject {
         status = String(localized: "Building rules…")
         let files = enabledLists.map { folder.appendingPathComponent($0.id + ".txt") }
         let allowlist = Preferences.shared.adBlockAllowlist
-        let converted = await Task.detached(priority: .userInitiated) { () -> (String, String, Int) in
+        let converted = await Task.detached(priority: .userInitiated) { () -> (String, String, Int, Int) in
             var text = ContentBlocker.hosts.map { "||\($0)^$third-party" }.joined(separator: "\n")
             for file in files {
                 if let content = try? String(contentsOf: file, encoding: .utf8) { text += "\n" + content }
@@ -353,35 +376,39 @@ final class AdBlocker: ObservableObject {
             let output = FilterConverter.convert(text, allowlist: allowlist)
             let network = String(data: try! JSONSerialization.data(withJSONObject: output.network), encoding: .utf8)!
             let cosmetic = String(data: try! JSONSerialization.data(withJSONObject: output.cosmetic), encoding: .utf8)!
-            return (network, cosmetic, output.network.count + output.cosmetic.count)
+            return (network, cosmetic, output.network.count, output.cosmetic.count)
         }.value
-        var lists: [WKContentRuleList] = []
         var errors: [String] = []
-        for (identifier, json) in [(networkID, converted.0), (cosmeticID, converted.1)] {
+        for (kind, identifier, json, count) in [("network", networkID, converted.0, converted.2), ("cosmetic", cosmeticID, converted.1, converted.3)] {
             do {
                 // WebKit takes no empty list (a filter list may have no element hiding rules at all): it is none, and an old one goes.
                 if json == "[]" {
                     try? await WKContentRuleListStore.default()?.removeContentRuleList(forIdentifier: identifier)
-                } else if let list = try await compile(identifier, json) {
-                    lists.append(list)
+                    appliedByKind[kind] = nil
+                    countByKind[kind] = 0
+                } else {
+                    appliedByKind[kind] = try await compile(identifier, json)
+                    countByKind[kind] = count
                 }
             } catch {
-                errors.append(identifier == cosmeticID ? String(localized: "Element hiding") : String(localized: "Network"))
+                errors.append(kind == "cosmetic" ? String(localized: "Element hiding") : String(localized: "Network"))
             }
         }
-        // The rules in use are replaced only by a whole new set: a failed build leaves the working ones where they are.
-        if errors.isEmpty {
-            ruleCount = converted.2
-            if Preferences.shared.blockTrackers { install(lists) }
-        }
+        // A kind that failed to build keeps the rules it had (none, on a fresh install or after a converter update, if it never had any),
+        // and the other kind is installed all the same: one list that can't be compiled must not leave the other off.
+        ruleCount = countByKind.values.reduce(0, +)
+        if Preferences.shared.blockTrackers { install(["network", "cosmetic"].compactMap { appliedByKind[$0] }) }
         status = errors.isEmpty ? String(localized: "\(ruleCount.formatted()) rules active") : "[ERROR] " + String(localized: "Couldn't build the \(errors.joined(separator: ", ")) rules")
     }
 
     private func loadCompiled() async -> Bool {
         let store = WKContentRuleListStore.default()!
         var lists: [WKContentRuleList] = []
-        for identifier in [networkID, cosmeticID] {
-            if let list = try? await store.contentRuleList(forIdentifier: identifier) { lists.append(list) }
+        for (kind, identifier) in [("network", networkID), ("cosmetic", cosmeticID)] {
+            if let list = try? await store.contentRuleList(forIdentifier: identifier) {
+                lists.append(list)
+                appliedByKind[kind] = list
+            }
         }
         guard !lists.isEmpty else { return false }
         install(lists)
