@@ -421,10 +421,12 @@ final class Browser: ObservableObject {
     // MARK: Peek
 
     func openPeek(_ url: URL) {
-        peek?.sleep()
+        // A peek opened from the old one's own delegate call (⇧-click in it) can't put it to sleep within that call.
+        let old = peek
         let tab = Tab(id: Self.takeID(), url: url, browser: self)
         peek = tab
         tab.wake()
+        DispatchQueue.main.async { old?.sleep() }
     }
 
     func closePeek() {
@@ -1190,12 +1192,14 @@ final class Browser: ObservableObject {
     func sleepIdleTabs(olderThan age: TimeInterval) {
         let now = Date()
         let neverSleep = Preferences.shared.neverSleepHosts
-        for tab in tabs where !isShown(tab) && now.timeIntervalSince(tab.lastShown) >= age
+        for tab in tabs where !isShown(tab) && now.timeIntervalSince(tab.lastShown) >= age && !tab.isInPictureInPicture
             && Preferences.canSleep(host: tab.url?.host(), neverSleep: neverSleep) && !AgentActivity.shared.holds(tab) {
-            guard let webView = tab.webView, webView.cameraCaptureState == .none, webView.microphoneCaptureState == .none else { continue }
+            guard let webView = tab.webView, webView.fullscreenState == .notInFullscreen,
+                  webView.cameraCaptureState == .none, webView.microphoneCaptureState == .none else { continue }
             webView.requestMediaPlaybackState { [weak self, weak tab] state in
                 Task { @MainActor in
-                    guard let self, let tab, !self.isShown(tab), state != .playing, !AgentActivity.shared.holds(tab) else { return }
+                    guard let self, let tab, !self.isShown(tab), state != .playing, !tab.isInPictureInPicture, !AgentActivity.shared.holds(tab),
+                          tab.webView?.fullscreenState == .notInFullscreen else { return }
                     tab.sleep()
                 }
             }

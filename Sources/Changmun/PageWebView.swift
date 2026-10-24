@@ -9,6 +9,21 @@ final class PageWebView: WKWebView {
     var fullscreenStateForTests: WKWebView.FullscreenState?
     override var fullscreenState: WKWebView.FullscreenState { fullscreenStateForTests ?? super.fullscreenState }
 
+    /// Tests only: how often the page was asked to leave full screen.
+    private(set) var fullscreenExitsRequested = 0
+
+    /// Asks the page to end its full screen (element or video), and lets go of it once it is back in its window: WebKit puts it
+    /// back where its placeholder is, and a page taken out before would be put back there, in a host that shows another tab.
+    func leaveFullscreen() {
+        fullscreenExitsRequested += 1
+        evaluateJavaScript("document.fullscreenElement && document.exitFullscreen()") { _, _ in }
+        closeAllMediaPresentations {}
+        Task { @MainActor [self] in
+            for _ in 0..<50 where fullscreenState != .notInFullscreen { try? await Task.sleep(for: .milliseconds(100)) }
+            removeFromSuperview()
+        }
+    }
+
     /// WebKit's identifier for the menu's "Copy", which is there when text is selected.
     private static let copyItem = "WKMenuItemIdentifierCopy"
 

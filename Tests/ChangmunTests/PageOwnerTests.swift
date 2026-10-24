@@ -116,7 +116,7 @@ extension SharedAgentState {
         }
 
         /// What WebKit does to a page whose element goes full screen: its own window gets the page, a placeholder takes its place.
-        private func enterFullscreen(_ view: PageWebView, from container: WebViewHost.Container) -> NSView {
+        private func enterFullscreen(_ view: PageWebView, from container: NSView) -> NSView {
             let screen = NSView(frame: NSRect(x: 0, y: 0, width: 2560, height: 1410))
             view.fullscreenStateForTests = .inFullscreen
             container.addSubview(NSView(frame: view.frame), positioned: .above, relativeTo: view)
@@ -180,6 +180,110 @@ extension SharedAgentState {
             view.removeFromSuperview()
             new.restore()
             #expect(view.superview == nil)
+        }
+
+        // MARK: A page that is full screen is not held
+
+        private func holding(_ tab: Tab) {
+            AgentActivity.shared.runStarted()
+            AgentActivity.shared.use(tab, caller: ChatStore.caller)
+        }
+
+        @Test func aPageInUseThatIsFullScreenIsNotTakenToBeHeld() throws {
+            let (browser, _, other, host) = tabs()
+            defer { browser.windowClosed(); AgentActivity.shared.runEnded() }
+            let view = try #require(other.webView as? PageWebView)
+            let container = WebViewHost.Container(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+            host.update(container)
+            holding(other)
+            let screen = enterFullscreen(view, from: WebViewHost.Container())
+            host.update(container)
+            #expect(view.superview === screen)
+            #expect(!container.subviews.contains { $0 is WebViewHost.PassiveHost })
+        }
+
+        @Test func aHeldPageThatGoesFullScreenKeepsItsPlaceholderAndComesBackToIt() throws {
+            let (browser, _, other, host) = tabs()
+            defer { browser.windowClosed(); AgentActivity.shared.runEnded() }
+            let view = try #require(other.webView as? PageWebView)
+            let container = WebViewHost.Container(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+            host.update(container)
+            holding(other)
+            host.update(container)
+            let passive = try #require(view.superview as? WebViewHost.PassiveHost)
+            let screen = enterFullscreen(view, from: passive)
+            host.update(container)
+            #expect(view.superview === screen, "not taken from the full screen window")
+            #expect(passive.superview === container, "the placeholder's host stays, for the page to come back to")
+            view.fullscreenStateForTests = .notInFullscreen
+            passive.addSubview(view)
+            host.update(container)
+            #expect(view.superview === passive)
+        }
+
+        // MARK: Hosts that change what they show
+
+        @Test func aContainerReusedDuringFullScreenDoesNotTakeThePageThatLeavesItForTheNewTab() throws {
+            let (browser, tab, other, host) = tabs()
+            defer { browser.windowClosed() }
+            let view = try #require(tab.webView as? PageWebView), second = try #require(other.webView)
+            let container = WebViewHost.Container(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+            host.update(container)
+            _ = enterFullscreen(view, from: container)
+            // The user switches tabs while the first one is full screen, and the container is reused for the second.
+            browser.activate(other.id)
+            WebViewHost(tab: other, browser: browser).update(container)
+            #expect(second.superview === container)
+            // WebKit's end: the first page is put back where its placeholder is.
+            view.fullscreenStateForTests = .notInFullscreen
+            view.removeFromSuperview()
+            container.addSubview(view)
+            tab.pageOwner.host?.restore(for: tab)
+            #expect(view.superview == nil, "no longer shown: out of the container")
+            #expect(second.superview === container && container.subviews.last === second && second.frame == container.bounds)
+        }
+
+        @Test func aContainerPassedOnToAnotherTabNoLongerOwnsThePageOfTheFirst() throws {
+            let (browser, tab, other, host) = tabs()
+            defer { browser.windowClosed() }
+            let container = WebViewHost.Container(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+            host.update(container)
+            #expect(tab.pageOwner.owns(container))
+            browser.activate(other.id)
+            WebViewHost(tab: other, browser: browser).update(container)
+            #expect(!tab.pageOwner.owns(container) && other.pageOwner.owns(container))
+        }
+
+        // MARK: Nothing shown
+
+        @Test func aWindowWithNoTabInFrontStillHoldsThePagesTheAIUses() throws {
+            let box = Sandbox()
+            let store = box.store()
+            let work = store.add(name: "Work", symbol: "briefcase", tint: .blue, isProfile: false)
+            let empty = store.add(name: "Empty", symbol: "leaf", tint: .teal, isProfile: false)
+            let browser = Browser(spaces: store)
+            browser.focused()
+            defer { browser.windowClosed(); AgentActivity.shared.runEnded() }
+            let held = browser.openTab(url: nil, activate: false, space: work.id)
+            let view = held.wake()
+            browser.switchSpace(to: empty.id, opensBar: false)
+            #expect(browser.active == nil)
+            holding(held)
+            let window = NSWindow(contentRect: NSRect(origin: Headless.origin, size: NSSize(width: 800, height: 600)), styleMask: [.borderless], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            defer { window.close() }
+            let container = WebViewHost.Container(frame: window.contentView!.bounds)
+            window.contentView!.addSubview(container)
+            HeldPagesHost(browser: browser).update(container)
+            #expect(view.superview is WebViewHost.PassiveHost && view.window === window, "kept in the window, so it goes on running")
+            #expect(container.hitTest(NSPoint(x: 10, y: 10)) == nil, "and out of the way of the page for an empty window")
+            // A tab is opened: the host of the page in front takes over what was held, as the empty one goes.
+            let shown = browser.openTab(url: nil)
+            let tabHost = WebViewHost.Container(frame: container.frame)
+            window.contentView!.addSubview(tabHost)
+            WebViewHost(tab: shown, browser: browser).update(tabHost)
+            WebViewHost.dismantleNSView(container, coordinator: ())
+            #expect(view.superview?.superview === tabHost)
         }
     }
 }
