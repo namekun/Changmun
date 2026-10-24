@@ -6,12 +6,12 @@
 #   scripts/headless.sh call <tool> [json]  run a browser tool: list_tabs, open_tab, navigate, read_page, click, screenshot…
 #   scripts/headless.sh shot <file.png>     capture the front window, sidebar and all
 #   scripts/headless.sh mouse <down|drag|up|right> <x> <y>   a mouse event at a point in the window, from its top left
-#   scripts/headless.sh stop
+#   scripts/headless.sh stop                stop it; if it doesn't exit within 5 s, say so and keep its control.json
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 APP="build/Changmun Headless.app"
-ENDPOINT="$HOME/Library/Application Support/Changmun Headless/control.json"
+ENDPOINT="${CHANGMUN_HEADLESS_ENDPOINT:-$HOME/Library/Application Support/Changmun Headless/control.json}"
 source scripts/headless-lib.sh
 
 field() { python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])' "$ENDPOINT" "$1"; }
@@ -71,7 +71,12 @@ stop)
     if running; then
         PID="$(field pid)"
         kill "$PID"
-        for _ in $(seq 50); do is_headless_pid "$PID" || break; sleep 0.1; done
+        for _ in $(seq $(( ${CHANGMUN_STOP_WAIT:-5} * 10 ))); do is_headless_pid "$PID" || break; sleep 0.1; done
+        # A process that is still there keeps its endpoint: without it nothing could reach it or stop it again.
+        if is_headless_pid "$PID"; then
+            echo "pid $PID did not exit within ${CHANGMUN_STOP_WAIT:-5} s; control.json is kept so it can be reached or stopped again ($0 stop, or kill -9 $PID)" >&2
+            exit 1
+        fi
         rm -f "$ENDPOINT"
         echo stopped
     else

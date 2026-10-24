@@ -31,7 +31,8 @@ APPCAST="docs/appcast.xml"
 [[ -z "$(git status --porcelain)" ]] || { echo "Working tree is not clean" >&2; exit 1; }
 git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null && { echo "v$VERSION already exists" >&2; exit 1; }
 [[ -f "$CASK" ]] || { echo "Homebrew tap not found at $TAP_DIR" >&2; exit 1; }
-if REFUSAL="$(unsigned_release_refusal "$(developer_id)" "${SKIP_NOTARIZE:-}" "${ALLOW_UNSIGNED_RELEASE:-}")"; then
+SIGNING_ID="$(identity_name "$(developer_id)" "$(security find-identity -v -p codesigning 2>/dev/null)")"
+if REFUSAL="$(unsigned_release_refusal "$SIGNING_ID" "${SKIP_NOTARIZE:-}" "${ALLOW_UNSIGNED_RELEASE:-}")"; then
     echo "$REFUSAL" >&2
     exit 1
 fi
@@ -72,9 +73,19 @@ finish() {
     if (( ! PUSHED )); then
         git checkout -q -- "$PLIST" "$PAGE" "$APPCAST"
         if (( status != 0 && (TAGGED || COMMITTED) )); then
-            # A push that failed on the way back may still have landed: then the tag is out there and stays.
-            if (( TAGGED )) && git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            # A push that failed on the way back may still have landed: then the tag is out there and stays. And when origin
+            # can't be asked (no network) nothing is undone, because a tag that may be out there must not be deleted blind.
+            ON_ORIGIN=no
+            if (( TAGGED )); then ON_ORIGIN="$(origin_has_tag "$VERSION")"; fi
+            if [[ "$ON_ORIGIN" == yes ]]; then
                 echo "git push failed, but v$VERSION is on origin: its commit and tag are kept. Check origin, then do the release steps from gh release create on by hand." >&2
+            elif [[ "$ON_ORIGIN" == unknown ]]; then
+                {
+                    echo "git push failed and origin could not be asked whether v$VERSION arrived: the local tag and commit are kept."
+                    echo "  1. git ls-remote --tags origin v$VERSION   (when you are online again)"
+                    echo "  2. if it is there: do the release steps from gh release create on by hand"
+                    echo "  3. if it is not: git tag -d v$VERSION && git reset --keep $START_HEAD"
+                } >&2
             else
                 revert_release "$VERSION" "$START_HEAD" "$TAGGED" "$COMMITTED"
             fi
