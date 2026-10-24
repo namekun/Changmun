@@ -2745,19 +2745,89 @@ struct TranslationTests {
         #expect(outcome == .nothingToTranslate)
     }
 
-    @Test func theModelsAreLookedForInEveryEngineBeforeAskingForADownload() async throws {
+    @Test func theModelsAreLookedForInEveryEngineBeforeAskingForADownload() throws {
         guard #available(macOS 15.0, *) else { return }
         // Downloaded for the second engine only (what System Settings gave, while the app asks the first one by default).
-        let second = await PageTranslator.firstInstalled(["low", "high"]) { $0 == "high" ? .installed : .supported }
-        #expect(second.installed == "high")
-        let first = await PageTranslator.firstInstalled(["low", "high"]) { _ in .installed }
-        #expect(first.installed == "low")
-        let none = await PageTranslator.firstInstalled(["low", "high"]) { $0 == "high" ? .unsupported : .supported }
-        #expect(none.installed == nil)
+        let second = PageTranslator.usableEngines([(.lowLatency, .supported), (.highFidelity, .installed), (.standard, .installed)])
+        #expect(second.engines == [.highFidelity, .standard])
+        let both = PageTranslator.usableEngines([(.lowLatency, .installed), (.highFidelity, .installed), (.standard, .installed)])
+        #expect(both.engines == [.lowLatency, .highFidelity, .standard])
+        // The system's own choice is a last resort for whichever is installed, but nothing is asked to download.
+        let one = PageTranslator.usableEngines([(.lowLatency, .installed), (.highFidelity, .supported), (.standard, .unsupported)])
+        #expect(one.engines == [.lowLatency, .standard])
+        let none = PageTranslator.usableEngines([(.lowLatency, .supported), (.highFidelity, .unsupported), (.standard, .supported)])
+        #expect(none.engines.isEmpty)
         #expect(none.downloadable)
-        let neither = await PageTranslator.firstInstalled(["low", "high"]) { _ in .unsupported }
-        #expect(neither.installed == nil)
+        let neither = PageTranslator.usableEngines([(.lowLatency, .unsupported), (.highFidelity, .unsupported), (.standard, .unsupported)])
+        #expect(neither.engines.isEmpty)
         #expect(!neither.downloadable)
+        let before = PageTranslator.usableEngines([(.standard, .installed)])
+        #expect(before.engines == [.standard])
+    }
+
+    @Test func theNextEngineIsAskedWhenTheFirstRefusesTheWholePage() async {
+        var asked: [PageTranslator.Engine] = []
+        let (outcome, used) = await PageTranslator.firstEngineThatWorks([.lowLatency, .highFidelity, .standard]) { engine in
+            asked.append(engine)
+            return engine == .lowLatency ? .engineFailed : .translated
+        }
+        #expect(outcome == .translated)
+        #expect(used == .highFidelity)
+        #expect(asked == [.lowLatency, .highFidelity])
+    }
+
+    @Test func theDefaultEngineIsTheLastResort() async {
+        var asked: [PageTranslator.Engine] = []
+        let (outcome, used) = await PageTranslator.firstEngineThatWorks([.lowLatency, .highFidelity, .standard]) { engine in
+            asked.append(engine)
+            return engine == .standard ? .translated : .engineFailed
+        }
+        #expect(outcome == .translated)
+        #expect(used == .standard)
+        #expect(asked == [.lowLatency, .highFidelity, .standard])
+    }
+
+    @Test func aPageEveryEngineRefusesFails() async {
+        var asked = 0
+        let (outcome, used) = await PageTranslator.firstEngineThatWorks([.lowLatency, .highFidelity, .standard]) { _ in
+            asked += 1
+            return .engineFailed
+        }
+        #expect(outcome == .engineFailed)
+        #expect(used == nil)
+        #expect(asked == 3)
+    }
+
+    @Test func noOtherEngineIsAskedWhenTheFirstWorks() async {
+        var asked: [PageTranslator.Engine] = []
+        let (outcome, used) = await PageTranslator.firstEngineThatWorks([.lowLatency, .highFidelity]) { engine in
+            asked.append(engine)
+            return .translated
+        }
+        #expect(outcome == .translated)
+        #expect(used == .lowLatency)
+        #expect(asked == [.lowLatency])
+    }
+
+    @Test func aPageThatWentAwayDoesNotSendTheNextEngineAfterIt() async {
+        var asked = 0
+        let (outcome, used) = await PageTranslator.firstEngineThatWorks([.lowLatency, .highFidelity]) { _ in
+            asked += 1
+            return .failed
+        }
+        #expect(outcome == .failed)
+        #expect(used == .lowLatency)
+        #expect(asked == 1)
+    }
+
+    @Test func theTargetIsTheLanguageAloneWhateverTheRegion() {
+        for identifier in ["ko", "ko-KR", "ko-Kore-KR", "ko-Kore"] {
+            #expect(PageTranslator.normalized(identifier) == Locale.Language(identifier: "ko"))
+        }
+        #expect(PageTranslator.normalized("en-KR") == Locale.Language(identifier: "en"))
+        #expect(PageTranslator.normalized("zh-Hant-TW").script == Locale.Language(identifier: "zh-Hant").script)
+        #expect(PageTranslator.normalized("zh-Hans-CN").script == Locale.Language(identifier: "zh-Hans").script)
+        #expect(PageTranslator.normalized("zh-Hant-TW").script != PageTranslator.normalized("zh-Hans-CN").script)
     }
 
     @Test(.enabled(if: Self.modelInstalled)) func aPageIsTranslatedInPlaceAndComesBack() async throws {

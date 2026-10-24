@@ -147,6 +147,7 @@
 "Couldn't run claude: %@" = "claude konnte nicht ausgeführt werden: %@";
 "Couldn't save the page" = "Die Seite konnte nicht gesichert werden";
 "Couldn't translate this page" = "Diese Seite konnte nicht übersetzt werden";
+"Couldn't translate this page. macOS’s translation didn’t respond — try again, or check System Settings › General › Language & Region › Translation Languages." = "Diese Seite konnte nicht übersetzt werden. Die Übersetzung von macOS hat nicht reagiert – versuche es erneut oder prüfe Systemeinstellungen › Allgemein › Sprache & Region › Übersetzungssprachen.";
 "Couldn’t run it: %@" = "Ausführen nicht möglich: %@";
 "Current Site" = "Aktuelle Website";
 "Cut" = "Ausschneiden";
