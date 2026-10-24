@@ -884,17 +884,7 @@ struct AISettings: View {
 
     static func checkClaude() async -> String {
         guard let path = await MainActor.run(body: { ChatStore.claudePath() }) else { return String(localized: "Not found. Install Claude Code or specify the path.") }
-        let version = await Task.detached { () -> String? in
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: path)
-            process.arguments = ["--version"]
-            let pipe = Pipe()
-            process.standardOutput = pipe
-            process.standardError = FileHandle.nullDevice
-            guard (try? process.run()) != nil else { return nil }
-            process.waitUntilExit()
-            return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        }.value
+        let version = await Task.detached { ProcessOutput.run(path, ["--version"], timeout: 5)?.trimmingCharacters(in: .whitespacesAndNewlines) }.value
         return version.map { "\($0)\n\(path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))" } ?? String(localized: "Couldn’t run it: \(path)")
     }
 }

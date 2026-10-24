@@ -211,6 +211,7 @@ extension ChatStore {
     /// Reads each picture off the main thread and adds it; what can't be added is said in a line.
     func load(_ sources: [Data]) async {
         var failure: String?
+        let generation = imageGeneration
         for source in sources {
             guard images.count + pendingImages < ImageIntake.maxCount else {
                 failure = String(localized: "You can attach up to \(ImageIntake.maxCount) images to a message.")
@@ -219,6 +220,8 @@ extension ChatStore {
             pendingImages += 1
             let result = await Task.detached { ImageIntake.prepare(source) }.value
             pendingImages -= 1
+            // The chat was cleared meanwhile: the picture is not added to the new one.
+            guard generation == imageGeneration else { return }
             switch result {
             case .success(let prepared):
                 add(prepared, label: "an image the user added from outside the browser", sites: [Approvals.addedImage])
@@ -273,14 +276,17 @@ extension ChatStore {
         let url = tab.url, site = Approvals.site(of: url), navigations = tab.navigations
         // A page still loading is a page that is about to be another one.
         guard !Self.loading(tab) else { return say(String(localized: "The page changed while capturing. Try again.")) }
+        let generation = imageGeneration
         let title = Self.oneLine(tab.displayTitle).prefix(80), address = Self.oneLine(url?.absoluteString ?? "about:blank").prefix(300)
         let (taken, frames) = await Self.capturePage(tab)
+        guard generation == imageGeneration else { return }
         // A page that went elsewhere while the picture was taken may have been caught on either side of it: nothing is guessed.
         guard Self.unchanged(tab, url: url, navigations: navigations) else { return say(String(localized: "The page changed while capturing. Try again.")) }
         guard let jpeg = taken else { return say(String(localized: "The page could not be captured.")) }
         // The tab may have gone private-window-side or been closed while the picture was taken.
         guard ToolCatalog.findTab(tab.id) != nil, images.count + pendingImages < ImageIntake.maxCount else { return }
         let result = await Task.detached { ImageIntake.prepare(jpeg) }.value
+        guard generation == imageGeneration else { return }
         guard case .success(let prepared) = result else { return say(String(localized: "The page could not be captured.")) }
         // The site as it is now counts too, however little it can differ from the one before the picture.
         var sites = [site, Approvals.site(of: tab.url)].compactMap { $0 }

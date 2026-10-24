@@ -1201,6 +1201,26 @@ extension SharedAgentState {
             }
         }
 
+        @Test func aTabTheUserClosedWhileBeingAskedIsNotWokenOrUsed() async {
+            let (browser, tabs) = open(["https://a.example/", "https://b.example/", "https://c.example/"])
+            defer { browser.windowClosed() }
+            browser.activate(tabs[0].id)
+            let single = tabs[1], several = tabs[2]
+            #expect(single.isAsleep && several.isAsleep)
+            await asking({ prompt in
+                for tab in [single, several] where prompt.detail.hasPrefix(Approvals.site(of: tab.url) ?? "?") { browser.close(tab.id) }
+                return .once
+            }) { stand in
+                let used = await ToolCatalog.call("read_page", ["tab_id": single.id], caller: "mcp-closed-asked")
+                #expect(used.isError && used.content.first?["text"] as? String == "No tab with that id.")
+                #expect(single.webView == nil, "a closed tab is not given a new web view")
+                let read = await ToolCatalog.call("read_tabs", ["tab_ids": [several.id]], caller: "mcp-closed-asked")
+                #expect((read.content.first?["text"] as? String)?.contains("No tab with that id.") == true)
+                #expect(several.webView == nil)
+                #expect(stand.asked.count == 2)
+            }
+        }
+
         @Test func anAddressVisitedBeforeIsFreeOnlyIfItsSiteWasNotReadInThisChatAndTheVisitIsOlderThanTheChat() async {
             let (browser, tabs) = open(["https://old.example/page", "https://fresh.example/"])
             defer { browser.windowClosed() }
