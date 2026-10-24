@@ -1,6 +1,6 @@
 #!/bin/bash
 # Builds a release app and packages it as build/Changmun-<version>.dmg. With a Developer ID in the keychain the DMG
-# is signed, notarized and stapled too.
+# is signed, notarized and stapled too. With RELEASE=1 (release.sh sets it) that is required: no Developer ID or SKIP_NOTARIZE fails.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/env.sh
@@ -18,6 +18,10 @@ hdiutil create -volname "Changmun" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >
 rm -rf "$STAGE"
 
 IDENTITY="$(developer_id)"
+if [[ -n "${RELEASE:-}" && ( -z "$IDENTITY" || -n "${SKIP_NOTARIZE:-}" ) ]]; then
+    echo "✘ A release needs a Developer ID and notarization (no Developer ID in the keychain, or SKIP_NOTARIZE is set)" >&2
+    exit 1
+fi
 if [[ -n "$IDENTITY" ]]; then
     codesign --force --timestamp --sign "$IDENTITY" "$DMG"
     if [[ -n "${SKIP_NOTARIZE:-}" ]]; then
