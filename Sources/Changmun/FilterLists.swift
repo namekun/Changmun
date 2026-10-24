@@ -13,6 +13,17 @@ enum FilterConverter {
     /// WebKit refuses a list over 150,000 rules.
     static let maxRules = 140_000
 
+    /// Raised whenever what `convert` makes changes. The compiled rule lists are named by it, so rules made by an older converter are
+    /// not taken for current after an update: they are built again from the saved lists.
+    static let version = 1
+
+    /// Whether downloaded bytes can be a filter list: text, and not the HTML page (a login wall, an error page sent with 200) that stands in for it.
+    static func looksLikeList(_ data: Data) -> Bool {
+        guard data.count > 100 else { return false }
+        let start = String(decoding: data.prefix(256), as: UTF8.self).drop { $0.isWhitespace || $0 == "\u{FEFF}" }.lowercased()
+        return !start.hasPrefix("<!doctype") && !start.hasPrefix("<html")
+    }
+
     private static let resourceTypes: [String: String] = [
         "script": "script", "image": "image", "stylesheet": "style-sheet", "font": "font", "media": "media",
         "xmlhttprequest": "raw", "ping": "ping", "websocket": "websocket", "popup": "popup", "other": "raw",
@@ -172,7 +183,30 @@ final class AdBlocker: ObservableObject {
     @Published private(set) var status = ""
     @Published private(set) var working = false
     @Published private(set) var ruleCount = 0
-    @Published private(set) var lastUpdated: Date? = UserDefaults.standard.object(forKey: "filtersUpdated") as? Date
+    @Published private(set) var lastUpdated: Date?
+
+    private let folder: URL
+    private let defaults: UserDefaults
+    private let identifier: String
+    private let fetch: (URL) async throws -> (Data, URLResponse)
+    private let compile: (String, String) async throws -> WKContentRuleList?
+
+    /// The defaults are the app's; a test gives its own folder, defaults, names and way to download and compile, and so touches none of them.
+    init(folder: URL? = nil, defaults: UserDefaults = .standard, identifier: String = "changmun",
+         fetch: @escaping (URL) async throws -> (Data, URLResponse) = { try await URLSession.shared.data(from: $0) },
+         compile: @escaping (String, String) async throws -> WKContentRuleList? = { id, json in
+             try await WKContentRuleListStore.default()?.compileContentRuleList(forIdentifier: id, encodedContentRuleList: json)
+         }) {
+        self.folder = folder ?? Self.folder
+        self.defaults = defaults
+        self.identifier = identifier
+        self.fetch = fetch
+        self.compile = compile
+        lastUpdated = defaults.object(forKey: "filtersUpdated") as? Date
+    }
+
+    private var networkID: String { "\(identifier)-network-v\(FilterConverter.version)" }
+    private var cosmeticID: String { "\(identifier)-cosmetic-v\(FilterConverter.version)" }
 
     private var applied: [WKContentRuleList] = []
     /// The ordinary configuration's and each private window's; a private window's goes when the window does.
@@ -224,13 +258,18 @@ final class AdBlocker: ObservableObject {
     /// At launch: use what was compiled last time, then refresh lists older than four days.
     func start() async {
         // The fixed tracker list of earlier versions now lives inside these rules.
-        try? await WKContentRuleListStore.default()?.removeContentRuleList(forIdentifier: "changmun-trackers-v1")
+        // So are the rule lists named before they carried the converter's version.
+        for old in ["changmun-trackers-v1", "\(identifier)-network", "\(identifier)-cosmetic"] {
+            try? await WKContentRuleListStore.default()?.removeContentRuleList(forIdentifier: old)
+        }
         guard Preferences.shared.blockTrackers else { return await apply(enabled: false) }
-        let missing = enabledLists.contains { !FileManager.default.fileExists(atPath: Self.folder.appendingPathComponent($0.id + ".txt").path) }
-        if await loadCompiled() {
-            if missing || (lastUpdated ?? .distantPast) < Date().addingTimeInterval(-4 * 86_400) { await update() }
-        } else {
+        let missing = enabledLists.contains { !FileManager.default.fileExists(atPath: folder.appendingPathComponent($0.id + ".txt").path) }
+        let loaded = await loadCompiled()
+        if missing || (lastUpdated ?? .distantPast) < Date().addingTimeInterval(-4 * 86_400) {
             await update()
+        } else if !loaded {
+            // Rules of another converter version (or none): built again from the lists already saved, with no download.
+            await recompile()
         }
     }
 
@@ -245,34 +284,66 @@ final class AdBlocker: ObservableObject {
         }
     }
 
-    /// Downloads every enabled list (keeping the old copy when a download fails) and recompiles.
-    func update() async {
-        guard !working else { return }
+    private enum Job: Int {
+        case rebuild = 1, download = 2
+    }
+
+    /// What was asked for while a job was running, to run once when it ends: a download also rebuilds, so it outranks a rebuild.
+    private var rerun: Job?
+
+    /// Downloads every enabled list (keeping the old copy when a download fails) and recompiles. Asked for while the lists are
+    /// being built or downloaded, it runs once more after that, so a list switched on meanwhile is not left out until the next time.
+    func update() async { await run(.download) }
+
+    /// Rebuilds the rule lists from the saved filter files, the built-in tracker list and the per-site exceptions.
+    func recompile() async { await run(.rebuild) }
+
+    /// One job at a time: the flag is raised for the first and lowered when the last one is done.
+    private func run(_ job: Job) async {
+        guard !working else {
+            if job.rawValue > (rerun?.rawValue ?? 0) { rerun = job }
+            return
+        }
         working = true
+        var next: Job? = job
+        while let current = next {
+            rerun = nil
+            switch current {
+            case .download: await download()
+            case .rebuild: await rebuild()
+            }
+            next = rerun
+        }
+        working = false
+    }
+
+    private func download() async {
         status = String(localized: "Downloading filter lists…")
         var failed: [String] = []
+        var saved = 0
         for list in enabledLists {
             guard let url = URL(string: list.url) else { continue }
             do {
-                let (data, response) = try await URLSession.shared.data(from: url)
-                guard (response as? HTTPURLResponse)?.statusCode == 200, data.count > 100 else { throw URLError(.badServerResponse) }
-                try data.write(to: Self.folder.appendingPathComponent(list.id + ".txt"))
+                let (data, response) = try await fetch(url)
+                guard (response as? HTTPURLResponse)?.statusCode == 200, FilterConverter.looksLikeList(data) else { throw URLError(.badServerResponse) }
+                try data.write(to: folder.appendingPathComponent(list.id + ".txt"), options: .atomic)
+                saved += 1
             } catch {
                 failed.append(list.name)
             }
         }
-        lastUpdated = Date()
-        UserDefaults.standard.set(lastUpdated, forKey: "filtersUpdated")
-        working = false
-        await recompile()
+        // Only a download that brought something counts as an update: all of them failing is tried again at the next launch.
+        if saved > 0 {
+            lastUpdated = Date()
+            defaults.set(lastUpdated, forKey: "filtersUpdated")
+        }
+        await rebuild()
         if !failed.isEmpty { status = String(localized: "Lists that failed to download: \(failed.joined(separator: ", ")) (using the previous ones)") }
     }
 
-    /// Rebuilds the rule lists from the saved filter files, the built-in tracker list and the per-site exceptions.
-    func recompile() async {
-        working = true
+    private func rebuild() async {
         status = String(localized: "Building rules…")
-        let files = enabledLists.map { Self.folder.appendingPathComponent($0.id + ".txt") }
+        let files = enabledLists.map { folder.appendingPathComponent($0.id + ".txt") }
         let allowlist = Preferences.shared.adBlockAllowlist
         let converted = await Task.detached(priority: .userInitiated) { () -> (String, String, Int) in
             var text = ContentBlocker.hosts.map { "||\($0)^$third-party" }.joined(separator: "\n")
@@ -284,26 +355,32 @@ final class AdBlocker: ObservableObject {
             let cosmetic = String(data: try! JSONSerialization.data(withJSONObject: output.cosmetic), encoding: .utf8)!
             return (network, cosmetic, output.network.count + output.cosmetic.count)
         }.value
-        let store = WKContentRuleListStore.default()!
         var lists: [WKContentRuleList] = []
         var errors: [String] = []
-        for (identifier, json) in [("changmun-network", converted.0), ("changmun-cosmetic", converted.1)] {
+        for (identifier, json) in [(networkID, converted.0), (cosmeticID, converted.1)] {
             do {
-                if let list = try await store.compileContentRuleList(forIdentifier: identifier, encodedContentRuleList: json) { lists.append(list) }
+                // WebKit takes no empty list (a filter list may have no element hiding rules at all): it is none, and an old one goes.
+                if json == "[]" {
+                    try? await WKContentRuleListStore.default()?.removeContentRuleList(forIdentifier: identifier)
+                } else if let list = try await compile(identifier, json) {
+                    lists.append(list)
+                }
             } catch {
-                errors.append(identifier.hasSuffix("cosmetic") ? String(localized: "Element hiding") : String(localized: "Network"))
+                errors.append(identifier == cosmeticID ? String(localized: "Element hiding") : String(localized: "Network"))
             }
         }
-        working = false
-        ruleCount = converted.2
-        if Preferences.shared.blockTrackers { install(lists) }
+        // The rules in use are replaced only by a whole new set: a failed build leaves the working ones where they are.
+        if errors.isEmpty {
+            ruleCount = converted.2
+            if Preferences.shared.blockTrackers { install(lists) }
+        }
         status = errors.isEmpty ? String(localized: "\(ruleCount.formatted()) rules active") : "[ERROR] " + String(localized: "Couldn't build the \(errors.joined(separator: ", ")) rules")
     }
 
     private func loadCompiled() async -> Bool {
         let store = WKContentRuleListStore.default()!
         var lists: [WKContentRuleList] = []
-        for identifier in ["changmun-network", "changmun-cosmetic"] {
+        for identifier in [networkID, cosmeticID] {
             if let list = try? await store.contentRuleList(forIdentifier: identifier) { lists.append(list) }
         }
         guard !lists.isEmpty else { return false }
