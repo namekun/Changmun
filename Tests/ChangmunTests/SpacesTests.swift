@@ -38,6 +38,8 @@ extension SharedAgentState {
             let box = Sandbox()
             let browser = Browser(spaces: box.store())
             let session = try #require(Browser.SavedWindows.decode(Data(oldSession.utf8)).first)
+            Library.shared.addBookmark(url: "https://a.example/", title: "A", folder: Library.favoritesFolder)
+            defer { Library.shared.removeBookmark(url: "https://a.example/", folder: Library.favoritesFolder) }
             browser.restore(session)
             #expect(browser.tabs.map { $0.url?.absoluteString } == ["https://a.example/", "https://b.example/", "https://c.example/"])
             #expect(browser.tabs.map(\.title) == ["A", "B", "C"])
@@ -360,6 +362,9 @@ extension SharedAgentState {
             let w1 = rig.open("w1", in: rig.work.id), w2 = rig.open("w2", in: rig.work.id)
             let group = try #require(b.group([w1.id, w2.id], name: "Docs"))
             w1.bookmarkKey = Browser.bookmarkKey(url: "https://w1.example/", folder: rig.work.favoritesFolder)
+            // A bookmark the library no longer holds is not restored as one.
+            Library.shared.addBookmark(url: "https://w1.example/", title: "w1", folder: rig.work.favoritesFolder)
+            defer { Library.shared.removeBookmark(url: "https://w1.example/", folder: rig.work.favoritesFolder) }
             b.activate(a2.id)
             b.activate(w2.id)
             b.activate(a1.id)

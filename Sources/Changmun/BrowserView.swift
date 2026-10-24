@@ -646,7 +646,7 @@ struct Sidebar: View {
     /// Folders kept under the favorites, opened where they are, then a gap before the tabs. A folder dropped in
     /// the gap is pinned at the end.
     @ViewBuilder private var pinned: some View {
-        let folders = browser.space.pinnedFolders.compactMap(library.folder)
+        let folders = browser.space.topPinnedFolders.compactMap(library.folder)
         // Ids carry the part of the sidebar: a folder can show both pinned and under Bookmarks.
         ForEach(folders.flatMap { treeRows($0, depth: 0, scope: "pin:", pinned: true) }) { row in
             treeRow(row)
@@ -788,7 +788,7 @@ struct Sidebar: View {
         } menu: {
             if isPinned {
                 Button("Unpin from Sidebar") { browser.spaces.unpinFolder(folder.key, in: browser.spaceID) }
-            } else {
+            } else if !browser.space.hasPinnedAncestor(folder.key) {
                 Button("Pin to Sidebar") { browser.spaces.pinFolder(folder.key, in: browser.spaceID) }
             }
             Divider()
@@ -948,7 +948,11 @@ struct SidebarDrop: Transferable {
 
     static var transferRepresentation: some TransferRepresentation {
         ProxyRepresentation(exporting: \.text, importing: { SidebarDrop(text: $0) })
-        ProxyRepresentation(exporting: { (drop: SidebarDrop) in URL(string: drop.text) ?? URL(fileURLWithPath: "/") },
+        // To another app: the address of the page a bookmark, tab or link stands for; a folder or a group has none.
+        ProxyRepresentation(exporting: { (drop: SidebarDrop) in
+                                guard let url = await SidebarDrag.address(of: drop.text) else { throw CocoaError(.fileNoSuchFile) }
+                                return url
+                            },
                             importing: { (url: URL) in SidebarDrop(text: url.absoluteString) })
     }
 }
@@ -962,14 +966,38 @@ extension Array where Element == SidebarDrop {
 enum SidebarDrag {
     enum Kind { case tab, bookmark, folder, group }
     /// What the latest drag from the sidebar carries: set when the drag starts, so drop targets can show where it lands.
-    private(set) static var dragging: Kind? { didSet { if dragging != .group { draggingGroup = nil } } }
+    private(set) static var dragging: Kind? { didSet { if dragging != .group { draggingGroup = nil }; watchForRelease() } }
     /// The group being dragged, so its own header and tabs show no line.
     private(set) static var draggingGroup: UUID?
+
+    private static var releaseWatch: Timer?
+
+    /// A drag that is cancelled (esc, dropped outside the sidebar) reaches no drop target, so nothing else would end it:
+    /// once the mouse button is up, nothing is being carried any more.
+    private static func watchForRelease() {
+        releaseWatch?.invalidate()
+        releaseWatch = nil
+        guard dragging != nil else { return }
+        releaseWatch = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
+            MainActor.assumeIsolated { dragEnded() }
+        }
+    }
+
+    static func dragEnded(buttons: Int = NSEvent.pressedMouseButtons) {
+        if buttons & 1 == 0 { dragging = nil }
+    }
 
     static func tab(_ id: Int) -> String { dragging = .tab; return "changmun-tab:\(id)" }
     static func bookmark(_ url: String, in folder: String) -> String { dragging = .bookmark; return "changmun-bookmark:" + folder + "\n" + url }
     static func folder(_ key: String) -> String { dragging = .folder; return "changmun-folder:" + key }
     static func group(_ id: UUID) -> String { dragging = .group; draggingGroup = id; return "changmun-group:\(id.uuidString)" }
+
+    /// The page a dragged row stands for, for an app outside: none for a folder or a group.
+    static func address(of text: String) -> URL? {
+        if let (url, _) = bookmark([text]) { return URL(string: url) }
+        if let id = tabID([text]) { return Browser.all.lazy.compactMap { $0.tab(id) }.first?.url }
+        return link([text])
+    }
 
     static func groupID(_ items: [String]) -> UUID? {
         guard let item = items.first, item.hasPrefix("changmun-group:") else { return nil }
@@ -1009,7 +1037,12 @@ enum SidebarDrag {
     static func dropAtEnd(_ items: [String], browser: Browser) -> Bool {
         defer { dragging = nil }
         if let url = link(items) {
-            withAnimation(Motion.standard) { browser.moveTab(browser.openTab(url: url).id, to: nil) }
+            withAnimation(Motion.standard) {
+                let tab = browser.openTab(url: url)
+                // Put where the user chose, not where its page would sort it to.
+                tab.sortsIntoGroup = false
+                browser.moveTab(tab.id, to: nil)
+            }
             return true
         }
         if let group = groupID(items) {
@@ -1045,7 +1078,7 @@ enum SidebarDrag {
             return true
         }
         // A tab becomes the folder's bookmark and that bookmark's tab, as on the favorites; the folder opens to show it.
-        if let id = tabID(items), let tab = browser.tab(id), let url = tab.url, ["http", "https"].contains(url.scheme?.lowercased()) {
+        if let id = tabID(items), let tab = browser.tab(id), !tab.isPrivate, let url = tab.url, ["http", "https"].contains(url.scheme?.lowercased()) {
             let address = url.absoluteString
             if !Library.shared.isFavorite(address, in: folder) {
                 Library.shared.addBookmark(url: address, title: tab.title.isEmpty ? (url.host() ?? address) : tab.title, folder: folder)
@@ -1067,6 +1100,7 @@ enum SidebarDrag {
             withAnimation(Motion.standard) {
                 // Just above the tab it was dropped on, where the drop line showed, and into its group.
                 let tab = browser.openTab(url: url)
+                tab.sortsIntoGroup = false
                 browser.moveTab(tab.id, to: nil)
                 browser.dropTab(tab.id, on: target)
             }
@@ -1123,7 +1157,7 @@ enum SidebarDrag {
             Library.shared.moveFavorite(url, to: target, in: favorites)
             return true
         }
-        if let id = tabID(items), let tab = browser.tab(id), let url = tab.url?.absoluteString {
+        if let id = tabID(items), let tab = browser.tab(id), !tab.isPrivate, let url = tab.url?.absoluteString {
             if !Library.shared.isFavorite(url, in: favorites) { _ = Library.shared.toggleBookmark(url: url, title: tab.title, in: favorites) }
             browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: favorites))
             Library.shared.moveFavorite(url, to: target, in: favorites)
@@ -1382,7 +1416,7 @@ struct AddressPill: View {
             LoginButton(tab: tab)
             PictureInPictureButton(tab: tab)
             if hover || AdBlocker.shared.isAllowed(tab.url?.host() ?? "") { AdBlockShield(tab: tab) }
-            if hover || tab.url.map({ library.isFavorite($0.absoluteString, in: tab.favoritesFolder) }) == true { BookmarkStar(tab: tab) }
+            if !tab.isPrivate, hover || tab.url.map({ library.isFavorite($0.absoluteString, in: tab.favoritesFolder) }) == true { BookmarkStar(tab: tab) }
         }
         .padding(.leading, 4)
         .padding(.trailing, 4)
@@ -1975,10 +2009,12 @@ struct SidebarTabRow: View {
         Button("Capture Full Page…") { Task { await SavePage.save(tab, as: .image) } }
             .disabled(tab.isAsleep || tab.showsPDF)
         Divider()
-        Button("Pin to Favorites") {
-            if let url = tab.url?.absoluteString {
-                if !Library.shared.isFavorite(url, in: tab.favoritesFolder) { _ = Library.shared.toggleBookmark(url: url, title: tab.title, in: tab.favoritesFolder) }
-                browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: tab.favoritesFolder))
+        if !tab.isPrivate {
+            Button("Pin to Favorites") {
+                if let url = tab.url?.absoluteString {
+                    if !Library.shared.isFavorite(url, in: tab.favoritesFolder) { _ = Library.shared.toggleBookmark(url: url, title: tab.title, in: tab.favoritesFolder) }
+                    browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: tab.favoritesFolder))
+                }
             }
         }
         if tab.groupID == nil {
