@@ -57,3 +57,30 @@ enum WindowImage {
         view.subviews.flatMap { ($0 as? WKWebView).map { [$0] } ?? webViews(in: $0) }
     }
 }
+
+/// What the test copy measures after a page's element went full screen and came back: where the tab in front's web view
+/// is, in its host or in another window, and whether it is shown.
+@MainActor
+enum FullscreenMeasure {
+    private static func rect(_ r: CGRect) -> [Int] { [Int(r.minX.rounded()), Int(r.minY.rounded()), Int(r.width.rounded()), Int(r.height.rounded())] }
+
+    static func report(of browser: Browser) async -> [String: Any] {
+        guard let tab = browser.active, let page = tab.webView else { return ["error": "no page"] }
+        var chain: [String] = []
+        var view: NSView? = page
+        while let current = view {
+            chain.append("\(type(of: current)) \(rect(current.frame))" + (current.isHidden ? " isHidden" : "") + (current.alphaValue == 0 ? " alpha0" : ""))
+            view = current.superview
+        }
+        var report: [String: Any] = ["state": page.fullscreenState.rawValue, "chain": chain, "inWindow": page.window != nil,
+                                     "inBrowserWindow": page.window === browser.window, "frame": rect(page.frame),
+                                     "hasLayer": page.layer != nil, "hidden": page.isHiddenOrHasHiddenAncestor]
+        if let container = tab.pageOwner.host {
+            report["owner"] = ["bounds": rect(container.bounds), "subviews": container.subviews.map { "\(type(of: $0)) \(rect($0.frame))" },
+                               "ownsPage": page.superview === container]
+        }
+        let script = "JSON.stringify([!!document.fullscreenElement, innerWidth, innerHeight])"
+        report["page"] = (try? await page.evaluateJavaScript(script)) as? String ?? "no answer"
+        return report
+    }
+}

@@ -171,6 +171,22 @@ final class ControlServer {
             }
             return
         }
+        // Tests only: where the web view of the tab in front stands (in its host, or in a full screen window), after "eval" ran a
+        // script in it, if given, and a moment for the views to settle; "png" adds a picture of the window.
+        if Headless.isTestCopy, request.method == "POST", request.path == "/fullscreen",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                guard let browser = Browser.current else {
+                    return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
+                }
+                if let script = body["eval"] as? String { _ = try? await browser.active?.wake().evaluateJavaScript(script) }
+                try? await Task.sleep(for: .milliseconds(body["wait"] as? Int ?? 1200))
+                var report = await FullscreenMeasure.report(of: browser)
+                if body["png"] as? Bool == true, let window = browser.window, let png = await WindowImage.png(of: window) { report["png"] = png.base64EncodedString() }
+                self.respond(connection, status: "200 OK", body: report)
+            }
+            return
+        }
         // Tests only: pop-ups in the front window. "allow" replaces the sites allowed to open pop-ups; "action" is open, always or
         // close, run on the bar of the tab "tab_id" names (else the one in front); "reset" empties the bars and closes the tabs
         // other than "tab_id"; "eval" runs a script in the page of that tab as the browser's own calls do (with a user gesture),

@@ -114,5 +114,72 @@ extension SharedAgentState {
             WebViewHost.dismantleNSView(container, coordinator: ())
             #expect(second.superview === container)
         }
+
+        /// What WebKit does to a page whose element goes full screen: its own window gets the page, a placeholder takes its place.
+        private func enterFullscreen(_ view: PageWebView, from container: WebViewHost.Container) -> NSView {
+            let screen = NSView(frame: NSRect(x: 0, y: 0, width: 2560, height: 1410))
+            view.fullscreenStateForTests = .inFullscreen
+            container.addSubview(NSView(frame: view.frame), positioned: .above, relativeTo: view)
+            screen.addSubview(view)
+            view.frame = screen.bounds
+            return screen
+        }
+
+        @Test func aHostUpdatedWhileThePageIsFullScreenLeavesItThere() throws {
+            let (browser, tab, _, host) = tabs()
+            defer { browser.windowClosed() }
+            let view = try #require(tab.webView as? PageWebView)
+            let container = WebViewHost.Container(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+            host.update(container)
+            let screen = enterFullscreen(view, from: container)
+            // The page's title changes (a video's does), and SwiftUI updates the host.
+            host.update(container)
+            #expect(view.superview === screen)
+            #expect(container.subviews.count == 1)
+            WebViewHost.dismantleNSView(container, coordinator: ())
+            #expect(view.superview === screen)
+        }
+
+        @Test func aPageLeavingFullScreenIsShownInItsHostAtItsSize() throws {
+            let (browser, tab, _, host) = tabs()
+            defer { browser.windowClosed() }
+            let view = try #require(tab.webView as? PageWebView)
+            let container = WebViewHost.Container(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+            host.update(container)
+            _ = enterFullscreen(view, from: container)
+            host.update(container)
+            // WebKit's end: the page leaves the full screen window, and nothing it was left in is the host's any more.
+            view.fullscreenStateForTests = .notInFullscreen
+            view.removeFromSuperview()
+            container.restore()
+            #expect(view.superview === container)
+            #expect(view.frame == container.bounds)
+            #expect(container.subviews.last === view)
+        }
+
+        @Test func aPageLeavingFullScreenGoesToTheHostThatOwnsItNow() throws {
+            let (browser, tab, _, host) = tabs()
+            defer { browser.windowClosed() }
+            let view = try #require(tab.webView as? PageWebView)
+            let old = WebViewHost.Container(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+            let new = WebViewHost.Container(frame: NSRect(x: 0, y: 0, width: 400, height: 600))
+            host.update(old)
+            _ = enterFullscreen(view, from: old)
+            // A split begins while it is full screen: the new host starts, and WebKit puts the page back where its placeholder is.
+            host.update(new)
+            #expect(view.superview !== new)
+            view.fullscreenStateForTests = .notInFullscreen
+            old.addSubview(view)
+            new.restore()
+            #expect(view.superview === new)
+            #expect(view.frame == new.bounds)
+            // A host that doesn't own the page leaves it be, and so does one that is told while the page is still away.
+            old.restore()
+            #expect(view.superview === new)
+            view.fullscreenStateForTests = .exitingFullscreen
+            view.removeFromSuperview()
+            new.restore()
+            #expect(view.superview == nil)
+        }
     }
 }
