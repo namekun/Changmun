@@ -1,18 +1,18 @@
 import Foundation
 
 /// How an address is named as a "site": what the AI's approvals, reads and attachments are remembered by.
-enum Site {
+package enum Site {
     /// Stands for a frame that has no site to name (a sandboxed frame, one that could not be asked): a site of its own.
-    nonisolated static let unknownFrame = "\u{1}unknown-frame"
+    package nonisolated static let unknownFrame = "\u{1}unknown-frame"
     /// Stands for an image the user added from outside the browser (a file, the clipboard): a source of its own, which no tab is on.
-    nonisolated static let addedImage = "\u{1}added-image"
+    package nonisolated static let addedImage = "\u{1}added-image"
 
     /// The site an address is on, as what was read and allowed is remembered: its exact host, lowercased and in the ASCII form
     /// of an international name (www.example.com and shop.example.com are two sites, so are two sites on one hosting service),
     /// with the port when it isn't the scheme's own (another port is another site), and with "http://" in front for an
     /// unencrypted page (http and https are two sites); a page with no host (a file:, data: or blob: page) is a site by its
     /// scheme; nil for a blank page.
-    nonisolated static func site(of url: URL?) -> String? {
+    package nonisolated static func site(of url: URL?) -> String? {
         guard let url else { return nil }
         let scheme = url.scheme?.lowercased() ?? ""
         guard var host = URLComponents(string: url.absoluteString)?.encodedHost?.lowercased(), !host.isEmpty else { return scheme.isEmpty || scheme == "about" ? nil : scheme + ":" }
@@ -23,7 +23,7 @@ enum Site {
     }
 
     /// The host name of a site as `site(of:)` writes it (without "http://" and the port): nil for a site that has none.
-    nonisolated static func hostname(ofSite site: String) -> String? {
+    package nonisolated static func hostname(ofSite site: String) -> String? {
         guard hasSiteSyntax(site) else { return nil }
         var rest = Substring(site)
         if rest.hasPrefix("http://") { rest = rest.dropFirst(7) }
@@ -36,12 +36,12 @@ enum Site {
     }
 
     /// The site an origin names ("https://example.com:8443"): "" for an origin that has none (a sandboxed frame, a data: page).
-    nonisolated static func site(ofOrigin origin: String) -> String {
+    package nonisolated static func site(ofOrigin origin: String) -> String {
         site(of: URL(string: origin)) ?? ""
     }
 
     /// Whether a site is one a user could allow for a chat: not "" and not a page that only has a scheme (file:).
-    nonisolated static func hasSite(_ site: String) -> Bool {
+    package nonisolated static func hasSite(_ site: String) -> Bool {
         !site.isEmpty && !(site.hasSuffix(":") && site.dropLast().allSatisfy(\.isLetter))
     }
 }

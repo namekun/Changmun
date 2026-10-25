@@ -7,14 +7,12 @@ import WebKit
 /// `Changmun Headless.app` (scripts/headless.sh), the copy for tests, and `Changmun Agent.app` (`changmun headless start`,
 /// UserHeadless.swift), the one the user's agents drive.
 enum Headless {
-    static let bundleID = "io.github.namekun.Changmun.headless"
-    static let userBundleID = "io.github.namekun.Changmun.agent"
+    static let bundleID = ProfileNames.headlessBundleID
+    static let userBundleID = ProfileNames.userBundleID
 
-    static func isHeadless(bundleID id: String?) -> Bool { id == bundleID || id == userBundleID }
+    static func isHeadless(bundleID id: String?) -> Bool { ProfileNames.isHeadless(bundleID: id) }
     /// The name of a headless app's profile folder in Application Support; nil for any other app.
-    static func profileName(forBundle id: String?) -> String? {
-        id == bundleID ? "Changmun Headless" : id == userBundleID ? "Changmun Agent" : nil
-    }
+    static func profileName(forBundle id: String?) -> String? { ProfileNames.profileName(forBundle: id) }
 
     static let isOn = isHeadless(bundleID: Bundle.main.bundleIdentifier)
     /// The user's headless app, whose AI questions the user's agents get answered by Approvals.userHeadlessAnswer.
