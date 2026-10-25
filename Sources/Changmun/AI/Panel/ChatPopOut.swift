@@ -96,7 +96,10 @@ final class ChatPopOut: NSObject, NSWindowDelegate {
     func revealForQuestion() {
         guard let window else { return }
         let plan = Self.reveal(miniaturized: window.isMiniaturized, appActive: NSApp.isActive)
+        // Coming back from the Dock may make it the key window, which would put the user's typing in it: the window that had the keys gets them back.
+        let keyBefore = NSApp.keyWindow
         if plan.restore { window.deminiaturize(nil) }
+        if let keyBefore, keyBefore !== window, keyBefore.isVisible { keyBefore.makeKey() }
         if plan.orderFront { window.orderFrontRegardless() }
         if plan.askAttention { NSApp.requestUserAttention(.informationalRequest) }
     }

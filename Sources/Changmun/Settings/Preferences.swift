@@ -232,7 +232,7 @@ final class Preferences: ObservableObject {
         extensionGrants = d.dictionary(forKey: "extensionGrants") as? [String: [String]] ?? [:]
         aiModel = d.string(forKey: "aiModel") ?? "sonnet"
         aiPanelWidth = Self.clampedAIPanelWidth(d.object(forKey: "aiPanelWidth") as? Double ?? Self.defaultAIPanelWidth)
-        aiApprovalMode = AIApprovalMode.initial(stored: d.string(forKey: "aiApprovalMode"), legacy: d.object(forKey: "aiApprovals") as? Bool)
+        aiApprovalMode = AIApprovalMode.initial(stored: d.object(forKey: "aiApprovalMode"), legacy: d.object(forKey: "aiApprovals") as? Bool)
         aiEffort = d.string(forKey: "aiEffort") ?? ""
         aiKeepHistory = d.object(forKey: "aiKeepHistory") as? Bool ?? true
         claudePath = d.string(forKey: "claudePath") ?? ""

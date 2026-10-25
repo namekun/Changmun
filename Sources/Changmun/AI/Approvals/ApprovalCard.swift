@@ -28,6 +28,10 @@ final class ApprovalCards: ObservableObject {
     /// that window, and only until it stops being the key window.
     private(set) weak var focusedWindow: NSWindow?
     private var resigned: NSObjectProtocol?
+    private var becameKey: NSObjectProtocol?
+    /// When each window last became the key window (since it last stopped being it): the keys that say yes wait for a window that has just
+    /// come to the front, as they do for a card that has just come up.
+    private var keySince: [ObjectIdentifier: Date] = [:]
     /// When the mouse button last went down in the app: a click on a button that says yes counts only if it began after the card was armed.
     private(set) var lastMouseDown: Date?
     /// When each card became the first one of its panel, the one on show: the keys and the buttons that say yes are armed a moment after
@@ -36,8 +40,25 @@ final class ApprovalCards: ObservableObject {
 
     private init() {
         resigned = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: nil, queue: .main) { [weak self] note in
-            MainActor.assumeIsolated { if let window = note.object as? NSWindow, window === self?.focusedWindow { self?.focusedWindow = nil } }
+            MainActor.assumeIsolated {
+                guard let window = note.object as? NSWindow else { return }
+                self?.keySince[ObjectIdentifier(window)] = nil
+                if window === self?.focusedWindow { self?.focusedWindow = nil }
+            }
         }
+        becameKey = NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { [weak self] note in
+            MainActor.assumeIsolated { if let window = note.object as? NSWindow { self?.keySince[ObjectIdentifier(window)] = Date() } }
+        }
+    }
+
+    /// How long the keys of `window` have been armed for a card: since the later of the card coming to the front and the window becoming key.
+    func armedFor(_ id: UUID, in window: NSWindow) -> TimeInterval {
+        ApprovalKeys.armedFor(shownAt: visibleSince(id), windowKeyAt: keySince[ObjectIdentifier(window)], now: Date())
+    }
+
+    /// A card gained or lost keyboard focus: in the window it is shown in, which is not necessarily the key window's.
+    func noteCardFocus(_ focused: Bool, of card: Card) {
+        noteCardFocus(focused, in: Self.hostWindow(for: card.browser))
     }
 
     /// A card gained or lost keyboard focus in `window`.
@@ -124,7 +145,7 @@ final class ApprovalCards: ObservableObject {
         let inPanel = Self.inPanel(composerFocused: window.firstResponder is ComposerTextView, cardFocusWindow: focusedWindow, eventWindow: window,
                                    firstResponderIsText: window.firstResponder is NSText)
         guard let choice = ApprovalKeys.choice(keyCode: event.keyCode, flags: event.modifierFlags, offered: card.prompt.choices,
-                                               inPage: inPage, typed: typed, inPanel: inPanel, shownFor: Date().timeIntervalSince(visibleSince(card.id))) else { return event }
+                                               inPage: inPage, typed: typed, inPanel: inPanel, shownFor: armedFor(card.id, in: window)) else { return event }
         // A key held down answers once, and its repeats are not taken for more (nor passed on to the box).
         if event.isARepeat { return nil }
         card.answer(choice)
@@ -140,6 +161,12 @@ enum ApprovalKeys {
 
     /// Whether a card shown this long has its buttons that say yes live: for the keys and for the mouse.
     static func yesArmed(shownFor: TimeInterval) -> Bool { shownFor >= yesDelay }
+
+    /// How long the keys that say yes have been armed for a card: counted from the later of when the card came to the front and when its window
+    /// last became the key window (a window that just came forward, in a way the user may not have noticed, can't be answered at once).
+    static func armedFor(shownAt: Date, windowKeyAt: Date?, now: Date) -> TimeInterval {
+        now.timeIntervalSince(max(shownAt, windowKeyAt ?? .distantPast))
+    }
 
     /// Whether a click on a button that says yes counts: the card is armed, and the press began after it was (a press that began on
     /// something else while the card was still new, or before it was there, is not an answer to it).
@@ -225,7 +252,7 @@ struct ApprovalCardView: View {
         .focusable()
         .focusEffectDisabled()
         .focused($focused)
-        .onChange(of: focused) { ApprovalCards.shared.noteCardFocus(focused, in: NSApp.keyWindow) }
+        .onChange(of: focused) { ApprovalCards.shared.noteCardFocus(focused, of: card) }
         .task {
             let wait = ApprovalKeys.yesDelay - Date().timeIntervalSince(ApprovalCards.shared.visibleSince(card.id))
             if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
