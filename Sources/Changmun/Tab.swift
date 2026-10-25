@@ -132,7 +132,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var displayTitle: String { customTitle ?? pageTitle }
 
     /// The title as the AI is told it: the page's own, with the user's name for the tab after it when there is one.
-    var aiTitle: String { customTitle.map { "\(pageTitle) [the user named this tab \"\(ChatStore.oneLine($0))\"]" } ?? pageTitle }
+    var aiTitle: String { customTitle.map { "\(ChatStore.oneLine(pageTitle)) [the user named this tab \"\(ChatStore.oneLine($0))\"]" } ?? pageTitle }
+
+    /// The title a bookmark or favorite made from the tab gets: the user's name for it if it has one, else the page's title (empty before it has one).
+    var bookmarkTitle: String { customTitle ?? title }
 
     /// Names the tab, or takes the name away (empty, or only spaces) so the page's title shows again.
     func rename(to name: String) {

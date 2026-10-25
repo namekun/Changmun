@@ -542,7 +542,9 @@ final class Library: @unchecked Sendable {
             for (index, name) in path.enumerated() {
                 key += (index == 0 ? "" : " / ") + name
                 // The part of the key after the browser's name, in the language shown.
-                let label = index == 0 && parts.count == 2 ? String(ImportedFolders.displayKey(key, translate: section).dropFirst(source.count + 1)) : name
+                var label = index == 0 && parts.count == 2 ? String(ImportedFolders.displayKey(key, translate: section).dropFirst(source.count + 1)) : name
+                // Safari's folders are "Safari / Favorites": the "/ " after the browser's name is part of the key, not of the label.
+                if index == 0, label.hasPrefix("/ ") { label.removeFirst(2) }
                 node = node.child(key, label)
             }
             node.entries += folder.entries

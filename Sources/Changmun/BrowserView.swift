@@ -821,7 +821,7 @@ struct Sidebar: View {
         .padding(.leading, CGFloat(depth) * Metrics.indent)
         .id("tab:\(tab.id)")
         .dropLine(dropTarget == "tab:\(tab.id)" && (SidebarDrag.carriesTab || (SidebarDrag.dragging == .group && tab.groupID == nil)))
-        .draggable(SidebarDrag.tab(tab.id))
+        .draggingTab(tab.id, unless: browser.renamingTab == tab.id)
         .dropDestination(for: SidebarDrop.self) { items, _ in
             SidebarDrag.drop(items.texts, onTab: tab.id, browser: browser)
         } isTargeted: { target("tab:\(tab.id)", $0) }
@@ -1070,7 +1070,7 @@ enum SidebarDrag {
         if let id = tabID(items), let tab = browser.tab(id), !tab.isPrivate, let url = tab.url, ["http", "https"].contains(url.scheme?.lowercased()) {
             let address = url.absoluteString
             if !Library.shared.isFavorite(address, in: folder) {
-                Library.shared.addBookmark(url: address, title: tab.title.isEmpty ? (url.host() ?? address) : tab.title, folder: folder)
+                Library.shared.addBookmark(url: address, title: tab.bookmarkTitle.isEmpty ? (url.host() ?? address) : tab.bookmarkTitle, folder: folder)
             }
             withAnimation(Motion.standard) {
                 browser.bind(tab, to: Browser.bookmarkKey(url: address, folder: folder))
@@ -1147,7 +1147,7 @@ enum SidebarDrag {
             return true
         }
         if let id = tabID(items), let tab = browser.tab(id), !tab.isPrivate, let url = tab.url?.absoluteString {
-            if !Library.shared.isFavorite(url, in: favorites) { _ = Library.shared.toggleBookmark(url: url, title: tab.title, in: favorites) }
+            if !Library.shared.isFavorite(url, in: favorites) { _ = Library.shared.toggleBookmark(url: url, title: tab.bookmarkTitle, in: favorites) }
             browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: favorites))
             Library.shared.moveFavorite(url, to: target, in: favorites)
             return true
@@ -1591,7 +1591,7 @@ struct BookmarkStar: View {
         let marked = !url.isEmpty && library.isFavorite(url, in: folder)
         Button {
             guard !url.isEmpty else { return }
-            let title = tab.title
+            let title = tab.bookmarkTitle
             if !Library.shared.toggleBookmark(url: url, title: title, in: folder) && marked {
                 tab.browser?.offerUndo(String(localized: "Removed from Favorites")) {
                     Library.shared.addBookmark(url: url, title: title, folder: folder)
@@ -1928,6 +1928,20 @@ struct NewTabRow: View {
     }
 }
 
+/// A tab row is dragged by the whole row, except while its name is typed: selecting text in the field must not move the tab.
+private struct TabDrag: ViewModifier {
+    let id: Int
+    let disabled: Bool
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if disabled { content } else { content.draggable(SidebarDrag.tab(id)) }
+    }
+}
+
+private extension View {
+    func draggingTab(_ id: Int, unless renaming: Bool) -> some View { modifier(TabDrag(id: id, disabled: renaming)) }
+}
+
 struct SidebarTabRow: View {
     @ObservedObject var tab: Tab
     let browser: Browser
@@ -1996,11 +2010,8 @@ struct SidebarTabRow: View {
         .help(tab.url?.absoluteString ?? "")
     }
 
-    /// An unchanged name stays as it was, so opening the field and leaving it does not fix the page's title as the name.
     private func commit() {
-        guard renaming else { return }
-        browser.renamingTab = nil
-        if name.trimmingCharacters(in: .whitespacesAndNewlines) != tab.displayTitle { tab.rename(to: name) }
+        browser.finishRenaming(tab, with: name)
     }
 
     /// The tab, then where it goes, then closing it: the same order as a bookmark's menu.
@@ -2035,7 +2046,7 @@ struct SidebarTabRow: View {
         if !tab.isPrivate {
             Button("Pin to Favorites") {
                 if let url = tab.url?.absoluteString {
-                    if !Library.shared.isFavorite(url, in: tab.favoritesFolder) { _ = Library.shared.toggleBookmark(url: url, title: tab.customTitle ?? tab.title, in: tab.favoritesFolder) }
+                    if !Library.shared.isFavorite(url, in: tab.favoritesFolder) { _ = Library.shared.toggleBookmark(url: url, title: tab.bookmarkTitle, in: tab.favoritesFolder) }
                     browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: tab.favoritesFolder))
                 }
             }

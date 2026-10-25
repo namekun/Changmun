@@ -10,10 +10,18 @@ import Foundation
 enum FolderKeyMigration {
     static let version: Int64 = 1
     static let suffix = "-before-folder-keys"
+    /// When the copy of the library last could not be made, so a library that is slow to copy is not copied again at every launch.
+    static let attemptKey = "folderKeyMigrationLastAttempt"
+    static let retryAfter: TimeInterval = 24 * 3600
 
-    /// Returns whether the migration is finished (also when there was nothing to do).
+    /// Free space on the volume the file is on, nil when it can't be told.
+    static func freeBytes(at url: URL) -> Int64? {
+        (try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?.volumeAvailableCapacityForImportantUsage
+    }
+
+    /// Returns whether the migration is finished (also when there was nothing to do). `freeBytes` and `now` are for tests.
     @discardableResult
-    static func run(in folder: URL, defaults: UserDefaults = .standard) -> Bool {
+    static func run(in folder: URL, defaults: UserDefaults = .standard, freeBytes: (URL) -> Int64? = freeBytes(at:), now: Date = Date()) -> Bool {
         let manager = FileManager.default
         let libraryFile = folder.appendingPathComponent("library.sqlite")
         // A profile with no library has no imported folders yet; its first import writes the canonical names.
@@ -38,6 +46,19 @@ enum FolderKeyMigration {
                 return new == old ? nil : (name, old, new)
             }
 
+            if !renames.isEmpty, !manager.fileExists(atPath: backup(of: libraryFile).path) {
+                // The copy of the library is the costly part: not without room for it, and not again within a day of its failing.
+                if let last = defaults.object(forKey: attemptKey) as? Date, now.timeIntervalSince(last) < retryAfter {
+                    NSLog("Changmun: the imported folders are renamed later: copying the library failed recently, and is tried again once a day")
+                    return false
+                }
+                let size = (try? manager.attributesOfItem(atPath: libraryFile.path)[.size] as? Int64) ?? 0
+                if let free = freeBytes(libraryFile), free < size * 2 {
+                    defaults.set(now, forKey: attemptKey)
+                    NSLog("Changmun: the imported folders are not renamed this time: the disk has %lld bytes free and a copy of the library needs %lld", free, size * 2)
+                    return false
+                }
+            }
             if !renames.isEmpty {
                 try copyOnce(to: backup(of: libraryFile)) { partial in
                     do {
@@ -66,8 +87,10 @@ enum FolderKeyMigration {
             for file in files { try file.data.write(to: file.url, options: .atomic) }
             for item in legacy { defaults.set(item.new, forKey: item.name) }
             try db.execute("PRAGMA user_version = \(version)")
+            defaults.removeObject(forKey: attemptKey)
             return true
         } catch {
+            defaults.set(now, forKey: attemptKey)
             NSLog("Changmun: the imported folders could not be renamed this time (they are tried again at the next launch): %@", error.localizedDescription)
             return false
         }
@@ -97,14 +120,15 @@ enum FolderKeyMigration {
     }
 
     /// A JSON file with the names in it rewritten; nil when it isn't there, isn't JSON (the app deals with a damaged file itself), or
-    /// holds no name to change. An unreadable file stops the migration, which is tried again at the next launch.
+    /// holds no name to change. A file that can't be read (permissions) is left as it is, with a line in the log: it does not hold the others back.
     private static func rewrite(_ url: URL, _ transform: (String, Any) -> Any?) throws -> (url: URL, data: Data)? {
         let data: Data
         do {
             data = try Data(contentsOf: url)
         } catch {
             if (error as NSError).domain == NSCocoaErrorDomain && (error as NSError).code == NSFileReadNoSuchFileError { return nil }
-            throw error
+            NSLog("Changmun: %@ could not be read, so its imported folders keep their names: %@", url.lastPathComponent, error.localizedDescription)
+            return nil
         }
         guard let json = try? JSONSerialization.jsonObject(with: data) else { return nil }
         var changed = false

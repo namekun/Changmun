@@ -85,9 +85,14 @@ final class Browser: ObservableObject {
 
     /// The tabs of every space in this window.
     @Published private(set) var tabs: [Tab] = []
-    @Published private(set) var activeID: Int?
+    @Published private(set) var activeID: Int? {
+        // Showing another tab ends a rename in progress, which belongs to the tab it was started on.
+        didSet { if renamingTab != nil && renamingTab != activeID { renamingTab = nil } }
+    }
     /// The space shown: the sidebar lists its tabs, favorites and folders, and new tabs open in it.
-    @Published private(set) var spaceID: UUID
+    @Published private(set) var spaceID: UUID {
+        didSet { if renamingTab != nil { renamingTab = nil } }
+    }
     /// Which way the last switch went (1 to a space further on), for the sidebar to slide that way.
     private(set) var spaceDirection = 1
     /// The tab each space last showed, so coming back finds it.
@@ -762,6 +767,16 @@ final class Browser: ObservableObject {
     /// The tab whose name is being typed in the sidebar.
     @Published var renamingTab: Int?
 
+    /// Ends the rename of `tab` with what was typed: an unchanged name leaves the tab as it was, so opening the field and leaving
+    /// it does not fix the page's title as the name. Nothing happens unless the rename is still on (Esc, or another tab's, ended it):
+    /// a focus change that comes after must not save what was cancelled or close another tab's field.
+    func finishRenaming(_ tab: Tab, with name: String) {
+        guard renamingTab == tab.id else { return }
+        renamingTab = nil
+        let trimmed = { (text: String) in text.trimmingCharacters(in: .whitespacesAndNewlines) }
+        if trimmed(name) != trimmed(tab.displayTitle) { tab.rename(to: name) }
+    }
+
     enum ListedItem: Identifiable {
         case tab(Tab)
         case group(TabGroup, [Tab])
@@ -930,7 +945,7 @@ final class Browser: ObservableObject {
         case .folder(let parent): folder = newFolderKey(for: group.name, in: parent, library)
         }
         let added = pages.filter { !library.isFavorite($0.url, in: folder) }
-        for page in added { library.addBookmark(url: page.url, title: page.tab.title.isEmpty ? (page.tab.url?.host() ?? page.url) : page.tab.title, folder: folder) }
+        for page in added { library.addBookmark(url: page.url, title: page.tab.bookmarkTitle.isEmpty ? (page.tab.url?.host() ?? page.url) : page.tab.bookmarkTitle, folder: folder) }
         var bound: [Int: String] = [:]
         for page in pages {
             let key = Self.bookmarkKey(url: page.url, folder: folder)

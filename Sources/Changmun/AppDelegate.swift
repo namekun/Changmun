@@ -334,7 +334,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func togglePictureInPicture(_ sender: Any?) { (Browser.current?.peek ?? Browser.current?.active)?.pictureInPicture(.toggle) }
     @objc func toggleBookmark(_ sender: Any?) {
         guard let tab = browser.active, !tab.isPrivate, let url = tab.url?.absoluteString else { return }
-        _ = Library.shared.toggleBookmark(url: url, title: tab.title, in: tab.favoritesFolder)
+        _ = Library.shared.toggleBookmark(url: url, title: tab.bookmarkTitle, in: tab.favoritesFolder)
         tab.objectWillChange.send()
     }
     @objc func importData(_ sender: Any?) { browser.showOnboarding = true }

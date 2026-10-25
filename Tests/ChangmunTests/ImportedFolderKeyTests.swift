@@ -259,6 +259,70 @@ struct ImportedFolderKeyTests {
         #expect(library.counts.bookmarks == 1)
     }
 
+    @Test func safariFoldersAreLabelledWithoutTheSlashAfterTheBrowser() {
+        let entry = Library.Entry(url: "https://a.com/", title: "A")
+        let translate = { (section: String) in section == "Favorites" ? "즐겨찾기" : section }
+        let groups = Library.groupBySource([("Safari / Favorites", [entry]), ("Safari / Favorites / News", [entry]), ("Safari / Bookmarks Menu", [entry])], section: translate)
+        #expect(groups.map(\.source) == ["Safari"])
+        #expect(groups[0].folders.map(\.label) == ["즐겨찾기", "Bookmarks Menu"])
+        #expect(groups[0].folders.map(\.key) == ["Safari / Favorites", "Safari / Bookmarks Menu"], "the keys are as stored")
+        #expect(groups[0].folders[0].children.map(\.label) == ["News"])
+        #expect(groups[0].folders[0].paths().map(\.path) == ["즐겨찾기", "즐겨찾기 › News"])
+    }
+
+    @Test func withoutRoomForTheCopyNothingIsChangedAndItIsTriedAgainAfterADay() throws {
+        let folder = try scratch()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let (defaults, cleanUp) = suite()
+        defer { cleanUp() }
+        let library = try seeded(folder, [("https://a.example/", "Chrome 북마크 바")])
+        let start = Date()
+        #expect(!FolderKeyMigration.run(in: folder, defaults: defaults, freeBytes: { _ in 0 }, now: start))
+        #expect(names(library) == ["Chrome 북마크 바"])
+        #expect(try version(folder) == 0)
+        #expect(!FileManager.default.fileExists(atPath: folder.appendingPathComponent("library-before-folder-keys.sqlite").path))
+        // Room again, but it was tried a moment ago: not yet.
+        #expect(!FolderKeyMigration.run(in: folder, defaults: defaults, freeBytes: { _ in Int64.max }, now: start.addingTimeInterval(3600)))
+        #expect(names(library) == ["Chrome 북마크 바"])
+        #expect(FolderKeyMigration.run(in: folder, defaults: defaults, freeBytes: { _ in Int64.max }, now: start.addingTimeInterval(FolderKeyMigration.retryAfter + 1)))
+        #expect(names(library) == ["Chrome Bookmarks Bar"] && defaults.object(forKey: FolderKeyMigration.attemptKey) == nil)
+    }
+
+    @Test func twiceTheLibrarysSizeIsRoomEnough() throws {
+        let folder = try scratch()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let (defaults, cleanUp) = suite()
+        defer { cleanUp() }
+        let library = try seeded(folder, [("https://a.example/", "Chrome 북마크 바")])
+        let size = try #require(FileManager.default.attributesOfItem(atPath: folder.appendingPathComponent("library.sqlite").path)[.size] as? Int64)
+        #expect(!FolderKeyMigration.run(in: folder, defaults: defaults, freeBytes: { _ in size * 2 - 1 }))
+        defaults.removeObject(forKey: FolderKeyMigration.attemptKey)
+        #expect(FolderKeyMigration.run(in: folder, defaults: defaults, freeBytes: { _ in size * 2 }))
+        #expect(names(library) == ["Chrome Bookmarks Bar"])
+    }
+
+    @Test func aFileThatCannotBeReadDoesNotHoldTheMigrationBack() throws {
+        let folder = try scratch()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let (defaults, cleanUp) = suite()
+        defer { cleanUp() }
+        let library = try seeded(folder, [("https://a.example/", "Chrome 북마크 바")])
+        let session = Data(#"{"windows":[{"tabs":[{"title":"A","bookmarkKey":"Chrome 북마크 바\nhttps://a.example/"}]}]}"#.utf8)
+        try session.write(to: folder.appendingPathComponent("session.json"))
+        let locked = folder.appendingPathComponent("session-previous.json")
+        try session.write(to: locked)
+        try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: locked.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: locked.path) }
+        try #require(!FileManager.default.isReadableFile(atPath: locked.path), "a file this process can't read")
+
+        #expect(FolderKeyMigration.run(in: folder, defaults: defaults))
+        #expect(try version(folder) == FolderKeyMigration.version)
+        #expect(names(library) == ["Chrome Bookmarks Bar"])
+        #expect(Browser.SavedWindows.decode(try Data(contentsOf: folder.appendingPathComponent("session.json"))).first?.tabs.first?.bookmarkKey
+                == "Chrome Bookmarks Bar\nhttps://a.example/", "the readable file is migrated")
+        #expect(!FileManager.default.fileExists(atPath: folder.appendingPathComponent("session-previous-before-folder-keys.json").path))
+    }
+
     @Test func importingAgainAfterTheMigrationAddsNoFolder() throws {
         let folder = try scratch()
         defer { try? FileManager.default.removeItem(at: folder) }
