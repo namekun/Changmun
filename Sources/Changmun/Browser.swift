@@ -1200,14 +1200,16 @@ final class Browser: ObservableObject {
     }
 
     /// The hosts of the open tabs and the archived ones.
-    static func hostsInUse(archive: TabArchive = .shared) -> Set<String> {
+    static func hostsInUse(archive: TabArchive? = nil) -> Set<String> {
+        let archive = archive ?? .shared
         var hosts = Set(all.flatMap(\.tabs).compactMap { $0.url?.host()?.lowercased() })
         hosts.formUnion(archive.entries.compactMap { URL(string: $0.url)?.host()?.lowercased() })
         return hosts
     }
 
     /// Prunes the icon cache by what the library, the tabs and the archive still hold. Nothing is pruned when the library can't be read.
-    static func pruneIcons(archive: TabArchive = .shared, library: Library = .shared) async {
+    static func pruneIcons(archive: TabArchive? = nil, library: Library? = nil) async {
+        let archive = archive ?? .shared, library = library ?? .shared
         guard let known = await library.inBackground({ $0.knownHosts() }) else { return }
         pruneIcons(keeping: known.union(hostsInUse(archive: archive)))
     }
