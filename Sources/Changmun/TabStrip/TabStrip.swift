@@ -54,7 +54,6 @@ struct TabStrip: View {
                             case .favorite: EmptyView()
                             }
                         }
-                        newTab
                     }
                 }
                 // The tab shown comes into view: when the strip appears, and when another tab is switched to from the keyboard or the command bar.
@@ -66,8 +65,10 @@ struct TabStrip: View {
                     withAnimation(Motion.standard) { scroller.scrollTo("tab:\(id)", anchor: .center) }
                 }
             }
-            // As wide as the tabs when they all fit: the room left over is the window's to move by.
-            .frame(width: min(available, content + 2))
+            // As wide as the tabs when they all fit: the room left over is the window's to move by. The new tab button
+            // stays outside the scrolling, so it is never scrolled away.
+            .frame(width: max(0, min(available, content + 2) - Self.plusWidth - Self.gap))
+            newTab.padding(.leading, Self.gap)
             Spacer(minLength: 0)
         }
         .frame(width: available, height: BrowserWindow.tabStripHeight, alignment: .leading)
