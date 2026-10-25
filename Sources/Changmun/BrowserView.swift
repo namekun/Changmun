@@ -803,7 +803,7 @@ struct Sidebar: View {
             }
         }
         .padding(.leading, CGFloat(depth) * Metrics.indent)
-        .help(folder.key)
+        .help(ImportedFolders.displayKey(folder.key))
         .dropLine(places && over)
         .draggable(SidebarDrag.folder(folder.key))
         .dropDestination(for: SidebarDrop.self) { items, _ in
