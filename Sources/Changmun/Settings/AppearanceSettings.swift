@@ -15,12 +15,22 @@ struct AppearanceSettings: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 6)
             }
+            Section("Tab Layout") {
+                Picker("Tabs", selection: $prefs.tabLayout) {
+                    Text("Sidebar").tag(TabLayout.sidebar)
+                    Text("On Top").tag(TabLayout.top)
+                }
+                .pickerStyle(.segmented)
+                Caption(text: "With tabs on top, favorites and open tabs sit in a strip above the address bar, and the sidebar opens over the page from the button beside the address bar.")
+            }
             Section("Address Bar") {
                 Picker("Address Bar Position", selection: $prefs.toolbarPlace) {
                     Text("Above the Page").tag(ToolbarPlace.page)
                     Text("In the Sidebar").tag(ToolbarPlace.sidebar)
                 }
                 .pickerStyle(.segmented)
+                // With the tabs on top the address bar is always on the page card.
+                .disabled(prefs.tabLayout == .top)
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Address Bar")
                     addressBarChoice(.automatic) {

@@ -9,8 +9,13 @@ struct PageBar: View {
 
     var body: some View {
         HStack(spacing: Metrics.rowGap) {
-            if !browser.showSidebar && !browser.fullScreen { Color.clear.frame(width: BrowserWindow.windowButtonsTrailing - 2 * Metrics.inset) }
-            BarButton(symbol: "sidebar.left", help: browser.showSidebar ? String(localized: "Hide Sidebar") : String(localized: "Show Sidebar")) { browser.showSidebar.toggle() }
+            if prefs.tabLayout == .top {
+                // The tabs are in the strip above: this opens the rest of the sidebar over the page.
+                BarButton(symbol: "sidebar.left", help: browser.showSidebarOverlay ? String(localized: "Hide Sidebar") : String(localized: "Show Sidebar")) { browser.showSidebarOverlay.toggle() }
+            } else {
+                if !browser.showSidebar && !browser.fullScreen { Color.clear.frame(width: BrowserWindow.windowButtonsTrailing - 2 * Metrics.inset) }
+                BarButton(symbol: "sidebar.left", help: browser.showSidebar ? String(localized: "Hide Sidebar") : String(localized: "Show Sidebar")) { browser.showSidebar.toggle() }
+            }
             if let tab = browser.active { NavigationButtons(tab: tab) } else { DisabledNavigationButtons() }
             Group {
                 if let tab = browser.active {

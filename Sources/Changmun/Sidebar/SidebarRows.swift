@@ -107,6 +107,61 @@ struct BookmarkRow<MenuItems: View>: View {
     }
 }
 
+/// The same items for a favorite and a bookmark, in the same order: the tab, then where it goes, then deleting. In the sidebar, and for a favorite
+/// in the strip along the top.
+struct BookmarkMenu: View {
+    let browser: Browser
+    let url: String
+    let title: String
+    let folder: String
+    let key: String
+    @ObservedObject private var library = LibraryWatcher.shared
+
+    var body: some View {
+        let tab = browser.bookmarkTab(key)
+        if let tab {
+            Button("Close Tab") { browser.close(tab.id) }
+        }
+        if let tab, browser.split?.contains(tab.id) == true {
+            Button("End Split View") { browser.unsplit() }
+        } else if browser.activeID != nil && tab?.id != browser.activeID {
+            Button("Show Side by Side with Current Tab") { browser.split(withBookmark: url, key: key) }
+        }
+        moveMenu
+        Divider()
+        if Library.isFavorites(folder) {
+            Button("Remove from Favorites") { remove(String(localized: "Removed from Favorites")) }
+        } else {
+            Button("Delete Bookmark") { remove(String(localized: "Deleted the bookmark")) }
+        }
+    }
+
+    private func remove(_ message: String) {
+        let tab = browser.bookmarkTab(key)
+        Library.shared.removeBookmark(url: url, folder: folder)
+        browser.offerUndo(message) { [browser, url, title, folder, key] in
+            Library.shared.addBookmark(url: url, title: title, folder: folder)
+            if let tab, browser.tab(tab.id) != nil { browser.bind(tab, to: key) }
+        }
+    }
+
+    /// "Move To": the favorites and every imported folder, by the browser it came from.
+    @ViewBuilder private var moveMenu: some View {
+        Menu("Move To") {
+            Button("Favorites") { Browser.moveBookmark(url: url, from: folder, to: browser.favoritesFolder) }
+                .disabled(folder == browser.favoritesFolder)
+            ForEach(library.sources, id: \.source) { group in
+                Section(group.source) {
+                    ForEach(group.folders.flatMap { $0.paths() }, id: \.key) { item in
+                        Button(item.path) { Browser.moveBookmark(url: url, from: folder, to: item.key) }
+                            .disabled(item.key == folder)
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// A tab group in the tab list: click to fold it, drag to move it; its menu renames, ungroups, saves or closes it. A tab dropped on it joins.
 struct TabGroupHeader: View {
     let group: Browser.TabGroup
@@ -143,7 +198,7 @@ struct TabGroupHeader: View {
             grab(Color.clear.frame(maxWidth: .infinity).contentShape(Rectangle()))
             grab(ZStack(alignment: .trailing) {
                 Text("\(count)").font(.caption.monospacedDigit()).foregroundStyle(Theme.faint).opacity(hover ? 0 : 1)
-                if hover && browser.renamingGroup != group.id { MoreButton { menu } }
+                if hover && browser.renamingGroup != group.id { MoreButton { GroupMenu(group: group, browser: browser) } }
             }
             .frame(minWidth: Metrics.action, alignment: .trailing))
             grab(Image(systemName: "chevron.right")
@@ -161,7 +216,7 @@ struct TabGroupHeader: View {
             guard browser.renamingGroup != group.id else { return }
             withAnimation(Motion.standard) { browser.toggleGroup(group.id) }
         }
-        .contextMenu { menu }
+        .contextMenu { GroupMenu(group: group, browser: browser) }
         .help(group.isOpen ? String(localized: "Collapse") : String(localized: "Expand"))
     }
 
@@ -177,18 +232,24 @@ struct TabGroupHeader: View {
         }
     }
 
-    @ViewBuilder private var menu: some View {
+    private func commit() {
+        guard browser.renamingGroup == group.id else { return }
+        browser.rename(group.id, to: name)
+        browser.renamingGroup = nil
+    }
+}
+
+/// A group's menu, in the tab list and on its chip in the strip along the top.
+struct GroupMenu: View {
+    let group: Browser.TabGroup
+    let browser: Browser
+
+    var body: some View {
         Button("Rename") { browser.renamingGroup = group.id }
         Button("Ungroup") { withAnimation(Motion.standard) { browser.ungroup(group.id) } }
         Button("Save as Bookmark Folder") { _ = withAnimation(Motion.standard) { browser.saveGroup(group.id, to: .pinned(before: nil)) } }
         Divider()
         Button("Close All Tabs in Group") { withAnimation(Motion.standard) { browser.closeGroup(group.id) } }
-    }
-
-    private func commit() {
-        guard browser.renamingGroup == group.id else { return }
-        browser.rename(group.id, to: name)
-        browser.renamingGroup = nil
     }
 }
 

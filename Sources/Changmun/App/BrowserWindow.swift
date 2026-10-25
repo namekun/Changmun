@@ -9,6 +9,10 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
     static let cardInset: CGFloat = 0
     static let pageBarHeight: CGFloat = 44
     static let barHeight = cardInset + pageBarHeight
+    /// With the tabs on top: the strip of them along the top of the window, which the traffic lights are centred on, and so the page bar
+    /// below it, and what floats over the page, start lower.
+    static let tabStripHeight: CGFloat = 40
+    static var pageTop: CGFloat { Preferences.shared.tabLayout == .top ? tabStripHeight + barHeight : barHeight }
     /// Just below the window buttons, where the sidebar starts when the page bar is on the page card.
     static let windowButtonsBottom = cardInset + pageBarHeight / 2 + 12
     /// The window buttons start where a sidebar row's icon does; controls beside them start one inset after the third.
@@ -18,6 +22,7 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
 
     let browser: Browser
     private var observers: [NSObjectProtocol] = []
+    private var layoutWatch: AnyCancellable?
 
     /// A new window in front, with its own tabs (and, private, its own throwaway cookies and site data).
     @discardableResult
@@ -69,6 +74,8 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
                 MainActor.assumeIsolated { self?.layoutTrafficLights() }
             })
         }
+        // Published before the new layout is stored: the traffic lights are placed once it is.
+        layoutWatch = Preferences.shared.$tabLayout.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in self?.layoutTrafficLights() }
         for (name, entering) in [(NSWindow.willEnterFullScreenNotification, true), (NSWindow.didEnterFullScreenNotification, true),
                                  (NSWindow.willExitFullScreenNotification, false), (NSWindow.didExitFullScreenNotification, false)] {
             observers.append(NotificationCenter.default.addObserver(forName: name, object: self, queue: .main) { [weak self] _ in
@@ -120,13 +127,16 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
         guard !styleMask.contains(.fullScreen),
               let close = standardWindowButton(.closeButton),
               let container = close.superview?.superview else { return }
-        let height = Self.barHeight
+        // With the tabs on top the window buttons sit level with the strip; otherwise level with the page bar.
+        let top = Preferences.shared.tabLayout == .top
+        let height = top ? Self.tabStripHeight : Self.barHeight
+        let centre = top ? Self.tabStripHeight / 2 : Self.cardInset + Self.pageBarHeight / 2
         container.frame = NSRect(x: 0, y: frame.height - height, width: frame.width, height: height)
         close.superview?.frame = container.bounds
         for (index, kind) in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].enumerated() {
             guard let button = standardWindowButton(kind) else { continue }
             button.isHidden = browser.focusMode
-            button.setFrameOrigin(NSPoint(x: Self.windowButtonsLeading + CGFloat(index) * 20, y: height - Self.cardInset - Self.pageBarHeight / 2 - button.frame.height / 2))
+            button.setFrameOrigin(NSPoint(x: Self.windowButtonsLeading + CGFloat(index) * 20, y: height - centre - button.frame.height / 2))
         }
     }
 }

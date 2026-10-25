@@ -79,16 +79,24 @@ struct SidebarTabRow: View {
         .onTapGesture { if !renaming { select() } }
         // Alongside the click that shows the tab, so showing it does not wait for a second click.
         .simultaneousGesture(TapGesture(count: 2).onEnded { browser.renamingTab = tab.id })
-        .contextMenu { menu }
+        .contextMenu { TabMenu(tab: tab, browser: browser, isActive: isActive, close: close) }
         .help(tab.url?.absoluteString ?? "")
     }
 
     private func commit() {
         browser.finishRenaming(tab, with: name)
     }
+}
 
-    /// The tab, then where it goes, then closing it: the same order as a bookmark's menu.
-    @ViewBuilder private var menu: some View {
+/// What a tab's context menu offers, in the sidebar's row and in the strip along the top: the tab, then where it goes, then closing it,
+/// the same order as a bookmark's menu.
+struct TabMenu: View {
+    @ObservedObject var tab: Tab
+    let browser: Browser
+    let isActive: Bool
+    let close: () -> Void
+
+    var body: some View {
         Button("Reload") {
             if tab.isAsleep { browser.activate(tab.id) } else { tab.webView?.reload() }
         }

@@ -176,7 +176,7 @@ extension ControlServer {
             }
             return true
         }
-        // Tests only: the front window put into a look. "appearance" is system, light or dark; "toolbar" is page or sidebar; "sidebar",
+        // Tests only: the front window put into a look. "appearance" is system, light or dark; "toolbar" is page or sidebar; "tabs" is sidebar or top (where the tabs are), "overlay" shows or hides the sidebar over the page that goes with top; "sidebar",
         // "focus", "find" (with "findText"), "downloads" and "onboarding" show or hide that part; "command" is newTab, editCurrent or
         // none; "progress" (0...1) holds the tab in front as loading at that point, and a negative one lets it be ("peek": true for the peek card's tab); "popup" (a link), "login"
         // (a user name) and "foreign" (a language) put up the bar or button for that on the tab in front, "" taking it down again; "reader" toggles Reader Mode; "group" ({"ids", "name"}) gathers tabs into a group;
@@ -190,6 +190,8 @@ extension ControlServer {
                 }
                 if let name = body["appearance"] as? String, let appearance = AppAppearance(rawValue: name) { Preferences.shared.appearance = appearance }
                 if let name = body["toolbar"] as? String, let place = ToolbarPlace(rawValue: name) { Preferences.shared.toolbarPlace = place }
+                if let name = body["tabs"] as? String, let layout = TabLayout(rawValue: name) { Preferences.shared.tabLayout = layout }
+                if let on = body["overlay"] as? Bool { browser.showSidebarOverlay = on }
                 if let on = body["sidebar"] as? Bool { browser.showSidebar = on }
                 if let on = body["focus"] as? Bool { browser.focusMode = on }
                 if let on = body["onboarding"] as? Bool { browser.showOnboarding = on }

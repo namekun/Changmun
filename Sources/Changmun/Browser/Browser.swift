@@ -113,6 +113,10 @@ final class Browser: ObservableObject {
             if showSidebar { focusMode = false } else { renamingGroup = nil; renamingTab = nil }
         }
     }
+    /// With the tabs on top there is no sidebar column: this shows the sidebar over the page, from the page bar, until a click outside it.
+    @Published var showSidebarOverlay = false {
+        didSet { if showSidebarOverlay { showDownloads = false } }
+    }
     @Published var commandBar: CommandBarMode? {
         didSet { if commandBar != nil { closePeek() } }
     }
@@ -132,6 +136,7 @@ final class Browser: ObservableObject {
                 window?.standardWindowButton(kind)?.isHidden = focusMode
             }
             guard focusMode else { return }
+            showSidebarOverlay = false
             showDownloads = false
             renamingGroup = nil
             renamingTab = nil

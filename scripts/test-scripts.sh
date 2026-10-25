@@ -198,8 +198,8 @@ echo "state guard"
 # Browser, Tab and ChatStore state is changed by their own methods and extensions; the UI folders only read it.
 STATE_WRITE='\.(tabs|activeID|spaceID|groups|peek|closedTabs|items|isRunning|sessionID)[[:space:]]*(=[^=]|\+=|\.append|\.remove|\.insert)'
 state_writes() { grep -rnE "$STATE_WRITE" "$@" | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; }
-UI_DIRS=(Sources/Changmun/Views Sources/Changmun/PageCard Sources/Changmun/Sidebar Sources/Changmun/Settings Sources/Changmun/DesignSystem)
-check "the UI folders exist" test -d "${UI_DIRS[0]}" -a -d "${UI_DIRS[1]}" -a -d "${UI_DIRS[2]}" -a -d "${UI_DIRS[3]}" -a -d "${UI_DIRS[4]}"
+UI_DIRS=(Sources/Changmun/Views Sources/Changmun/PageCard Sources/Changmun/Sidebar Sources/Changmun/Settings Sources/Changmun/DesignSystem Sources/Changmun/TabStrip)
+check "the UI folders exist" test -d "${UI_DIRS[0]}" -a -d "${UI_DIRS[1]}" -a -d "${UI_DIRS[2]}" -a -d "${UI_DIRS[3]}" -a -d "${UI_DIRS[4]}" -a -d "${UI_DIRS[5]}"
 mkdir -p "$WORK/guard"
 printf 'browser.tabs = []\nbrowser.tabs.append(tab)\nstore.isRunning=true\nchat.items.removeAll()\n' >"$WORK/guard/writes.swift"
 printf 'if browser.activeID == tab.id {}\nlet n = browser.tabs.count\nif store.items != other {}\nif a.groups <= b {}\n// browser.tabs = []\n' >"$WORK/guard/reads.swift"

@@ -5,19 +5,23 @@ import SwiftUI
 
 struct Sidebar: View {
     @ObservedObject var browser: Browser
+    /// Over the page, opened from the page bar when the tabs are in a strip on top: no window buttons above it, and the page bar already
+    /// holds the address, the downloads and the AI button.
+    var overlay = false
     @ObservedObject private var prefs = Preferences.shared
     @ObservedObject private var library = LibraryWatcher.shared
     @State private var dropTarget: String?
     @State private var showLibrary = false
     @State private var bookmarkQuery = ""
     @State private var newTabHover = false
+    private var toolbarHere: Bool { !overlay && prefs.toolbarPlace == .sidebar }
 
     var body: some View {
         VStack(spacing: 0) {
-            if prefs.toolbarPlace == .sidebar {
+            if toolbarHere {
                 SidebarToolbar(browser: browser)
             } else {
-                WindowDragArea().frame(height: browser.fullScreen ? 0 : BrowserWindow.windowButtonsBottom)
+                WindowDragArea().frame(height: browser.fullScreen || overlay ? 0 : BrowserWindow.windowButtonsBottom)
             }
 
             ScrollViewReader { scroller in
@@ -62,7 +66,7 @@ struct Sidebar: View {
                         } isTargeted: { target("tabs:end", $0) }
                 }
                 .padding(.horizontal, Metrics.inset)
-                .padding(.top, prefs.toolbarPlace == .sidebar ? Metrics.section : Metrics.inset)
+                .padding(.top, toolbarHere ? Metrics.section : Metrics.inset)
                 .padding(.bottom, Metrics.inset)
                 .animation(Motion.standard, value: browser.tabs.map(\.id))
                 .animation(Motion.standard, value: browser.groups)
@@ -86,7 +90,7 @@ struct Sidebar: View {
             HStack(spacing: Metrics.rowGap) {
                 BarButton(symbol: "bookmark", help: String(localized: "Bookmarks")) { showLibrary.toggle() }
                     .popover(isPresented: $showLibrary, arrowEdge: .top) { allBookmarks }
-                if prefs.toolbarPlace == .sidebar {
+                if toolbarHere {
                     DownloadButton(browser: browser, arrowEdge: .top)
                     if #available(macOS 15.4, *), !browser.isPrivate { ExtensionButtons(browser: browser) }
                 }
@@ -101,7 +105,7 @@ struct Sidebar: View {
                     Button("Settings…") { NSApp.sendAction(#selector(AppDelegate.showSettings(_:)), to: nil, from: nil) }
                 }
                 Spacer(minLength: 0)
-                if prefs.toolbarPlace == .sidebar {
+                if toolbarHere {
                     if browser.isPrivate {
                         PrivateBadge()
                     } else {
@@ -130,7 +134,7 @@ struct Sidebar: View {
                     FavoriteTile(entry: entry, state: BookmarkTabState(key, browser)) {
                         browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
                     } menu: {
-                        bookmarkMenu(url: entry.url, title: entry.title, folder: browser.favoritesFolder, key: key)
+                        BookmarkMenu(browser: browser, url: entry.url, title: entry.title, folder: browser.favoritesFolder, key: key)
                     }
                     .dropLine(dropTarget == "fav:" + entry.url && SidebarDrag.dragging != .folder, edge: .leading)
                     .draggable(SidebarDrag.bookmark(entry.url, in: browser.favoritesFolder))
@@ -276,7 +280,7 @@ struct Sidebar: View {
             BookmarkRow(entry: entry, state: BookmarkTabState(key, browser)) {
                 browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
             } menu: {
-                bookmarkMenu(url: entry.url, title: entry.title, folder: folder, key: key)
+                BookmarkMenu(browser: browser, url: entry.url, title: entry.title, folder: folder, key: key)
             }
             .padding(.leading, CGFloat(depth) * Metrics.indent)
             .draggable(SidebarDrag.bookmark(entry.url, in: folder))
@@ -339,52 +343,6 @@ struct Sidebar: View {
     }
 
     // MARK: Menus
-
-    /// The same items for a favorite and a bookmark, in the same order: the tab, then where it goes, then deleting.
-    private func remove(url: String, title: String, folder: String, _ message: String) {
-        let key = Browser.bookmarkKey(url: url, folder: folder)
-        let tab = browser.bookmarkTab(key)
-        Library.shared.removeBookmark(url: url, folder: folder)
-        browser.offerUndo(message) { [browser] in
-            Library.shared.addBookmark(url: url, title: title, folder: folder)
-            if let tab, browser.tab(tab.id) != nil { browser.bind(tab, to: key) }
-        }
-    }
-
-    @ViewBuilder private func bookmarkMenu(url: String, title: String, folder: String, key: String) -> some View {
-        let tab = browser.bookmarkTab(key)
-        if let tab {
-            Button("Close Tab") { browser.close(tab.id) }
-        }
-        if let tab, browser.split?.contains(tab.id) == true {
-            Button("End Split View") { browser.unsplit() }
-        } else if browser.activeID != nil && tab?.id != browser.activeID {
-            Button("Show Side by Side with Current Tab") { browser.split(withBookmark: url, key: key) }
-        }
-        moveMenu(url: url, from: folder)
-        Divider()
-        if Library.isFavorites(folder) {
-            Button("Remove from Favorites") { remove(url: url, title: title, folder: folder, String(localized: "Removed from Favorites")) }
-        } else {
-            Button("Delete Bookmark") { remove(url: url, title: title, folder: folder, String(localized: "Deleted the bookmark")) }
-        }
-    }
-
-    /// "Move To": the favorites and every imported folder, by the browser it came from.
-    @ViewBuilder private func moveMenu(url: String, from: String) -> some View {
-        Menu("Move To") {
-            Button("Favorites") { Browser.moveBookmark(url: url, from: from, to: browser.favoritesFolder) }
-                .disabled(from == browser.favoritesFolder)
-            ForEach(library.sources, id: \.source) { group in
-                Section(group.source) {
-                    ForEach(group.folders.flatMap { $0.paths() }, id: \.key) { item in
-                        Button(item.path) { Browser.moveBookmark(url: url, from: from, to: item.key) }
-                            .disabled(item.key == from)
-                    }
-                }
-            }
-        }
-    }
 
     /// Asks over this window (not the whole app) before deleting what can't be brought back.
     private func confirmDelete(_ message: String, then delete: @escaping () -> Void) {

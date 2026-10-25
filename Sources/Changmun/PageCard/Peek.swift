@@ -47,7 +47,7 @@ struct PeekCard: View {
             .padding(.horizontal, min(64, max(16, (area.width - 480) / 2)))
             .padding(.leading, area.leading)
             .padding(.trailing, area.trailing)
-            .padding(.top, BrowserWindow.barHeight)
+            .padding(.top, BrowserWindow.pageTop)
             .padding(.bottom, 32)
         }
         .animation(Motion.quick, value: tab.isLoading)

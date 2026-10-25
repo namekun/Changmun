@@ -21,7 +21,10 @@ struct BrowserView: View {
     @State private var contentWidth = 10_000.0
 
     var body: some View {
-        let sidebar = browser.showSidebar && !browser.focusMode
+        // With the tabs on top there is no sidebar column: the strip runs along the top of the window, and the sidebar opens over the page.
+        let tabsOnTop = prefs.tabLayout == .top
+        let stripShown = tabsOnTop && !browser.focusMode
+        let sidebar = browser.showSidebar && !browser.focusMode && !tabsOnTop
         let chatWidth = Preferences.aiPanelWidth(prefs.aiPanelWidth, available: contentWidth)
         let chatShown = browser.showChat && !browser.focusMode
         let area = PageArea(leading: sidebar ? prefs.sidebarWidth : 0, trailing: chatShown ? chatWidth : 0,
@@ -43,8 +46,9 @@ struct BrowserView: View {
                         WebCard(browser: browser)
                     }
                     .background(Theme.card)
-                    // The card runs to the window's edges, which clip its corners; only the sidebar gets a hairline.
+                    // The card runs to the window's edges, which clip its corners; only the sidebar, or the strip, gets a hairline.
                     .overlay(alignment: .leading) { if sidebar { Rectangle().fill(Theme.cardEdge).frame(width: 1) } }
+                    .overlay(alignment: .top) { if stripShown { Rectangle().fill(Theme.cardEdge).frame(height: 1) } }
                     if browser.showChat && !browser.focusMode {
                         ChatPanel(chat: chat, browser: browser)
                             .padding(.top, BrowserWindow.cardInset)
@@ -56,6 +60,17 @@ struct BrowserView: View {
                     }
                 }
                 .onGeometryChange(for: Double.self) { $0.size.width } action: { contentWidth = $0 }
+            }
+            // The strip is laid over the window's top, which the row below leaves room for: the row itself stays as it is in either layout.
+            .padding(.top, stripShown ? BrowserWindow.tabStripHeight : 0)
+            if stripShown {
+                TabStrip(browser: browser)
+                    .background { SpaceGlass(tint: browser.space.tint).animation(Motion.standard, value: browser.space.tint) }
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .transition(.opacity)
+            }
+            if tabsOnTop && browser.showSidebarOverlay && !browser.focusMode {
+                sidebarOverlay
             }
             if let peek = browser.peek {
                 PeekCard(tab: peek, browser: browser, area: area).transition(Motion.pop(.center))
@@ -80,9 +95,30 @@ struct BrowserView: View {
         .animation(Motion.standard, value: browser.focusMode)
         .animation(Motion.standard, value: prefs.addressBarOnTop)
         .animation(Motion.standard, value: prefs.toolbarPlace)
+        .animation(Motion.standard, value: prefs.tabLayout)
+        .animation(Motion.standard, value: browser.showSidebarOverlay)
+        // The overlay belongs to the strip layout only: switching back to the sidebar leaves it put away.
+        .onChange(of: prefs.tabLayout) { browser.showSidebarOverlay = false }
         .animation(Motion.standard, value: browser.fullScreen)
         .animation(Motion.quick, value: browser.commandBar)
         .animation(Motion.quick, value: browser.spaceSheet)
         .animation(Motion.quick, value: browser.peek?.id)
+    }
+
+    /// The sidebar over the page, below the strip and the page bar, with the rest of the window behind a click-to-dismiss layer.
+    private var sidebarOverlay: some View {
+        ZStack(alignment: .topLeading) {
+            Color.black.opacity(0.001)
+                .contentShape(Rectangle())
+                .onTapGesture { browser.showSidebarOverlay = false }
+            Sidebar(browser: browser, overlay: true)
+                .frame(width: prefs.sidebarWidth)
+                .background { SpaceGlass(tint: browser.space.tint).animation(Motion.standard, value: browser.space.tint) }
+                .floatingPanel(radius: Metrics.cardRadius)
+                .padding(.leading, Metrics.inset)
+                .padding(.bottom, Metrics.inset)
+                .transition(Motion.slide(.leading))
+        }
+        .padding(.top, BrowserWindow.tabStripHeight + BrowserWindow.pageBarHeight)
     }
 }
