@@ -358,6 +358,21 @@ extension SharedAgentState {
 struct MarkdownBlockTests {
     private func parse(_ text: String) -> [MarkdownBlock] { ChatMarkdown.parse(text) }
 
+    private func struck(_ text: AttributedString) -> String {
+        text.runs.filter { $0.inlinePresentationIntent?.contains(.strikethrough) == true }.map { String(text[$0.range].characters) }.joined()
+    }
+
+    @Test func aTildeForARangeIsNotAStrikethrough() {
+        let ranges = ChatMarkdown.inline("3~5개, 10~20분 걸려요")
+        #expect(String(ranges.characters) == "3~5개, 10~20분 걸려요")
+        #expect(struck(ranges).isEmpty)
+        let doubled = ChatMarkdown.inline("가격은 ~~만 원~~ 오천 원이에요")
+        #expect(struck(doubled) == "만 원")
+        let code = ChatMarkdown.inline("`a~b~c` 그리고 x~y~z")
+        #expect(String(code.characters) == "a~b~c 그리고 x~y~z")
+        #expect(struck(code).isEmpty)
+    }
+
     @Test func paragraphsKeepTheirLineBreaksAndAreSeparatedByBlankLines() {
         #expect(parse("one\ntwo\n\nthree") == [.paragraph("one\ntwo"), .paragraph("three")])
         #expect(parse("").isEmpty && parse("\n\n").isEmpty)

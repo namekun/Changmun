@@ -151,19 +151,6 @@ extension SharedAgentState {
             #expect(SidebarDrag.dragging == nil && SidebarDrag.carriesTab)
         }
 
-        @Test func aDropCarriesTheAddressOfItsPageToOtherAppsAndNothingForFolders() {
-            let b = browser(1)
-            b.focused()
-            defer { b.windowClosed() }
-            let tab = b.tabs[0]
-            #expect(SidebarDrag.address(of: SidebarDrag.bookmark("https://a.example/x?y=1", in: "Arc Reading"))?.absoluteString == "https://a.example/x?y=1")
-            #expect(SidebarDrag.address(of: SidebarDrag.tab(tab.id))?.absoluteString == "https://site1.example/")
-            #expect(SidebarDrag.address(of: "https://c.example/page")?.absoluteString == "https://c.example/page")
-            #expect(SidebarDrag.address(of: SidebarDrag.folder("Arc Reading")) == nil)
-            #expect(SidebarDrag.address(of: SidebarDrag.group(UUID())) == nil)
-            SidebarDrag.dragEnded(buttons: 0)
-        }
-
         @Test func aLinkDroppedAtAPlaceStaysThereInsteadOfSortingIntoAGroup() throws {
             let b = browser(2)
             let target = b.tabs[0].id

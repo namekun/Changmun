@@ -948,12 +948,8 @@ struct SidebarDrop: Transferable {
 
     static var transferRepresentation: some TransferRepresentation {
         ProxyRepresentation(exporting: \.text, importing: { SidebarDrop(text: $0) })
-        // To another app: the address of the page a bookmark, tab or link stands for; a folder or a group has none.
-        ProxyRepresentation(exporting: { (drop: SidebarDrop) in
-                                guard let url = await SidebarDrag.address(of: drop.text) else { throw CocoaError(.fileNoSuchFile) }
-                                return url
-                            },
-                            importing: { (url: URL) in SidebarDrop(text: url.absoluteString) })
+        // Only taken in: what the sidebar hands out is its own text, never an address another app would open.
+        ProxyRepresentation(importing: { (url: URL) in SidebarDrop(text: url.absoluteString) })
     }
 }
 
@@ -991,13 +987,6 @@ enum SidebarDrag {
     static func bookmark(_ url: String, in folder: String) -> String { dragging = .bookmark; return "changmun-bookmark:" + folder + "\n" + url }
     static func folder(_ key: String) -> String { dragging = .folder; return "changmun-folder:" + key }
     static func group(_ id: UUID) -> String { dragging = .group; draggingGroup = id; return "changmun-group:\(id.uuidString)" }
-
-    /// The page a dragged row stands for, for an app outside: none for a folder or a group.
-    static func address(of text: String) -> URL? {
-        if let (url, _) = bookmark([text]) { return URL(string: url) }
-        if let id = tabID([text]) { return Browser.all.lazy.compactMap { $0.tab(id) }.first?.url }
-        return link([text])
-    }
 
     static func groupID(_ items: [String]) -> UUID? {
         guard let item = items.first, item.hasPrefix("changmun-group:") else { return nil }
