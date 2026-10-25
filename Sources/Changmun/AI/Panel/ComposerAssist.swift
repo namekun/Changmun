@@ -246,60 +246,6 @@ struct CurrentTabChip: View {
     }
 }
 
-/// The model the next message goes to, with the list to change it. It is the preference in Settings › AI.
-struct ModelChip: View {
-    @ObservedObject var prefs: Preferences
-    @Binding var open: Bool
-
-    static let models = ["sonnet", "opus", "haiku"]
-
-    /// "sonnet" as it is called; a model name set some other way is shown as it is.
-    static func name(of model: String) -> String {
-        models.contains(model) ? model.prefix(1).uppercased() + model.dropFirst() : model
-    }
-
-    var body: some View {
-        Button { open.toggle() } label: {
-            HStack(spacing: 4) {
-                Text(verbatim: Self.name(of: prefs.aiModel))
-                Image(systemName: "chevron.up.chevron.down").font(.system(size: 7, weight: .bold))
-            }
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(Theme.secondary)
-            .padding(.horizontal, 8)
-            .frame(height: 20)
-            .background(Capsule().fill(open ? Theme.pill : Theme.hoverTab))
-        }
-        .buttonStyle(.plain)
-        .help("The model for your next messages (also in Settings › AI)")
-        .accessibilityLabel("Model: \(Self.name(of: prefs.aiModel))")
-    }
-}
-
-struct ModelList: View {
-    @ObservedObject var prefs: Preferences
-    let choose: (String) -> Void
-
-    var body: some View {
-        ComposerPopup {
-            row("sonnet") { Text("Sonnet (fast and balanced)") }
-            row("opus") { Text("Opus (smartest, slower)") }
-            row("haiku") { Text("Haiku (fastest)") }
-        }
-        .frame(width: 230)
-    }
-
-    private func row<Label: View>(_ model: String, @ViewBuilder label: () -> Label) -> some View {
-        ComposerPopupRow(selected: false, action: { choose(model) }) {
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).opacity(prefs.aiModel == model ? 1 : 0)
-                label().font(.system(size: 12, weight: .semibold))
-            }
-            .foregroundStyle(Theme.primary)
-        }
-    }
-}
-
 /// The panel's left edge: drag to resize, double-click for the default width.
 struct AIPanelResizeHandle: View {
     @Binding var width: Double

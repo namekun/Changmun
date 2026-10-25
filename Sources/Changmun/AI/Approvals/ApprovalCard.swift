@@ -80,7 +80,8 @@ final class ApprovalCards: ObservableObject {
     }
 
     private func keyDown(_ event: NSEvent) -> NSEvent? {
-        guard let window = event.window, let card = cards.first(where: { $0.browser?.window === window }) else { return event }
+        // The panel's window: the browser's, or the one the panel was popped out into.
+        guard let window = event.window, let card = cards.first(where: { $0.browser?.window === window || ($0.browser === ChatPopOut.shared.panelBrowser && window === ChatPopOut.shared.window) }) else { return event }
         // Keys that belong to what the user is doing stay theirs: typing in a page, or in a field that has text in it.
         var responder = window.firstResponder
         var inPage = false

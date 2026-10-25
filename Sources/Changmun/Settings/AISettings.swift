@@ -15,13 +15,22 @@ struct AISettings: View {
                     Text("Opus (smartest, slower)").tag("opus")
                     Text("Haiku (fastest)").tag("haiku")
                 }
+                Picker("Effort", selection: $prefs.aiEffort) {
+                    Text("Auto").tag("")
+                    ForEach(AIEffort.allCases) { Text($0.title).tag($0.rawValue) }
+                }
             }
             Section {
-                Toggle("Ask before using other tabs, opening new addresses, or using a page after reading other sites", isOn: $prefs.aiApprovals)
-                if prefs.aiApprovals {
-                    Caption(text: "It doesn’t ask for the tab you’re viewing or for addresses it already knows.")
-                } else {
-                    Caption(text: "If you turn this off, instructions hidden in a web page can make the AI send other tabs or content it read earlier to the outside.", color: Theme.waitingText)
+                Picker("Approvals", selection: $prefs.aiApprovalMode) {
+                    ForEach(AIApprovalMode.allCases) { Text($0.title).tag($0) }
+                }
+                switch prefs.aiApprovalMode {
+                case .afterReading:
+                    Caption(text: "It asks before using other tabs, opening new addresses, or using a page after reading other sites, but not for the tab you’re viewing or for addresses it already knows.")
+                case .everyAction:
+                    Caption(text: "It also asks before typing, choosing or clicking on a page when it has read nothing else, and you can allow a site until the chat is cleared.")
+                case .irreversibleOnly:
+                    Caption(text: "Instructions hidden in a web page can then make the AI send other tabs or content it read earlier to the outside.", color: Theme.waitingText)
                 }
                 Caption(text: "Either way, it asks every time before something that looks like it pays, orders, sends, posts, shares, grants access, deletes or cancels.")
                 Caption(text: "It also asks before something that looks like a cookie banner or a setting (save, clear, reset, block), which you can allow for a site until the chat is cleared.")

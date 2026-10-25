@@ -1,6 +1,47 @@
 import Foundation
 
+/// How much the panel's AI asks before it acts, which the user picks under the composer and in Settings › AI. Whatever the mode, what
+/// looks like paying, sending, posting or deleting (the high tier), a cookie banner the page only calls one, and signing in are asked
+/// every time: a mode only changes how much is asked besides.
+enum AIApprovalMode: String, CaseIterable, Identifiable {
+    /// Other tabs, new addresses and the use of a page are asked about once the chat has read another site (what it always was).
+    case afterReading
+    /// As `afterReading`, and the use of a page is asked about even when the chat has read nothing else.
+    case everyAction
+    /// Only what can't be undone is asked.
+    case irreversibleOnly
+
+    var id: String { rawValue }
+
+    /// Whether other tabs and new addresses are asked about (which `Approvals.mayShow`, `allowTab` and `allowNavigation` follow).
+    var asksAboutOtherSites: Bool { self != .irreversibleOnly }
+
+    /// What the preferences start with: the mode that was chosen, else the old on/off switch (on is the default mode, off is the last one).
+    static func initial(stored: String?, legacy: Bool?) -> AIApprovalMode {
+        if let stored, let mode = AIApprovalMode(rawValue: stored) { return mode }
+        return legacy == false ? .irreversibleOnly : .afterReading
+    }
+
+    var title: String {
+        switch self {
+        case .afterReading: String(localized: "Ask after reading other sites")
+        case .everyAction: String(localized: "Ask before every action")
+        case .irreversibleOnly: String(localized: "Ask only for actions that can’t be undone")
+        }
+    }
+}
+
 extension Approvals {
+    /// Whether using a page (typing, choosing, a click, a key) is asked about: never in the last mode, in the first after another
+    /// site than the page's was read, and in the stricter one always.
+    nonisolated static func asksForInteraction(_ mode: AIApprovalMode, readOtherSites: Bool) -> Bool {
+        switch mode {
+        case .irreversibleOnly: false
+        case .afterReading: readOtherSites
+        case .everyAction: true
+        }
+    }
+
     /// How an approval was answered. `site` (allow on this site for as long as the chat lasts) is offered to the chat panel and to any
     /// MCP client that the bridge named itself (its chat is its connection); any other caller is only ever asked each time.
     enum Choice {

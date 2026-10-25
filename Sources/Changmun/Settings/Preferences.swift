@@ -181,7 +181,22 @@ final class Preferences: ObservableObject {
     @Published var aiModel: String { didSet { defaults.set(aiModel, forKey: "aiModel") } }
     /// How wide the AI panel is, dragged from its left edge.
     @Published var aiPanelWidth: Double { didSet { defaults.set(aiPanelWidth, forKey: "aiPanelWidth") } }
-    @Published var aiApprovals: Bool { didSet { defaults.set(aiApprovals, forKey: "aiApprovals") } }
+    /// How much the AI asks before it acts (default: after reading other sites). "aiApprovals", the on/off switch it replaces, is still
+    /// written (on for the first two) so that an older version reads it right.
+    @Published var aiApprovalMode: AIApprovalMode {
+        didSet {
+            defaults.set(aiApprovalMode.rawValue, forKey: "aiApprovalMode")
+            defaults.set(aiApprovalMode != .irreversibleOnly, forKey: "aiApprovals")
+        }
+    }
+    /// Whether the AI asks about other tabs, new addresses and the use of a page at all (any mode but the last). Setting it on from
+    /// the last mode picks the default mode.
+    var aiApprovals: Bool {
+        get { aiApprovalMode != .irreversibleOnly }
+        set { if newValue != aiApprovals { aiApprovalMode = newValue ? .afterReading : .irreversibleOnly } }
+    }
+    /// The effort the AI works with (`--effort`): one of `AIEffort`, or empty to leave it to `claude` as before.
+    @Published var aiEffort: String { didSet { defaults.set(aiEffort.isEmpty ? nil : aiEffort, forKey: "aiEffort") } }
     /// Whether the AI panel keeps finished chats to read again (default on); private windows never are.
     @Published var aiKeepHistory: Bool { didSet { defaults.set(aiKeepHistory, forKey: "aiKeepHistory") } }
     @Published var claudePath: String { didSet { defaults.set(claudePath.isEmpty ? nil : claudePath, forKey: "claudePath") } }
@@ -230,7 +245,8 @@ final class Preferences: ObservableObject {
         extensionGrants = d.dictionary(forKey: "extensionGrants") as? [String: [String]] ?? [:]
         aiModel = d.string(forKey: "aiModel") ?? "sonnet"
         aiPanelWidth = Self.clampedAIPanelWidth(d.object(forKey: "aiPanelWidth") as? Double ?? Self.defaultAIPanelWidth)
-        aiApprovals = d.object(forKey: "aiApprovals") as? Bool ?? true
+        aiApprovalMode = AIApprovalMode.initial(stored: d.string(forKey: "aiApprovalMode"), legacy: d.object(forKey: "aiApprovals") as? Bool)
+        aiEffort = d.string(forKey: "aiEffort") ?? ""
         aiKeepHistory = d.object(forKey: "aiKeepHistory") as? Bool ?? true
         claudePath = d.string(forKey: "claudePath") ?? ""
         developerMode = d.bool(forKey: "developerMode")

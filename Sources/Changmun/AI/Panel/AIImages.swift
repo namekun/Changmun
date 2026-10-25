@@ -296,28 +296,12 @@ extension ChatStore {
 
 // MARK: Views
 
-/// The screenshot button and the images waiting for the next message, each removable: in the row of the tabs attached.
+/// The images waiting for the next message, each removable: in the row of the tabs attached.
 struct ChatImageChips: View {
     @ObservedObject var chat: ChatStore
-    @ObservedObject var browser: Browser
 
     var body: some View {
         HStack(spacing: 6) {
-            let tab = browser.active
-            Button { Task { await chat.attachScreenshot(of: tab) } } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "camera.viewfinder").font(.system(size: 9, weight: .bold))
-                    Text("Screenshot").font(.system(size: 11, weight: .semibold))
-                }
-                .foregroundStyle(Theme.secondary)
-                .padding(.horizontal, 8)
-                .frame(height: 22)
-                .background(Capsule().fill(Theme.hoverTab))
-            }
-            .buttonStyle(.plain)
-            .disabled(!chat.canAttachScreenshot(of: tab))
-            .opacity(chat.canAttachScreenshot(of: tab) ? 1 : 0.4)
-            .help("Attach a picture of this page. You can also drop or paste images.")
             ForEach(chat.images) { image in
                 ImageChip(image: image) { chat.removeImage(image.id) }
             }

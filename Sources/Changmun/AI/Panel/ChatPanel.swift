@@ -6,6 +6,8 @@ import SwiftUI
 struct ChatPanel: View {
     @ObservedObject var chat: ChatStore
     @ObservedObject var browser: Browser
+    /// The panel is in the window it was popped out into, not in the browser window.
+    var inWindow = false
     @State private var draft = ""
     @State private var draftHeight: CGFloat = 16
     @ObservedObject private var prefs = Preferences.shared
@@ -17,7 +19,6 @@ struct ChatPanel: View {
     @State private var mentionSelection = 0
     /// Where the "@" is that Esc closed the list of, so that it stays closed while that "@" is the one being typed.
     @State private var mentionClosed: Int?
-    @State private var modelMenu = false
     /// How high the box and what is under it are, which the list of tabs stands over.
     @State private var composerHeight: CGFloat = 60
     @State private var pageKind = PageKind.general
@@ -29,20 +30,9 @@ struct ChatPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // The page bar's AI button already names the panel; its head says what the chat has read.
-            HStack(spacing: 4) {
-                ReadSitesRow()
-                Spacer()
-                BarButton(symbol: "clock.arrow.circlepath", help: String(localized: "Chat History")) {
-                    chat.showHistory.toggle()
-                    chat.openedHistory = nil
-                }
-                BarButton(symbol: "square.and.pencil", help: String(localized: "New Chat (⌘⇧E)")) { chat.reset() }
-                BarButton(symbol: "xmark", help: String(localized: "Close (⌘E)")) { browser.showChat = false }
-            }
-            .padding(.horizontal, 6)
-            // Level with the page card's bar beside it.
-            .frame(height: BrowserWindow.pageBarHeight)
+            ChatHeader(chat: chat, history: chat.history, browser: browser, inWindow: inWindow, close: dismiss)
+            // What the chat has read, under the title (nothing there until it has read something).
+            ReadSitesRow()
             if chat.showHistory {
                 ChatHistoryView(chat: chat, history: chat.history)
             } else {
@@ -63,18 +53,6 @@ struct ChatPanel: View {
         .background {
             if chat.items.isEmpty, !browser.isPrivate, let tab = Browser.recent?.active { PageKindProbe(tab: tab, kind: $pageKind) }
         }
-        .overlay {
-            // A question waiting in the panel has its buttons above the box: nothing opens over them.
-            if modelMenu && !approvalPending {
-                Color.black.opacity(0.001).contentShape(Rectangle()).onTapGesture { modelMenu = false }
-                ModelList(prefs: prefs) { model in
-                    prefs.aiModel = model
-                    modelMenu = false
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                .padding(.bottom, 32).padding(.leading, 4)
-            }
-        }
         .overlay(alignment: .bottom) {
             if let tabs = mentionTabs {
                 TabMentionList(tabs: tabs, selection: mentionSelection, pick: pickMention).padding(.bottom, composerHeight + 4)
@@ -82,57 +60,24 @@ struct ChatPanel: View {
         }
         .onAppear { chat.refreshAvailability(); takePrefill() }
         .onChange(of: chat.prefill) { takePrefill() }
-        .onChange(of: approvalPending) { if approvalPending { modelMenu = false } }
         .onChange(of: prefs.claudePath) { chat.refreshAvailability() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in chat.refreshAvailability() }
         .modifier(ImageDrop(chat: chat))
     }
 
-    /// The tabs attached as context, each removable, and the menu to add more.
+    /// The tabs and images attached as context, each removable; the "+" in the box adds more.
     private var attachments: some View {
-        HStack(spacing: 6) {
-            Menu {
-                // A private window's tabs are not the AI's to read.
-                let candidates = browser.tabs.filter { browser.isVisibleToAI($0) }
-                ForEach(candidates.filter { !chat.attachedIDs.contains($0.id) }) { tab in
-                    Button(tab.displayTitle) { chat.attach([tab]) }
+        ScrollView(.horizontal) {
+            HStack(spacing: 6) {
+                // The tab the AI takes as current is the one in front when the message goes out.
+                if !browser.isPrivate, let current = Browser.recent?.active { CurrentTabChip(tab: current) }
+                ForEach(chat.attachedTabs) { tab in
+                    AttachedTabChip(tab: tab) { chat.detach(tab.id) }
                 }
-                if !browser.groups.isEmpty && !candidates.isEmpty {
-                    Divider()
-                    ForEach(browser.groups) { group in
-                        Button(group.name, systemImage: "square.stack") { chat.attach(candidates.filter { $0.groupID == group.id }) }
-                    }
-                }
-                Divider()
-                Button("All Open Tabs") { chat.attach(candidates) }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "plus").font(.system(size: 9, weight: .bold))
-                    Text("Add Tab").font(.system(size: 11, weight: .semibold))
-                }
-                .foregroundStyle(Theme.secondary)
+                ChatImageChips(chat: chat)
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .padding(.horizontal, 8)
-            .frame(height: 22)
-            .background(Capsule().fill(Theme.hoverTab))
-            .disabled(!ready)
-            .opacity(ready ? 1 : 0.4)
-            .help("Give the AI more tabs to read")
-            ScrollView(.horizontal) {
-                HStack(spacing: 6) {
-                    // The tab the AI takes as current is the one in front when the message goes out.
-                    if !browser.isPrivate, let current = Browser.recent?.active { CurrentTabChip(tab: current) }
-                    ForEach(chat.attachedTabs) { tab in
-                        AttachedTabChip(tab: tab) { chat.detach(tab.id) }
-                    }
-                    ChatImageChips(chat: chat, browser: browser)
-                }
-            }
-            .scrollIndicators(.never)
         }
+        .scrollIndicators(.never)
         .padding(.horizontal, 4)
         .padding(.bottom, 6)
     }
@@ -165,6 +110,7 @@ struct ChatPanel: View {
     private var composer: some View {
         VStack(spacing: 0) {
             HStack(alignment: .bottom, spacing: 8) {
+                ComposerPlusMenu(chat: chat, browser: browser).padding(.bottom, 3)
                 ZStack(alignment: .topLeading) {
                     if draft.isEmpty {
                         Text("Ask about this page, or give it a task")
@@ -178,24 +124,14 @@ struct ChatPanel: View {
                 }
                 .frame(height: draftHeight)
                 .padding(.vertical, 3)
+                if ComposerMicButton.available { ComposerMicButton().padding(.bottom, 3) }
                 if chat.isRunning {
-                    Button { chat.stop() } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "stop.fill").font(.system(size: 8, weight: .bold))
-                            Text("Stop").font(.system(size: 11, weight: .semibold))
-                        }
-                        .foregroundStyle(Theme.primary)
-                        .padding(.horizontal, 8)
-                        .frame(height: 22)
-                        .background(Capsule().fill(Theme.pill))
-                    }
-                    .buttonStyle(.plain)
-                    .help("Stop generating")
+                    ComposerStopButton { chat.stop() }.padding(.bottom, 3)
                 } else {
-                    Keycap("↵").opacity(draft.isEmpty ? 0.5 : 1).padding(.bottom, 2)
+                    Keycap("↵").opacity(draft.isEmpty ? 0.5 : 1).padding(.bottom, 5)
                 }
             }
-            .padding(.leading, 12)
+            .padding(.leading, 8)
             .padding(.trailing, 8)
             .padding(.vertical, 8)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
@@ -205,11 +141,16 @@ struct ChatPanel: View {
                     .font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.faint)
                     .padding(.bottom, 4)
             }
-            HStack { ModelChip(prefs: prefs, open: $modelMenu); Spacer() }
+            ComposerControlsRow(prefs: prefs, chat: chat)
                 .padding(.horizontal, 4)
                 .padding(.bottom, 4)
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { composerHeight = $0 }
+    }
+
+    /// Closes the panel: the window it was popped out into, or the panel in the browser window.
+    private func dismiss() {
+        if inWindow { ChatPopOut.shared.close(dock: false) } else { browser.closeChat() }
     }
 
     private func send(_ text: String, steering: Bool = false) {
@@ -279,10 +220,9 @@ struct ChatPanel: View {
         }
         switch key {
         case .escape:
-            if modelMenu { modelMenu = false; return true }
             // The same as the stop button.
             if chat.isRunning { chat.stop(); return true }
-            if draft.isEmpty { browser.closeChat(); return true }
+            if draft.isEmpty { dismiss(); return true }
             return false
         case .up:
             guard let text = ComposerHistory.shared.older(current: draft) else { return false }

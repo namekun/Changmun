@@ -42,6 +42,8 @@ extension ChatStore {
             steerRetry = nil
             guard let message = event["message"] as? [String: Any],
                   let content = message["content"] as? [[String: Any]] else { return }
+            // What this request held is how full the conversation is.
+            if let usage = message["usage"] as? [String: Any], let tokens = ContextUsage.tokens(in: usage) { noteContext(tokens) }
             let streamed = (message["id"] as? String).map(streamedMessages.contains) ?? false
             if event["is_api_error_message"] as? Bool == true {
                 // An API error arrives as an assistant message ("Not logged in · Please run /login"); the result after it is the error row.
@@ -78,6 +80,12 @@ extension ChatStore {
             }
         case "result":
             if let id = event["session_id"] as? String { sessionID = id }
+            if let window = (event["modelUsage"] as? [String: Any]).flatMap(ContextUsage.window(inModelUsage:)) {
+                contextWindow = window
+                if let used = contextUsage?.used { noteContext(used) }
+            }
+            // A run whose requests were not seen one by one (no usage in them) is counted by the result's total.
+            if contextUsage == nil, let usage = event["usage"] as? [String: Any], let tokens = ContextUsage.tokens(in: usage) { noteContext(tokens) }
             if event["is_error"] as? Bool == true {
                 // A session that failed may not resume; the next message starts a fresh one.
                 sessionID = nil
@@ -94,6 +102,11 @@ extension ChatStore {
         default:
             break
         }
+    }
+
+    func noteContext(_ tokens: Int) {
+        let usage = ContextUsage(used: tokens, window: contextWindow ?? ContextUsage.defaultWindow)
+        if usage != contextUsage { contextUsage = usage }
     }
 
     private func appendAssistant(_ text: String) {

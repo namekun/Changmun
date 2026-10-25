@@ -28,16 +28,26 @@ struct ChatRow: View {
     var body: some View {
         switch item.kind {
         case .user:
-            HStack {
-                Spacer(minLength: 40)
-                Text(item.text)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.primary)
-                    .textSelection(.enabled)
-                    .padding(.horizontal, 12).padding(.vertical, 7)
-                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.field))
+            VStack(alignment: .trailing, spacing: 6) {
+                // The pages the message went with, above its words.
+                if !item.pages.isEmpty {
+                    VStack(alignment: .trailing, spacing: 4) {
+                        ForEach(Array(item.pages.enumerated()), id: \.offset) { AttachedPageCard(page: $0.element) }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.leading, 40)
+                }
+                HStack {
+                    Spacer(minLength: 40)
+                    Text(item.text)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.primary)
+                        .textSelection(.enabled)
+                        .padding(.horizontal, 12).padding(.vertical, 7)
+                        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.field))
+                }
+                .modifier(SentImages(images: item.images))
             }
-            .modifier(SentImages(images: item.images))
         case .assistant:
             AnswerRow(text: item.text)
         case .tool:
@@ -82,7 +92,10 @@ struct ChatTranscript<Empty: View>: View {
     @State private var following = true
 
     var body: some View {
-        let rows = ChatLayout.rows(chat.items, running: chat.isRunning)
+        let allRows = ChatLayout.rows(chat.items, running: chat.isRunning)
+        // The steps of the run under way are in the working line, to open there.
+        let live = chat.isRunning ? allRows.last { if case .live = $0 { true } else { false } } : nil
+        let rows = allRows.filter { $0.id != live?.id }
         let retrying = chat.isRunning ? nil : chat.items.last(where: { $0.kind == .error })?.id
         ScrollViewReader { proxy in
             ScrollView {
@@ -91,7 +104,7 @@ struct ChatTranscript<Empty: View>: View {
                     ForEach(rows) { row in
                         ChatRowView(row: row, chat: chat, retrying: retrying).id(row.id)
                     }
-                    if chat.isRunning { Working(step: chat.step).id("typing") }
+                    if chat.isRunning { Working(started: chat.runStarted, step: chat.step, steps: live).id("typing") }
                 }
                 .padding(.vertical, 12)
                 .background(ScrollEndWatcher(atEnd: $following))
