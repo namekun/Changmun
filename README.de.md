@@ -246,7 +246,7 @@ Browsern, die Passwörter synchronisieren, wird eine berechtigte Frage gestellt:
 - **Was an Anthropic geht.** Deine Nachrichten, angehängte Bilder und die Seiten, die die KI liest, über dein eigenes `claude`-CLI, und sonst nichts. Changmun besitzt keinen Anthropic-Schlüssel und stellt selbst keine Anfragen an Anthropic.
 - **Chatverlauf.** Beendete Chats liegen nur in einer Datei auf diesem Mac (abschaltbar unter Einstellungen › KI), ohne getippten Text und ohne den Teil einer Adresse ab ? oder #, und aus privaten Fenstern nie.
 - **Importierte Passwörter.** Werden auf deinem Mac mit dem `Safe Storage`-Schlüsselbundschlüssel des jeweiligen Browsers entschlüsselt (macOS fragt vorher) und in deinem Anmelde-Schlüsselbund gesichert. Unterwegs wird nichts hochgeladen.
-- **Wenn das Projekt stehen bleibt.** Es gibt nichts zu verkaufen und nichts abzuschalten: kein Server, kein Konto, keine Datenbank von irgendjemandem. Deine Passwörter bleiben in deinem Schlüsselbund, und die App läuft, solange macOS läuft. Sie ist Open Source unter MIT, also kann das jeder überprüfen, am besten ab `Sources/Changmun/Logins.swift`.
+- **Wenn das Projekt stehen bleibt.** Es gibt nichts zu verkaufen und nichts abzuschalten: kein Server, kein Konto, keine Datenbank von irgendjemandem. Deine Passwörter bleiben in deinem Schlüsselbund, und die App läuft, solange macOS läuft. Sie ist Open Source unter MIT, also kann das jeder überprüfen, am besten ab `Sources/Changmun/Tabs/Logins.swift`.
 
 ## Für Entwickler
 

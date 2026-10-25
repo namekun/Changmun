@@ -246,7 +246,7 @@ A los navegadores que sincronizan contraseñas se les hace una pregunta razonabl
 - **Qué llega a Anthropic.** Tus mensajes, las imágenes que adjuntas y las páginas que lee la IA, a través de tu propia CLI `claude`, y nada más. Changmun no tiene ninguna clave de Anthropic ni hace peticiones a Anthropic por su cuenta.
 - **Historial de chats.** Los chats terminados quedan en un archivo de este Mac (Ajustes › IA lo desactiva), sin el texto escrito ni lo que sigue a ? o # en las direcciones, y nunca los de una ventana privada.
 - **Contraseñas importadas.** Se descifran en tu Mac con la clave `Safe Storage` del llavero de cada navegador (macOS pregunta antes) y se guardan en tu llavero de inicio de sesión. No se sube nada por el camino.
-- **Si el proyecto se para.** No hay nada que vender ni que apagar: ni servidor, ni cuentas, ni la base de datos de nadie. Tus contraseñas siguen en tu llavero y la app sigue funcionando mientras funcione macOS. Es de código abierto con licencia MIT, así que cualquiera puede comprobar todo esto, empezando por `Sources/Changmun/Logins.swift`.
+- **Si el proyecto se para.** No hay nada que vender ni que apagar: ni servidor, ni cuentas, ni la base de datos de nadie. Tus contraseñas siguen en tu llavero y la app sigue funcionando mientras funcione macOS. Es de código abierto con licencia MIT, así que cualquiera puede comprobar todo esto, empezando por `Sources/Changmun/Tabs/Logins.swift`.
 
 ## Para desarrolladores
 

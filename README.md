@@ -265,7 +265,7 @@ People ask password-syncing browsers a fair question: is an encrypted copy of my
 - **What goes to Anthropic.** Your messages, the images you attach and the pages the AI reads, through your own `claude` CLI, and nothing else. Changmun holds no Anthropic key and makes no requests to Anthropic itself.
 - **Chat history.** Finished chats stay in one file on this Mac (Settings › AI turns it off), without typed text or the part of an address from ? or #, and never from a private window.
 - **Imported passwords.** Decrypted on your Mac with each browser's `Safe Storage` Keychain key (macOS asks first) and saved to your login Keychain. Nothing is uploaded on the way.
-- **If the project stops.** There's nothing to sell and nothing to shut off: no server, no account, no database of anyone. Your passwords stay in your Keychain and the app keeps running as long as macOS does. It's open source under MIT, so anyone can check all of this, starting with `Sources/Changmun/Logins.swift`.
+- **If the project stops.** There's nothing to sell and nothing to shut off: no server, no account, no database of anyone. Your passwords stay in your Keychain and the app keeps running as long as macOS does. It's open source under MIT, so anyone can check all of this, starting with `Sources/Changmun/Tabs/Logins.swift`.
 
 ## For developers
 
