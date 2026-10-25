@@ -646,7 +646,7 @@ struct Sidebar: View {
     /// Folders kept under the favorites, opened where they are, then a gap before the tabs. A folder dropped in
     /// the gap is pinned at the end.
     @ViewBuilder private var pinned: some View {
-        let folders = browser.space.pinnedFolders.compactMap(library.folder)
+        let folders = browser.space.topPinnedFolders.compactMap(library.folder)
         // Ids carry the part of the sidebar: a folder can show both pinned and under Bookmarks.
         ForEach(folders.flatMap { treeRows($0, depth: 0, scope: "pin:", pinned: true) }) { row in
             treeRow(row)
@@ -788,7 +788,7 @@ struct Sidebar: View {
         } menu: {
             if isPinned {
                 Button("Unpin from Sidebar") { browser.spaces.unpinFolder(folder.key, in: browser.spaceID) }
-            } else {
+            } else if !browser.space.hasPinnedAncestor(folder.key) {
                 Button("Pin to Sidebar") { browser.spaces.pinFolder(folder.key, in: browser.spaceID) }
             }
             Divider()
@@ -948,7 +948,11 @@ struct SidebarDrop: Transferable {
 
     static var transferRepresentation: some TransferRepresentation {
         ProxyRepresentation(exporting: \.text, importing: { SidebarDrop(text: $0) })
-        ProxyRepresentation(exporting: { (drop: SidebarDrop) in URL(string: drop.text) ?? URL(fileURLWithPath: "/") },
+        // To another app: the address of the page a bookmark, tab or link stands for; a folder or a group has none.
+        ProxyRepresentation(exporting: { (drop: SidebarDrop) in
+                                guard let url = await SidebarDrag.address(of: drop.text) else { throw CocoaError(.fileNoSuchFile) }
+                                return url
+                            },
                             importing: { (url: URL) in SidebarDrop(text: url.absoluteString) })
     }
 }
@@ -962,14 +966,38 @@ extension Array where Element == SidebarDrop {
 enum SidebarDrag {
     enum Kind { case tab, bookmark, folder, group }
     /// What the latest drag from the sidebar carries: set when the drag starts, so drop targets can show where it lands.
-    private(set) static var dragging: Kind? { didSet { if dragging != .group { draggingGroup = nil } } }
+    private(set) static var dragging: Kind? { didSet { if dragging != .group { draggingGroup = nil }; watchForRelease() } }
     /// The group being dragged, so its own header and tabs show no line.
     private(set) static var draggingGroup: UUID?
+
+    private static var releaseWatch: Timer?
+
+    /// A drag that is cancelled (esc, dropped outside the sidebar) reaches no drop target, so nothing else would end it:
+    /// once the mouse button is up, nothing is being carried any more.
+    private static func watchForRelease() {
+        releaseWatch?.invalidate()
+        releaseWatch = nil
+        guard dragging != nil else { return }
+        releaseWatch = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
+            MainActor.assumeIsolated { dragEnded() }
+        }
+    }
+
+    static func dragEnded(buttons: Int = NSEvent.pressedMouseButtons) {
+        if buttons & 1 == 0 { dragging = nil }
+    }
 
     static func tab(_ id: Int) -> String { dragging = .tab; return "changmun-tab:\(id)" }
     static func bookmark(_ url: String, in folder: String) -> String { dragging = .bookmark; return "changmun-bookmark:" + folder + "\n" + url }
     static func folder(_ key: String) -> String { dragging = .folder; return "changmun-folder:" + key }
     static func group(_ id: UUID) -> String { dragging = .group; draggingGroup = id; return "changmun-group:\(id.uuidString)" }
+
+    /// The page a dragged row stands for, for an app outside: none for a folder or a group.
+    static func address(of text: String) -> URL? {
+        if let (url, _) = bookmark([text]) { return URL(string: url) }
+        if let id = tabID([text]) { return Browser.all.lazy.compactMap { $0.tab(id) }.first?.url }
+        return link([text])
+    }
 
     static func groupID(_ items: [String]) -> UUID? {
         guard let item = items.first, item.hasPrefix("changmun-group:") else { return nil }
@@ -1009,7 +1037,12 @@ enum SidebarDrag {
     static func dropAtEnd(_ items: [String], browser: Browser) -> Bool {
         defer { dragging = nil }
         if let url = link(items) {
-            withAnimation(Motion.standard) { browser.moveTab(browser.openTab(url: url).id, to: nil) }
+            withAnimation(Motion.standard) {
+                let tab = browser.openTab(url: url)
+                // Put where the user chose, not where its page would sort it to.
+                tab.sortsIntoGroup = false
+                browser.moveTab(tab.id, to: nil)
+            }
             return true
         }
         if let group = groupID(items) {
@@ -1045,7 +1078,7 @@ enum SidebarDrag {
             return true
         }
         // A tab becomes the folder's bookmark and that bookmark's tab, as on the favorites; the folder opens to show it.
-        if let id = tabID(items), let tab = browser.tab(id), let url = tab.url, ["http", "https"].contains(url.scheme?.lowercased()) {
+        if let id = tabID(items), let tab = browser.tab(id), !tab.isPrivate, let url = tab.url, ["http", "https"].contains(url.scheme?.lowercased()) {
             let address = url.absoluteString
             if !Library.shared.isFavorite(address, in: folder) {
                 Library.shared.addBookmark(url: address, title: tab.title.isEmpty ? (url.host() ?? address) : tab.title, folder: folder)
@@ -1067,6 +1100,7 @@ enum SidebarDrag {
             withAnimation(Motion.standard) {
                 // Just above the tab it was dropped on, where the drop line showed, and into its group.
                 let tab = browser.openTab(url: url)
+                tab.sortsIntoGroup = false
                 browser.moveTab(tab.id, to: nil)
                 browser.dropTab(tab.id, on: target)
             }
@@ -1123,7 +1157,7 @@ enum SidebarDrag {
             Library.shared.moveFavorite(url, to: target, in: favorites)
             return true
         }
-        if let id = tabID(items), let tab = browser.tab(id), let url = tab.url?.absoluteString {
+        if let id = tabID(items), let tab = browser.tab(id), !tab.isPrivate, let url = tab.url?.absoluteString {
             if !Library.shared.isFavorite(url, in: favorites) { _ = Library.shared.toggleBookmark(url: url, title: tab.title, in: favorites) }
             browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: favorites))
             Library.shared.moveFavorite(url, to: target, in: favorites)
@@ -1382,7 +1416,7 @@ struct AddressPill: View {
             LoginButton(tab: tab)
             PictureInPictureButton(tab: tab)
             if hover || AdBlocker.shared.isAllowed(tab.url?.host() ?? "") { AdBlockShield(tab: tab) }
-            if hover || tab.url.map({ library.isFavorite($0.absoluteString, in: tab.favoritesFolder) }) == true { BookmarkStar(tab: tab) }
+            if !tab.isPrivate, hover || tab.url.map({ library.isFavorite($0.absoluteString, in: tab.favoritesFolder) }) == true { BookmarkStar(tab: tab) }
         }
         .padding(.leading, 4)
         .padding(.trailing, 4)
@@ -1975,10 +2009,12 @@ struct SidebarTabRow: View {
         Button("Capture Full Page…") { Task { await SavePage.save(tab, as: .image) } }
             .disabled(tab.isAsleep || tab.showsPDF)
         Divider()
-        Button("Pin to Favorites") {
-            if let url = tab.url?.absoluteString {
-                if !Library.shared.isFavorite(url, in: tab.favoritesFolder) { _ = Library.shared.toggleBookmark(url: url, title: tab.title, in: tab.favoritesFolder) }
-                browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: tab.favoritesFolder))
+        if !tab.isPrivate {
+            Button("Pin to Favorites") {
+                if let url = tab.url?.absoluteString {
+                    if !Library.shared.isFavorite(url, in: tab.favoritesFolder) { _ = Library.shared.toggleBookmark(url: url, title: tab.title, in: tab.favoritesFolder) }
+                    browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: tab.favoritesFolder))
+                }
             }
         }
         if tab.groupID == nil {
@@ -2172,6 +2208,7 @@ struct WebCard: View {
             } else {
                 Theme.card
                 EmptyPage()
+                HeldPagesHost(browser: browser)
             }
         }
         .clipped()
@@ -2188,13 +2225,13 @@ struct LoginOfferBar: View {
             let site = offer.host.hasPrefix("www.") ? String(offer.host.dropFirst(4)) : offer.host
             HStack(spacing: 8) {
                 Image(systemName: "key.fill").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
-                Text("Save login info for \(site)?")
+                Text(offer.updatesExisting && !offer.username.isEmpty ? String(localized: "Update password for \(offer.username)?") : String(localized: "Save login info for \(site)?"))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
                     .layoutPriority(1)
                 // The user name gives way first, so the site stays readable.
-                if !offer.username.isEmpty {
+                if !offer.username.isEmpty, !offer.updatesExisting {
                     Text(offer.username).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
                 }
                 Spacer(minLength: 8)
@@ -2206,7 +2243,7 @@ struct LoginOfferBar: View {
                     tab.checkForLogins()
                 }
                 Button("Never for This Site") {
-                    Preferences.shared.neverSaveLoginHosts.append(site.lowercased())
+                    Preferences.shared.neverSaveLoginHosts.append(Logins.hostname(ofKey: site).lowercased())
                     tab.loginOffer = nil
                 }
                 .buttonStyle(.plain)
@@ -2503,6 +2540,11 @@ struct PageOwner<Host: AnyObject> {
     }
 
     func owns(_ candidate: Host) -> Bool { host === candidate }
+
+    /// The host stops showing the page (it was passed on to another tab).
+    mutating func release(_ old: Host) {
+        if host === old { host = nil }
+    }
 }
 
 struct WebViewHost: NSViewRepresentable {
@@ -2567,11 +2609,16 @@ struct WebViewHost: NSViewRepresentable {
         /// Only it holds the pages the AI uses behind that one. A peek or the other pane of a split would hold them at its
         /// own smaller size, and drop them when it closes.
         var isMain: Bool {
-            guard let tab, let browser else { return false }
+            guard let browser else { return false }
+            // A window with no tab in front (see HeldPagesHost) holds them for want of any other.
+            guard let tab else { return browser.active == nil }
             return tab === browser.active && browser.peek !== tab && tab.pageOwner.owns(self)
         }
 
         private var passive: [PassiveHost] { subviews.compactMap { $0 as? PassiveHost } }
+
+        /// With no tab to show it holds pages only, which are out of reach, and must not stand between the user and what is under it.
+        override func hitTest(_ point: NSPoint) -> NSView? { tab == nil ? nil : super.hitTest(point) }
 
         /// The page in front: it takes the top place, whatever was there (a page it held behind included), and any other
         /// page that was in front goes.
@@ -2588,9 +2635,17 @@ struct WebViewHost: NSViewRepresentable {
             tab?.holdBehind(false)
         }
 
-        /// The page is back from a full screen window (WebKit moved it there and left a placeholder here): in front again, and
-        /// as big as this is, wherever WebKit put it back (a host that went in the meantime), unless it is still away.
-        func restore() {
+        /// The page of `left` (the tab shown here when none is named) is back from a full screen window (WebKit moved it there and left a placeholder here): in front again, and
+        /// as big as this is, wherever WebKit put it back (a host that went in the meantime), unless it is still away. If this
+        /// shows another tab by now, the page is not its to show: it goes out of here, held again if the AI uses it.
+        func restore(for left: Tab? = nil) {
+            guard let left = left ?? tab else { return }
+            guard left === tab else {
+                left.pageOwner.release(self)
+                if let page = left.webView, !WebViewHost.isAway(page), page.superview === self { page.removeFromSuperview() }
+                holdWhatIsInUse()
+                return
+            }
             guard let tab, let webView = tab.webView, !WebViewHost.isAway(webView), tab.pageOwner.owns(self), showsPage else { return }
             if webView.superview !== self {
                 show(webView)
@@ -2608,8 +2663,12 @@ struct WebViewHost: NSViewRepresentable {
         /// visible and goes on running their timers and drawing, which it stops for a page without a window. They are
         /// silent there.
         func keep(_ tabs: [Tab]) {
-            let pages = tabs.compactMap { tab in tab.webView.map { (tab, $0) } }
-            for host in passive where !host.holdsPage || !pages.contains(where: { $0.1 === host.page }) {
+            // A page in WebKit's full screen window isn't taken, and the host that is to get it back stays for it to return to.
+            let pages = tabs.compactMap { tab -> (Tab, WKWebView)? in
+                guard let page = tab.webView, !WebViewHost.isAway(page) else { return nil }
+                return (tab, page)
+            }
+            for host in passive where !(host.page.map(WebViewHost.isAway) ?? false) && (!host.holdsPage || !pages.contains(where: { $0.1 === host.page })) {
                 if host.holdsPage, let page = host.page {
                     page.removeFromSuperview()
                     host.tab?.holdBehind(false)
@@ -2633,6 +2692,7 @@ struct WebViewHost: NSViewRepresentable {
             if isMain, let browser {
                 held = Array(AgentActivity.shared.held.compactMap { id in browser.tabs.first { $0.id == id } }.filter { candidate in
                     candidate !== tab && !browser.isShown(candidate) && browser.peek !== candidate && candidate.webView != nil
+                        && candidate.webView.map(WebViewHost.isAway) != true
                 }.prefix(AgentActivity.maxHeld))
             }
             keep(held)
@@ -2650,6 +2710,8 @@ struct WebViewHost: NSViewRepresentable {
 
     func update(_ container: Container) {
         if container.tab !== tab {
+            // The tab the container showed before is not its to show, unless its page is in a full screen window and comes back to it.
+            if let previous = container.tab, previous.webView.map(Self.isAway) != true { previous.pageOwner.release(container) }
             container.tab = tab
             tab.pageOwner.claim(container)
         }
@@ -2678,6 +2740,28 @@ struct WebViewHost: NSViewRepresentable {
         guard let tab = container.tab, let webView = tab.webView, webView.superview === container, !isAway(webView),
               let owner = tab.pageOwner.host, owner !== container, owner.tab === tab, tab.pageOwner.place == .front, owner.showsPage else { return }
         owner.show(webView)
+    }
+}
+
+/// Where the pages the AI uses are held while no tab is in front (the last tab of a space closed, an empty space): there is no
+/// WebViewHost then, and a page in use that is in another space would be left without a window to run in.
+struct HeldPagesHost: NSViewRepresentable {
+    let browser: Browser
+    @ObservedObject private var agent = AgentActivity.shared
+
+    init(browser: Browser) { self.browser = browser }
+
+    func makeNSView(context: Context) -> WebViewHost.Container { WebViewHost.Container() }
+
+    func updateNSView(_ container: WebViewHost.Container, context: Context) { update(container) }
+
+    func update(_ container: WebViewHost.Container) {
+        container.browser = browser
+        container.holdWhatIsInUse()
+    }
+
+    static func dismantleNSView(_ container: WebViewHost.Container, coordinator: ()) {
+        WebViewHost.dismantleNSView(container, coordinator: ())
     }
 }
 

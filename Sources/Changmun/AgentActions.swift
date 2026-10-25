@@ -336,6 +336,11 @@ final class AgentActivity: ObservableObject {
         stops[caller] ?? 0
     }
 
+    /// A caller that is gone (its bridge process ended) is not kept in mind.
+    func forget(caller: String) {
+        stops[caller] = nil
+    }
+
     func use(_ tab: Tab, caller: String) {
         uses[tab.id, default: [:]][caller] = Date()
         refresh()
@@ -922,7 +927,7 @@ extension ToolCatalog {
                 continue
             }
             var facts = IrreversibleAction.Facts(json)
-            if facts.label.isEmpty, let x = target["x"] as? Double, let y = target["y"] as? Double { facts.label = "\(Int(x)), \(Int(y))" }
+            if facts.label.isEmpty, let x = target["x"] as? Double, let y = target["y"] as? Double { facts.label = "\(pixels(x)), \(pixels(y))" }
             let tabHost = Approvals.site(of: tab.url) ?? ""
             let origin = json["origin"] as? String ?? "null"
             var host = ToolCatalog.host(ofOrigin: origin)

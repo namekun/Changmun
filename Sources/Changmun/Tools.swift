@@ -89,7 +89,8 @@ enum ToolCatalog {
     @MainActor
     /// `caller` tells apart the chat panel and each MCP connection: what one has read doesn't count for another.
     static func call(_ name: String, _ args: [String: Any], caller: String) async -> ToolResult {
-        await $currentTool.withValue(name) { await $currentTitle.withValue(stepTitle(args["title"])) { await perform(name, args, caller: caller) } }
+        Approvals.noteCaller(caller)
+        return await $currentTool.withValue(name) { await $currentTitle.withValue(stepTitle(args["title"])) { await perform(name, args, caller: caller) } }
     }
 
     @MainActor
@@ -135,6 +136,8 @@ enum ToolCatalog {
         if needsApproval {
             guard await Approvals.allowTab(tab, caller: caller, reading: ["read_page", "screenshot", "wait_for"].contains(name)) else { return declined }
             if session.stopped { return stopped }
+            // The user may have closed the tab while the question was open: a closed tab is not woken up and used.
+            guard tab.browser?.tabs.contains(tab) == true else { return .text("No tab with that id.", error: true) }
         }
         // Every answer below carries the tab's title, address or content.
         defer { if name != "close_tab" { Approvals.noteRead(tab, caller: caller) } }
@@ -253,6 +256,10 @@ enum ToolCatalog {
                 continue
             }
             if session.stopped { break }
+            guard tab.browser?.tabs.contains(tab) == true else {
+                sections[id] = "No tab with that id."
+                continue
+            }
             // A tab woken only to be read goes back to sleep, looking as if nobody had shown it.
             reads.append((tab, asked, inFront, tab.isAsleep ? tab.lastShown : nil))
             tab.wake()
@@ -1025,6 +1032,47 @@ enum Approvals {
         result.append(contentsOf: " … ".unicodeScalars)
         result.append(contentsOf: scalars.suffix(part))
         return String(result)
+    }
+
+    /// The callers heard from so far (see `noteCaller`).
+    private static var heard: Set<String> = []
+
+    /// An MCP client is its bridge process (`mcp-<pid>-<id>`), and its entries here are of no use once that process has ended. The
+    /// first call of a caller not heard from before is the cheap moment to forget the callers whose process is gone.
+    static func noteCaller(_ caller: String) {
+        guard caller.hasPrefix("mcp-"), heard.insert(caller).inserted else { return }
+        forgetEndedCallers()
+    }
+
+    /// The process ID in the name of an MCP client (nil for any other caller: the panel, the command line, a headless test).
+    static func bridgePID(of caller: String) -> pid_t? {
+        let parts = caller.split(separator: "-", maxSplits: 2)
+        guard parts.count == 3, parts[0] == "mcp" else { return nil }
+        return pid_t(parts[1])
+    }
+
+    /// Forgets the MCP clients whose process has ended; `alive` says whether a process is still there.
+    static func forgetEndedCallers(alive: (pid_t) -> Bool = { kill($0, 0) == 0 || errno != ESRCH }) {
+        let callers = Set(tabs.keys).union(urls.keys).union(readHosts.keys).union(chatBegan.keys).union(allowances.keys)
+            .union(lowAllowed.keys).union(heard)
+        for caller in callers where bridgePID(of: caller).map({ !alive($0) }) == true {
+            tabs[caller] = nil
+            urls[caller] = nil
+            readHosts[caller] = nil
+            chatBegan[caller] = nil
+            allowances[caller] = nil
+            lowAllowed[caller] = nil
+            heard.remove(caller)
+            SignIn.forgetDeclined(caller: caller)
+            AgentActivity.shared.forget(caller: caller)
+        }
+    }
+
+    /// Whether anything is still remembered of a caller (tests).
+    static func remembers(caller: String) -> Bool {
+        tabs[caller] != nil || urls[caller] != nil || readHosts[caller] != nil || chatBegan[caller] != nil
+            || allowances[caller] != nil || lowAllowed[caller] != nil || heard.contains(caller)
+            || SignIn.wasDeclinedAnywhere(caller: caller) || AgentActivity.shared.stopCount(for: caller) != 0
     }
 
     /// A new chat starts without anything read or allowed; other callers keep theirs.

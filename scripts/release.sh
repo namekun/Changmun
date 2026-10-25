@@ -9,8 +9,14 @@
 #
 # Notes come from the file, or from $EDITOR when no file is given. The tap repo is expected at
 # ../homebrew-tap (override with TAP_DIR).
+#
+# A release is signed with a Developer ID and notarized, or it is not made: with no Developer ID in the keychain (expired,
+# locked) or with SKIP_NOTARIZE set, this refuses to run, because Gatekeeper rejects such a DMG on every other Mac and it would
+# still go to GitHub, the cask and the Sparkle feed. ALLOW_UNSIGNED_RELEASE=1 releases it anyway, on purpose.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source scripts/env.sh
+source scripts/release-lib.sh
 
 VERSION="${1:?usage: scripts/release.sh <version> [notes-file]}"
 NOTES_FILE="${2:-}"
@@ -25,6 +31,13 @@ APPCAST="docs/appcast.xml"
 [[ -z "$(git status --porcelain)" ]] || { echo "Working tree is not clean" >&2; exit 1; }
 git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null && { echo "v$VERSION already exists" >&2; exit 1; }
 [[ -f "$CASK" ]] || { echo "Homebrew tap not found at $TAP_DIR" >&2; exit 1; }
+SIGNING_ID="$(identity_name "$(developer_id)" "$(security find-identity -v -p codesigning 2>/dev/null)")"
+if REFUSAL="$(unsigned_release_refusal "$SIGNING_ID" "${SKIP_NOTARIZE:-}" "${ALLOW_UNSIGNED_RELEASE:-}")"; then
+    echo "$REFUSAL" >&2
+    exit 1
+fi
+# make-dmg.sh and check-dmg.sh hold the DMG to the same standard (check-dmg.sh: RELEASE=1), unless that was overridden.
+[[ -n "${ALLOW_UNSIGNED_RELEASE:-}" ]] || export RELEASE=1
 
 if [[ -z "$NOTES_FILE" ]]; then
     NOTES_FILE="$(mktemp)"
@@ -33,7 +46,6 @@ fi
 [[ -s "$NOTES_FILE" ]] || { echo "Release notes are empty" >&2; exit 1; }
 
 # Notarizing comes after the checks and the build, so find out first whether the credentials are there.
-source scripts/env.sh
 if [[ -z "${SKIP_NOTARIZE:-}" && -n "$(developer_id)" ]] && ! xcrun notarytool history "${NOTARY_AUTH[@]}" >/dev/null 2>&1; then
     echo "The notarytool credentials don't work: add an API key in ~/.config/changmun/notary.env or run xcrun notarytool store-credentials $NOTARY_PROFILE" >&2
     exit 1
@@ -46,16 +58,38 @@ fi
 
 ./scripts/preflight.sh
 
-# Until the tag is pushed, a failure puts the bumped files back. After it, nothing can be undone: STAGE says which
-# step was under way, and a failure prints the steps still to do by hand.
+# Until the tag is pushed, a failure puts the bumped files back, and the local commit and tag if they were made (a stale
+# "Version X" commit and tag would block the next run). After the push, nothing can be undone: STAGE says which step was under
+# way, and a failure prints the steps still to do by hand.
 PUSHED=0
 STAGE=0
+TAGGED=0
+COMMITTED=0
+START_HEAD="$(git rev-parse HEAD)"
 STABLE="$(mktemp -d)"
 finish() {
     local status=$?
     rm -rf "$STABLE"
     if (( ! PUSHED )); then
         git checkout -q -- "$PLIST" "$PAGE" "$APPCAST"
+        if (( status != 0 && (TAGGED || COMMITTED) )); then
+            # A push that failed on the way back may still have landed: then the tag is out there and stays. And when origin
+            # can't be asked (no network) nothing is undone, because a tag that may be out there must not be deleted blind.
+            ON_ORIGIN=no
+            if (( TAGGED )); then ON_ORIGIN="$(origin_has_tag "$VERSION")"; fi
+            if [[ "$ON_ORIGIN" == yes ]]; then
+                echo "git push failed, but v$VERSION is on origin: its commit and tag are kept. Check origin, then do the release steps from gh release create on by hand." >&2
+            elif [[ "$ON_ORIGIN" == unknown ]]; then
+                {
+                    echo "git push failed and origin could not be asked whether v$VERSION arrived: the local tag and commit are kept."
+                    echo "  1. git ls-remote --tags origin v$VERSION   (when you are online again)"
+                    echo "  2. if it is there: do the release steps from gh release create on by hand"
+                    echo "  3. if it is not: git tag -d v$VERSION && git reset --keep $START_HEAD"
+                } >&2
+            else
+                revert_release "$VERSION" "$START_HEAD" "$TAGGED" "$COMMITTED"
+            fi
+        fi
     elif (( status != 0 )); then
         {
             echo "Release v$VERSION failed after its tag was pushed. Still to do, in this order:"
@@ -69,6 +103,8 @@ finish() {
 trap finish EXIT
 
 CURRENT="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")"
+# Only forward: the first release ships the version already in Info.plist, every other must be higher.
+[[ "$CURRENT" == "$VERSION" ]] || semver_gt "$VERSION" "$CURRENT" || { echo "Version $VERSION isn't above the current $CURRENT" >&2; exit 1; }
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")"
 # The first release ships the version already in Info.plist; later ones bump it.
 if [[ "$CURRENT" != "$VERSION" ]] || git rev-parse -q --verify "refs/tags/v$CURRENT" >/dev/null; then
@@ -85,8 +121,9 @@ DMG="$(./scripts/make-dmg.sh)"
 ./scripts/check-dmg.sh "$DMG" "$VERSION"
 ./scripts/appcast.sh "$DMG" "$VERSION" "$BUILD" "$NOTES_FILE" "$APPCAST" >/dev/null
 
-git diff --quiet -- "$PLIST" "$PAGE" "$APPCAST" || { git add "$PLIST" "$PAGE" "$APPCAST"; git commit -q -m "Version $VERSION"; }
+git diff --quiet -- "$PLIST" "$PAGE" "$APPCAST" || { git add "$PLIST" "$PAGE" "$APPCAST"; git commit -q -m "Version $VERSION"; COMMITTED=1; }
 git tag "v$VERSION"
+TAGGED=1
 # The tag first: the feed goes live with main, and must not offer a DMG that isn't published yet.
 git push -q origin "v$VERSION"
 PUSHED=1

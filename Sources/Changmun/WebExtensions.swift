@@ -44,7 +44,8 @@ final class ExtensionHost: NSObject, ObservableObject {
     // MARK: Finding and loading
 
     func start() async {
-        found = Self.installedSafariExtensions().map { ExtensionSource(kind: .safari, path: $0) }
+        let safari = await Task.detached { Self.installedSafariExtensions() }.value
+        found = safari.map { ExtensionSource(kind: .safari, path: $0) }
             + Preferences.shared.extensionFolders.map { ExtensionSource(kind: .folder, path: $0) }
         for source in found where Preferences.shared.enabledExtensions.contains(source.path) {
             await load(source, askForPermissions: false)
@@ -52,16 +53,8 @@ final class ExtensionHost: NSObject, ObservableObject {
     }
 
     /// `pluginkit` knows every Safari web extension the system has registered.
-    nonisolated static func installedSafariExtensions() -> [String] {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/pluginkit")
-        process.arguments = ["-mAvvv", "-p", "com.apple.Safari.web-extension"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = FileHandle.nullDevice
-        guard (try? process.run()) != nil else { return [] }
-        let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        process.waitUntilExit()
+    nonisolated static func installedSafariExtensions(executable: String = "/usr/bin/pluginkit", timeout: TimeInterval = 15) -> [String] {
+        let output = ProcessOutput.run(executable, ["-mAvvv", "-p", "com.apple.Safari.web-extension"], timeout: timeout) ?? ""
         return parsePaths(output)
     }
 

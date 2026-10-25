@@ -19,6 +19,10 @@
 "'%@' is updating and asks for more permissions" = "“%@” se está actualizando y solicita más permisos";
 "'%@' wants to access this site" = "“%@” quiere acceder a este sitio";
 "(No username)" = "(sin nombre de usuario)";
+"Couldn’t delete the space: its favorites couldn’t be moved" = "No se pudo eliminar el espacio: no se pudieron mover sus favoritos";
+"Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "No se pudo abrir el archivo de marcadores e historial, así que no se guarda nada nuevo en él";
+"Kept your newer passwords %@" = "Contraseñas más recientes conservadas %@";
+"Update password for %@?" = "¿Actualizar la contraseña de %@?";
 "a frame of an unknown site" = "un marco de un sitio desconocido";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "Una dirección completa se puede editar directamente (⌘L). Con sitio y título, ⌘L abre el campo de búsqueda para editarla.";
 "A private window can't be shown to the AI." = "Una ventana privada no se puede mostrar a la IA.";
@@ -149,6 +153,7 @@
 "Couldn't translate this page" = "No se pudo traducir esta página";
 "Couldn't translate this page. macOS’s translation didn’t respond — try again, or check System Settings › General › Language & Region › Translation Languages." = "No se pudo traducir esta página. La traducción de macOS no respondió; inténtalo de nuevo o revisa Ajustes del Sistema › General › Idioma y región › Idiomas de traducción.";
 "Couldn’t run it: %@" = "No se ha podido ejecutar: %@";
+"Didn’t answer in time: %@" = "No ha respondido a tiempo: %@";
 "Current Site" = "Sitio actual";
 "Cut" = "Cortar";
 "Dark" = "Oscuro";

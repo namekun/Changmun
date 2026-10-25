@@ -149,7 +149,13 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         finishedState = nil
         url = webView.url ?? url
         webView.stopLoading()
-        webView.removeFromSuperview()
+        // A page in a full screen window is asked to leave it first, and let go of once it is back (WebKit puts it back in its
+        // host); taken out of the window before, the full screen window would be left holding nothing.
+        if let page = webView as? PageWebView, WebViewHost.isAway(page) {
+            page.leaveFullscreen()
+        } else {
+            webView.removeFromSuperview()
+        }
         observations.removeAll()
         audioWatcher = nil
         isPlayingAudio = false
@@ -213,7 +219,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
             view.observe(\.canGoForward) { [weak self] v, _ in Task { @MainActor in self?.canGoForward = v.canGoForward } },
             // WebKit moves the page into a full screen window and back; the host that shows it makes sure it is back (see WebViewHost.Container.restore).
             view.observe(\.fullscreenState) { [weak self] v, _ in
-                Task { @MainActor in if v.fullscreenState == .notInFullscreen { self?.pageOwner.host?.restore() } }
+                Task { @MainActor in if v.fullscreenState == .notInFullscreen, let self { self.pageOwner.host?.restore(for: self) } }
             },
         ]
         webView = view
@@ -425,7 +431,7 @@ extension Tab: WKNavigationDelegate {
             if webView.pageZoom != zoom { webView.pageZoom = zoom }
         }
         // Sign-ins often land on another host of the same site (login.example.com → www.example.com).
-        if let offer = loginOffer, !Self.sameSite(offer.host, host) { loginOffer = nil }
+        if let offer = loginOffer, !Self.sameSite(Logins.hostname(ofKey: offer.host), host) { loginOffer = nil }
         forgetPage()
         agent.reset()
         if let host = webView.url?.host(), let cached = Browser.favicons[host] { favicon = cached }
@@ -628,10 +634,15 @@ extension Tab: WKNavigationDelegate {
     /// crashing stops after two tries, and a tab nobody is looking at just goes to sleep.
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         crashes = crashes.filter { $0.timeIntervalSinceNow > -30 } + [Date()]
-        if browser?.isShown(self) != true && browser?.peek !== self {
+        if browser?.isShown(self) != true && browser?.peek !== self && !AgentActivity.shared.holds(self) {
             sleep()
         } else if crashes.count <= 2 {
-            webView.reload()
+            // A crash during the first load leaves no history to reload: the address is loaded again.
+            if webView.backForwardList.currentItem == nil, let address = webView.url ?? url {
+                Self.load(address, in: webView)
+            } else {
+                webView.reload()
+            }
         } else {
             showError(String(localized: "This page keeps crashing"), String(localized: "Changmun stopped reloading it."), address: url, in: webView)
         }
@@ -660,6 +671,8 @@ extension Tab: WKUIDelegate {
                   browser.takeAllowedPopupSlot() else { return nil }
             activate = browser.isShown(self)
         }
+        // The window about to take the front would close the peek, which is the page asking and its `window.opener`: it is kept as a tab.
+        if activate, browser?.peek === self { browser?.keepPeek() }
         let tab = browser?.openTab(configuration: configuration, after: self, activate: activate)
         tab?.openerID = id
         return tab?.webView

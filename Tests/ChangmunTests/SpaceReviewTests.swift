@@ -49,6 +49,15 @@ extension SharedAgentState {
             let store = box.store()
             #expect(!store.contains(Space.defaultID))
             let favorites = Library.favoritesPrefix + gone.uuidString
+            // Only a bookmark the library holds is restored as one.
+            Library.shared.addBookmark(url: "https://a.example/", title: "A", folder: Library.favoritesFolder)
+            Library.shared.addBookmark(url: "https://x.example/", title: "X", folder: "Arc Bar")
+            Library.shared.addBookmark(url: "https://g.example/", title: "G", folder: favorites)
+            defer {
+                Library.shared.removeBookmark(url: "https://a.example/", folder: Library.favoritesFolder)
+                Library.shared.removeBookmark(url: "https://x.example/", folder: "Arc Bar")
+                Library.shared.removeBookmark(url: "https://g.example/", folder: favorites)
+            }
             let session = Browser.SavedSession(tabs: [
                 Browser.SavedTab(url: "https://a.example/", title: "A", bookmarkKey: "\nhttps://a.example/"),
                 Browser.SavedTab(url: "https://x.example/", title: "X", bookmarkKey: "Arc Bar\nhttps://x.example/"),
@@ -66,6 +75,12 @@ extension SharedAgentState {
             try Data("{ nope".utf8).write(to: box.file("spaces.json"))
             let store = box.store()
             let gone = UUID()
+            Library.shared.addBookmark(url: "https://a.example/", title: "A", folder: Library.favoritesFolder)
+            Library.shared.addBookmark(url: "https://g.example/", title: "G", folder: Library.favoritesPrefix + gone.uuidString)
+            defer {
+                Library.shared.removeBookmark(url: "https://a.example/", folder: Library.favoritesFolder)
+                Library.shared.removeBookmark(url: "https://g.example/", folder: Library.favoritesPrefix + gone.uuidString)
+            }
             let session = Browser.SavedSession(tabs: [
                 Browser.SavedTab(url: "https://a.example/", title: "A", bookmarkKey: "\nhttps://a.example/"),
                 Browser.SavedTab(url: "https://g.example/", title: "G", bookmarkKey: Library.favoritesPrefix + gone.uuidString + "\nhttps://g.example/", space: gone),

@@ -1434,6 +1434,35 @@ extension SharedAgentState {
             #expect(stubborn.terminationReason == .uncaughtSignal && stubborn.terminationStatus == SIGKILL)
         }
 
+        @Test func aNewMessageAfterAFailedRunEndsTheProcessTheFailedRunLeftGoing() async throws {
+            let (chat, launched, _) = standIn()
+            chat.submit("first")
+            let left = Process()
+            left.executableURL = URL(fileURLWithPath: "/bin/sleep")
+            left.arguments = ["30"]
+            try left.run()
+            defer { if left.isRunning { kill(left.processIdentifier, SIGKILL) } }
+            chat.process = left
+            chat.handle(["type": "result", "is_error": true, "result": "overloaded"])
+            #expect(!chat.isRunning && left.isRunning, "the run failed, its process did not end by itself")
+            chat.send("second")
+            #expect(launched() == ["first", "second"])
+            #expect(await waitUntil(3) { !left.isRunning }, "the process of the failed run was ended, not forgotten")
+        }
+
+        @Test func quittingEndsAProcessThatIgnoresTheRequestBeforeTheAppGoes() async throws {
+            let (chat, _, _) = standIn()
+            chat.submit("first")
+            let stubborn = try await stubborn(30)
+            defer { if stubborn.isRunning { kill(stubborn.processIdentifier, SIGKILL) } }
+            chat.process = stubborn
+            chat.stopForQuit(wait: 0.3)
+            // Not "soon": the app is gone right after, and a delayed kill would never run.
+            #expect(!stubborn.isRunning)
+            #expect(stubborn.terminationReason == .uncaughtSignal && stubborn.terminationStatus == SIGKILL)
+            #expect(!chat.isRunning && chat.runToken == nil)
+        }
+
         @Test func streamsTextAndShowsTools() {
             let chat = ChatStore()
             chat.handle(["type": "system", "subtype": "init", "session_id": "s1"])

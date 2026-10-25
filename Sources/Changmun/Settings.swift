@@ -548,6 +548,9 @@ struct PrivacySettings: View {
             // Remembered zoom sizes and closed windows name the sites too.
             if range == .all { prefs.siteZoom = [:] }
             Browser.closedWindows = []
+            // The tab archive names the sites too, and so do the icons cached for them.
+            TabArchive.shared.remove(since: since)
+            Task { await Browser.pruneIcons() }
         }
         if clearSiteData {
             for store in [WKWebsiteDataStore.default()] + Profiles.stores(SpaceStore.shared.spaces) {
@@ -618,7 +621,7 @@ struct PasswordsSheet: View {
             let context = LAContext()
             unlocked = (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: String(localized: "Authentication is required to copy the saved password"))) == true
         }
-        guard unlocked, let password = Logins.password(host: login.host, username: login.username) else { return }
+        guard unlocked, let password = Logins.password(exactly: login.host, username: login.username) else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(password, forType: .string)
         copied = login.id
@@ -884,18 +887,17 @@ struct AISettings: View {
 
     static func checkClaude() async -> String {
         guard let path = await MainActor.run(body: { ChatStore.claudePath() }) else { return String(localized: "Not found. Install Claude Code or specify the path.") }
-        let version = await Task.detached { () -> String? in
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: path)
-            process.arguments = ["--version"]
-            let pipe = Pipe()
-            process.standardOutput = pipe
-            process.standardError = FileHandle.nullDevice
-            guard (try? process.run()) != nil else { return nil }
-            process.waitUntilExit()
-            return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        }.value
-        return version.map { "\($0)\n\(path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))" } ?? String(localized: "Couldn’t run it: \(path)")
+        // The first run after an install can wait a good while on Gatekeeper.
+        let result = await Task.detached { ProcessOutput.result(path, ["--version"], timeout: 15) }.value
+        return describe(result, path: path)
+    }
+
+    static func describe(_ result: ProcessOutput.Result, path: String) -> String {
+        switch result {
+        case .output(let text): return "\(text.trimmingCharacters(in: .whitespacesAndNewlines))\n\(path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))"
+        case .timedOut: return String(localized: "Didn’t answer in time: \(path)")
+        case .failed: return String(localized: "Couldn’t run it: \(path)")
+        }
     }
 }
 

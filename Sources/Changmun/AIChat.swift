@@ -55,6 +55,8 @@ final class ChatStore: ObservableObject {
     @Published var images: [ChatImage] = []
     @Published var capturing = false
     var pendingImages = 0
+    /// Bumped when the chat is cleared: a picture still being read or taken then belongs to the chat that is gone, not to the new one.
+    var imageGeneration = 0
     /// Text for the panel to put in its box (a selection quoted from a page); the panel takes it as it comes up.
     @Published var prefill: String?
     /// The tabs a message goes with: the one the user was looking at and the ones attached, when they wrote it.
@@ -369,6 +371,11 @@ final class ChatStore: ObservableObject {
     func send(_ text: String, context: Context? = nil, resumeNote: String? = nil, images: [ChatImage] = [], noting: Bool = true) {
         let message = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty, !isRunning else { return }
+        // A run that failed may leave its process going (`fail` doesn't end it): it is not left behind when a new one takes its place.
+        if let old = process {
+            Self.terminate(old)
+            process = nil
+        }
         if resumeNote == nil { items.append(ChatItem(kind: .user, text: message, images: images)) }
         runImages = images
         let tabs = tabs(for: context)
@@ -459,7 +466,12 @@ final class ChatStore: ObservableObject {
         if let input { try? FileManager.default.removeItem(at: input) }
 
         let errors = stderr.fileHandleForReading
-        let errorOutput = Task.detached { errors.readDataToEndOfFile() }
+        // Read on a thread of its own: it blocks for as long as the run lasts, which a thread of the cooperative pool must not.
+        let errorOutput = Task {
+            await withCheckedContinuation { continuation in
+                DispatchQueue.global().async { continuation.resume(returning: errors.readDataToEndOfFile()) }
+            }
+        }
         Task.detached { [weak self] in
             var results = 0
             do {
@@ -518,6 +530,20 @@ final class ChatStore: ObservableObject {
         }
     }
 
+    /// The app is quitting: the process is ended before the app goes (the delayed kill of `terminate` would never run), so that a tool
+    /// call it still makes can't find the app gone and start it again.
+    func stopForQuit(wait: TimeInterval = 1) {
+        let running = process
+        stop()
+        guard let running, running.isRunning else { return }
+        let deadline = Date().addingTimeInterval(wait)
+        while running.isRunning && Date() < deadline { Thread.sleep(forTimeInterval: 0.02) }
+        if running.isRunning {
+            kill(running.processIdentifier, SIGKILL)
+            running.waitUntilExit()
+        }
+    }
+
     /// The stop button: ends the run, and the messages waiting for it go too.
     func stop() {
         queue.removeAll()
@@ -540,6 +566,7 @@ final class ChatStore: ObservableObject {
         sessionID = nil
         attachedIDs = []
         images = []
+        imageGeneration += 1
         Approvals.detachAll()
         Approvals.forgetReads(caller: Self.caller)
     }

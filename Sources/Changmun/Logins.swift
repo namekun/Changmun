@@ -4,72 +4,128 @@ import Security
 import SwiftUI
 import WebKit
 
-/// Saved sign-ins, kept in the login keychain as internet passwords labelled "Changmun". Headless never touches them.
-enum Logins {
-    static let label = "Changmun"
+/// Where the saved sign-ins are kept. The login keychain; a test gives its own, in memory, and so never touches the real one.
+protocol LoginBackend {
+    /// What is saved for the server (everything for nil): no secrets, so reading it never prompts.
+    func records(server: String?) -> [Logins.Record]
+    func secret(server: String, account: String) -> Data?
+    /// Saves the secret, or changes it where the account is already saved.
+    func set(server: String, account: String, secret: Data) -> Bool
+    func remove(server: String, account: String) -> Bool
+}
 
-    /// Updates the account where it is already saved (`example.com` or its `www.` twin), so filling never finds an old one.
-    static func save(host: String, username: String, password: String) -> Bool {
-        guard !Headless.isOn, !host.isEmpty, !password.isEmpty, let secret = password.data(using: .utf8) else { return false }
-        let server = hostVariants(host).first { exists(server: $0, username: username) } ?? host
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassInternetPassword,
-            kSecAttrServer as String: server,
-            kSecAttrAccount as String: username,
-            kSecAttrLabel as String: label,
-        ]
-        let status = SecItemAdd(query.merging([kSecValueData as String: secret, kSecAttrProtocol as String: kSecAttrProtocolHTTPS]) { $1 } as CFDictionary, nil)
+struct KeychainBackend: LoginBackend {
+    private func query(_ server: String?, _ account: String? = nil) -> [String: Any] {
+        var query: [String: Any] = [kSecClass as String: kSecClassInternetPassword, kSecAttrLabel as String: Logins.label]
+        if let server { query[kSecAttrServer as String] = server }
+        if let account { query[kSecAttrAccount as String] = account }
+        return query
+    }
+
+    func records(server: String?) -> [Logins.Record] {
+        var result: CFTypeRef?
+        let search = query(server).merging([kSecMatchLimit as String: kSecMatchLimitAll, kSecReturnAttributes as String: true]) { $1 }
+        guard SecItemCopyMatching(search as CFDictionary, &result) == errSecSuccess, let items = result as? [[String: Any]] else { return [] }
+        return items.compactMap { item in
+            guard let server = item[kSecAttrServer as String] as? String else { return nil }
+            return Logins.Record(server: server, account: item[kSecAttrAccount as String] as? String ?? "", modified: item[kSecAttrModificationDate as String] as? Date)
+        }
+    }
+
+    func secret(server: String, account: String) -> Data? {
+        var result: CFTypeRef?
+        let search = query(server, account).merging([kSecReturnData as String: true]) { $1 }
+        return SecItemCopyMatching(search as CFDictionary, &result) == errSecSuccess ? result as? Data : nil
+    }
+
+    func set(server: String, account: String, secret: Data) -> Bool {
+        let add = query(server, account).merging([kSecValueData as String: secret, kSecAttrProtocol as String: kSecAttrProtocolHTTPS]) { $1 }
+        let status = SecItemAdd(add as CFDictionary, nil)
         if status == errSecDuplicateItem {
-            return SecItemUpdate(query as CFDictionary, [kSecValueData as String: secret] as CFDictionary) == errSecSuccess
+            return SecItemUpdate(query(server, account) as CFDictionary, [kSecValueData as String: secret] as CFDictionary) == errSecSuccess
         }
         return status == errSecSuccess
     }
 
+    func remove(server: String, account: String) -> Bool {
+        SecItemDelete(query(server, account) as CFDictionary) == errSecSuccess
+    }
+}
+
+/// Saved sign-ins, kept in the login keychain as internet passwords labelled "Changmun". Headless never touches them.
+enum Logins {
+    static let label = "Changmun"
+
+    struct Record {
+        var server: String
+        var account: String
+        var modified: Date?
+    }
+
+    /// Tests set their own, so they never touch the keychain.
+    @TaskLocal static var testBackend: LoginBackend?
+    private static var backend: LoginBackend { testBackend ?? KeychainBackend() }
+
+    /// What a page's logins are saved under: its host, and its port when that isn't the scheme's own (localhost:3000 and localhost:8080
+    /// are two sites to sign in to, though one host).
+    static func key(for url: URL) -> String? {
+        guard let host = url.host(), !host.isEmpty else { return nil }
+        guard let port = url.port, port != (url.scheme == "http" ? 80 : 443) else { return host }
+        return "\(host.contains(":") ? "[\(host)]" : host):\(port)"
+    }
+
+    /// The host name of a key, without its port.
+    static func hostname(ofKey key: String) -> String {
+        if key.hasPrefix("["), let end = key.firstIndex(of: "]") { return String(key[key.index(after: key.startIndex)..<end]) }
+        let parts = key.split(separator: ":", omittingEmptySubsequences: false)
+        return parts.count == 2 ? String(parts[0]) : key
+    }
+
+    /// Updates the account where it is already saved (`example.com` or its `www.` twin), so filling never finds an old one.
+    /// For a port's key with no login of its own but one saved before ports were part of the key (under the bare host or its twin),
+    /// the login moves to the port's key and the old item goes, so the old password is not left to fill elsewhere.
+    static func save(host: String, username: String, password: String) -> Bool {
+        guard !Headless.isOn, !host.isEmpty, !password.isEmpty, let secret = password.data(using: .utf8) else { return false }
+        if let server = hostVariants(host).first(where: { exists(server: $0, username: username) }) {
+            return backend.set(server: server, account: username, secret: secret)
+        }
+        let bare = hostname(ofKey: host)
+        guard bare != host, let legacy = hostVariants(bare).first(where: { exists(server: $0, username: username) }) else {
+            return backend.set(server: host, account: username, secret: secret)
+        }
+        guard backend.set(server: host, account: username, secret: secret) else { return false }
+        _ = backend.remove(server: legacy, account: username)
+        return true
+    }
+
+    enum ImportOutcome: Equatable {
+        case saved, unchanged, kept, failed
+    }
+
+    /// Saves a login from another browser, but never over one Changmun has for the same site and account: that one is the newer.
+    static func importLogin(host: String, username: String, password: String) -> ImportOutcome {
+        guard !Headless.isOn, !host.isEmpty, !password.isEmpty, let secret = password.data(using: .utf8) else { return .failed }
+        if let saved = hostVariants(host).first(where: { exists(server: $0, username: username) }) {
+            return backend.secret(server: saved, account: username) == secret ? .unchanged : .kept
+        }
+        return backend.set(server: host, account: username, secret: secret) ? .saved : .failed
+    }
+
     private static func exists(server: String, username: String) -> Bool {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassInternetPassword,
-            kSecAttrServer as String: server,
-            kSecAttrAccount as String: username,
-            kSecAttrLabel as String: label,
-            kSecReturnAttributes as String: true,
-        ]
-        return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
+        backend.records(server: server).contains { $0.account == username }
     }
 
     /// Usernames saved for a host (or its www/non-www twin). Reads no secrets, so it never prompts.
     static func accounts(for host: String) -> [String] {
         guard !Headless.isOn else { return [] }
-        var names: [String] = []
-        for candidate in hostVariants(host) {
-            let query: [String: Any] = [
-                kSecClass as String: kSecClassInternetPassword,
-                kSecAttrServer as String: candidate,
-                kSecAttrLabel as String: label,
-                kSecMatchLimit as String: kSecMatchLimitAll,
-                kSecReturnAttributes as String: true,
-            ]
-            var result: CFTypeRef?
-            guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let items = result as? [[String: Any]] else { continue }
-            names += items.compactMap { $0[kSecAttrAccount as String] as? String }
-        }
         var seen = Set<String>()
-        return names.filter { seen.insert($0).inserted }
+        return lookupVariants(host).flatMap { backend.records(server: $0).map(\.account) }.filter { seen.insert($0).inserted }
     }
 
     static func password(host: String, username: String) -> String? {
         guard !Headless.isOn else { return nil }
-        for candidate in hostVariants(host) {
-            let query: [String: Any] = [
-                kSecClass as String: kSecClassInternetPassword,
-                kSecAttrServer as String: candidate,
-                kSecAttrAccount as String: username,
-                kSecAttrLabel as String: label,
-                kSecReturnData as String: true,
-            ]
-            var result: CFTypeRef?
-            if SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let data = result as? Data {
-                return String(data: data, encoding: .utf8)
-            }
+        for candidate in lookupVariants(host) {
+            if let data = backend.secret(server: candidate, account: username) { return String(data: data, encoding: .utf8) }
         }
         return nil
     }
@@ -77,32 +133,13 @@ enum Logins {
     /// The usernames saved under exactly this host, the most recently saved or updated first.
     static func accounts(exactly host: String) -> [String] {
         guard !Headless.isOn else { return [] }
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassInternetPassword,
-            kSecAttrServer as String: host,
-            kSecAttrLabel as String: label,
-            kSecMatchLimit as String: kSecMatchLimitAll,
-            kSecReturnAttributes as String: true,
-        ]
-        var result: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let items = result as? [[String: Any]] else { return [] }
-        let recent = items.sorted { ($0[kSecAttrModificationDate as String] as? Date ?? .distantPast) > ($1[kSecAttrModificationDate as String] as? Date ?? .distantPast) }
-        return recent.compactMap { $0[kSecAttrAccount as String] as? String }
+        return backend.records(server: host).sorted { ($0.modified ?? .distantPast) > ($1.modified ?? .distantPast) }.map(\.account)
     }
 
     /// The password saved under exactly this host, not under its www or non-www twin.
     static func password(exactly host: String, username: String) -> String? {
         guard !Headless.isOn else { return nil }
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassInternetPassword,
-            kSecAttrServer as String: host,
-            kSecAttrAccount as String: username,
-            kSecAttrLabel as String: label,
-            kSecReturnData as String: true,
-        ]
-        var result: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+        return backend.secret(server: host, account: username).flatMap { String(data: $0, encoding: .utf8) }
     }
 
     struct Saved: Identifiable, Hashable {
@@ -114,35 +151,25 @@ enum Logins {
     /// Every saved sign-in, without secrets.
     static func all() -> [Saved] {
         guard !Headless.isOn else { return [] }
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassInternetPassword,
-            kSecAttrLabel as String: label,
-            kSecMatchLimit as String: kSecMatchLimitAll,
-            kSecReturnAttributes as String: true,
-        ]
-        var result: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let items = result as? [[String: Any]] else { return [] }
-        return items.compactMap { item in
-            guard let host = item[kSecAttrServer as String] as? String else { return nil }
-            return Saved(host: host, username: item[kSecAttrAccount as String] as? String ?? "")
-        }
-        .sorted { ($0.host, $0.username) < ($1.host, $1.username) }
+        return backend.records(server: nil).map { Saved(host: $0.server, username: $0.account) }
+            .sorted { ($0.host, $0.username) < ($1.host, $1.username) }
     }
 
     @discardableResult
     static func delete(host: String, username: String) -> Bool {
         guard !Headless.isOn else { return false }
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassInternetPassword,
-            kSecAttrServer as String: host,
-            kSecAttrAccount as String: username,
-            kSecAttrLabel as String: label,
-        ]
-        return SecItemDelete(query as CFDictionary) == errSecSuccess
+        return backend.remove(server: host, account: username)
     }
 
     static func hostVariants(_ host: String) -> [String] {
         host.hasPrefix("www.") ? [host, String(host.dropFirst(4))] : [host, "www." + host]
+    }
+
+    /// Where to look for a page's logins: under its key and the key's www twin, and for a port's key also under the bare host, where
+    /// logins saved before the port was part of the key are (they were for the host on any port).
+    private static func lookupVariants(_ key: String) -> [String] {
+        let bare = hostname(ofKey: key)
+        return hostVariants(key) + (bare == key ? [] : hostVariants(bare))
     }
 
     static let fillScript = """
@@ -214,7 +241,7 @@ final class FillAuthorization {
 extension Tab {
     /// Shows the key button when the page asks for a password and one is saved for its host.
     func checkForLogins() {
-        guard let webView, webView.url?.scheme == "https", let host = webView.url?.host() else { savedLogins = []; return }
+        guard let webView, webView.url?.scheme == "https", let host = webView.url.flatMap(Logins.key(for:)) else { savedLogins = []; return }
         let accounts = Logins.accounts(for: host)
         guard !accounts.isEmpty else { savedLogins = []; return }
         webView.evaluateJavaScript("!!document.querySelector('input[type=password], input[autocomplete=username]')") { [weak self] value, _ in
@@ -225,7 +252,7 @@ extension Tab {
     /// Fills a saved login into the page the user is on, after the device owner has confirmed (unless they turned that off).
     func fillLogin(username: String, authorization: FillAuthorization? = nil, readPassword: @escaping (String, String) -> String? = Logins.password(host:username:)) {
         guard let webView, let origin = Self.httpsOrigin(webView.url) else { return }
-        let host = origin.host
+        let host = webView.url.flatMap(Logins.key(for:)) ?? origin.host
         Task { @MainActor [weak self] in
             guard let password = await (authorization ?? .shared).read({ readPassword(host, username) }) else { return }
             // The page may have moved on while the question was open (to http, another port, another site): the password

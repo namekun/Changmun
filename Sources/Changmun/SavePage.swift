@@ -34,7 +34,7 @@ enum SavePage {
             return browser.flashStatus(String(localized: "Couldn't save the page"))
         }
         do {
-            try page.data.write(to: url)
+            try page.data.write(to: url, options: .atomic)
             let name = url.lastPathComponent
             browser.flashStatus(page.cut ? String(localized: "Saved \(name). The page was too large to fit, so only its top left part is included.") : String(localized: "Saved \(name)"))
         } catch {
@@ -105,11 +105,26 @@ enum SavePage {
         return NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
     }
 
+    /// A file name may be 255 bytes long, with its extension. Korean and emoji take 3 to 25 bytes a character, so the name is cut by bytes.
+    nonisolated static let maxNameBytes = 196
+
     /// The page's title as a file name, or its site's name when it has none.
     static func filename(title: String, host: String?) -> String {
         let cleaned = title.components(separatedBy: CharacterSet(charactersIn: "/:\\").union(.newlines)).joined(separator: "-")
             .trimmingCharacters(in: .whitespaces)
-        let name = String(cleaned.prefix(100)).trimmingCharacters(in: CharacterSet(charactersIn: ". -"))
-        return name.isEmpty ? (host ?? String(localized: "Page")) : name
+        let name = truncated(String(cleaned.prefix(100)), toBytes: maxNameBytes).trimmingCharacters(in: CharacterSet(charactersIn: ". -"))
+        return name.isEmpty ? truncated(host ?? String(localized: "Page"), toBytes: maxNameBytes) : name
+    }
+
+    /// The longest start of the text that fits in this many UTF-8 bytes, cut between characters (an emoji is never cut in two).
+    nonisolated static func truncated(_ text: String, toBytes limit: Int) -> String {
+        var result = "", used = 0
+        for character in text {
+            let size = character.utf8.count
+            if used + size > limit { break }
+            result.append(character)
+            used += size
+        }
+        return result
     }
 }

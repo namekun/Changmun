@@ -57,6 +57,12 @@ struct Space: Identifiable, Codable, Equatable {
         openFolders = (try? values.decode([String].self, forKey: .openFolders)) ?? []
     }
 
+    /// Whether a folder lies inside one of the pinned folders, and so shows in it already.
+    func hasPinnedAncestor(_ key: String) -> Bool { pinnedFolders.contains { key.hasPrefix($0 + " / ") } }
+
+    /// The pinned folders shown among the pinned ones: a pinned folder inside another pinned folder shows there only.
+    var topPinnedFolders: [String] { pinnedFolders.filter { !hasPinnedAncestor($0) } }
+
     var favoritesFolder: String { id == Self.defaultID ? Library.favoritesFolder : Library.favoritesPrefix + id.uuidString }
     var isEmoji: Bool { !symbol.allSatisfy(\.isASCII) }
     /// The website data store a profile space keeps its cookies and site data in; the same one at every launch.
@@ -132,7 +138,7 @@ final class SpaceStore: ObservableObject {
                 return
             }
             // Damaged: kept as it is, and the browser starts over from one space holding everything.
-            try? FileManager.default.copyItem(at: file, to: folder.appendingPathComponent("spaces-damaged-\(Int(Date().timeIntervalSince1970)).json"))
+            _ = Library.keepDamaged(file)
         }
         var first = Space(id: Space.defaultID, name: String(localized: "Personal"), symbol: "house", tint: .gray)
         first.pinnedFolders = defaults.stringArray(forKey: "pinnedFolders") ?? []
@@ -246,7 +252,7 @@ final class SpaceStore: ObservableObject {
 
     /// Pins a folder, or moves a pinned one, to where `target` is (dropped on it), or to the end.
     func pinFolder(_ key: String, before target: String? = nil, in id: UUID) {
-        guard !key.isEmpty, key != target, let index = spaces.firstIndex(where: { $0.id == id }) else { return }
+        guard !key.isEmpty, key != target, let index = spaces.firstIndex(where: { $0.id == id }), !spaces[index].hasPinnedAncestor(key) else { return }
         var list = spaces[index].pinnedFolders.filter { $0 != key }
         if let target, let at = list.firstIndex(of: target) { list.insert(key, at: at) } else { list.append(key) }
         spaces[index].pinnedFolders = list

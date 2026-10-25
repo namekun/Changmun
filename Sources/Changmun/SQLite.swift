@@ -59,6 +59,17 @@ final class SQLite {
         return rows
     }
 
+    /// Adds a SQL function of one text argument (`name(text)`), for what SQLite's own functions can't do (case beyond ASCII).
+    func addFunction(_ name: String, _ body: @escaping (String) -> String) {
+        let box = Unmanaged.passRetained(FunctionBox(body)).toOpaque()
+        _ = sqlite3_create_function_v2(db, name, 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, box, { context, _, values in
+            guard let context else { return }
+            guard let value = values?[0], let text = sqlite3_value_text(value) else { return sqlite3_result_null(context) }
+            let box = Unmanaged<FunctionBox>.fromOpaque(sqlite3_user_data(context)).takeUnretainedValue()
+            sqlite3_result_text(context, box.body(String(cString: text)), -1, transient)
+        }, nil, nil, { Unmanaged<FunctionBox>.fromOpaque($0!).release() })
+    }
+
     func transaction(_ body: () throws -> Void) throws {
         try execute("BEGIN")
         do { try body(); try execute("COMMIT") } catch { try? execute("ROLLBACK"); throw error }
@@ -82,6 +93,11 @@ final class SQLite {
     }
 
     private func error() -> SQLiteError { SQLiteError(message: String(cString: sqlite3_errmsg(db))) }
+}
+
+private final class FunctionBox {
+    let body: (String) -> String
+    init(_ body: @escaping (String) -> String) { self.body = body }
 }
 
 struct SQLiteError: LocalizedError {

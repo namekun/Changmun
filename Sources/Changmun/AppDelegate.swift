@@ -17,7 +17,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.appearance = Preferences.shared.appearance.nsAppearance
         Task { await AdBlocker.shared.start() }
         Library.shared.pruneHistory()
+        // Once the windows are back: the icons of sites nothing is left from go.
+        Task { await Browser.pruneIcons() }
         ChatStore.removeOldConfigs()
+        let downloads = Downloads.folder
+        DispatchQueue.global(qos: .utility).async { Downloads.removeOrphanedParts(in: downloads, olderThan: Date().addingTimeInterval(-86_400)) }
         // Watching the library from the start, so no change goes unseen before a sidebar first shows.
         _ = LibraryWatcher.shared
         // Profiles deleted last time whose data couldn't be erased yet.
@@ -48,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         Browser.saveSession()
-        ChatStore.shared.stop()
+        ChatStore.shared.stopForQuit()
         ChatStore.removeOldConfigs()
         ControlServer.shared.stop()
     }
@@ -217,6 +221,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case #selector(nextSpace(_:)), #selector(previousSpace(_:)), #selector(selectNumberedSpace(_:)), #selector(newSpace(_:)):
             Browser.current?.isPrivate != true
         case #selector(checkForUpdates(_:)): Updates.shared.canCheck
+        case #selector(toggleBookmark(_:)): browser.active?.isPrivate != true
         case #selector(savePDF(_:)): browser.active?.webView != nil
         case #selector(captureFullPage(_:)): browser.active?.webView != nil && browser.active?.showsPDF != true
         default: true
@@ -326,7 +331,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func toggleMute(_ sender: Any?) { browser.active?.toggleMute() }
     @objc func togglePictureInPicture(_ sender: Any?) { (Browser.current?.peek ?? Browser.current?.active)?.pictureInPicture(.toggle) }
     @objc func toggleBookmark(_ sender: Any?) {
-        guard let tab = browser.active, let url = tab.url?.absoluteString else { return }
+        guard let tab = browser.active, !tab.isPrivate, let url = tab.url?.absoluteString else { return }
         _ = Library.shared.toggleBookmark(url: url, title: tab.title, in: tab.favoritesFolder)
         tab.objectWillChange.send()
     }

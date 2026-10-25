@@ -333,6 +333,8 @@ struct DownloadRow: View {
             hover = $0
             item.isHovered = $0
         }
+        // A row that goes away under the pointer gets no "left": the shelf must not wait for it.
+        .onDisappear { item.isHovered = false }
         .onTapGesture { open() }
         .modifier(FileDrag(file: file))
         .contextMenu {
