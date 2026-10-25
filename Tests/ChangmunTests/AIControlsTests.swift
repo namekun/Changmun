@@ -80,6 +80,17 @@ struct AIControlsPureTests {
         #expect(ApprovalCards.card(in: [card(nil)], answeredFrom: browserWindow) == nil, "a card with no browser has no window")
     }
 
+    @Test func theKeysThatSayYesWakeAfterTheCardAndAfterItsWindowBecameKey() {
+        let now = Date(timeIntervalSinceReferenceDate: 1000)
+        let shown = now.addingTimeInterval(-10)
+        #expect(ApprovalKeys.armedFor(shownAt: shown, windowKeyAt: nil, now: now) == 10, "the window was key all along: the card's own time")
+        #expect(ApprovalKeys.armedFor(shownAt: shown, windowKeyAt: now.addingTimeInterval(-20), now: now) == 10, "an earlier key time changes nothing")
+        let justKey = ApprovalKeys.armedFor(shownAt: shown, windowKeyAt: now.addingTimeInterval(-0.1), now: now)
+        #expect(abs(justKey - 0.1) < 0.0001 && !ApprovalKeys.yesArmed(shownFor: justKey), "a window that has just become key can't be answered with yes yet")
+        #expect(ApprovalKeys.yesArmed(shownFor: ApprovalKeys.armedFor(shownAt: shown, windowKeyAt: now.addingTimeInterval(-0.6), now: now)))
+        #expect(ApprovalKeys.armedFor(shownAt: now, windowKeyAt: now.addingTimeInterval(-5), now: now) == 0, "and the card's own time counts too")
+    }
+
     @Test func theKeysThatSayYesNeedTheBoxOrACardFocusedInThatSameWindow() {
         let here = NSWindow(), elsewhere = NSWindow()
         #expect(ApprovalCards.inPanel(composerFocused: true, cardFocusWindow: nil, eventWindow: here, firstResponderIsText: true))
@@ -87,6 +98,22 @@ struct AIControlsPureTests {
         #expect(!ApprovalCards.inPanel(composerFocused: false, cardFocusWindow: elsewhere, eventWindow: here, firstResponderIsText: false), "the card was focused in another window")
         #expect(!ApprovalCards.inPanel(composerFocused: false, cardFocusWindow: nil, eventWindow: here, firstResponderIsText: false))
         #expect(!ApprovalCards.inPanel(composerFocused: false, cardFocusWindow: here, eventWindow: here, firstResponderIsText: true), "a text field elsewhere in the window is not the card")
+    }
+
+    @Test func aCardsFocusIsRecordedForTheWindowItIsShownInNotWhicheverIsKey() {
+        let browser = Browser()
+        let popOut = ChatPopOut.shared
+        defer { popOut.close(dock: false); browser.windowClosed() }
+        browser.showChat = false
+        popOut.open(for: browser)
+        let cards = ApprovalCards.shared
+        defer { cards.noteCardFocus(false, in: nil) }
+        cards.noteCardFocus(true, of: card(browser))
+        #expect(popOut.window != nil && cards.focusedWindow === popOut.window)
+        cards.noteCardFocus(false, of: card(browser))
+        #expect(cards.focusedWindow == nil)
+        cards.noteCardFocus(true, of: card(nil))
+        #expect(cards.focusedWindow == nil, "a card with no window has none to record")
     }
 
     @Test func theFocusOfACardIsForgottenWhenItsWindowStopsBeingKey() {
@@ -124,6 +151,9 @@ struct AIControlsPureTests {
         #expect(AIApprovalMode.initial(stored: "nonsense", legacy: false) == .afterReading, "a mode key that doesn't read is the default, never the weakest mode")
         #expect(AIApprovalMode.initial(stored: "nonsense", legacy: nil) == .afterReading)
         #expect(AIApprovalMode.initial(stored: "", legacy: false) == .afterReading)
+        #expect(AIApprovalMode.initial(stored: 2, legacy: false) == .afterReading, "a key that holds something else than a string is still a key")
+        #expect(AIApprovalMode.initial(stored: ["irreversibleOnly"], legacy: false) == .afterReading)
+        #expect(AIApprovalMode.initial(stored: true, legacy: nil) == .afterReading)
     }
 
     @Test func usingAPageIsAskedAboutPerMode() {
