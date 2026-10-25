@@ -17,7 +17,7 @@ struct SiteSettings: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: Metrics.rowGap) {
-            Text(host.hasPrefix("www.") ? String(host.dropFirst(4)) : host)
+            Text(DisplayHost.trimmed(host))
                 .font(.rowSelected)
                 .foregroundStyle(Theme.primary)
                 .lineLimit(1)
