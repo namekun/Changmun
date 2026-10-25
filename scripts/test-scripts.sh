@@ -5,6 +5,8 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 source scripts/release-lib.sh
+# release.sh runs this with RELEASE=1 (and maybe SKIP_NOTARIZE) set: each case says for itself which mode it is in.
+unset RELEASE SKIP_NOTARIZE ALLOW_UNSIGNED_RELEASE
 
 FAILED=0
 ok() { echo "  ok: $1"; }
