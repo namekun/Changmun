@@ -813,7 +813,7 @@ struct Sidebar: View {
     }
 
     private func tabRow(_ tab: Tab, depth: Int) -> some View {
-        SidebarTabRow(tab: tab, browser: browser, isActive: tab.id == browser.activeID) {
+        SidebarTabRow(tab: tab, browser: browser, isActive: tab.id == browser.activeID, renaming: browser.renamingTab == tab.id) {
             browser.activate(tab.id)
         } close: {
             browser.close(tab.id)
@@ -1932,17 +1932,40 @@ struct SidebarTabRow: View {
     @ObservedObject var tab: Tab
     let browser: Browser
     let isActive: Bool
+    /// Its name is being typed in the row (see `Browser.renamingTab`).
+    let renaming: Bool
     let select: () -> Void
     let close: () -> Void
     @State private var hover = false
+    @State private var name = ""
+    @FocusState private var editing: Bool
 
     var body: some View {
         HStack(spacing: Metrics.iconGap) {
             Favicon(tab: tab)
-            Text(tab.displayTitle)
-                .font(isActive ? .rowSelected : .row)
-                .lineLimit(1)
-                .foregroundStyle(isActive || !tab.isAsleep ? Theme.primary : Theme.dim)
+            if renaming {
+                TextField("Tab name", text: $name)
+                    .textFieldStyle(.plain)
+                    .font(isActive ? .rowSelected : .row)
+                    .foregroundStyle(Theme.primary)
+                    .focused($editing)
+                    .onAppear {
+                        name = tab.displayTitle
+                        // Focus taken in the same pass as the field appears is sometimes dropped.
+                        DispatchQueue.main.async { editing = true }
+                    }
+                    .onSubmit(commit)
+                    .onChange(of: editing) { if !editing { commit() } }
+                    .onKeyPress(.escape) {
+                        browser.renamingTab = nil
+                        return .handled
+                    }
+            } else {
+                Text(tab.displayTitle)
+                    .font(isActive ? .rowSelected : .row)
+                    .lineLimit(1)
+                    .foregroundStyle(isActive || !tab.isAsleep ? Theme.primary : Theme.dim)
+            }
             Spacer(minLength: 0)
             if tab.isPlayingAudio || tab.isMuted {
                 HoverAction(symbol: tab.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
@@ -1966,9 +1989,18 @@ struct SidebarTabRow: View {
         .frame(height: Metrics.row)
         .rowChrome(hover: hover, selected: isActive)
         .onHover { hover = $0 }
-        .onTapGesture(perform: select)
+        .onTapGesture { if !renaming { select() } }
+        // Alongside the click that shows the tab, so showing it does not wait for a second click.
+        .simultaneousGesture(TapGesture(count: 2).onEnded { browser.renamingTab = tab.id })
         .contextMenu { menu }
         .help(tab.url?.absoluteString ?? "")
+    }
+
+    /// An unchanged name stays as it was, so opening the field and leaving it does not fix the page's title as the name.
+    private func commit() {
+        guard renaming else { return }
+        browser.renamingTab = nil
+        if name.trimmingCharacters(in: .whitespacesAndNewlines) != tab.displayTitle { tab.rename(to: name) }
     }
 
     /// The tab, then where it goes, then closing it: the same order as a bookmark's menu.
@@ -1977,6 +2009,8 @@ struct SidebarTabRow: View {
             if tab.isAsleep { browser.activate(tab.id) } else { tab.webView?.reload() }
         }
         Button("Duplicate Tab") { browser.duplicate(tab.id) }
+        Button("Rename Tab…") { browser.renamingTab = tab.id }
+        if tab.customTitle != nil { Button("Reset Name") { tab.customTitle = nil } }
         if !tab.isPrivate && tab.bookmarkKey == nil { Button("Move to New Window") { browser.moveToNewWindow(tab.id) } }
         if let url = tab.url, url.scheme?.hasPrefix("http") == true {
             ShareLink(item: url)
@@ -2001,7 +2035,7 @@ struct SidebarTabRow: View {
         if !tab.isPrivate {
             Button("Pin to Favorites") {
                 if let url = tab.url?.absoluteString {
-                    if !Library.shared.isFavorite(url, in: tab.favoritesFolder) { _ = Library.shared.toggleBookmark(url: url, title: tab.title, in: tab.favoritesFolder) }
+                    if !Library.shared.isFavorite(url, in: tab.favoritesFolder) { _ = Library.shared.toggleBookmark(url: url, title: tab.customTitle ?? tab.title, in: tab.favoritesFolder) }
                     browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: tab.favoritesFolder))
                 }
             }
@@ -2816,7 +2850,7 @@ struct CommandBar: View {
         let words = query.lowercased().split(separator: " ")
         guard !words.isEmpty else { return [] }
         return tabs.filter { tab in
-            let haystack = (tab.title + " " + (tab.url?.absoluteString ?? "")).lowercased()
+            let haystack = (tab.title + " " + (tab.customTitle ?? "") + " " + (tab.url?.absoluteString ?? "")).lowercased()
             return words.allSatisfy { haystack.contains($0) }
         }
     }

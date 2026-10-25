@@ -111,7 +111,7 @@ enum ToolCatalog {
             Approvals.allowOpened(tab, at: url, caller: caller)
             defer { Approvals.noteRead(tab, caller: caller) }
             await waitForLoad(tab)
-            return .text("Opened tab #\(tab.id): \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")")
+            return .text("Opened tab #\(tab.id): \(tab.aiTitle) — \(tab.url?.absoluteString ?? "")")
         }
         if name == "read_tabs" { return await readTabs(args, caller: caller) }
         if args["tab_id"] != nil && int(args["tab_id"]) == nil { return .text("tab_id must be a number.", error: true) }
@@ -147,7 +147,7 @@ enum ToolCatalog {
         switch name {
         case "switch_tab":
             browser.activate(tab.id)
-            return .text("Showing tab #\(tab.id): \(tab.displayTitle)")
+            return .text("Showing tab #\(tab.id): \(tab.aiTitle)")
         case "close_tab":
             let lastClosed = browser.closedTabs.last?.id
             browser.close(tab.id)
@@ -161,7 +161,7 @@ enum ToolCatalog {
             if session.stopped { return stopped }
             tab.load(url)
             await waitForLoad(tab)
-            return .text("Now at: \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")")
+            return .text("Now at: \(tab.aiTitle) — \(tab.url?.absoluteString ?? "")")
         case "go_back", "go_forward", "reload":
             // A page that came from a submitted form would send it again: that is not done for the AI.
             tab.agentHistoryMove = true
@@ -303,7 +303,7 @@ enum ToolCatalog {
     @MainActor
     static func now(_ tab: Tab, caller: String) -> String {
         guard Approvals.mayShow(tab, caller: caller) else { return "The tab is now on another site, which the user hasn't allowed yet. Use the tab again to ask them." }
-        return "Now at: \(tab.displayTitle) — \(tab.url?.absoluteString ?? "")"
+        return "Now at: \(tab.aiTitle) — \(tab.url?.absoluteString ?? "")"
     }
 
     static let declined = ToolResult.text("The user declined this in Changmun. Don't retry it; tell the user what you wanted to do.", error: true)
@@ -350,7 +350,7 @@ enum ToolCatalog {
                 return "\(mark) (a tab on \(site); its title and address are shown once you use it and the user allows it)\(tab.isAsleep ? " (asleep)" : "")"
             }
             Approvals.noteRead(tab, caller: caller)
-            return "\(mark) \(tab.displayTitle) — \(tab.url?.absoluteString ?? "about:blank")\(tab.isAsleep ? " (asleep)" : "")"
+            return "\(mark) \(tab.aiTitle) — \(tab.url?.absoluteString ?? "about:blank")\(tab.isAsleep ? " (asleep)" : "")"
         }
         return .text("Tabs (* = the one the user is looking at):\n" + lines.joined(separator: "\n"))
     }

@@ -304,7 +304,8 @@ final class ControlServer {
         // "focus", "find" (with "findText"), "downloads" and "onboarding" show or hide that part; "command" is newTab, editCurrent or
         // none; "progress" (0...1) holds the tab in front as loading at that point, and a negative one lets it be ("peek": true for the peek card's tab); "popup" (a link), "login"
         // (a user name) and "foreign" (a language) put up the bar or button for that on the tab in front, "" taking it down again; "reader" toggles Reader Mode; "group" ({"ids", "name"}) gathers tabs into a group;
-        // "folder" ({"name", "pages": [[url, title]], "pin", "open"}) fills a bookmark folder, pinned and opened in the sidebar.
+        // "folder" ({"name", "pages": [[url, title]], "pin", "open"}) fills a bookmark folder, pinned and opened in the sidebar;
+        // "rename" names the tab in front (an empty name takes the name away), and "renaming" opens or closes the name field in its row.
         if Headless.isTestCopy, request.method == "POST", request.path == "/ui",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
             Task { @MainActor in
@@ -335,6 +336,8 @@ final class ControlServer {
                     if folder["open"] as? Bool == true, !browser.space.openFolders.contains("pin:" + name) { browser.spaces.toggleOpen("pin:" + name, in: browser.spaceID) }
                 }
                 if let tab = browser.active {
+                    if let name = body["rename"] as? String { tab.rename(to: name) }
+                    if let on = body["renaming"] as? Bool { browser.renamingTab = on ? tab.id : nil }
                     if let popup = body["popup"] as? String { tab.blockedPopup = URL(string: popup) }
                     if let login = body["login"] as? String { tab.loginOffer = login.isEmpty ? nil : LoginOffer(host: "accounts.example.com", username: login, password: "x") }
                     if let language = body["foreign"] as? String { tab.foreignLanguage = language.isEmpty ? nil : Locale.Language(identifier: language) }

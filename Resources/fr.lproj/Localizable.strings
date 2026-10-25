@@ -674,3 +674,6 @@
 "%lld characters" = "%lld caractères";
 "Open a link to %@?" = "Ouvrir un lien vers %@ ?";
 "This chat has read other sites, and a page could have slipped this link in to send what the AI read there." = "Cette conversation a lu d’autres sites, et une page a pu glisser ce lien pour y envoyer ce que l’IA a lu.";
+"Rename Tab…" = "Renommer l’onglet…";
+"Reset Name" = "Réinitialiser le nom";
+"Tab name" = "Nom de l’onglet";
