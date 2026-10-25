@@ -674,3 +674,6 @@
 "%lld characters" = "%lld caracteres";
 "Open a link to %@?" = "¿Abrir un enlace a %@?";
 "This chat has read other sites, and a page could have slipped this link in to send what the AI read there." = "Este chat ha leído otros sitios, y una página pudo haber colado este enlace para enviar allí lo que la IA leyó.";
+"Rename Tab…" = "Renombrar pestaña…";
+"Reset Name" = "Restablecer nombre";
+"Tab name" = "Nombre de la pestaña";
