@@ -281,8 +281,7 @@ final class FakeControlServer: @unchecked Sendable {
             while true {
                 let client = accept(fd, nil, nil)
                 if client < 0 { return }
-                var buffer = [UInt8](repeating: 0, count: 65536)
-                _ = read(client, &buffer, buffer.count)
+                FakeControlServer.readRequest(client)
                 _ = Array(response.utf8).withUnsafeBytes { write(client, $0.baseAddress, $0.count) }
                 close(client)
             }
@@ -291,13 +290,36 @@ final class FakeControlServer: @unchecked Sendable {
 
     deinit { close(socketFD) }
 
-    /// A port nothing listens on.
+    /// Reads a whole request, head and body, so the answer never comes while the client is still sending.
+    private static func readRequest(_ client: Int32) {
+        var received = [UInt8]()
+        var chunk = [UInt8](repeating: 0, count: 65536)
+        while true {
+            let count = read(client, &chunk, chunk.count)
+            if count <= 0 { return }
+            received.append(contentsOf: chunk[0..<count])
+            guard let head = received.firstRange(of: Array("\r\n\r\n".utf8)) else { continue }
+            let headText = String(decoding: received[..<head.lowerBound], as: UTF8.self).lowercased()
+            let length = headText.split(separator: "\r\n").first { $0.hasPrefix("content-length:") }
+                .flatMap { Int($0.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) } ?? 0
+            if received.count - head.upperBound >= length { return }
+        }
+    }
+
+    /// A port nothing listens on: bound once to learn a free port, then closed. No server object owns the socket, so nothing closes
+    /// its number again later, when another test may already be using it.
     static func closedPort() -> UInt16 {
-        let server = FakeControlServer(response: "")
-        let port = server.port
-        shutdown(server.socketFD, SHUT_RDWR)
-        close(server.socketFD)
-        return port
+        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        var address = sockaddr_in()
+        address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_addr.s_addr = inet_addr("127.0.0.1")
+        withUnsafePointer(to: &address) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { _ = bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) } }
+        var bound = sockaddr_in()
+        var length = socklen_t(MemoryLayout<sockaddr_in>.size)
+        withUnsafeMutablePointer(to: &bound) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { _ = getsockname(fd, $0, &length) } }
+        close(fd)
+        return UInt16(bigEndian: bound.sin_port)
     }
 
     static func http(_ status: String, _ body: String) -> String {
@@ -305,13 +327,14 @@ final class FakeControlServer: @unchecked Sendable {
     }
 }
 
-struct ControlClientTests {
+@Suite(.serialized) struct ControlClientTests {
     private func perform(_ port: UInt16, arguments: [String: Any] = [:]) -> ControlClient.Outcome {
         ControlClient.perform("list_tabs", arguments, caller: "test", to: ControlEndpoint(port: port, token: "t", pid: getpid()))
     }
 
     @Test func aToolResultComesBack() {
         let server = FakeControlServer(response: FakeControlServer.http("200 OK", #"{"content":[{"type":"text","text":"hi"}]}"#))
+        defer { withExtendedLifetime(server) {} }
         guard case .result(let result) = perform(server.port) else { Issue.record("no result"); return }
         #expect(result["content"] != nil)
     }
@@ -322,12 +345,14 @@ struct ControlClientTests {
 
     @Test func aTokenTheAppDoesNotTakeIsUnauthorized() {
         let server = FakeControlServer(response: FakeControlServer.http("401 Unauthorized", #"{"error":"401 Unauthorized"}"#))
+        defer { withExtendedLifetime(server) {} }
         guard case .unauthorized = perform(server.port) else { Issue.record("not unauthorized"); return }
         #expect(ControlClient.failure(status: 401, error: nil).contains("401") && ControlClient.failure(status: 401, error: nil).contains("token"))
     }
 
     @Test func otherRefusalsSaySoInsteadOfBadResponse() {
         let server = FakeControlServer(response: FakeControlServer.http("413 Content Too Large", #"{"error":"413 Content Too Large"}"#))
+        defer { withExtendedLifetime(server) {} }
         guard case .failed(let message) = perform(server.port) else { Issue.record("not failed"); return }
         #expect(message.contains("413") && message.contains("too large") && !message.contains("bad response"))
         #expect(ControlClient.failure(status: 500, error: nil) == "Changmun answered HTTP 500")
@@ -336,6 +361,7 @@ struct ControlClientTests {
 
     @Test func aRequestOverTheServersLimitIsRefusedHereWithoutSendingIt() {
         let server = FakeControlServer(response: FakeControlServer.http("200 OK", #"{"content":[]}"#))
+        defer { withExtendedLifetime(server) {} }
         let big = String(repeating: "x", count: HTTPRequest.maxBody + 1)
         guard case .failed(let message) = perform(server.port, arguments: ["text": big]) else { Issue.record("not failed"); return }
         #expect(message.contains("413") && message.contains("too large"))

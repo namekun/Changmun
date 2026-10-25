@@ -29,7 +29,42 @@ enum ChatMarkdown {
     /// The inline styling of a piece of text, with its line breaks kept. Only http and https links stay links, and each one says
     /// where it goes (see `ChatLinks`).
     static func inline(_ text: String) -> AttributedString {
-        ChatLinks.annotate((try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(text))
+        ChatLinks.annotate((try? AttributedString(markdown: escapingLoneTildes(text), options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
+                           ?? AttributedString(text))
+    }
+
+    /// A single "~" is a range in Korean and Japanese ("3~5개"), not the strikethrough the parser takes it for; only "~~" strikes
+    /// through. Code spans are left as they are, since a backslash would show in them.
+    static func escapingLoneTildes(_ text: String) -> String {
+        let characters = Array(text)
+        var result = ""
+        var index = 0
+        while index < characters.count {
+            let character = characters[index]
+            if character == "`" {
+                var run = 0
+                while index + run < characters.count, characters[index + run] == "`" { run += 1 }
+                let fence = String(repeating: "`", count: run)
+                let rest = String(characters[(index + run)...])
+                if let close = rest.range(of: fence) {
+                    let span = fence + rest[..<close.upperBound]
+                    result += span
+                    index += span.count
+                    continue
+                }
+                result += fence
+                index += run
+                continue
+            }
+            if character == "~" {
+                let doubled = (index > 0 && characters[index - 1] == "~") || (index + 1 < characters.count && characters[index + 1] == "~")
+                result += doubled ? "~" : "\\~"
+            } else {
+                result.append(character)
+            }
+            index += 1
+        }
+        return result
     }
 
     /// Splits an answer into blocks. A code fence that isn't closed yet (the answer is still streaming) runs to the end.
