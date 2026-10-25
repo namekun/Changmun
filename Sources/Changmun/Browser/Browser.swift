@@ -1370,11 +1370,7 @@ final class Browser: ObservableObject {
         }
     }
 
-    /// Decodes what it can: a value that doesn't decode becomes nil instead of failing everything around it.
-    struct Lossy<Value: Decodable>: Decodable {
-        let value: Value?
-        init(from decoder: Decoder) throws { value = try? Value(from: decoder) }
-    }
+    typealias Lossy = DurableFile.Lossy
 
     private static var sessionFile: URL { Library.folder.appendingPathComponent("session.json") }
     /// The last session that was read back whole, kept in case the next one can't be.

@@ -12,69 +12,16 @@ final class Library: @unchecked Sendable {
     static func isFavorites(_ folder: String) -> Bool { folder.isEmpty || folder.hasPrefix(favoritesPrefix) }
     static let shared = Library(path: Library.folder.appendingPathComponent("library.sqlite").path)
 
-    /// The user's data folder, for the app and for the headless apps only. Anything else (the test runner, a bare
-    /// `swift run` binary) gets a folder of its own in the temporary directory, so it can never touch that data.
-    static var folder: URL {
-        let url = location(forBundle: Bundle.main.bundleIdentifier)
-        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        return url
-    }
+    /// The user's data folder (see `DataFolder`).
+    static var folder: URL { DataFolder.url }
 
-    private static let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("changmun-\(ProcessInfo.processInfo.processIdentifier)-\(UUID().uuidString)", isDirectory: true)
+    static func location(forBundle bundleID: String?) -> URL { DataFolder.location(forBundle: bundleID) }
 
-    static func location(forBundle bundleID: String?) -> URL {
-        guard bundleID?.hasPrefix("io.github.namekun.Changmun") == true else { return scratch }
-        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent(Headless.profileName(forBundle: bundleID) ?? "Changmun", isDirectory: true)
-    }
+    typealias FileRead = DurableFile.FileRead
 
-    /// What reading a data file gave: nothing yet, its bytes, or an error (permissions, a disk fault) that says nothing about what it holds.
-    enum FileRead {
-        case missing, unreadable
-        case data(Data)
+    static func keepDamaged(_ file: URL) -> Bool { DurableFile.keepDamaged(file) }
 
-        init(_ file: URL) {
-            do {
-                self = .data(try Data(contentsOf: file))
-            } catch {
-                let nsError = error as NSError
-                self = nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileReadNoSuchFileError ? .missing : .unreadable
-            }
-        }
-    }
-
-    /// Copies a file that couldn't be read whole to "<name>-damaged-<time>.<ext>" beside it, so starting over never costs what it held.
-    /// The same damage found again at the next launch is not copied again, and only the newest `damagedCopies` copies are kept.
-    /// Returns whether a copy of it is there.
-    static func keepDamaged(_ file: URL) -> Bool {
-        let manager = FileManager.default
-        let folder = file.deletingLastPathComponent()
-        let stem = file.deletingPathExtension().lastPathComponent, ext = file.pathExtension
-        let suffix = ext.isEmpty ? "" : "." + ext
-        /// The copies beside it, oldest first: by the time in the name, then by the number after it.
-        func copies() -> [(order: [Int], url: URL)] {
-            var found: [(order: [Int], url: URL)] = []
-            for name in (try? manager.contentsOfDirectory(atPath: folder.path)) ?? [] where name.hasPrefix("\(stem)-damaged-") && name.hasSuffix(suffix) {
-                let parts = name.dropFirst("\(stem)-damaged-".count).dropLast(suffix.count).split(separator: "-", omittingEmptySubsequences: false).map { Int($0) }
-                if (1...2).contains(parts.count), !parts.contains(nil) { found.append((parts.compactMap { $0 }, folder.appendingPathComponent(name))) }
-            }
-            return found.sorted { $0.order.lexicographicallyPrecedes($1.order) }
-        }
-        let damaged = try? Data(contentsOf: file)
-        if let damaged, copies().contains(where: { (try? Data(contentsOf: $0.url)) == damaged }) { return true }
-        // Named after the newest copy there is, so a copy never takes the place (and the age) of an older one that was pruned.
-        var time = Int(Date().timeIntervalSince1970), attempt = 0
-        if let last = copies().last?.order, last[0] >= time {
-            time = last[0]
-            attempt = (last.count > 1 ? last[1] : 0) + 1
-        }
-        let copy = folder.appendingPathComponent("\(stem)-damaged-\(time)" + (attempt == 0 ? "" : "-\(attempt)") + suffix)
-        guard (try? manager.copyItem(at: file, to: copy)) != nil else { return false }
-        for old in copies().dropLast(damagedCopies) { try? manager.removeItem(at: old.url) }
-        return true
-    }
-
-    static let damagedCopies = 3
+    static var damagedCopies: Int { DurableFile.damagedCopies }
 
     struct Entry: Equatable {
         var url: String

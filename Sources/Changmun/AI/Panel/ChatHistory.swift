@@ -88,13 +88,7 @@ final class ChatHistory: ObservableObject {
         Self.removeStaleTemporaries(beside: file)
     }
 
-    /// A write that was cut short (the app quit in the middle of it) leaves its temporary file behind: it holds chats, so it goes.
-    static func removeStaleTemporaries(beside file: URL) {
-        let folder = file.deletingLastPathComponent(), prefix = ".\(file.lastPathComponent)."
-        for name in (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? [] where name.hasPrefix(prefix) && name.hasSuffix(".tmp") {
-            unlink(folder.appendingPathComponent(name).path)
-        }
-    }
+    static func removeStaleTemporaries(beside file: URL) { DurableFile.removeStaleTemporaries(beside: file) }
 
     /// Keeps the conversation (or replaces what was kept of it). A conversation with no message of the user is nothing to keep.
     func record(id: UUID, started: Date, items: [ChatItem], now: Date = Date()) {
@@ -176,30 +170,7 @@ final class ChatHistory: ObservableObject {
         saveFailed = !Self.write(data, to: file)
     }
 
-    /// Writes the file so that it is never readable by anyone else, not even for a moment: a temporary file in the same folder made with
-    /// mode 0600 (and refusing to follow a link or to reuse a name), then renamed over the old one.
-    static func write(_ data: Data, to file: URL) -> Bool {
-        let folder = file.deletingLastPathComponent()
-        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let temporary = folder.appendingPathComponent(".\(file.lastPathComponent).\(UUID().uuidString).tmp")
-        let descriptor = open(temporary.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0o600)
-        guard descriptor >= 0 else { return false }
-        var written = 0
-        let ok = data.withUnsafeBytes { buffer -> Bool in
-            while written < buffer.count {
-                let count = Darwin.write(descriptor, buffer.baseAddress! + written, buffer.count - written)
-                if count < 0 { return false }
-                written += count
-            }
-            return true
-        }
-        let closed = close(descriptor) == 0
-        guard ok, closed, rename(temporary.path, file.path) == 0 else {
-            unlink(temporary.path)
-            return false
-        }
-        return true
-    }
+    static func write(_ data: Data, to file: URL) -> Bool { DurableFile.write(data, to: file) }
 }
 
 // MARK: Views

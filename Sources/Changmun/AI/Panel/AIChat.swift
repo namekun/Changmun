@@ -861,8 +861,7 @@ final class ChatStore: ObservableObject {
         try FileManager.default.createDirectory(at: configFolder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: configFolder.path)
         let file = configFolder.appendingPathComponent("mcp-\(getpid())-\(UUID().uuidString).json")
-        let descriptor = open(file.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0o600)
-        guard descriptor >= 0 else { throw CocoaError(.fileWriteUnknown) }
+        guard let descriptor = DurableFile.createPrivate(at: file) else { throw CocoaError(.fileWriteUnknown) }
         defer { close(descriptor) }
         let data = mcpConfig(runToken: runToken)
         guard write(descriptor, (data as NSData).bytes, data.count) == data.count else {

@@ -173,8 +173,7 @@ extension ChatStore {
     static func writeInput(_ data: Data) throws -> URL {
         try FileManager.default.createDirectory(at: configFolder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let file = configFolder.appendingPathComponent("mcp-\(getpid())-input-\(UUID().uuidString).jsonl")
-        let descriptor = open(file.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0o600)
-        guard descriptor >= 0 else { throw CocoaError(.fileWriteUnknown) }
+        guard let descriptor = DurableFile.createPrivate(at: file) else { throw CocoaError(.fileWriteUnknown) }
         defer { close(descriptor) }
         var written = 0
         try data.withUnsafeBytes { buffer in
