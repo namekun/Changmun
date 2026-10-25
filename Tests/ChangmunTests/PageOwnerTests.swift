@@ -4,10 +4,14 @@ import Testing
 import WebKit
 @testable import Changmun
 
-struct PageOwnerTests {
+@MainActor private final class FakeHost: PageHost {
+    func restore(for tab: Tab) {}
+}
+
+@MainActor struct PageOwnerTests {
     @Test func theNewestHostToClaimOwnsThePage() {
-        let old = NSObject(), new = NSObject()
-        var owner = PageOwner<NSObject>()
+        let old = FakeHost(), new = FakeHost()
+        var owner = PageOwner()
         #expect(!owner.owns(old))
         owner.claim(old)
         #expect(owner.owns(old))
@@ -19,8 +23,8 @@ struct PageOwnerTests {
     }
 
     @Test func aPageIsInFrontUnlessItsHostSaysItIsKeptBehind() {
-        let host = NSObject()
-        var owner = PageOwner<NSObject>()
+        let host = FakeHost()
+        var owner = PageOwner()
         owner.claim(host)
         #expect(owner.place == .front)
         owner.claim(host, as: .behind)
@@ -30,12 +34,12 @@ struct PageOwnerTests {
     }
 
     @Test func aHostThatIsGoneOwnsNothing() {
-        var owner = PageOwner<NSObject>()
-        var gone: NSObject? = NSObject()
+        var owner = PageOwner()
+        var gone: FakeHost? = FakeHost()
         owner.claim(gone!)
         gone = nil
         #expect(owner.host == nil)
-        #expect(!owner.owns(NSObject()))
+        #expect(!owner.owns(FakeHost()))
     }
 }
 

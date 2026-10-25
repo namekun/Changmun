@@ -222,5 +222,18 @@ core_ui_imports Sources/ChangmunCore >"$WORK/core-ui.txt"
 check "ChangmunCore imports no UI framework" test ! -s "$WORK/core-ui.txt"
 [[ -s "$WORK/core-ui.txt" ]] && cat "$WORK/core-ui.txt" >&2
 
+echo "layer guard"
+# The model and storage folders don't know the view layer: a tab reaches whatever shows its page through the PageHost protocol.
+MODEL_DIRS=(Sources/Changmun/Tabs Sources/Changmun/Browser Sources/Changmun/Storage Sources/ChangmunCore)
+VIEW_NAMES='\b(WebViewHost|PassiveHost|HeldPagesHost|PageCard)\b'
+check "the model folders exist" test -d "${MODEL_DIRS[0]}" -a -d "${MODEL_DIRS[1]}" -a -d "${MODEL_DIRS[2]}" -a -d "${MODEL_DIRS[3]}"
+printf 'var x = PageOwner<WebViewHost.Container>()\n' >"$WORK/guard/view.swift"
+printf 'var x = PageOwner<any PageHost>()\n' >"$WORK/guard/model.swift"
+check "the layer guard sees a view type" grep -qE "$VIEW_NAMES" "$WORK/guard/view.swift"
+check "the layer guard lets the protocol be" refuses grep -qE "$VIEW_NAMES" "$WORK/guard/model.swift"
+grep -rnE "$VIEW_NAMES" "${MODEL_DIRS[@]}" >"$WORK/layer.txt"
+check "the model folders don't mention the view layer" test ! -s "$WORK/layer.txt"
+[[ -s "$WORK/layer.txt" ]] && cat "$WORK/layer.txt" >&2
+
 (( FAILED )) && { echo "✘ script tests failed" >&2; exit 1; }
 echo "✔ script tests passed"

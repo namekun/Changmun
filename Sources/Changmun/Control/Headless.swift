@@ -73,7 +73,7 @@ enum FullscreenMeasure {
         var report: [String: Any] = ["state": page.fullscreenState.rawValue, "chain": chain, "inWindow": page.window != nil,
                                      "inBrowserWindow": page.window === browser.window, "frame": rect(page.frame),
                                      "hasLayer": page.layer != nil, "hidden": page.isHiddenOrHasHiddenAncestor]
-        if let container = tab.pageOwner.host {
+        if let container = tab.pageOwner.host as? WebViewHost.Container {
             report["owner"] = ["bounds": rect(container.bounds), "subviews": container.subviews.map { "\(type(of: $0)) \(rect($0.frame))" },
                                "ownsPage": page.superview === container]
         }
