@@ -21,6 +21,17 @@ enum ToolbarPlace: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+/// Where the open tabs are: a column down the left (the sidebar), or a strip along the top of the window above the page bar.
+enum TabLayout: String, CaseIterable, Identifiable {
+    case sidebar
+    case top
+
+    var id: String { rawValue }
+
+    /// What is stored; anything else (a value from a later version, nothing yet) is the sidebar.
+    init(stored: String?) { self = stored.flatMap(TabLayout.init(rawValue:)) ?? .sidebar }
+}
+
 enum ShortcutScheme: String, CaseIterable, Identifiable {
     case safari
     case chrome
@@ -93,6 +104,7 @@ final class Preferences: ObservableObject {
     }
     @Published var sidebarWidth: Double { didSet { defaults.set(sidebarWidth, forKey: "sidebarWidth") } }
     @Published var toolbarPlace: ToolbarPlace { didSet { defaults.set(toolbarPlace.rawValue, forKey: "toolbarPlace") } }
+    @Published var tabLayout: TabLayout { didSet { defaults.set(tabLayout.rawValue, forKey: "tabLayout") } }
     @Published var defaultZoom: Double { didSet { defaults.set(defaultZoom, forKey: "defaultZoom") } }
     /// Leaving a tab whose video is playing floats the video in picture in picture.
     @Published var autoPictureInPicture: Bool { didSet { defaults.set(autoPictureInPicture, forKey: "autoPictureInPicture") } }
@@ -197,6 +209,7 @@ final class Preferences: ObservableObject {
             d.set(true, forKey: "addressInSidebarOnce")
         }
         toolbarPlace = ToolbarPlace(rawValue: d.string(forKey: "toolbarPlace") ?? "") ?? .sidebar
+        tabLayout = TabLayout(stored: d.string(forKey: "tabLayout"))
         defaultZoom = d.object(forKey: "defaultZoom") as? Double ?? 1
         autoPictureInPicture = d.object(forKey: "autoPictureInPicture") as? Bool ?? true
         siteZoom = d.dictionary(forKey: "siteZoom") as? [String: Double] ?? [:]

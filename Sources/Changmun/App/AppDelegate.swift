@@ -171,7 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func watchSpaceSwipes() {
         swipeMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
             guard event.hasPreciseScrollingDeltas, let browser = (event.window as? BrowserWindow)?.browser, !browser.isPrivate,
-                  browser.showSidebar, !browser.focusMode, event.locationInWindow.x < Preferences.shared.sidebarWidth else { return event }
+                  browser.showSidebar, Preferences.shared.tabLayout == .sidebar, !browser.focusMode, event.locationInWindow.x < Preferences.shared.sidebarWidth else { return event }
             let began = event.phase.contains(.began), ended = event.phase.contains(.ended) || event.phase.contains(.cancelled)
             guard let step = browser.swipe.scrolled(dx: event.scrollingDeltaX, dy: event.scrollingDeltaY, began: began, ended: ended) else { return event }
             // It stops at the ends, and a space with nothing in it stays empty: only a click or a key opens the bar.
@@ -311,7 +311,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .close: browser.closeChat()
         }
     }
-    @objc func toggleBrowserSidebar(_ sender: Any?) { browser.showSidebar = browser.focusMode || !browser.showSidebar }
+    @objc func toggleBrowserSidebar(_ sender: Any?) {
+        if Preferences.shared.tabLayout == .top {
+            browser.focusMode = false
+            browser.showSidebarOverlay.toggle()
+        } else {
+            browser.showSidebar = browser.focusMode || !browser.showSidebar
+        }
+    }
     @objc func toggleFocusMode(_ sender: Any?) { browser.focusMode.toggle() }
     @objc func nextTab(_ sender: Any?) { browser.selectTab(offset: 1) }
     @objc func recentTab(_ sender: Any?) { switchRecent(backwards: false) }

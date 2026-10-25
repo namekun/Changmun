@@ -677,3 +677,6 @@
 "Rename Tab…" = "タブの名前を変更…";
 "Reset Name" = "名前をリセット";
 "Tab name" = "タブ名";
+"Tab Layout" = "タブのレイアウト";
+"On Top" = "上部";
+"With tabs on top, favorites and open tabs sit in a strip above the address bar, and the sidebar opens over the page from the button beside the address bar." = "タブを上部にすると、お気に入りと開いているタブがアドレスバーの上のストリップに並び、サイドバーはアドレスバー横のボタンでページの上に開きます。";

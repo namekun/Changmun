@@ -677,3 +677,6 @@
 "Rename Tab…" = "탭 이름 바꾸기…";
 "Reset Name" = "이름 되돌리기";
 "Tab name" = "탭 이름";
+"Tab Layout" = "탭 배치";
+"On Top" = "위쪽";
+"With tabs on top, favorites and open tabs sit in a strip above the address bar, and the sidebar opens over the page from the button beside the address bar." = "탭을 위쪽에 두면 즐겨찾기와 열린 탭이 주소창 위의 띠에 놓이고, 사이드바는 주소창 옆 버튼으로 페이지 위에 열려요.";
