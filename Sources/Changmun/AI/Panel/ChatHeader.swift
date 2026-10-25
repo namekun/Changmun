@@ -51,8 +51,11 @@ struct ChatHeader: View {
             BarButton(symbol: "xmark", help: String(localized: "Close (⌘E)"), action: close)
         }
         .padding(.horizontal, 6)
+        // In its own window the title starts past the window buttons, and the empty part of the row moves the window.
+        .padding(.leading, inWindow ? BrowserWindow.windowButtonsTrailing - Metrics.inset - 6 : 0)
         // Level with the page card's bar beside it.
         .frame(height: BrowserWindow.pageBarHeight)
+        .background { if inWindow { WindowDragArea() } }
     }
 
     private var titleMenu: some View {
