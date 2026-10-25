@@ -16,10 +16,13 @@ enum AIApprovalMode: String, CaseIterable, Identifiable {
     /// Whether other tabs and new addresses are asked about (which `Approvals.mayShow`, `allowTab` and `allowNavigation` follow).
     var asksAboutOtherSites: Bool { self != .irreversibleOnly }
 
-    /// What the preferences start with: the mode that was chosen, else the old on/off switch (on is the default mode, off is the last one).
+    /// What the preferences start with. A mode that was chosen counts, if it reads; a mode that doesn't read is the default, never a weaker
+    /// one. Only with no mode kept at all does the old on/off switch decide (on is the default mode, off the last one), and an older
+    /// version that turned asking back on after the last mode was chosen has the last word.
     static func initial(stored: String?, legacy: Bool?) -> AIApprovalMode {
-        if let stored, let mode = AIApprovalMode(rawValue: stored) { return mode }
-        return legacy == false ? .irreversibleOnly : .afterReading
+        guard let stored else { return legacy == false ? .irreversibleOnly : .afterReading }
+        guard let mode = AIApprovalMode(rawValue: stored) else { return .afterReading }
+        return mode == .irreversibleOnly && legacy == true ? .afterReading : mode
     }
 
     var title: String {

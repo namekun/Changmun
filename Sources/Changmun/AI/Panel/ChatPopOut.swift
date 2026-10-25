@@ -50,6 +50,8 @@ final class ChatPopOut: NSObject, NSWindowDelegate {
         self.window = window
         docksOnClose = true
         layoutTrafficLights()
+        // The AI buttons of the browser window read as on while the panel is out.
+        browser.objectWillChange.send()
         // Hidden in the browser window from here on (`Browser.showChat` keeps it so while this window is open).
         browser.showChat = false
         browserClosing = browser.window.map { host in
@@ -78,6 +80,27 @@ final class ChatPopOut: NSObject, NSWindowDelegate {
     func windowDidBecomeKey(_ notification: Notification) { layoutTrafficLights() }
     func windowDidExitFullScreen(_ notification: Notification) { layoutTrafficLights() }
 
+    /// What bringing the window forward for a question comes to: it comes back from the Dock if it was put there, and goes in front of the
+    /// other windows only while this app is the one in use (it never takes the screen from another app: the Dock icon bounces instead).
+    struct Reveal: Equatable {
+        var restore: Bool
+        var orderFront: Bool
+        var askAttention: Bool
+    }
+
+    static func reveal(miniaturized: Bool, appActive: Bool) -> Reveal {
+        Reveal(restore: miniaturized, orderFront: appActive, askAttention: !appActive)
+    }
+
+    /// A question of the AI has come up on a card in this window: it must not be out of sight.
+    func revealForQuestion() {
+        guard let window else { return }
+        let plan = Self.reveal(miniaturized: window.isMiniaturized, appActive: NSApp.isActive)
+        if plan.restore { window.deminiaturize(nil) }
+        if plan.orderFront { window.orderFrontRegardless() }
+        if plan.askAttention { NSApp.requestUserAttention(.informationalRequest) }
+    }
+
     func bringToFront() {
         window?.makeKeyAndOrderFront(nil)
     }
@@ -95,6 +118,7 @@ final class ChatPopOut: NSObject, NSWindowDelegate {
         window?.delegate = nil
         window = nil
         self.browser = nil
+        browser?.objectWillChange.send()
         if let browserClosing { NotificationCenter.default.removeObserver(browserClosing) }
         browserClosing = nil
         // Questions waiting in the panel go to the window of the browser, where they can't be missed.

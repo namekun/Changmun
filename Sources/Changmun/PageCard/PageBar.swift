@@ -29,7 +29,7 @@ struct PageBar: View {
             if browser.isPrivate {
                 PrivateBadge()
             } else {
-                AIButton(isOn: browser.showChat) { browser.showChat.toggle() }
+                AIButton(isOn: browser.panelShown) { browser.showChat.toggle() }
             }
         }
         .padding(.horizontal, 6)

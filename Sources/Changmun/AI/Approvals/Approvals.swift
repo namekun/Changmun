@@ -547,6 +547,7 @@ enum Approvals {
             if inPanel, let panel {
                 // The panel closing with the question open moves it to the window, where it can't be missed.
                 ApprovalCards.shared.add(ApprovalCards.Card(id: id, prompt: prompt, buttons: buttons, browser: panel, answer: { finish($0, 0) }, moveToSheet: showSheet))
+                if ChatPopOut.shared.isPoppedOut(for: panel) { ChatPopOut.shared.revealForQuestion() }
                 if let mark {
                     Task {
                         if !once.done { await mark.show() }
