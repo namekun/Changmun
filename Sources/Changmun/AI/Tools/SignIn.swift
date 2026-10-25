@@ -157,7 +157,7 @@ extension ToolCatalog {
         AgentActivity.shared.step(String(localized: "Signing in to \(shownHost)"), caller: session.caller, titled: false)
         Approvals.noteRead(tab, readHost: host, caller: session.caller)
         // Using the page after reading other sites is asked about as for any other use; then the sign-in itself, every time.
-        let used = await Approvals.allowInteraction(.act(String(localized: "Signing in to \(shownHost)")), on: tab, caller: session.caller, site: host)
+        let used = await Approvals.allowInteraction(.act(String(localized: "Signing in to \(shownHost)")), on: tab, caller: session.caller, site: host, everyActionAsks: false)
         if session.stopped { return stopped }
         guard used else { return signInNotDone }
         let pageSite = Approvals.site(of: tab.url)

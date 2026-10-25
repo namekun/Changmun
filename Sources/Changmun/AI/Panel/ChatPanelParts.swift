@@ -92,20 +92,74 @@ struct PromptChip: View {
     }
 }
 
-/// Nunsseop's "working" state: a green dot and a word.
+/// Nunsseop's "working" state: a green dot and how long the run has lasted, to open for the steps it has taken so far.
 struct Working: View {
+    /// When the run began; the seconds count up from it.
+    var started: Date?
     /// What the AI is doing, when a tool says; else just that it is working.
     var step: String?
+    /// The steps of the run under way (a `.live` row of the transcript), which opening the line shows.
+    var steps: ChatRowModel?
     @State private var on = false
+    @State private var open = false
 
     var body: some View {
-        HStack(spacing: 6) {
-            Circle().fill(Theme.working).frame(width: 6, height: 6).opacity(on ? 1 : 0.35)
-            Text(step ?? String(localized: "Working")).lineLimit(1).truncationMode(.middle)
-                .font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+            Button { open.toggle() } label: {
+                TimelineView(.periodic(from: started ?? .now, by: 1)) { context in
+                    let label = started.map { String(localized: "Working for \(ElapsedText.text(seconds: Int(context.date.timeIntervalSince($0))))") } ?? String(localized: "Working")
+                    HStack(spacing: 6) {
+                        Circle().fill(Theme.working).frame(width: 6, height: 6).opacity(on ? 1 : 0.35)
+                        Text(verbatim: label)
+                        if let step {
+                            Text(verbatim: "·").foregroundStyle(Theme.faint)
+                            Text(verbatim: step).lineLimit(1).truncationMode(.middle)
+                        }
+                        if steps != nil {
+                            Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).rotationEffect(.degrees(open ? 180 : 0))
+                        }
+                    }
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.secondary)
+                    .contentShape(Rectangle())
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(label + (step.map { ", " + $0 } ?? ""))
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(steps == nil)
+            if open, let steps { ChatStepsRow(row: steps) }
         }
         .onAppear { withAnimation(.easeInOut(duration: 0.8).repeatForever()) { on = true } }
+    }
+}
+
+/// The card of a page a message went with: its icon, title and site. A saved chat has no icon to show, only the words.
+struct AttachedPageCard: View {
+    let page: AttachedPage
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Group {
+                if let id = page.tabID, let tab = ToolCatalog.findTab(id) {
+                    Favicon(tab: tab)
+                } else {
+                    Image(systemName: "globe").font(.system(size: 12)).foregroundStyle(Theme.faint).frame(width: 16, height: 16)
+                }
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(verbatim: page.title).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(Theme.primary)
+                    .lineLimit(1).truncationMode(.tail)
+                Text(verbatim: page.host).font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.faint)
+                    .lineLimit(1).truncationMode(.middle)
+            }
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .frame(maxWidth: 220, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.hoverTab))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.hairline.opacity(0.5), lineWidth: 0.5))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(localized: "Working") + (step.map { ", " + $0 } ?? ""))
+        .accessibilityLabel(Text(verbatim: page.title + ", " + page.host))
     }
 }

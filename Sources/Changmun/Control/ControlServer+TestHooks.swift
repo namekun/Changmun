@@ -359,6 +359,17 @@ extension ControlServer {
                     chat.showHistory = true
                     if let index = body["open"] as? Int, chat.history.chats.indices.contains(index) { chat.openedHistory = chat.history.chats[index].id }
                 }
+                // "running": a run under way that began this many seconds ago (to no AI), with "step" as its line; "context":
+                // {"used", "window"} tokens for the ring.
+                if let ago = body["running"] as? Double {
+                    chat.isRunning = true
+                    chat.runStarted = Date(timeIntervalSinceNow: -ago)
+                    chat.step = body["step"] as? String
+                }
+                if let context = body["context"] as? [String: Int], let used = context["used"] {
+                    chat.contextWindow = context["window"]
+                    chat.noteContext(used)
+                }
                 Browser.current?.showChat = true
                 self.respond(connection, status: "200 OK", body: ["chats": chat.history.chats.count])
             }
@@ -374,10 +385,23 @@ extension ControlServer {
                 }
                 if let width = body["width"] as? Double { Preferences.shared.aiPanelWidth = Preferences.clampedAIPanelWidth(width) }
                 if let model = body["model"] as? String { Preferences.shared.aiModel = model }
+                if let effort = body["effort"] as? String { Preferences.shared.aiEffort = effort }
+                if let mode = (body["approvalMode"] as? String).flatMap(AIApprovalMode.init(rawValue:)) { Preferences.shared.aiApprovalMode = mode }
                 if let open = body["open"] as? Bool { browser.showChat = open }
+                // "popOut": the panel in a window of its own (off screen here) or docked back; "popOutImage" answers with that window's picture.
+                if let popOut = body["popOut"] as? Bool {
+                    if popOut { ChatPopOut.shared.open(for: browser) } else { ChatPopOut.shared.close(dock: true) }
+                    ChatPopOut.shared.window?.setFrameOrigin(Headless.origin)
+                }
                 if let text = body["prefill"] as? String { ChatStore.shared.prefill = text }
                 if body["selection"] as? Bool == true { browser.active?.askAIAboutSelection() }
-                self.respond(connection, status: "200 OK", body: ["width": Preferences.shared.aiPanelWidth, "model": Preferences.shared.aiModel])
+                var answer: [String: Any] = ["width": Preferences.shared.aiPanelWidth, "model": Preferences.shared.aiModel, "poppedOut": ChatPopOut.shared.window != nil,
+                                             "docked": browser.showChat]
+                if body["popOutImage"] as? Bool == true, let window = ChatPopOut.shared.window {
+                    try? await Task.sleep(for: .milliseconds(600))
+                    answer["png"] = await WindowImage.png(of: window)?.base64EncodedString()
+                }
+                self.respond(connection, status: "200 OK", body: answer)
             }
             return true
         }

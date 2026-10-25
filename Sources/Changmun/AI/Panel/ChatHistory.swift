@@ -95,8 +95,10 @@ final class ChatHistory: ObservableObject {
         guard items.contains(where: { $0.kind == .user }) else { return }
         // Pictures are not kept: a message that had some says so instead.
         let kept = items.map { item -> ChatItem in
-            guard !item.images.isEmpty else { return item }
             var item = item
+            // The pages a message went with are kept as their titles and sites: the icon belongs to a tab that may be gone.
+            for index in item.pages.indices { item.pages[index].tabID = nil }
+            guard !item.images.isEmpty else { return item }
             item.text += "\n[" + String(localized: "Images attached: \(item.images.count)") + "]"
             item.images = []
             return item

@@ -28,7 +28,15 @@ final class ChatStore: ObservableObject {
         let id: UUID
     }
     /// Internal so the ChatStore+… extensions can change it; anything else changes it through ChatStore's methods.
-    @Published var isRunning = false
+    @Published var isRunning = false {
+        didSet { if isRunning != oldValue { runStarted = isRunning ? Date() : nil } }
+    }
+    /// When the run under way began, for the panel's "Working for 4s"; nil while nothing runs.
+    var runStarted: Date?
+    /// How full the conversation's context is, from the usage `claude` reports; nil until it has (a new chat), when the panel shows nothing.
+    @Published var contextUsage: ContextUsage?
+    /// The context window the last result named, until the next one does.
+    var contextWindow: Int?
     /// What the AI is doing right now ("Clicking “Sign in”"), told by the tool it is using; nil between steps.
     @Published var step: String?
     /// Tabs the user attached as context: the AI may read them without asking.
@@ -362,9 +370,9 @@ final class ChatStore: ObservableObject {
             Self.terminate(old)
             process = nil
         }
-        if resumeNote == nil { items.append(ChatItem(kind: .user, text: message, images: images)) }
-        runImages = images
         let tabs = tabs(for: context)
+        if resumeNote == nil { items.append(ChatItem(kind: .user, text: message, images: images, pages: AttachedPage.cards(front: tabs.front, attached: tabs.attached))) }
+        runImages = images
         let prompt = (context == nil ? Self.contextLine(tabs.front) : Self.queuedContextLine(tabs.front, closed: tabs.closed, moved: tabs.frontMoved))
             + Self.attachedLine(tabs.attached, moved: tabs.attachedMoved) + Self.imagesLine(images)
             + (resumeNote.map { "\n" + $0 } ?? "") + "\n\n" + message
@@ -409,17 +417,8 @@ final class ChatStore: ObservableObject {
             input = file
         }
         runToken = token
-        var arguments = input == nil ? ["-p", prompt] : ["-p", "--input-format", "stream-json"]
-        arguments += [
-            "--output-format", "stream-json", "--verbose", "--include-partial-messages",
-            "--model", model,
-            "--setting-sources", "",
-            "--strict-mcp-config", "--mcp-config", config.path,
-            "--tools", "",
-            "--allowedTools", "mcp__changmun",
-            "--system-prompt", Self.systemPrompt,
-        ]
-        if let sessionID { arguments += ["--resume", sessionID] }
+        let arguments = Self.arguments(prompt: prompt, streamInput: input != nil, model: model, effort: Preferences.shared.aiEffort,
+                                       config: config.path, sessionID: sessionID)
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: claude)
@@ -474,6 +473,22 @@ final class ChatStore: ObservableObject {
             let errorText = String(data: await errorOutput.value, encoding: .utf8) ?? ""
             await self?.finished(run: run, sawResult: sawResult, status: process.terminationStatus, errorText: errorText)
         }
+    }
+
+    /// The command line of a run. The effort is left out when the user hasn't chosen one, so `claude` works as it did before there was a choice.
+    static func arguments(prompt: String, streamInput: Bool, model: String, effort: String, config: String, sessionID: String?) -> [String] {
+        var arguments = streamInput ? ["-p", "--input-format", "stream-json"] : ["-p", prompt]
+        arguments += ["--output-format", "stream-json", "--verbose", "--include-partial-messages", "--model", model]
+        arguments += AIEffort.arguments(for: effort)
+        arguments += [
+            "--setting-sources", "",
+            "--strict-mcp-config", "--mcp-config", config,
+            "--tools", "",
+            "--allowedTools", "mcp__changmun",
+            "--system-prompt", systemPrompt,
+        ]
+        if let sessionID { arguments += ["--resume", sessionID] }
+        return arguments
     }
 
     private func finished(run: UUID, sawResult: Bool, status: Int32, errorText: String) {
@@ -550,6 +565,8 @@ final class ChatStore: ObservableObject {
         steps.removeAll()
         closedByAI.removeAll()
         sessionID = nil
+        contextUsage = nil
+        contextWindow = nil
         attachedIDs = []
         images = []
         imageGeneration += 1

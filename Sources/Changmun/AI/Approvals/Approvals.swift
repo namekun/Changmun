@@ -53,7 +53,7 @@ enum Approvals {
     /// Whether the title and address of a tab can be told to the caller as they are: the tab is in front of the user, or the
     /// caller was allowed to use it on the site it is on now.
     static func mayShow(_ tab: Tab, caller: String) -> Bool {
-        guard Preferences.shared.aiApprovals, let browser = tab.browser else { return true }
+        guard Preferences.shared.aiApprovalMode.asksAboutOtherSites, let browser = tab.browser else { return true }
         if tab.id == browser.activeID && browser === Browser.recent { return true }
         if caller == ChatStore.caller, attached[tab.id] == (site(of: tab.url) ?? "") { return true }
         return tabs[caller]?.contains(key(tab)) == true
@@ -124,7 +124,7 @@ enum Approvals {
     }
 
     static func allowTab(_ tab: Tab, caller: String, reading: Bool = false, host: String? = nil) async -> Bool {
-        guard Preferences.shared.aiApprovals else { return true }
+        guard Preferences.shared.aiApprovalMode.asksAboutOtherSites else { return true }
         let key = key(tab, host: host)
         let current = host ?? site(of: tab.url) ?? ""
         if tabs[caller]?.contains(key) == true || (reading && caller == ChatStore.caller && attached[tab.id] == current) { return true }
@@ -145,7 +145,7 @@ enum Approvals {
     }
 
     static func allowNavigation(_ url: URL, caller: String) async -> Bool {
-        guard Preferences.shared.aiApprovals else { return true }
+        guard Preferences.shared.aiApprovalMode.asksAboutOtherSites else { return true }
         if isFree(url, knownURL: { knownURL($0, caller: caller) }, knownHost: Library.shared.knowsHost) || urls[caller]?.contains(url.absoluteString) == true { return true }
         let address = shownWithNote(url.absoluteString)
         let allowed = await ask(String(localized: "The AI wants to open this address"),
@@ -235,12 +235,16 @@ enum Approvals {
     /// the sites read are those it was allowed with (reading another site takes it back). Typing and choosing show what
     /// is typed or chosen. `site` is where it happens when that isn't the tab's own site: a frame of another site, or "" for
     /// a document with no site, which no allowance covers.
-    static func allowInteraction(_ interaction: Interaction, on tab: Tab, caller: String, site: String? = nil, mark: Mark? = nil) async -> Bool {
-        guard Preferences.shared.aiApprovals else { return true }
+    /// In the mode that asks before every action, the use of a page is asked about even when nothing else was read; `everyActionAsks: false`
+    /// leaves that out for a use that is asked about on its own right after (the sign-in).
+    static func allowInteraction(_ interaction: Interaction, on tab: Tab, caller: String, site: String? = nil, mark: Mark? = nil, everyActionAsks: Bool = true) async -> Bool {
+        var mode = Preferences.shared.aiApprovalMode
+        if mode == .everyAction && !everyActionAsks { mode = .afterReading }
+        guard mode != .irreversibleOnly else { return true }
         let host = site ?? Self.site(of: tab.url) ?? ""
         let read = readHosts[caller, default: []]
         let others = read.subtracting([host])
-        if others.isEmpty { return true }
+        if !asksForInteraction(mode, readOtherSites: !others.isEmpty) { return true }
         // What is typed or chosen is shown whole, or said to be cut: text whose end the user can't see is asked about each time.
         let text: (text: String, cut: Int, altered: Bool)
         switch interaction {
@@ -262,9 +266,10 @@ enum Approvals {
             message = String(localized: "The AI wants to use \(target)")
             label = String(localized: "Action:")
         }
-        let why = String(localized: "A page you read earlier could have slipped instructions into this.")
-        let readLine = String(localized: "Read earlier in this chat: \(sites)")
-        let detail = "\(target)\n\n\(label)\n\(text.text)\n\n\(readLine)\n\(why)"
+        // Nothing else was read (the mode that asks before every action): no line about what was read, and the reason is the user's own choice.
+        let why = others.isEmpty ? String(localized: "You chose to be asked before every action.") : String(localized: "A page you read earlier could have slipped instructions into this.")
+        let readLine = others.isEmpty ? "" : String(localized: "Read earlier in this chat: \(sites)")
+        let detail = "\(target)\n\n\(label)\n\(text.text)\n\n" + (readLine.isEmpty ? "" : "\(readLine)\n") + why
         let forChat = hasChat(caller) && allowable
         let answer = await choose(message, detail,
                                   [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))]
@@ -496,7 +501,8 @@ enum Approvals {
             standing.asked.append(prompt)
             if !standing.holds { return (standing.answer(prompt), min(max(standing.pick(prompt), 0), max(accounts.count - 1, 0))) }
         }
-        let panel = Browser.recent.flatMap { browser -> Browser? in browser.showChat && !browser.focusMode ? browser : nil }
+        // The panel is where the user can see it: docked in the front window, or in the window it was popped out into.
+        let panel = Browser.recent.flatMap { browser -> Browser? in browser.showChat && !browser.focusMode ? browser : nil } ?? ChatPopOut.shared.panelBrowser
         // A stand that holds its questions shows them as the app would, so that what a person would see can be looked at.
         let inPanel = (standing == nil || standing?.holds == true) && route(caller: caller, irreversible: irreversible, accounts: accounts, panelOpen: panel != nil, signIn: signIn) == .card
         guard standing != nil || inPanel || Browser.recent?.window != nil else { return (.deny, 0) }
