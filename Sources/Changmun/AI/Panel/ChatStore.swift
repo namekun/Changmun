@@ -7,6 +7,7 @@ import SwiftUI
 final class ChatStore: ObservableObject {
     static let shared = ChatStore()
 
+    /// Internal so the ChatStore+… extensions can change the conversation and the record kept of it; anything else changes it through ChatStore's methods.
     @Published var items: [ChatItem] = []
     /// The chats kept for reading later (Settings › AI turns it off), and what the panel's History shows of them.
     var history = ChatHistory.shared
@@ -26,6 +27,7 @@ final class ChatStore: ObservableObject {
         weak var browser: Browser?
         let id: UUID
     }
+    /// Internal so the ChatStore+… extensions can change it; anything else changes it through ChatStore's methods.
     @Published var isRunning = false
     /// What the AI is doing right now ("Clicking “Sign in”"), told by the tool it is using; nil between steps.
     @Published var step: String?
@@ -104,6 +106,7 @@ final class ChatStore: ObservableObject {
     /// Proves a call named "panel" comes from the run under way: its `claude` is given it in its MCP config, and a run that was
     /// stopped or replaced is not accepted anymore, however long its process lingers.
     var runToken: String?
+    /// Internal so the ChatStore+… extensions can change the run's session and stream state; anything else changes it through ChatStore's methods.
     var runFailed = false
     var sessionID: String?
     /// The `claude` process of the run under way (tests give it a stand-in).

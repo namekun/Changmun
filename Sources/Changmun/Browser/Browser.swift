@@ -83,6 +83,7 @@ final class Browser: ObservableObject {
         if isPrivate { Downloads.shared.forget(self) }
     }
 
+    /// Internal so the Browser+… extensions can change the tabs, the active tab and the space; anything else changes them through Browser's methods.
     /// The tabs of every space in this window.
     @Published var tabs: [Tab] = []
     @Published var activeID: Int? {
@@ -143,6 +144,7 @@ final class Browser: ObservableObject {
 
     /// Tab ids are unique across windows: the AI's approvals remember tabs by id.
     private static var nextID = 1
+    /// Internal so the Browser+… extensions can change these; anything else changes them through Browser's methods.
     /// The tab shown before the current one: closing the current tab goes back to it, as in Safari and Chrome.
     var previousActiveID: Int?
     var sleepTimer: Timer?
@@ -204,6 +206,7 @@ final class Browser: ObservableObject {
         return config
     }
 
+    /// Internal so the Browser+… extensions can change the splits and the peek; anything else changes them through Browser's methods.
     /// Each space's split, so going away and coming back finds it as it was.
     @Published var splits: [UUID: Split] = [:]
 
@@ -238,6 +241,7 @@ final class Browser: ObservableObject {
         all.lazy.compactMap { browser in browser.openTabs.first { $0.webView === webView } }.first
     }
 
+    /// Internal so the Browser+… extensions can change the switcher, groups, notice and tidying; anything else changes them through Browser's methods.
     @Published var tabSwitcher: TabSwitcher?
     /// When sites allowed to open popups had one opened as a tab in this window, within the last minute.
     var allowedPopups: [Date] = []
