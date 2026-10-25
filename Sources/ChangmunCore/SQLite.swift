@@ -4,10 +4,10 @@ import SQLite3
 private let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
 /// A small wrapper over the system SQLite, enough for the library and for reading other browsers' databases.
-final class SQLite {
+package final class SQLite {
     private var db: OpaquePointer?
 
-    init(path: String, readOnly: Bool = false) throws {
+    package init(path: String, readOnly: Bool = false) throws {
         let flags = readOnly ? SQLITE_OPEN_READONLY : (SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE)
         guard sqlite3_open_v2(path, &db, flags | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK else {
             let message = db.map { String(cString: sqlite3_errmsg($0)) } ?? "open failed"
@@ -21,11 +21,11 @@ final class SQLite {
 
     deinit { sqlite3_close(db) }
 
-    func execute(_ sql: String) throws {
+    package func execute(_ sql: String) throws {
         guard sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK else { throw error() }
     }
 
-    func run(_ sql: String, _ values: [Any?] = []) throws {
+    package func run(_ sql: String, _ values: [Any?] = []) throws {
         let statement = try prepare(sql, values)
         defer { sqlite3_finalize(statement) }
         let code = sqlite3_step(statement)
@@ -33,7 +33,7 @@ final class SQLite {
     }
 
     /// Rows as arrays of column values: Int64, Double, String, Data or nil.
-    func query(_ sql: String, _ values: [Any?] = []) throws -> [[Any?]] {
+    package func query(_ sql: String, _ values: [Any?] = []) throws -> [[Any?]] {
         let statement = try prepare(sql, values)
         defer { sqlite3_finalize(statement) }
         var rows: [[Any?]] = []
@@ -60,7 +60,7 @@ final class SQLite {
     }
 
     /// Adds a SQL function of one text argument (`name(text)`), for what SQLite's own functions can't do (case beyond ASCII).
-    func addFunction(_ name: String, _ body: @escaping (String) -> String) {
+    package func addFunction(_ name: String, _ body: @escaping (String) -> String) {
         let box = Unmanaged.passRetained(FunctionBox(body)).toOpaque()
         _ = sqlite3_create_function_v2(db, name, 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, box, { context, _, values in
             guard let context else { return }
@@ -70,7 +70,7 @@ final class SQLite {
         }, nil, nil, { Unmanaged<FunctionBox>.fromOpaque($0!).release() })
     }
 
-    func transaction(_ body: () throws -> Void) throws {
+    package func transaction(_ body: () throws -> Void) throws {
         try execute("BEGIN")
         do { try body(); try execute("COMMIT") } catch { try? execute("ROLLBACK"); throw error }
     }

@@ -1,8 +1,8 @@
 import Foundation
 
 /// Runs a short-lived helper program and reads what it prints.
-enum ProcessOutput {
-    enum Result: Equatable {
+package enum ProcessOutput {
+    package enum Result: Equatable {
         case output(String)
         /// It couldn't be started, or its output wasn't text.
         case failed
@@ -12,13 +12,13 @@ enum ProcessOutput {
     /// What the program printed to standard output, or nil when it couldn't be started or didn't end within `timeout` seconds (it is
     /// ended, killed if it ignores that). Blocks: call it off the main thread. The output is read while the program runs, so a program
     /// that prints more than a pipe holds doesn't wait for a reader that is waiting for it.
-    nonisolated static func run(_ executable: String, _ arguments: [String], timeout: TimeInterval) -> String? {
+    package nonisolated static func run(_ executable: String, _ arguments: [String], timeout: TimeInterval) -> String? {
         if case .output(let text) = result(executable, arguments, timeout: timeout) { return text }
         return nil
     }
 
     /// Like `run`, but says whether the program was too slow or just failed.
-    nonisolated static func result(_ executable: String, _ arguments: [String], timeout: TimeInterval) -> Result {
+    package nonisolated static func result(_ executable: String, _ arguments: [String], timeout: TimeInterval) -> Result {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments

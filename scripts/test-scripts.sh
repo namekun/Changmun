@@ -209,5 +209,18 @@ state_writes "${UI_DIRS[@]}" >"$WORK/state-writes.txt"
 check "the UI folders don't change Browser, Tab or ChatStore state directly" test ! -s "$WORK/state-writes.txt"
 [[ -s "$WORK/state-writes.txt" ]] && cat "$WORK/state-writes.txt" >&2
 
+echo "core guard"
+# ChangmunCore is the layer under the app: the compiler already refuses an import of the app; this keeps it free of the UI frameworks too.
+UI_IMPORT='^[[:space:]]*(@[A-Za-z]+[[:space:]]+)?import[[:space:]]+((struct|class|enum|protocol|func|var|let|typealias)[[:space:]]+)?(AppKit|SwiftUI|WebKit|UIKit)\b'
+core_ui_imports() { grep -rnE "$UI_IMPORT" "$@"; }
+check "the core folder exists" test -d Sources/ChangmunCore
+printf 'import AppKit\n@preconcurrency import WebKit\n  import SwiftUI\nimport struct SwiftUI.Color\n' >"$WORK/guard/ui.swift"
+printf 'import Foundation\nimport SQLite3\n// import AppKit\nlet WebKitName = 1\n' >"$WORK/guard/foundation.swift"
+check "the guard sees the UI frameworks imported" test "$(core_ui_imports "$WORK/guard/ui.swift" | wc -l)" -eq 4
+check "the guard lets Foundation and comments be" refuses test -n "$(core_ui_imports "$WORK/guard/foundation.swift")"
+core_ui_imports Sources/ChangmunCore >"$WORK/core-ui.txt"
+check "ChangmunCore imports no UI framework" test ! -s "$WORK/core-ui.txt"
+[[ -s "$WORK/core-ui.txt" ]] && cat "$WORK/core-ui.txt" >&2
+
 (( FAILED )) && { echo "✘ script tests failed" >&2; exit 1; }
 echo "✔ script tests passed"

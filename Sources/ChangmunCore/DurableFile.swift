@@ -1,13 +1,13 @@
 import Foundation
 
 /// Helpers for the files that hold what the user would miss: reading them, keeping a copy of a damaged one, writing them whole.
-enum DurableFile {
+package enum DurableFile {
     /// What reading a data file gave: nothing yet, its bytes, or an error (permissions, a disk fault) that says nothing about what it holds.
-    enum FileRead {
+    package enum FileRead {
         case missing, unreadable
         case data(Data)
 
-        init(_ file: URL) {
+        package init(_ file: URL) {
             do {
                 self = .data(try Data(contentsOf: file))
             } catch {
@@ -20,7 +20,7 @@ enum DurableFile {
     /// Copies a file that couldn't be read whole to "<name>-damaged-<time>.<ext>" beside it, so starting over never costs what it held.
     /// The same damage found again at the next launch is not copied again, and only the newest `damagedCopies` copies are kept.
     /// Returns whether a copy of it is there.
-    static func keepDamaged(_ file: URL) -> Bool {
+    package static func keepDamaged(_ file: URL) -> Bool {
         let manager = FileManager.default
         let folder = file.deletingLastPathComponent()
         let stem = file.deletingPathExtension().lastPathComponent, ext = file.pathExtension
@@ -48,24 +48,24 @@ enum DurableFile {
         return true
     }
 
-    static let damagedCopies = 3
+    package static let damagedCopies = 3
 
     /// Decodes what it can: a value that doesn't decode becomes nil instead of failing everything around it.
-    struct Lossy<Value: Decodable>: Decodable {
-        let value: Value?
-        init(from decoder: Decoder) throws { value = try? Value(from: decoder) }
+    package struct Lossy<Value: Decodable>: Decodable {
+        package let value: Value?
+        package init(from decoder: Decoder) throws { value = try? Value(from: decoder) }
     }
 
     /// Opens a new file for writing with mode 0600 from the start, refusing to follow a link or to reuse a name.
     /// Returns its descriptor (the caller closes it), or nil when it couldn't be made.
-    static func createPrivate(at file: URL) -> Int32? {
+    package static func createPrivate(at file: URL) -> Int32? {
         let descriptor = open(file.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0o600)
         return descriptor >= 0 ? descriptor : nil
     }
 
     /// Writes the file so that it is never readable by anyone else, not even for a moment: a temporary file in the same folder made with
     /// mode 0600 (and refusing to follow a link or to reuse a name), then renamed over the old one.
-    static func write(_ data: Data, to file: URL) -> Bool {
+    package static func write(_ data: Data, to file: URL) -> Bool {
         let folder = file.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let temporary = folder.appendingPathComponent(".\(file.lastPathComponent).\(UUID().uuidString).tmp")
@@ -88,7 +88,7 @@ enum DurableFile {
     }
 
     /// A write that was cut short (the app quit in the middle of it) leaves its temporary file behind: it holds the data, so it goes.
-    static func removeStaleTemporaries(beside file: URL) {
+    package static func removeStaleTemporaries(beside file: URL) {
         let folder = file.deletingLastPathComponent(), prefix = ".\(file.lastPathComponent)."
         for name in (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? [] where name.hasPrefix(prefix) && name.hasSuffix(".tmp") {
             unlink(folder.appendingPathComponent(name).path)
