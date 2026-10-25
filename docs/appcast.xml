@@ -6,6 +6,25 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.7.5</title>
+      <pubDate>Sun, 25 Oct 2026 01:05:35 +0000</pubDate>
+      <sparkle:version>28</sparkle:version>
+      <sparkle:shortVersionString>0.7.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.7.5</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">A sweep for bugs that hadn't bitten anyone yet, 47 of them. The ones you might have met:
+
+- **Your newer passwords stay.** Importing again from another browser no longer puts its older passwords and sign-in cookies over the ones you changed in Changmun. Logins on different ports of one host stay apart, and a two-step sign-in updates your account instead of saving a nameless one.
+- **Nothing is wiped by a damaged file.** If chat history or archived tabs can't be read, the file is kept aside instead of being written over with an empty one. Saving a page with a long Korean title works, and downloading over an existing file keeps it until the new one is whole.
+- **Videos and pages stay put.** A paused picture-in-picture video is no longer put to sleep, a page in full screen can't be taken by the AI, a page whose process crashed on its first load loads again, and sign-in pop-ups from the preview card finish.
+- **Tabs where you left them.** Undoing "close all in group" or a tidy brings tabs back in order, a tab whose bookmark was deleted or moved to another space's favorites stays in the list, and private windows can't save to your bookmarks.
+- **Smoother start and quit.** Changmun no longer waits on the Safari extension list at launch, ends Claude Code before it quits, and won't wake a tab you closed while it was asking.
+- **Command line and agents.** `changmun` rejects arguments a command doesn't take, finds and restarts the app after a crash, and the MCP bridge keeps each connection's calls in order and answers pings right away.
+- **Ranges in AI answers read right.** "3~5" and "10~20" no longer turn the words between them into strikethrough; only ~~two tildes~~ strike through.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.5/Changmun-0.7.5.dmg" length="4964517" type="application/octet-stream" sparkle:edSignature="+7tXH/D9RSVEaFs4H3Zh4L/jf5jky5L6s4uQWw8iRytPCchWjC0ik0ZglWVr0cEE0cw9wzoL0wfKbW3nkPQPBA==" />
+    </item>
+    <item>
       <title>0.7.4</title>
       <pubDate>Sat, 24 Oct 2026 15:36:13 +0000</pubDate>
       <sparkle:version>27</sparkle:version>
@@ -115,20 +134,9 @@
 - **Fewer "Allow" questions from Claude Code.** An AI connected through MCP, such as a Claude Code session, can now be allowed on a site for the rest of its session, as the AI panel could already. It still asks again after reading another site, and anything that pays, sends, posts or deletes is still asked about every time. Commands from the command line are still asked each time.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.6.1/Changmun-0.6.1.dmg" length="4263921" type="application/octet-stream" sparkle:edSignature="N7S0D5KO9fshieKEjjPboGfpr1yb4xRmEhO1fYHyvZ2GYiTUYbZPgV8A/DDfE/dTjYHfbPrlqjC+pg5MI6OLCg==" />
     </item>
-    <item>
-      <title>0.6.0</title>
-      <pubDate>Thu, 22 Oct 2026 15:46:11 +0000</pubDate>
-      <sparkle:version>18</sparkle:version>
-      <sparkle:shortVersionString>0.6.0</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.6.0</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Changmun updates itself.** New versions now arrive inside the app. Changmun looks for one once a day and asks before installing it; choose Changmun › Check for Updates… to look right away, or let it download and install updates on its own in Settings › Advanced. Every update is signed by the developer, and Changmun refuses one that isn't. This is the last version you need to install by hand, so the sidebar's brew note is gone. Homebrew keeps working and now knows that Changmun keeps itself up to date.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.6.0/Changmun-0.6.0.dmg" length="4227505" type="application/octet-stream" sparkle:edSignature="dyrFq1fmAYdHU+5C9UUZJrbjauSL8DXuTSLzyrxIkp86lbxd/tbxN6WY4f7FbOiibV812i9AP9NUg28EFqEXAg==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: DD+mGE0lhhK1lXIHu+65h76BNMFyGtpRbQB1vJIe1NNIeQhNbAe/uueUKFHG2EeIvWdkM7D2EWKwXy1C3PuWCQ==
-length: 14871
+edSignature: pmTQJ0lvylenY7bNw7ZOL9S9vOMtidXsa5XIFA1YmKiuvtbTspJpI9MOTQxt2y/twCANxPvHR89EDkgD6ge/BA==
+length: 16057
 -->
