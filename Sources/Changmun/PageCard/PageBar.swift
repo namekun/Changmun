@@ -146,11 +146,43 @@ struct PrivateBadge: View {
     }
 }
 
-/// Empty parts of the bar move the window, and a double click zooms it.
+/// Empty parts of the bar move the window, and a double click does what a title bar's would.
 struct WindowDragArea: NSViewRepresentable {
+    /// System Settings › Desktop & Dock › "Double-click a window's title bar to".
+    enum DoubleClick: Equatable {
+        case zoom, minimize, nothing
+
+        static func from(action: String?, minimizeFlag: Bool) -> Self {
+            switch action {
+            case "Minimize": .minimize
+            case "None": .nothing
+            case nil: minimizeFlag ? .minimize : .zoom
+            default: .zoom
+            }
+        }
+
+        static var current: Self {
+            let defaults = UserDefaults.standard
+            return from(action: defaults.string(forKey: "AppleActionOnDoubleClick"), minimizeFlag: defaults.bool(forKey: "AppleMiniaturizeOnDoubleClick"))
+        }
+    }
+
     final class DragView: NSView {
         override func mouseDown(with event: NSEvent) {
-            if event.clickCount == 2 { window?.performZoom(nil) } else { window?.performDrag(with: event) }
+            guard let window else { return }
+            if event.clickCount == 2 {
+                switch DoubleClick.current {
+                case .zoom: window.performZoom(nil)
+                case .minimize: window.performMiniaturize(nil)
+                case .nothing: break
+                }
+                return
+            }
+            // The drag starts only once the pointer moves: a drag begun on a still click leaves the window server
+            // holding the second click, so a double click never arrives.
+            if let next = window.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]), next.type == .leftMouseDragged {
+                window.performDrag(with: next)
+            }
         }
     }
     func makeNSView(context: Context) -> DragView { DragView() }
