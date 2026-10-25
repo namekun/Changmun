@@ -1,6 +1,12 @@
 import AppKit
 import WebKit
 
+extension WKWebView {
+    /// The page is in WebKit's full screen window (a video's or another element's), with a placeholder where it was. A host
+    /// that took it back then would leave the full screen window empty and, as it ends, WebKit nothing to put the page back in.
+    var isAway: Bool { fullscreenState != .notInFullscreen }
+}
+
 /// A tab's web view: WebKit's own, with "Ask AI About Selection" added to its context menu.
 final class PageWebView: WKWebView {
     weak var owner: Tab?

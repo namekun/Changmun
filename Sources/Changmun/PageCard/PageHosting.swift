@@ -2,33 +2,6 @@ import AppKit
 import SwiftUI
 import WebKit
 
-/// Who shows a tab's page, and where: the newest host to start showing it (in front, when the tab is shown, or behind, when
-/// the AI is using the tab). When a view is replaced (a split that ends or begins, a peek kept as a tab) the host on its
-/// way out is still updated after the new one took the page, and must not take it back.
-struct PageOwner<Host: AnyObject> {
-    enum Place {
-        /// The page the host is there to show.
-        case front
-        /// A page kept in the window, not shown (see WebViewHost.Container.keep).
-        case behind
-    }
-
-    private(set) weak var host: Host?
-    private(set) var place = Place.front
-
-    mutating func claim(_ new: Host, as place: Place = .front) {
-        host = new
-        self.place = place
-    }
-
-    func owns(_ candidate: Host) -> Bool { host === candidate }
-
-    /// The host stops showing the page (it was passed on to another tab).
-    mutating func release(_ old: Host) {
-        if host === old { host = nil }
-    }
-}
-
 struct WebViewHost: NSViewRepresentable {
     @ObservedObject var tab: Tab
     let browser: Browser
@@ -69,7 +42,7 @@ struct WebViewHost: NSViewRepresentable {
         override func accessibilityChildren() -> [Any]? { [] }
     }
 
-    final class Container: NSView {
+    final class Container: NSView, PageHost {
         /// What it shows now: SwiftUI reuses a container when the tab in the same place changes.
         weak var tab: Tab?
         weak var browser: Browser?
@@ -124,11 +97,11 @@ struct WebViewHost: NSViewRepresentable {
             guard let left = left ?? tab else { return }
             guard left === tab else {
                 left.pageOwner.release(self)
-                if let page = left.webView, !WebViewHost.isAway(page), page.superview === self { page.removeFromSuperview() }
+                if let page = left.webView, !page.isAway, page.superview === self { page.removeFromSuperview() }
                 holdWhatIsInUse()
                 return
             }
-            guard let tab, let webView = tab.webView, !WebViewHost.isAway(webView), tab.pageOwner.owns(self), showsPage else { return }
+            guard let tab, let webView = tab.webView, !webView.isAway, tab.pageOwner.owns(self), showsPage else { return }
             if webView.superview !== self {
                 show(webView)
             } else if webView.frame != bounds {
@@ -147,10 +120,10 @@ struct WebViewHost: NSViewRepresentable {
         func keep(_ tabs: [Tab]) {
             // A page in WebKit's full screen window isn't taken, and the host that is to get it back stays for it to return to.
             let pages = tabs.compactMap { tab -> (Tab, WKWebView)? in
-                guard let page = tab.webView, !WebViewHost.isAway(page) else { return nil }
+                guard let page = tab.webView, !page.isAway else { return nil }
                 return (tab, page)
             }
-            for host in passive where !(host.page.map(WebViewHost.isAway) ?? false) && (!host.holdsPage || !pages.contains(where: { $0.1 === host.page })) {
+            for host in passive where !(host.page?.isAway ?? false) && (!host.holdsPage || !pages.contains(where: { $0.1 === host.page })) {
                 if host.holdsPage, let page = host.page {
                     page.removeFromSuperview()
                     host.tab?.holdBehind(false)
@@ -168,13 +141,16 @@ struct WebViewHost: NSViewRepresentable {
 
         func releaseHeld() { keep([]) }
 
+        /// The same as `restore(for:)`, for a tab that is named: what a tab asks of whatever shows its page.
+        func restore(for tab: Tab) { restore(for: Optional(tab)) }
+
         /// Takes the pages the AI is using that nobody looks at, if this is the host to hold them, else lets go of any it has.
         func holdWhatIsInUse() {
             var held: [Tab] = []
             if isMain, let browser {
                 held = Array(AgentActivity.shared.held.compactMap { id in browser.tabs.first { $0.id == id } }.filter { candidate in
                     candidate !== tab && !browser.isShown(candidate) && browser.peek !== candidate && candidate.webView != nil
-                        && candidate.webView.map(WebViewHost.isAway) != true
+                        && candidate.webView?.isAway != true
                 }.prefix(AgentActivity.maxHeld))
             }
             keep(held)
@@ -184,23 +160,19 @@ struct WebViewHost: NSViewRepresentable {
 
     func makeNSView(context: Context) -> Container { Container() }
 
-    /// The page is in WebKit's full screen window (a video's or another element's), with a placeholder where it was. A host
-    /// that took it back then would leave the full screen window empty and, as it ends, WebKit nothing to put the page back in.
-    static func isAway(_ webView: WKWebView) -> Bool { webView.fullscreenState != .notInFullscreen }
-
     func updateNSView(_ container: Container, context: Context) { update(container) }
 
     func update(_ container: Container) {
         if container.tab !== tab {
             // The tab the container showed before is not its to show, unless its page is in a full screen window and comes back to it.
-            if let previous = container.tab, previous.webView.map(Self.isAway) != true { previous.pageOwner.release(container) }
+            if let previous = container.tab, previous.webView?.isAway != true { previous.pageOwner.release(container) }
             container.tab = tab
             tab.pageOwner.claim(container)
         }
         container.browser = browser
         if let webView = tab.webView {
             // A host fading out (a closed peek, a split that ended) must not take the page back from the one showing it.
-            if webView.superview !== container, !Self.isAway(webView), tab.pageOwner.owns(container), container.showsPage {
+            if webView.superview !== container, !webView.isAway, tab.pageOwner.owns(container), container.showsPage {
                 container.show(webView)
                 DispatchQueue.main.async {
                     let shown = tab.id == browser.activeID || browser.peek === tab
@@ -218,9 +190,9 @@ struct WebViewHost: NSViewRepresentable {
     /// page in front, which may have updated before this one went.
     static func dismantleNSView(_ container: Container, coordinator: ()) {
         container.releaseHeld()
-        if let main = container.browser?.active?.pageOwner.host, main !== container { main.holdWhatIsInUse() }
-        guard let tab = container.tab, let webView = tab.webView, webView.superview === container, !isAway(webView),
-              let owner = tab.pageOwner.host, owner !== container, owner.tab === tab, tab.pageOwner.place == .front, owner.showsPage else { return }
+        if let main = container.browser?.active?.pageOwner.host as? Container, main !== container { main.holdWhatIsInUse() }
+        guard let tab = container.tab, let webView = tab.webView, webView.superview === container, !webView.isAway,
+              let owner = tab.pageOwner.host as? Container, owner !== container, owner.tab === tab, tab.pageOwner.place == .front, owner.showsPage else { return }
         owner.show(webView)
     }
 }
