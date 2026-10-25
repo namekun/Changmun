@@ -16,6 +16,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var openerID: Int?
     /// Opened outside any group: once its first page loads, it may join the group it belongs in.
     var sortsIntoGroup = false
+    /// Internal so the Tab+… extensions can change the crash record and the translation, reading and page-count state; anything else changes them through Tab's methods.
     /// When its page's process last went away, to stop reloading a page that keeps crashing.
     var crashes: [Date] = []
     @Published var title: String

@@ -194,5 +194,20 @@ kill -9 "$STUCK" 2>/dev/null; wait "$STUCK" 2>/dev/null
 CHANGMUN_HEADLESS_ENDPOINT="$WORK/stuck.json" CHANGMUN_STOP_WAIT=1 scripts/headless.sh stop >"$WORK/stop2.txt" 2>&1
 check "once it is gone, stop clears the file" test ! -f "$WORK/stuck.json"
 
+echo "state guard"
+# Browser, Tab and ChatStore state is changed by their own methods and extensions; the UI folders only read it.
+STATE_WRITE='\.(tabs|activeID|spaceID|groups|peek|closedTabs|items|isRunning|sessionID)[[:space:]]*(=[^=]|\+=|\.append|\.remove|\.insert)'
+state_writes() { grep -rnE "$STATE_WRITE" "$@" | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; }
+UI_DIRS=(Sources/Changmun/Views Sources/Changmun/PageCard Sources/Changmun/Sidebar Sources/Changmun/Settings Sources/Changmun/DesignSystem)
+check "the UI folders exist" test -d "${UI_DIRS[0]}" -a -d "${UI_DIRS[1]}" -a -d "${UI_DIRS[2]}" -a -d "${UI_DIRS[3]}" -a -d "${UI_DIRS[4]}"
+mkdir -p "$WORK/guard"
+printf 'browser.tabs = []\nbrowser.tabs.append(tab)\nstore.isRunning=true\nchat.items.removeAll()\n' >"$WORK/guard/writes.swift"
+printf 'if browser.activeID == tab.id {}\nlet n = browser.tabs.count\nif store.items != other {}\nif a.groups <= b {}\n// browser.tabs = []\n' >"$WORK/guard/reads.swift"
+check "the guard sees assignments and mutations" test "$(state_writes "$WORK/guard/writes.swift" | wc -l)" -eq 4
+check "the guard lets reads and comparisons be" refuses test -n "$(state_writes "$WORK/guard/reads.swift")"
+state_writes "${UI_DIRS[@]}" >"$WORK/state-writes.txt"
+check "the UI folders don't change Browser, Tab or ChatStore state directly" test ! -s "$WORK/state-writes.txt"
+[[ -s "$WORK/state-writes.txt" ]] && cat "$WORK/state-writes.txt" >&2
+
 (( FAILED )) && { echo "✘ script tests failed" >&2; exit 1; }
 echo "✔ script tests passed"
