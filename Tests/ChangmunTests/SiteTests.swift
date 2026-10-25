@@ -88,4 +88,21 @@ struct SiteTests {
         #expect(Approvals.addedImage == "\u{1}added-image")
         #expect(Approvals.unknownFrame != Approvals.addedImage)
     }
+
+    @Test func siteMatchesTheApprovalsForwarders() {
+        for (address, _) in Self.table {
+            #expect(Site.site(of: URL(string: address)) == Approvals.site(of: URL(string: address)), "\(address)")
+            #expect(Site.site(ofOrigin: address) == Approvals.site(ofOrigin: address), "\(address)")
+        }
+        for site in ["example.com", "example.com:8443", "http://example.com", "[::1]", "http://[::1]:8080", "[::1", "file:", "", Site.unknownFrame, Site.addedImage] {
+            #expect(Site.hostname(ofSite: site) == Approvals.hostname(ofSite: site), "\(site)")
+            #expect(Site.hasSite(site) == Approvals.hasSite(site), "\(site)")
+        }
+        #expect(Site.unknownFrame == Approvals.unknownFrame && Site.addedImage == Approvals.addedImage)
+    }
+
+    @Test func siteCanBeAskedOffTheMainActor() async {
+        let site = await Task.detached { Site.site(of: URL(string: "http://Example.com:8080")) }.value
+        #expect(site == "http://example.com:8080")
+    }
 }
