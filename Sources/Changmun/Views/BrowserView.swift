@@ -1370,7 +1370,7 @@ struct AddressPill: View {
     }
 
     var body: some View {
-        let host = tab.url?.host().map { $0.hasPrefix("www.") ? String($0.dropFirst(4)) : $0 }
+        let host = tab.url?.host().map(DisplayHost.trimmed)
         // The lock opens the site's settings; the rest of the pill, the site's name included, edits the address.
         let hasSite = tab.url?.scheme?.hasPrefix("http") == true && host?.isEmpty == false
         HStack(spacing: 8) {
@@ -2256,7 +2256,7 @@ struct LoginOfferBar: View {
 
     var body: some View {
         if let offer = tab.loginOffer {
-            let site = offer.host.hasPrefix("www.") ? String(offer.host.dropFirst(4)) : offer.host
+            let site = DisplayHost.trimmed(offer.host)
             HStack(spacing: 8) {
                 Image(systemName: "key.fill").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
                 Text(offer.updatesExisting && !offer.username.isEmpty ? String(localized: "Update password for \(offer.username)?") : String(localized: "Save login info for \(site)?"))
@@ -2429,7 +2429,7 @@ struct PeekCard: View {
             VStack(spacing: 8) {
                 HStack(spacing: 8) {
                     Favicon(tab: tab)
-                    Text(tab.url?.host().map { $0.hasPrefix("www.") ? String($0.dropFirst(4)) : $0 } ?? "")
+                    Text(tab.url?.host().map(DisplayHost.trimmed) ?? "")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Theme.primary)
                         .lineLimit(1)
@@ -2486,7 +2486,7 @@ struct TabSwitcherView: View {
                     Favicon(tab: tab)
                     Text(tab.displayTitle).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
                     Spacer(minLength: 8)
-                    Text(tab.url?.host().map { $0.hasPrefix("www.") ? String($0.dropFirst(4)) : $0 } ?? "")
+                    Text(tab.url?.host().map(DisplayHost.trimmed) ?? "")
                         .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
                 }
                 .padding(.horizontal, 10)
@@ -2536,7 +2536,7 @@ struct StatusLine: View {
     static func display(_ href: String) -> String {
         guard let url = URL(string: href), let host = url.host() else { return href.removingPercentEncoding ?? href }
         let rest = String(href.dropFirst((url.scheme?.count ?? 0) + 3 + host.count))
-        return (host.hasPrefix("www.") ? String(host.dropFirst(4)) : host) + (rest.removingPercentEncoding ?? rest)
+        return DisplayHost.trimmed(host) + (rest.removingPercentEncoding ?? rest)
     }
 
     var body: some View {
