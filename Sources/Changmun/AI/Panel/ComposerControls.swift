@@ -36,6 +36,13 @@ enum AIEffort: String, CaseIterable, Identifiable {
 enum AIModels {
     static let all = ["sonnet", "opus", "haiku"]
 
+    /// Whether a model may follow `--model`: a name of letters, digits, dots, underscores and hyphens that doesn't begin with a hyphen, so that
+    /// nothing the preference holds can pass for another option of `claude`.
+    static func isPassable(_ model: String) -> Bool {
+        guard let first = model.unicodeScalars.first, first.isASCII, first.properties.isAlphabetic || (48...57).contains(first.value) else { return false }
+        return model.unicodeScalars.allSatisfy { $0.isASCII && ($0.properties.isAlphabetic || (48...57).contains($0.value) || ".-_".unicodeScalars.contains($0)) }
+    }
+
     /// "sonnet" as it is called; a model name set some other way is shown as it is.
     static func name(of model: String) -> String {
         all.contains(model) ? model.prefix(1).uppercased() + model.dropFirst() : model

@@ -104,6 +104,8 @@ final class Browser: ObservableObject {
     @Published var spaceSheet: SpaceSheetMode?
     /// Opening the AI panel, the sidebar or the downloads ends focus mode, whichever way it is opened.
     /// While the panel is popped out into its own window it is not shown here: asking for it brings that window forward instead.
+    /// The panel is up for the user, docked here or in its own window.
+    var panelShown: Bool { showChat || ChatPopOut.shared.isPoppedOut(for: self) }
     @Published var showChat = false {
         didSet {
             if showChat, ChatPopOut.shared.isPoppedOut(for: self) {

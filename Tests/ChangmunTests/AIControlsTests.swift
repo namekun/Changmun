@@ -3,6 +3,12 @@ import Foundation
 import Testing
 @testable import Changmun
 
+@MainActor
+private func card(_ browser: Browser?, moved: (() -> Void)? = nil) -> ApprovalCards.Card {
+    ApprovalCards.Card(id: UUID(), prompt: Approvals.Prompt(message: "m", detail: "d", choices: [.deny, .once]), buttons: [(.deny, "No"), (.once, "Yes")],
+                       browser: browser, answer: { _ in }, moveToSheet: { moved?() })
+}
+
 /// What sits around the AI panel's box: the effort, the approval modes, the title, the working line, the context ring, and the pages
 /// a message went with.
 @MainActor
@@ -34,6 +40,69 @@ struct AIControlsPureTests {
         #expect(line(effort: "max", stream: true).starts(with: ["-p", "--input-format", "stream-json"]))
     }
 
+    @Test func onlyAModelNameIsPassedOnTheCommandLine() {
+        func line(_ model: String) -> [String] {
+            ChatStore.arguments(prompt: "hi", streamInput: false, model: model, effort: "", config: "/tmp/c.json", sessionID: nil)
+        }
+        for good in ["sonnet", "opus", "haiku", "claude-sonnet-4-5", "claude-opus-4.1", "my_model-2", "a"] {
+            #expect(line(good).contains("--model") && line(good).contains(good), "\(good)")
+        }
+        for bad in ["", "--dangerously-skip-permissions", "-x", " sonnet", "a b", "a;b", "a\nb", "sonnet\u{0}", ".hidden", "a/b", "ü"] {
+            #expect(!line(bad).contains("--model"), "\(bad.debugDescription)")
+            #expect(bad.isEmpty || !line(bad).contains(bad), "\(bad.debugDescription) is not passed at all")
+        }
+        #expect(AIModels.isPassable("sonnet") && !AIModels.isPassable("-p"))
+    }
+
+    @Test func aQuestionRevealsThePopOutWithoutTakingFocusFromAnotherApp() {
+        #expect(ChatPopOut.reveal(miniaturized: false, appActive: true) == .init(restore: false, orderFront: true, askAttention: false))
+        #expect(ChatPopOut.reveal(miniaturized: true, appActive: true) == .init(restore: true, orderFront: true, askAttention: false))
+        #expect(ChatPopOut.reveal(miniaturized: false, appActive: false) == .init(restore: false, orderFront: false, askAttention: true), "another app is in front: only the Dock bounces")
+        #expect(ChatPopOut.reveal(miniaturized: true, appActive: false) == .init(restore: true, orderFront: false, askAttention: true))
+    }
+
+    // MARK: Which window a card's keys come from
+
+    @Test func aCardIsAnsweredOnlyFromTheWindowItIsShownIn() {
+        let browser = Browser(), other = Browser()
+        defer { browser.windowClosed(); other.windowClosed() }
+        let browserWindow = NSWindow(), popOutWindow = NSWindow()
+        let cards = [card(browser), card(other)]
+        // Docked: the browser's own window.
+        let docked: (Browser?) -> NSWindow? = { _ in browserWindow }
+        #expect(ApprovalCards.card(in: cards, answeredFrom: browserWindow, host: docked)?.browser === browser)
+        #expect(ApprovalCards.card(in: cards, answeredFrom: popOutWindow, host: docked) == nil)
+        // Popped out: the pop-out window only, never the browser window the panel left.
+        let popped: (Browser?) -> NSWindow? = { $0 === browser ? popOutWindow : browserWindow }
+        #expect(ApprovalCards.card(in: cards, answeredFrom: popOutWindow, host: popped)?.browser === browser)
+        #expect(ApprovalCards.card(in: [cards[0]], answeredFrom: browserWindow, host: popped) == nil, "Return or Esc in the browser window leaves the pop-out's card alone")
+        #expect(ApprovalCards.card(in: cards, answeredFrom: browserWindow, host: popped)?.browser === other, "a card of another window's panel is not touched either")
+        #expect(ApprovalCards.card(in: [card(nil)], answeredFrom: browserWindow) == nil, "a card with no browser has no window")
+    }
+
+    @Test func theKeysThatSayYesNeedTheBoxOrACardFocusedInThatSameWindow() {
+        let here = NSWindow(), elsewhere = NSWindow()
+        #expect(ApprovalCards.inPanel(composerFocused: true, cardFocusWindow: nil, eventWindow: here, firstResponderIsText: true))
+        #expect(ApprovalCards.inPanel(composerFocused: false, cardFocusWindow: here, eventWindow: here, firstResponderIsText: false))
+        #expect(!ApprovalCards.inPanel(composerFocused: false, cardFocusWindow: elsewhere, eventWindow: here, firstResponderIsText: false), "the card was focused in another window")
+        #expect(!ApprovalCards.inPanel(composerFocused: false, cardFocusWindow: nil, eventWindow: here, firstResponderIsText: false))
+        #expect(!ApprovalCards.inPanel(composerFocused: false, cardFocusWindow: here, eventWindow: here, firstResponderIsText: true), "a text field elsewhere in the window is not the card")
+    }
+
+    @Test func theFocusOfACardIsForgottenWhenItsWindowStopsBeingKey() {
+        let cards = ApprovalCards.shared
+        let window = NSWindow(), other = NSWindow()
+        cards.noteCardFocus(true, in: window)
+        #expect(cards.focusedWindow === window)
+        NotificationCenter.default.post(name: NSWindow.didResignKeyNotification, object: other)
+        #expect(cards.focusedWindow === window, "another window resigning changes nothing")
+        NotificationCenter.default.post(name: NSWindow.didResignKeyNotification, object: window)
+        #expect(cards.focusedWindow == nil)
+        cards.noteCardFocus(true, in: window)
+        cards.noteCardFocus(false, in: window)
+        #expect(cards.focusedWindow == nil)
+    }
+
     @Test func theModelChipSaysTheEffortOnlyWhenThereIsOne() {
         #expect(AIEffort.label(model: "sonnet", effort: "") == "Sonnet")
         #expect(AIEffort.label(model: "sonnet", effort: "high") == "Sonnet · High")
@@ -48,9 +117,13 @@ struct AIControlsPureTests {
         #expect(AIApprovalMode.initial(stored: nil, legacy: true) == .afterReading)
         #expect(AIApprovalMode.initial(stored: nil, legacy: false) == .irreversibleOnly)
         #expect(AIApprovalMode.initial(stored: "everyAction", legacy: false) == .everyAction, "the mode chosen later wins")
-        #expect(AIApprovalMode.initial(stored: "irreversibleOnly", legacy: true) == .irreversibleOnly)
-        #expect(AIApprovalMode.initial(stored: "nonsense", legacy: false) == .irreversibleOnly, "an unknown mode falls back to the old switch")
+        #expect(AIApprovalMode.initial(stored: "irreversibleOnly", legacy: false) == .irreversibleOnly)
+        #expect(AIApprovalMode.initial(stored: "irreversibleOnly", legacy: nil) == .irreversibleOnly)
+        #expect(AIApprovalMode.initial(stored: "irreversibleOnly", legacy: true) == .afterReading, "an older version turned asking back on: that wins")
+        #expect(AIApprovalMode.initial(stored: "everyAction", legacy: true) == .everyAction)
+        #expect(AIApprovalMode.initial(stored: "nonsense", legacy: false) == .afterReading, "a mode key that doesn't read is the default, never the weakest mode")
         #expect(AIApprovalMode.initial(stored: "nonsense", legacy: nil) == .afterReading)
+        #expect(AIApprovalMode.initial(stored: "", legacy: false) == .afterReading)
     }
 
     @Test func usingAPageIsAskedAboutPerMode() {
@@ -394,11 +467,46 @@ extension SharedAgentState {
                 let task = Task { await Approvals.allowInteraction(.type("hi"), on: tabs[1], caller: panel) }
                 #expect(await waitUntil(5) { !ApprovalCards.shared.cards.isEmpty })
                 #expect(ApprovalCards.shared.first(for: browser) != nil, "a card for the panel in the window, not a sheet on the browser")
+                #expect(ApprovalCards.hostWindow(for: browser) === popOut.window && popOut.window != nil, "its keys come from the pop-out window")
                 Approvals.release(.once)
                 #expect(await task.value)
             }
-            // The panel going away with a question open moves it to the window of the browser.
             #expect(ApprovalCards.shared.cards.isEmpty)
+        }
+
+        @Test func closingThePopOutMovesAWaitingQuestionToASheet() async {
+            let (browser, _) = open(["https://a.example/"])
+            let popOut = ChatPopOut.shared
+            defer { popOut.close(dock: false); browser.windowClosed() }
+            browser.showChat = false
+            popOut.open(for: browser)
+            var moved = 0
+            let waiting = card(browser) { moved += 1 }
+            ApprovalCards.shared.add(waiting)
+            defer { ApprovalCards.shared.remove(waiting.id) }
+            #expect(ApprovalCards.shared.first(for: browser)?.id == waiting.id)
+            popOut.close(dock: false)
+            #expect(moved == 1, "asked on the browser window instead")
+            #expect(ApprovalCards.shared.cards.isEmpty, "and no longer on a card in a panel that is gone")
+            #expect(ApprovalCards.hostWindow(for: browser) === browser.window, "docked or closed again: the browser's own window")
+        }
+
+        @Test func theAIButtonsReadAsOnWhileThePanelIsOut() {
+            let (browser, _) = open(["https://a.example/"])
+            let popOut = ChatPopOut.shared
+            defer { popOut.close(dock: false); browser.windowClosed() }
+            var told = 0
+            let listener = browser.objectWillChange.sink { told += 1 }
+            defer { listener.cancel() }
+            browser.showChat = false
+            let base = told
+            popOut.open(for: browser)
+            #expect(browser.panelShown && told > base, "the buttons are told to look again")
+            let opened = told
+            popOut.close(dock: false)
+            #expect(!browser.panelShown && told > opened)
+            browser.showChat = true
+            #expect(browser.panelShown)
         }
     }
 }

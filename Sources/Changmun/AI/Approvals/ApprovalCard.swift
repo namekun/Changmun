@@ -24,20 +24,33 @@ final class ApprovalCards: ObservableObject {
     /// Oldest first: the AI may ask for several things at once, and they are answered in the order they came.
     @Published private(set) var cards: [Card] = []
     private var monitor: Any?
-    /// Keyboard focus is on the card itself (set by the card), which the keys that say yes may then act from.
-    var cardFocused = false
+    /// The window in which keyboard focus is on a card itself (set by the card), which the keys that say yes may then act from: only in
+    /// that window, and only until it stops being the key window.
+    private(set) weak var focusedWindow: NSWindow?
+    private var resigned: NSObjectProtocol?
     /// When the mouse button last went down in the app: a click on a button that says yes counts only if it began after the card was armed.
     private(set) var lastMouseDown: Date?
     /// When each card became the first one of its panel, the one on show: the keys and the buttons that say yes are armed a moment after
     /// that, not after the question was made (a second question must not wake up already armed when the first is answered).
     private var frontSince: [UUID: Date] = [:]
 
+    private init() {
+        resigned = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: nil, queue: .main) { [weak self] note in
+            MainActor.assumeIsolated { if let window = note.object as? NSWindow, window === self?.focusedWindow { self?.focusedWindow = nil } }
+        }
+    }
+
+    /// A card gained or lost keyboard focus in `window`.
+    func noteCardFocus(_ focused: Bool, in window: NSWindow?) {
+        if focused { focusedWindow = window } else if window == nil || focusedWindow === window { focusedWindow = nil }
+    }
+
     func visibleSince(_ id: UUID) -> Date {
         frontSince[id] ?? cards.first { $0.id == id }?.shownAt ?? Date()
     }
 
     func add(_ card: Card) {
-        if cards.isEmpty { cardFocused = false }
+        if cards.isEmpty { focusedWindow = nil }
         let alone = card.browser.map { first(for: $0) == nil } ?? true
         cards.append(card)
         if alone { frontSince[card.id] = Date() }
@@ -59,7 +72,7 @@ final class ApprovalCards: ObservableObject {
         // The next question of that panel comes to the front now.
         if let browser, let next = first(for: browser), frontSince[next.id] == nil { frontSince[next.id] = Date() }
         // The focus was on the card that went: the next one starts without it.
-        cardFocused = false
+        focusedWindow = nil
         if cards.isEmpty, let monitor {
             NSEvent.removeMonitor(monitor)
             self.monitor = nil
@@ -79,9 +92,26 @@ final class ApprovalCards: ObservableObject {
         }
     }
 
+    /// The window a card is shown in: the browser's own while its panel is docked, the pop-out window while it is out. A card answers to
+    /// the keys of that window and no other.
+    static func hostWindow(for browser: Browser?) -> NSWindow? {
+        guard let browser else { return nil }
+        return ChatPopOut.shared.isPoppedOut(for: browser) ? ChatPopOut.shared.window : browser.window
+    }
+
+    /// The first card shown in `window`, which the keys pressed there may answer.
+    static func card(in cards: [Card], answeredFrom window: NSWindow, host: @MainActor (Browser?) -> NSWindow? = ApprovalCards.hostWindow(for:)) -> Card? {
+        cards.first { host($0.browser) === window }
+    }
+
+    /// Whether the keys that say yes may act: from the box, or from a card that has the focus in this very window (and no text field
+    /// has it since).
+    static func inPanel(composerFocused: Bool, cardFocusWindow: NSWindow?, eventWindow: NSWindow, firstResponderIsText: Bool) -> Bool {
+        composerFocused || (cardFocusWindow === eventWindow && !firstResponderIsText)
+    }
+
     private func keyDown(_ event: NSEvent) -> NSEvent? {
-        // The panel's window: the browser's, or the one the panel was popped out into.
-        guard let window = event.window, let card = cards.first(where: { $0.browser?.window === window || ($0.browser === ChatPopOut.shared.panelBrowser && window === ChatPopOut.shared.window) }) else { return event }
+        guard let window = event.window, let card = Self.card(in: cards, answeredFrom: window) else { return event }
         // Keys that belong to what the user is doing stay theirs: typing in a page, or in a field that has text in it.
         var responder = window.firstResponder
         var inPage = false
@@ -91,7 +121,8 @@ final class ApprovalCards: ObservableObject {
         }
         let typed = (window.firstResponder as? NSTextView).map { !$0.string.isEmpty } ?? false
         // The keys that say yes work only from the panel: its box, or the card (but not from a text field elsewhere, like the address bar).
-        let inPanel = window.firstResponder is ComposerTextView || (cardFocused && !(window.firstResponder is NSText))
+        let inPanel = Self.inPanel(composerFocused: window.firstResponder is ComposerTextView, cardFocusWindow: focusedWindow, eventWindow: window,
+                                   firstResponderIsText: window.firstResponder is NSText)
         guard let choice = ApprovalKeys.choice(keyCode: event.keyCode, flags: event.modifierFlags, offered: card.prompt.choices,
                                                inPage: inPage, typed: typed, inPanel: inPanel, shownFor: Date().timeIntervalSince(visibleSince(card.id))) else { return event }
         // A key held down answers once, and its repeats are not taken for more (nor passed on to the box).
@@ -194,7 +225,7 @@ struct ApprovalCardView: View {
         .focusable()
         .focusEffectDisabled()
         .focused($focused)
-        .onChange(of: focused) { ApprovalCards.shared.cardFocused = focused }
+        .onChange(of: focused) { ApprovalCards.shared.noteCardFocus(focused, in: NSApp.keyWindow) }
         .task {
             let wait = ApprovalKeys.yesDelay - Date().timeIntervalSince(ApprovalCards.shared.visibleSince(card.id))
             if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }

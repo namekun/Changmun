@@ -478,7 +478,9 @@ final class ChatStore: ObservableObject {
     /// The command line of a run. The effort is left out when the user hasn't chosen one, so `claude` works as it did before there was a choice.
     static func arguments(prompt: String, streamInput: Bool, model: String, effort: String, config: String, sessionID: String?) -> [String] {
         var arguments = streamInput ? ["-p", "--input-format", "stream-json"] : ["-p", prompt]
-        arguments += ["--output-format", "stream-json", "--verbose", "--include-partial-messages", "--model", model]
+        arguments += ["--output-format", "stream-json", "--verbose", "--include-partial-messages"]
+        // A model name that isn't one is left out (claude then uses its own default) rather than passed as something else.
+        if AIModels.isPassable(model) { arguments += ["--model", model] }
         arguments += AIEffort.arguments(for: effort)
         arguments += [
             "--setting-sources", "",
