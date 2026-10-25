@@ -6,6 +6,19 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.7.6</title>
+      <pubDate>Sun, 25 Oct 2026 02:27:02 +0000</pubDate>
+      <sparkle:version>29</sparkle:version>
+      <sparkle:shortVersionString>0.7.6</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.7.6</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Rename a tab.** Double-click a tab's title in the sidebar, or choose Rename Tab… from its menu, and give it a name of your own. The name stays through new pages, restarts and reopening; Reset Name brings back the page's title. The AI still sees the page's real title next to your name.
+- **Imported folders keep one name.** Folders brought in from Chrome, Arc or Safari are stored under the same name whatever language your Mac is in, and shown in yours, so importing again after a language change no longer makes a second copy. Folders imported before are renamed once at launch, with a backup kept first, and folders imported twice in two languages are merged.
+- **Safari's favorites folder** no longer shows as "/ Favorites".</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.6/Changmun-0.7.6.dmg" length="4998867" type="application/octet-stream" sparkle:edSignature="8f/1pvAIwIYmmxVAN/m3SBl5oFiGHVN6moR4IYCTvczELe6tfdA9sDWzWR0E4IZBgLMI4Ty2lOLruRt3zA2QCw==" />
+    </item>
+    <item>
       <title>0.7.5</title>
       <pubDate>Sun, 25 Oct 2026 01:05:35 +0000</pubDate>
       <sparkle:version>28</sparkle:version>
@@ -122,21 +135,9 @@
 - **A headless Changmun for your agents.** `changmun headless start` runs a separate, invisible Changmun with its own empty profile, and `changmun --headless …` or `changmun --mcp --headless` (for Claude Code) points at it. It doesn't stop to ask before each step, so it refuses anything that can't be undone, like paying, sending, posting or deleting. Your own browser, its logins and its passwords stay out of it. See `changmun help`.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.6.2/Changmun-0.6.2.dmg" length="4299446" type="application/octet-stream" sparkle:edSignature="wTfLq4HIk/HEO27z8j2f88kpQCv3saKwbi/9+9LMoLemJKJe1ovUDOXMQJBtFXkTRJ9yVY4PmknjAWbKvw3vDA==" />
     </item>
-    <item>
-      <title>0.6.1</title>
-      <pubDate>Thu, 22 Oct 2026 22:02:23 +0000</pubDate>
-      <sparkle:version>19</sparkle:version>
-      <sparkle:shortVersionString>0.6.1</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.6.1</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Changmun tells you whether its AI can run.** The last step of onboarding, and the AI panel until you first use it, now say whether Claude Code is on this Mac. If it isn't, you get a link to it, and a note that you can point Changmun at a copy it didn't find in Settings › AI. Codex, Gemini CLI and opencode are named as coming when they're what your Mac has. Until Claude Code is there, the panel's composer stays off instead of failing when you press Return.
-- **Fewer "Allow" questions from Claude Code.** An AI connected through MCP, such as a Claude Code session, can now be allowed on a site for the rest of its session, as the AI panel could already. It still asks again after reading another site, and anything that pays, sends, posts or deletes is still asked about every time. Commands from the command line are still asked each time.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.6.1/Changmun-0.6.1.dmg" length="4263921" type="application/octet-stream" sparkle:edSignature="N7S0D5KO9fshieKEjjPboGfpr1yb4xRmEhO1fYHyvZ2GYiTUYbZPgV8A/DDfE/dTjYHfbPrlqjC+pg5MI6OLCg==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: pmTQJ0lvylenY7bNw7ZOL9S9vOMtidXsa5XIFA1YmKiuvtbTspJpI9MOTQxt2y/twCANxPvHR89EDkgD6ge/BA==
-length: 16057
+edSignature: wd1W/cwTZCDQd95Nk8p02iWOerTcMKjNxrHin3pVLuheUJ1uxTtM13PgxU6bWhKK6iJ5BIpSRwSXPGoAkVq4AQ==
+length: 15942
 -->
