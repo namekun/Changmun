@@ -15,6 +15,8 @@ final class TabArchive: ObservableObject {
         var group: String?
         /// The space it was in; older entries have none and open in the space shown.
         var space: UUID?
+        /// The name the user gave the tab, which it gets again when opened.
+        var customTitle: String?
     }
 
     @Published private(set) var entries: [Entry]

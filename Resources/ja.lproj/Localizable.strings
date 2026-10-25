@@ -674,3 +674,6 @@
 "%lld characters" = "%lld 文字";
 "Open a link to %@?" = "%@ へのリンクを開きますか？";
 "This chat has read other sites, and a page could have slipped this link in to send what the AI read there." = "このチャットでは他のサイトを読んでいて、AI が読んだ内容をそこへ送るために、ページがこのリンクを紛れ込ませた可能性があります。";
+"Rename Tab…" = "タブの名前を変更…";
+"Reset Name" = "名前をリセット";
+"Tab name" = "タブ名";

@@ -674,3 +674,6 @@
 "%lld characters" = "%lld 个字符";
 "Open a link to %@?" = "要打开指向 %@ 的链接吗？";
 "This chat has read other sites, and a page could have slipped this link in to send what the AI read there." = "此对话已读取过其他网站，网页可能偷偷放入这个链接，以便把 AI 读到的内容发送到那里。";
+"Rename Tab…" = "重命名标签页…";
+"Reset Name" = "重置名称";
+"Tab name" = "标签页名称";

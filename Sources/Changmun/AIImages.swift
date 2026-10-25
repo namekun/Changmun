@@ -277,7 +277,7 @@ extension ChatStore {
         // A page still loading is a page that is about to be another one.
         guard !Self.loading(tab) else { return say(String(localized: "The page changed while capturing. Try again.")) }
         let generation = imageGeneration
-        let title = Self.oneLine(tab.displayTitle).prefix(80), address = Self.oneLine(url?.absoluteString ?? "about:blank").prefix(300)
+        let title = Self.oneLine(tab.pageTitle).prefix(80), address = Self.oneLine(url?.absoluteString ?? "about:blank").prefix(300)
         let (taken, frames) = await Self.capturePage(tab)
         guard generation == imageGeneration else { return }
         // A page that went elsewhere while the picture was taken may have been caught on either side of it: nothing is guessed.
@@ -291,7 +291,7 @@ extension ChatStore {
         // The site as it is now counts too, however little it can differ from the one before the picture.
         var sites = [site, Approvals.site(of: tab.url)].compactMap { $0 }
         sites = sites.enumerated().filter { sites.firstIndex(of: $0.element) == $0.offset }.map(\.element) + frames.sorted()
-        add(prepared, label: "a screenshot of tab #\(tab.id), title set by the page \"\(title)\", address \(address)", sites: sites)
+        add(prepared, label: "a screenshot of tab #\(tab.id), title set by the page \"\(title)\"\(Self.name(tab)), address \(address)", sites: sites)
     }
 }
 

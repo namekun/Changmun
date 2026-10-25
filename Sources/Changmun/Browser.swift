@@ -85,9 +85,14 @@ final class Browser: ObservableObject {
 
     /// The tabs of every space in this window.
     @Published private(set) var tabs: [Tab] = []
-    @Published private(set) var activeID: Int?
+    @Published private(set) var activeID: Int? {
+        // Showing another tab ends a rename in progress, which belongs to the tab it was started on.
+        didSet { if renamingTab != nil && renamingTab != activeID { renamingTab = nil } }
+    }
     /// The space shown: the sidebar lists its tabs, favorites and folders, and new tabs open in it.
-    @Published private(set) var spaceID: UUID
+    @Published private(set) var spaceID: UUID {
+        didSet { if renamingTab != nil { renamingTab = nil } }
+    }
     /// Which way the last switch went (1 to a space further on), for the sidebar to slide that way.
     private(set) var spaceDirection = 1
     /// The tab each space last showed, so coming back finds it.
@@ -104,7 +109,7 @@ final class Browser: ObservableObject {
         didSet {
             UserDefaults.standard.set(showSidebar, forKey: "showSidebar")
             showDownloads = false
-            if showSidebar { focusMode = false } else { renamingGroup = nil }
+            if showSidebar { focusMode = false } else { renamingGroup = nil; renamingTab = nil }
         }
     }
     @Published var commandBar: CommandBarMode? {
@@ -128,6 +133,7 @@ final class Browser: ObservableObject {
             guard focusMode else { return }
             showDownloads = false
             renamingGroup = nil
+            renamingTab = nil
             flashStatus(String(localized: "Focus mode · ⇧⌘F to exit"))
         }
     }
@@ -155,6 +161,7 @@ final class Browser: ObservableObject {
         let id = UUID()
         var url: URL?
         var title: String
+        var customTitle: String?
         var state: Data?
         var index: Int
         var bookmarkKey: String?
@@ -461,10 +468,11 @@ final class Browser: ObservableObject {
     func close(_ id: Int, remember: Bool = true) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         let closing = tabs.remove(at: index)
+        if renamingTab == id { renamingTab = nil }
         for (space, shared) in splits where shared.contains(id) { setSplit(nil, in: space) }
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabClosed(closing) }
         if remember {
-            closedTabs.append(ClosedTab(url: closing.url, title: closing.title, state: closing.sessionState, index: index, bookmarkKey: closing.bookmarkKey,
+            closedTabs.append(ClosedTab(url: closing.url, title: closing.title, customTitle: closing.customTitle, state: closing.sessionState, index: index, bookmarkKey: closing.bookmarkKey,
                                         group: groups.first { $0.id == closing.groupID }, space: closing.spaceID))
             if closedTabs.count > 100 { closedTabs.removeFirst() }
         }
@@ -502,6 +510,7 @@ final class Browser: ObservableObject {
 
     private func reopen(_ closed: ClosedTab) {
         let tab = Tab(id: Self.takeID(), url: closed.url, title: closed.title, state: closed.state, browser: self)
+        tab.customTitle = closed.customTitle
         if spaces.contains(closed.space) { tab.spaceID = closed.space }
         // Not the bookmark of a tab whose bookmark was deleted meanwhile: it would be out of sight in the tab list.
         if let key = closed.bookmarkKey, Self.keeps(key, in: spaces.space(tab.spaceID)), (Self.libraryKeys()?.contains(key) ?? true),
@@ -755,6 +764,18 @@ final class Browser: ObservableObject {
     }
     /// The group whose name is being typed in the sidebar; a new group starts that way.
     @Published var renamingGroup: UUID?
+    /// The tab whose name is being typed in the sidebar.
+    @Published var renamingTab: Int?
+
+    /// Ends the rename of `tab` with what was typed: an unchanged name leaves the tab as it was, so opening the field and leaving
+    /// it does not fix the page's title as the name. Nothing happens unless the rename is still on (Esc, or another tab's, ended it):
+    /// a focus change that comes after must not save what was cancelled or close another tab's field.
+    func finishRenaming(_ tab: Tab, with name: String) {
+        guard renamingTab == tab.id else { return }
+        renamingTab = nil
+        let trimmed = { (text: String) in text.trimmingCharacters(in: .whitespacesAndNewlines) }
+        if trimmed(name) != trimmed(tab.displayTitle) { tab.rename(to: name) }
+    }
 
     enum ListedItem: Identifiable {
         case tab(Tab)
@@ -924,7 +945,7 @@ final class Browser: ObservableObject {
         case .folder(let parent): folder = newFolderKey(for: group.name, in: parent, library)
         }
         let added = pages.filter { !library.isFavorite($0.url, in: folder) }
-        for page in added { library.addBookmark(url: page.url, title: page.tab.title.isEmpty ? (page.tab.url?.host() ?? page.url) : page.tab.title, folder: folder) }
+        for page in added { library.addBookmark(url: page.url, title: page.tab.bookmarkTitle.isEmpty ? (page.tab.url?.host() ?? page.url) : page.tab.bookmarkTitle, folder: folder) }
         var bound: [Int: String] = [:]
         for page in pages {
             let key = Self.bookmarkKey(url: page.url, folder: folder)
@@ -989,7 +1010,7 @@ final class Browser: ObservableObject {
     /// Takes a tab out into a window of its own, keeping its back and forward history.
     func moveToNewWindow(_ id: Int) {
         guard let tab = tab(id) else { return }
-        let saved = SavedSession(tabs: [SavedTab(url: tab.url?.absoluteString, title: tab.title, state: tab.sessionState, space: tab.spaceID)], active: 0, space: tab.spaceID)
+        let saved = SavedSession(tabs: [SavedTab(url: tab.url?.absoluteString, title: tab.title, customTitle: tab.customTitle, state: tab.sessionState, space: tab.spaceID)], active: 0, space: tab.spaceID)
         close(id, remember: false)
         BrowserWindow.open(private: isPrivate, restoring: saved)
     }
@@ -1290,7 +1311,8 @@ final class Browser: ObservableObject {
         guard !idle.isEmpty else { return }
         // A tab closes only once its entry is saved: an archive that can't be written keeps the tabs open.
         guard archive.add(idle.map { tab in
-            TabArchive.Entry(url: tab.url?.absoluteString ?? "", title: tab.displayTitle, archived: now, group: groups.first { $0.id == tab.groupID }?.name, space: tab.spaceID)
+            TabArchive.Entry(url: tab.url?.absoluteString ?? "", title: tab.displayTitle, archived: now, group: groups.first { $0.id == tab.groupID }?.name, space: tab.spaceID,
+                              customTitle: tab.customTitle)
         }) else { return }
         for tab in idle { close(tab.id, remember: false) }
     }
@@ -1300,6 +1322,7 @@ final class Browser: ObservableObject {
         guard let url = URL(string: entry.url) else { return }
         let archive = archive ?? .shared
         let tab = openTab(url: url, space: entry.space)
+        tab.customTitle = entry.customTitle
         if let name = entry.group, let group = spaceGroups.first(where: { $0.name == name }) { addTab(tab.id, to: group.id) }
         archive.remove(entry.id)
     }
@@ -1309,6 +1332,8 @@ final class Browser: ObservableObject {
     struct SavedTab: Codable {
         var url: String?
         var title: String
+        /// The name the user gave the tab, which shows in place of the page's title.
+        var customTitle: String?
         var state: Data?
         var bookmarkKey: String?
         var group: UUID?
@@ -1361,7 +1386,7 @@ final class Browser: ObservableObject {
     /// its last page finished loading, so it doesn't walk every web view on the main thread.
     func savedSession(fresh: Bool) -> SavedSession {
         SavedSession(
-            tabs: tabs.map { SavedTab(url: $0.url?.absoluteString, title: $0.title, state: fresh ? $0.sessionState : $0.lastSessionState,
+            tabs: tabs.map { SavedTab(url: $0.url?.absoluteString, title: $0.title, customTitle: $0.customTitle, state: fresh ? $0.sessionState : $0.lastSessionState,
                                   bookmarkKey: $0.bookmarkKey, group: $0.groupID, shown: $0.lastShown, space: $0.spaceID,
                                   selected: spaceSelection[$0.spaceID] == $0.id) },
             active: tabs.firstIndex { $0.id == activeID },
@@ -1404,7 +1429,7 @@ final class Browser: ObservableObject {
     /// What `saveSessionIfChanged` compares: the parts of the ordinary windows that the session file keeps.
     static func sessionSignature() -> [String] {
         all.filter { !$0.isPrivate }.map { browser in
-            browser.tabs.map { "\($0.id) \($0.spaceID) \($0.groupID?.uuidString ?? "") \($0.bookmarkKey ?? "") \($0.url?.absoluteString ?? "")" }.joined(separator: "|")
+            browser.tabs.map { "\($0.id) \($0.spaceID) \($0.groupID?.uuidString ?? "") \($0.bookmarkKey ?? "") \($0.url?.absoluteString ?? "") \($0.customTitle ?? "")" }.joined(separator: "|")
                 + " #\(browser.activeID ?? 0) \(browser.spaceID) " + browser.groups.map { "\($0.id) \($0.isOpen) \($0.name)" }.joined(separator: "|")
         }
     }
@@ -1432,6 +1457,7 @@ final class Browser: ObservableObject {
             tab.spaceID = spaces.space(item.space).id
             tab.bookmarkKey = item.bookmarkKey.flatMap { Self.keeps($0, in: spaces.space(tab.spaceID)) && (known?.contains($0) ?? true) ? $0 : nil }
             tab.groupID = item.group
+            tab.customTitle = item.customTitle
             if item.selected == true { spaceSelection[tab.spaceID] = tab.id }
             if let shown = item.shown { tab.lastShown = Date(timeIntervalSinceNow: -max(0, (saved.saved ?? shown).timeIntervalSince(shown))) }
             tabs.append(tab)

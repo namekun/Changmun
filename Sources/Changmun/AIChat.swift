@@ -811,18 +811,21 @@ final class ChatStore: ObservableObject {
     static func queuedContextLine(_ tab: Tab?, closed: Bool, moved: Int? = nil) -> String {
         if let moved { return "[The tab the user was looking at when they wrote this message (#\(moved)) has since gone to another site, so its title and address are not given. Use list_tabs and pass tab_id]" }
         guard let tab else { return closed ? "[The tab the user was looking at when they wrote this message has been closed]" : "[No open tab]" }
-        return "[Tab the user was looking at when they wrote this message: #\(tab.id), title set by the page \"\(title(tab))\", address \(address(tab))]"
+        return "[Tab the user was looking at when they wrote this message: #\(tab.id), title set by the page \"\(title(tab))\"\(name(tab)), address \(address(tab))]"
     }
 
     /// The tabs attached in the panel, on the line after the current tab; empty when there are none.
     static func attachedLine(_ tabs: [Tab], moved: [Int] = []) -> String {
         var line = ""
-        if !tabs.isEmpty { line += "\n[Tabs the user attached: " + tabs.map { "#\($0.id) \"\(title($0))\" \(address($0))" }.joined(separator: "; ") + "]" }
+        if !tabs.isEmpty { line += "\n[Tabs the user attached: " + tabs.map { "#\($0.id) \"\(title($0))\"\(name($0)) \(address($0))" }.joined(separator: "; ") + "]" }
         if !moved.isEmpty { line += "\n[Tabs the user attached that have since gone to another site, so their titles and addresses are not given: " + moved.map { "#\($0)" }.joined(separator: ", ") + "]" }
         return line
     }
 
-    private static func title(_ tab: Tab) -> Substring { oneLine(tab.displayTitle).prefix(80) }
+    private static func title(_ tab: Tab) -> Substring { oneLine(tab.pageTitle).prefix(80) }
+
+    /// The name the user gave the tab, after its title, when they gave it one.
+    static func name(_ tab: Tab) -> String { tab.customTitle.map { ", named by the user \"\(oneLine($0).prefix(80))\"" } ?? "" }
 
     private static func address(_ tab: Tab) -> Substring { oneLine(tab.url?.absoluteString ?? "about:blank").prefix(300) }
 

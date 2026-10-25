@@ -216,9 +216,10 @@ struct ChromiumImporter {
         let file = source.directory.appendingPathComponent("Bookmarks")
         if let data = try? Data(contentsOf: file),
            let roots = (try JSONSerialization.jsonObject(with: data) as? [String: Any])?["roots"] as? [String: Any] {
-            for (key, label) in [("bookmark_bar", String(localized: "Bookmarks Bar")), ("other", String(localized: "Other Bookmarks")), ("synced", String(localized: "Mobile Bookmarks"))] {
+            // The stored name is the same in every language; the sidebar translates it when it shows it.
+            for (key, label) in [("bookmark_bar", ImportedFolders.barLabel), ("other", ImportedFolders.otherLabel), ("synced", ImportedFolders.mobileLabel)] {
                 guard let node = roots[key] as? [String: Any] else { continue }
-                walk(node, path: [source.browser + " " + label], into: &entries)
+                walk(node, path: [ImportedFolders.chromiumRoot(source.browser, label)], into: &entries)
             }
         }
         if source.browser == "Arc" { entries += arcSidebar() }
@@ -244,7 +245,7 @@ struct ChromiumImporter {
         func visit(_ value: Any) {
             if let dict = value as? [String: Any] {
                 if let tab = (dict["data"] as? [String: Any])?["tab"] as? [String: Any], let url = tab["savedURL"] as? String, seen.insert(url).inserted {
-                    entries.append((url, dict["title"] as? String ?? tab["savedTitle"] as? String ?? "", "Arc " + String(localized: "Sidebar")))
+                    entries.append((url, dict["title"] as? String ?? tab["savedTitle"] as? String ?? "", ImportedFolders.chromiumRoot("Arc", ImportedFolders.sidebarLabel)))
                 }
                 dict.values.forEach(visit)
             } else if let array = value as? [Any] {
@@ -343,7 +344,7 @@ enum SafariImporter {
                 } else if child["WebBookmarkType"] as? String == "WebBookmarkTypeList" {
                     let title = child["Title"] as? String ?? String(localized: "Folder")
                     if title == "com.apple.ReadingList" { continue }
-                    let label = ["BookmarksBar": String(localized: "Favorites"), "BookmarksMenu": String(localized: "Bookmarks Menu")][title] ?? title
+                    let label = ["BookmarksBar": ImportedFolders.favoritesLabel, "BookmarksMenu": ImportedFolders.menuLabel][title] ?? title
                     walk(child, path: path + [label])
                 }
             }

@@ -803,7 +803,7 @@ struct Sidebar: View {
             }
         }
         .padding(.leading, CGFloat(depth) * Metrics.indent)
-        .help(folder.key)
+        .help(ImportedFolders.displayKey(folder.key))
         .dropLine(places && over)
         .draggable(SidebarDrag.folder(folder.key))
         .dropDestination(for: SidebarDrop.self) { items, _ in
@@ -813,7 +813,7 @@ struct Sidebar: View {
     }
 
     private func tabRow(_ tab: Tab, depth: Int) -> some View {
-        SidebarTabRow(tab: tab, browser: browser, isActive: tab.id == browser.activeID) {
+        SidebarTabRow(tab: tab, browser: browser, isActive: tab.id == browser.activeID, renaming: browser.renamingTab == tab.id) {
             browser.activate(tab.id)
         } close: {
             browser.close(tab.id)
@@ -821,7 +821,7 @@ struct Sidebar: View {
         .padding(.leading, CGFloat(depth) * Metrics.indent)
         .id("tab:\(tab.id)")
         .dropLine(dropTarget == "tab:\(tab.id)" && (SidebarDrag.carriesTab || (SidebarDrag.dragging == .group && tab.groupID == nil)))
-        .draggable(SidebarDrag.tab(tab.id))
+        .draggingTab(tab.id, unless: browser.renamingTab == tab.id)
         .dropDestination(for: SidebarDrop.self) { items, _ in
             SidebarDrag.drop(items.texts, onTab: tab.id, browser: browser)
         } isTargeted: { target("tab:\(tab.id)", $0) }
@@ -1070,7 +1070,7 @@ enum SidebarDrag {
         if let id = tabID(items), let tab = browser.tab(id), !tab.isPrivate, let url = tab.url, ["http", "https"].contains(url.scheme?.lowercased()) {
             let address = url.absoluteString
             if !Library.shared.isFavorite(address, in: folder) {
-                Library.shared.addBookmark(url: address, title: tab.title.isEmpty ? (url.host() ?? address) : tab.title, folder: folder)
+                Library.shared.addBookmark(url: address, title: tab.bookmarkTitle.isEmpty ? (url.host() ?? address) : tab.bookmarkTitle, folder: folder)
             }
             withAnimation(Motion.standard) {
                 browser.bind(tab, to: Browser.bookmarkKey(url: address, folder: folder))
@@ -1147,7 +1147,7 @@ enum SidebarDrag {
             return true
         }
         if let id = tabID(items), let tab = browser.tab(id), !tab.isPrivate, let url = tab.url?.absoluteString {
-            if !Library.shared.isFavorite(url, in: favorites) { _ = Library.shared.toggleBookmark(url: url, title: tab.title, in: favorites) }
+            if !Library.shared.isFavorite(url, in: favorites) { _ = Library.shared.toggleBookmark(url: url, title: tab.bookmarkTitle, in: favorites) }
             browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: favorites))
             Library.shared.moveFavorite(url, to: target, in: favorites)
             return true
@@ -1591,7 +1591,7 @@ struct BookmarkStar: View {
         let marked = !url.isEmpty && library.isFavorite(url, in: folder)
         Button {
             guard !url.isEmpty else { return }
-            let title = tab.title
+            let title = tab.bookmarkTitle
             if !Library.shared.toggleBookmark(url: url, title: title, in: folder) && marked {
                 tab.browser?.offerUndo(String(localized: "Removed from Favorites")) {
                     Library.shared.addBookmark(url: url, title: title, folder: folder)
@@ -1928,21 +1928,58 @@ struct NewTabRow: View {
     }
 }
 
+/// A tab row is dragged by the whole row, except while its name is typed: selecting text in the field must not move the tab.
+private struct TabDrag: ViewModifier {
+    let id: Int
+    let disabled: Bool
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if disabled { content } else { content.draggable(SidebarDrag.tab(id)) }
+    }
+}
+
+private extension View {
+    func draggingTab(_ id: Int, unless renaming: Bool) -> some View { modifier(TabDrag(id: id, disabled: renaming)) }
+}
+
 struct SidebarTabRow: View {
     @ObservedObject var tab: Tab
     let browser: Browser
     let isActive: Bool
+    /// Its name is being typed in the row (see `Browser.renamingTab`).
+    let renaming: Bool
     let select: () -> Void
     let close: () -> Void
     @State private var hover = false
+    @State private var name = ""
+    @FocusState private var editing: Bool
 
     var body: some View {
         HStack(spacing: Metrics.iconGap) {
             Favicon(tab: tab)
-            Text(tab.displayTitle)
-                .font(isActive ? .rowSelected : .row)
-                .lineLimit(1)
-                .foregroundStyle(isActive || !tab.isAsleep ? Theme.primary : Theme.dim)
+            if renaming {
+                TextField("Tab name", text: $name)
+                    .textFieldStyle(.plain)
+                    .font(isActive ? .rowSelected : .row)
+                    .foregroundStyle(Theme.primary)
+                    .focused($editing)
+                    .onAppear {
+                        name = tab.displayTitle
+                        // Focus taken in the same pass as the field appears is sometimes dropped.
+                        DispatchQueue.main.async { editing = true }
+                    }
+                    .onSubmit(commit)
+                    .onChange(of: editing) { if !editing { commit() } }
+                    .onKeyPress(.escape) {
+                        browser.renamingTab = nil
+                        return .handled
+                    }
+            } else {
+                Text(tab.displayTitle)
+                    .font(isActive ? .rowSelected : .row)
+                    .lineLimit(1)
+                    .foregroundStyle(isActive || !tab.isAsleep ? Theme.primary : Theme.dim)
+            }
             Spacer(minLength: 0)
             if tab.isPlayingAudio || tab.isMuted {
                 HoverAction(symbol: tab.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
@@ -1966,9 +2003,15 @@ struct SidebarTabRow: View {
         .frame(height: Metrics.row)
         .rowChrome(hover: hover, selected: isActive)
         .onHover { hover = $0 }
-        .onTapGesture(perform: select)
+        .onTapGesture { if !renaming { select() } }
+        // Alongside the click that shows the tab, so showing it does not wait for a second click.
+        .simultaneousGesture(TapGesture(count: 2).onEnded { browser.renamingTab = tab.id })
         .contextMenu { menu }
         .help(tab.url?.absoluteString ?? "")
+    }
+
+    private func commit() {
+        browser.finishRenaming(tab, with: name)
     }
 
     /// The tab, then where it goes, then closing it: the same order as a bookmark's menu.
@@ -1977,6 +2020,8 @@ struct SidebarTabRow: View {
             if tab.isAsleep { browser.activate(tab.id) } else { tab.webView?.reload() }
         }
         Button("Duplicate Tab") { browser.duplicate(tab.id) }
+        Button("Rename Tab…") { browser.renamingTab = tab.id }
+        if tab.customTitle != nil { Button("Reset Name") { tab.customTitle = nil } }
         if !tab.isPrivate && tab.bookmarkKey == nil { Button("Move to New Window") { browser.moveToNewWindow(tab.id) } }
         if let url = tab.url, url.scheme?.hasPrefix("http") == true {
             ShareLink(item: url)
@@ -2001,7 +2046,7 @@ struct SidebarTabRow: View {
         if !tab.isPrivate {
             Button("Pin to Favorites") {
                 if let url = tab.url?.absoluteString {
-                    if !Library.shared.isFavorite(url, in: tab.favoritesFolder) { _ = Library.shared.toggleBookmark(url: url, title: tab.title, in: tab.favoritesFolder) }
+                    if !Library.shared.isFavorite(url, in: tab.favoritesFolder) { _ = Library.shared.toggleBookmark(url: url, title: tab.bookmarkTitle, in: tab.favoritesFolder) }
                     browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: tab.favoritesFolder))
                 }
             }
@@ -2816,7 +2861,7 @@ struct CommandBar: View {
         let words = query.lowercased().split(separator: " ")
         guard !words.isEmpty else { return [] }
         return tabs.filter { tab in
-            let haystack = (tab.title + " " + (tab.url?.absoluteString ?? "")).lowercased()
+            let haystack = (tab.title + " " + (tab.customTitle ?? "") + " " + (tab.url?.absoluteString ?? "")).lowercased()
             return words.allSatisfy { haystack.contains($0) }
         }
     }

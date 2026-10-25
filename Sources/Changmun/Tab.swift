@@ -19,6 +19,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// When its page's process last went away, to stop reloading a page that keeps crashing.
     private var crashes: [Date] = []
     @Published var title: String
+    /// A name the user gave the tab: shown wherever the title is, in place of the page's. The page's own title is still kept
+    /// (see `pageTitle`) for the history and for the AI.
+    @Published var customTitle: String?
     @Published var url: URL?
     @Published var isLoading = false
     /// How many navigations have committed in this tab: a count that did not change says no page came and went in between (A to B to A).
@@ -119,10 +122,28 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         TabSorter.Item(id: id, title: displayTitle, host: url?.host(), opener: openerID)
     }
 
-    var displayTitle: String {
+    /// What the page calls itself, or its host while it has no title.
+    var pageTitle: String {
         if !title.isEmpty { return title }
         return url?.host() ?? String(localized: "New Tab")
     }
+
+    /// What the user sees for the tab: the name they gave it, else the page's title.
+    var displayTitle: String { customTitle ?? pageTitle }
+
+    /// The title as the AI is told it: the page's own, with the user's name for the tab after it when there is one.
+    var aiTitle: String { customTitle.map { "\(ChatStore.oneLine(pageTitle)) [the user named this tab \"\(ChatStore.oneLine($0))\"]" } ?? pageTitle }
+
+    /// The title a bookmark or favorite made from the tab gets: the user's name for it if it has one, else the page's title (empty before it has one).
+    var bookmarkTitle: String { customTitle ?? title }
+
+    /// Names the tab, or takes the name away (empty, or only spaces) so the page's title shows again.
+    func rename(to name: String) {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        customTitle = name.isEmpty ? nil : String(name.prefix(Self.maxNameLength))
+    }
+
+    static let maxNameLength = 200
 
     @discardableResult
     func wake() -> WKWebView {

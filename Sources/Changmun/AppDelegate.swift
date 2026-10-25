@@ -16,6 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuSubscription = Preferences.shared.$shortcuts.sink { NSApp.mainMenu = AppMenu.make(scheme: $0) }
         NSApp.appearance = Preferences.shared.appearance.nsAppearance
         Task { await AdBlocker.shared.start() }
+        // Before anything reads the library, the spaces or the session: imported folders stored under another language's name get their canonical one.
+        FolderKeyMigration.run(in: Library.folder)
         Library.shared.pruneHistory()
         // Once the windows are back: the icons of sites nothing is left from go.
         Task { await Browser.pruneIcons() }
@@ -332,7 +334,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func togglePictureInPicture(_ sender: Any?) { (Browser.current?.peek ?? Browser.current?.active)?.pictureInPicture(.toggle) }
     @objc func toggleBookmark(_ sender: Any?) {
         guard let tab = browser.active, !tab.isPrivate, let url = tab.url?.absoluteString else { return }
-        _ = Library.shared.toggleBookmark(url: url, title: tab.title, in: tab.favoritesFolder)
+        _ = Library.shared.toggleBookmark(url: url, title: tab.bookmarkTitle, in: tab.favoritesFolder)
         tab.objectWillChange.send()
     }
     @objc func importData(_ sender: Any?) { browser.showOnboarding = true }

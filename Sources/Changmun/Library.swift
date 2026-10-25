@@ -482,7 +482,7 @@ final class Library: @unchecked Sendable {
         return (marks + recent).filter { seen.insert($0.url).inserted }.prefix(limit).map { $0 }
     }
 
-    /// A folder with the folders inside it. `key` is the stored folder name ("Arc Bookmarks Bar / Work"); a folder
+    /// A folder with the folders inside it. `key` is the stored folder name ("Arc Bookmarks Bar / Work", whatever the language); a folder
     /// that holds only folders has no bookmarks of its own but still gets the key its children's names begin with.
     struct Folder: Equatable, Identifiable {
         var key: String
@@ -512,7 +512,8 @@ final class Library: @unchecked Sendable {
 
     /// Imported folders by the browser they came from (the first word of the folder name), nested by their
     /// " / " paths, in the order they were first imported.
-    static func groupBySource(_ folders: [(name: String, entries: [Entry])]) -> [(source: String, folders: [Folder])] {
+    /// A folder's label is its name, except that the part naming where in the other browser it was ("Bookmarks Bar") is translated by `section`.
+    static func groupBySource(_ folders: [(name: String, entries: [Entry])], section: (String) -> String = ImportedFolders.localized) -> [(source: String, folders: [Folder])] {
         final class Node {
             let key: String, label: String
             var entries: [Entry] = []
@@ -540,7 +541,11 @@ final class Library: @unchecked Sendable {
             var key = parts.count == 2 ? source + " " : ""
             for (index, name) in path.enumerated() {
                 key += (index == 0 ? "" : " / ") + name
-                node = node.child(key, name)
+                // The part of the key after the browser's name, in the language shown.
+                var label = index == 0 && parts.count == 2 ? String(ImportedFolders.displayKey(key, translate: section).dropFirst(source.count + 1)) : name
+                // Safari's folders are "Safari / Favorites": the "/ " after the browser's name is part of the key, not of the label.
+                if index == 0, label.hasPrefix("/ ") { label.removeFirst(2) }
+                node = node.child(key, label)
             }
             node.entries += folder.entries
         }
