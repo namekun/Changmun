@@ -246,7 +246,7 @@ On pose aux navigateurs qui synchronisent les mots de passe une question légiti
 - **Ce qui part chez Anthropic.** Vos messages, les images que vous joignez et les pages que lit l’IA, via votre propre CLI `claude`, et rien d’autre. Changmun ne détient aucune clé Anthropic et n’adresse lui-même aucune requête à Anthropic.
 - **Historique des conversations.** Les chats terminés restent dans un fichier de ce Mac (Réglages › IA le désactive), sans le texte saisi ni la partie d’une adresse à partir de ? ou #, et jamais ceux d’une fenêtre privée.
 - **Mots de passe importés.** Déchiffrés sur votre Mac avec la clé `Safe Storage` du Trousseau de chaque navigateur (macOS demande d’abord) et enregistrés dans votre Trousseau de session. Rien n’est envoyé en chemin.
-- **Si le projet s’arrête.** Il n’y a rien à vendre ni à éteindre : pas de serveur, pas de compte, la base de données de personne. Vos mots de passe restent dans votre Trousseau et l’app fonctionne tant que macOS fonctionne. Le code est ouvert sous licence MIT : chacun peut tout vérifier, en commençant par `Sources/Changmun/Logins.swift`.
+- **Si le projet s’arrête.** Il n’y a rien à vendre ni à éteindre : pas de serveur, pas de compte, la base de données de personne. Vos mots de passe restent dans votre Trousseau et l’app fonctionne tant que macOS fonctionne. Le code est ouvert sous licence MIT : chacun peut tout vérifier, en commençant par `Sources/Changmun/Tabs/Logins.swift`.
 
 ## Pour les développeurs
 
