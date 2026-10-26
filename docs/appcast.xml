@@ -6,6 +6,23 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.8.0</title>
+      <pubDate>Mon, 26 Oct 2026 00:12:50 +0000</pubDate>
+      <sparkle:version>30</sparkle:version>
+      <sparkle:shortVersionString>0.8.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.8.0</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Tabs on top, if you like.** Settings › Appearance › Tab Layout now offers On Top: a tab strip above the address bar, with your favorites first as icon-only tiles, then the space's tabs, tab groups as a chip that collapses them, and a + button that stays in view when the tabs overflow. Middle-click closes a tab, dragging reorders, double-clicking renames, and the menus are the sidebar's. The rest of the sidebar opens over the page from the button beside the address bar. The sidebar layout is unchanged and still the default.
+- **Choose the model and how hard it thinks.** The menu under the AI message box picks the model and an effort level (Auto, Low, Medium, High, Extra High, Max), passed to Claude Code; Auto leaves it to Claude Code.
+- **Three approval modes.** Ask after reading other sites (the default, as before), Ask before every action (also before typing, choosing or clicking on a page when the chat has read nothing else), or Ask only for actions that can't be undone (the old "off"). Paying, sending, posting, deleting and the like, sign-ins and cookie banners are asked in every mode. Choose from the hand menu under the message box or in Settings › AI; your current setting carries over.
+- **A + menu and dictation in the message box.** Add Tab…, Attach Screenshot and Add Image… live in one menu, the mic starts macOS dictation, and Stop sits in the box (Esc still stops).
+- **The panel's head shows the chat.** Its title with a menu of recent chats and Show All Chats, a new-chat button, and a button that pops the panel out into its own window (closing it docks the panel back; the AI's questions come to that window).
+- **See what it's doing.** "Working for 12 s" with the live steps underneath, cards for the pages that went with your message, and a small ring showing how much of the model's context the chat uses.
+- **Double-clicking the bar zooms the window again,** following System Settings › Desktop &amp; Dock › "Double-click a window's title bar to".</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.0/Changmun-0.8.0.dmg" length="5207893" type="application/octet-stream" sparkle:edSignature="rhFVlJ+60yUCXubmzuzhAgsbcWR4nmgqnEKGg56Ekxo46Hlnk3pR+7B7joVWkK0Gwz5xHxg6pF+G6kPBfvphAQ==" />
+    </item>
+    <item>
       <title>0.7.6</title>
       <pubDate>Sun, 25 Oct 2026 02:27:02 +0000</pubDate>
       <sparkle:version>29</sparkle:version>
@@ -123,21 +140,9 @@
       <description sparkle:format="markdown">- **The page reaches the edges of the window.** The page used to sit on a card with a gap above, below and to the right of it, which showed as an empty band, most of all on a tall screen. It now runs to the window's top, bottom and right edge, and the AI panel does too, with a thin line between them. With the sidebar hidden or in focus mode, the page fills the whole window.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.6.3/Changmun-0.6.3.dmg" length="4297082" type="application/octet-stream" sparkle:edSignature="55HXhdu/BCwZmczxxmz8I2c4oPd/e8Vf7zHs5jURYlM9VpviGN5XAX/l1NGPZ3xOJ/bfLD1WkYiLarzOGW99BA==" />
     </item>
-    <item>
-      <title>0.6.2</title>
-      <pubDate>Fri, 23 Oct 2026 00:56:16 +0000</pubDate>
-      <sparkle:version>20</sparkle:version>
-      <sparkle:shortVersionString>0.6.2</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.6.2</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Translation works with the languages you downloaded.** Changmun asked you to download a language even after you had: macOS has a fast and a high-quality translation engine, and Changmun only looked for the fast one. It now uses whichever you have. Text it can't translate stays as it was instead of stopping the whole page, and if nothing could be translated, it says so instead of doing nothing.
-- **A headless Changmun for your agents.** `changmun headless start` runs a separate, invisible Changmun with its own empty profile, and `changmun --headless …` or `changmun --mcp --headless` (for Claude Code) points at it. It doesn't stop to ask before each step, so it refuses anything that can't be undone, like paying, sending, posting or deleting. Your own browser, its logins and its passwords stay out of it. See `changmun help`.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.6.2/Changmun-0.6.2.dmg" length="4299446" type="application/octet-stream" sparkle:edSignature="wTfLq4HIk/HEO27z8j2f88kpQCv3saKwbi/9+9LMoLemJKJe1ovUDOXMQJBtFXkTRJ9yVY4PmknjAWbKvw3vDA==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: wd1W/cwTZCDQd95Nk8p02iWOerTcMKjNxrHin3pVLuheUJ1uxTtM13PgxU6bWhKK6iJ5BIpSRwSXPGoAkVq4AQ==
-length: 15942
+edSignature: q7AdKsVwnOPYuGWVovGQ9FxCzyZeEpYo382JYgwPDiZVNaXMKLrt0FnYIT59NenzPvPst4asniG6Hq2+9comBw==
+length: 17106
 -->
