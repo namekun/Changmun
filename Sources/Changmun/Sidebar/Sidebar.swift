@@ -221,9 +221,7 @@ struct Sidebar: View {
         ForEach(library.sources, id: \.source) { group in
             let key = "source:" + group.source
             FolderRow(name: group.source, symbol: "books.vertical", count: group.folders.reduce(0) { $0 + $1.count },
-                      isOpen: browser.space.openFolders.contains(key)) {
-                browser.spaces.toggleOpen(key, in: browser.spaceID)
-            } menu: {
+                      isOpen: browser.space.openFolders.contains(key), click: { _ in browser.spaces.toggleOpen(key, in: browser.spaceID) }) {
                 Button("Delete All \(group.source) Bookmarks…") {
                     confirmDelete(String(localized: "Delete all bookmarks imported from \(group.source)?")) { Library.shared.removeSource(group.source) }
                 }
@@ -301,14 +299,15 @@ struct Sidebar: View {
         let over = dropTarget == targetKey
         let places = reorders && (SidebarDrag.dragging == .folder || SidebarDrag.dragging == .group)
         return FolderRow(name: folder.label, count: folder.count, isOpen: browser.space.openFolders.contains(openKey), showCount: false,
-                         target: over && !places && SidebarDrag.dragging != .folder) {
-            browser.spaces.toggleOpen(openKey, in: browser.spaceID)
-        } menu: {
+                         target: over && !places && SidebarDrag.dragging != .folder, renaming: browser.renamingFolder == openKey,
+                         finishRenaming: { browser.finishRenamingFolder(key: folder.key, scope: scope, shown: folder.label, with: $0) },
+                         click: { browser.clickFolder(openKey: openKey, clickCount: $0) }) {
             if isPinned {
                 Button("Unpin from Sidebar") { browser.spaces.unpinFolder(folder.key, in: browser.spaceID) }
             } else if !browser.space.hasPinnedAncestor(folder.key) {
                 Button("Pin to Sidebar") { browser.spaces.pinFolder(folder.key, in: browser.spaceID) }
             }
+            Button("Rename…") { browser.renamingFolder = openKey }
             Divider()
             Button("Delete Folder…") {
                 let count = folder.count

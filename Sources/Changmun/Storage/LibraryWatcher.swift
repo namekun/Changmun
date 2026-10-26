@@ -48,8 +48,8 @@ final class LibraryWatcher: ObservableObject {
         }
     }
 
-    private func apply(_ read: (favorites: [String: [Library.Entry]], folders: [(name: String, entries: [Library.Entry])])) {
-        let sources = Library.groupBySource(read.folders)
+    private func apply(_ read: (favorites: [String: [Library.Entry]], folders: [(name: String, entries: [Library.Entry])], names: [String: String])) {
+        let sources = Library.groupBySource(read.folders, names: read.names)
         if read.favorites != favoritesByFolder {
             favoritesByFolder = read.favorites
             favoriteURLs = read.favorites.mapValues { Set($0.map(\.url)) }

@@ -52,6 +52,7 @@ final class Library: @unchecked Sendable {
                 "CREATE TABLE IF NOT EXISTS history (url TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', visits INTEGER NOT NULL DEFAULT 1, last_visit REAL NOT NULL)",
                 "CREATE TABLE IF NOT EXISTS bookmarks (id INTEGER PRIMARY KEY, url TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', folder TEXT NOT NULL DEFAULT '', added REAL NOT NULL, position REAL, UNIQUE(url, folder))",
                 "CREATE INDEX IF NOT EXISTS history_recent ON history(last_visit DESC)",
+                "CREATE TABLE IF NOT EXISTS folder_names (key TEXT PRIMARY KEY, name TEXT NOT NULL)",
             ] {
                 do { try db.execute(statement) } catch { NSLog("Changmun: the library at %@ could not run \"%@\": %@", path, statement, error.localizedDescription) }
             }
@@ -188,9 +189,34 @@ final class Library: @unchecked Sendable {
         return true
     }
 
-    /// Removes a folder and the folders inside it.
+    /// Gives a folder the name the user typed (trimmed, cut at `Tab.maxNameLength`); an empty one takes the name away, so the folder is
+    /// called what it was. The folder's key stays as it is, so pins, open folders and the bookmarks in it are unaffected, and importing
+    /// again keeps the name. Returns whether the write went through.
+    @discardableResult
+    func renameFolder(key: String, to name: String) -> Bool {
+        let name = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(Tab.maxNameLength))
+        guard !key.isEmpty, let db else { return false }
+        let sql = name.isEmpty ? "DELETE FROM folder_names WHERE key = ?"
+                               : "INSERT INTO folder_names (key, name) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET name = excluded.name"
+        guard (try? db.run(sql, name.isEmpty ? [key] : [key, name])) != nil else { return false }
+        changed()
+        return true
+    }
+
+    /// The names the user gave folders, by folder key.
+    func folderNames() -> [String: String] {
+        Self.names(from: (try? db?.query("SELECT key, name FROM folder_names")) ?? [])
+    }
+
+    private static func names(from rows: [[Any?]]) -> [String: String] {
+        Dictionary(rows.compactMap { row in (row[0] as? String).flatMap { key in (row[1] as? String).map { (key, $0) } } }, uniquingKeysWith: { $1 })
+    }
+
+    /// Removes a folder and the folders inside it, and the names the user gave them.
     func removeFolder(_ folder: String) {
-        try? db?.run("DELETE FROM bookmarks WHERE folder = ? OR substr(folder, 1, ?) = ?", [folder, (folder + " / ").unicodeScalars.count, folder + " / "])
+        let inside = [folder, (folder + " / ").unicodeScalars.count, folder + " / "] as [Any?]
+        try? db?.run("DELETE FROM bookmarks WHERE folder = ? OR substr(folder, 1, ?) = ?", inside)
+        try? db?.run("DELETE FROM folder_names WHERE key = ? OR substr(key, 1, ?) = ?", inside)
         changed()
     }
 
@@ -198,7 +224,9 @@ final class Library: @unchecked Sendable {
     func removeSource(_ source: String) {
         guard !source.isEmpty else { return }
         // Compared as it is written, not with LIKE, which ignores the case of ASCII letters: "Arc" must not take a folder named "arc …".
-        try? db?.run("DELETE FROM bookmarks WHERE folder <> '' AND (folder = ? OR substr(folder, 1, ?) = ?)", [source, (source + " ").unicodeScalars.count, source + " "])
+        let inside = [source, (source + " ").unicodeScalars.count, source + " "] as [Any?]
+        try? db?.run("DELETE FROM bookmarks WHERE folder <> '' AND (folder = ? OR substr(folder, 1, ?) = ?)", inside)
+        try? db?.run("DELETE FROM folder_names WHERE key = ? OR substr(key, 1, ?) = ?", inside)
         changed()
     }
 
@@ -241,7 +269,7 @@ final class Library: @unchecked Sendable {
 
     /// Every space's favorites (by their folder) and the folders in one read, or nil when the database can't be read:
     /// an unreadable library must not look like one whose bookmarks were all deleted.
-    func readBookmarks() -> (favorites: [String: [Entry]], folders: [(name: String, entries: [Entry])])? {
+    func readBookmarks() -> (favorites: [String: [Entry]], folders: [(name: String, entries: [Entry])], names: [String: String])? {
         guard let db, (try? db.execute("BEGIN")) != nil else { return nil }
         // One snapshot: a bookmark moving between folders meanwhile is in one place or the other, never neither.
         defer { try? db.execute("COMMIT") }
@@ -252,7 +280,9 @@ final class Library: @unchecked Sendable {
             guard let folder = row[0] as? String, let url = row[1] as? String else { continue }
             byFolder[folder, default: []].append(Entry(url: url, title: row[2] as? String ?? ""))
         }
-        return (byFolder, Self.grouped(folders))
+        // A library without the names table still shows its bookmarks.
+        let names = Self.names(from: (try? db.query("SELECT key, name FROM folder_names")) ?? [])
+        return (byFolder, Self.grouped(folders), names)
     }
 
     /// Favorites in the order the user put them in; those without a position yet (added since) come after, in the order they were added.
@@ -470,8 +500,10 @@ final class Library: @unchecked Sendable {
 
     /// Imported folders by the browser they came from (the first word of the folder name), nested by their
     /// " / " paths, in the order they were first imported.
-    /// A folder's label is its name, except that the part naming where in the other browser it was ("Bookmarks Bar") is translated by `section`.
-    static func groupBySource(_ folders: [(name: String, entries: [Entry])], section: (String) -> String = ImportedFolders.localized) -> [(source: String, folders: [Folder])] {
+    /// A folder's label is its name, except that the part naming where in the other browser it was ("Bookmarks Bar") is translated by `section`,
+    /// and that the name the user gave it (`names`, by folder key) is used in place of either.
+    static func groupBySource(_ folders: [(name: String, entries: [Entry])], names: [String: String] = [:],
+                              section: (String) -> String = ImportedFolders.localized) -> [(source: String, folders: [Folder])] {
         final class Node {
             let key: String, label: String
             var entries: [Entry] = []
@@ -503,7 +535,7 @@ final class Library: @unchecked Sendable {
                 var label = index == 0 && parts.count == 2 ? String(ImportedFolders.displayKey(key, translate: section).dropFirst(source.count + 1)) : name
                 // Safari's folders are "Safari / Favorites": the "/ " after the browser's name is part of the key, not of the label.
                 if index == 0, label.hasPrefix("/ ") { label.removeFirst(2) }
-                node = node.child(key, label)
+                node = node.child(key, names[key] ?? label)
             }
             node.entries += folder.entries
         }

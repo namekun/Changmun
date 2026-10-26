@@ -6,6 +6,7 @@
 #   scripts/headless.sh call <tool> [json]  run a browser tool: list_tabs, open_tab, navigate, read_page, click, screenshot…
 #   scripts/headless.sh shot <file.png>     capture the front window, sidebar and all
 #   scripts/headless.sh mouse <down|drag|up|right> <x> <y>   a mouse event at a point in the window, from its top left
+#   scripts/headless.sh click <x> <y> [clicks]   the pointer moves there and clicks (2: a double-click), as the window server's events would
 #   scripts/headless.sh stop                stop it; if it doesn't exit within 5 s, say so and keep its control.json
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -65,6 +66,12 @@ mouse)
     running || { echo "not running: $0 start" >&2; exit 1; }
     [[ $# -eq 4 ]] || { echo "usage: $0 mouse <down|drag|up|right> <x> <y>" >&2; exit 2; }
     post /window-event "{\"type\": \"$2\", \"x\": $3, \"y\": $4}"
+    echo
+    ;;
+click)
+    running || { echo "not running: $0 start" >&2; exit 1; }
+    [[ $# -ge 3 && $# -le 4 ]] || { echo "usage: $0 click <x> <y> [clicks]" >&2; exit 2; }
+    post /window-event "{\"type\": \"click\", \"x\": $2, \"y\": $3, \"clicks\": ${4:-1}}"
     echo
     ;;
 stop)

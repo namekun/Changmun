@@ -96,6 +96,30 @@ extension Browser {
         offerUndo(String(localized: "Renamed the bookmark")) { Library.shared.renameBookmark(url: url, folder: folder, title: title) }
     }
 
+    /// A click on a folder's row opens or closes it at once, with no wait to tell it from a double-click. The second click of a double-click
+    /// puts it back, so the folder ends as open as it was, and types its name instead. `openKey` names the row (see `renamingFolder`).
+    func clickFolder(openKey: String, clickCount: Int) {
+        spaces.toggleOpen(openKey, in: spaceID)
+        if clickCount >= 2 { renamingFolder = openKey }
+    }
+
+    /// The name a folder gets from what was typed, "" for the one it had before the user named it, or nil when it stays as it is: what is shown already.
+    static func renamedFolder(_ typed: String, shown: String) -> String? {
+        let typed = String(typed.trimmingCharacters(in: .whitespacesAndNewlines).prefix(Tab.maxNameLength))
+        return typed == shown ? nil : typed
+    }
+
+    /// Ends the rename of a folder with what was typed (nil for Esc: nothing is kept; empty: the name it came with), and offers to take it back.
+    /// Nothing happens unless this row's rename is still on, as in `finishRenamingBookmark`. The folder keeps its key: pins, open folders and its bookmarks stay.
+    func finishRenamingFolder(key: String, scope: String, shown: String, with typed: String?) {
+        guard renamingFolder == scope + key else { return }
+        renamingFolder = nil
+        guard let typed, let name = Self.renamedFolder(typed, shown: shown) else { return }
+        let before = Library.shared.folderNames()[key] ?? ""
+        guard name != before, Library.shared.renameFolder(key: key, to: name) else { return }
+        offerUndo(String(localized: "Renamed the folder")) { Library.shared.renameFolder(key: key, to: before) }
+    }
+
     /// Turns an open tab into a bookmark's tab (pinning it).
     func bind(_ tab: Tab, to key: String) {
         guard bookmarkTab(key) == nil else { return }

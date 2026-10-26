@@ -84,18 +84,45 @@ struct FolderRow<MenuItems: View>: View {
     var showCount = true
     /// A bookmark is being dragged over it.
     var target = false
-    let toggle: () -> Void
+    /// Its name is being typed in the row (see `Browser.renamingFolder`); `finishRenaming` gets what was typed, or nil for Esc. A row that can't be renamed leaves both.
+    var renaming = false
+    var finishRenaming: (String?) -> Void = { _ in }
+    /// A click on the row, with how many clicks it is (2 for the second of a double-click).
+    let click: (Int) -> Void
     @ViewBuilder let menu: () -> MenuItems
     @State private var hover = false
+    @State private var typed = ""
+    @FocusState private var editing: Bool
 
     var body: some View {
         HStack(spacing: Metrics.iconGap) {
             Image(systemName: symbol).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.secondary).frame(width: Metrics.icon)
-            Text(name).font(.row).foregroundStyle(Theme.body).lineLimit(1)
+            if renaming {
+                TextField("Folder name", text: $typed)
+                    .textFieldStyle(.plain)
+                    .font(.row)
+                    .foregroundStyle(Theme.primary)
+                    // A name longer than the field scrolls inside it: it must not draw over the icon before it.
+                    .clipped()
+                    .focused($editing)
+                    .onAppear {
+                        typed = name
+                        // Focus taken in the same pass as the field appears is sometimes dropped.
+                        DispatchQueue.main.async { editing = true }
+                    }
+                    .onSubmit { finishRenaming(typed) }
+                    .onChange(of: editing) { if !editing { finishRenaming(typed) } }
+                    .onKeyPress(.escape) {
+                        finishRenaming(nil)
+                        return .handled
+                    }
+            } else {
+                Text(name).font(.row).foregroundStyle(Theme.body).lineLimit(1)
+            }
             Spacer(minLength: 0)
             ZStack(alignment: .trailing) {
                 if showCount { Text("\(count)").font(.caption.monospacedDigit()).foregroundStyle(Theme.faint).opacity(hover ? 0 : 1) }
-                if hover { MoreButton(items: menu) }
+                if hover && !renaming { MoreButton(items: menu) }
             }
             .frame(minWidth: Metrics.action, alignment: .trailing)
             Image(systemName: "chevron.right")
@@ -109,7 +136,10 @@ struct FolderRow<MenuItems: View>: View {
         .frame(height: Metrics.row)
         .rowChrome(hover: hover, target: target)
         .onHover { hover = $0 }
-        .onTapGesture { withAnimation(Motion.standard) { toggle() } }
+        .onTapGesture {
+            guard !renaming else { return }
+            withAnimation(Motion.standard) { click(Browser.clickCount) }
+        }
         .contextMenu(menuItems: menu)
     }
 }
@@ -235,6 +265,27 @@ struct BookmarkMenu: View {
     }
 }
 
+/// A group header is dragged by the whole row, except while its name is typed: selecting text in the field must not move the group.
+private struct GroupDrag: ViewModifier {
+    let group: Browser.TabGroup
+    let disabled: Bool
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if disabled {
+            content
+        } else {
+            content.draggable(SidebarDrag.group(group.id)) {
+                Text(group.name)
+                    .font(.row)
+                    .foregroundStyle(Theme.primary)
+                    .padding(.horizontal, Metrics.rowPadding)
+                    .frame(height: Metrics.row)
+                    .background(Theme.hoverTab, in: RoundedRectangle(cornerRadius: Metrics.rowRadius))
+            }
+        }
+    }
+}
+
 /// A tab group in the tab list: click to fold it, double-click to rename it, drag to move it; its menu renames, ungroups, saves or closes it. A tab dropped on it joins.
 struct TabGroupHeader: View {
     let group: Browser.TabGroup
@@ -247,7 +298,7 @@ struct TabGroupHeader: View {
 
     var body: some View {
         HStack(spacing: Metrics.iconGap) {
-            grab(Image(systemName: "square.on.square").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondary).frame(width: Metrics.icon))
+            Image(systemName: "square.on.square").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondary).frame(width: Metrics.icon)
             if browser.renamingGroup == group.id {
                 TextField("Group name", text: $name)
                     .textFieldStyle(.plain)
@@ -270,19 +321,19 @@ struct TabGroupHeader: View {
                         return .handled
                     }
             } else {
-                grab(Text(group.name).font(.row).foregroundStyle(Theme.secondary).lineLimit(1))
+                Text(group.name).font(.row).foregroundStyle(Theme.secondary).lineLimit(1)
             }
-            grab(Color.clear.frame(maxWidth: .infinity).contentShape(Rectangle()))
-            grab(ZStack(alignment: .trailing) {
+            Color.clear.frame(maxWidth: .infinity).contentShape(Rectangle())
+            ZStack(alignment: .trailing) {
                 Text("\(count)").font(.caption.monospacedDigit()).foregroundStyle(Theme.faint).opacity(hover ? 0 : 1)
                 if hover && browser.renamingGroup != group.id { MoreButton { GroupMenu(group: group, browser: browser) } }
             }
-            .frame(minWidth: Metrics.action, alignment: .trailing))
-            grab(Image(systemName: "chevron.right")
+            .frame(minWidth: Metrics.action, alignment: .trailing)
+            Image(systemName: "chevron.right")
                 .font(.system(size: 8, weight: .bold))
                 .foregroundStyle(Theme.faint)
                 .rotationEffect(.degrees(group.isOpen ? 90 : 0))
-                .frame(width: Metrics.icon))
+                .frame(width: Metrics.icon)
         }
         .padding(.leading, Metrics.rowPadding)
         .padding(.trailing, 4)
@@ -295,18 +346,7 @@ struct TabGroupHeader: View {
         }
         .contextMenu { GroupMenu(group: group, browser: browser) }
         .help(group.isOpen ? String(localized: "Collapse") : String(localized: "Expand"))
-    }
-
-    /// The header is dragged by everything but the name field, so selecting text while renaming does not move the group.
-    private func grab<Content: View>(_ content: Content) -> some View {
-        content.draggable(SidebarDrag.group(group.id)) {
-            Text(group.name)
-                .font(.row)
-                .foregroundStyle(Theme.primary)
-                .padding(.horizontal, Metrics.rowPadding)
-                .frame(height: Metrics.row)
-                .background(Theme.hoverTab, in: RoundedRectangle(cornerRadius: Metrics.rowRadius))
-        }
+        .modifier(GroupDrag(group: group, disabled: browser.renamingGroup == group.id))
     }
 
     private func commit() {

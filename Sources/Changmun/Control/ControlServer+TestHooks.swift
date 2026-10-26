@@ -17,22 +17,38 @@ extension ControlServer {
             }
             return true
         }
-        // Tests only: a mouse event at a point in the window (from its top left), handed to the app as if it came
-        // from the window server, so the headless app can be clicked without touching the real pointer ("count" is the click count, 2 for a double-click).
+        // Tests only: a mouse event at a point in the window (from its top left), handed to the app as if it came from the window server, so the
+        // headless app can be clicked without touching the real pointer. "type" is down, drag, up, right or move, which go to the window at once,
+        // or click: the pointer moves there and "clicks" (1 by default, 2 for a double-click) down/up pairs follow, counted 1…N, through the app's own
+        // event queue with the pauses of a hand on a mouse. Those arrive as the window server's would, so what a handler reads from NSApp.currentEvent
+        // (the click count, say) is what a real click gives it.
         if Headless.isTestCopy, request.method == "POST", request.path == "/window-event",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any],
            let kind = body["type"] as? String, let x = body["x"] as? Double, let y = body["y"] as? Double {
             Task { @MainActor in
-                let types: [String: NSEvent.EventType] = ["down": .leftMouseDown, "drag": .leftMouseDragged, "up": .leftMouseUp, "right": .rightMouseDown]
-                guard let window = Browser.current?.window, let content = window.contentView, let type = types[kind],
-                      let event = NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: content.bounds.height - y), modifierFlags: [],
-                                                     timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
-                                                     context: nil, eventNumber: 0, clickCount: body["count"] as? Int ?? 1, pressure: type == .leftMouseUp ? 0 : 1) else {
+                let types: [String: NSEvent.EventType] = ["down": .leftMouseDown, "drag": .leftMouseDragged, "up": .leftMouseUp, "right": .rightMouseDown,
+                                                          "move": .mouseMoved, "click": .leftMouseDown]
+                guard let window = Browser.current?.window, let content = window.contentView, let type = types[kind] else {
                     return self.respond(connection, status: "404 Not Found", body: ["error": "no window or unknown type"])
                 }
-                Browser.syntheticClickCount = event.clickCount
-                NSApp.sendEvent(event)
-                Browser.syntheticClickCount = nil
+                let point = NSPoint(x: x, y: content.bounds.height - y)
+                @MainActor func event(_ type: NSEvent.EventType, clickCount: Int = 1) -> NSEvent? {
+                    NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                       windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: clickCount,
+                                       pressure: type == .leftMouseUp || type == .mouseMoved ? 0 : 1)
+                }
+                guard kind == "click" else {
+                    guard let event = event(type) else { return self.respond(connection, status: "404 Not Found", body: ["error": "no event"]) }
+                    NSApp.sendEvent(event)
+                    return self.respond(connection, status: "200 OK", body: [:])
+                }
+                var queue: [(NSEvent.EventType, Int)] = [(.mouseMoved, 0)]
+                for count in 1...max(body["clicks"] as? Int ?? 1, 1) { queue += [(.leftMouseDown, count), (.leftMouseUp, count)] }
+                for (type, count) in queue {
+                    if let event = event(type, clickCount: count) { NSApp.postEvent(event, atStart: false) }
+                    try? await Task.sleep(for: .milliseconds(type == .leftMouseDown ? 60 : 80))
+                }
+                try? await Task.sleep(for: .milliseconds(300))
                 self.respond(connection, status: "200 OK", body: [:])
             }
             return true
@@ -201,7 +217,7 @@ extension ControlServer {
         // none; "progress" (0...1) holds the tab in front as loading at that point, and a negative one lets it be ("peek": true for the peek card's tab); "popup" (a link), "login"
         // (a user name) and "foreign" (a language) put up the bar or button for that on the tab in front, "" taking it down again; "reader" toggles Reader Mode; "group" ({"ids", "name"}) gathers tabs into a group;
         // "folder" ({"name", "pages": [[url, title]], "pin", "open"}) fills a bookmark folder, pinned and opened in the sidebar;
-        // "rename" names the tab in front (an empty name takes the name away), and "renaming" opens or closes the name field in its row; "renamingBookmark" ([url, folder]) opens the name field of that bookmark, "renamingGroup" that of the first group.
+        // "rename" names the tab in front (an empty name takes the name away), and "renaming" opens or closes the name field in its row; "renamingBookmark" ([url, folder]) opens the name field of that bookmark, "renamingFolder" (a folder row's open key, "" to close it) that of that folder, "renameFolder" ([key, name]) names a folder, "renamingGroup" opens that of the first group.
         if Headless.isTestCopy, request.method == "POST", request.path == "/ui",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
             Task { @MainActor in
@@ -234,6 +250,8 @@ extension ControlServer {
                     if folder["open"] as? Bool == true, !browser.space.openFolders.contains("pin:" + name) { browser.spaces.toggleOpen("pin:" + name, in: browser.spaceID) }
                 }
                 if let page = body["renamingBookmark"] as? [String], page.count == 2 { browser.renamingBookmark = Browser.bookmarkKey(url: page[0], folder: page[1]) }
+                if let key = body["renamingFolder"] as? String { browser.renamingFolder = key.isEmpty ? nil : key }
+                if let renames = body["renameFolder"] as? [String], renames.count == 2 { Library.shared.renameFolder(key: renames[0], to: renames[1]) }
                 if body["renamingGroup"] as? Bool == true { browser.renamingGroup = browser.spaceGroups.first?.id }
                 if let tab = browser.active {
                     if let name = body["rename"] as? String { tab.rename(to: name) }
@@ -248,7 +266,14 @@ extension ControlServer {
                     tab.progress = max(0, progress)
                 }
                 try? await Task.sleep(for: .milliseconds(500))
-                self.respond(connection, status: "200 OK", body: [:])
+                // What the clicks sent through /window-event left behind: which names are being typed, which groups are open, which folders.
+                self.respond(connection, status: "200 OK", body: [
+                    "renamingGroup": browser.renamingGroup?.uuidString ?? "", "renamingTab": browser.renamingTab ?? -1,
+                    "renamingBookmark": browser.renamingBookmark ?? "", "renamingFolder": browser.renamingFolder ?? "",
+                    "openFolders": browser.space.openFolders, "pinnedFolders": browser.space.pinnedFolders, "folderNames": Library.shared.folderNames(),
+                    "groups": browser.groups.map { ["name": $0.name, "open": $0.isOpen] },
+                    "tabs": browser.tabs.map { ["id": $0.id, "title": $0.displayTitle] }, "active": browser.activeID ?? -1,
+                ])
             }
             return true
         }
