@@ -6,6 +6,19 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.8.1</title>
+      <pubDate>Mon, 26 Oct 2026 01:27:42 +0000</pubDate>
+      <sparkle:version>31</sparkle:version>
+      <sparkle:shortVersionString>0.8.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.8.1</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Rename bookmarks and favorites.** Double-click a bookmark in the sidebar (pinned folders included) or choose Rename… from its menu; a favorite tile renames from its menu. The name is kept, even if you import from that browser again, and Undo brings the old one back.
+- **Rename a group with a double-click** on its header in the sidebar or its chip in the tab strip.
+- **A group chip being renamed in the tab strip** no longer hides the first letter behind its dot.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.1/Changmun-0.8.1.dmg" length="5230743" type="application/octet-stream" sparkle:edSignature="n4xkiPEl3aRyoTGwKW7ADGYYkA5K6BfFYV5+Nu2P0Kg/P6DIXyK2grme0oY7e0PxcDuDjuPNfrjGK7jGJLDxCw==" />
+    </item>
+    <item>
       <title>0.8.0</title>
       <pubDate>Mon, 26 Oct 2026 00:12:50 +0000</pubDate>
       <sparkle:version>30</sparkle:version>
@@ -129,20 +142,9 @@
       <description sparkle:format="markdown">- **An even address bar.** There was more room above the address bar than below it. It now has the same space on both sides, the bar is a little shorter, and the window buttons sit level with it.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.6.4/Changmun-0.6.4.dmg" length="4296619" type="application/octet-stream" sparkle:edSignature="Wth5ZEwIJyWoweus39GI+anawX2oRTs1OXAxaQpfvjBDvNzZDN0dAM0mlL6v2Nw/KW5/+55LjXHQHaC7huTWCg==" />
     </item>
-    <item>
-      <title>0.6.3</title>
-      <pubDate>Fri, 23 Oct 2026 01:52:45 +0000</pubDate>
-      <sparkle:version>21</sparkle:version>
-      <sparkle:shortVersionString>0.6.3</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.6.3</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **The page reaches the edges of the window.** The page used to sit on a card with a gap above, below and to the right of it, which showed as an empty band, most of all on a tall screen. It now runs to the window's top, bottom and right edge, and the AI panel does too, with a thin line between them. With the sidebar hidden or in focus mode, the page fills the whole window.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.6.3/Changmun-0.6.3.dmg" length="4297082" type="application/octet-stream" sparkle:edSignature="55HXhdu/BCwZmczxxmz8I2c4oPd/e8Vf7zHs5jURYlM9VpviGN5XAX/l1NGPZ3xOJ/bfLD1WkYiLarzOGW99BA==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: q7AdKsVwnOPYuGWVovGQ9FxCzyZeEpYo382JYgwPDiZVNaXMKLrt0FnYIT59NenzPvPst4asniG6Hq2+9comBw==
-length: 17106
+edSignature: 0H+ta3zk9m0njV3ewh0OhSGQWRer8yCQrpRx8L+lBTQgpIyoBiGh7AOXJQUJuR4Kan7xlSMSHHKGCssJyrfcCg==
+length: 17201
 -->
