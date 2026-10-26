@@ -5,6 +5,9 @@ import SwiftUI
 struct StripFavorite<MenuItems: View>: View {
     let entry: Library.Entry
     let state: BookmarkTabState
+    /// Its title is being typed in a popover on the tile (see `Browser.renamingBookmark`).
+    let renaming: Bool
+    let finishRenaming: (String?) -> Void
     let open: () -> Void
     @ViewBuilder let menu: () -> MenuItems
     @State private var hover = false
@@ -19,6 +22,7 @@ struct StripFavorite<MenuItems: View>: View {
             .onTapGesture(perform: open)
             .onHover { hover = $0 }
             .contextMenu(menuItems: menu)
+            .renamePopover(shown: entry.title.isEmpty ? entry.url : entry.title, isPresented: renaming, finish: finishRenaming)
             .help(entry.title.isEmpty ? entry.url : entry.title)
     }
 }
@@ -99,8 +103,8 @@ struct StripTab: View {
     }
 }
 
-/// A group's chip, before its tabs: its colour and name. Click folds the group (its tabs but the shown one leave the strip); its menu is the
-/// sidebar's.
+/// A group's chip, before its tabs: its colour and name. Click folds the group (its tabs but the shown one leave the strip), double-click
+/// renames it; its menu is the sidebar's.
 struct StripGroupChip: View {
     let group: Browser.TabGroup
     let count: Int
@@ -166,7 +170,7 @@ struct StripGroupChip: View {
             if renaming {
                 label
             } else {
-                Button { withAnimation(Motion.standard) { browser.toggleGroup(group.id) } } label: { label }
+                Button { withAnimation(Motion.standard) { browser.clickGroup(group.id, clickCount: Browser.clickCount) } } label: { label }
                     .buttonStyle(.plain)
             }
         }

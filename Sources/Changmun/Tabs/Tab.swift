@@ -144,7 +144,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         customTitle = name.isEmpty ? nil : String(name.prefix(Self.maxNameLength))
     }
 
-    static let maxNameLength = 200
+    nonisolated static let maxNameLength = 200
 
     @discardableResult
     func wake() -> WKWebView {

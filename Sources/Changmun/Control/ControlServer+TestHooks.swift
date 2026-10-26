@@ -6,10 +6,11 @@ import Network
 extension ControlServer {
     /// Answers the request and returns true if it is one of the test copy's own endpoints; false lets `handle()` go on.
     func handleTestRequest(_ request: HTTPRequest, on connection: NWConnection) -> Bool {
-        // Tests only: a picture of the front window, sidebar and all.
+        // Tests only: a picture of the front window, sidebar and all, with a popover over it ("popoverAt": [x, y] says where its top left corner goes).
         if Headless.isTestCopy, request.method == "POST", request.path == "/window-image" {
+            let at = ((try? JSONSerialization.jsonObject(with: request.body) as? [String: Any])?["popoverAt"] as? [Double]).flatMap { $0.count == 2 ? CGPoint(x: $0[0], y: $0[1]) : nil }
             Task { @MainActor in
-                guard let window = Browser.current?.window, let png = await WindowImage.png(of: window) else {
+                guard let window = Browser.current?.window, let png = await WindowImage.png(of: window, popoverAt: at) else {
                     return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
                 }
                 self.respond(connection, status: "200 OK", body: ["png": png.base64EncodedString()])
@@ -17,7 +18,7 @@ extension ControlServer {
             return true
         }
         // Tests only: a mouse event at a point in the window (from its top left), handed to the app as if it came
-        // from the window server, so the headless app can be clicked without touching the real pointer.
+        // from the window server, so the headless app can be clicked without touching the real pointer ("count" is the click count, 2 for a double-click).
         if Headless.isTestCopy, request.method == "POST", request.path == "/window-event",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any],
            let kind = body["type"] as? String, let x = body["x"] as? Double, let y = body["y"] as? Double {
@@ -26,10 +27,29 @@ extension ControlServer {
                 guard let window = Browser.current?.window, let content = window.contentView, let type = types[kind],
                       let event = NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: content.bounds.height - y), modifierFlags: [],
                                                      timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
-                                                     context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1) else {
+                                                     context: nil, eventNumber: 0, clickCount: body["count"] as? Int ?? 1, pressure: type == .leftMouseUp ? 0 : 1) else {
                     return self.respond(connection, status: "404 Not Found", body: ["error": "no window or unknown type"])
                 }
+                Browser.syntheticClickCount = event.clickCount
                 NSApp.sendEvent(event)
+                Browser.syntheticClickCount = nil
+                self.respond(connection, status: "200 OK", body: [:])
+            }
+            return true
+        }
+        // Tests only: a key pressed in the window, typing "chars" (a Return is "\r", an Esc "\u{1b}") into what has the focus; "keyCode" is the key's code
+        // (36 for Return, 53 for Esc, none for letters).
+        if Headless.isTestCopy, request.method == "POST", request.path == "/window-key",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any], let chars = body["chars"] as? String {
+            Task { @MainActor in
+                guard let window = Browser.current?.window else { return self.respond(connection, status: "404 Not Found", body: ["error": "no window"]) }
+                for type in [NSEvent.EventType.keyDown, .keyUp] {
+                    guard let event = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                       windowNumber: window.windowNumber, context: nil, characters: chars, charactersIgnoringModifiers: chars,
+                                                       isARepeat: false, keyCode: UInt16(body["keyCode"] as? Int ?? 0)) else { continue }
+                    NSApp.sendEvent(event)
+                }
+                try? await Task.sleep(for: .milliseconds(300))
                 self.respond(connection, status: "200 OK", body: [:])
             }
             return true
@@ -181,7 +201,7 @@ extension ControlServer {
         // none; "progress" (0...1) holds the tab in front as loading at that point, and a negative one lets it be ("peek": true for the peek card's tab); "popup" (a link), "login"
         // (a user name) and "foreign" (a language) put up the bar or button for that on the tab in front, "" taking it down again; "reader" toggles Reader Mode; "group" ({"ids", "name"}) gathers tabs into a group;
         // "folder" ({"name", "pages": [[url, title]], "pin", "open"}) fills a bookmark folder, pinned and opened in the sidebar;
-        // "rename" names the tab in front (an empty name takes the name away), and "renaming" opens or closes the name field in its row.
+        // "rename" names the tab in front (an empty name takes the name away), and "renaming" opens or closes the name field in its row; "renamingBookmark" ([url, folder]) opens the name field of that bookmark, "renamingGroup" that of the first group.
         if Headless.isTestCopy, request.method == "POST", request.path == "/ui",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
             Task { @MainActor in
@@ -213,6 +233,8 @@ extension ControlServer {
                     if folder["pin"] as? Bool == true { browser.spaces.pinFolder(name, before: nil, in: browser.spaceID) }
                     if folder["open"] as? Bool == true, !browser.space.openFolders.contains("pin:" + name) { browser.spaces.toggleOpen("pin:" + name, in: browser.spaceID) }
                 }
+                if let page = body["renamingBookmark"] as? [String], page.count == 2 { browser.renamingBookmark = Browser.bookmarkKey(url: page[0], folder: page[1]) }
+                if body["renamingGroup"] as? Bool == true { browser.renamingGroup = browser.spaceGroups.first?.id }
                 if let tab = browser.active {
                     if let name = body["rename"] as? String { tab.rename(to: name) }
                     if let on = body["renaming"] as? Bool { browser.renamingTab = on ? tab.id : nil }

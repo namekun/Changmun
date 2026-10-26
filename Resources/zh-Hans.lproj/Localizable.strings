@@ -669,6 +669,9 @@
 "Rename Tab…" = "重命名标签页…";
 "Reset Name" = "重置名称";
 "Tab name" = "标签页名称";
+"Rename…" = "重命名…";
+"Bookmark name" = "书签名称";
+"Renamed the bookmark" = "已重命名书签";
 "Tab Layout" = "标签页布局";
 "On Top" = "顶部";
 "With tabs on top, favorites and open tabs sit in a strip above the address bar, and the sidebar opens over the page from the button beside the address bar." = "标签页放在顶部时，个人收藏和已打开的标签页会排在地址栏上方的标签栏中，边栏则通过地址栏旁的按钮在页面上方展开。";

@@ -177,6 +177,17 @@ final class Library: @unchecked Sendable {
         changed()
     }
 
+    /// Gives a bookmark the title the user typed (trimmed, cut at `Tab.maxNameLength`). An empty one is ignored, so a bookmark keeps a title to show.
+    /// Importing again leaves it be: an import adds the bookmarks that are not there and never rewrites one that is. Returns whether the write went through.
+    @discardableResult
+    func renameBookmark(url: String, folder: String, title: String) -> Bool {
+        let title = String(title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(Tab.maxNameLength))
+        guard !title.isEmpty, let db,
+              (try? db.run("UPDATE bookmarks SET title = ? WHERE url = ? AND folder = ?", [title, url, folder])) != nil else { return false }
+        changed()
+        return true
+    }
+
     /// Removes a folder and the folders inside it.
     func removeFolder(_ folder: String) {
         try? db?.run("DELETE FROM bookmarks WHERE folder = ? OR substr(folder, 1, ?) = ?", [folder, (folder + " / ").unicodeScalars.count, folder + " / "])

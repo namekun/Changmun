@@ -669,6 +669,9 @@
 "Rename Tab…" = "Renombrar pestaña…";
 "Reset Name" = "Restablecer nombre";
 "Tab name" = "Nombre de la pestaña";
+"Rename…" = "Renombrar…";
+"Bookmark name" = "Nombre del marcador";
+"Renamed the bookmark" = "Marcador renombrado";
 "Tab Layout" = "Disposición de las pestañas";
 "On Top" = "Arriba";
 "With tabs on top, favorites and open tabs sit in a strip above the address bar, and the sidebar opens over the page from the button beside the address bar." = "Con las pestañas arriba, los favoritos y las pestañas abiertas van en una franja sobre la barra de direcciones, y la barra lateral se abre sobre la página con el botón junto a la barra de direcciones.";

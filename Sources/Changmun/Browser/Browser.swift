@@ -92,7 +92,7 @@ final class Browser: ObservableObject {
     }
     /// The space shown: the sidebar lists its tabs, favorites and folders, and new tabs open in it.
     @Published var spaceID: UUID {
-        didSet { if renamingTab != nil { renamingTab = nil } }
+        didSet { if renamingTab != nil { renamingTab = nil }; renamingBookmark = nil }
     }
     /// Which way the last switch went (1 to a space further on), for the sidebar to slide that way.
     var spaceDirection = 1
@@ -120,7 +120,7 @@ final class Browser: ObservableObject {
         didSet {
             UserDefaults.standard.set(showSidebar, forKey: "showSidebar")
             showDownloads = false
-            if showSidebar { focusMode = false } else { renamingGroup = nil; renamingTab = nil }
+            if showSidebar { focusMode = false } else { renamingGroup = nil; renamingTab = nil; renamingBookmark = nil }
         }
     }
     /// With the tabs on top there is no sidebar column: this shows the sidebar over the page, from the page bar, until a click outside it.
@@ -150,6 +150,7 @@ final class Browser: ObservableObject {
             showDownloads = false
             renamingGroup = nil
             renamingTab = nil
+            renamingBookmark = nil
             flashStatus(String(localized: "Focus mode · ⇧⌘F to exit"))
         }
     }
@@ -265,12 +266,23 @@ final class Browser: ObservableObject {
     @Published var renamingGroup: UUID?
     /// The tab whose name is being typed in the sidebar.
     @Published var renamingTab: Int?
+    /// The bookmark (see `bookmarkKey`) whose title is being typed: in its sidebar row, or in a popover on a favorite's tile.
+    @Published var renamingBookmark: String?
     @Published var notice: Notice?
     @Published var tidying = false
     @Published var lastTidy: Tidy?
 
     /// ⌘ held during the click that triggered this.
     static var commandClick: Bool { NSApp.currentEvent?.modifierFlags.contains(.command) == true }
+    /// Tests only: the click count of the synthetic click a test copy is sending, which never becomes `NSApp.currentEvent`.
+    static var syntheticClickCount: Int?
+    /// How many clicks the click that triggered this is: 2 for the second of a double-click. 1 when what is being handled is no click
+    /// (`clickCount` is only for mouse events).
+    static var clickCount: Int {
+        if Headless.isTestCopy, let syntheticClickCount { return syntheticClickCount }
+        guard let event = NSApp.currentEvent, event.type == .leftMouseDown || event.type == .leftMouseUp else { return 1 }
+        return event.clickCount
+    }
 
     static func takeID() -> Int {
         defer { nextID += 1 }

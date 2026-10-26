@@ -669,6 +669,9 @@
 "Rename Tab…" = "Renommer l’onglet…";
 "Reset Name" = "Réinitialiser le nom";
 "Tab name" = "Nom de l’onglet";
+"Rename…" = "Renommer…";
+"Bookmark name" = "Nom du signet";
+"Renamed the bookmark" = "Signet renommé";
 "Tab Layout" = "Disposition des onglets";
 "On Top" = "En haut";
 "With tabs on top, favorites and open tabs sit in a strip above the address bar, and the sidebar opens over the page from the button beside the address bar." = "Avec les onglets en haut, les favoris et les onglets ouverts se placent dans une bande au-dessus de la barre d’adresse, et la barre latérale s’ouvre sur la page avec le bouton à côté de la barre d’adresse.";

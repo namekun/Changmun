@@ -669,6 +669,9 @@
 "Rename Tab…" = "Tab umbenennen…";
 "Reset Name" = "Name zurücksetzen";
 "Tab name" = "Tab-Name";
+"Rename…" = "Umbenennen…";
+"Bookmark name" = "Lesezeichenname";
+"Renamed the bookmark" = "Lesezeichen umbenannt";
 "Tab Layout" = "Tab-Anordnung";
 "On Top" = "Oben";
 "With tabs on top, favorites and open tabs sit in a strip above the address bar, and the sidebar opens over the page from the button beside the address bar." = "Liegen die Tabs oben, stehen Favoriten und geöffnete Tabs in einer Leiste über der Adressleiste, und die Seitenleiste öffnet sich über der Seite mit der Taste neben der Adressleiste.";

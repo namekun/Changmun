@@ -139,6 +139,13 @@ extension Browser {
         groups[index].isOpen.toggle()
     }
 
+    /// A click on a group's header folds it at once, with no wait to tell it from a double-click. The second click of a double-click folds
+    /// it back, so the group ends as open as it was, and types its name instead.
+    func clickGroup(_ id: UUID, clickCount: Int) {
+        toggleGroup(id)
+        if clickCount >= 2 { renamingGroup = id }
+    }
+
     func rename(_ id: UUID, to name: String) {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, let index = groups.firstIndex(where: { $0.id == id }) else { return }

@@ -15,6 +15,9 @@ enum BookmarkTabState {
 struct FavoriteTile<MenuItems: View>: View {
     let entry: Library.Entry
     let state: BookmarkTabState
+    /// Its title is being typed in a popover on the tile (see `Browser.renamingBookmark`).
+    let renaming: Bool
+    let finishRenaming: (String?) -> Void
     let open: () -> Void
     @ViewBuilder let menu: () -> MenuItems
     @State private var hover = false
@@ -30,7 +33,46 @@ struct FavoriteTile<MenuItems: View>: View {
             .onTapGesture(perform: open)
             .onHover { hover = $0 }
             .contextMenu(menuItems: menu)
+            .renamePopover(shown: entry.title.isEmpty ? entry.url : entry.title, isPresented: renaming, finish: finishRenaming)
             .help(entry.title.isEmpty ? entry.url : entry.title)
+    }
+}
+
+/// The title of a favorite, typed in a small popover on its tile: Return keeps it, Esc drops it, a click outside keeps it, as in a tab's row.
+/// `finish` gets what was typed, or nil for Esc.
+struct RenamePopover: ViewModifier {
+    let shown: String
+    let isPresented: Bool
+    let finish: (String?) -> Void
+    @State private var name = ""
+    @FocusState private var editing: Bool
+
+    func body(content: Content) -> some View {
+        content.popover(isPresented: Binding(get: { isPresented }, set: { if !$0 { finish(name) } }), arrowEdge: .top) {
+            TextField("Bookmark name", text: $name)
+                .textFieldStyle(.plain)
+                .font(.row)
+                .foregroundStyle(Theme.primary)
+                .focused($editing)
+                .padding(.horizontal, Metrics.rowPadding)
+                .frame(width: 220, height: Metrics.row + 8)
+                .onAppear {
+                    name = shown
+                    // Focus taken in the same pass as the field appears is sometimes dropped.
+                    DispatchQueue.main.async { editing = true }
+                }
+                .onSubmit { finish(name) }
+                .onKeyPress(.escape) {
+                    finish(nil)
+                    return .handled
+                }
+        }
+    }
+}
+
+extension View {
+    func renamePopover(shown: String, isPresented: Bool, finish: @escaping (String?) -> Void) -> some View {
+        modifier(RenamePopover(shown: shown, isPresented: isPresented, finish: finish))
     }
 }
 
@@ -75,20 +117,46 @@ struct FolderRow<MenuItems: View>: View {
 struct BookmarkRow<MenuItems: View>: View {
     let entry: Library.Entry
     let state: BookmarkTabState
+    /// Its title is being typed in the row (see `Browser.renamingBookmark`); `startRenaming` asks for that, `finishRenaming` gets what was
+    /// typed, or nil for Esc.
+    let renaming: Bool
+    let startRenaming: () -> Void
+    let finishRenaming: (String?) -> Void
     let open: () -> Void
     @ViewBuilder let menu: () -> MenuItems
     @State private var hover = false
+    @State private var name = ""
+    @FocusState private var editing: Bool
 
     var body: some View {
         HStack(spacing: Metrics.iconGap) {
             SiteIcon(url: entry.url, size: Metrics.icon)
-            Text(entry.title.isEmpty ? entry.url : entry.title)
-                .font(state == .shown ? .rowSelected : .row)
-                .foregroundStyle(state == .closed ? Theme.dim : Theme.primary)
-                .lineLimit(1)
+            if renaming {
+                TextField("Bookmark name", text: $name)
+                    .textFieldStyle(.plain)
+                    .font(state == .shown ? .rowSelected : .row)
+                    .foregroundStyle(Theme.primary)
+                    .focused($editing)
+                    .onAppear {
+                        name = entry.title.isEmpty ? entry.url : entry.title
+                        // Focus taken in the same pass as the field appears is sometimes dropped.
+                        DispatchQueue.main.async { editing = true }
+                    }
+                    .onSubmit { finishRenaming(name) }
+                    .onChange(of: editing) { if !editing { finishRenaming(name) } }
+                    .onKeyPress(.escape) {
+                        finishRenaming(nil)
+                        return .handled
+                    }
+            } else {
+                Text(entry.title.isEmpty ? entry.url : entry.title)
+                    .font(state == .shown ? .rowSelected : .row)
+                    .foregroundStyle(state == .closed ? Theme.dim : Theme.primary)
+                    .lineLimit(1)
+            }
             Spacer(minLength: 0)
             ZStack {
-                if hover {
+                if hover && !renaming {
                     MoreButton(items: menu)
                 } else if state == .open {
                     Circle().fill(Theme.dim).frame(width: 4, height: 4)
@@ -101,7 +169,9 @@ struct BookmarkRow<MenuItems: View>: View {
         .frame(height: Metrics.row)
         .rowChrome(hover: hover, selected: state == .shown)
         .onHover { hover = $0 }
-        .onTapGesture(perform: open)
+        .onTapGesture { if !renaming { open() } }
+        // Alongside the click that opens it, so opening does not wait for a second click.
+        .simultaneousGesture(TapGesture(count: 2).onEnded(startRenaming))
         .contextMenu(menuItems: menu)
         .help(entry.url)
     }
@@ -127,6 +197,7 @@ struct BookmarkMenu: View {
         } else if browser.activeID != nil && tab?.id != browser.activeID {
             Button("Show Side by Side with Current Tab") { browser.split(withBookmark: url, key: key) }
         }
+        Button("Rename…") { browser.renamingBookmark = key }
         moveMenu
         Divider()
         if Library.isFavorites(folder) {
@@ -162,7 +233,7 @@ struct BookmarkMenu: View {
     }
 }
 
-/// A tab group in the tab list: click to fold it, drag to move it; its menu renames, ungroups, saves or closes it. A tab dropped on it joins.
+/// A tab group in the tab list: click to fold it, double-click to rename it, drag to move it; its menu renames, ungroups, saves or closes it. A tab dropped on it joins.
 struct TabGroupHeader: View {
     let group: Browser.TabGroup
     let count: Int
@@ -214,7 +285,7 @@ struct TabGroupHeader: View {
         .onHover { hover = $0 }
         .onTapGesture {
             guard browser.renamingGroup != group.id else { return }
-            withAnimation(Motion.standard) { browser.toggleGroup(group.id) }
+            withAnimation(Motion.standard) { browser.clickGroup(group.id, clickCount: Browser.clickCount) }
         }
         .contextMenu { GroupMenu(group: group, browser: browser) }
         .help(group.isOpen ? String(localized: "Collapse") : String(localized: "Expand"))

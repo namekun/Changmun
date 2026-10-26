@@ -105,7 +105,9 @@ struct TabStrip: View {
     private func favorite(_ entry: Library.Entry) -> some View {
         let folder = browser.favoritesFolder
         let key = Browser.bookmarkKey(url: entry.url, folder: folder)
-        return StripFavorite(entry: entry, state: BookmarkTabState(key, browser)) {
+        // With the sidebar open over the page, the favorite's popover is the sidebar's: two at once would fight for the focus.
+        return StripFavorite(entry: entry, state: BookmarkTabState(key, browser), renaming: browser.renamingBookmark == key && !browser.showSidebarOverlay,
+                             finishRenaming: { browser.finishRenamingBookmark(url: entry.url, folder: folder, title: entry.title, with: $0) }) {
             browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
         } menu: {
             BookmarkMenu(browser: browser, url: entry.url, title: entry.title, folder: folder, key: key)

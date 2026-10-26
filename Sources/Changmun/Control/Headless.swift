@@ -30,7 +30,9 @@ enum Headless {
 /// whatever floats over it (bars, the find field).
 @MainActor
 enum WindowImage {
-    static func png(of window: NSWindow) async -> Data? {
+    /// `popoverAt` puts a popover's top left corner there (points from the window's top left): the window is off screen, so the system pushes a popover to
+    /// the screen's edge instead of leaving it by what it points at.
+    static func png(of window: NSWindow, popoverAt: CGPoint? = nil) async -> Data? {
         // The window's frame view, so the window buttons above the content show too.
         guard let view = window.contentView?.superview ?? window.contentView else { return nil }
         // A window that isn't key is never told to put its window buttons back, which AppKit may have moved since.
@@ -48,7 +50,25 @@ enum WindowImage {
         defer { stand.forEach { $0.removeFromSuperview() } }
         guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return nil }
         view.cacheDisplay(in: view.bounds, to: rep)
-        return rep.representation(using: .png, properties: [:])
+        // A popover is a window of its own over this one: drawn in, where it stands.
+        let popovers = NSApp.windows.filter { $0 !== window && $0.isVisible && String(describing: type(of: $0)).contains("Popover") }
+        guard !popovers.isEmpty, let canvas = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: rep.pixelsWide, pixelsHigh: rep.pixelsHigh, bitsPerSample: 8,
+                                                                samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+              let context = NSGraphicsContext(bitmapImageRep: canvas) else { return rep.representation(using: .png, properties: [:]) }
+        let scale = CGFloat(rep.pixelsWide) / view.bounds.width
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        context.cgContext.scaleBy(x: scale, y: scale)
+        rep.draw(in: view.bounds)
+        for popover in popovers {
+            // What the popover draws into a bitmap: its text and field, on a flat fill (its material and arrow do not draw).
+            guard let top = popover.contentView?.superview ?? popover.contentView, let shot = top.bitmapImageRepForCachingDisplay(in: top.bounds) else { continue }
+            top.cacheDisplay(in: top.bounds, to: shot)
+            let at = popoverAt.map { CGPoint(x: $0.x, y: view.bounds.height - $0.y - top.bounds.height) } ?? CGPoint(x: popover.frame.minX - window.frame.minX, y: popover.frame.minY - window.frame.minY)
+            shot.draw(in: CGRect(origin: at, size: top.bounds.size))
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        return canvas.representation(using: .png, properties: [:])
     }
 
     private static func webViews(in view: NSView) -> [WKWebView] {

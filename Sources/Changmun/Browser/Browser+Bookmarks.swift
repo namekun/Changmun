@@ -77,6 +77,25 @@ extension Browser {
         }
     }
 
+    /// The title a bookmark gets from what was typed, or nil when it stays as it is: nothing typed, or what is shown already.
+    /// `shown` is what the row says now (the address while the bookmark has no title), so opening the field and leaving it fixes nothing.
+    static func renamedTitle(_ typed: String, shown: String) -> String? {
+        let typed = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !typed.isEmpty, typed != shown.trimmingCharacters(in: .whitespacesAndNewlines) else { return nil }
+        return String(typed.prefix(Tab.maxNameLength))
+    }
+
+    /// Ends the rename of a bookmark with what was typed (nil for Esc: nothing is kept), and offers to take it back. Nothing happens unless
+    /// this bookmark's rename is still on (Esc, or another one's, ended it): a focus change that comes after must not save what was cancelled.
+    func finishRenamingBookmark(url: String, folder: String, title: String, with typed: String?) {
+        guard renamingBookmark == Self.bookmarkKey(url: url, folder: folder) else { return }
+        renamingBookmark = nil
+        guard let typed, let new = Self.renamedTitle(typed, shown: title.isEmpty ? url : title),
+              Library.shared.renameBookmark(url: url, folder: folder, title: new) else { return }
+        guard !title.isEmpty else { return }
+        offerUndo(String(localized: "Renamed the bookmark")) { Library.shared.renameBookmark(url: url, folder: folder, title: title) }
+    }
+
     /// Turns an open tab into a bookmark's tab (pinning it).
     func bind(_ tab: Tab, to key: String) {
         guard bookmarkTab(key) == nil else { return }
