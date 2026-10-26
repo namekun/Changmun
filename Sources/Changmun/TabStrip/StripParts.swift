@@ -125,7 +125,7 @@ struct StripGroupChip: View {
 
     /// The chip is as wide as its text, which the strip needs to know to share out the room.
     static func width(_ group: Browser.TabGroup, count: Int, renaming: Bool) -> CGFloat {
-        if renaming { return 110 }
+        if renaming { return 170 }
         let text = ceil(NSAttributedString(string: label(group, count: count), attributes: [.font: font]).size().width)
         return min(150, text + 8 + 4 + 2 * padding)
     }
@@ -143,6 +143,8 @@ struct StripGroupChip: View {
                     .textFieldStyle(.plain)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(Theme.primary)
+                    // A name longer than the field scrolls inside it: it must not draw over the dot before it.
+                    .clipped()
                     .focused($editing)
                     .onAppear {
                         name = group.name

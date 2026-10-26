@@ -136,6 +136,8 @@ struct BookmarkRow<MenuItems: View>: View {
                     .textFieldStyle(.plain)
                     .font(state == .shown ? .rowSelected : .row)
                     .foregroundStyle(Theme.primary)
+                    // A title longer than the field scrolls inside it: it must not draw over the icon before it.
+                    .clipped()
                     .focused($editing)
                     .onAppear {
                         name = entry.title.isEmpty ? entry.url : entry.title
@@ -251,6 +253,10 @@ struct TabGroupHeader: View {
                     .textFieldStyle(.plain)
                     .font(.row)
                     .foregroundStyle(Theme.primary)
+                    // The field gets the room before the empty drag area does, so a name that fits is not scrolled; one that does not fit scrolls
+                    // inside the field and must not draw over the icon before it.
+                    .layoutPriority(1)
+                    .clipped()
                     .focused($editing)
                     .onAppear {
                         name = group.name
