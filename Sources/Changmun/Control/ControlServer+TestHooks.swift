@@ -200,7 +200,7 @@ extension ControlServer {
         // "focus", "find" (with "findText"), "downloads" and "onboarding" show or hide that part; "command" is newTab, editCurrent or
         // none; "progress" (0...1) holds the tab in front as loading at that point, and a negative one lets it be ("peek": true for the peek card's tab); "popup" (a link), "login"
         // (a user name) and "foreign" (a language) put up the bar or button for that on the tab in front, "" taking it down again; "reader" toggles Reader Mode; "group" ({"ids", "name"}) gathers tabs into a group;
-        // "folder" ({"name", "pages": [[url, title]], "pin", "open"}) fills a bookmark folder, pinned and opened in the sidebar;
+        // "folder" ({"name", "pages": [[url, title]], "pin", "open", "remove"}) fills a bookmark folder, pinned and opened in the sidebar ("remove" takes those pages out again);
         // "rename" names the tab in front (an empty name takes the name away), and "renaming" opens or closes the name field in its row; "renamingBookmark" ([url, folder]) opens the name field of that bookmark, "renamingGroup" that of the first group.
         if Headless.isTestCopy, request.method == "POST", request.path == "/ui",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
@@ -229,7 +229,9 @@ extension ControlServer {
                     browser.renamingGroup = nil
                 }
                 if let folder = body["folder"] as? [String: Any], let name = folder["name"] as? String {
-                    for page in folder["pages"] as? [[String]] ?? [] where page.count == 2 { Library.shared.addBookmark(url: page[0], title: page[1], folder: name) }
+                    for page in folder["pages"] as? [[String]] ?? [] where page.count == 2 {
+                        if folder["remove"] as? Bool == true { Library.shared.removeBookmark(url: page[0], folder: name) } else { Library.shared.addBookmark(url: page[0], title: page[1], folder: name) }
+                    }
                     if folder["pin"] as? Bool == true { browser.spaces.pinFolder(name, before: nil, in: browser.spaceID) }
                     if folder["open"] as? Bool == true, !browser.space.openFolders.contains("pin:" + name) { browser.spaces.toggleOpen("pin:" + name, in: browser.spaceID) }
                 }

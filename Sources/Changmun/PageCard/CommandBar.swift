@@ -44,6 +44,11 @@ struct CommandBar: View {
         return list
     }
 
+    /// The row Return runs: the highlighted one, none when the highlight is past the end of the list.
+    static func chosen(_ items: [Suggestion], at selection: Int) -> Suggestion? {
+        items.indices.contains(selection) ? items[selection] : nil
+    }
+
     /// Open tabs whose title or address holds every word.
     static func matchingTabs(_ tabs: [Tab], _ query: String) -> [Tab] {
         let words = query.lowercased().split(separator: " ")
@@ -70,7 +75,9 @@ struct CommandBar: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(Theme.primary)
                         .focused($focused)
-                        .onSubmit { run(items.indices.contains(selection) ? items[selection] : nil) }
+                        // The list as it is when Return is pressed: the field keeps the handler it was given when its text last changed, so
+                        // the `items` of that render would hold the rows from before the local and engine results came in.
+                        .onSubmit { run(Self.chosen(suggestions, at: selection)) }
                         .onChange(of: text) {
                             selection = 0
                             refresh()
