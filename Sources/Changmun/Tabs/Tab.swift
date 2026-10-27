@@ -166,6 +166,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     }
 
     func sleep() {
+        browser?.certificatePrompter.forget(self)
         guard let webView else { return }
         savedState = webView.interactionState as? Data
         finishedState = nil

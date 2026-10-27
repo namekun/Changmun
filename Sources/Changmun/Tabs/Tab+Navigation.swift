@@ -82,6 +82,8 @@ extension Tab: WKNavigationDelegate {
         // The page that asked for the pop-up is on its way out: its bar goes now, not at the commit, so that no button is pressed
         // while the tab's address and the bar's site have parted ways.
         blockedPopup = nil
+        // A certificate a page asked for is not wanted by the one that replaces it.
+        browser?.certificatePrompter.forget(self)
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
@@ -155,9 +157,11 @@ extension Tab: WKNavigationDelegate {
         """, baseURL: nil)
     }
 
-    /// Sites behind HTTP authentication ask for a user name and password.
+    /// Sites behind HTTP authentication ask for a user name and password, and others for a certificate. A server's own certificate is
+    /// judged by WebKit as ever.
     func webView(_ webView: WKWebView, respondTo challenge: URLAuthenticationChallenge) async -> (URLSession.AuthChallengeDisposition, URLCredential?) {
         let method = challenge.protectionSpace.authenticationMethod
+        if method == NSURLAuthenticationMethodClientCertificate { return await answerCertificateRequest(challenge) }
         guard method == NSURLAuthenticationMethodHTTPBasic || method == NSURLAuthenticationMethodHTTPDigest else { return (.performDefaultHandling, nil) }
         guard challenge.previousFailureCount < 3, !Headless.isOn else { return (.cancelAuthenticationChallenge, nil) }
         let alert = NSAlert()
@@ -177,6 +181,32 @@ extension Tab: WKNavigationDelegate {
         alert.addButton(withTitle: String(localized: "Cancel"))
         guard alert.runModal() == .alertFirstButtonReturn else { return (.cancelAuthenticationChallenge, nil) }
         return (.useCredential, URLCredential(user: user.stringValue, password: password.stringValue, persistence: .forSession))
+    }
+
+    /// A site that wants a certificate to identify the user (see ClientCertificates). Cancel, no certificate, and a headless Changmun all go on
+    /// without one (`performDefaultHandling`, not cancelling the load): a site that asks for a certificate but doesn't insist shows its own
+    /// page, and one that does insist fails the connection, which Changmun's error page reports, where a cancelled load would leave a blank tab.
+    private func answerCertificateRequest(_ challenge: URLAuthenticationChallenge) async -> (URLSession.AuthChallengeDisposition, URLCredential?) {
+        guard !Headless.isOn, let browser else { return (.performDefaultHandling, nil) }
+        let space = challenge.protectionSpace
+        let issuers = space.distinguishedNames ?? []
+        let site = ClientCertificates.requestKey(host: space.host, port: space.port, acceptedIssuers: issuers)
+        let prompter = browser.certificatePrompter
+        let agentDriven = AgentActivity.shared.holds(self)
+        let prompt = { (candidates: [ClientCertificates.Candidate]) in
+            ClientCertificatePrompter.Prompt(host: space.host, candidates: candidates, agentDriven: agentDriven,
+                                             domain: ClientCertificates.domainToRemember(host: space.host, port: space.port, isPrivate: self.isPrivate, agentDriven: agentDriven))
+        }
+        let environment = ClientCertificates.Environment(
+            situation: ClientCertificates.Situation(isHeadless: Headless.isOn, agentDriven: agentDriven),
+            identities: { ClientCertificates.keychainIdentities() },
+            preferred: { ClientCertificates.preferredIdentity(names: $0, acceptedIssuers: $1) },
+            remembered: prompter.remembered.choice(forSite: site, agentDriven: agentDriven),
+            ask: { await prompter.ask(prompt($0), queueKey: ClientCertificates.queueKey(site: site, agentDriven: agentDriven, tab: self.id), site: site, tab: self) })
+        guard let identity = await ClientCertificates.resolve(host: space.host, port: space.port, acceptedIssuers: issuers, environment: environment)?.identity else {
+            return (.performDefaultHandling, nil)
+        }
+        return (.useCredential, URLCredential(identity: identity, certificates: nil, persistence: .forSession))
     }
 
     /// The page's process went away (it crashed, or was killed for memory): load it again, but a page that keeps
