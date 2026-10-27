@@ -98,7 +98,7 @@ final class Browser: ObservableObject {
     }
     /// The space shown: the sidebar lists its tabs, favorites and folders, and new tabs open in it.
     @Published var spaceID: UUID {
-        didSet { if renamingTab != nil { renamingTab = nil }; renamingBookmark = nil; renamingFolder = nil }
+        didSet { renamingGroup = nil; if renamingTab != nil { renamingTab = nil }; renamingBookmark = nil; renamingFolder = nil }
     }
     /// Which way the last switch went (1 to a space further on), for the sidebar to slide that way.
     var spaceDirection = 1
@@ -131,7 +131,25 @@ final class Browser: ObservableObject {
     }
     /// With the tabs on top there is no sidebar column: this shows the sidebar over the page, from the page bar, until a click outside it.
     @Published var showSidebarOverlay = false {
-        didSet { if showSidebarOverlay { showDownloads = false } }
+        didSet {
+            if showSidebarOverlay {
+                showDownloads = false
+            } else if oldValue {
+                // A name typed in the overlay's rows goes with it, as with the sidebar (and must not turn up in the strip's field instead).
+                renamingGroup = nil; renamingTab = nil; renamingBookmark = nil; renamingFolder = nil
+            }
+        }
+    }
+
+    /// With the tabs on top a name is typed in the strip, or in the rows of the sidebar while it is open over the page: never in both, whose
+    /// two fields would take the focus from each other. (A favorite's popover follows the same rule; bookmarks and folders are in the sidebar only.)
+    func stripRenaming(tab id: Int) -> Bool { renamingTab == id && !showSidebarOverlay }
+    func stripRenaming(group id: UUID) -> Bool { renamingGroup == id && !showSidebarOverlay }
+
+    /// Esc puts the sidebar away from over the page, unless a text field is being typed in (its Esc is its own) or something else on top
+    /// has the key: the command bar, the peek card, the tab switcher, a sheet, the introduction.
+    func escapeClosesSidebarOverlay(typing: Bool) -> Bool {
+        showSidebarOverlay && !focusMode && !typing && commandBar == nil && peek == nil && tabSwitcher == nil && spaceSheet == nil && !showOnboarding
     }
     @Published var commandBar: CommandBarMode? {
         didSet { if commandBar != nil { closePeek() } }

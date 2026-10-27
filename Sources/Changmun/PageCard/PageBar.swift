@@ -172,6 +172,15 @@ struct WindowDragArea: NSViewRepresentable {
         }
     }
 
+    /// How far the pointer must move from where the button went down before the window follows it: a hand on a mouse trembles, and a
+    /// double-click with a small tremor is still a double-click.
+    static let dragThreshold: CGFloat = 3
+
+    /// Whether the pointer has moved far enough from the point the button went down at (both in window coordinates) to drag the window.
+    static func movedEnough(from start: NSPoint, to point: NSPoint, threshold: CGFloat = dragThreshold) -> Bool {
+        hypot(point.x - start.x, point.y - start.y) > threshold
+    }
+
     final class DragView: NSView {
         override func mouseDown(with event: NSEvent) {
             guard let window else { return }
@@ -183,10 +192,21 @@ struct WindowDragArea: NSViewRepresentable {
                 }
                 return
             }
-            // The drag starts only once the pointer moves: a drag begun on a still click leaves the window server
-            // holding the second click, so a double click never arrives.
-            if let next = window.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]), next.type == .leftMouseDragged {
-                window.performDrag(with: next)
+            // The drag starts only once the pointer has moved: a drag begun on a still click leaves the window server
+            // holding the second click, so a double click never arrives. The wait ends with the button's release; it
+            // looks again every so often at whether the button is still down, so a press that is never followed by a
+            // release (nothing real does that, but a test can send one) does not hold the app.
+            let start = event.locationInWindow
+            while true {
+                guard let next = window.nextEvent(matching: [.leftMouseDragged, .leftMouseUp], until: Date(timeIntervalSinceNow: 0.1), inMode: .eventTracking, dequeue: true) else {
+                    if NSEvent.pressedMouseButtons & 1 == 0 { return }
+                    continue
+                }
+                if next.type == .leftMouseUp { return }
+                if WindowDragArea.movedEnough(from: start, to: next.locationInWindow) {
+                    window.performDrag(with: next)
+                    return
+                }
             }
         }
     }

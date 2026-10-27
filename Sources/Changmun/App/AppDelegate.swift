@@ -180,11 +180,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// While a link is peeked, esc closes it and ⌘↩ keeps it as a tab.
+    /// While a link is peeked, esc closes it and ⌘↩ keeps it as a tab. With the sidebar open over the page, esc puts it away, unless a text
+    /// field is being typed in.
     private func watchPeekKeys() {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            guard let browser = (event.window as? BrowserWindow)?.browser, browser.peek != nil, browser.commandBar == nil else { return event }
+            guard let browser = (event.window as? BrowserWindow)?.browser else { return event }
             let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            if event.keyCode == 53 && modifiers.isEmpty && browser.escapeClosesSidebarOverlay(typing: event.window?.firstResponder is NSText) {
+                browser.showSidebarOverlay = false
+                return nil
+            }
+            guard browser.peek != nil, browser.commandBar == nil else { return event }
             if event.keyCode == 53 && modifiers.isEmpty {
                 browser.closePeek()
                 return nil

@@ -93,7 +93,7 @@ extension Browser {
         guard let typed, let new = Self.renamedTitle(typed, shown: title.isEmpty ? url : title),
               Library.shared.renameBookmark(url: url, folder: folder, title: new) else { return }
         guard !title.isEmpty else { return }
-        offerUndo(String(localized: "Renamed the bookmark")) { Library.shared.renameBookmark(url: url, folder: folder, title: title) }
+        offerUndo(String(localized: "Renamed the bookmark")) { Library.shared.restoreBookmarkTitle(url: url, folder: folder, title: title) }
     }
 
     /// A click on a folder's row opens or closes it at once, with no wait to tell it from a double-click. The second click of a double-click
@@ -105,8 +105,9 @@ extension Browser {
 
     /// The name a folder gets from what was typed, "" for the one it had before the user named it, or nil when it stays as it is: what is shown already.
     static func renamedFolder(_ typed: String, shown: String) -> String? {
-        let typed = String(typed.trimmingCharacters(in: .whitespacesAndNewlines).prefix(Tab.maxNameLength))
-        return typed == shown ? nil : typed
+        let typed = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Compared before it is cut, so opening the field on a name longer than the cap and leaving it saves nothing.
+        return typed == shown ? nil : String(typed.prefix(Tab.maxNameLength))
     }
 
     /// Ends the rename of a folder with what was typed (nil for Esc: nothing is kept; empty: the name it came with), and offers to take it back.

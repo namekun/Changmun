@@ -189,6 +189,15 @@ final class Library: @unchecked Sendable {
         return true
     }
 
+    /// Puts back, exactly as it was, a title that a rename replaced (undoing it): without the trimming, the cut or the refusal of an empty one
+    /// that `renameBookmark` applies to what is typed, so a title with spaces around it, past the cap or only spaces comes back as it was.
+    @discardableResult
+    func restoreBookmarkTitle(url: String, folder: String, title: String) -> Bool {
+        guard let db, (try? db.run("UPDATE bookmarks SET title = ? WHERE url = ? AND folder = ?", [title, url, folder])) != nil else { return false }
+        changed()
+        return true
+    }
+
     /// Gives a folder the name the user typed (trimmed, cut at `Tab.maxNameLength`); an empty one takes the name away, so the folder is
     /// called what it was. The folder's key stays as it is, so pins, open folders and the bookmarks in it are unaffected, and importing
     /// again keeps the name. Returns whether the write went through.
