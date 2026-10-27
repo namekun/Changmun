@@ -95,9 +95,10 @@ struct ClientCertificateTests {
         #expect(plan([candidate("Fine")], preferred: other, issuers: ["Root"]) == .ask([candidate("Fine")]))
     }
 
-    @Test func aPreferenceIsHonouredWhenTheAIDrivesThePage() {
-        let mine = candidate("Mine")
-        #expect(plan([mine, candidate("Other")], preferred: mine, agent: true) == .use(mine))
+    @Test func aPageTheAIDrivesAsksEvenWithAPreference() {
+        let mine = candidate("Mine"), other = candidate("Other")
+        #expect(plan([mine, other], preferred: mine, agent: true) == .ask([mine, other]))
+        #expect(plan([mine, other], preferred: mine, remembered: other, agent: true) == .ask([mine, other]))
     }
 
     // MARK: Nothing is chosen for the user

@@ -57,10 +57,12 @@ enum ClientCertificates {
 
     /// The system's preference for the site comes first (it is what the user, or Safari, said), then the user's earlier choice in
     /// this window; each only while it is something the site accepts and valid. Otherwise the user is asked, also when there is only
-    /// one identity (nothing is chosen for them), and when there are none the site is simply visited without.
+    /// one identity (nothing is chosen for them), and when there are none the site is simply visited without. A page the AI drives
+    /// uses neither: a preference is written whenever the user picks a certificate, so it says what the user wants for their own
+    /// visits, not that the AI may sign in as them.
     static func plan(candidates: [Candidate], preferred: Candidate?, remembered: Candidate?, acceptedIssuers: [Data], now: Date, situation: Situation) -> Plan {
         if situation.isHeadless { return .continueWithout }
-        if let preferred, let found = usable([preferred], acceptedIssuers: acceptedIssuers, now: now).first { return .use(found) }
+        if !situation.agentDriven, let preferred, let found = usable([preferred], acceptedIssuers: acceptedIssuers, now: now).first { return .use(found) }
         if !situation.agentDriven, let remembered, let found = usable([remembered], acceptedIssuers: acceptedIssuers, now: now).first { return .use(found) }
         let list = usable(candidates, acceptedIssuers: acceptedIssuers, now: now)
         return list.isEmpty ? .continueWithout : .ask(list)
