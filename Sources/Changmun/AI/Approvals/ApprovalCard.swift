@@ -34,6 +34,9 @@ final class ApprovalCards: ObservableObject {
     private var keySince: [ObjectIdentifier: Date] = [:]
     /// When the mouse button last went down in the app: a click on a button that says yes counts only if it began after the card was armed.
     private(set) var lastMouseDown: Date?
+    /// When the mouse button last came up, and the last key to go down (and whether as a repeat): what a press of a button is told by.
+    private var lastMouseUp: Date?
+    private var lastKeyDown: (at: Date, isRepeat: Bool)?
     /// When each card became the first one of its panel, the one on show: the keys and the buttons that say yes are armed a moment after
     /// that, not after the question was made (a second question must not wake up already armed when the first is answered).
     private var frontSince: [UUID: Date] = [:]
@@ -66,6 +69,14 @@ final class ApprovalCards: ObservableObject {
         if focused { focusedWindow = window } else if window == nil || focusedWindow === window { focusedWindow = nil }
     }
 
+    /// Whether a press of a button that says yes counts, by how it came about (see `ApprovalKeys.mayPress`).
+    func mayPressYes(_ card: Card, now: Date = Date()) -> Bool {
+        let window = Self.hostWindow(for: card.browser)
+        let armedFor = window.map { self.armedFor(card.id, in: $0) } ?? 0
+        return ApprovalKeys.mayPress(ApprovalKeys.activation(mouseUpAt: lastMouseUp, keyDown: lastKeyDown, now: now), shownAt: visibleSince(card.id),
+                                     mouseDownAt: lastMouseDown, armedFor: armedFor, windowIsKey: window?.isKeyWindow == true, now: now)
+    }
+
     func visibleSince(_ id: UUID) -> Date {
         frontSince[id] ?? cards.first { $0.id == id }?.shownAt ?? Date()
     }
@@ -76,11 +87,16 @@ final class ApprovalCards: ObservableObject {
         cards.append(card)
         if alone { frontSince[card.id] = Date() }
         if monitor == nil {
-            monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown]) { [weak self] event in
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .leftMouseUp]) { [weak self] event in
                 if event.type == .leftMouseDown {
                     self?.lastMouseDown = Date()
                     return event
                 }
+                if event.type == .leftMouseUp {
+                    self?.lastMouseUp = Date()
+                    return event
+                }
+                self?.lastKeyDown = (Date(), event.isARepeat)
                 return self?.keyDown(event) ?? event
             }
         }
@@ -98,6 +114,8 @@ final class ApprovalCards: ObservableObject {
             NSEvent.removeMonitor(monitor)
             self.monitor = nil
             lastMouseDown = nil
+            lastMouseUp = nil
+            lastKeyDown = nil
         }
     }
 
@@ -173,6 +191,35 @@ enum ApprovalKeys {
     static func mayClickYes(shownAt: Date, mouseDownAt: Date?, now: Date) -> Bool {
         guard let mouseDownAt else { return false }
         return yesArmed(shownFor: now.timeIntervalSince(shownAt)) && yesArmed(shownFor: mouseDownAt.timeIntervalSince(shownAt))
+    }
+
+    /// How a press of a button came about. A click is the mouse's; Space on a button that has the focus is a key; VoiceOver's press (and
+    /// the like) is neither, and arrives with no event of the user's just before it.
+    enum Activation: Equatable { case mouse, repeatedKey, keyboardOrAccessibility }
+
+    /// Within this long of its event, a press is taken to come from it.
+    static let activationWindow: TimeInterval = 0.25
+
+    static func activation(mouseUpAt: Date?, keyDown: (at: Date, isRepeat: Bool)?, now: Date) -> Activation {
+        let mouse = mouseUpAt.flatMap { now.timeIntervalSince($0) <= activationWindow ? $0 : nil }
+        let key = keyDown.flatMap { now.timeIntervalSince($0.at) <= activationWindow ? $0 : nil }
+        switch (mouse, key) {
+        case let (mouse?, key?): return key.at > mouse ? (key.isRepeat ? .repeatedKey : .keyboardOrAccessibility) : .mouse
+        case (_?, nil): return .mouse
+        case let (nil, key?): return key.isRepeat ? .repeatedKey : .keyboardOrAccessibility
+        case (nil, nil): return .keyboardOrAccessibility
+        }
+    }
+
+    /// Whether a press of a button that says yes counts. A click must have begun after the card was armed (`mayClickYes`). A press by the
+    /// keyboard or by VoiceOver has no click to tell, so it counts under the rule of ⌘Return: the card is armed in its window (counted from
+    /// the later of the card coming to the front and the window becoming key), the window is the key window, and it is not a key held down.
+    static func mayPress(_ activation: Activation, shownAt: Date, mouseDownAt: Date?, armedFor: TimeInterval, windowIsKey: Bool, now: Date) -> Bool {
+        switch activation {
+        case .mouse: mayClickYes(shownAt: shownAt, mouseDownAt: mouseDownAt, now: now)
+        case .repeatedKey: false
+        case .keyboardOrAccessibility: windowIsKey && yesArmed(shownFor: armedFor)
+        }
     }
 
     static func choice(keyCode: UInt16, flags: NSEvent.ModifierFlags, offered: [Approvals.Choice], inPage: Bool, typed: Bool, inPanel: Bool, shownFor: TimeInterval) -> Approvals.Choice? {
@@ -293,7 +340,7 @@ struct ApprovalCardView: View {
     private func button(_ choice: Approvals.Choice, _ title: String) -> some View {
         let live = choice == .deny || armed
         return Button {
-            guard choice == .deny || ApprovalKeys.mayClickYes(shownAt: ApprovalCards.shared.visibleSince(card.id), mouseDownAt: ApprovalCards.shared.lastMouseDown, now: Date()) else { return }
+            guard choice == .deny || ApprovalCards.shared.mayPressYes(card) else { return }
             card.answer(choice)
         } label: {
             HStack(spacing: 6) {

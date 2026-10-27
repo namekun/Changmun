@@ -6,6 +6,9 @@ import SwiftUI
 ///
 /// Questions of the AI stay on cards in the panel: `Approvals` asks where the panel is shown, and that includes this window
 /// (`panelBrowser`), and the keys that answer a card work in it as they do in the browser window.
+///
+/// The menu's commands reach it too: with this window key, ⌘W and ⇧⌘W close it (docking the panel back, as its red button does), ⌘E closes
+/// the panel as its X does, and the commands for the browser (⌘T, ⌘L, ⌘F…) are for the browser it belongs to (`keyBrowser`).
 @MainActor
 final class ChatPopOut: NSObject, NSWindowDelegate {
     static let shared = ChatPopOut()
@@ -23,9 +26,14 @@ final class ChatPopOut: NSObject, NSWindowDelegate {
     /// The browser whose panel the pop-out window shows; nil when it isn't open.
     var panelBrowser: Browser? { window == nil ? nil : browser }
 
+    /// Where the window shows up: on the space the user is in, which may be one a browser window is full screen in (a window is shown
+    /// there only when it says it may), so that a question put to it is not missed. `.canJoinAllSpaces` would leave it on every space
+    /// at once, which a window the user puts beside the browser should not do. The cost: it can't go full screen itself.
+    static let spaces: NSWindow.CollectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+
     func open(for browser: Browser) {
-        if let window {
-            window.makeKeyAndOrderFront(nil)
+        if window != nil {
+            bringToFront()
             return
         }
         self.browser = browser
@@ -44,6 +52,7 @@ final class ChatPopOut: NSObject, NSWindowDelegate {
         window.setContentSize(NSSize(width: 380, height: 620))
         window.contentMinSize = NSSize(width: 320, height: 420)
         window.isReleasedWhenClosed = false
+        window.collectionBehavior = Self.spaces
         window.delegate = self
         window.setFrameAutosaveName("Changmun.aiPopOut")
         if !window.setFrameUsingName("Changmun.aiPopOut") { window.center() }
@@ -80,6 +89,39 @@ final class ChatPopOut: NSObject, NSWindowDelegate {
     func windowDidBecomeKey(_ notification: Notification) { layoutTrafficLights() }
     func windowDidExitFullScreen(_ notification: Notification) { layoutTrafficLights() }
 
+    /// The browser the commands of the menu are for while this window is the key window; nil when another window is.
+    func keyBrowser() -> Browser? { keyBrowser(NSApp?.keyWindow) }
+
+    func keyBrowser(_ keyWindow: NSWindow?) -> Browser? {
+        window != nil && keyWindow === window ? browser : nil
+    }
+
+    /// Close Tab and Close Window with this window key: they close it (the panel docks back) rather than a tab or the window of the browser,
+    /// which would take this window with it. False when it isn't the key window.
+    func closeFromMenu() -> Bool { closeFromMenu(NSApp?.keyWindow) }
+
+    func closeFromMenu(_ keyWindow: NSWindow?) -> Bool {
+        guard window != nil, keyWindow === window else { return false }
+        close(dock: true)
+        return true
+    }
+
+    /// ⌘E while the panel is out, from whichever window: what the panel's own X does. In this window with the cursor elsewhere than in the
+    /// box it goes to the box first, as in the browser window. False when the panel isn't out.
+    func toggleFromShortcut() -> Bool { toggleFromShortcut(NSApp?.keyWindow) }
+
+    func toggleFromShortcut(_ keyWindow: NSWindow?) -> Bool {
+        guard let window else { return false }
+        let box = ComposerTextView.find(in: window)
+        let place: AIPanelShortcut.Box = box == nil ? .missing : window.firstResponder === box ? .focused : .elsewhere
+        if AIPanelShortcut.popOutAction(inPopOut: keyWindow === window, box: place) == .focusBox {
+            window.makeFirstResponder(box)
+        } else {
+            close(dock: false)
+        }
+        return true
+    }
+
     /// What bringing the window forward for a question comes to: it comes back from the Dock if it was put there, and goes in front of the
     /// other windows only while this app is the one in use (it never takes the screen from another app: the Dock icon bounces instead).
     struct Reveal: Equatable {
@@ -104,8 +146,11 @@ final class ChatPopOut: NSObject, NSWindowDelegate {
         if plan.askAttention { NSApp.requestUserAttention(.informationalRequest) }
     }
 
+    /// In front and key; from the Dock too, if it was put there (the AI button reads as on while the panel is out, and pressing it must show it).
     func bringToFront() {
-        window?.makeKeyAndOrderFront(nil)
+        guard let window else { return }
+        if window.isMiniaturized { window.deminiaturize(nil) }
+        window.makeKeyAndOrderFront(nil)
     }
 
     /// Closes the window; `dock`: the panel comes back in the browser window, else it is closed altogether.

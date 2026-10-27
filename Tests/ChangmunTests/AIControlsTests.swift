@@ -407,6 +407,30 @@ extension SharedAgentState {
             #expect(chat.contextUsage == nil && chat.contextWindow == nil)
         }
 
+        @Test func anErrorTheCLIMakesUpAsAnAnswerLeavesTheRingAlone() {
+            let chat = ChatStore()
+            chat.handle(["type": "assistant", "message": ["id": "m1", "content": [], "usage": ["input_tokens": 4, "cache_read_input_tokens": 9000]]])
+            #expect(chat.contextUsage?.used == 9004)
+            chat.handle(["type": "assistant", "error": "authentication_failed", "is_api_error_message": true,
+                         "message": ["id": "m2", "content": [["type": "text", "text": "Not logged in"]],
+                                     "usage": ["input_tokens": 0, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0, "output_tokens": 0]]])
+            #expect(chat.contextUsage?.used == 9004, "the zeros of a made-up message are not what the conversation holds")
+            let fresh = ChatStore()
+            fresh.handle(["type": "assistant", "is_api_error_message": true,
+                          "message": ["content": [["type": "text", "text": "x"]], "usage": ["input_tokens": 0]]])
+            #expect(fresh.contextUsage == nil, "and a ring that wasn't there is not made by them")
+        }
+
+        @Test func aNewSessionDoesNotKeepTheWindowOfTheOneBefore() {
+            let chat = ChatStore()
+            chat.handle(["type": "result", "usage": ["input_tokens": 10], "modelUsage": ["claude-sonnet": ["contextWindow": 1_000_000]]])
+            #expect(chat.contextWindow == 1_000_000)
+            chat.handle(["type": "result", "is_error": true, "result": "Overloaded"])
+            #expect(chat.sessionID == nil && chat.contextWindow == nil, "the session that failed is gone, and so is what it said about its model")
+            chat.noteContext(5)
+            #expect(chat.contextUsage == ContextUsage(used: 5, window: ContextUsage.defaultWindow))
+        }
+
         @Test func aResultAloneStillGivesTheRingSomethingToShow() {
             let chat = ChatStore()
             chat.handle(["type": "result", "usage": ["input_tokens": 10, "cache_read_input_tokens": 2000]])
@@ -476,6 +500,63 @@ extension SharedAgentState {
             popOut.open(for: browser)
             popOut.close(dock: false)
             #expect(!browser.showChat && !popOut.isPoppedOut(for: browser), "the panel's own close button closes it for good")
+        }
+
+        @Test func theMenuCommandsOfThePopOutAreItsOwnWhileItIsKey() {
+            let (browser, tabs) = open(["https://a.example/", "https://b.example/"])
+            let other = Browser()
+            other.focused()
+            let popOut = ChatPopOut.shared
+            defer { popOut.close(dock: false); browser.windowClosed(); other.windowClosed() }
+            browser.showChat = false
+            popOut.open(for: browser)
+            let outside = NSWindow()
+            #expect(popOut.keyBrowser(outside) == nil && popOut.keyBrowser(nil) == nil, "another window is key: the front window's commands")
+            #expect(popOut.keyBrowser(popOut.window) === browser, "the pop-out is key: the commands are for the browser it belongs to, not the one in front")
+            #expect(Browser.current === other)
+            #expect(!popOut.closeFromMenu(outside) && popOut.window != nil, "⌘W elsewhere is not the pop-out's")
+            #expect(popOut.closeFromMenu(popOut.window))
+            #expect(popOut.window == nil && browser.showChat && browser.tabs.count == tabs.count, "⌘W closes the pop-out and docks the panel back, and closes no tab")
+            #expect(popOut.keyBrowser(popOut.window) == nil && !popOut.closeFromMenu(nil), "with no pop-out, nothing is its")
+        }
+
+        @Test func theKeyForThePanelClosesAPoppedOutPanelFromAnyWindow() {
+            let (browser, _) = open(["https://a.example/"])
+            let popOut = ChatPopOut.shared
+            defer { popOut.close(dock: false); browser.windowClosed() }
+            #expect(!popOut.toggleFromShortcut(nil), "not out: the key is the browser window's")
+            browser.showChat = false
+            popOut.open(for: browser)
+            #expect(popOut.toggleFromShortcut(NSWindow()) && popOut.window == nil, "pressed in the browser window: closed, not a second panel")
+            #expect(!browser.showChat && !browser.panelShown, "closed for good, as the X does, not docked")
+        }
+
+        @Test func theWindowCanBeShownOnTheSpaceTheUserIsInEvenOneAFullScreenBrowserIsIn() {
+            let (browser, _) = open(["https://a.example/"])
+            let popOut = ChatPopOut.shared
+            defer { popOut.close(dock: false); browser.windowClosed() }
+            browser.showChat = false
+            popOut.open(for: browser)
+            let behavior = popOut.window?.collectionBehavior ?? []
+            #expect(behavior.contains(.fullScreenAuxiliary) && behavior.contains(.moveToActiveSpace))
+            #expect(!behavior.contains(.canJoinAllSpaces) && !behavior.contains(.fullScreenPrimary), "not on every space at once")
+        }
+
+        @Test func askingForAPoppedOutPanelBringsItBackFromTheDock() async {
+            let (browser, _) = open(["https://a.example/"])
+            let popOut = ChatPopOut.shared
+            defer { popOut.close(dock: false); browser.windowClosed() }
+            browser.showChat = false
+            popOut.open(for: browser)
+            guard let window = popOut.window else { Issue.record("no pop-out"); return }
+            window.miniaturize(nil)
+            guard await waitUntil(5, { window.isMiniaturized }) else { Issue.record("this environment doesn't minimize windows"); return }
+            browser.showChat = true
+            #expect(await waitUntil(5) { !window.isMiniaturized }, "the AI button brings it out of the Dock")
+            window.miniaturize(nil)
+            _ = await waitUntil(5) { window.isMiniaturized }
+            popOut.open(for: browser)
+            #expect(await waitUntil(5) { !window.isMiniaturized }, "and so does opening it again")
         }
 
         @Test func theQuestionsOfAPoppedOutPanelStayOnCardsInItsWindow() async {

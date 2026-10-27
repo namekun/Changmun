@@ -38,6 +38,53 @@ extension SharedAgentState {
             }
         }
 
+        @Test func theQuestionGoesToWhereTheChatIsShown() {
+            let (a, _) = open(["https://a.example/"])
+            let (b, _) = open(["https://b.example/"])
+            defer { a.windowClosed(); b.windowClosed() }
+            a.showChat = false
+            b.showChat = false
+            #expect(Approvals.panelBrowser(popOut: nil, front: b) == nil, "no panel in sight: a sheet")
+            b.showChat = true
+            #expect(Approvals.panelBrowser(popOut: nil, front: b) === b, "the docked panel of the window the AI works in")
+            b.focusMode = true
+            #expect(Approvals.panelBrowser(popOut: nil, front: b) == nil, "focus mode hides the docked panel")
+            b.focusMode = false
+            #expect(Approvals.panelBrowser(popOut: a, front: b) === a, "the chat is in the pop-out, not in the panel another window has docked")
+            #expect(Approvals.panelBrowser(popOut: a, front: nil) === a)
+            b.focusMode = true
+            #expect(Approvals.panelBrowser(popOut: a, front: b) === a)
+            #expect(Approvals.panelBrowser(popOut: nil, front: nil) == nil)
+        }
+
+        @Test func aQuestionGoesToThePopOutEvenWhenAnotherWindowHasItsPanelDocked() async {
+            let (a, tabsA) = open(["https://a.example/", "https://a2.example/"])
+            let (b, _) = open(["https://b.example/"])
+            let popOut = ChatPopOut.shared
+            defer { popOut.close(dock: false); a.windowClosed(); b.windowClosed() }
+            let panel = ChatStore.caller
+            Approvals.forgetReads(caller: panel)
+            defer { Approvals.forgetReads(caller: panel) }
+            a.showChat = false
+            popOut.open(for: a)
+            b.focused()
+            b.showChat = true
+            #expect(Browser.recent === b && popOut.panelBrowser === a)
+            let before = Preferences.shared.aiApprovalMode
+            Preferences.shared.aiApprovalMode = .afterReading
+            defer { Preferences.shared.aiApprovalMode = before }
+            let stand = Approvals.Stand { _ in .once }
+            stand.holds = true
+            await Approvals.$stand.withValue(stand) {
+                Approvals.noteRead(tabsA[0], caller: panel)
+                let task = Task { await Approvals.allowInteraction(.type("hi"), on: tabsA[1], caller: panel) }
+                #expect(await waitUntil(5) { !ApprovalCards.shared.cards.isEmpty })
+                #expect(ApprovalCards.shared.first(for: a) != nil && ApprovalCards.shared.first(for: b) == nil, "on the card in the pop-out, where the chat is")
+                Approvals.release(.once)
+                #expect(await task.value)
+            }
+        }
+
         @Test func aStandStillAnswersForTheUserAndNoCardIsMade() async {
             let (browser, tabs) = open(["https://a.example/", "https://b.example/"])
             defer { browser.windowClosed() }
@@ -214,6 +261,35 @@ extension SharedAgentState {
             #expect(key(36, [.command, .option], inPanel: false) == nil && key(76, [.command, .option], inPanel: false) == nil, "yes for the chat from outside the panel is nothing")
             #expect(key(36, .command, inPanel: true) == .once && key(36, [.command, .option], inPanel: true) == .site)
             #expect(key(36, inPanel: false) == .deny && key(53, inPanel: false) == .deny, "no may be said from anywhere but a page")
+        }
+
+        @Test func aPressWithNoClickBehindItCountsUnderTheRuleOfCommandReturn() {
+            typealias Keys = ApprovalKeys
+            let now = Date(timeIntervalSince1970: 5000)
+            func activation(mouseUp: TimeInterval? = nil, key: (TimeInterval, Bool)? = nil) -> Keys.Activation {
+                Keys.activation(mouseUpAt: mouseUp.map { now.addingTimeInterval($0) }, keyDown: key.map { (now.addingTimeInterval($0.0), $0.1) }, now: now)
+            }
+            #expect(activation() == .keyboardOrAccessibility, "VoiceOver's press has no event of the user's just before it")
+            #expect(activation(mouseUp: -2) == .keyboardOrAccessibility && activation(key: (-2, true)) == .keyboardOrAccessibility, "old events say nothing")
+            #expect(activation(mouseUp: -0.05) == .mouse)
+            #expect(activation(key: (-0.05, false)) == .keyboardOrAccessibility)
+            #expect(activation(key: (-0.05, true)) == .repeatedKey, "a key held down")
+            #expect(activation(mouseUp: -0.1, key: (-0.2, true)) == .mouse, "the later of the two is what pressed it")
+            #expect(activation(mouseUp: -0.2, key: (-0.1, true)) == .repeatedKey)
+
+            let shown = now.addingTimeInterval(-10)
+            func may(_ activation: Keys.Activation, armedFor: TimeInterval = 5, key: Bool = true, mouseDownAt: Date? = nil) -> Bool {
+                Keys.mayPress(activation, shownAt: shown, mouseDownAt: mouseDownAt, armedFor: armedFor, windowIsKey: key, now: now)
+            }
+            #expect(may(.keyboardOrAccessibility), "an armed card in the key window answers to Space or an AXPress")
+            #expect(!may(.keyboardOrAccessibility, armedFor: Keys.yesDelay - 0.01), "not before the card is armed, as the keys")
+            #expect(may(.keyboardOrAccessibility, armedFor: Keys.yesDelay))
+            #expect(!may(.keyboardOrAccessibility, armedFor: 0), "a window that has just become key can't be answered at once")
+            #expect(!may(.keyboardOrAccessibility, key: false), "and only the key window answers")
+            #expect(!may(.repeatedKey), "a key held down, or its repeats, never does")
+            #expect(!may(.mouse), "a click still needs its press to have begun after the card was armed")
+            #expect(may(.mouse, mouseDownAt: shown.addingTimeInterval(1)))
+            #expect(!may(.mouse, mouseDownAt: shown.addingTimeInterval(0.1)), "unchanged: a press that began while the card was new")
         }
 
         @Test func aSecondQuestionIsArmedOnlyAfterItCameToTheFront() async throws {
