@@ -6,6 +6,24 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.8.4</title>
+      <pubDate>Tue, 27 Oct 2026 06:47:29 +0000</pubDate>
+      <sparkle:version>34</sparkle:version>
+      <sparkle:shortVersionString>0.8.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.8.4</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Signing in to apps through Changmun works.** A sign-in that ends by opening an app (Claude's `claude://`, and others) now asks "… wants to open …" as a sheet, as Safari does, instead of being dropped silently. A page asks at most once until you navigate yourself, a frame inside a page can't ask in the page's name, background tabs and pages the AI drives never ask, and schemes that run automation (Shortcuts and the like) stay blocked.
+- **AI panel in its own window.** ⌘W and ⌘⇧W close the pop-out (docking the panel back) instead of a browser tab or window, ⌘E closes it from anywhere, other shortcuts go to its browser, questions appear in it rather than in another window's panel, it comes back from the Dock when asked for, and it can show over a full-screen browser.
+- **Tabs on top.** Renaming with the sidebar overlay open shows one field, not two that cancel each other; closing the overlay ends a rename; Esc closes the overlay; many favorites scroll instead of pushing the tabs out; the mouse wheel scrolls an overflowing strip.
+- **Renaming.** Folder and bookmark rows don't start dragging while you edit their name; a long folder name isn't cut by just opening the field; Undo restores a bookmark's exact old title; group names have the same length limit as the rest.
+- **Command bar.** Its suggestions no longer follow the find bar's text, a background tab's title change no longer moves the highlight, and the pointer resting on the list doesn't steal the selection.
+- **Client certificates.** A request that arrives while the window is minimized is shown when it comes back; tabs waiting for a certificate show a key badge (and the AI panel says so); profile spaces keep their certificate choices to themselves and don't use the Mac-wide preference; a removed smart card's certificate isn't reused; stopping a load drops its request; the sheet waits for you to stop typing.
+- **Safer approvals.** "Allow" by keyboard or VoiceOver counts only with Full Keyboard Access or an assistive technology on and the button focused long enough; a tab the AI opens is the AI's from its first load.
+- **Window bar.** A double-click with a tiny tremor still zooms (drags start after 3 points).</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.4/Changmun-0.8.4.dmg" length="5355063" type="application/octet-stream" sparkle:edSignature="6+2sgEswfsfcTdmRG7+IFW++hFB9f5SCtNpXUNFDQGq/IPTnJyL5xVDf0r4++jYSApncrxou+1690DKICyNmCg==" />
+    </item>
+    <item>
       <title>0.8.3</title>
       <pubDate>Tue, 27 Oct 2026 03:02:46 +0000</pubDate>
       <sparkle:version>33</sparkle:version>
@@ -127,23 +145,9 @@
       <description sparkle:format="markdown">- **The loading bar keeps clear of the address.** It still touched letters like g and p at the bottom of the address bar. Loading now shows as a thin line along the top edge of the page, in every toolbar layout.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.2/Changmun-0.7.2.dmg" length="4849945" type="application/octet-stream" sparkle:edSignature="VS51dq6qbZlyN7nNTKIszXKEE4mUyOH3NR3qCFshePxaYnnqsShlC+044jpysTLTJk3GYa5+l7ptCPuWu8iODQ==" />
     </item>
-    <item>
-      <title>0.7.1</title>
-      <pubDate>Fri, 23 Oct 2026 15:55:47 +0000</pubDate>
-      <sparkle:version>24</sparkle:version>
-      <sparkle:shortVersionString>0.7.1</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.7.1</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **The loading bar sits on the address bar's edge.** It used to float just under the address text and touch letters like g and p. It now runs along the bottom edge of the address bar, rounded with it.
-- **The command bar and page previews open over the page.** They're centred on the page instead of the window, so they no longer cover the sidebar.
-- **Orange text you can read in light mode.** Errors, approval questions and "no results" use a darker orange in light mode.
-- **Small fixes.** The save-login bar shortens the user name before the site name, and the list in onboarding lines up with its buttons.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.1/Changmun-0.7.1.dmg" length="4850465" type="application/octet-stream" sparkle:edSignature="GgkOOcPAJS6N8ZiWs0WXZoY9Tsv20lGYWR7sDQ7loOLGcawm2rmNoYEFoyRelCAtjpIQnWFRhzL8dU4BwJFfAw==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: vh6mgXxTTB2CGQZlk5GNMIOZ+kPKu+xi49JLsxJlnMxN6KPDFxSMxo29JxJrfmQdfNcKlzmrABOj9xAx6IBYCw==
-length: 16828
+edSignature: 03BHblZBUMPOT5Hf0wCxiXA2zd5lJJRCocDhahOl6NSmLOHKCl27hDWHDGTuyLLnZnCrSuL8YD75pg6N0yW6Bw==
+length: 18430
 -->
