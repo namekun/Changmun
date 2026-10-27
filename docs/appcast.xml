@@ -6,6 +6,21 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.8.2</title>
+      <pubDate>Tue, 27 Oct 2026 01:00:40 +0000</pubDate>
+      <sparkle:version>32</sparkle:version>
+      <sparkle:shortVersionString>0.8.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.8.2</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Rename bookmark folders.** Double-click a folder in the sidebar, pinned ones included, or choose Rename… from its menu. Only the name you see changes: the folder stays pinned or open, importing again from the same browser keeps your name, and clearing the name brings the original back.
+- **Typing Korean (or any input method) in the address bar.** Suggestions now follow what the field shows, the syllable still being composed included, so choosing the first row or pressing Return opens the whole of what you typed, not the part before the last syllable.
+- **Return opens the highlighted suggestion.** When results arrived after you started typing, Return could open a row from the earlier list instead.
+- **A click opens the suggestion it went down on,** even if the list changes under the pointer before the button comes up.
+- **A tab group's header answers a click anywhere along it;** a few narrow spots used to ignore single clicks, which also made double-click renaming unreliable.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.2/Changmun-0.8.2.dmg" length="5266698" type="application/octet-stream" sparkle:edSignature="csvRtQ2deeDbmQOjnb53ewZ92ibUlX8eTlX9E31FyZkuFr1quKi5X8rL1eNSmaw+BhOgVj6l5vaL3RTZ1t5/Bg==" />
+    </item>
+    <item>
       <title>0.8.1</title>
       <pubDate>Mon, 26 Oct 2026 01:27:42 +0000</pubDate>
       <sparkle:version>31</sparkle:version>
@@ -131,20 +146,9 @@
 - **Images.** Attach a screenshot of the page, or drop or paste up to four images; they're resized and stripped of location data. Images count as something the AI read, so what it does next is asked about.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.0/Changmun-0.7.0.dmg" length="4832685" type="application/octet-stream" sparkle:edSignature="+6C7h5flnuEmOcXubDeIqFVWNIrDzeirP22zDgBxLPEE/TB4zfuCeLwvdUG2o9uaRDJeazCYrIub+esSlFNuCA==" />
     </item>
-    <item>
-      <title>0.6.4</title>
-      <pubDate>Fri, 23 Oct 2026 02:37:01 +0000</pubDate>
-      <sparkle:version>22</sparkle:version>
-      <sparkle:shortVersionString>0.6.4</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.6.4</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **An even address bar.** There was more room above the address bar than below it. It now has the same space on both sides, the bar is a little shorter, and the window buttons sit level with it.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.6.4/Changmun-0.6.4.dmg" length="4296619" type="application/octet-stream" sparkle:edSignature="Wth5ZEwIJyWoweus39GI+anawX2oRTs1OXAxaQpfvjBDvNzZDN0dAM0mlL6v2Nw/KW5/+55LjXHQHaC7huTWCg==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: 0H+ta3zk9m0njV3ewh0OhSGQWRer8yCQrpRx8L+lBTQgpIyoBiGh7AOXJQUJuR4Kan7xlSMSHHKGCssJyrfcCg==
-length: 17201
+edSignature: CT3VsCjlu0ylInGGpg2+TpfXqKS+a5h08u0fZaJ1zf4rkgifBW+qL6TvZCEBm+Nq2pPUgltXmAe7rBm6zHkoAA==
+length: 18001
 -->
