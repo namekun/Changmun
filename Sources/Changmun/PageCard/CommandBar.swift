@@ -10,6 +10,9 @@ struct CommandBar: View {
     var area = PageArea.window
     let mode: CommandBarMode
     @State private var text = ""
+    /// What the field shows: `text` with the syllable an input method is still composing, which the binding doesn't hold until it is settled.
+    /// The list, its first row and what Return and a click run all follow this; it is never written back into the field.
+    @State private var shown = ""
     @State private var selection = 0
     @StateObject private var source = SuggestionSource()
     @FocusState private var focused: Bool
@@ -27,7 +30,7 @@ struct CommandBar: View {
     /// Typing an address or words: open or search it, ask the AI, switch to a matching open tab, the engine's
     /// suggestions, then bookmarks and history. The local and remote parts arrive from `source` as they're ready.
     private var suggestions: [Suggestion] {
-        let query = text.trimmingCharacters(in: .whitespaces)
+        let query = shown.trimmingCharacters(in: .whitespaces)
         if query.isEmpty || (mode == .editCurrent && query == browser.active?.url?.absoluteString) {
             return source.pages.map { .page(url: $0.url, title: $0.title) }
         }
@@ -42,6 +45,26 @@ struct CommandBar: View {
         let open = Set(tabs.compactMap { $0.url?.absoluteString })
         list += source.pages.filter { !open.contains($0.url) }.prefix(6).map { .page(url: $0.url, title: $0.title) }
         return list
+    }
+
+    /// The row Return runs: the highlighted one, none when the highlight is past the end of the list.
+    static func chosen(_ items: [Suggestion], at selection: Int) -> Suggestion? {
+        items.indices.contains(selection) ? items[selection] : nil
+    }
+
+    /// What names a row: the item it holds, and which of two equal items it is.
+    struct RowID: Hashable {
+        let item: Suggestion
+        let copy: Int
+    }
+
+    static func rowIDs(_ items: [Suggestion]) -> [RowID] {
+        var seen: [Suggestion: Int] = [:]
+        return items.map { item in
+            let copy = seen[item, default: 0]
+            seen[item] = copy + 1
+            return RowID(item: item, copy: copy)
+        }
     }
 
     /// Open tabs whose title or address holds every word.
@@ -70,10 +93,17 @@ struct CommandBar: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(Theme.primary)
                         .focused($focused)
-                        .onSubmit { run(items.indices.contains(selection) ? items[selection] : nil) }
-                        .onChange(of: text) {
+                        // The list as it is when Return is pressed: the field keeps the handler it was given when its text last changed, so
+                        // the `items` of that render would hold the rows from before the local and engine results came in.
+                        .onSubmit { run(Self.chosen(suggestions, at: selection)) }
+                        .onChange(of: text) { syncShown() }
+                        .onChange(of: shown) {
                             selection = 0
                             refresh()
+                        }
+                        // Composing text reaches the field editor at once (and the binding only when it is settled).
+                        .onReceive(NotificationCenter.default.publisher(for: NSText.didChangeNotification)) { _ in
+                            if let editor = fieldEditor { shown = Self.shownText(editor: editor.string, binding: text) }
                         }
                     Keycap("esc")
                 }
@@ -83,9 +113,10 @@ struct CommandBar: View {
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
                 if !items.isEmpty {
                     VStack(spacing: 2) {
-                        ForEach(Array(items.enumerated()), id: \.offset) { index, item in
-                            SuggestionRow(item: item, selected: index == selection)
-                                .onTapGesture { run(item) }
+                        // A row is what it holds, not the place it is at: when the list changes under a press, the row pressed is the same
+                        // view still (or gone), never another item's.
+                        ForEach(Array(zip(Self.rowIDs(items), items).enumerated()), id: \.element.0) { index, row in
+                            SuggestionRow(item: row.1, selected: index == selection) { run($0) }
                                 .onHover { if $0 { selection = index } }
                         }
                     }
@@ -104,10 +135,23 @@ struct CommandBar: View {
         .onChange(of: items) { old, new in keepSelection(old, new) }
         .onAppear {
             text = mode == .editCurrent ? (browser.active?.url?.absoluteString ?? "") : ""
+            shown = text
             refresh()
             NSApp.keyWindow?.makeFirstResponder(nil)
             DispatchQueue.main.async { focused = true }
         }
+    }
+
+    /// What the field shows: the field editor's own text while it has the focus, composing text and all, else the binding.
+    static func shownText(editor: String?, binding: String) -> String { editor ?? binding }
+
+    /// The field's editor while the field has the focus.
+    private var fieldEditor: NSTextView? {
+        (browser.window?.firstResponder as? NSTextView).flatMap { $0.isFieldEditor ? $0 : nil }
+    }
+
+    private func syncShown() {
+        shown = Self.shownText(editor: fieldEditor?.string, binding: text)
     }
 
     /// Another profile's favorites aren't suggested here: they belong to a space with logins of its own.
@@ -117,11 +161,11 @@ struct CommandBar: View {
 
     /// Bookmarks for an empty field (or the current address, untouched); otherwise a search as the user types.
     private func refresh() {
-        let query = text.trimmingCharacters(in: .whitespaces)
+        let query = shown.trimmingCharacters(in: .whitespaces)
         if query.isEmpty || (mode == .editCurrent && query == browser.active?.url?.absoluteString) {
             source.update("", remote: false, hiding: hiddenFavorites)
         } else {
-            source.update(text, remote: prefs.searchSuggestions && !browser.isPrivate, hiding: hiddenFavorites)
+            source.update(shown, remote: prefs.searchSuggestions && !browser.isPrivate, hiding: hiddenFavorites)
         }
     }
 
@@ -159,9 +203,28 @@ struct CommandBar: View {
     }
 }
 
+/// A click on a row: the item it went down on is the one it runs, if it comes up on the row still, whatever the list has become between.
+/// Results arrive, and an input method that was composing a syllable settles it as the mouse goes down, so the list under the pointer can change
+/// before the click is done.
+struct RowPress<Item: Equatable> {
+    private(set) var item: Item?
+
+    mutating func began(on current: Item) {
+        if item == nil { item = current }
+    }
+
+    mutating func ended(inside: Bool) -> Item? {
+        defer { item = nil }
+        return inside ? item : nil
+    }
+}
+
 struct SuggestionRow: View {
     let item: CommandBar.Suggestion
     let selected: Bool
+    let run: (CommandBar.Suggestion) -> Void
+    @State private var press = RowPress<CommandBar.Suggestion>()
+    @State private var size = CGSize.zero
 
     var body: some View {
         HStack(spacing: 10) {
@@ -174,6 +237,12 @@ struct SuggestionRow: View {
         .frame(height: 34)
         .background { if selected { SelectedBackground() } }
         .contentShape(Rectangle())
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
+        .gesture(DragGesture(minimumDistance: 0)
+            .onChanged { _ in press.began(on: item) }
+            .onEnded { value in
+                if let pressed = press.ended(inside: CGRect(origin: .zero, size: size).contains(value.location)) { run(pressed) }
+            })
     }
 
     @ViewBuilder private var icon: some View {

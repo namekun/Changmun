@@ -38,8 +38,24 @@ extension ControlServer {
                                        pressure: type == .leftMouseUp || type == .mouseMoved ? 0 : 1)
                 }
                 guard kind == "click" else {
-                    guard let event = event(type) else { return self.respond(connection, status: "404 Not Found", body: ["error": "no event"]) }
-                    NSApp.sendEvent(event)
+                    guard let event = event(type, clickCount: body["count"] as? Int ?? 1) else {
+                        return self.respond(connection, status: "404 Not Found", body: ["error": "no event"])
+                    }
+                    // "direct" hands the event to the view under the point, as a click in a window that is key would reach it: the headless window never is,
+                    // and a window that isn't key takes the first click on a view that is not a button for its own.
+                    let field = window.firstResponder as? NSTextView
+                    if body["commitBefore"] as? Bool == true { field?.unmarkText() }
+                    if body["direct"] as? Bool == true, let frame = content.superview, let target = content.hitTest(frame.convert(event.locationInWindow, from: nil)) {
+                        switch type {
+                        case .leftMouseDown: target.mouseDown(with: event)
+                        case .leftMouseUp: target.mouseUp(with: event)
+                        case .mouseMoved: target.mouseMoved(with: event)
+                        default: NSApp.sendEvent(event)
+                        }
+                    } else {
+                        NSApp.sendEvent(event)
+                    }
+                    if body["commitAfter"] as? Bool == true { field?.unmarkText() }
                     return self.respond(connection, status: "200 OK", body: [:])
                 }
                 var queue: [(NSEvent.EventType, Int)] = [(.mouseMoved, 0)]
@@ -50,6 +66,22 @@ extension ControlServer {
                 }
                 try? await Task.sleep(for: .milliseconds(300))
                 self.respond(connection, status: "200 OK", body: [:])
+            }
+            return true
+        }
+        // Tests only: what a Korean (or other) input method does in the text field that has the focus: "marked" puts that text in as composing, "commit"
+        // makes the composing text part of the field's text, as the input method does when the mouse goes down elsewhere; the answer has the field's text.
+        if Headless.isTestCopy, request.method == "POST", request.path == "/window-text",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                guard let window = Browser.current?.window, let client = window.firstResponder as? NSTextInputClient & NSTextView else {
+                    return self.respond(connection, status: "404 Not Found", body: ["error": "no text field has the focus"])
+                }
+                let none = NSRange(location: NSNotFound, length: 0)
+                if let marked = body["marked"] as? String { client.setMarkedText(marked, selectedRange: NSRange(location: (marked as NSString).length, length: 0), replacementRange: none) }
+                if body["commit"] as? Bool == true { client.unmarkText() }
+                try? await Task.sleep(for: .milliseconds(300))
+                self.respond(connection, status: "200 OK", body: ["string": client.string, "marked": client.hasMarkedText()])
             }
             return true
         }
@@ -216,7 +248,7 @@ extension ControlServer {
         // "focus", "find" (with "findText"), "downloads" and "onboarding" show or hide that part; "command" is newTab, editCurrent or
         // none; "progress" (0...1) holds the tab in front as loading at that point, and a negative one lets it be ("peek": true for the peek card's tab); "popup" (a link), "login"
         // (a user name) and "foreign" (a language) put up the bar or button for that on the tab in front, "" taking it down again; "reader" toggles Reader Mode; "group" ({"ids", "name"}) gathers tabs into a group;
-        // "folder" ({"name", "pages": [[url, title]], "pin", "open"}) fills a bookmark folder, pinned and opened in the sidebar;
+        // "folder" ({"name", "pages": [[url, title]], "pin", "open", "remove"}) fills a bookmark folder, pinned and opened in the sidebar ("remove" takes those pages out again);
         // "rename" names the tab in front (an empty name takes the name away), and "renaming" opens or closes the name field in its row; "renamingBookmark" ([url, folder]) opens the name field of that bookmark, "renamingFolder" (a folder row's open key, "" to close it) that of that folder, "renameFolder" ([key, name]) names a folder, "renamingGroup" opens that of the first group.
         if Headless.isTestCopy, request.method == "POST", request.path == "/ui",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
@@ -245,7 +277,9 @@ extension ControlServer {
                     browser.renamingGroup = nil
                 }
                 if let folder = body["folder"] as? [String: Any], let name = folder["name"] as? String {
-                    for page in folder["pages"] as? [[String]] ?? [] where page.count == 2 { Library.shared.addBookmark(url: page[0], title: page[1], folder: name) }
+                    for page in folder["pages"] as? [[String]] ?? [] where page.count == 2 {
+                        if folder["remove"] as? Bool == true { Library.shared.removeBookmark(url: page[0], folder: name) } else { Library.shared.addBookmark(url: page[0], title: page[1], folder: name) }
+                    }
                     if folder["pin"] as? Bool == true { browser.spaces.pinFolder(name, before: nil, in: browser.spaceID) }
                     if folder["open"] as? Bool == true, !browser.space.openFolders.contains("pin:" + name) { browser.spaces.toggleOpen("pin:" + name, in: browser.spaceID) }
                 }
