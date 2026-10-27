@@ -10,6 +10,11 @@ extension Tab: WKUIDelegate {
         // gesture (aTimersPopupWithNoGestureIsRefused) notices, so it must keep passing.
         // The app's own scripts (the AI's tools, a login filled in...) run with a user gesture too: see AppScripts.
         let userInitiated = !AppScripts.drives(webView) && Self.isUserInitiated(action)
+        // A window for an app's address (window.open("claude://...")) is no window: the user is asked about the app here.
+        if let url = action.request.url, let scheme = url.scheme?.lowercased(), !Self.browserSchemes.contains(scheme) {
+            appLinkRequested(url, navigationType: action.navigationType, userInitiated: userInitiated, isMainFrame: true, source: action.sourceFrame.request.url, in: webView)
+            return nil
+        }
         if userInitiated, Self.isPeekClick(action), let url = action.request.url {
             browser?.openPeek(url)
             return nil
@@ -45,7 +50,7 @@ extension Tab: WKUIDelegate {
     static let knowsUserInitiated = WKNavigationAction.instancesRespond(to: NSSelectorFromString("_isUserInitiated"))
 
     /// A click (or a script a click started a moment ago, as WebKit counts it) is behind the action.
-    private static func isUserInitiated(_ action: WKNavigationAction) -> Bool {
+    static func isUserInitiated(_ action: WKNavigationAction) -> Bool {
         guard knowsUserInitiated else { return true }
         return action.value(forKey: "_isUserInitiated") as? Bool ?? false
     }

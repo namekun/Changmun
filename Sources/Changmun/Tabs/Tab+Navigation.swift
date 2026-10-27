@@ -10,9 +10,9 @@ extension Tab: WKNavigationDelegate {
             return (.cancel, preferences)
         }
         if action.shouldPerformDownload { return (.download, preferences) }
-        if let url = action.request.url, let scheme = url.scheme?.lowercased(),
-           !["http", "https", "about", "data", "blob", "file", "javascript"].contains(scheme) {
-            if action.navigationType == .linkActivated { openExternally(url, scheme: scheme, from: webView.url) }
+        if let url = action.request.url, let scheme = url.scheme?.lowercased(), !Self.browserSchemes.contains(scheme) {
+            appLinkRequested(url, navigationType: action.navigationType, userInitiated: !AppScripts.drives(webView) && Self.isUserInitiated(action),
+                             isMainFrame: action.targetFrame?.isMainFrame ?? true, source: action.sourceFrame.request.url, in: webView)
             return (.cancel, preferences)
         }
         // Local files load only as the user opened them: that file, or files in its folder (which it may read anyway).
@@ -32,6 +32,9 @@ extension Tab: WKNavigationDelegate {
         }
         return (Self.allowHere, preferences)
     }
+
+    /// The schemes the browser shows itself; any other address is for an app.
+    static let browserSchemes: Set<String> = ["http", "https", "about", "data", "blob", "file", "javascript"]
 
     /// Allows the load here, without first offering the address to an app that claims it (a Safari web app made with
     /// Add to Dock, a universal link). WebKit's plain allow tries that first, and a page opened in a new window then
@@ -53,16 +56,42 @@ extension Tab: WKNavigationDelegate {
     static let blockedSchemes: Set<String> = ["smb", "afp", "nfs", "ftp", "ftps", "vnc", "ssh", "telnet", "x-apple.systempreferences",
                                               "x-man-page", "applescript", "itms-services", "facetime", "facetime-audio", "tel"]
 
-    /// mailto:, zoommtg: and the like open their app after the user says which app and agrees.
-    private func openExternally(_ url: URL, scheme: String, from page: URL?) {
-        guard !Headless.isOn, !Self.blockedSchemes.contains(scheme), let app = NSWorkspace.shared.urlForApplication(toOpen: url) else { return }
-        let alert = NSAlert()
-        let site = page?.host() ?? String(localized: "This page")
-        alert.messageText = String(localized: "\(site) wants to open \(FileManager.default.displayName(atPath: app.path))")
-        alert.informativeText = String(url.absoluteString.prefix(200))
-        alert.addButton(withTitle: String(localized: "Cancel"))
-        alert.addButton(withTitle: String(localized: "Open"))
-        if alert.runModal() == .alertSecondButtonReturn { NSWorkspace.shared.open(url) }
+    /// A page's address for an app (mailto:, zoommtg:, the claude: a sign-in ends with). Whatever brought it, a click, a server's
+    /// redirect or a script, the user is asked whether to open the app, as Safari does; the navigation itself is always cancelled.
+    /// Asked at most once while a page loads, so that a page can't go on asking. An empty window the page opened for it is closed.
+    func appLinkRequested(_ url: URL, navigationType: WKNavigationType, userInitiated: Bool, isMainFrame: Bool, source: URL?, in webView: WKWebView) {
+        let scheme = url.scheme?.lowercased() ?? ""
+        let blocked = Self.blockedSchemes.contains(scheme)
+        let app = blocked ? nil : appLinks.appName(url)
+        let decision = Self.appLinkDecision(navigationType: navigationType, userInitiated: userInitiated, isMainFrame: isMainFrame,
+                                            alreadyAskedThisLoad: askedForAppThisLoad, headless: Headless.isOn,
+                                            agentDriven: AgentActivity.shared.holds(self) || AppScripts.drives(webView), blocked: blocked, hasApp: app != nil)
+        if decision == .ask, let app {
+            askedForAppThisLoad = true
+            let site = webView.url?.host() ?? source?.host() ?? String(localized: "This page")
+            if appLinks.confirm(site, app, url) { appLinks.open(url) }
+        }
+        if isMainFrame, openerID != nil, webView.url == nil || webView.url?.scheme == "about", !webView.canGoBack { closeEmptyPopup() }
+    }
+
+    enum AppLinkDecision { case ask, cancelSilently }
+
+    /// Whether a navigation to an app's address asks the user. A click of the user's always does (the one case allowed in a frame
+    /// too); anything else asks only in the main frame and only once in a page load. Nothing asks in a headless Changmun, for a page
+    /// the AI is driving, for a scheme that is blocked, or when no app handles it.
+    nonisolated static func appLinkDecision(navigationType: WKNavigationType, userInitiated: Bool, isMainFrame: Bool, alreadyAskedThisLoad: Bool,
+                                            headless: Bool, agentDriven: Bool, blocked: Bool, hasApp: Bool) -> AppLinkDecision {
+        guard !headless, !agentDriven, !blocked, hasApp else { return .cancelSilently }
+        if navigationType == .linkActivated && userInitiated { return .ask }
+        return isMainFrame && !alreadyAskedThisLoad ? .ask : .cancelSilently
+    }
+
+    /// The window a sign-in opened and sent to an app's address has nothing to show once that is cancelled.
+    private func closeEmptyPopup() {
+        Task { @MainActor [weak self] in
+            guard let self, let browser else { return }
+            if browser.peek === self { browser.closePeek() } else { browser.close(id, remember: false) }
+        }
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse) async -> WKNavigationResponsePolicy {
@@ -88,6 +117,7 @@ extension Tab: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         navigations += 1
+        askedForAppThisLoad = false
         if webView.url?.isFileURL != true { userFileLoad = nil }
         // A new site gets its own zoom; staying on the same one keeps what the user set (a private tab never saves it).
         let host = webView.url?.host()
