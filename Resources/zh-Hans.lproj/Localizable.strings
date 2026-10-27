@@ -200,6 +200,7 @@
 "The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "AI 正在使用此标签页。仅当你愿意向此网站表明身份时，才选择证书。";
 "The AI wants to do something that can’t be undone" = "AI 想要执行无法撤销的操作";
 "The form sends what is typed in it to %@, another site than this page." = "此表单会把填写的内容发送到 %@，这是与当前页面不同的网站。";
+"This choice will be remembered for this site. You can remove it in Keychain Access." = "此选择会为该网站记住。你可以在“钥匙串访问”中将其移除。";
 "This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "这看起来像是付款、下单、发送、发布、删除或授予访问权限，无法收回，所以每次都会询问。";
 "The page changed while capturing. Try again." = "截图过程中页面发生了变化,请重试。";
 "The page could not be captured." = "无法截取该页面。";

@@ -189,6 +189,60 @@ struct ClientCertificateTests {
         #expect(a != ClientCertificates.requestKey(host: "other.example", port: 443, acceptedIssuers: [dn("One"), dn("Two")]))
     }
 
+    // MARK: What is remembered, and for whom
+
+    @Test func theChoiceIsFiledUnderTheSiteOnlyInOrdinaryWindowsForPagesTheUserDrives() {
+        #expect(ClientCertificates.domainToRemember(host: "mtls.example", port: 443, isPrivate: false, agentDriven: false) == "https://mtls.example")
+        #expect(ClientCertificates.domainToRemember(host: "mtls.example", port: 8443, isPrivate: false, agentDriven: false) == "https://mtls.example:8443")
+        #expect(ClientCertificates.domainToRemember(host: "mtls.example", port: 443, isPrivate: true, agentDriven: false) == nil, "a private window keeps nothing")
+        #expect(ClientCertificates.domainToRemember(host: "mtls.example", port: 443, isPrivate: false, agentDriven: true) == nil, "nor does a page the AI drives")
+        #expect(ClientCertificates.domainToRemember(host: "mtls.example", port: 443, isPrivate: true, agentDriven: true) == nil)
+    }
+
+    @Test func theNameTheChoiceIsFiledUnderIsOneThePreferenceIsLookedUpBy() {
+        let name = ClientCertificates.domainToRemember(host: "mtls.example", port: 443, isPrivate: false, agentDriven: false)
+        #expect(name.map { ClientCertificates.preferenceNames(host: "mtls.example", port: 443).contains($0) } == true)
+    }
+
+    @Test func challengesFromTheUserAndFromTheAIForOneSiteDoNotShareAnAnswer() {
+        let site = ClientCertificates.requestKey(host: "mtls.example", port: 443, acceptedIssuers: [])
+        let user = ClientCertificates.queueKey(site: site, agentDriven: false, tab: 1)
+        #expect(user == ClientCertificates.queueKey(site: site, agentDriven: false, tab: 2), "the user's tabs share the panel")
+        let ai = ClientCertificates.queueKey(site: site, agentDriven: true, tab: 1)
+        #expect(ai != user, "the AI's tab does not join the user's panel")
+        #expect(ai == ClientCertificates.queueKey(site: site, agentDriven: true, tab: 1), "the same tab's own challenges share")
+        #expect(ai != ClientCertificates.queueKey(site: site, agentDriven: true, tab: 2), "another tab of the AI's gets its own")
+
+        var queue = CertificatePromptQueue<String, Int>()
+        queue.add(key: user, tab: 1, info: 0, waiter: "user")
+        queue.add(key: ai, tab: 1, info: 0, waiter: "ai")
+        queue.add(key: user, tab: 3, info: 0, waiter: "user too")
+        queue.start(user)
+        #expect(queue.finish(user) == ["user", "user too"], "the AI's tab does not get the user's choice")
+        #expect(queue.entries.map(\.key) == [ai])
+        queue.add(key: user, tab: 4, info: 0, waiter: "user later")
+        queue.start(ai)
+        #expect(queue.finish(ai) == ["ai"], "and the user's tab does not get one made on the AI's prompt")
+    }
+
+    @Test func aChoiceTheUserMadeIsNotGivenToTheAI() {
+        var choices = RememberedChoices()
+        choices.remember(candidate("Mine"), forSite: "site", agentDriven: false)
+        #expect(choices.choice(forSite: "site", agentDriven: false) == candidate("Mine"))
+        #expect(choices.choice(forSite: "site", agentDriven: true) == nil)
+        #expect(choices.choice(forSite: "other", agentDriven: false) == nil)
+    }
+
+    @Test func aChoiceMadeOnThePromptOfTheAIIsNotKeptForTheUser() {
+        var choices = RememberedChoices()
+        choices.remember(candidate("Chosen"), forSite: "site", agentDriven: true)
+        #expect(choices.choice(forSite: "site", agentDriven: false) == nil)
+        #expect(choices.choice(forSite: "site", agentDriven: true) == nil)
+        choices.remember(candidate("Mine"), forSite: "site", agentDriven: false)
+        choices.remember(candidate("Chosen"), forSite: "site", agentDriven: true)
+        #expect(choices.choice(forSite: "site", agentDriven: false) == candidate("Mine"), "it doesn't replace theirs either")
+    }
+
     // MARK: Challenges waiting for the sheet
 
     @Test func challengesForTheSameSiteWaitForOneAnswer() {

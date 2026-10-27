@@ -200,6 +200,7 @@
 "The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "Die KI verwendet diesen Tab. Wähle nur dann ein Zertifikat, wenn du dich bei dieser Website ausweisen möchtest.";
 "The AI wants to do something that can’t be undone" = "Die KI möchte etwas tun, das sich nicht rückgängig machen lässt";
 "The form sends what is typed in it to %@, another site than this page." = "Das Formular sendet das Eingegebene an %@, eine andere Website als diese Seite.";
+"This choice will be remembered for this site. You can remove it in Keychain Access." = "Diese Auswahl wird für diese Website gemerkt. Du kannst sie in der Schlüsselbundverwaltung entfernen.";
 "This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "Das sieht nach Bezahlen, Bestellen, Senden, Posten, Löschen oder Zugriff gewähren aus und lässt sich nicht zurücknehmen, deshalb wird jedes Mal gefragt.";
 "The page changed while capturing. Try again." = "Die Seite hat sich während der Aufnahme geändert. Versuchen Sie es erneut.";
 "The page could not be captured." = "Die Seite konnte nicht aufgenommen werden.";

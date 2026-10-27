@@ -200,6 +200,7 @@
 "The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "AIがこのタブを使っています。このサイトに本人を示してよい場合のみ、証明書を選んでください。";
 "The AI wants to do something that can’t be undone" = "AIが元に戻せない操作をしようとしています";
 "The form sends what is typed in it to %@, another site than this page." = "このフォームは、入力した内容をこのページとは別のサイト（%@）に送信します。";
+"This choice will be remembered for this site. You can remove it in Keychain Access." = "この選択はこのサイトのために記憶されます。キーチェーンアクセスで削除できます。";
 "This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "支払い、注文、送信、投稿、削除、アクセスの許可など、元に戻せない操作のようなので、毎回確認します。";
 "The page changed while capturing. Try again." = "キャプチャ中にページが変わりました。もう一度お試しください。";
 "The page could not be captured." = "ページをキャプチャできませんでした。";

@@ -94,9 +94,21 @@ enum ClientCertificates {
         [port == 443 || port == 0 ? "https://\(host)" : "https://\(host):\(port)", host]
     }
 
-    /// What challenges for the same site share: one panel answers them all.
+    /// The site a request is for, by host, port and the issuers it named.
     static func requestKey(host: String, port: Int, acceptedIssuers: [Data]) -> String {
         "\(host.lowercased()):\(port)|" + acceptedIssuers.map(key(ofName:)).sorted().joined(separator: ";")
+    }
+
+    /// What challenges share one panel and one answer: those of the same site that the user drives. The AI's are kept apart, from the
+    /// user's and from those of the AI's other tabs, so a page the AI drives never receives the certificate the user picked for their own.
+    static func queueKey(site: String, agentDriven: Bool, tab: Int) -> String {
+        agentDriven ? "\(site)|ai:\(tab)" : "\(site)|user"
+    }
+
+    /// The name the panel files the user's choice under, so that the next visit finds it (it is the first name `preferenceNames` looks
+    /// up): nil where the choice is not kept in the keychain, in a private window and for a page the AI drives.
+    static func domainToRemember(host: String, port: Int, isPrivate: Bool, agentDriven: Bool) -> String? {
+        isPrivate || agentDriven ? nil : preferenceNames(host: host, port: port).first
     }
 
     // MARK: The keychain
@@ -235,6 +247,20 @@ enum ClientCertificates {
 
     private static func hex(_ bytes: [UInt8]) -> String { bytes.map { String(format: "%02x", $0) }.joined() }
     private static func raw(_ der: Data) -> String { "raw:" + hex(Array(der)) }
+}
+
+/// What the user chose for a site in one window, which lasts as long as the window does. A choice made for a page the AI drives is not
+/// kept, and the AI's pages never get one: only what the user picked on a page of their own is reused, and only for their own pages.
+struct RememberedChoices {
+    private var byKey: [String: ClientCertificates.Candidate] = [:]
+
+    mutating func remember(_ choice: ClientCertificates.Candidate?, forSite site: String, agentDriven: Bool) {
+        if let choice, !agentDriven { byKey[site] = choice }
+    }
+
+    func choice(forSite site: String, agentDriven: Bool) -> ClientCertificates.Candidate? {
+        agentDriven ? nil : byKey[site]
+    }
 }
 
 /// Challenges waiting for the user to choose, in the order they came. Those for the same site share one answer, and only one

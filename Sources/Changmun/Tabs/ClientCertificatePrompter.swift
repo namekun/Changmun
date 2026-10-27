@@ -9,26 +9,28 @@ final class ClientCertificatePrompter {
         let host: String
         let candidates: [ClientCertificates.Candidate]
         let agentDriven: Bool
+        /// What the panel files the choice under (an identity preference in the user's keychain), or nil to keep nothing there.
+        let domain: String?
     }
 
     private weak var browser: Browser?
     private var queue = CertificatePromptQueue<CheckedContinuation<ClientCertificates.Candidate?, Never>, Prompt>()
-    /// What the user chose for a site in this window, which lasts as long as the window does (it is never written to the keychain).
-    private(set) var remembered: [String: ClientCertificates.Candidate] = [:]
+    /// What the user chose in this window, which is kept as long as the window is (also in a private one, which keeps nothing else).
+    private(set) var remembered = RememberedChoices()
     private var shown: (panel: SFChooseIdentityPanel, delegate: SheetEnd)?
 
     init(browser: Browser) {
         self.browser = browser
     }
 
-    /// Waits for the user's choice among `candidates` for the site `key` stands for; nil when they cancel, or the tab goes away first.
-    func ask(_ prompt: Prompt, key: String, tab: Tab) async -> ClientCertificates.Candidate? {
+    /// Waits for the user's choice among `candidates`; nil when they cancel, or the tab goes away first. `queueKey` is what challenges
+    /// share one answer by (see ClientCertificates.queueKey), `site` what the choice is remembered for.
+    func ask(_ prompt: Prompt, queueKey: String, site: String, tab: Tab) async -> ClientCertificates.Candidate? {
         let choice = await withCheckedContinuation { continuation in
-            queue.add(key: key, tab: tab.id, info: prompt, waiter: continuation)
+            queue.add(key: queueKey, tab: tab.id, info: prompt, waiter: continuation)
             show()
         }
-        // The choice stands for the site until the window closes; the AI's own page doesn't use it (see ClientCertificates.plan).
-        if let choice { remembered[key] = choice }
+        remembered.remember(choice, forSite: site, agentDriven: prompt.agentDriven)
         return choice
     }
 
@@ -38,9 +40,14 @@ final class ClientCertificatePrompter {
               let entry = queue.next(isShown: { id in browser.tab(id).map { browser.isShown($0) || browser.peek === $0 } ?? false }) else { return }
         queue.start(entry.key)
         let panel = SFChooseIdentityPanel()
-        // The domain is left unset on purpose: the panel files the choice as an identity preference of the user's when it has one, with no
-        // way to say no, so choosing is all this does.
-        if entry.info.agentDriven { panel.setInformativeText(String(localized: "The AI is using this tab. Choose a certificate only if you want it to identify you to this site.")) }
+        // With a domain the panel files the choice as an identity preference in the user's keychain (as Safari's does) when they choose.
+        // It has no way to say no, so no domain is given where nothing should be kept (see ClientCertificates.domainToRemember).
+        if let domain = entry.info.domain {
+            panel.setDomain(domain)
+            panel.setInformativeText(String(localized: "This choice will be remembered for this site. You can remove it in Keychain Access."))
+        } else if entry.info.agentDriven {
+            panel.setInformativeText(String(localized: "The AI is using this tab. Choose a certificate only if you want it to identify you to this site."))
+        }
         let delegate = SheetEnd { [weak self, weak panel] code in
             guard let self, let panel else { return }
             var choice: ClientCertificates.Candidate?
