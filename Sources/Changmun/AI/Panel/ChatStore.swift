@@ -333,6 +333,7 @@ final class ChatStore: ObservableObject {
         steerRetry = nil
         let earlier = items.filter { $0.kind == .user }.dropLast().last?.text
         sessionID = nil
+        contextWindow = nil
         items.append(ChatItem(kind: .note, text: String(localized: "The conversation couldn't be continued after you interrupted it, so your message was sent as a new conversation.")))
         let about = earlier.map { " The user's earlier request there was “\(Self.oneLine(String($0.prefix(300))))”." } ?? ""
         send(message, resumeNote: "[Note: the user interrupted your previous work and that conversation could not be continued, so this is a new one.\(about) The browser is as the previous work left it; use list_tabs and read_page to see it.]", images: runImages, noting: false)

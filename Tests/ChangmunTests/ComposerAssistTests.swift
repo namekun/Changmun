@@ -121,6 +121,16 @@ struct AIPanelShortcutTests {
         #expect(Shortcut.action(panelOpen: true, focusMode: false, box: .missing) == .close, "no box to go to")
         #expect(Shortcut.action(panelOpen: true, focusMode: true, box: .focused) == .open, "in focus mode the panel is hidden, so the key shows it")
     }
+
+    @Test func withThePanelPoppedOutTheKeyNeverOpensAndClosesFromAnywhere() {
+        typealias Shortcut = AIPanelShortcut
+        for box in [Shortcut.Box.missing, .elsewhere, .focused] {
+            #expect(Shortcut.popOutAction(inPopOut: false, box: box) == .close, "pressed in the browser window or another: the panel's X")
+        }
+        #expect(Shortcut.popOutAction(inPopOut: true, box: .elsewhere) == .focusBox, "in the pop-out with the cursor elsewhere: to the box first")
+        #expect(Shortcut.popOutAction(inPopOut: true, box: .focused) == .close)
+        #expect(Shortcut.popOutAction(inPopOut: true, box: .missing) == .close)
+    }
 }
 
 @MainActor

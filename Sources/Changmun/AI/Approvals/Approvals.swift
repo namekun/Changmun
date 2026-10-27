@@ -209,6 +209,15 @@ enum Approvals {
     }
 
 
+    /// The browser whose panel a question of the panel's AI is put on: the one the chat is shown in. While the panel is popped out that is
+    /// the pop-out (there is one chat, and it is in that window, not in the panel another window might have docked); otherwise the panel
+    /// docked in the window the AI works in, when it is showing. Nil: no panel in sight, and the question goes to a sheet on that window.
+    static func panelBrowser(popOut: Browser?, front: Browser?) -> Browser? {
+        if let popOut { return popOut }
+        guard let front, front.showChat, !front.focusMode else { return nil }
+        return front
+    }
+
     static func route(caller: String, irreversible: Bool, accounts: [String], panelOpen: Bool, signIn: Bool = false) -> Route {
         caller == ChatStore.caller && panelOpen && !irreversible && !signIn && accounts.count < 2 ? .card : .sheet
     }
@@ -501,8 +510,7 @@ enum Approvals {
             standing.asked.append(prompt)
             if !standing.holds { return (standing.answer(prompt), min(max(standing.pick(prompt), 0), max(accounts.count - 1, 0))) }
         }
-        // The panel is where the user can see it: docked in the front window, or in the window it was popped out into.
-        let panel = Browser.recent.flatMap { browser -> Browser? in browser.showChat && !browser.focusMode ? browser : nil } ?? ChatPopOut.shared.panelBrowser
+        let panel = panelBrowser(popOut: ChatPopOut.shared.panelBrowser, front: Browser.recent)
         // A stand that holds its questions shows them as the app would, so that what a person would see can be looked at.
         let inPanel = (standing == nil || standing?.holds == true) && route(caller: caller, irreversible: irreversible, accounts: accounts, panelOpen: panel != nil, signIn: signIn) == .card
         guard standing != nil || inPanel || Browser.recent?.window != nil else { return (.deny, 0) }

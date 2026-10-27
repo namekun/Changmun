@@ -9,8 +9,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuSubscription: AnyCancellable?
     private var sessionTimer: Timer?
 
-    /// The window in front; commands that need a window open one when none is.
-    private var browser: Browser { Browser.current ?? BrowserWindow.open() }
+    /// The window in front, or the browser the AI pop-out belongs to while that has the keys: the menu's commands are for it.
+    private var current: Browser? { ChatPopOut.shared.keyBrowser() ?? Browser.current }
+
+    /// The window in front; commands that need a window open one when none is. With the AI pop-out key, its browser's window comes forward
+    /// to take the command (a bar or a find field shown in a window the keys aren't in would be out of reach).
+    private var browser: Browser {
+        if let popped = ChatPopOut.shared.keyBrowser() {
+            popped.window?.makeKeyAndOrderFront(nil)
+            return popped
+        }
+        return Browser.current ?? BrowserWindow.open()
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         menuSubscription = Preferences.shared.$shortcuts.sink { NSApp.mainMenu = AppMenu.make(scheme: $0) }
@@ -71,11 +81,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func newWindow(_ sender: Any?) { BrowserWindow.open().commandBar = .newTab }
     @objc func newPrivateWindow(_ sender: Any?) { BrowserWindow.open(private: true).commandBar = .newTab }
-    @objc func closeWindow(_ sender: Any?) { Browser.current?.window?.performClose(nil) }
-    @objc func toggleSplit(_ sender: Any?) { Browser.current?.toggleSplit() }
-    @objc func nextSpace(_ sender: Any?) { Browser.current?.switchSpace(offset: 1) }
-    @objc func previousSpace(_ sender: Any?) { Browser.current?.switchSpace(offset: -1) }
-    @objc func selectNumberedSpace(_ sender: NSMenuItem) { Browser.current?.switchSpace(number: sender.tag) }
+    @objc func closeWindow(_ sender: Any?) {
+        if ChatPopOut.shared.closeFromMenu() { return }
+        current?.window?.performClose(nil)
+    }
+    @objc func toggleSplit(_ sender: Any?) { current?.toggleSplit() }
+    @objc func nextSpace(_ sender: Any?) { current?.switchSpace(offset: 1) }
+    @objc func previousSpace(_ sender: Any?) { current?.switchSpace(offset: -1) }
+    @objc func selectNumberedSpace(_ sender: NSMenuItem) { current?.switchSpace(number: sender.tag) }
     @objc func newSpace(_ sender: Any?) { browser.spaceSheet = .new }
 
     @objc func newTab(_ sender: Any?) { browser.commandBar = .newTab }
@@ -121,7 +134,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if browser.findBarVisible { browser.find(backwards: true) } else { browser.showFindBar() }
     }
     @objc func reopenClosedTab(_ sender: Any?) {
-        if Browser.current?.closedTabs.isEmpty != false, let window = Browser.closedWindows.popLast() {
+        if current?.closedTabs.isEmpty != false, let window = Browser.closedWindows.popLast() {
             BrowserWindow.open(restoring: window)
         } else {
             browser.reopenClosedTab()
@@ -221,11 +234,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func validateMenuItem(_ item: NSMenuItem) -> Bool {
         switch item.action {
         case #selector(nextSpace(_:)), #selector(previousSpace(_:)), #selector(selectNumberedSpace(_:)), #selector(newSpace(_:)):
-            Browser.current?.isPrivate != true
+            current?.isPrivate != true
         case #selector(checkForUpdates(_:)): Updates.shared.canCheck
-        case #selector(toggleBookmark(_:)): browser.active?.isPrivate != true
-        case #selector(savePDF(_:)): browser.active?.webView != nil
-        case #selector(captureFullPage(_:)): browser.active?.webView != nil && browser.active?.showsPDF != true
+        case #selector(toggleBookmark(_:)): current?.active?.isPrivate != true
+        case #selector(savePDF(_:)): current?.active?.webView != nil
+        case #selector(captureFullPage(_:)): current?.active?.webView != nil && current?.active?.showsPDF != true
         default: true
         }
     }
@@ -289,18 +302,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     @objc func closeTab(_ sender: Any?) {
-        guard let browser = Browser.current else { return }
+        if ChatPopOut.shared.closeFromMenu() { return }
+        guard let browser = current else { return }
         if browser.peek != nil { return browser.closePeek() }
         if browser.commandBar != nil { browser.commandBar = nil; return }
         if let id = browser.activeID { browser.close(id) } else { browser.window?.performClose(nil) }
     }
     /// The page in front: the peek while one is open, otherwise the active tab.
-    private var frontPage: WKWebView? { Browser.current.flatMap { $0.peek?.webView ?? $0.active?.webView } }
+    private var frontPage: WKWebView? { current.flatMap { $0.peek?.webView ?? $0.active?.webView } }
     @objc func reload(_ sender: Any?) { frontPage?.reload() }
     @objc func hardReload(_ sender: Any?) { frontPage?.reloadFromOrigin() }
     @objc func goBack(_ sender: Any?) { frontPage?.goBack() }
     @objc func goForward(_ sender: Any?) { frontPage?.goForward() }
     @objc func toggleChat(_ sender: Any?) {
+        // The panel is out in its own window: it closes (or the cursor goes to its box), from whichever window this is pressed in.
+        if ChatPopOut.shared.toggleFromShortcut() { return }
         if browser.isPrivate { return NSSound.beep() }
         // Closed: it opens, with the cursor in its box. Open with the cursor elsewhere: the cursor goes to the box. In the box: it closes.
         let box = ComposerTextView.find(in: browser.window)
@@ -338,7 +354,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func zoomOut(_ sender: Any?) { browser.active.map { $0.setZoom(($0.webView?.pageZoom ?? 1) - 0.1) } }
     @objc func actualSize(_ sender: Any?) { browser.active?.setZoom(Preferences.shared.defaultZoom) }
     @objc func toggleMute(_ sender: Any?) { browser.active?.toggleMute() }
-    @objc func togglePictureInPicture(_ sender: Any?) { (Browser.current?.peek ?? Browser.current?.active)?.pictureInPicture(.toggle) }
+    @objc func togglePictureInPicture(_ sender: Any?) { (current?.peek ?? current?.active)?.pictureInPicture(.toggle) }
     @objc func toggleBookmark(_ sender: Any?) {
         guard let tab = browser.active, !tab.isPrivate, let url = tab.url?.absoluteString else { return }
         _ = Library.shared.toggleBookmark(url: url, title: tab.bookmarkTitle, in: tab.favoritesFolder)

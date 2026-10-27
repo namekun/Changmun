@@ -116,6 +116,12 @@ enum AIPanelShortcut {
         if focusMode || !panelOpen { return .open }
         return box == .elsewhere ? .focusBox : .close
     }
+
+    /// ⌘E while the panel is popped out (so it is open): it never opens. In the pop-out with the cursor elsewhere than in its box, the cursor goes
+    /// to the box; anywhere else it closes the panel, as the X in the header does.
+    static func popOutAction(inPopOut: Bool, box: Box) -> Action {
+        inPopOut && box == .elsewhere ? .focusBox : .close
+    }
 }
 
 extension Browser {

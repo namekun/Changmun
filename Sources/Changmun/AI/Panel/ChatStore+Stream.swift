@@ -42,14 +42,15 @@ extension ChatStore {
             steerRetry = nil
             guard let message = event["message"] as? [String: Any],
                   let content = message["content"] as? [[String: Any]] else { return }
-            // What this request held is how full the conversation is.
-            if let usage = message["usage"] as? [String: Any], let tokens = ContextUsage.tokens(in: usage) { noteContext(tokens) }
             let streamed = (message["id"] as? String).map(streamedMessages.contains) ?? false
             if event["is_api_error_message"] as? Bool == true {
                 // An API error arrives as an assistant message ("Not logged in · Please run /login"); the result after it is the error row.
+                // Its usage is all zeros, made up by the CLI: no request held that, so the ring keeps what the last real one did.
                 apiError = (event["error"] as? String, content.compactMap { $0["text"] as? String }.joined(separator: "\n"))
                 return
             }
+            // What this request held is how full the conversation is.
+            if let usage = message["usage"] as? [String: Any], let tokens = ContextUsage.tokens(in: usage) { noteContext(tokens) }
             for block in content {
                 switch block["type"] as? String {
                 case "text" where !streamed:
@@ -87,8 +88,9 @@ extension ChatStore {
             // A run whose requests were not seen one by one (no usage in them) is counted by the result's total.
             if contextUsage == nil, let usage = event["usage"] as? [String: Any], let tokens = ContextUsage.tokens(in: usage) { noteContext(tokens) }
             if event["is_error"] as? Bool == true {
-                // A session that failed may not resume; the next message starts a fresh one.
+                // A session that failed may not resume; the next message starts a fresh one, which may run on another model with another window.
                 sessionID = nil
+                contextWindow = nil
                 if steerRetry != nil {
                     // The resumed session never answered: endRun sends the message again in a new conversation.
                     runFailed = true
