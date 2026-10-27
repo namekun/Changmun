@@ -1,8 +1,10 @@
 #!/bin/bash
-# Return in the command bar opens the row that is highlighted, not a row from an older list: bookmarks are added so that the list shown
-# for the typed words differs from the one the field had when its text last changed (before the local results came in), the second
-# row is highlighted with the arrow key, and Return must open that row's page. Uses Changmun Headless.app, starting it if it isn't
-# running (and stopping it again then); it refuses to share one that another run is using.
+# What the command bar opens for a row. Bookmarks are added so that the list shown for the typed words differs from the one the field had
+# when its text last changed (before the local results came in):
+#   Return    after the arrow key has moved the highlight to the second row, opens that row's page, not a row of the older list;
+#   a click   on the row opens that row's page, also when an input method settles the syllable it was composing as the mouse goes down
+#             (which changes the typed words, and with them the list, before the click is done), and a row that is gone by then opens nothing.
+# Uses Changmun Headless.app, starting it if it isn't running (and stopping it again then).
 #
 #   scripts/test-command-bar.sh
 set -uo pipefail
@@ -37,6 +39,7 @@ fi
 post /ui "{\"folder\": {\"name\": \"$FOLDER\", \"pages\": [$(page zz-target)]}}" >/dev/null
 for i in 1 2 3 4 5 6 7 8 9; do post /ui "{\"folder\": {\"name\": \"$FOLDER\", \"pages\": [$(page zz-filler-$i)]}}" >/dev/null; done
 scripts/headless.sh call navigate '{"url": "https://example.com/"}' >/dev/null
+post /ui '{"command": "none"}' >/dev/null
 post /ui '{"command": "editCurrent"}' >/dev/null
 sleep 0.5
 key "$QUERY" 0
@@ -47,4 +50,30 @@ key '\r' 36
 sleep 2
 FRONT="$(front_tab)"
 echo "$FRONT"
-if [[ "$FRONT" == *zz-target* ]]; then echo "ok: Return opened the highlighted row"; else echo "FAIL: Return opened another row than the highlighted one" >&2; exit 1; fi
+FAILED=0
+if [[ "$FRONT" == *zz-target* ]]; then echo "ok: Return opened the highlighted row"; else echo "FAIL: Return opened another row than the highlighted one" >&2; FAILED=1; fi
+
+# The rows are 36 pt apart from 177 pt down, in a panel in the middle of the page: the target is the third (after the typed words and Ask AI).
+ROW=249
+mouse() { post /window-event "{\"type\": \"$1\", \"x\": 700, \"y\": $ROW, \"direct\": true${2:+, \"$2\": true}}" >/dev/null; }
+scenario() {
+    scripts/headless.sh call navigate '{"url": "https://example.com/"}' >/dev/null
+    post /ui '{"command": "none"}' >/dev/null
+    post /ui '{"command": "editCurrent", "sidebar": true}' >/dev/null
+    sleep 0.5
+    key "${QUERY%?}" 0
+    post /window-text "{\"marked\": \"${QUERY: -1}\"}" >/dev/null
+    sleep 2
+}
+scenario
+mouse down; mouse up
+sleep 2
+FRONT="$(front_tab)"; echo "$FRONT"
+if [[ "$FRONT" == *zz-target* ]]; then echo "ok: a click opened the row"; else echo "FAIL: a click opened another page than its row" >&2; FAILED=1; fi
+
+scenario
+mouse down commitAfter; sleep 1; mouse up
+sleep 2
+FRONT="$(front_tab)"; echo "$FRONT"
+if [[ "$FRONT" == *zz-target* ]]; then echo "ok: a click opened its row though the typed words were settled as it went down"; else echo "FAIL: a click whose input method settled the typed words did not open its row" >&2; FAILED=1; fi
+exit $FAILED

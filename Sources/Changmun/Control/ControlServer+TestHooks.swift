@@ -23,7 +23,7 @@ extension ControlServer {
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any],
            let kind = body["type"] as? String, let x = body["x"] as? Double, let y = body["y"] as? Double {
             Task { @MainActor in
-                let types: [String: NSEvent.EventType] = ["down": .leftMouseDown, "drag": .leftMouseDragged, "up": .leftMouseUp, "right": .rightMouseDown]
+                let types: [String: NSEvent.EventType] = ["down": .leftMouseDown, "drag": .leftMouseDragged, "up": .leftMouseUp, "right": .rightMouseDown, "move": .mouseMoved]
                 guard let window = Browser.current?.window, let content = window.contentView, let type = types[kind],
                       let event = NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: content.bounds.height - y), modifierFlags: [],
                                                      timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
@@ -31,9 +31,39 @@ extension ControlServer {
                     return self.respond(connection, status: "404 Not Found", body: ["error": "no window or unknown type"])
                 }
                 Browser.syntheticClickCount = event.clickCount
-                NSApp.sendEvent(event)
+                // "direct" hands the event to the view under the point, as a click in a window that is key would reach it: the headless window never is,
+                // and a window that isn't key takes the first click on a view that is not a button for its own.
+                let field = window.firstResponder as? NSTextView
+                if body["commitBefore"] as? Bool == true { field?.unmarkText() }
+                if body["direct"] as? Bool == true, let frame = content.superview, let target = content.hitTest(frame.convert(event.locationInWindow, from: nil)) {
+                    switch type {
+                    case .leftMouseDown: target.mouseDown(with: event)
+                    case .leftMouseUp: target.mouseUp(with: event)
+                    case .mouseMoved: target.mouseMoved(with: event)
+                    default: NSApp.sendEvent(event)
+                    }
+                } else {
+                    NSApp.sendEvent(event)
+                }
+                if body["commitAfter"] as? Bool == true { field?.unmarkText() }
                 Browser.syntheticClickCount = nil
                 self.respond(connection, status: "200 OK", body: [:])
+            }
+            return true
+        }
+        // Tests only: what a Korean (or other) input method does in the text field that has the focus: "marked" puts that text in as composing, "commit"
+        // makes the composing text part of the field's text, as the input method does when the mouse goes down elsewhere; the answer has the field's text.
+        if Headless.isTestCopy, request.method == "POST", request.path == "/window-text",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                guard let window = Browser.current?.window, let client = window.firstResponder as? NSTextInputClient & NSTextView else {
+                    return self.respond(connection, status: "404 Not Found", body: ["error": "no text field has the focus"])
+                }
+                let none = NSRange(location: NSNotFound, length: 0)
+                if let marked = body["marked"] as? String { client.setMarkedText(marked, selectedRange: NSRange(location: (marked as NSString).length, length: 0), replacementRange: none) }
+                if body["commit"] as? Bool == true { client.unmarkText() }
+                try? await Task.sleep(for: .milliseconds(300))
+                self.respond(connection, status: "200 OK", body: ["string": client.string, "marked": client.hasMarkedText()])
             }
             return true
         }

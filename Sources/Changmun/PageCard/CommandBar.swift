@@ -49,6 +49,21 @@ struct CommandBar: View {
         items.indices.contains(selection) ? items[selection] : nil
     }
 
+    /// What names a row: the item it holds, and which of two equal items it is.
+    struct RowID: Hashable {
+        let item: Suggestion
+        let copy: Int
+    }
+
+    static func rowIDs(_ items: [Suggestion]) -> [RowID] {
+        var seen: [Suggestion: Int] = [:]
+        return items.map { item in
+            let copy = seen[item, default: 0]
+            seen[item] = copy + 1
+            return RowID(item: item, copy: copy)
+        }
+    }
+
     /// Open tabs whose title or address holds every word.
     static func matchingTabs(_ tabs: [Tab], _ query: String) -> [Tab] {
         let words = query.lowercased().split(separator: " ")
@@ -90,9 +105,10 @@ struct CommandBar: View {
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
                 if !items.isEmpty {
                     VStack(spacing: 2) {
-                        ForEach(Array(items.enumerated()), id: \.offset) { index, item in
-                            SuggestionRow(item: item, selected: index == selection)
-                                .onTapGesture { run(item) }
+                        // A row is what it holds, not the place it is at: when the list changes under a press, the row pressed is the same
+                        // view still (or gone), never another item's.
+                        ForEach(Array(zip(Self.rowIDs(items), items).enumerated()), id: \.element.0) { index, row in
+                            SuggestionRow(item: row.1, selected: index == selection) { run($0) }
                                 .onHover { if $0 { selection = index } }
                         }
                     }
@@ -166,9 +182,28 @@ struct CommandBar: View {
     }
 }
 
+/// A click on a row: the item it went down on is the one it runs, if it comes up on the row still, whatever the list has become between.
+/// Results arrive, and an input method that was composing a syllable settles it as the mouse goes down, so the list under the pointer can change
+/// before the click is done.
+struct RowPress<Item: Equatable> {
+    private(set) var item: Item?
+
+    mutating func began(on current: Item) {
+        if item == nil { item = current }
+    }
+
+    mutating func ended(inside: Bool) -> Item? {
+        defer { item = nil }
+        return inside ? item : nil
+    }
+}
+
 struct SuggestionRow: View {
     let item: CommandBar.Suggestion
     let selected: Bool
+    let run: (CommandBar.Suggestion) -> Void
+    @State private var press = RowPress<CommandBar.Suggestion>()
+    @State private var size = CGSize.zero
 
     var body: some View {
         HStack(spacing: 10) {
@@ -181,6 +216,12 @@ struct SuggestionRow: View {
         .frame(height: 34)
         .background { if selected { SelectedBackground() } }
         .contentShape(Rectangle())
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
+        .gesture(DragGesture(minimumDistance: 0)
+            .onChanged { _ in press.began(on: item) }
+            .onEnded { value in
+                if let pressed = press.ended(inside: CGRect(origin: .zero, size: size).contains(value.location)) { run(pressed) }
+            })
     }
 
     @ViewBuilder private var icon: some View {
