@@ -67,6 +67,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     enum Translation {
         case original, translating, translated
     }
+    /// A site asked for a client certificate and the user has not chosen yet (see ClientCertificatePrompter): for a tab in the
+    /// background or one the AI drives, the sheet waits until it is shown.
+    @Published var waitingForCertificate = false
     @Published private(set) var isPlayingAudio = false
     @Published private(set) var isMuted = false
     /// The AI is using the tab behind the page in front (held by whatever shows the page, see PageHost): in the window, so WebKit counts

@@ -489,6 +489,7 @@
 "Wait" = "기다리기";
 "Waiting for %@ Keychain access…" = "%@ 키체인 허용을 기다리는 중…";
 "Waiting for the page to load" = "페이지 로딩을 기다리는 중";
+"Waiting for you to choose a certificate" = "인증서를 고르길 기다리는 중이에요";
 "Waiting for “%@”" = "“%@” 기다리는 중";
 "Waiting for “%@” to go away" = "“%@”이(가) 사라지길 기다리는 중";
 "Web extensions are available on macOS 15.4 or later." = "웹 확장은 macOS 15.4 이상에서 쓸 수 있어요.";

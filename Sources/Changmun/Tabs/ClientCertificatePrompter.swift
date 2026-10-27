@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SecurityInterface
 
 /// Asks the user which certificate to show a site, in the system's own chooser as a sheet on the window of the tab that was
@@ -18,24 +19,63 @@ final class ClientCertificatePrompter {
     /// What the user chose in this window, which is kept as long as the window is (also in a private one, which keeps nothing else).
     private(set) var remembered = RememberedChoices()
     private var shown: (panel: SFChooseIdentityPanel, delegate: SheetEnd)?
+    /// The sheet on screen is being closed because the tab it was for went away: its end is not an answer to anyone.
+    private var sheetEnding = false
+    /// Tests only: how often a sheet was looked for.
+    private(set) var showRequests = 0
+    private let observations = Observations()
+    private var browserWatch: AnyCancellable?
 
+    /// Notifications that remove themselves when the prompter goes.
+    private final class Observations {
+        var tokens: [NSObjectProtocol] = []
+        deinit { tokens.forEach(NotificationCenter.default.removeObserver) }
+    }
+
+    /// A challenge that came while the window was hidden, minimized or behind another app is asked when the window can show the sheet,
+    /// and one for a tab that is shown by a change in the window (the tab switched, a split opened) when that has happened.
     init(browser: Browser) {
         self.browser = browser
+        let center = NotificationCenter.default
+        for name in [NSWindow.didDeminiaturizeNotification, NSWindow.didBecomeKeyNotification, NSWindow.didChangeOcclusionStateNotification] {
+            observations.tokens.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                MainActor.assumeIsolated {
+                    if let self, let window = note.object as? NSWindow, window === self.browser?.window { self.show() }
+                }
+            })
+        }
+        for name in [NSApplication.didUnhideNotification, NSApplication.didBecomeActiveNotification] {
+            observations.tokens.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.show() }
+            })
+        }
+        // Published before the change is made: looked at once it has been.
+        browserWatch = browser.objectWillChange.sink { [weak self] in
+            guard let self, !self.queue.entries.isEmpty else { return }
+            Task { @MainActor [weak self] in self?.show() }
+        }
     }
 
     /// Waits for the user's choice among `candidates`; nil when they cancel, or the tab goes away first. `queueKey` is what challenges
     /// share one answer by (see ClientCertificates.queueKey), `site` what the choice is remembered for.
     func ask(_ prompt: Prompt, queueKey: String, site: String, tab: Tab) async -> ClientCertificates.Candidate? {
+        // The AI's panel says what the page is waiting for, as long as nothing else has taken the line.
+        let waiting = String(localized: "Waiting for you to choose a certificate")
+        let before = ChatStore.shared.step
+        if prompt.agentDriven { AgentActivity.shared.step(waiting, caller: ChatStore.caller, titled: false) }
         let choice = await withCheckedContinuation { continuation in
             queue.add(key: queueKey, tab: tab.id, info: prompt, waiter: continuation)
+            refreshWaiting()
             show()
         }
+        if prompt.agentDriven, ChatStore.shared.step == waiting { ChatStore.shared.step = before }
         remembered.remember(choice, forSite: site, agentDriven: prompt.agentDriven)
         return choice
     }
 
     /// Shows the next sheet, if none is up and a tab waiting for one is on screen. Called again when another tab is shown.
     func show() {
+        showRequests += 1
         guard shown == nil, let browser, let window = browser.window, window.isVisible, !window.isMiniaturized,
               let entry = queue.next(isShown: { id in browser.tab(id).map { browser.isShown($0) || browser.peek === $0 } ?? false }) else { return }
         queue.start(entry.key)
@@ -50,6 +90,12 @@ final class ClientCertificatePrompter {
         }
         let delegate = SheetEnd { [weak self, weak panel] code in
             guard let self, let panel else { return }
+            if self.sheetEnding {
+                self.sheetEnding = false
+                self.shown = nil
+                self.show()
+                return
+            }
             var choice: ClientCertificates.Candidate?
             if code == NSApplication.ModalResponse.OK.rawValue, let chosen = panel.identity()?.takeUnretainedValue() {
                 choice = entry.info.candidates.first { $0.identity.map { CFEqual($0, chosen) } == true }
@@ -64,14 +110,28 @@ final class ClientCertificatePrompter {
     private func answer(_ key: String, with choice: ClientCertificates.Candidate?) {
         shown = nil
         for waiter in queue.finish(key) { waiter.resume(returning: choice) }
+        refreshWaiting()
         show()
     }
 
-    /// A tab went away: what it waited for is answered with nothing, and the sheet closes if it was the only one waiting.
+    /// Each tab says whether a challenge of its own is waiting for the user.
+    private func refreshWaiting() {
+        for tab in browser?.tabs ?? [] {
+            let waiting = queue.isWaiting(tab: tab.id)
+            if tab.waitingForCertificate != waiting { tab.waitingForCertificate = waiting }
+        }
+    }
+
+    /// A tab went away or stopped loading: what it waited for is answered with nothing, and the sheet closes if it was the only one waiting.
     func forget(_ tab: Tab) {
         let dropped = queue.drop(tab: tab.id)
         for waiter in dropped.released { waiter.resume(returning: nil) }
-        if dropped.emptiedActive, let panel = shown?.panel, let window = browser?.window { window.endSheet(panel, returnCode: .cancel) }
+        refreshWaiting()
+        tab.waitingForCertificate = false
+        if dropped.emptiedActive, let panel = shown?.panel, let window = browser?.window {
+            sheetEnding = true
+            window.endSheet(panel, returnCode: .cancel)
+        }
     }
 
     /// AppKit calls a selector when the sheet ends.

@@ -1,3 +1,4 @@
+import AppKit
 import Testing
 @testable import Changmun
 
@@ -59,5 +60,84 @@ struct CommandBarTests {
         #expect(CommandBar.shownText(editor: "위키", binding: "위") == "위키")
         #expect(CommandBar.shownText(editor: nil, binding: "위") == "위")
         #expect(CommandBar.shownText(editor: "", binding: "위") == "")
+    }
+
+    // MARK: The bar's own field
+
+    /// The window's field editor, lent to `field` while it has the focus, as AppKit does it.
+    @MainActor private func editor(of field: NSTextField, in window: NSWindow) throws -> NSTextView {
+        #expect(window.makeFirstResponder(field))
+        return try #require(field.currentEditor() as? NSTextView)
+    }
+
+    @MainActor private func window(with fields: NSTextField...) -> NSWindow {
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 200), styleMask: [.titled], backing: .buffered, defer: true)
+        for (index, field) in fields.enumerated() {
+            field.frame = NSRect(x: 0, y: 40 * index, width: 200, height: 24)
+            window.contentView?.addSubview(field)
+        }
+        return window
+    }
+
+    @Test @MainActor func onlyTheEditorOfTheBarsOwnFieldIsTheBars() throws {
+        let bar = NSTextField(string: "wiki"), find = NSTextField(string: "needle")
+        bar.placeholderString = "Search"
+        find.placeholderString = "Find"
+        let window = window(with: bar, find)
+        let own = try editor(of: bar, in: window)
+        #expect(CommandBar.ownEditor(own, in: window, placeholder: "Search") === own)
+        // ⌘F, or Tab to another field: the window lends the same editor to that field, and its typing is not the bar's.
+        let lent = try editor(of: find, in: window)
+        #expect(lent === own, "one editor serves every field of the window")
+        #expect(CommandBar.ownEditor(lent, in: window, placeholder: "Search") == nil)
+        #expect(CommandBar.ownEditor(window.firstResponder, in: window, placeholder: "Search") == nil)
+    }
+
+    @Test @MainActor func theEditorOfAnotherWindowsBarIsNotThisBars() throws {
+        let bar = NSTextField(string: "wiki"), otherBar = NSTextField(string: "wiki")
+        bar.placeholderString = "Search"
+        otherBar.placeholderString = "Search"
+        let here = window(with: bar), there = window(with: otherBar)
+        let editor = try editor(of: otherBar, in: there)
+        #expect(CommandBar.ownEditor(editor, in: there, placeholder: "Search") === editor)
+        #expect(CommandBar.ownEditor(editor, in: here, placeholder: "Search") == nil)
+        #expect(CommandBar.ownEditor(editor, in: nil, placeholder: "Search") == nil)
+        #expect(CommandBar.ownEditor(NSView(), in: here, placeholder: "Search") == nil)
+    }
+
+    // MARK: Rows and the highlight
+
+    private func tab(_ id: Int, title: String, url: String = "https://a.example/") -> CommandBar.Suggestion {
+        .tab(id: id, url: url, title: title, space: nil)
+    }
+
+    /// A background tab's title changes as its page loads: its row is still its row, and the highlight stays on it.
+    @Test func aTabsRowKeepsItsNameWhenItsTitleChanges() {
+        let before: [CommandBar.Suggestion] = [.search("a"), .ask("a"), tab(7, title: "Loading"), .suggested("apple")]
+        let after: [CommandBar.Suggestion] = [.search("a"), .ask("a"), tab(7, title: "Apples – a.example", url: "https://a.example/apples"), .suggested("apple")]
+        #expect(CommandBar.rowIDs(before) == CommandBar.rowIDs(after))
+        #expect(CommandBar.keptSelection(2, old: before, new: after) == 2, "Return still switches to the tab that was highlighted")
+        #expect(CommandBar.chosen(after, at: CommandBar.keptSelection(2, old: before, new: after)) == after[2])
+    }
+
+    @Test func twoTabsAreTwoRowsAndTheHighlightFollowsItsTab() {
+        let list: [CommandBar.Suggestion] = [.search("a"), tab(1, title: "One"), tab(2, title: "Two")]
+        #expect(Set(CommandBar.rowIDs(list)).count == 3)
+        let reordered: [CommandBar.Suggestion] = [.search("a"), tab(2, title: "Two!"), tab(1, title: "One!")]
+        #expect(CommandBar.keptSelection(2, old: list, new: reordered) == 2 - 1, "the highlighted tab moved up one place")
+        #expect(CommandBar.keptSelection(1, old: list, new: [.search("a"), tab(2, title: "Two")]) == 0, "a tab that is gone leaves the highlight on the first row")
+        #expect(CommandBar.keptSelection(9, old: list, new: list) == 0)
+    }
+
+    // MARK: The pointer
+
+    @Test func aListChangingUnderARestingPointerIsNotThePointerMoving() {
+        var pointer = PointerMovement()
+        func moved(_ x: Double, _ y: Double) -> Bool { pointer.moved(to: CGPoint(x: x, y: y)) }
+        #expect(!moved(100, 200), "the first sighting only notes the place")
+        #expect(!moved(100, 200), "a row built under it says hovered again, without movement")
+        #expect(moved(101, 200))
+        #expect(!moved(101, 200))
+        #expect(moved(101, 230))
     }
 }

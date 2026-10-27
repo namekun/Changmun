@@ -2753,13 +2753,15 @@ struct TranslationTests {
         let window = OffscreenWindow(view)
         defer { window.close() }
         view.loadHTMLString("<p>안녕</p>", baseURL: nil)
-        for _ in 0..<60 where view.isLoading || view.url == nil { try await Task.sleep(for: .milliseconds(50)) }
-        try await Task.sleep(for: .milliseconds(200))
-        browser.overlay.statusMessage = nil
+        #expect(await waitUntil(30) { !view.isLoading && view.url != nil }, "the page didn't finish loading")
+        // Every message the status line gets, as it gets it: the line clears itself after a couple of seconds.
+        var messages: [String] = []
+        let watch = browser.overlay.$statusMessage.sink { if let message = $0 { messages.append(message) } }
+        defer { watch.cancel() }
         tab.toggleTranslation()
-        for _ in 0..<100 where browser.overlay.statusMessage == nil { try await Task.sleep(for: .milliseconds(50)) }
-        try await Task.sleep(for: .milliseconds(300))
-        #expect(browser.overlay.statusMessage == String(localized: "No text in another language to translate"))
+        #expect(await waitUntil(30) { !messages.isEmpty }, "the status line never said anything")
+        #expect(!(await waitUntil(1) { messages.count > 1 }), "and says it once")
+        #expect(messages == [String(localized: "No text in another language to translate")])
         #expect(tab.translation == .original)
     }
 

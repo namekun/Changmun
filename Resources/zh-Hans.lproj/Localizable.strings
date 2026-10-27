@@ -489,6 +489,7 @@
 "Wait" = "等待";
 "Waiting for %@ Keychain access…" = "正在等待 %@ 钥匙串访问许可…";
 "Waiting for the page to load" = "正在等待页面载入";
+"Waiting for you to choose a certificate" = "正在等待你选择证书";
 "Waiting for “%@”" = "正在等待“%@”";
 "Waiting for “%@” to go away" = "正在等待“%@”消失";
 "Web extensions are available on macOS 15.4 or later." = "网页扩展需要 macOS 15.4 或更高版本。";

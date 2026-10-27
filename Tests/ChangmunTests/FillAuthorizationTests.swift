@@ -90,19 +90,30 @@ struct FillAuthorizationTests {
         f.answer = false
         var read = 0
         tab.fillLogin(username: "me", authorization: f.authorization) { _, _ in read += 1; return "secret" }
-        try await Task.sleep(for: .milliseconds(300))
-        #expect(f.asked == 1 && read == 0)
-        #expect(try await view.evaluateJavaScript("document.querySelector('[name=p]').value") as? String == "")
+        #expect(await waitUntil(30) { f.asked == 1 }, "the device owner was never asked")
+        #expect(read == 0)
+        #expect(await passwordField(of: view) == "")
 
         f.answer = true
         tab.fillLogin(username: "me", authorization: f.authorization) { host, name in read += 1; return host == "login.test" && name == "me" ? "secret" : nil }
-        #expect(await waitUntil { read == 1 })
-        var value = ""
-        for _ in 0..<100 where value.isEmpty {
-            value = (try? await view.evaluateJavaScript("document.querySelector('[name=p]').value")) as? String ?? ""
-            try await Task.sleep(for: .milliseconds(20))
+        #expect(await waitUntil(30) { read == 1 }, "the password was never read after the owner confirmed")
+        #expect(await fieldBecomes("secret", in: view), "the password never reached the page")
+        #expect(read == 1, "and the first, cancelled fill read nothing")
+    }
+
+    /// The password field's value, "" while it has none.
+    private func passwordField(of view: WKWebView) async -> String {
+        (try? await view.evaluateJavaScript("document.querySelector('[name=p]').value")) as? String ?? ""
+    }
+
+    /// Polls until the password field holds `value`, which the page gets a moment after the script is sent.
+    private func fieldBecomes(_ value: String, in view: WKWebView, timeout: Double = 30) async -> Bool {
+        let end = Date().addingTimeInterval(timeout)
+        while Date() < end {
+            if await passwordField(of: view) == value { return true }
+            try? await Task.sleep(for: .milliseconds(20))
         }
-        #expect(value == "secret")
+        return await passwordField(of: view) == value
     }
 
     @Test(arguments: ["http://login.test/", "https://login.test:8443/", "https://other.test/"])
@@ -128,7 +139,10 @@ struct FillAuthorizationTests {
         _ = await waitUntil(5) { !view.isLoading && view.url?.absoluteString == newBase }
         #expect(view.url?.absoluteString == newBase)
         release?.resume(returning: true)
-        try await Task.sleep(for: .milliseconds(400))
+        // The password is read once the owner has confirmed, and goes (or not) to the page right after; a round trip to the page then
+        // comes after anything sent to it.
+        #expect(await waitUntil(30) { read == 1 }, "the password was never read after the owner confirmed")
+        for _ in 0..<3 { _ = await passwordField(of: view) }
         #expect(try await view.evaluateJavaScript("document.querySelector('[name=p]').value") as? String == "")
         #expect(try await view.evaluateJavaScript("document.querySelector('[name=u]').value") as? String == "")
     }
