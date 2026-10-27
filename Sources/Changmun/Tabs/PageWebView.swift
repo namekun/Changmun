@@ -30,6 +30,12 @@ final class PageWebView: WKWebView {
         }
     }
 
+    /// A load the user stopped no longer waits for a certificate.
+    override func stopLoading() {
+        super.stopLoading()
+        if let owner { owner.browser?.certificatePrompter.forget(owner) }
+    }
+
     /// WebKit's identifier for the menu's "Copy", which is there when text is selected.
     private static let copyItem = "WKMenuItemIdentifierCopy"
 

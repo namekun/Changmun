@@ -489,6 +489,7 @@
 "Wait" = "Warten";
 "Waiting for %@ Keychain access…" = "Warten auf Schlüsselbundzugriff für %@ …";
 "Waiting for the page to load" = "Warte auf das Laden der Seite";
+"Waiting for you to choose a certificate" = "Warte darauf, dass du ein Zertifikat auswählst";
 "Waiting for “%@”" = "Warte auf „%@“";
 "Waiting for “%@” to go away" = "Warte, bis „%@“ verschwindet";
 "Web extensions are available on macOS 15.4 or later." = "Web-Erweiterungen sind ab macOS 15.4 verfügbar.";

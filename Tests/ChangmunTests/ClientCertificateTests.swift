@@ -136,9 +136,10 @@ struct ClientCertificateTests {
     }
 
     private func environment(_ calls: Calls, identities: [ClientCertificates.Candidate], preferred: ClientCertificates.Candidate? = nil,
+                             remembered: ClientCertificates.Candidate? = nil, exists: @escaping (ClientCertificates.Candidate) -> Bool = { _ in true },
                              answer: ClientCertificates.Candidate? = nil, situation: ClientCertificates.Situation = .init()) -> ClientCertificates.Environment {
         ClientCertificates.Environment(situation: situation, now: { now }, identities: { calls.identities += 1; return identities },
-                                       preferred: { _, _ in calls.preferred += 1; return preferred }, remembered: nil,
+                                       preferred: { _, _ in calls.preferred += 1; return preferred }, remembered: remembered, exists: exists,
                                        ask: { _ in calls.asked += 1; return answer })
     }
 
@@ -174,6 +175,69 @@ struct ClientCertificateTests {
         let chosen = await ClientCertificates.resolve(host: "mtls.example", port: 443, acceptedIssuers: [],
                                                       environment: environment(calls, identities: [only], answer: nil, situation: .init(agentDriven: true)))
         #expect(chosen == nil && calls.asked == 1, "the user was asked, and said no")
+    }
+
+    // MARK: Only what is still there, and only what is needed
+
+    @Test func anIdentityThatIsGoneIsNotUsedAgainAndTheUserIsAsked() async {
+        let calls = Calls()
+        let gone = candidate("Card"), other = candidate("Other")
+        let viaChoice = await ClientCertificates.resolve(host: "mtls.example", port: 443, acceptedIssuers: [],
+                                                         environment: environment(calls, identities: [other], remembered: gone, exists: { $0 != gone }, answer: other))
+        #expect(viaChoice == other && calls.asked == 1, "the smart card was taken out since it was chosen")
+        let viaPreference = await ClientCertificates.resolve(host: "mtls.example", port: 443, acceptedIssuers: [],
+                                                             environment: environment(calls, identities: [other], preferred: gone, exists: { $0 != gone }, answer: other))
+        #expect(viaPreference == other && calls.asked == 2)
+        let there = await ClientCertificates.resolve(host: "mtls.example", port: 443, acceptedIssuers: [],
+                                                     environment: environment(calls, identities: [other], remembered: gone))
+        #expect(there == gone && calls.asked == 2, "one that is there is used as before")
+    }
+
+    @Test func theIdentitiesAreNotListedWhenAPreferenceOrAnEarlierChoiceSettlesIt() async {
+        let calls = Calls()
+        let mine = candidate("Mine")
+        _ = await ClientCertificates.resolve(host: "mtls.example", port: 443, acceptedIssuers: [], environment: environment(calls, identities: [mine, candidate("Other")], preferred: mine))
+        _ = await ClientCertificates.resolve(host: "mtls.example", port: 443, acceptedIssuers: [], environment: environment(calls, identities: [mine], remembered: mine))
+        #expect(calls.identities == 0)
+        _ = await ClientCertificates.resolve(host: "mtls.example", port: 443, acceptedIssuers: [], environment: environment(calls, identities: [mine]))
+        #expect(calls.identities == 1, "and they are when nothing settles it")
+        // A page the AI drives doesn't even look at the preference.
+        let before = calls.preferred
+        _ = await ClientCertificates.resolve(host: "mtls.example", port: 443, acceptedIssuers: [], environment: environment(calls, identities: [mine], preferred: mine, situation: .init(agentDriven: true)))
+        #expect(calls.preferred == before)
+    }
+
+    // MARK: Profile spaces
+
+    @Test func aProfileSpaceDoesNotUseTheSystemsPreferenceButKeepsItsOwnChoice() {
+        let preferred = candidate("Preferred"), chosen = candidate("Chosen")
+        func plan(preferred: ClientCertificates.Candidate?, remembered: ClientCertificates.Candidate?) -> ClientCertificates.Plan {
+            ClientCertificates.plan(candidates: [preferred, remembered].compactMap { $0 }, preferred: preferred, remembered: remembered, acceptedIssuers: [], now: now,
+                                    situation: .init(isProfile: true))
+        }
+        #expect(plan(preferred: preferred, remembered: nil) == .ask([preferred]), "the preference was made in another space or for the Mac")
+        #expect(plan(preferred: preferred, remembered: chosen) == .use(chosen), "what the user chose in this profile is theirs")
+    }
+
+    @Test func aProfileSpaceWritesNoPreferenceToTheKeychain() {
+        #expect(ClientCertificates.domainToRemember(host: "mtls.example", port: 443, isPrivate: false, agentDriven: false, isProfile: true) == nil)
+        #expect(ClientCertificates.domainToRemember(host: "mtls.example", port: 443, isPrivate: false, agentDriven: false, isProfile: false) == "https://mtls.example")
+    }
+
+    @Test func eachDataStoreHasItsOwnChoiceAndItsOwnPanel() {
+        let work = UUID(), home = UUID()
+        let shared = ClientCertificates.requestKey(host: "mtls.example", port: 443, acceptedIssuers: [])
+        let inWork = ClientCertificates.requestKey(host: "mtls.example", port: 443, acceptedIssuers: [], store: work)
+        let inHome = ClientCertificates.requestKey(host: "mtls.example", port: 443, acceptedIssuers: [], store: home)
+        #expect(Set([shared, inWork, inHome]).count == 3)
+        #expect(inWork == ClientCertificates.requestKey(host: "MTLS.example", port: 443, acceptedIssuers: [], store: work))
+        #expect(ClientCertificates.queueKey(site: inWork, agentDriven: false, tab: 1) != ClientCertificates.queueKey(site: inHome, agentDriven: false, tab: 2),
+                "tabs of two profiles are not asked once for both")
+        var choices = RememberedChoices()
+        choices.remember(candidate("Work"), forSite: inWork, agentDriven: false)
+        #expect(choices.choice(forSite: inWork, agentDriven: false) == candidate("Work"))
+        #expect(choices.choice(forSite: inHome, agentDriven: false) == nil)
+        #expect(choices.choice(forSite: shared, agentDriven: false) == nil)
     }
 
     // MARK: Names a preference is looked up under, and what challenges share
@@ -245,6 +309,21 @@ struct ClientCertificateTests {
     }
 
     // MARK: Challenges waiting for the sheet
+
+    @Test func aChallengeThatComesWhileTheSheetIsClosingIsAskedInANewOne() {
+        var queue = CertificatePromptQueue<String, Int>()
+        queue.add(key: "a", tab: 1, info: 0, waiter: "old")
+        queue.start("a")
+        let dropped = queue.drop(tab: 1)
+        #expect(dropped.released == ["old"] && dropped.emptiedActive)
+        // The sheet is on its way out (cancel) and another tab asks the same site.
+        queue.add(key: "a", tab: 2, info: 1, waiter: "new")
+        #expect(queue.next(isShown: { _ in true })?.key == "a", "waits for a sheet of its own")
+        #expect(queue.next(isShown: { _ in true })?.info == 1)
+        #expect(queue.isWaiting(tab: 2) && !queue.isWaiting(tab: 1))
+        queue.start("a")
+        #expect(queue.finish("a") == ["new"], "answered by the user, not by the cancel of the old sheet")
+    }
 
     @Test func challengesForTheSameSiteWaitForOneAnswer() {
         var queue = CertificatePromptQueue<String, Int>()
@@ -365,6 +444,7 @@ struct ClientCertificateKeychainTests {
 
         let found = ClientCertificates.keychainIdentities(searchList: [keychain] as CFArray)
         let identity = try #require(found.first)
+        #expect(ClientCertificates.identityExists(identity, searchList: [keychain] as CFArray), "it is held")
         #expect(found.count == 1 && identity.name == "Test Client" && identity.identity != nil)
         let now = Date()
         #expect(identity.notBefore <= now && now <= identity.notAfter)
@@ -378,5 +458,10 @@ struct ClientCertificateKeychainTests {
         #expect(ClientCertificates.usable(found, acceptedIssuers: [caName.issuer], now: now) == found)
         #expect(ClientCertificates.usable(found, acceptedIssuers: [dn("Some Other CA")], now: now).isEmpty)
         #expect(ClientCertificates.usable(found, acceptedIssuers: [caName.issuer], now: now + 40 * day).isEmpty, "after it ran out")
+
+        // Taken away (as a smart card is), it is no longer held.
+        KeychainFile.delete(keychain)
+        #expect(!ClientCertificates.identityExists(identity, searchList: [keychain] as CFArray))
+        #expect(!ClientCertificates.identityExists(identity))
     }
 }

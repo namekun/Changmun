@@ -489,6 +489,7 @@
 "Wait" = "待機";
 "Waiting for %@ Keychain access…" = "%@のキーチェーンへのアクセス許可を待機中…";
 "Waiting for the page to load" = "ページの読み込みを待っています";
+"Waiting for you to choose a certificate" = "証明書の選択を待っています";
 "Waiting for “%@”" = "「%@」を待っています";
 "Waiting for “%@” to go away" = "「%@」が消えるのを待っています";
 "Web extensions are available on macOS 15.4 or later." = "Web機能拡張はmacOS 15.4以降で利用できます。";

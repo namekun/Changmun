@@ -306,21 +306,10 @@ final class FakeControlServer: @unchecked Sendable {
         }
     }
 
-    /// A port nothing listens on: bound once to learn a free port, then closed. No server object owns the socket, so nothing closes
-    /// its number again later, when another test may already be using it.
-    static func closedPort() -> UInt16 {
-        let fd = socket(AF_INET, SOCK_STREAM, 0)
-        var address = sockaddr_in()
-        address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
-        address.sin_family = sa_family_t(AF_INET)
-        address.sin_addr.s_addr = inet_addr("127.0.0.1")
-        withUnsafePointer(to: &address) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { _ = bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) } }
-        var bound = sockaddr_in()
-        var length = socklen_t(MemoryLayout<sockaddr_in>.size)
-        withUnsafeMutablePointer(to: &bound) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { _ = getsockname(fd, $0, &length) } }
-        close(fd)
-        return UInt16(bigEndian: bound.sin_port)
-    }
+    /// A port nothing listens on and no server of a test can be given: the system hands out ports from 49152 up (the ephemeral range)
+    /// when asked for any, so this one, tcpmux's, is never taken by another test. Freeing a port that was bound a moment before let
+    /// another test's server have the number, and a socket that is bound and kept is not refused but ignored, which times out.
+    static func closedPort() -> UInt16 { 1 }
 
     static func http(_ status: String, _ body: String) -> String {
         "HTTP/1.1 \(status)\r\nContent-Type: application/json\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)"

@@ -14,6 +14,8 @@ struct CommandBar: View {
     /// The list, its first row and what Return and a click run all follow this; it is never written back into the field.
     @State private var shown = ""
     @State private var selection = 0
+    /// Where the pointer last was when it moved, so that a list changing under a resting pointer doesn't count as the pointer moving.
+    @State private var pointer = PointerMovement()
     @StateObject private var source = SuggestionSource()
     @FocusState private var focused: Bool
 
@@ -25,6 +27,12 @@ struct CommandBar: View {
         /// `space` names the space it is in when that isn't the one shown.
         case tab(id: Int, url: String, title: String, space: String?)
         case page(url: String, title: String)
+
+        /// The item as the row it makes is named: a tab by its number alone.
+        var identity: Suggestion {
+            if case .tab(let id, _, _, _) = self { return .tab(id: id, url: "", title: "", space: nil) }
+            return self
+        }
     }
 
     /// Typing an address or words: open or search it, ask the AI, switch to a matching open tab, the engine's
@@ -52,7 +60,8 @@ struct CommandBar: View {
         items.indices.contains(selection) ? items[selection] : nil
     }
 
-    /// What names a row: the item it holds, and which of two equal items it is.
+    /// What names a row: the item it holds, and which of two equal items it is. An open tab is named by the tab and not by its title and
+    /// address, which change under the list while the page loads: the row stays the same row.
     struct RowID: Hashable {
         let item: Suggestion
         let copy: Int
@@ -61,10 +70,18 @@ struct CommandBar: View {
     static func rowIDs(_ items: [Suggestion]) -> [RowID] {
         var seen: [Suggestion: Int] = [:]
         return items.map { item in
+            let item = item.identity
             let copy = seen[item, default: 0]
             seen[item] = copy + 1
             return RowID(item: item, copy: copy)
         }
+    }
+
+    /// Where the highlight goes when the list becomes `new`: on the row that was highlighted, wherever it is now, else on the first.
+    static func keptSelection(_ selection: Int, old: [Suggestion], new: [Suggestion]) -> Int {
+        guard old.indices.contains(selection) else { return 0 }
+        let kept = old[selection].identity
+        return new.firstIndex { $0.identity == kept } ?? 0
     }
 
     /// Open tabs whose title or address holds every word.
@@ -88,7 +105,7 @@ struct CommandBar: View {
                     Image(systemName: mode == .editCurrent ? "link" : "magnifyingglass")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Theme.secondary)
-                    TextField(browser.isPrivate ? String(localized: "Search or enter an address") : String(localized: "Search, enter an address or ask AI"), text: $text)
+                    TextField(placeholder, text: $text)
                         .textFieldStyle(.plain)
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(Theme.primary)
@@ -102,8 +119,12 @@ struct CommandBar: View {
                             refresh()
                         }
                         // Composing text reaches the field editor at once (and the binding only when it is settled).
-                        .onReceive(NotificationCenter.default.publisher(for: NSText.didChangeNotification)) { _ in
-                            if let editor = fieldEditor { shown = Self.shownText(editor: editor.string, binding: text) }
+                        // Only the bar's own field: the window has one editor for all its fields, and the find bar's or another field's
+                        // typing must not become the words the list is for.
+                        .onReceive(NotificationCenter.default.publisher(for: NSText.didChangeNotification)) { note in
+                            if let editor = Self.ownEditor(note.object as? NSResponder, in: browser.window, placeholder: placeholder) {
+                                shown = Self.shownText(editor: editor.string, binding: text)
+                            }
                         }
                     Keycap("esc")
                 }
@@ -117,7 +138,9 @@ struct CommandBar: View {
                         // view still (or gone), never another item's.
                         ForEach(Array(zip(Self.rowIDs(items), items).enumerated()), id: \.element.0) { index, row in
                             SuggestionRow(item: row.1, selected: index == selection) { run($0) }
-                                .onHover { if $0 { selection = index } }
+                                .onContinuousHover(coordinateSpace: .global) { phase in
+                                    if case .active(let point) = phase, pointer.moved(to: point) { selection = index }
+                                }
                         }
                     }
                 }
@@ -137,7 +160,7 @@ struct CommandBar: View {
             text = mode == .editCurrent ? (browser.active?.url?.absoluteString ?? "") : ""
             shown = text
             refresh()
-            NSApp.keyWindow?.makeFirstResponder(nil)
+            browser.window?.makeFirstResponder(nil)
             DispatchQueue.main.async { focused = true }
         }
     }
@@ -145,9 +168,22 @@ struct CommandBar: View {
     /// What the field shows: the field editor's own text while it has the focus, composing text and all, else the binding.
     static func shownText(editor: String?, binding: String) -> String { editor ?? binding }
 
+    /// What the field says while it is empty, which is also what tells it from the other fields of the window.
+    private var placeholder: String {
+        browser.isPrivate ? String(localized: "Search or enter an address") : String(localized: "Search, enter an address or ask AI")
+    }
+
+    /// `responder` if it is the editor of the bar's own field in `window`: the one editor a window has is lent to whichever field has the
+    /// focus (the find bar's, a page's), and only while the bar's field (the one with this placeholder) is the one it serves is it the bar's.
+    static func ownEditor(_ responder: NSResponder?, in window: NSWindow?, placeholder: String) -> NSTextView? {
+        guard let editor = responder as? NSTextView, editor.isFieldEditor, window != nil, editor.window === window,
+              (editor.delegate as? NSTextField)?.placeholderString == placeholder else { return nil }
+        return editor
+    }
+
     /// The field's editor while the field has the focus.
     private var fieldEditor: NSTextView? {
-        (browser.window?.firstResponder as? NSTextView).flatMap { $0.isFieldEditor ? $0 : nil }
+        Self.ownEditor(browser.window?.firstResponder, in: browser.window, placeholder: placeholder)
     }
 
     private func syncShown() {
@@ -171,11 +207,7 @@ struct CommandBar: View {
 
     /// Results arrive while the user moves through them: the highlight stays on the same row, wherever it went.
     private func keepSelection(_ old: [Suggestion], _ new: [Suggestion]) {
-        if old.indices.contains(selection), let index = new.firstIndex(of: old[selection]) {
-            selection = index
-        } else {
-            selection = 0
-        }
+        selection = Self.keptSelection(selection, old: old, new: new)
     }
 
     private func dismiss() {
@@ -200,6 +232,19 @@ struct CommandBar: View {
         case nil:
             break
         }
+    }
+}
+
+/// Whether the pointer moved. A list that changes under a resting pointer makes the row now below it "hovered" without any movement,
+/// and that must not take the highlight (and with it what Return runs) from where the user put it.
+struct PointerMovement {
+    private var last: CGPoint?
+
+    /// True when `point` is not where the pointer was last seen. The first sighting only notes the place.
+    mutating func moved(to point: CGPoint) -> Bool {
+        defer { last = point }
+        guard let last else { return false }
+        return last != point
     }
 }
 

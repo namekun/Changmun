@@ -5,7 +5,8 @@
 #   a click   on the row opens that row's page, also when an input method settles the syllable it was composing as the mouse goes down
 #             (which changes the typed words, and with them the list, before the click is done), and a row that is gone by then opens nothing;
 #   composing  a Korean syllable still being composed is part of what the list, its first row, Return and a click go by (the field shows
-#             "위키" while the text it holds is "위").
+#             "위키" while the text it holds is "위");
+#   the find bar  opened over the bar (⌘F) lends its typing to nobody: the list stays that of the words typed in the bar.
 # Uses Changmun Headless.app, starting it if it isn't running (and stopping it again then).
 #
 #   scripts/test-command-bar.sh
@@ -101,4 +102,20 @@ key '\r' 36
 sleep 2
 FRONT="$(front_tab)"; echo "$FRONT"
 if [[ "$FRONT" == *"$KOREAN"* ]]; then echo "ok: Return searched for the composing syllable too"; else echo "FAIL: Return searched for less than the field shows" >&2; FAILED=1; fi
+# The find bar opens while the bar is up and the user types in it: that is not the bar's field, and the list keeps the bar's own words.
+ROW=177
+scripts/headless.sh call navigate '{"url": "https://example.com/"}' >/dev/null
+post /ui '{"command": "none"}' >/dev/null
+post /ui '{"command": "editCurrent", "sidebar": true}' >/dev/null
+sleep 0.5
+key "zz quux" 0
+sleep 2
+post /ui '{"find": true}' >/dev/null
+sleep 1
+key "needlexyz" 0
+sleep 2
+mouse down; mouse up
+sleep 2
+FRONT="$(front_tab)"; echo "$FRONT"
+if [[ "$FRONT" == *"q=zz%20quux"* && "$FRONT" != *needlexyz* ]]; then echo "ok: typing in the find bar did not change the bar's list"; else echo "FAIL: the bar followed the find bar's field" >&2; FAILED=1; fi
 exit $FAILED

@@ -54,6 +54,7 @@ struct SidebarTabRow: View {
                     .foregroundStyle(isActive || !tab.isAsleep ? Theme.primary : Theme.dim)
             }
             Spacer(minLength: 0)
+            CertificateWaitBadge(tab: tab)
             if tab.isPlayingAudio || tab.isMuted {
                 HoverAction(symbol: tab.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
                             help: tab.isMuted ? String(localized: "Unmute (⌃⌘M)") : String(localized: "Mute (⌃⌘M)")) { tab.toggleMute() }

@@ -28,6 +28,9 @@ enum ClientCertificates {
         /// The page was opened or is driven by the AI (or an agent over MCP): it may use what the system's own preference says,
         /// but nothing else is chosen for the user, and a choice they made for another page is not reused.
         var agentDriven = false
+        /// The page is in a profile space, which keeps its logins apart from the others': the system's preference (one for the whole Mac,
+        /// written by a choice made in any space) is not used for it, nor written by it; the user is asked.
+        var isProfile = false
     }
 
     enum Plan: Equatable {
@@ -56,15 +59,19 @@ enum ClientCertificates {
     }
 
     /// The system's preference for the site comes first (it is what the user, or Safari, said), then the user's earlier choice in
-    /// this window; each only while it is something the site accepts and valid. Otherwise the user is asked, also when there is only
-    /// one identity (nothing is chosen for them), and when there are none the site is simply visited without. A page the AI drives
-    /// uses neither: a preference is written whenever the user picks a certificate, so it says what the user wants for their own
-    /// visits, not that the AI may sign in as them.
-    static func plan(candidates: [Candidate], preferred: Candidate?, remembered: Candidate?, acceptedIssuers: [Data], now: Date, situation: Situation) -> Plan {
+    /// this window; each only while it is something the site accepts, valid, and still in the keychain (`exists`: a smart card may
+    /// have been taken out since). Otherwise the user is asked, also when there is only one identity (nothing is chosen for them), and
+    /// when there are none the site is simply visited without. A page the AI drives uses neither: a preference is written whenever the
+    /// user picks a certificate, so it says what the user wants for their own visits, not that the AI may sign in as them. A page in a
+    /// profile space does not use the preference either, which is shared by every space. The identities are listed only when no
+    /// preference or earlier choice settles it.
+    static func plan(candidates: @autoclosure () -> [Candidate], preferred: @autoclosure () -> Candidate?, remembered: Candidate?, acceptedIssuers: [Data], now: Date,
+                     situation: Situation, exists: (Candidate) -> Bool = { _ in true }) -> Plan {
         if situation.isHeadless { return .continueWithout }
-        if !situation.agentDriven, let preferred, let found = usable([preferred], acceptedIssuers: acceptedIssuers, now: now).first { return .use(found) }
-        if !situation.agentDriven, let remembered, let found = usable([remembered], acceptedIssuers: acceptedIssuers, now: now).first { return .use(found) }
-        let list = usable(candidates, acceptedIssuers: acceptedIssuers, now: now)
+        if !situation.agentDriven, !situation.isProfile, let preferred = preferred(),
+           let found = usable([preferred], acceptedIssuers: acceptedIssuers, now: now).first, exists(found) { return .use(found) }
+        if !situation.agentDriven, let remembered, let found = usable([remembered], acceptedIssuers: acceptedIssuers, now: now).first, exists(found) { return .use(found) }
+        let list = usable(candidates(), acceptedIssuers: acceptedIssuers, now: now)
         return list.isEmpty ? .continueWithout : .ask(list)
     }
 
@@ -75,6 +82,8 @@ enum ClientCertificates {
         var identities: () -> [Candidate]
         var preferred: ([String], [Data]) -> Candidate?
         var remembered: Candidate?
+        /// Whether the identity is still there, in a keychain or on a smart card that is in.
+        var exists: (Candidate) -> Bool = { _ in true }
         /// Shows the list and answers with the user's choice; nil for Cancel.
         var ask: ([Candidate]) async -> Candidate?
     }
@@ -83,7 +92,7 @@ enum ClientCertificates {
     static func resolve(host: String, port: Int, acceptedIssuers: [Data], environment env: Environment) async -> Candidate? {
         guard !env.situation.isHeadless else { return nil }
         let plan = plan(candidates: env.identities(), preferred: env.preferred(preferenceNames(host: host, port: port), acceptedIssuers), remembered: env.remembered,
-                        acceptedIssuers: acceptedIssuers, now: env.now(), situation: env.situation)
+                        acceptedIssuers: acceptedIssuers, now: env.now(), situation: env.situation, exists: env.exists)
         switch plan {
         case .use(let candidate): return candidate
         case .continueWithout: return nil
@@ -96,9 +105,10 @@ enum ClientCertificates {
         [port == 443 || port == 0 ? "https://\(host)" : "https://\(host):\(port)", host]
     }
 
-    /// The site a request is for, by host, port and the issuers it named.
-    static func requestKey(host: String, port: Int, acceptedIssuers: [Data]) -> String {
-        "\(host.lowercased()):\(port)|" + acceptedIssuers.map(key(ofName:)).sorted().joined(separator: ";")
+    /// The site a request is for, by host, port and the issuers it named, in the website data store the tab is in (nil for the default one,
+    /// which every space that is not a profile shares): a profile keeps its choices apart from the other spaces'.
+    static func requestKey(host: String, port: Int, acceptedIssuers: [Data], store: UUID? = nil) -> String {
+        "\(host.lowercased()):\(port)|" + acceptedIssuers.map(key(ofName:)).sorted().joined(separator: ";") + (store.map { "|store:\($0.uuidString)" } ?? "")
     }
 
     /// What challenges share one panel and one answer: those of the same site that the user drives. The AI's are kept apart, from the
@@ -108,9 +118,9 @@ enum ClientCertificates {
     }
 
     /// The name the panel files the user's choice under, so that the next visit finds it (it is the first name `preferenceNames` looks
-    /// up): nil where the choice is not kept in the keychain, in a private window and for a page the AI drives.
-    static func domainToRemember(host: String, port: Int, isPrivate: Bool, agentDriven: Bool) -> String? {
-        isPrivate || agentDriven ? nil : preferenceNames(host: host, port: port).first
+    /// up): nil where the choice is not kept in the keychain, in a private window, in a profile space and for a page the AI drives.
+    static func domainToRemember(host: String, port: Int, isPrivate: Bool, agentDriven: Bool, isProfile: Bool = false) -> String? {
+        isPrivate || agentDriven || isProfile ? nil : preferenceNames(host: host, port: port).first
     }
 
     // MARK: The keychain
@@ -122,6 +132,15 @@ enum ClientCertificates {
         var result: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let found = result as? [SecIdentity] else { return [] }
         return found.compactMap(candidate(for:))
+    }
+
+    /// Whether the identity is still held: a query for that very identity in the keychains of the search list (or `searchList`) and the
+    /// smart cards that are in finds it. Nothing else is listed.
+    static func identityExists(_ candidate: Candidate, searchList: CFArray? = nil) -> Bool {
+        guard let identity = candidate.identity else { return false }
+        var query: [String: Any] = [kSecClass as String: kSecClassIdentity, kSecValueRef as String: identity, kSecMatchLimit as String: kSecMatchLimitOne]
+        if let searchList { query[kSecMatchSearchList as String] = searchList }
+        return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
     }
 
     /// The identity the system has on file for the site (what Safari's "use this certificate for this site" and Keychain Access
@@ -302,8 +321,9 @@ struct CertificatePromptQueue<Waiter, Info> {
         return entries.remove(at: index).waiters.map(\.waiter)
     }
 
-    /// A tab went away (closed, put to sleep): its waiters are handed back to be answered with nothing. `emptiedActive` says the
-    /// entry on screen has no one left to answer.
+    /// A tab went away (closed, put to sleep, stopped): its waiters are handed back to be answered with nothing. `emptiedActive` says the
+    /// entry on screen has no one left to answer; it is gone from the queue at once, so a challenge that comes while its sheet is
+    /// closing begins an entry of its own and is asked in a sheet of its own, not answered with the cancel of the old one.
     mutating func drop(tab: Int) -> (released: [Waiter], emptiedActive: Bool) {
         var released: [Waiter] = []
         var emptiedActive = false
@@ -312,7 +332,13 @@ struct CertificatePromptQueue<Waiter, Info> {
             entries[index].waiters.removeAll { $0.tab == tab }
             if entries[index].waiters.isEmpty, entries[index].key == activeKey { emptiedActive = true }
         }
-        entries.removeAll { $0.waiters.isEmpty && $0.key != activeKey }
+        entries.removeAll { $0.waiters.isEmpty }
+        if emptiedActive { activeKey = nil }
         return (released, emptiedActive)
+    }
+
+    /// Whether the tab has a challenge waiting for an answer.
+    func isWaiting(tab: Int) -> Bool {
+        entries.contains { $0.waiters.contains { $0.tab == tab } }
     }
 }

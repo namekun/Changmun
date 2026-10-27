@@ -250,18 +250,22 @@ extension Tab: WKNavigationDelegate {
         guard !Headless.isOn, let browser else { return (.performDefaultHandling, nil) }
         let space = challenge.protectionSpace
         let issuers = space.distinguishedNames ?? []
-        let site = ClientCertificates.requestKey(host: space.host, port: space.port, acceptedIssuers: issuers)
+        // A profile space has a website data store of its own, and what was chosen in it is not what is chosen in another.
+        let profile = browser.isPrivate ? nil : browser.spaces.space(spaceID).dataStoreID
+        let site = ClientCertificates.requestKey(host: space.host, port: space.port, acceptedIssuers: issuers, store: profile)
         let prompter = browser.certificatePrompter
         let agentDriven = AgentActivity.shared.holds(self)
         let prompt = { (candidates: [ClientCertificates.Candidate]) in
             ClientCertificatePrompter.Prompt(host: space.host, candidates: candidates, agentDriven: agentDriven,
-                                             domain: ClientCertificates.domainToRemember(host: space.host, port: space.port, isPrivate: self.isPrivate, agentDriven: agentDriven))
+                                             domain: ClientCertificates.domainToRemember(host: space.host, port: space.port, isPrivate: self.isPrivate, agentDriven: agentDriven,
+                                                                        isProfile: profile != nil))
         }
         let environment = ClientCertificates.Environment(
-            situation: ClientCertificates.Situation(isHeadless: Headless.isOn, agentDriven: agentDriven),
+            situation: ClientCertificates.Situation(isHeadless: Headless.isOn, agentDriven: agentDriven, isProfile: profile != nil),
             identities: { ClientCertificates.keychainIdentities() },
             preferred: { ClientCertificates.preferredIdentity(names: $0, acceptedIssuers: $1) },
             remembered: prompter.remembered.choice(forSite: site, agentDriven: agentDriven),
+            exists: { ClientCertificates.identityExists($0) },
             ask: { await prompter.ask(prompt($0), queueKey: ClientCertificates.queueKey(site: site, agentDriven: agentDriven, tab: self.id), site: site, tab: self) })
         guard let identity = await ClientCertificates.resolve(host: space.host, port: space.port, acceptedIssuers: issuers, environment: environment)?.identity else {
             return (.performDefaultHandling, nil)
