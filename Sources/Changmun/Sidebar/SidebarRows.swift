@@ -265,6 +265,23 @@ struct BookmarkMenu: View {
     }
 }
 
+/// A bookmark's or a folder's row is dragged by the whole row, except while its name is typed: selecting text in the field must not move the row.
+/// The payload stays an autoclosure, as in `draggable`: making it notes what is being dragged, which is for when a drag starts.
+private struct RowDrag: ViewModifier {
+    let payload: () -> String
+    let disabled: Bool
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if disabled { content } else { content.draggable(payload()) }
+    }
+}
+
+extension View {
+    func draggingRow(_ payload: @autoclosure @escaping () -> String, unless renaming: Bool) -> some View {
+        modifier(RowDrag(payload: payload, disabled: renaming))
+    }
+}
+
 /// A group header is dragged by the whole row, except while its name is typed: selecting text in the field must not move the group.
 private struct GroupDrag: ViewModifier {
     let group: Browser.TabGroup

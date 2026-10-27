@@ -7,20 +7,42 @@ struct TabStrip: View {
     @ObservedObject var browser: Browser
     @ObservedObject private var library = LibraryWatcher.shared
     @State private var dropTarget: String?
+    @State private var stripWidth = 10_000.0
 
     private static let gap: CGFloat = 4
     private static let tabWidths: ClosedRange<CGFloat> = 120...220
     private static let plusWidth = Metrics.control
+    /// A favorite's tile.
+    static let favoriteWidth: CGFloat = 34
+    private static let separatorWidth = 1 + 2 * Metrics.inset
+
+    /// The width of the favorites when there are so many that they would leave the tabs less than room for one of the least width and the plus
+    /// button, so the favorites scroll within it; nil while they and that much room for the tabs fit. `leading` is what comes before them.
+    static func favoritesScrollWidth(count: Int, strip: CGFloat, leading: CGFloat) -> CGFloat? {
+        guard count > 0 else { return nil }
+        let wanted = CGFloat(count) * Self.favoriteWidth + CGFloat(count - 1) * gap
+        let room = strip - leading - separatorWidth - Metrics.inset - (tabWidths.lowerBound + 2 * gap + plusWidth)
+        return wanted > room ? max(room, Self.favoriteWidth) : nil
+    }
 
     var body: some View {
         let favorites = library.favorites(in: browser.favoritesFolder)
+        let leading = browser.fullScreen ? Metrics.inset : BrowserWindow.windowButtonsTrailing
         let items = Array(browser.stripItems(favorites: favorites).dropFirst(favorites.count))
         HStack(spacing: 0) {
             // Room for the window buttons, which sit level with the strip.
-            Color.clear.frame(width: browser.fullScreen ? Metrics.inset : BrowserWindow.windowButtonsTrailing)
+            Color.clear.frame(width: leading)
             if !favorites.isEmpty {
-                HStack(spacing: Self.gap) {
+                let tiles = HStack(spacing: Self.gap) {
                     ForEach(favorites, id: \.url) { favorite($0) }
+                }
+                if let width = Self.favoritesScrollWidth(count: favorites.count, strip: stripWidth, leading: leading) {
+                    // So many that the tabs would have no room: the favorites scroll, and the tabs and the plus button stay.
+                    ScrollView(.horizontal, showsIndicators: false) { tiles }
+                        .background(StripWheelScroll())
+                        .frame(width: width, height: StripTab.height)
+                } else {
+                    tiles
                 }
                 Rectangle().fill(Theme.hairline).frame(width: 1, height: 16).padding(.horizontal, Metrics.inset)
             }
@@ -29,6 +51,7 @@ struct TabStrip: View {
         .padding(.trailing, Metrics.inset)
         .frame(height: BrowserWindow.tabStripHeight)
         .background(WindowDragArea())
+        .onGeometryChange(for: Double.self) { $0.size.width } action: { stripWidth = $0 }
         .animation(Motion.standard, value: items.map(\.id))
         .animation(Motion.quick, value: dropTarget)
     }
@@ -38,7 +61,7 @@ struct TabStrip: View {
     private func tabs(_ items: [TabStripItem], in available: CGFloat) -> some View {
         let count = items.filter { $0.tab != nil }.count
         let chips = items.reduce(CGFloat(0)) { total, item in
-            if case .group(let group, let members) = item { total + StripGroupChip.width(group, count: members, renaming: browser.renamingGroup == group.id) + Self.gap } else { total }
+            if case .group(let group, let members) = item { total + StripGroupChip.width(group, count: members, renaming: browser.stripRenaming(group: group.id)) + Self.gap } else { total }
         }
         let rest = chips + Self.plusWidth + Self.gap * CGFloat(count)
         let width = count == 0 ? Self.tabWidths.upperBound : min(Self.tabWidths.upperBound, max(Self.tabWidths.lowerBound, ((available - rest) / CGFloat(count)).rounded(.down)))
@@ -57,6 +80,7 @@ struct TabStrip: View {
                     }
                 }
                 // The tab shown comes into view: when the strip appears, and when another tab is switched to from the keyboard or the command bar.
+                .background(StripWheelScroll())
                 .onAppear {
                     DispatchQueue.main.async { if let id = browser.activeID { scroller.scrollTo("tab:\(id)", anchor: .center) } }
                 }
@@ -75,10 +99,10 @@ struct TabStrip: View {
     }
 
     private func stripTab(_ tab: Tab, width: CGFloat) -> some View {
-        StripTab(tab: tab, browser: browser, isActive: tab.id == browser.activeID, renaming: browser.renamingTab == tab.id, width: width)
+        StripTab(tab: tab, browser: browser, isActive: tab.id == browser.activeID, renaming: browser.stripRenaming(tab: tab.id), width: width)
             .id("tab:\(tab.id)")
             .dropLine(dropTarget == "tab:\(tab.id)" && SidebarDrag.carriesTab, edge: .leading)
-            .draggingTab(tab.id, unless: browser.renamingTab == tab.id)
+            .draggingTab(tab.id, unless: browser.stripRenaming(tab: tab.id))
             .dropDestination(for: SidebarDrop.self) { items, _ in
                 SidebarDrag.drop(items.texts, onTab: tab.id, browser: browser)
             } isTargeted: { target("tab:\(tab.id)", $0) }

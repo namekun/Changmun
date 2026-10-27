@@ -284,7 +284,7 @@ struct Sidebar: View {
                 BookmarkMenu(browser: browser, url: entry.url, title: entry.title, folder: folder, key: key)
             }
             .padding(.leading, CGFloat(depth) * Metrics.indent)
-            .draggable(SidebarDrag.bookmark(entry.url, in: folder))
+            .draggingRow(SidebarDrag.bookmark(entry.url, in: folder), unless: browser.renamingBookmark == key)
         }
     }
 
@@ -322,7 +322,7 @@ struct Sidebar: View {
         .padding(.leading, CGFloat(depth) * Metrics.indent)
         .help(ImportedFolders.displayKey(folder.key))
         .dropLine(places && over)
-        .draggable(SidebarDrag.folder(folder.key))
+        .draggingRow(SidebarDrag.folder(folder.key), unless: browser.renamingFolder == openKey)
         .dropDestination(for: SidebarDrop.self) { items, _ in
             if reorders, SidebarDrag.pin(items.texts, before: folder.key, in: browser) { return true }
             return SidebarDrag.drop(items.texts, onFolder: folder.key, browser: browser)

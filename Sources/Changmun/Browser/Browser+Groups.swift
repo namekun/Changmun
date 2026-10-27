@@ -147,7 +147,7 @@ extension Browser {
     }
 
     func rename(_ id: UUID, to name: String) {
-        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(Tab.maxNameLength))
         guard !name.isEmpty, let index = groups.firstIndex(where: { $0.id == id }) else { return }
         groups[index].name = name
     }

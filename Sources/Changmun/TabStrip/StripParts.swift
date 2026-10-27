@@ -14,7 +14,7 @@ struct StripFavorite<MenuItems: View>: View {
 
     var body: some View {
         SiteIcon(url: entry.url, size: 16)
-            .frame(width: 34, height: StripTab.height)
+            .frame(width: TabStrip.favoriteWidth, height: StripTab.height)
             .overlay(alignment: .bottom) {
                 if state == .open { Circle().fill(Theme.dim).frame(width: 4, height: 4).padding(.bottom, 2) }
             }
@@ -135,7 +135,7 @@ struct StripGroupChip: View {
     }
 
     var body: some View {
-        let renaming = browser.renamingGroup == group.id
+        let renaming = browser.stripRenaming(group: group.id)
         let label = HStack(spacing: 4) {
             Circle().fill(Self.tint(group)).frame(width: 8, height: 8)
             if renaming {
