@@ -53,4 +53,11 @@ struct CommandBarTests {
         #expect(shorter[0] == ids[1] && shorter[1] == ids[0])
         #expect(CommandBar.rowIDs([.search("위"), .ask("위")]) != CommandBar.rowIDs([.search("위키"), .ask("위키")]))
     }
+
+    /// A syllable an input method is still composing is in the field editor and not yet in the field's text: the list goes by what is shown.
+    @Test func theFieldShowsWhatItsEditorHoldsComposingTextIncluded() {
+        #expect(CommandBar.shownText(editor: "위키", binding: "위") == "위키")
+        #expect(CommandBar.shownText(editor: nil, binding: "위") == "위")
+        #expect(CommandBar.shownText(editor: "", binding: "위") == "")
+    }
 }

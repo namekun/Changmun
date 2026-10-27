@@ -3,7 +3,9 @@
 # when its text last changed (before the local results came in):
 #   Return    after the arrow key has moved the highlight to the second row, opens that row's page, not a row of the older list;
 #   a click   on the row opens that row's page, also when an input method settles the syllable it was composing as the mouse goes down
-#             (which changes the typed words, and with them the list, before the click is done), and a row that is gone by then opens nothing.
+#             (which changes the typed words, and with them the list, before the click is done), and a row that is gone by then opens nothing;
+#   composing  a Korean syllable still being composed is part of what the list, its first row, Return and a click go by (the field shows
+#             "위키" while the text it holds is "위").
 # Uses Changmun Headless.app, starting it if it isn't running (and stopping it again then).
 #
 #   scripts/test-command-bar.sh
@@ -76,4 +78,27 @@ mouse down commitAfter; sleep 1; mouse up
 sleep 2
 FRONT="$(front_tab)"; echo "$FRONT"
 if [[ "$FRONT" == *zz-target* ]]; then echo "ok: a click opened its row though the typed words were settled as it went down"; else echo "FAIL: a click whose input method settled the typed words did not open its row" >&2; FAILED=1; fi
+
+# A syllable still being composed: the first row and Return take it too, as the field shows it.
+KOREAN='q=%EC%9C%84%ED%82%A4'
+composing() {
+    scripts/headless.sh call navigate '{"url": "https://example.com/"}' >/dev/null
+    post /ui '{"command": "none"}' >/dev/null
+    post /ui '{"command": "editCurrent", "sidebar": true}' >/dev/null
+    sleep 0.5
+    key "위" 0
+    post /window-text '{"marked": "키"}' >/dev/null
+    sleep 2
+}
+composing
+ROW=177
+mouse down; mouse up
+sleep 2
+FRONT="$(front_tab)"; echo "$FRONT"
+if [[ "$FRONT" == *"$KOREAN"* ]]; then echo "ok: the first row searched for the composing syllable too"; else echo "FAIL: the first row searched for less than the field shows" >&2; FAILED=1; fi
+composing
+key '\r' 36
+sleep 2
+FRONT="$(front_tab)"; echo "$FRONT"
+if [[ "$FRONT" == *"$KOREAN"* ]]; then echo "ok: Return searched for the composing syllable too"; else echo "FAIL: Return searched for less than the field shows" >&2; FAILED=1; fi
 exit $FAILED

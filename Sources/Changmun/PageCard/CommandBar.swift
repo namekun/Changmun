@@ -10,6 +10,9 @@ struct CommandBar: View {
     var area = PageArea.window
     let mode: CommandBarMode
     @State private var text = ""
+    /// What the field shows: `text` with the syllable an input method is still composing, which the binding doesn't hold until it is settled.
+    /// The list, its first row and what Return and a click run all follow this; it is never written back into the field.
+    @State private var shown = ""
     @State private var selection = 0
     @StateObject private var source = SuggestionSource()
     @FocusState private var focused: Bool
@@ -27,7 +30,7 @@ struct CommandBar: View {
     /// Typing an address or words: open or search it, ask the AI, switch to a matching open tab, the engine's
     /// suggestions, then bookmarks and history. The local and remote parts arrive from `source` as they're ready.
     private var suggestions: [Suggestion] {
-        let query = text.trimmingCharacters(in: .whitespaces)
+        let query = shown.trimmingCharacters(in: .whitespaces)
         if query.isEmpty || (mode == .editCurrent && query == browser.active?.url?.absoluteString) {
             return source.pages.map { .page(url: $0.url, title: $0.title) }
         }
@@ -93,9 +96,14 @@ struct CommandBar: View {
                         // The list as it is when Return is pressed: the field keeps the handler it was given when its text last changed, so
                         // the `items` of that render would hold the rows from before the local and engine results came in.
                         .onSubmit { run(Self.chosen(suggestions, at: selection)) }
-                        .onChange(of: text) {
+                        .onChange(of: text) { syncShown() }
+                        .onChange(of: shown) {
                             selection = 0
                             refresh()
+                        }
+                        // Composing text reaches the field editor at once (and the binding only when it is settled).
+                        .onReceive(NotificationCenter.default.publisher(for: NSText.didChangeNotification)) { _ in
+                            if let editor = fieldEditor { shown = Self.shownText(editor: editor.string, binding: text) }
                         }
                     Keycap("esc")
                 }
@@ -127,10 +135,23 @@ struct CommandBar: View {
         .onChange(of: items) { old, new in keepSelection(old, new) }
         .onAppear {
             text = mode == .editCurrent ? (browser.active?.url?.absoluteString ?? "") : ""
+            shown = text
             refresh()
             NSApp.keyWindow?.makeFirstResponder(nil)
             DispatchQueue.main.async { focused = true }
         }
+    }
+
+    /// What the field shows: the field editor's own text while it has the focus, composing text and all, else the binding.
+    static func shownText(editor: String?, binding: String) -> String { editor ?? binding }
+
+    /// The field's editor while the field has the focus.
+    private var fieldEditor: NSTextView? {
+        (browser.window?.firstResponder as? NSTextView).flatMap { $0.isFieldEditor ? $0 : nil }
+    }
+
+    private func syncShown() {
+        shown = Self.shownText(editor: fieldEditor?.string, binding: text)
     }
 
     /// Another profile's favorites aren't suggested here: they belong to a space with logins of its own.
@@ -140,11 +161,11 @@ struct CommandBar: View {
 
     /// Bookmarks for an empty field (or the current address, untouched); otherwise a search as the user types.
     private func refresh() {
-        let query = text.trimmingCharacters(in: .whitespaces)
+        let query = shown.trimmingCharacters(in: .whitespaces)
         if query.isEmpty || (mode == .editCurrent && query == browser.active?.url?.absoluteString) {
             source.update("", remote: false, hiding: hiddenFavorites)
         } else {
-            source.update(text, remote: prefs.searchSuggestions && !browser.isPrivate, hiding: hiddenFavorites)
+            source.update(shown, remote: prefs.searchSuggestions && !browser.isPrivate, hiding: hiddenFavorites)
         }
     }
 
