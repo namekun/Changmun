@@ -40,6 +40,8 @@ final class ApprovalCards: ObservableObject {
     /// When each card became the first one of its panel, the one on show: the keys and the buttons that say yes are armed a moment after
     /// that, not after the question was made (a second question must not wake up already armed when the first is answered).
     private var frontSince: [UUID: Date] = [:]
+    /// The button of each card that has the keyboard focus, and since when: Space presses only a button that has had it a while.
+    private var buttonFocus: [UUID: (choice: Approvals.Choice, since: Date)] = [:]
 
     private init() {
         resigned = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: nil, queue: .main) { [weak self] note in
@@ -69,12 +71,30 @@ final class ApprovalCards: ObservableObject {
         if focused { focusedWindow = window } else if window == nil || focusedWindow === window { focusedWindow = nil }
     }
 
-    /// Whether a press of a button that says yes counts, by how it came about (see `ApprovalKeys.mayPress`).
-    func mayPressYes(_ card: Card, now: Date = Date()) -> Bool {
+    /// A button of a card gained or lost the keyboard focus.
+    func noteButtonFocus(_ focused: Bool, _ choice: Approvals.Choice, of id: UUID, at date: Date = Date()) {
+        if focused {
+            buttonFocus[id] = (choice, date)
+        } else if buttonFocus[id]?.choice == choice {
+            buttonFocus[id] = nil
+        }
+    }
+
+    /// How long `choice`'s button has had the keyboard focus, or nil when another button has it, or none.
+    func buttonFocusedFor(_ id: UUID, _ choice: Approvals.Choice, now: Date = Date()) -> TimeInterval? {
+        guard let focus = buttonFocus[id], focus.choice == choice else { return nil }
+        return now.timeIntervalSince(focus.since)
+    }
+
+    /// Whether a press of the button that says `choice` counts, by how it came about (see `ApprovalKeys.mayPress`).
+    func mayPressYes(_ card: Card, _ choice: Approvals.Choice, now: Date = Date()) -> Bool {
         let window = Self.hostWindow(for: card.browser)
         let armedFor = window.map { self.armedFor(card.id, in: $0) } ?? 0
+        let workspace = NSWorkspace.shared
         return ApprovalKeys.mayPress(ApprovalKeys.activation(mouseUpAt: lastMouseUp, keyDown: lastKeyDown, now: now), shownAt: visibleSince(card.id),
-                                     mouseDownAt: lastMouseDown, armedFor: armedFor, windowIsKey: window?.isKeyWindow == true, now: now)
+                                     mouseDownAt: lastMouseDown, armedFor: armedFor, windowIsKey: window?.isKeyWindow == true,
+                                     assistive: workspace.isVoiceOverEnabled || workspace.isSwitchControlEnabled,
+                                     fullKeyboardAccess: NSApp.isFullKeyboardAccessEnabled, buttonFocusedFor: buttonFocusedFor(card.id, choice, now: now), now: now)
     }
 
     func visibleSince(_ id: UUID) -> Date {
@@ -106,6 +126,7 @@ final class ApprovalCards: ObservableObject {
         let browser = cards.first { $0.id == id }?.browser
         cards.removeAll { $0.id == id }
         frontSince[id] = nil
+        buttonFocus[id] = nil
         // The next question of that panel comes to the front now.
         if let browser, let next = first(for: browser), frontSince[next.id] == nil { frontSince[next.id] = Date() }
         // The focus was on the card that went: the next one starts without it.
@@ -193,9 +214,9 @@ enum ApprovalKeys {
         return yesArmed(shownFor: now.timeIntervalSince(shownAt)) && yesArmed(shownFor: mouseDownAt.timeIntervalSince(shownAt))
     }
 
-    /// How a press of a button came about. A click is the mouse's; Space on a button that has the focus is a key; VoiceOver's press (and
-    /// the like) is neither, and arrives with no event of the user's just before it.
-    enum Activation: Equatable { case mouse, repeatedKey, keyboardOrAccessibility }
+    /// How a press of a button came about. A click is the mouse's; Space on a button that has the focus is a key; a press with no event of
+    /// the user's just before it is what VoiceOver or Switch Control sends, and also what any program can send with an accessibility press.
+    enum Activation: Equatable { case mouse, repeatedKey, keyboard, noEvent }
 
     /// Within this long of its event, a press is taken to come from it.
     static let activationWindow: TimeInterval = 0.25
@@ -204,21 +225,27 @@ enum ApprovalKeys {
         let mouse = mouseUpAt.flatMap { now.timeIntervalSince($0) <= activationWindow ? $0 : nil }
         let key = keyDown.flatMap { now.timeIntervalSince($0.at) <= activationWindow ? $0 : nil }
         switch (mouse, key) {
-        case let (mouse?, key?): return key.at > mouse ? (key.isRepeat ? .repeatedKey : .keyboardOrAccessibility) : .mouse
+        case let (mouse?, key?): return key.at > mouse ? (key.isRepeat ? .repeatedKey : .keyboard) : .mouse
         case (_?, nil): return .mouse
-        case let (nil, key?): return key.isRepeat ? .repeatedKey : .keyboardOrAccessibility
-        case (nil, nil): return .keyboardOrAccessibility
+        case let (nil, key?): return key.isRepeat ? .repeatedKey : .keyboard
+        case (nil, nil): return .noEvent
         }
     }
 
-    /// Whether a press of a button that says yes counts. A click must have begun after the card was armed (`mayClickYes`). A press by the
-    /// keyboard or by VoiceOver has no click to tell, so it counts under the rule of ⌘Return: the card is armed in its window (counted from
-    /// the later of the card coming to the front and the window becoming key), the window is the key window, and it is not a key held down.
-    static func mayPress(_ activation: Activation, shownAt: Date, mouseDownAt: Date?, armedFor: TimeInterval, windowIsKey: Bool, now: Date) -> Bool {
+    /// Whether a press of a button that says yes counts. A click must have begun after the card was armed (`mayClickYes`). The other presses
+    /// have no click to tell, so each is judged by the rule of ⌘Return (the card is armed in its window, counted from the later of the
+    /// card coming to the front and the window becoming key; the window is the key window; it is not a key held down) and by more:
+    /// - Space is a press only when Full Keyboard Access is on, and only on a button that has itself had the keyboard focus for the time the
+    ///   card takes to arm (`buttonFocusedFor`): the card having the focus, or the button getting it a moment ago, is not enough.
+    /// - A press with no event of the user's behind it counts only while an assistive technology (VoiceOver, Switch Control) is on: with none,
+    ///   it can only be another program's, and it is refused.
+    static func mayPress(_ activation: Activation, shownAt: Date, mouseDownAt: Date?, armedFor: TimeInterval, windowIsKey: Bool, assistive: Bool,
+                         fullKeyboardAccess: Bool, buttonFocusedFor: TimeInterval?, now: Date) -> Bool {
         switch activation {
         case .mouse: mayClickYes(shownAt: shownAt, mouseDownAt: mouseDownAt, now: now)
         case .repeatedKey: false
-        case .keyboardOrAccessibility: windowIsKey && yesArmed(shownFor: armedFor)
+        case .keyboard: windowIsKey && yesArmed(shownFor: armedFor) && fullKeyboardAccess && buttonFocusedFor.map(yesArmed) == true
+        case .noEvent: windowIsKey && yesArmed(shownFor: armedFor) && assistive
         }
     }
 
@@ -264,6 +291,8 @@ struct ApprovalCardView: View {
     /// How many more questions are waiting behind this one.
     let waiting: Int
     @FocusState private var focused: Bool
+    /// The button of the card that has the keyboard focus.
+    @FocusState private var focusedButton: Approvals.Choice?
     /// The buttons that say yes wake up a moment after the card comes: a click meant for what was under it is not an answer.
     @State private var armed = false
 
@@ -340,7 +369,7 @@ struct ApprovalCardView: View {
     private func button(_ choice: Approvals.Choice, _ title: String) -> some View {
         let live = choice == .deny || armed
         return Button {
-            guard choice == .deny || ApprovalCards.shared.mayPressYes(card) else { return }
+            guard choice == .deny || ApprovalCards.shared.mayPressYes(card, choice) else { return }
             card.answer(choice)
         } label: {
             HStack(spacing: 6) {
@@ -355,5 +384,7 @@ struct ApprovalCardView: View {
         }
         .buttonStyle(.plain)
         .disabled(!live)
+        .focused($focusedButton, equals: choice)
+        .onChange(of: focusedButton == choice) { _, has in ApprovalCards.shared.noteButtonFocus(has, choice, of: card.id) }
     }
 }

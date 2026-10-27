@@ -10,7 +10,7 @@ extension Tab: WKNavigationDelegate {
             return (.cancel, preferences)
         }
         if action.shouldPerformDownload { return (.download, preferences) }
-        let userInitiated = !AppScripts.drives(webView) && Self.isUserInitiated(action)
+        let userInitiated = !AppScripts.drives(webView) && Self.userStartedForAppLinks(Self.isUserInitiated(action), knowsUserInitiated: Self.knowsUserInitiated)
         if let url = action.request.url, let scheme = url.scheme?.lowercased(), !Self.browserSchemes.contains(scheme) {
             // A frame can't speak for the page: the question is only for what the page itself, or the user's click, asks.
             appLinkRequested(url, navigationType: action.navigationType, userInitiated: userInitiated,
@@ -60,7 +60,8 @@ extension Tab: WKNavigationDelegate {
 
     /// Schemes that mount servers, run commands or change settings: a page never gets to launch these.
     static let blockedSchemes: Set<String> = ["smb", "afp", "nfs", "ftp", "ftps", "vnc", "ssh", "telnet", "x-apple.systempreferences",
-                                              "x-man-page", "applescript", "itms-services", "facetime", "facetime-audio", "tel"]
+                                              "x-man-page", "applescript", "itms-services", "facetime", "facetime-audio", "tel", "shortcuts", "workflow",
+                                              "x-help-action", "prefs", "sftp", "callto", "sms"]
 
     /// A page's address for an app (mailto:, zoommtg:, the claude: a sign-in ends with). Whatever brought it, a click, a server's
     /// redirect or a script, the user is asked whether to open the app, as Safari does; the navigation itself is always cancelled.
@@ -74,7 +75,7 @@ extension Tab: WKNavigationDelegate {
         let decision = Self.appLinkDecision(navigationType: navigationType, userInitiated: userInitiated, isMainFrame: isMainFrame,
                                             askedSinceUserNavigation: askedForAppSinceUserNavigation, questionShowing: appLinkQuestionShowing,
                                             headless: Headless.isOn, agentDriven: AgentActivity.shared.holds(self) || AppScripts.drives(webView),
-                                            blocked: blocked, hasApp: app != nil)
+                                            blocked: blocked, hasApp: app != nil, tabShown: browser.map { $0.isShown(self) || $0.peek === self } ?? false)
         if decision == .ask, let app {
             askedForAppSinceUserNavigation = true
             appLinkQuestionShowing = true
@@ -94,10 +95,10 @@ extension Tab: WKNavigationDelegate {
     /// Whether a navigation to an app's address asks the user. A click of the user's always does (the one case allowed in a frame
     /// too); anything else asks only in the main frame and only once until the user navigates again, whatever the answer was.
     /// Nothing asks while a question is up, in a headless Changmun, for a page the AI is driving, for a scheme that is blocked,
-    /// or when no app handles it.
+    /// when no app handles it, or for a tab that isn't shown (the sheet would come up on a window whose page is another's).
     nonisolated static func appLinkDecision(navigationType: WKNavigationType, userInitiated: Bool, isMainFrame: Bool, askedSinceUserNavigation: Bool,
-                                            questionShowing: Bool, headless: Bool, agentDriven: Bool, blocked: Bool, hasApp: Bool) -> AppLinkDecision {
-        guard !headless, !agentDriven, !blocked, hasApp, !questionShowing else { return .cancelSilently }
+                                            questionShowing: Bool, headless: Bool, agentDriven: Bool, blocked: Bool, hasApp: Bool, tabShown: Bool) -> AppLinkDecision {
+        guard !headless, !agentDriven, !blocked, hasApp, !questionShowing, tabShown else { return .cancelSilently }
         if navigationType == .linkActivated && userInitiated { return .ask }
         return isMainFrame && !askedSinceUserNavigation ? .ask : .cancelSilently
     }

@@ -12,7 +12,7 @@ extension Tab: WKUIDelegate {
         let userInitiated = !AppScripts.drives(webView) && Self.isUserInitiated(action)
         // A window for an app's address (window.open("claude://...")) is no window: the user is asked about the app here.
         if let url = action.request.url, let scheme = url.scheme?.lowercased(), !Self.browserSchemes.contains(scheme) {
-            appLinkRequested(url, navigationType: action.navigationType, userInitiated: userInitiated, isMainFrame: action.sourceFrame.isMainFrame,
+            appLinkRequested(url, navigationType: action.navigationType, userInitiated: Self.userStartedForAppLinks(userInitiated, knowsUserInitiated: Self.knowsUserInitiated), isMainFrame: action.sourceFrame.isMainFrame,
                              site: Self.askingSite(of: action.sourceFrame), in: webView)
             return nil
         }
@@ -49,6 +49,12 @@ extension Tab: WKUIDelegate {
     /// Whether WebKit can say a window was asked for by the user (it can in this version of macOS: its navigation actions carry
     /// `_isUserInitiated`). Where it can't, windows are left to WebKit to allow or refuse, and the watcher offers the refused.
     static let knowsUserInitiated = WKNavigationAction.instancesRespond(to: NSSelectorFromString("_isUserInitiated"))
+
+    /// Whether a navigation counts as the user's for an app question (asking past the once-limit, giving the page its question back):
+    /// where `_isUserInitiated` can't be read, `isUserInitiated` says yes for everything, which is not the user's word, so nothing counts.
+    nonisolated static func userStartedForAppLinks(_ userInitiated: Bool, knowsUserInitiated: Bool) -> Bool {
+        userInitiated && knowsUserInitiated
+    }
 
     /// A click (or a script a click started a moment ago, as WebKit counts it) is behind the action.
     static func isUserInitiated(_ action: WKNavigationAction) -> Bool {

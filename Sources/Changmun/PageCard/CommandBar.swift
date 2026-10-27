@@ -175,9 +175,15 @@ struct CommandBar: View {
 
     /// `responder` if it is the editor of the bar's own field in `window`: the one editor a window has is lent to whichever field has the
     /// focus (the find bar's, a page's), and only while the bar's field (the one with this placeholder) is the one it serves is it the bar's.
+    ///
+    /// Why the placeholder: SwiftUI's TextField gives no handle on the NSTextField behind it. An `accessibilityIdentifier` does not reach it
+    /// (tried: the field's identifier reads empty, and the Korean-composition check of scripts/test-command-bar.sh fails). Remembering
+    /// the editor the focus callback finds would depend on the order SwiftUI sets the first responder and reports the focus in, and a
+    /// wrong guess would read another field. So the check fails safe: a field whose placeholder can't be read (none, or an attributed
+    /// one), or an empty one asked for, is nobody's, and the list then goes by the binding's text, never by another field's.
     static func ownEditor(_ responder: NSResponder?, in window: NSWindow?, placeholder: String) -> NSTextView? {
-        guard let editor = responder as? NSTextView, editor.isFieldEditor, window != nil, editor.window === window,
-              (editor.delegate as? NSTextField)?.placeholderString == placeholder else { return nil }
+        guard !placeholder.isEmpty, let editor = responder as? NSTextView, editor.isFieldEditor, window != nil, editor.window === window,
+              let shown = (editor.delegate as? NSTextField)?.placeholderString, shown == placeholder else { return nil }
         return editor
     }
 

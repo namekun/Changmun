@@ -263,33 +263,65 @@ extension SharedAgentState {
             #expect(key(36, inPanel: false) == .deny && key(53, inPanel: false) == .deny, "no may be said from anywhere but a page")
         }
 
-        @Test func aPressWithNoClickBehindItCountsUnderTheRuleOfCommandReturn() {
+        @Test func aPressWithNoClickBehindItNeedsAnAssistiveTechnologyOrTheFocusedButton() {
             typealias Keys = ApprovalKeys
             let now = Date(timeIntervalSince1970: 5000)
             func activation(mouseUp: TimeInterval? = nil, key: (TimeInterval, Bool)? = nil) -> Keys.Activation {
                 Keys.activation(mouseUpAt: mouseUp.map { now.addingTimeInterval($0) }, keyDown: key.map { (now.addingTimeInterval($0.0), $0.1) }, now: now)
             }
-            #expect(activation() == .keyboardOrAccessibility, "VoiceOver's press has no event of the user's just before it")
-            #expect(activation(mouseUp: -2) == .keyboardOrAccessibility && activation(key: (-2, true)) == .keyboardOrAccessibility, "old events say nothing")
+            #expect(activation() == .noEvent, "VoiceOver's press has no event of the user's just before it, and neither has a program's")
+            #expect(activation(mouseUp: -2) == .noEvent && activation(key: (-2, true)) == .noEvent, "old events say nothing")
             #expect(activation(mouseUp: -0.05) == .mouse)
-            #expect(activation(key: (-0.05, false)) == .keyboardOrAccessibility)
+            #expect(activation(key: (-0.05, false)) == .keyboard)
             #expect(activation(key: (-0.05, true)) == .repeatedKey, "a key held down")
             #expect(activation(mouseUp: -0.1, key: (-0.2, true)) == .mouse, "the later of the two is what pressed it")
             #expect(activation(mouseUp: -0.2, key: (-0.1, true)) == .repeatedKey)
 
             let shown = now.addingTimeInterval(-10)
-            func may(_ activation: Keys.Activation, armedFor: TimeInterval = 5, key: Bool = true, mouseDownAt: Date? = nil) -> Bool {
-                Keys.mayPress(activation, shownAt: shown, mouseDownAt: mouseDownAt, armedFor: armedFor, windowIsKey: key, now: now)
+            func may(_ activation: Keys.Activation, armedFor: TimeInterval = 5, key: Bool = true, mouseDownAt: Date? = nil, assistive: Bool = false,
+                     fullKeyboardAccess: Bool = false, focusedFor: TimeInterval? = nil) -> Bool {
+                Keys.mayPress(activation, shownAt: shown, mouseDownAt: mouseDownAt, armedFor: armedFor, windowIsKey: key, assistive: assistive,
+                              fullKeyboardAccess: fullKeyboardAccess, buttonFocusedFor: focusedFor, now: now)
             }
-            #expect(may(.keyboardOrAccessibility), "an armed card in the key window answers to Space or an AXPress")
-            #expect(!may(.keyboardOrAccessibility, armedFor: Keys.yesDelay - 0.01), "not before the card is armed, as the keys")
-            #expect(may(.keyboardOrAccessibility, armedFor: Keys.yesDelay))
-            #expect(!may(.keyboardOrAccessibility, armedFor: 0), "a window that has just become key can't be answered at once")
-            #expect(!may(.keyboardOrAccessibility, key: false), "and only the key window answers")
-            #expect(!may(.repeatedKey), "a key held down, or its repeats, never does")
+            // A press with no event of the user's behind it: only when an assistive technology is on.
+            #expect(!may(.noEvent), "with none on, a press nobody's hand made is refused: the program that made it is not VoiceOver")
+            #expect(may(.noEvent, assistive: true), "VoiceOver or Switch Control, in an armed card of the key window")
+            #expect(!may(.noEvent, armedFor: Keys.yesDelay - 0.01, assistive: true) && may(.noEvent, armedFor: Keys.yesDelay, assistive: true))
+            #expect(!may(.noEvent, armedFor: 0, assistive: true), "a window that has just become key can't be answered at once")
+            #expect(!may(.noEvent, key: false, assistive: true), "and only the key window answers")
+            #expect(!may(.noEvent, fullKeyboardAccess: true, focusedFor: 5), "Full Keyboard Access says nothing about a press with no key behind it")
+            // Space: Full Keyboard Access is on, the button itself has had the focus for as long as the card must be armed.
+            #expect(may(.keyboard, fullKeyboardAccess: true, focusedFor: Keys.yesDelay))
+            #expect(!may(.keyboard, fullKeyboardAccess: true, focusedFor: Keys.yesDelay - 0.01), "a button that has just got the focus is not yet pressed by Space")
+            #expect(!may(.keyboard, fullKeyboardAccess: true, focusedFor: nil), "the card having the focus is not the button having it")
+            #expect(!may(.keyboard, fullKeyboardAccess: false, focusedFor: 5), "without Full Keyboard Access no button takes Space")
+            #expect(!may(.keyboard, assistive: true), "and an assistive technology does not lend Space its rule")
+            #expect(!may(.keyboard, armedFor: Keys.yesDelay - 0.01, fullKeyboardAccess: true, focusedFor: 5), "not before the card is armed, as the keys")
+            #expect(!may(.keyboard, armedFor: 0, fullKeyboardAccess: true, focusedFor: 5), "a window that has just become key can't be answered at once")
+            #expect(!may(.keyboard, key: false, fullKeyboardAccess: true, focusedFor: 5), "and only the key window answers")
+            #expect(!may(.repeatedKey, assistive: true, fullKeyboardAccess: true, focusedFor: 5), "a key held down, or its repeats, never does")
+            // The mouse is as it was.
             #expect(!may(.mouse), "a click still needs its press to have begun after the card was armed")
             #expect(may(.mouse, mouseDownAt: shown.addingTimeInterval(1)))
             #expect(!may(.mouse, mouseDownAt: shown.addingTimeInterval(0.1)), "unchanged: a press that began while the card was new")
+        }
+
+        @Test func aCardRemembersWhichButtonHasHadTheFocusAndSince() {
+            let cards = ApprovalCards.shared
+            let id = UUID(), other = UUID()
+            let at = Date(timeIntervalSince1970: 100)
+            #expect(cards.buttonFocusedFor(id, .once, now: at) == nil, "no focus noted, no focus")
+            cards.noteButtonFocus(true, .once, of: id, at: at)
+            #expect(cards.buttonFocusedFor(id, .once, now: at.addingTimeInterval(2)) == 2)
+            #expect(cards.buttonFocusedFor(id, .site, now: at.addingTimeInterval(2)) == nil, "another button of the card is not that one")
+            #expect(cards.buttonFocusedFor(other, .once, now: at.addingTimeInterval(2)) == nil, "nor is the same button of another card")
+            cards.noteButtonFocus(true, .site, of: id, at: at.addingTimeInterval(3))
+            #expect(cards.buttonFocusedFor(id, .once, now: at.addingTimeInterval(4)) == nil, "the focus moved on")
+            #expect(cards.buttonFocusedFor(id, .site, now: at.addingTimeInterval(4)) == 1)
+            cards.noteButtonFocus(false, .once, of: id, at: at.addingTimeInterval(5))
+            #expect(cards.buttonFocusedFor(id, .site, now: at.addingTimeInterval(6)) == 3, "another button losing the focus changes nothing")
+            cards.noteButtonFocus(false, .site, of: id, at: at.addingTimeInterval(7))
+            #expect(cards.buttonFocusedFor(id, .site, now: at.addingTimeInterval(8)) == nil)
         }
 
         @Test func aSecondQuestionIsArmedOnlyAfterItCameToTheFront() async throws {

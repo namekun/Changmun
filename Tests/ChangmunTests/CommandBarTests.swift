@@ -93,6 +93,18 @@ struct CommandBarTests {
         #expect(CommandBar.ownEditor(window.firstResponder, in: window, placeholder: "Search") == nil)
     }
 
+    @Test @MainActor func aFieldWhosePlaceholderCannotBeReadIsNobodys() throws {
+        let bar = NSTextField(string: "wiki"), blank = NSTextField(string: "needle"), attributed = NSTextField(string: "x")
+        bar.placeholderString = "Search"
+        attributed.placeholderAttributedString = NSAttributedString(string: "Search")
+        let window = window(with: bar, blank, attributed)
+        #expect(CommandBar.ownEditor(try editor(of: blank, in: window), in: window, placeholder: "Search") == nil, "no placeholder: not the bar's")
+        #expect(CommandBar.ownEditor(try editor(of: attributed, in: window), in: window, placeholder: "Search") == nil, "one that is read as nothing")
+        #expect(CommandBar.ownEditor(try editor(of: blank, in: window), in: window, placeholder: "") == nil, "an empty placeholder asked for matches no field")
+        #expect(CommandBar.ownEditor(try editor(of: bar, in: window), in: window, placeholder: "") == nil)
+        #expect(CommandBar.ownEditor(try editor(of: bar, in: window), in: window, placeholder: "Search") != nil)
+    }
+
     @Test @MainActor func theEditorOfAnotherWindowsBarIsNotThisBars() throws {
         let bar = NSTextField(string: "wiki"), otherBar = NSTextField(string: "wiki")
         bar.placeholderString = "Search"

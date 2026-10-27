@@ -212,9 +212,11 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         return path.hasPrefix(folder.hasSuffix("/") ? folder : folder + "/")
     }
 
-    func load(_ url: URL) {
+    /// `byUser` is whether the user chose the address (the address bar, a bookmark, a link they pressed): only that gives the page its
+    /// question about an app back. The AI's tools pass false.
+    func load(_ url: URL, byUser: Bool = true) {
         self.url = url
-        askedForAppSinceUserNavigation = false
+        if byUser { askedForAppSinceUserNavigation = false }
         if url.isFileURL { userFileLoad = url }
         Self.load(url, in: wake())
     }

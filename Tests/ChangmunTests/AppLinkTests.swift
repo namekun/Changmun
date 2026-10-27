@@ -11,9 +11,10 @@ extension SharedAgentState {
         private typealias Decision = Tab.AppLinkDecision
 
         private func decide(_ type: WKNavigationType = .other, userInitiated: Bool = false, mainFrame: Bool = true, asked: Bool = false,
-                            showing: Bool = false, headless: Bool = false, agent: Bool = false, blocked: Bool = false, app: Bool = true) -> Decision {
+                            showing: Bool = false, headless: Bool = false, agent: Bool = false, blocked: Bool = false, app: Bool = true,
+                            shown: Bool = true) -> Decision {
             Tab.appLinkDecision(navigationType: type, userInitiated: userInitiated, isMainFrame: mainFrame, askedSinceUserNavigation: asked,
-                                questionShowing: showing, headless: headless, agentDriven: agent, blocked: blocked, hasApp: app)
+                                questionShowing: showing, headless: headless, agentDriven: agent, blocked: blocked, hasApp: app, tabShown: shown)
         }
 
         @Test func aRedirectOrScriptToAnAppAsksLikeAClickDoes() {
@@ -61,6 +62,25 @@ extension SharedAgentState {
                 #expect(decide(type, userInitiated: true, agent: true) == .cancelSilently)
                 #expect(decide(type, userInitiated: true, blocked: true) == .cancelSilently)
                 #expect(decide(type, userInitiated: true, app: false) == .cancelSilently)
+                #expect(decide(type, userInitiated: true, shown: false) == .cancelSilently, "a tab nobody sees has no window to ask on")
+            }
+        }
+
+        @Test func withoutTheSystemsUserFlagNothingCountsAsTheUsers() {
+            #expect(Tab.userStartedForAppLinks(true, knowsUserInitiated: true))
+            #expect(!Tab.userStartedForAppLinks(false, knowsUserInitiated: true))
+            #expect(!Tab.userStartedForAppLinks(true, knowsUserInitiated: false), "where the flag can't be read, `true` is only the stand-in for it")
+            for type in [WKNavigationType.linkActivated, .formSubmitted, .backForward, .reload, .formResubmitted] {
+                #expect(!Tab.startsUserNavigation(type, userInitiated: Tab.userStartedForAppLinks(true, knowsUserInitiated: false)), "\(type.rawValue) can't give a page its question back")
+            }
+        }
+
+        @Test func theSchemesThatRunThingsAreBlocked() {
+            for scheme in ["shortcuts", "workflow", "x-apple.systempreferences", "applescript", "smb", "ssh", "tel", "facetime", "x-help-action", "prefs", "sftp", "callto", "sms"] {
+                #expect(Tab.blockedSchemes.contains(scheme), "\(scheme)")
+            }
+            for scheme in ["mailto", "zoommtg", "claude", "slack", "http", "https"] {
+                #expect(!Tab.blockedSchemes.contains(scheme), "\(scheme) is for an app the user is asked about")
             }
         }
 
@@ -159,7 +179,7 @@ extension SharedAgentState {
             let log = Log()
             let t = tab(log, in: b)
             let view = t.wake()
-            for scheme in ["smb", "tel", "ssh", "x-apple.systempreferences"] {
+            for scheme in ["smb", "tel", "ssh", "x-apple.systempreferences", "shortcuts", "workflow"] {
                 t.appLinkRequested(URL(string: "\(scheme)://x")!, navigationType: .linkActivated, userInitiated: true, isMainFrame: true, site: nil, in: view)
             }
             #expect(log.asked.isEmpty && log.opened.isEmpty)
@@ -181,6 +201,36 @@ extension SharedAgentState {
             request(t, view, site: nil)
             #expect(await waitUntil { log.asked.count == 2 })
             #expect(log.asked.last?.site == "This page")
+        }
+
+        @Test func aTabThatIsNotShownCancelsWithoutAQuestion() async throws {
+            let b = Browser()
+            let log = Log()
+            let behind = b.openTab(url: nil, activate: false)
+            behind.appLinks = tab(log, in: b).appLinks
+            let front = tab(log, in: b)
+            #expect(!b.isShown(behind) && b.isShown(front))
+            request(behind, behind.wake(), .linkActivated, userInitiated: true)
+            try await Task.sleep(for: .milliseconds(100))
+            #expect(log.asked.isEmpty && !behind.askedForAppSinceUserNavigation, "no sheet on a window whose page is another's")
+            request(front, front.wake(), .linkActivated, userInitiated: true)
+            #expect(await waitUntil { log.asked.count == 1 }, "the tab in front asks")
+        }
+
+        @Test func anAIsLoadDoesNotGiveThePageItsQuestionBack() async throws {
+            let b = Browser()
+            let log = Log()
+            let t = tab(log, in: b)
+            let view = t.wake()
+            request(t, view)
+            #expect(await waitUntil { log.asked.count == 1 })
+            t.load(URL(string: "https://b.test/")!, byUser: false)
+            #expect(t.askedForAppSinceUserNavigation, "the AI went there, not the user")
+            request(t, view)
+            try await Task.sleep(for: .milliseconds(100))
+            #expect(log.asked.count == 1)
+            t.load(URL(string: "https://c.test/")!)
+            #expect(!t.askedForAppSinceUserNavigation, "an address the user loads does")
         }
 
         @Test func aPageThatNavigatesItselfCannotKeepAsking() async throws {

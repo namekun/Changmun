@@ -106,6 +106,9 @@ enum ToolCatalog {
             guard await Approvals.allowNavigation(url, caller: caller) else { return declined }
             if session.stopped { return stopped }
             let tab = (Browser.recent ?? BrowserWindow.open()).openTab(url: url)
+            // The AI's from the first load on, before anything can be asked: a client certificate is then never answered from the user's
+            // choices nor queued with theirs, and the page can't put an app question to the user.
+            AgentActivity.shared.use(tab, caller: caller)
             // A tab the AI opened itself is its own to use, on the site it opened.
             Approvals.allowOpened(tab, at: url, caller: caller)
             defer { Approvals.noteRead(tab, caller: caller) }
@@ -158,7 +161,8 @@ enum ToolCatalog {
             AgentActivity.shared.step(String(localized: "Opening \(url.host() ?? "")"), caller: caller)
             guard await Approvals.allowNavigation(url, caller: caller) else { return declined }
             if session.stopped { return stopped }
-            tab.load(url)
+            // Not the user's address: it doesn't give a page back the question about an app.
+            tab.load(url, byUser: false)
             await waitForLoad(tab)
             return .text("Now at: \(tab.aiTitle) — \(tab.url?.absoluteString ?? "")")
         case "go_back", "go_forward", "reload":

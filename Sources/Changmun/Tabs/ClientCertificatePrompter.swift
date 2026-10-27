@@ -24,12 +24,19 @@ final class ClientCertificatePrompter {
     /// Tests only: how often a sheet was looked for.
     private(set) var showRequests = 0
     private let observations = Observations()
+    /// When the user last pressed a key in the window (a sheet that comes up under their typing would take it), and the wait for it to pass.
+    private var lastKeyDown: Date?
+    private var typingWait: Task<Void, Never>?
     private var browserWatch: AnyCancellable?
 
     /// Notifications that remove themselves when the prompter goes.
     private final class Observations {
         var tokens: [NSObjectProtocol] = []
-        deinit { tokens.forEach(NotificationCenter.default.removeObserver) }
+        var keyMonitor: Any?
+        deinit {
+            tokens.forEach(NotificationCenter.default.removeObserver)
+            if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        }
     }
 
     /// A challenge that came while the window was hidden, minimized or behind another app is asked when the window can show the sheet,
@@ -49,11 +56,24 @@ final class ClientCertificatePrompter {
                 MainActor.assumeIsolated { self?.show() }
             })
         }
+        observations.keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            MainActor.assumeIsolated { if let self, event.window != nil, event.window === self.browser?.window { self.lastKeyDown = Date() } }
+            return event
+        }
         // Published before the change is made: looked at once it has been.
         browserWatch = browser.objectWillChange.sink { [weak self] in
             guard let self, !self.queue.entries.isEmpty else { return }
             Task { @MainActor [weak self] in self?.show() }
         }
+    }
+
+    /// How long after a key goes down in the window a sheet may not come up.
+    static let typingQuiet: TimeInterval = 0.5
+
+    /// How much longer a sheet must wait for the user's typing to be past (never more than `typingQuiet`).
+    static func typingHold(lastKeyDown: Date?, now: Date) -> TimeInterval {
+        guard let lastKeyDown else { return 0 }
+        return max(0, min(typingQuiet, typingQuiet - now.timeIntervalSince(lastKeyDown)))
     }
 
     /// Waits for the user's choice among `candidates`; nil when they cancel, or the tab goes away first. `queueKey` is what challenges
@@ -78,6 +98,18 @@ final class ClientCertificatePrompter {
         showRequests += 1
         guard shown == nil, let browser, let window = browser.window, window.isVisible, !window.isMiniaturized,
               let entry = queue.next(isShown: { id in browser.tab(id).map { browser.isShown($0) || browser.peek === $0 } ?? false }) else { return }
+        // Not under the user's typing: the sheet takes the keys that come next (a Return would choose a certificate), so it waits for a pause.
+        let hold = Self.typingHold(lastKeyDown: lastKeyDown, now: Date())
+        if hold > 0 {
+            if typingWait == nil {
+                typingWait = Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .seconds(hold))
+                    self?.typingWait = nil
+                    self?.show()
+                }
+            }
+            return
+        }
         queue.start(entry.key)
         let panel = SFChooseIdentityPanel()
         // With a domain the panel files the choice as an identity preference in the user's keychain (as Safari's does) when they choose.

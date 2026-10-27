@@ -247,6 +247,27 @@ extension SharedAgentState {
             #expect(tab.isAsleep && tab.lastShown == shown)
         }
 
+        @Test func aTabTheAIOpensIsItsOwnBeforeItsFirstLoadCanAsk() async throws {
+            let browser = Browser()
+            browser.focused()
+            defer { browser.windowClosed() }
+            let before = Preferences.shared.aiApprovalMode
+            Preferences.shared.aiApprovalMode = .irreversibleOnly
+            defer { Preferences.shared.aiApprovalMode = before }
+            let caller = bridgeCaller()
+            // The AI's window is the one focused last, which another test's may have become meanwhile: any window will do.
+            func opened() -> Tab? { Browser.all.lazy.compactMap { $0.tabs.first { $0.url?.host() == "127.0.0.1" && $0.url?.port == 9 } }.first }
+            let call = Task { await ToolCatalog.call("open_tab", ["url": "http://127.0.0.1:9/"], caller: caller) }
+            // The tab is there as soon as the call has first waited (for its page), before the load can have failed and changed the address.
+            for _ in 0..<100 where opened() == nil { await Task.yield() }
+            let tab = try #require(opened())
+            // While the page is still loading (a certificate or an app can be asked for by then) the tab is the AI's: nobody's remembered
+            // choice answers for it, and no app question is put to the user.
+            #expect(AgentActivity.shared.holds(tab), "marked before the load, not after")
+            _ = await call.value
+            #expect(AgentActivity.shared.holds(tab))
+        }
+
         @Test func readTabsEndsBeforeTheControlServerGivesUp() {
             #expect(ToolCatalog.readDeadline < 150)
         }

@@ -24,6 +24,21 @@ extension SharedAgentState {
             return task
         }
 
+        // MARK: Typing
+
+        @Test func theSheetWaitsForTheUserToStopTyping() {
+            let now = Date(timeIntervalSince1970: 3000)
+            typealias Prompter = ClientCertificatePrompter
+            #expect(Prompter.typingHold(lastKeyDown: nil, now: now) == 0, "no key seen, no wait")
+            #expect(Prompter.typingHold(lastKeyDown: now.addingTimeInterval(-5), now: now) == 0)
+            #expect(Prompter.typingHold(lastKeyDown: now.addingTimeInterval(-Prompter.typingQuiet), now: now) == 0)
+            let wait = Prompter.typingHold(lastKeyDown: now.addingTimeInterval(-0.1), now: now)
+            #expect(abs(wait - (Prompter.typingQuiet - 0.1)) < 1e-6, "the rest of the quiet time")
+            #expect(Prompter.typingHold(lastKeyDown: now, now: now) == Prompter.typingQuiet)
+            #expect(Prompter.typingHold(lastKeyDown: now.addingTimeInterval(2), now: now) == Prompter.typingQuiet, "a clock that stepped back waits no more than the quiet time")
+            #expect(Prompter.typingQuiet >= 0.5)
+        }
+
         // MARK: Which tab is waiting
 
         @Test func aTabWaitingForACertificateSaysSoUntilItIsAnswered() async {
