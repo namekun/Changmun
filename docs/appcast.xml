@@ -6,6 +6,17 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.8.3</title>
+      <pubDate>Tue, 27 Oct 2026 03:02:46 +0000</pubDate>
+      <sparkle:version>33</sparkle:version>
+      <sparkle:shortVersionString>0.8.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.8.3</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Client certificates, as in Safari.** When a site asks for a certificate to identify you (a company intranet, a bank), Changmun offers the ones in your Keychain or on a smart card that the site accepts, in the system's own sheet. What you pick is saved as an identity preference for that site (remove it in Keychain Access), so the next visit doesn't ask. Private windows save nothing, and a page the AI is using always asks you: the AI never picks a certificate for you, not even one you chose before.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.3/Changmun-0.8.3.dmg" length="5316296" type="application/octet-stream" sparkle:edSignature="iJB3wzp8/9rnW4YHL/VUmCTqHCnSVbBEDsMr+drUVZDVoNQv9NjwwgdyIdpx0n6bcGQBkPApWP+swMYg5QeKBg==" />
+    </item>
+    <item>
       <title>0.8.2</title>
       <pubDate>Tue, 27 Oct 2026 01:00:40 +0000</pubDate>
       <sparkle:version>32</sparkle:version>
@@ -130,25 +141,9 @@
 - **Small fixes.** The save-login bar shortens the user name before the site name, and the list in onboarding lines up with its buttons.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.1/Changmun-0.7.1.dmg" length="4850465" type="application/octet-stream" sparkle:edSignature="GgkOOcPAJS6N8ZiWs0WXZoY9Tsv20lGYWR7sDQ7loOLGcawm2rmNoYEFoyRelCAtjpIQnWFRhzL8dU4BwJFfAw==" />
     </item>
-    <item>
-      <title>0.7.0</title>
-      <pubDate>Fri, 23 Oct 2026 09:31:42 +0000</pubDate>
-      <sparkle:version>23</sparkle:version>
-      <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.7.0</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Errors that say what to do.** Not logged in to Claude Code, out of usage, network or server trouble: the panel says which in plain words and offers Try Again.
-- **Chat history.** Finished chats stay on this Mac and can be read again from the clock button. They're read-only, private windows are never recorded, typed text and address data are trimmed before saving, and you can turn it off in Settings › AI.
-- **Better answers.** Code blocks, lists and tables render properly, with copy buttons. Links show where they really go, and after a chat has read other sites, opening a link asks first. Long tasks fold into "N steps" with a summary of the tabs opened and closed, and tabs the AI closed can be reopened.
-- **Easier to drive.** The tab the AI sees shows as a chip; type @ to attach another. ⌘E jumps to the panel, Esc stops, ↑ brings back your last message. Drag the panel's edge to resize it, pick the model from the chip under the box, get suggestions that fit the page, and choose Ask AI About Selection from a page's context menu.
-- **Questions in the panel.** The AI's questions appear as cards above the box instead of covering the window: Return or Esc says no, ⌘Return allows once, ⌥⌘Return allows that site for the chat. Allow keys only work inside the panel and after a short pause. Paying, deleting and signing in still ask in a window sheet. The panel's head shows which sites the chat has read, and you can take back a site you allowed.
-- **Images.** Attach a screenshot of the page, or drop or paste up to four images; they're resized and stripped of location data. Images count as something the AI read, so what it does next is asked about.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.0/Changmun-0.7.0.dmg" length="4832685" type="application/octet-stream" sparkle:edSignature="+6C7h5flnuEmOcXubDeIqFVWNIrDzeirP22zDgBxLPEE/TB4zfuCeLwvdUG2o9uaRDJeazCYrIub+esSlFNuCA==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: CT3VsCjlu0ylInGGpg2+TpfXqKS+a5h08u0fZaJ1zf4rkgifBW+qL6TvZCEBm+Nq2pPUgltXmAe7rBm6zHkoAA==
-length: 18001
+edSignature: vh6mgXxTTB2CGQZlk5GNMIOZ+kPKu+xi49JLsxJlnMxN6KPDFxSMxo29JxJrfmQdfNcKlzmrABOj9xAx6IBYCw==
+length: 16828
 -->
