@@ -3,6 +3,7 @@
 "%@ history" = "%@ 历史记录";
 "%@ passwords" = "%@ 密码";
 "%@ rules active" = "%@ 条规则已启用";
+"%@ wants a certificate to identify you." = "%@ 需要一份证书来确认你的身份。";
 "%@ wants to open %@" = "%1$@ 想要打开 %2$@";
 "%@ wants to use the camera" = "%@ 想要使用摄像头";
 "%@ wants to use the camera and microphone" = "%@ 想要使用摄像头和麦克风";
@@ -196,6 +197,7 @@
 "Remove this image" = "移除此图片";
 "That image is too large to attach." = "图片太大,无法附加。";
 "That isn't an image Changmun can read." = "这不是 Changmun 能读取的图片。";
+"The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "AI 正在使用此标签页。仅当你愿意向此网站表明身份时，才选择证书。";
 "The AI wants to do something that can’t be undone" = "AI 想要执行无法撤销的操作";
 "The form sends what is typed in it to %@, another site than this page." = "此表单会把填写的内容发送到 %@，这是与当前页面不同的网站。";
 "This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "这看起来像是付款、下单、发送、发布、删除或授予访问权限，无法收回，所以每次都会询问。";

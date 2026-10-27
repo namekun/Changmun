@@ -3,6 +3,7 @@
 "%@ history" = "%@ 방문 기록";
 "%@ passwords" = "%@ 비밀번호";
 "%@ rules active" = "규칙 %@개 적용 중";
+"%@ wants a certificate to identify you." = "%@에서 본인 확인용 인증서를 요청해요.";
 "%@ wants to open %@" = "%1$@에서 %2$@을(를) 열려고 해요";
 "%@ wants to use the camera" = "%@에서 카메라를 쓰려고 해요";
 "%@ wants to use the camera and microphone" = "%@에서 카메라와 마이크를 쓰려고 해요";
@@ -196,6 +197,7 @@
 "Remove this image" = "이 이미지 빼기";
 "That image is too large to attach." = "이미지가 너무 커서 붙일 수 없어요.";
 "That isn't an image Changmun can read." = "Changmun이 읽을 수 있는 이미지가 아니에요.";
+"The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "AI가 이 탭을 쓰고 있어요. 이 사이트에 본인을 알려도 될 때만 인증서를 고르세요.";
 "The AI wants to do something that can’t be undone" = "AI가 되돌릴 수 없는 일을 하려고 해요";
 "The form sends what is typed in it to %@, another site than this page." = "이 양식은 입력한 내용을 이 페이지가 아닌 다른 사이트 %@(으)로 보내요.";
 "This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "결제, 주문, 전송, 게시, 삭제, 접근 허용처럼 되돌릴 수 없는 일로 보여서 매번 물어봐요.";

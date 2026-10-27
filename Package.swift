@@ -16,7 +16,7 @@ let package = Package(
         .target(name: "ChangmunCore", path: "Sources/ChangmunCore"),
         // Apple's on-device model is there from macOS 26; on older systems tidying goes without it.
         .executableTarget(name: "Changmun", dependencies: ["ChangmunCore", .product(name: "Sparkle", package: "Sparkle")], path: "Sources/Changmun",
-                          linkerSettings: [.unsafeFlags(["-weak_framework", "FoundationModels"])]),
+                          linkerSettings: [.unsafeFlags(["-weak_framework", "FoundationModels"]), .linkedFramework("SecurityInterface")]),
         .testTarget(name: "ChangmunTests", dependencies: ["Changmun"], path: "Tests/ChangmunTests"),
     ]
 )

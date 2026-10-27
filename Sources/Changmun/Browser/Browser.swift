@@ -37,6 +37,8 @@ final class Browser: ObservableObject {
     let configuration: WKWebViewConfiguration
     let spaces: SpaceStore
     weak var window: NSWindow?
+    /// Asks which certificate to show a site that wants one (see ClientCertificates).
+    private(set) lazy var certificatePrompter = ClientCertificatePrompter(browser: self)
 
     /// A new window starts in the space the one in front is in, and the first window in the one used last.
     init(isPrivate: Bool = false, spaces: SpaceStore? = nil) {
@@ -88,7 +90,11 @@ final class Browser: ObservableObject {
     @Published var tabs: [Tab] = []
     @Published var activeID: Int? {
         // Showing another tab ends a rename in progress, which belongs to the tab it was started on.
-        didSet { if renamingTab != nil && renamingTab != activeID { renamingTab = nil } }
+        didSet {
+            if renamingTab != nil && renamingTab != activeID { renamingTab = nil }
+            // A tab that was waiting for the user to choose a certificate is asked now that it is shown.
+            if activeID != oldValue { Task { @MainActor in self.certificatePrompter.show() } }
+        }
     }
     /// The space shown: the sidebar lists its tabs, favorites and folders, and new tabs open in it.
     @Published var spaceID: UUID {

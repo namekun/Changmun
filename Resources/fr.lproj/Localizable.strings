@@ -3,6 +3,7 @@
 "%@ history" = "Historique de %@";
 "%@ passwords" = "Mots de passe de %@";
 "%@ rules active" = "%@ règles actives";
+"%@ wants a certificate to identify you." = "%@ souhaite un certificat pour vous identifier.";
 "%@ wants to open %@" = "%1$@ souhaite ouvrir %2$@";
 "%@ wants to use the camera" = "%@ souhaite utiliser la caméra";
 "%@ wants to use the camera and microphone" = "%@ souhaite utiliser la caméra et le micro";
@@ -196,6 +197,7 @@
 "Remove this image" = "Retirer cette image";
 "That image is too large to attach." = "Cette image est trop volumineuse pour être jointe.";
 "That isn't an image Changmun can read." = "Ce n’est pas une image que Changmun peut lire.";
+"The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "L’IA utilise cet onglet. Ne choisissez un certificat que si vous voulez vous identifier auprès de ce site.";
 "The AI wants to do something that can’t be undone" = "L’IA souhaite faire quelque chose d’irréversible";
 "The form sends what is typed in it to %@, another site than this page." = "Le formulaire envoie ce qui y est saisi à %@, un autre site que cette page.";
 "This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "Cela ressemble à un paiement, une commande, un envoi, une publication, une suppression ou un accès accordé, ce qui est irréversible : la question est donc posée à chaque fois.";
