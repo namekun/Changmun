@@ -79,8 +79,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var agent = AgentState()
     /// When the page last asked for a window with a user gesture behind it, and the event of that gesture (see createWebViewWith).
     var lastGestureWindow: (at: Date, event: TimeInterval?)?
-    /// A page has already asked to open an app in this load (see appLinkRequested): it doesn't get to ask again until the next page.
-    var askedForAppThisLoad = false
+    /// The tab has asked to open an app (see appLinkRequested): it doesn't ask again until the user navigates, so a page can't loop.
+    var askedForAppSinceUserNavigation = false
+    /// The question about an app is on screen.
+    var appLinkQuestionShowing = false
     /// What finds, asks about and opens the app for an address like claude://: the system's, except in tests.
     var appLinks = AppLinks.system
     /// The AI is going back, forward or reloading: a page that would send a form again is not loaded.
@@ -209,7 +211,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
 
     func load(_ url: URL) {
         self.url = url
-        askedForAppThisLoad = false
+        askedForAppSinceUserNavigation = false
         if url.isFileURL { userFileLoad = url }
         Self.load(url, in: wake())
     }

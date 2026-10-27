@@ -4,19 +4,21 @@ import AppKit
 struct AppLinks {
     /// The name of the app that opens the address, if there is one.
     var appName: (URL) -> String?
-    /// Asks the user whether the site may open the app; true for Open.
-    var confirm: (_ site: String, _ app: String, _ url: URL) -> Bool
+    /// Asks the user, in a sheet on the window, whether the site may open the app; true for Open. No window, or one already
+    /// showing a sheet, is a no.
+    var confirm: @MainActor (_ site: String, _ app: String, _ url: URL, _ window: NSWindow?) async -> Bool
     var open: (URL) -> Void
 
     @MainActor static let system = AppLinks(
         appName: { url in NSWorkspace.shared.urlForApplication(toOpen: url).map { FileManager.default.displayName(atPath: $0.path) } },
-        confirm: { site, app, url in
+        confirm: { site, app, url, window in
+            guard let window, window.attachedSheet == nil else { return false }
             let alert = NSAlert()
             alert.messageText = String(localized: "\(site) wants to open \(app)")
             alert.informativeText = String(url.absoluteString.prefix(200))
             alert.addButton(withTitle: String(localized: "Cancel"))
             alert.addButton(withTitle: String(localized: "Open"))
-            return alert.runModal() == .alertSecondButtonReturn
+            return await alert.beginSheetModal(for: window) == .alertSecondButtonReturn
         },
         open: { NSWorkspace.shared.open($0) })
 }

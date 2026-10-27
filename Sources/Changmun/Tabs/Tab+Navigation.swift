@@ -10,10 +10,16 @@ extension Tab: WKNavigationDelegate {
             return (.cancel, preferences)
         }
         if action.shouldPerformDownload { return (.download, preferences) }
+        let userInitiated = !AppScripts.drives(webView) && Self.isUserInitiated(action)
         if let url = action.request.url, let scheme = url.scheme?.lowercased(), !Self.browserSchemes.contains(scheme) {
-            appLinkRequested(url, navigationType: action.navigationType, userInitiated: !AppScripts.drives(webView) && Self.isUserInitiated(action),
-                             isMainFrame: action.targetFrame?.isMainFrame ?? true, source: action.sourceFrame.request.url, in: webView)
+            // A frame can't speak for the page: the question is only for what the page itself, or the user's click, asks.
+            appLinkRequested(url, navigationType: action.navigationType, userInitiated: userInitiated,
+                             isMainFrame: (action.targetFrame?.isMainFrame ?? true) && action.sourceFrame.isMainFrame,
+                             site: Self.askingSite(of: action.sourceFrame), in: webView)
             return (.cancel, preferences)
+        }
+        if action.targetFrame?.isMainFrame ?? true, !AgentActivity.shared.holds(self), Self.startsUserNavigation(action.navigationType, userInitiated: userInitiated) {
+            askedForAppSinceUserNavigation = false
         }
         // Local files load only as the user opened them: that file, or files in its folder (which it may read anyway).
         if let url = action.request.url, url.isFileURL {
@@ -58,18 +64,27 @@ extension Tab: WKNavigationDelegate {
 
     /// A page's address for an app (mailto:, zoommtg:, the claude: a sign-in ends with). Whatever brought it, a click, a server's
     /// redirect or a script, the user is asked whether to open the app, as Safari does; the navigation itself is always cancelled.
-    /// Asked at most once while a page loads, so that a page can't go on asking. An empty window the page opened for it is closed.
-    func appLinkRequested(_ url: URL, navigationType: WKNavigationType, userInitiated: Bool, isMainFrame: Bool, source: URL?, in webView: WKWebView) {
+    /// `site` is the page or frame that asks, as its own origin says. The question is a sheet on the window, one at a time, and a
+    /// tab gets to ask once until the user next navigates (see `startsUserNavigation`): a page can't go on asking by loading
+    /// itself again. An empty window the page opened for it is closed.
+    func appLinkRequested(_ url: URL, navigationType: WKNavigationType, userInitiated: Bool, isMainFrame: Bool, site: String?, in webView: WKWebView) {
         let scheme = url.scheme?.lowercased() ?? ""
         let blocked = Self.blockedSchemes.contains(scheme)
         let app = blocked ? nil : appLinks.appName(url)
         let decision = Self.appLinkDecision(navigationType: navigationType, userInitiated: userInitiated, isMainFrame: isMainFrame,
-                                            alreadyAskedThisLoad: askedForAppThisLoad, headless: Headless.isOn,
-                                            agentDriven: AgentActivity.shared.holds(self) || AppScripts.drives(webView), blocked: blocked, hasApp: app != nil)
+                                            askedSinceUserNavigation: askedForAppSinceUserNavigation, questionShowing: appLinkQuestionShowing,
+                                            headless: Headless.isOn, agentDriven: AgentActivity.shared.holds(self) || AppScripts.drives(webView),
+                                            blocked: blocked, hasApp: app != nil)
         if decision == .ask, let app {
-            askedForAppThisLoad = true
-            let site = webView.url?.host() ?? source?.host() ?? String(localized: "This page")
-            if appLinks.confirm(site, app, url) { appLinks.open(url) }
+            askedForAppSinceUserNavigation = true
+            appLinkQuestionShowing = true
+            let site = site ?? String(localized: "This page")
+            let window = webView.window ?? browser?.window
+            Task { @MainActor in
+                let open = await appLinks.confirm(site, app, url, window)
+                appLinkQuestionShowing = false
+                if open { appLinks.open(url) }
+            }
         }
         if isMainFrame, openerID != nil, webView.url == nil || webView.url?.scheme == "about", !webView.canGoBack { closeEmptyPopup() }
     }
@@ -77,13 +92,29 @@ extension Tab: WKNavigationDelegate {
     enum AppLinkDecision { case ask, cancelSilently }
 
     /// Whether a navigation to an app's address asks the user. A click of the user's always does (the one case allowed in a frame
-    /// too); anything else asks only in the main frame and only once in a page load. Nothing asks in a headless Changmun, for a page
-    /// the AI is driving, for a scheme that is blocked, or when no app handles it.
-    nonisolated static func appLinkDecision(navigationType: WKNavigationType, userInitiated: Bool, isMainFrame: Bool, alreadyAskedThisLoad: Bool,
-                                            headless: Bool, agentDriven: Bool, blocked: Bool, hasApp: Bool) -> AppLinkDecision {
-        guard !headless, !agentDriven, !blocked, hasApp else { return .cancelSilently }
+    /// too); anything else asks only in the main frame and only once until the user navigates again, whatever the answer was.
+    /// Nothing asks while a question is up, in a headless Changmun, for a page the AI is driving, for a scheme that is blocked,
+    /// or when no app handles it.
+    nonisolated static func appLinkDecision(navigationType: WKNavigationType, userInitiated: Bool, isMainFrame: Bool, askedSinceUserNavigation: Bool,
+                                            questionShowing: Bool, headless: Bool, agentDriven: Bool, blocked: Bool, hasApp: Bool) -> AppLinkDecision {
+        guard !headless, !agentDriven, !blocked, hasApp, !questionShowing else { return .cancelSilently }
         if navigationType == .linkActivated && userInitiated { return .ask }
-        return isMainFrame && !alreadyAskedThisLoad ? .ask : .cancelSilently
+        return isMainFrame && !askedSinceUserNavigation ? .ask : .cancelSilently
+    }
+
+    /// A navigation the user started: a click on a link or a form's button, back, forward, reload. Only these (and an address the
+    /// user loads, see `Tab.load`) give a page its question back; a page's own redirects and loads never do.
+    nonisolated static func startsUserNavigation(_ type: WKNavigationType, userInitiated: Bool) -> Bool {
+        userInitiated && [.linkActivated, .formSubmitted, .backForward, .reload, .formResubmitted].contains(type)
+    }
+
+    /// The site a frame asks for, by the origin it runs in, never by the address the tab shows: an ad's frame is not the page.
+    @MainActor static func askingSite(of frame: WKFrameInfo) -> String? {
+        askingSite(originHost: frame.securityOrigin.host, requestURL: frame.request.url)
+    }
+
+    nonisolated static func askingSite(originHost: String, requestURL: URL?) -> String? {
+        originHost.isEmpty ? requestURL?.host() : originHost
     }
 
     /// The window a sign-in opened and sent to an app's address has nothing to show once that is cancelled.
@@ -117,7 +148,6 @@ extension Tab: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         navigations += 1
-        askedForAppThisLoad = false
         if webView.url?.isFileURL != true { userFileLoad = nil }
         // A new site gets its own zoom; staying on the same one keeps what the user set (a private tab never saves it).
         let host = webView.url?.host()

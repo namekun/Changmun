@@ -12,7 +12,8 @@ extension Tab: WKUIDelegate {
         let userInitiated = !AppScripts.drives(webView) && Self.isUserInitiated(action)
         // A window for an app's address (window.open("claude://...")) is no window: the user is asked about the app here.
         if let url = action.request.url, let scheme = url.scheme?.lowercased(), !Self.browserSchemes.contains(scheme) {
-            appLinkRequested(url, navigationType: action.navigationType, userInitiated: userInitiated, isMainFrame: true, source: action.sourceFrame.request.url, in: webView)
+            appLinkRequested(url, navigationType: action.navigationType, userInitiated: userInitiated, isMainFrame: action.sourceFrame.isMainFrame,
+                             site: Self.askingSite(of: action.sourceFrame), in: webView)
             return nil
         }
         if userInitiated, Self.isPeekClick(action), let url = action.request.url {
