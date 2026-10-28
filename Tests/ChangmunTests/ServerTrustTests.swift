@@ -227,11 +227,150 @@ struct CertificateDetailsTests {
         let failure = try #require(TrustFailure.from(error: error(NSURLErrorServerCertificateUntrusted), url: nil, changed: { host, port, _ in host == "intranet.test" && port == 8443 }))
         #expect(failure.host == "intranet.test" && failure.port == 8443 && failure.code == -1202 && failure.changed)
         #expect(failure.reason == .selfSigned && failure.url == address)
+        #expect(failure.visit == .offered)
+        let wentBad = try #require(TrustFailure.from(error: error(NSURLErrorServerCertificateUntrusted), url: nil, changed: { _, _, _ in false }, wasTrusted: { host, port in host == "intranet.test" && port == 8443 }))
+        #expect(wentBad.visit == .refusedWentBad, "it loaded over a trusted connection before: no way on")
+        let strict = NSError(domain: NSURLErrorDomain, code: NSURLErrorServerCertificateUntrusted,
+                             userInfo: [NSURLErrorFailingURLErrorKey: URL(string: "https://intranet.dev/")!, NSURLErrorFailingURLPeerTrustErrorKey: trust as Any])
+        #expect(TrustFailure.from(error: strict, url: nil, changed: { _, _, _ in false })?.visit == .refusedStrictTransport)
         #expect(TrustFailure.from(error: error(NSURLErrorTimedOut), url: nil, changed: { _, _, _ in false }) == nil, "another kind of failure")
         #expect(TrustFailure.from(error: error(NSURLErrorServerCertificateUntrusted, domain: "WebKitErrorDomain"), url: nil, changed: { _, _, _ in false }) == nil)
         #expect(TrustFailure.from(error: error(NSURLErrorServerCertificateUntrusted, trust: nil), url: nil, changed: { _, _, _ in false }) == nil, "no certificate to show")
         let http = NSError(domain: NSURLErrorDomain, code: NSURLErrorServerCertificateUntrusted,
                            userInfo: [NSURLErrorFailingURLErrorKey: URL(string: "http://intranet.test/")!, NSURLErrorFailingURLPeerTrustErrorKey: trust as Any])
         #expect(TrustFailure.from(error: http, url: nil, changed: { _, _, _ in false }) == nil, "only https")
+    }
+}
+
+struct ServerTrustPolicyTests {
+    @Test func aSiteThatInsistsOnHTTPSByThePreloadListCannotBeOverridden() {
+        for host in ["example.dev", "EXAMPLE.App", "a.b.page", "my.new", "x.day.", "foo.zip", "a.mov", "dev"] {
+            #expect(ServerTrustPolicy.visit(host: host, wasTrusted: false) == .refusedStrictTransport, "\(host)")
+        }
+        for host in ["example.com", "intranet.local", "localhost", "127.0.0.1", "a.xyz", "dev.example.com", "app.example.org", "foo.fyi", "device.example", "[::1]"] {
+            #expect(ServerTrustPolicy.visit(host: host, wasTrusted: false) == .offered, "\(host)")
+        }
+    }
+
+    @Test func aCertificateThatWasFineAndIsNotIsNotOverridden() {
+        #expect(ServerTrustPolicy.visit(host: "example.com", wasTrusted: true) == .refusedWentBad)
+        #expect(ServerTrustPolicy.visit(host: "example.dev", wasTrusted: true) == .refusedStrictTransport, "the stricter reason first")
+    }
+
+    @Test func aHostIsTrustedPerStore() {
+        var trusted = TrustedSites()
+        let profile = UUID()
+        trusted.add(host: "A.test", port: 443, store: nil)
+        #expect(trusted.contains(host: "a.test", port: 443, store: nil))
+        #expect(!trusted.contains(host: "a.test", port: 443, store: profile))
+        #expect(!trusted.contains(host: "a.test", port: 8443, store: nil))
+    }
+
+    @Test func aPrivateWindowsAcceptedHostsGoWithIt() {
+        var accepted = AcceptedSites()
+        let one = NSObject(), two = NSObject()
+        accepted.add(host: "a.test", port: 443, owner: ObjectIdentifier(one))
+        accepted.add(host: "b.test", port: 443, owner: ObjectIdentifier(one))
+        accepted.add(host: "b.test", port: 443, owner: ObjectIdentifier(two))
+        accepted.add(host: "c.test", port: 443)
+        #expect(accepted.contains(host: "a.test", port: 443))
+        accepted.removeAll(ownedBy: ObjectIdentifier(one))
+        #expect(!accepted.contains(host: "a.test", port: 443), "only that window accepted it")
+        #expect(accepted.contains(host: "b.test", port: 443), "another window accepted it too")
+        #expect(accepted.contains(host: "c.test", port: 443), "a window that is not private keeps it for the run")
+        accepted.removeAll(ownedBy: ObjectIdentifier(two))
+        #expect(!accepted.contains(host: "b.test", port: 443))
+    }
+}
+
+struct ServerTrustTextTests {
+    @Test func textFromACertificateLosesControlAndTurningCharactersAndIsCapped() {
+        #expect(ServerTrust.sanitized("a\u{0}b\u{7}c\nd\te") == "abcde")
+        #expect(ServerTrust.sanitized("pay\u{202E}lap.com") == "paylap.com", "a right-to-left override would show the end first")
+        #expect(ServerTrust.sanitized("x\u{2066}y\u{2069}z\u{200F}\u{061C}\u{2028}") == "xyz")
+        #expect(ServerTrust.sanitized("한국 ✓ é") == "한국 ✓ é", "ordinary text is kept")
+        let long = String(repeating: "a", count: 300)
+        #expect(ServerTrust.sanitized(long) == String(repeating: "a", count: 200) + "…")
+        #expect(ServerTrust.sanitized(long, limit: 500) == long)
+    }
+
+    @Test func anInternationalizedHostIsAlsoShownInUnicode() {
+        #expect(ServerTrust.unicodeHost("xn--bcher-kva.example") == "bücher.example")
+        #expect(ServerTrust.unicodeHost("xn--3e0b707e") == "한국")
+        #expect(ServerTrust.unicodeHost("www.xn--vermgensberatung-pwb.example") == "www.vermögensberatung.example")
+        #expect(ServerTrust.unicodeHost("example.com") == "example.com")
+        #expect(ServerTrust.unicodeHost("xn--!!.example") == "xn--!!.example", "a label that does not decode is left as it is")
+    }
+
+    @Test func theWarningNamesTheHostAndPortTheUnicodeFormAndTheFullAddress() {
+        let certificate = CertificateDetails(subject: "s", issuer: "i", notBefore: Date(), notAfter: Date(), fingerprint: "ab", names: [], isSelfSigned: true)
+        let address = URL(string: "https://xn--bcher-kva.example:8443/a/b?x=1#y")!
+        let failure = TrustFailure(url: address, host: "xn--bcher-kva.example", port: 8443, code: -1202, reason: .selfSigned, certificate: certificate, changed: false)
+        #expect(failure.hostAndPort == "xn--bcher-kva.example:8443")
+        #expect(failure.unicodeHost == "bücher.example")
+        #expect(failure.address == "https://xn--bcher-kva.example:8443/a/b?x=1#y")
+        let plain = TrustFailure(url: URL(string: "https://www.example.com/")!, host: "www.example.com", port: 443, code: -1202, reason: .selfSigned, certificate: certificate, changed: false)
+        #expect(plain.hostAndPort == "www.example.com:443", "not trimmed of its www, and the port is said though it is the usual one")
+        #expect(plain.unicodeHost == nil)
+        let v6 = TrustFailure(url: URL(string: "https://[::1]:9/")!, host: "::1", port: 9, code: -1202, reason: .selfSigned, certificate: certificate, changed: false)
+        #expect(v6.hostAndPort == "[::1]:9")
+    }
+}
+
+/// What is kept for a site (saved logins, remembered permissions, the AI's approvals) is not used on a page whose certificate the user went on with.
+@MainActor
+struct UnverifiedPageTests {
+    private let owner = NSObject()
+
+    private func accept(_ host: String, port: Int = 443) { ServerTrustStore.acceptedAnywhere.add(host: host, port: port, owner: ObjectIdentifier(owner)) }
+    private func forget() { ServerTrustStore.acceptedAnywhere.removeAll(ownedBy: ObjectIdentifier(owner)) }
+
+    @Test func aPageOnAHostTheUserWentOnWithIsUnverifiedForCredentials() {
+        let host = "unverified-\(UUID().uuidString.prefix(8).lowercased()).test"
+        defer { forget() }
+        #expect(!Tab.isUnverified(URL(string: "https://\(host)/login")))
+        accept(host)
+        #expect(Tab.isUnverified(URL(string: "https://\(host)/login")), "no saved login is filled or offered for saving there")
+        #expect(Tab.isUnverified(URL(string: "https://\(host.uppercased())/other?x=1")))
+        #expect(!Tab.isUnverified(URL(string: "https://\(host):8443/")), "another port is another site")
+        #expect(!Tab.isUnverified(URL(string: "https://www.\(host)/")), "another host")
+        #expect(!Tab.isUnverified(nil) && !Tab.isUnverified(URL(string: "about:blank")))
+    }
+
+    @Test func theSignInToolRefusesAnUnverifiedHost() {
+        let host = "signin-\(UUID().uuidString.prefix(8).lowercased()).test"
+        defer { forget() }
+        #expect(!SignIn.isUnverified(host: host))
+        accept(host)
+        #expect(SignIn.isUnverified(host: host))
+        #expect(!SignIn.isUnverified(host: "other-\(host)"))
+    }
+
+    @Test func aRememberedAllowanceIsNotAppliedToAnUnverifiedPageButARefusalStands() {
+        typealias Decision = SitePermissions.Decision
+        #expect(SitePermissions.effective(.allow, unverified: false) == .allow)
+        #expect(SitePermissions.effective(.allow, unverified: true) == .ask, "asked again each time")
+        #expect(SitePermissions.effective(.deny, unverified: true) == .deny)
+        #expect(SitePermissions.effective(.ask, unverified: true) == .ask)
+    }
+
+    @Test func aWindowThatClosedTakesItsHostsAwayFromWhatIsUnverified() {
+        let host = "private-\(UUID().uuidString.prefix(8).lowercased()).test"
+        accept(host)
+        #expect(Tab.isUnverified(URL(string: "https://\(host)/")))
+        forget()
+        #expect(!Tab.isUnverified(URL(string: "https://\(host)/")))
+    }
+}
+
+struct ServerTrustBackTests {
+    private func urls(_ list: String...) -> [URL] { list.map { URL(string: $0)! } }
+
+    @Test func goBackSkipsThePagesTheTabMayNotShowAndIsOneStepOtherwise() {
+        let history = urls("https://a.test/", "https://unverified.test/", "about:blank")
+        #expect(ServerTrust.backTarget(history: history, isStopped: { _ in false }) == 1, "one step when the page before is fine")
+        #expect(ServerTrust.backTarget(history: history, isStopped: { $0.host() == "unverified.test" }) == 0, "the page that was on an exception is skipped")
+        #expect(ServerTrust.backTarget(history: history, isStopped: { _ in true }) == nil, "nothing before it can be shown")
+        #expect(ServerTrust.backTarget(history: urls("about:blank"), isStopped: { _ in false }) == nil, "no page before")
     }
 }

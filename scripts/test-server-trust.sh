@@ -52,6 +52,9 @@ openssl x509 -req -in "$WORK/leaf.csr" -CA "$WORK/ca.pem" -CAkey "$WORK/ca.key" 
 SELF=$(port); PRIVATE=$(port)
 serve "$SELF" "$WORK/selfA.pem" "$WORK/selfA.key"; SELF_PID=$!
 serve "$PRIVATE" "$WORK/leaf.pem" "$WORK/leaf.key"
+# Keep-alive HTTPS servers (HTTP/1.1, WebSocket) with the first self-signed certificate: s_server closes after each page, which hides connection reuse.
+KA1=$(port); KA2=$(port)
+for p in "$KA1" "$KA2"; do python3 -I scripts/test-https-server.py "$p" "$WORK/selfA.pem" "$WORK/selfA.key" & PIDS+=($!); done
 sleep 1
 
 if pgrep -f "Changmun Headless[.]app/Contents" >/dev/null && [[ ! -f "$ENDPOINT" ]]; then echo "another Changmun Headless is running without an endpoint" >&2; exit 2; fi
@@ -64,6 +67,8 @@ FAILED=0
 expect() { # what, got, wanted
     if [[ "$2" == "$3" ]]; then echo "ok: $1"; else echo "FAIL: $1 (got '$2', wanted '$3')" >&2; FAILED=1; fi
 }
+# What was seen where nothing is asserted: WebKit behaviour that can't be changed, reported as it is.
+info() { echo "info: $1: $2"; }
 
 post /server-trust '{"exceptions": "clear", "auth": true}' >/dev/null || { echo "no /server-trust: is the headless app of this build?" >&2; exit 2; }
 
@@ -125,5 +130,111 @@ R="$(trust "{\"open\": \"https://localhost:$SELF/\", \"wait\": 3500}" failure.re
 expect "a profile space is warned though another store went on" "$R" selfSigned
 expect "and has no exception" "$(trust '{}' usesException)" false
 post /spaces '{"action": "delete", "name": "Trust test"}' >/dev/null
+
+# ---- Keep-alive HTTPS (what WebKit does with a connection it was let through on), and the places an exception must not reach ----
+trust '{"exceptions": "clear", "auth": true}' failure >/dev/null
+R="$(trust "{\"open\": \"https://localhost:$KA1/conn-page\", \"wait\": 3000}" failure.reason)"
+expect "a keep-alive server with a self-signed certificate is warned about" "$R" selfSigned
+expect "the warning names the host and port, not trimmed" "$(trust '{}' failure.hostAndPort)" "localhost:$KA1"
+expect "and the whole address" "$(trust '{}' failure.address)" "https://localhost:$KA1/conn-page"
+trust '{"action": "visit", "wait": 3500}' failure >/dev/null
+CONN_FIRST="$(trust '{}' title)"
+expect "it loads after Visit This Website" "${CONN_FIRST%%:*}" conn
+trust "{\"open\": \"https://localhost:$KA1/conn-page\", \"wait\": 3500}" failure >/dev/null
+CONN_SECOND="$(trust '{}' title)"
+info "the connection a second tab gets (first $CONN_FIRST)" "$CONN_SECOND"
+
+# Taken away while the connection is warm: the reload has to be judged again.
+R="$(trust '{"action": "revoke", "wait": 3500}' failure.reason)"
+expect "an exception taken away blocks a reload though the connection was kept alive" "$R" selfSigned
+info "the page left running behind that warning (should be empty)" "$(trust '{"eval": "document.body ? document.body.innerText.length : 0"}' result)"
+info "address of the page behind it" "$(trust '{}' webViewURL)"
+info "can go back" "$(trust '{}' canGoBack)"
+
+# Same host, another port; the same address by another name.
+trust '{"auth": true, "action": "visit", "wait": 3500}' failure >/dev/null
+R="$(trust "{\"open\": \"https://localhost:$KA2/conn-page\", \"wait\": 3000}" failure.reason)"
+expect "the same host on another port is warned about" "$R" selfSigned
+R="$(trust "{\"open\": \"https://127.0.0.1:$KA1/conn-page\", \"wait\": 3000}" failure.reason)"
+expect "the same address by another name (127.0.0.1) is warned about, for its name" "$R" nameMismatch
+
+# A private window has its own exceptions and its own WebKit session.
+trust '{"private": "open", "wait": 1500}' failure >/dev/null
+R="$(trust "{\"in\": \"private\", \"open\": \"https://localhost:$KA1/conn-page\", \"wait\": 3500}" failure.reason)"
+expect "a private window is warned about a site another window went on with" "$R" selfSigned
+expect "and has no exception of its own" "$(trust '{"in": "private"}' usesException)" false
+trust '{"in": "private", "auth": true, "action": "visit", "wait": 3500}' failure >/dev/null
+expect "going on in the private window loads the page there" "$(trust '{"in": "private"}' usesException)" true
+trust '{"private": "close", "wait": 1000}' failure >/dev/null
+
+# Subresources, workers and WebSockets to the excepted host and to another port, from a page of another origin.
+cat > "$WORK/probe.html" <<'HTML'
+<title>waiting</title><script>
+const out = {};
+const show = () => document.title = Object.entries(out).map(([k, v]) => k + ':' + v).join(' ');
+fetch('https://localhost:@/conn', {mode: 'no-cors'}).then(() => out.fetch = 'ok', () => out.fetch = 'failed').then(show);
+try {
+  const w = new Worker(URL.createObjectURL(new Blob(["fetch('https://localhost:@/conn', {mode: 'no-cors'}).then(() => postMessage('ok'), () => postMessage('failed'))"])));
+  w.onmessage = e => { out.worker = e.data; show(); };
+  w.onerror = () => { out.worker = 'failed'; show(); };
+} catch (e) { out.worker = 'failed'; show(); }
+try {
+  const s = new WebSocket('wss://localhost:@/ws');
+  s.onopen = () => { out.ws = 'ok'; show(); s.close(); };
+  s.onerror = () => { out.ws = 'failed'; show(); };
+} catch (e) { out.ws = 'failed'; show(); }
+</script>
+HTML
+# Loads a page of another origin (https://lab.test/) with the file's text, "@" standing for the port.
+FROM_LAB() { post /load-html "$(python3 -I -c 'import json, sys; print(json.dumps({"html": open(sys.argv[1]).read().replace("@", sys.argv[2]), "base": "https://lab.test/"}))' "$1" "$2")" >/dev/null; sleep 4.5; }
+FROM_LAB "$WORK/probe.html" "$KA1"
+info "from another origin, to the excepted host: fetch, worker and wss" "$(trust '{}' title)"
+FROM_LAB "$WORK/probe.html" "$KA2"
+T="$(trust '{}' title)"
+info "from another origin, to the same host on a port with no exception" "$T"
+expect "none of fetch, worker and wss reaches a port with no exception" "$(grep -c ok <<<"${T// /$'\n'}")" 0
+trust "{\"open\": \"https://localhost:$KA1/page\", \"wait\": 4500}" failure >/dev/null
+info "the excepted site's own page: fetch, its worker and wss" "$(trust '{}' title)"
+
+# A page of the AI's, when the connection is warm.
+scripts/headless.sh call navigate "{\"url\": \"https://localhost:$KA1/conn-page\"}" >/dev/null
+sleep 2
+expect "a page the AI drives is still not let through when the connection is warm" "$(trust '{}' webViewURL)" "about:blank"
+
+# Into an excepted host by a link and by a redirect: the address bar and the page's rules follow the page that committed, not the one before it.
+trust '{"auth": true, "exceptions": "clear"}' failure >/dev/null
+R="$(trust "{\"open\": \"https://localhost:$KA1/conn-page\", \"wait\": 3000}" failure.reason)"
+expect "with its exception cleared the site is warned about again, though WebKit has a connection kept alive for it" "$R" selfSigned
+trust '{"action": "visit", "wait": 3500}' failure >/dev/null
+trust "{\"open\": \"https://localhost:$KA2/conn-page\", \"wait\": 3000}" failure >/dev/null
+trust '{"action": "visit", "wait": 3500}' failure >/dev/null
+post /load-html "{\"html\": \"<a id=l href='https://localhost:$KA1/conn-page'>go</a>\", \"base\": \"https://lab.test/\"}" >/dev/null
+expect "the page before is not an exception" "$(trust '{}' usesException)" false
+trust '{"eval": "document.getElementById(\"l\").click()", "wait": 3500}' failure >/dev/null
+expect "a click on a link into an excepted host marks the address bar" "$(trust '{}' usesException)" true
+expect "and the page is that host's" "$(trust '{}' webViewURL)" "https://localhost:$KA1/conn-page"
+# The warning over a page that was live: nothing runs under it, and Go Back is one step.
+trust '{"action": "revoke", "wait": 3000}' failure >/dev/null
+expect "an exception taken away puts the warning over the page" "$(trust '{}' failure.host)" localhost
+expect "and nothing is left running under it" "$(trust '{}' webViewURL)" "about:blank"
+expect "Go Back from it is one step, to the page before (the page it replaced is not in the history)" "$(trust '{"action": "back", "wait": 2500}' webViewURL)" "https://localhost:$KA2/conn-page"
+trust "{\"open\": \"https://localhost:$KA1/conn-page\", \"wait\": 3000}" failure >/dev/null
+trust '{"action": "visit", "wait": 3500}' failure >/dev/null
+trust "{\"open\": \"https://localhost:$KA1/redir?to=https://localhost:$KA2/conn-page\", \"wait\": 3500}" failure >/dev/null
+expect "a redirect into another excepted host lands on its page" "$(trust '{}' webViewURL)" "https://localhost:$KA2/conn-page"
+expect "and marks the address bar" "$(trust '{}' usesException)" true
+expect "the lock is not shown (the page is unverified)" "$(trust '{}' unverified)" true
+post /load-html "{\"html\": \"<a id=l href='https://localhost:$KA2/conn-page'>go</a>\", \"base\": \"https://lab.test/\"}" >/dev/null
+expect "a page with no exception is not marked" "$(trust '{}' unverified)" false
+
+# One question at a time: a second press while the Mac's owner is asked does not ask again.
+trust '{"exceptions": "clear"}' failure >/dev/null
+trust "{\"open\": \"https://localhost:$SELF/\", \"wait\": 3000}" failure >/dev/null
+BEFORE="$(trust '{}' authAsked)"
+trust '{"auth": true, "authDelay": 1500, "action": "visit", "visits": 3, "wait": 3000}' failure >/dev/null
+expect "three presses ask once" "$(( $(trust '{}' authAsked) - BEFORE ))" 1
+trust '{"authDelay": 0}' failure >/dev/null
+
+# A certificate that was fine and is not: this host is also "trusted earlier" for the Mac; the policy itself is unit-tested (ServerTrustPolicyTests).
 
 [[ $FAILED -eq 0 ]] && echo "all passed" || { echo "FAILED" >&2; exit 1; }

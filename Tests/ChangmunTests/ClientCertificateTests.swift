@@ -566,3 +566,19 @@ struct ClientCertificateKeychainTests {
         return try #require(Data(base64Encoded: pem.split(separator: "\n").filter { !$0.hasPrefix("-----") }.joined()))
     }
 }
+
+struct ClientCertificateSheetTests {
+    @Test func theSheetSaysSoWhenAllIdentitiesAreShownBecauseNoneMatchedTheNamedIssuers() {
+        func candidate(_ issuer: String) -> ClientCertificates.Candidate {
+            ClientCertificates.Candidate(id: issuer, name: issuer, issuers: [ClientCertificates.key(ofName: dn(issuer))], notBefore: now - day, notAfter: now + day, identity: nil)
+        }
+        let named = [dn("Elsewhere")]
+        #expect(ClientCertificates.isShownBeyondNamedIssuers([candidate("One"), candidate("Two")], acceptedIssuers: named))
+        #expect(!ClientCertificates.isShownBeyondNamedIssuers([candidate("One"), candidate("Elsewhere")], acceptedIssuers: named), "one of them matches")
+        #expect(!ClientCertificates.isShownBeyondNamedIssuers([candidate("One")], acceptedIssuers: []), "the site named none")
+        #expect(!ClientCertificates.isShownBeyondNamedIssuers([], acceptedIssuers: named))
+        #expect(ClientCertificatePrompter.message(host: "a.test", relaxed: true).contains("\n"))
+        #expect(!ClientCertificatePrompter.message(host: "a.test", relaxed: false).contains("\n"))
+        #expect(ClientCertificatePrompter.message(host: "a.test", relaxed: true).hasPrefix(ClientCertificatePrompter.message(host: "a.test", relaxed: false)))
+    }
+}

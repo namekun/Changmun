@@ -49,8 +49,9 @@ enum ClientCertificateTestHook {
 
     /// The server's certificate judged against the test CA alone, for the one host and port a test named; nil for any other.
     static func credential(forServerTrust trust: SecTrust, host: String, port: Int) -> URLCredential? {
+        guard Headless.isTestCopy else { return nil }
         let (anchors, trusted) = state.withLock { ($0.anchors, $0.trustedHost == host && $0.trustedPorts.contains(port)) }
-        guard Headless.isTestCopy, trusted else { return nil }
+        guard trusted else { return nil }
         SecTrustSetAnchorCertificates(trust, anchors as CFArray)
         SecTrustSetAnchorCertificatesOnly(trust, true)
         return SecTrustEvaluateWithError(trust, nil) ? URLCredential(trust: trust) : nil
@@ -67,6 +68,7 @@ enum ClientCertificateTestHook {
     /// A keychain file at `path` holding the identities of the PKCS #12 files (and the certificates of the PEM or DER files), searched alone.
     /// Nil when it worked, else what went wrong.
     static func makeKeychain(at path: String, identities: [(file: String, password: String)], certificates: [String]) -> String? {
+        guard Headless.isTestCopy else { return "not the test copy" }
         guard let create = symbol("SecKeychainCreate", as: CreateKeychain.self) else { return "SecKeychainCreate is gone" }
         var made: AnyObject?
         let password = "test"
@@ -95,6 +97,7 @@ enum ClientCertificateTestHook {
 
     /// Takes the keychain file away and forgets what a test put in place.
     static func reset() {
+        guard Headless.isTestCopy else { return }
         let old = state.withLock { state -> (CFArray?, String?) in
             defer { state = State() }
             return (state.searchList, state.keychainPath)

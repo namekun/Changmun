@@ -97,7 +97,7 @@ final class LoginCapture: NSObject, WKScriptMessageHandler {
         let username = body["username"] as? String ?? ""
         MainActor.assumeIsolated {
             guard let webView = message.webView, let url = webView.url, url.scheme == "https", let host = Logins.key(for: url), let site = url.host(),
-                  let tab = Browser.tab(showing: webView), !tab.isPrivate else { return }
+                  let tab = Browser.tab(showing: webView), !tab.isPrivate, !Tab.isUnverified(url) else { return }
             guard let offer = LoginOffer.make(host: host, captured: username, password: password) else { return }
             // The saved secret is read only when that account is already saved here. The never-list names sites, not ports.
             guard Self.worthOffering(LoginOffer(host: site, username: offer.username, password: password), neverHosts: Preferences.shared.neverSaveLoginHosts, saved: {

@@ -13,6 +13,8 @@ final class ClientCertificatePrompter {
         let agentDriven: Bool
         /// What the panel files the choice under (an identity preference in the user's keychain), or nil to keep nothing there.
         let domain: String?
+        /// The site named issuers and none of these is from one of them: they are shown all the same, and the sheet says so.
+        var relaxed = false
     }
 
     private weak var browser: Browser?
@@ -152,7 +154,13 @@ final class ClientCertificatePrompter {
         let sheetBefore = window.attachedSheet
         defer { shownSheet = sheetBefore == nil ? window.attachedSheet : nil }
         panel.beginSheet(for: window, modalDelegate: delegate, didEnd: #selector(SheetEnd.sheetDidEnd(_:returnCode:contextInfo:)), contextInfo: nil,
-                         identities: entry.info.candidates.compactMap(\.identity), message: String(localized: "\(entry.info.host) wants a certificate to identify you."))
+                         identities: entry.info.candidates.compactMap(\.identity), message: Self.message(host: entry.info.host, relaxed: entry.info.relaxed))
+    }
+
+    /// What the sheet says: who asks and, when the list the site sent matched none of the certificates, that all of them are shown.
+    nonisolated static func message(host: String, relaxed: Bool) -> String {
+        let asks = String(localized: "\(host) wants a certificate to identify you.")
+        return relaxed ? asks + "\n" + String(localized: "The site named other certificate issuers than yours, so all your certificates are shown.") : asks
     }
 
     private func answer(_ key: String, with choice: ClientCertificates.Candidate?) {

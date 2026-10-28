@@ -78,6 +78,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// The address the main frame was last told to load, which a server's certificate is for when the challenge comes (the web view's own address is
     /// still the page before).
     var navigatingTo: URL?
+    /// The Mac's owner is being asked to confirm going on to a site whose certificate can't be verified: a second press does not ask again.
+    var isConfirmingTrust = false
     /// The load of our own page for an error, which is not a new page that takes the failure away.
     var errorNavigation: WKNavigation?
     @Published private(set) var isPlayingAudio = false

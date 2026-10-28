@@ -712,7 +712,6 @@
 "The model and effort for your next messages (also in Settings › AI)" = "다음 메시지부터 쓸 모델과 추론 강도예요 (설정 › AI에서도 바꿀 수 있어요)";
 "Working for %@" = "%@ 동안 작업 중";
 "You chose to be asked before every action." = "모든 동작 전에 묻도록 설정했어요.";
-"Authentication is required to visit a website whose certificate can’t be verified" = "인증서를 확인할 수 없는 웹사이트를 방문하려면 인증이 필요해요";
 "Certificate Details" = "인증서 자세히 보기";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "%@에 연결된 것이 맞는지 Changmun이 확인할 수 없어요. 네트워크의 누군가가 이 사이트인 척하며 보내는 내용을 볼 수도 있어요.";
 "Don’t enter passwords or payment details here unless you know and trust this site." = "이 사이트를 잘 알고 신뢰하는 경우가 아니라면 비밀번호나 결제 정보를 입력하지 마세요.";
@@ -735,3 +734,8 @@
 "Valid from" = "유효 시작일";
 "Visit This Website" = "이 웹사이트 방문";
 "Certificate not verified" = "확인되지 않은 인증서";
+"Authentication is required to visit %@ although its certificate can’t be verified" = "%@ 인증서를 확인할 수 없지만 방문하려면 인증이 필요해요";
+"This site insists on a secure connection, so its certificate can’t be overridden." = "이 사이트는 보안 연결을 반드시 요구하므로 인증서 경고를 무시할 수 없어요.";
+"This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on." = "이 사이트의 인증서는 이번 세션 앞부분에서는 문제가 없었는데 지금은 아니에요. 누군가 연결을 가로채고 있을 수 있어서 계속할 방법이 없어요.";
+"The site named other certificate issuers than yours, so all your certificates are shown." = "사이트가 지정한 인증서 발급 기관이 내 인증서와 달라서 모든 인증서를 보여 드려요.";
+"This page's certificate wasn't verified: you chose to go on." = "이 페이지의 인증서는 확인되지 않았어요. 계속하기로 직접 선택했어요.";

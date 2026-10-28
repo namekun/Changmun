@@ -712,7 +712,6 @@
 "The model and effort for your next messages (also in Settings › AI)" = "后续消息使用的模型和推理强度（也可在设置 › AI 中更改）";
 "Working for %@" = "已处理 %@";
 "You chose to be asked before every action." = "你已设置为每次操作前都询问。";
-"Authentication is required to visit a website whose certificate can’t be verified" = "访问无法验证证书的网站需要进行身份验证";
 "Certificate Details" = "证书详细信息";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "Changmun 无法确认你连接的是 %@。网络上的某个人可能正在冒充该网站，并看到你发送的内容。";
 "Don’t enter passwords or payment details here unless you know and trust this site." = "除非你了解并信任该网站，否则请勿在此输入密码或付款信息。";
@@ -735,3 +734,8 @@
 "Valid from" = "生效日期";
 "Visit This Website" = "访问此网站";
 "Certificate not verified" = "证书未验证";
+"Authentication is required to visit %@ although its certificate can’t be verified" = "访问 %@ 需要进行身份验证（其证书无法验证）";
+"This site insists on a secure connection, so its certificate can’t be overridden." = "该网站强制要求安全连接，因此无法忽略其证书警告。";
+"This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on." = "该网站的证书在本次会话早些时候没有问题，现在却有问题。可能有人正在拦截连接，因此无法继续。";
+"The site named other certificate issuers than yours, so all your certificates are shown." = "该网站指定的证书颁发机构与你的证书都不同，因此显示了你的所有证书。";
+"This page's certificate wasn't verified: you chose to go on." = "此页面的证书未经验证：这是你选择继续的。";

@@ -241,7 +241,8 @@ final class FillAuthorization {
 extension Tab {
     /// Shows the key button when the page asks for a password and one is saved for its host.
     func checkForLogins() {
-        guard let webView, webView.url?.scheme == "https", let host = webView.url.flatMap(Logins.key(for:)) else { savedLogins = []; return }
+        // Not on a page whose certificate the user went on with, though it could not be verified: a saved password is for the site it was saved for.
+        guard let webView, webView.url?.scheme == "https", !Self.isUnverified(webView.url), let host = webView.url.flatMap(Logins.key(for:)) else { savedLogins = []; return }
         let accounts = Logins.accounts(for: host)
         guard !accounts.isEmpty else { savedLogins = []; return }
         webView.evaluateJavaScript("!!document.querySelector('input[type=password], input[autocomplete=username]')") { [weak self] value, _ in
@@ -251,13 +252,13 @@ extension Tab {
 
     /// Fills a saved login into the page the user is on, after the device owner has confirmed (unless they turned that off).
     func fillLogin(username: String, authorization: FillAuthorization? = nil, readPassword: @escaping (String, String) -> String? = Logins.password(host:username:)) {
-        guard let webView, let origin = Self.httpsOrigin(webView.url) else { return }
+        guard let webView, let origin = Self.httpsOrigin(webView.url), !Self.isUnverified(webView.url) else { return }
         let host = webView.url.flatMap(Logins.key(for:)) ?? origin.host
         Task { @MainActor [weak self] in
             guard let password = await (authorization ?? .shared).read({ readPassword(host, username) }) else { return }
             // The page may have moved on while the question was open (to http, another port, another site): the password
             // goes only to the origin it was chosen for.
-            guard let self, Self.httpsOrigin(self.webView?.url) == origin else { return }
+            guard let self, Self.httpsOrigin(self.webView?.url) == origin, !Self.isUnverified(self.webView?.url) else { return }
             self.fill(username: username, password: password)
         }
     }

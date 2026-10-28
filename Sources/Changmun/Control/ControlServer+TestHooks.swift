@@ -232,38 +232,59 @@ extension ControlServer {
             return true
         }
         // Tests only: a page whose server's certificate can't be verified (see ServerTrust). "auth" is what the Mac's owner is made to answer to the
-        // confirmation ("Visit This Website" asks) in the test's place, true or false; "action" is visit, back or revoke, pressed on the tab in front as
-        // the buttons would (visit waits for the confirmation and the page loading again); "exceptions": "clear" forgets them all. The answer says what the
-        // tab in front shows: the warning (its reason, host, port, fingerprint, whether the certificate changed), whether the address bar marks an
-        // exception, how often the confirmation was asked, and the page's address and title.
+        // confirmation ("Visit This Website" asks) in the test's place, true or false ("authDelay": how many milliseconds it takes to answer); "action"
+        // is visit, back or revoke, pressed on the tab in front as the buttons would (visit waits for the confirmation and the page loading again);
+        // "exceptions": "clear" forgets them all; "open" loads an address in a new tab as the user does; "eval" runs a script in the tab's page ("result");
+        // "visits" presses visit that many times at once; "private": "open" opens a private window and "close" closes it, and "in": "private" aims the
+        // request at it. The answer says what the tab in front shows: the warning (its reason, host, port, fingerprint, whether the certificate changed and
+        // whether the user may go on), whether the address bar marks an exception, how often the confirmation was asked, and the page's address and title.
         if Headless.isTestCopy, request.method == "POST", request.path == "/server-trust",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
             Task { @MainActor in
-                guard let browser = Browser.recent else { return self.respond(connection, status: "404 Not Found", body: ["error": "no window"]) }
+                switch body["private"] as? String {
+                case "open": if !Browser.all.contains(where: \.isPrivate) { BrowserWindow.open(private: true) }
+                case "close": Browser.all.first(where: \.isPrivate)?.window?.close()
+                default: break
+                }
+                let aimed = body["in"] as? String == "private" ? Browser.all.first(where: \.isPrivate) : Browser.recent
+                guard let browser = aimed else { return self.respond(connection, status: "404 Not Found", body: ["error": "no window"]) }
                 // "open" loads an address in a new tab as the user does (the AI's tools mark a tab as the AI's, which is never offered the way on).
                 if let address = (body["open"] as? String).flatMap(URL.init(string:)) { _ = browser.openTab(url: address) }
                 guard let tab = browser.active else { return self.respond(connection, status: "404 Not Found", body: ["error": "no tab"]) }
+                if let delay = body["authDelay"] as? Int { ServerTrustTestState.delay = delay }
                 if let answer = body["auth"] as? Bool {
                     ServerTrust.confirm = { _ in
                         ServerTrustTestState.asked += 1
+                        try? await Task.sleep(for: .milliseconds(ServerTrustTestState.delay))
                         return answer
                     }
                 }
                 if body["exceptions"] as? String == "clear" { browser.trustStore.exceptions.removeAll() }
                 switch body["action"] as? String {
-                case "visit": await tab.continueToUntrustedSite()
+                case "visit":
+                    // More than one press at once: only one question is asked.
+                    await withTaskGroup(of: Void.self) { group in
+                        for _ in 0..<max(1, body["visits"] as? Int ?? 1) { group.addTask { @MainActor in await tab.continueToUntrustedSite() } }
+                    }
                 case "back": tab.leaveUntrustedSite()
                 case "revoke": tab.stopTrustingCertificate()
                 default: break
                 }
+                var result: Any?
+                if let script = body["eval"] as? String { result = try? await tab.wake().evaluateJavaScript(script) }
                 if body["action"] != nil || body["wait"] != nil { try? await Task.sleep(for: .milliseconds(body["wait"] as? Int ?? 2500)) }
                 let failure = tab.trustFailure.map { failure -> [String: Any] in
                     ["host": failure.host, "port": failure.port, "code": failure.code, "reason": "\(failure.reason)", "changed": failure.changed,
                      "fingerprint": failure.certificate.fingerprint, "subject": failure.certificate.subject, "issuer": failure.certificate.issuer,
-                     "names": failure.certificate.names, "selfSigned": failure.certificate.isSelfSigned]
+                     "names": failure.certificate.names, "selfSigned": failure.certificate.isSelfSigned, "visit": "\(failure.visit)",
+                     "hostAndPort": failure.hostAndPort, "unicodeHost": failure.unicodeHost ?? "", "address": failure.address]
                 }
-                self.respond(connection, status: "200 OK", body: ["failure": failure ?? NSNull(), "usesException": tab.usesTrustException, "authAsked": ServerTrustTestState.asked, "challenges": ServerTrustTestState.challenges,
-                                                                  "url": tab.url?.absoluteString ?? "", "title": tab.webView?.title ?? ""])
+                self.respond(connection, status: "200 OK", body: ["failure": failure ?? NSNull(), "usesException": tab.usesTrustException, "unverified": tab.isUnverified,
+                                                                  "authAsked": ServerTrustTestState.asked, "challenges": ServerTrustTestState.challenges,
+                                                                  "url": tab.url?.absoluteString ?? "", "webViewURL": tab.webView?.url?.absoluteString ?? "",
+                                                                  "title": tab.webView?.title ?? "", "canGoBack": tab.webView?.canGoBack ?? false,
+                                                                  "history": (tab.webView?.backForwardList.backList ?? []).map { $0.url.absoluteString } + [tab.webView?.backForwardList.currentItem?.url.absoluteString ?? "-"],
+                                                                  "private": browser.isPrivate, "tabs": browser.tabs.count, "result": result.map { "\($0)" } ?? ""])
             }
             return true
         }
@@ -583,6 +604,8 @@ extension ControlServer {
 /// How often the test copy's stand-in for the Mac's owner was asked.
 @MainActor enum ServerTrustTestState {
     static var asked = 0
+    /// How long the stand-in for the Mac's owner takes to answer, in milliseconds.
+    static var delay = 0
     /// The server certificates WebKit asked the tab about (host:port), since the test copy started.
     static var challenges: [String] = []
 }

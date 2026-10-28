@@ -10,6 +10,7 @@ extension Tab: WKNavigationDelegate {
             return (.cancel, preferences)
         }
         if action.shouldPerformDownload { return (.download, preferences) }
+        if action.targetFrame?.isMainFrame ?? true, let target = action.request.url, stopsLoad(of: target, in: webView) { return (.cancel, preferences) }
         let userInitiated = !AppScripts.drives(webView) && Self.userStartedForAppLinks(Self.isUserInitiated(action), knowsUserInitiated: Self.knowsUserInitiated)
         if let url = action.request.url, let scheme = url.scheme?.lowercased(), !Self.browserSchemes.contains(scheme) {
             // A frame can't speak for the page: the question is only for what the page itself, or the user's click, asks.
@@ -167,7 +168,7 @@ extension Tab: WKNavigationDelegate {
         if let offer = loginOffer, !Self.sameSite(Logins.hostname(ofKey: offer.host), host) { loginOffer = nil }
         forgetPage()
         agent.reset()
-        refreshTrustException()
+        refreshTrustException(for: webView.url)
         if let host = webView.url?.host(), let cached = Browser.favicons[host] { favicon = cached }
     }
 
@@ -286,7 +287,8 @@ extension Tab: WKNavigationDelegate {
         let prompt = { (candidates: [ClientCertificates.Candidate]) in
             ClientCertificatePrompter.Prompt(host: space.host, port: space.port, candidates: candidates, agentDriven: agentDriven,
                                              domain: ClientCertificates.domainToRemember(host: space.host, port: space.port, isPrivate: self.isPrivate, agentDriven: agentDriven,
-                                                                        isProfile: profile != nil))
+                                                                        isProfile: profile != nil),
+                                             relaxed: ClientCertificates.isShownBeyondNamedIssuers(candidates, acceptedIssuers: issuers))
         }
         let environment = ClientCertificates.Environment(
             situation: ClientCertificates.Situation(isHeadless: Headless.isOn && !testing, agentDriven: agentDriven, isProfile: profile != nil),

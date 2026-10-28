@@ -712,7 +712,6 @@
 "The model and effort for your next messages (also in Settings › AI)" = "次のメッセージから使うモデルと推論の強さです（設定 › AI でも変更できます）";
 "Working for %@" = "%@ 作業中";
 "You chose to be asked before every action." = "すべての操作の前に確認する設定になっています。";
-"Authentication is required to visit a website whose certificate can’t be verified" = "証明書を確認できないWebサイトを開くには認証が必要です";
 "Certificate Details" = "証明書の詳細";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "%@ に接続していることをChangmunは確認できません。ネットワーク上の誰かがこのサイトになりすまし、送信内容を見ている可能性があります。";
 "Don’t enter passwords or payment details here unless you know and trust this site." = "このサイトをよく知っていて信頼できる場合を除き、パスワードや支払い情報は入力しないでください。";
@@ -735,3 +734,8 @@
 "Valid from" = "有効開始日";
 "Visit This Website" = "このWebサイトにアクセス";
 "Certificate not verified" = "証明書は未確認";
+"Authentication is required to visit %@ although its certificate can’t be verified" = "%@ の証明書を確認できませんが、アクセスするには認証が必要です";
+"This site insists on a secure connection, so its certificate can’t be overridden." = "このサイトは安全な接続を必須としているため、証明書の警告を無視することはできません。";
+"This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on." = "このサイトの証明書は、このセッションの先ほどまでは問題ありませんでしたが、今は問題があります。誰かが通信を傍受している可能性があるため、続行できません。";
+"The site named other certificate issuers than yours, so all your certificates are shown." = "サイトが指定した証明書の発行元があなたの証明書と異なるため、すべての証明書を表示しています。";
+"This page's certificate wasn't verified: you chose to go on." = "このページの証明書は確認されていません。続行を選択しました。";

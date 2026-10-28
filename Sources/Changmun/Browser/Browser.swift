@@ -85,7 +85,11 @@ final class Browser: ObservableObject {
             tab.sleep()
         }
         if #available(macOS 15.4, *) { ExtensionHost.shared.windowClosed(self) }
-        if isPrivate { Downloads.shared.forget(self) }
+        if isPrivate {
+            Downloads.shared.forget(self)
+            // What only this window went on with (see ServerTrust) goes with it.
+            ServerTrustStore.acceptedAnywhere.removeAll(ownedBy: ObjectIdentifier(self))
+        }
     }
 
     /// Internal so the Browser+… extensions can change the tabs, the active tab and the space; anything else changes them through Browser's methods.

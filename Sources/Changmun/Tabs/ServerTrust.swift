@@ -39,6 +39,126 @@ enum ServerTrust {
     }
 }
 
+/// When the user may not go on: sites that insist on https, which Safari and Chrome never let a page override either.
+enum ServerTrustPolicy {
+    /// The top-level domains whose every name is on the HSTS preload list as a whole (the registry made them https-only), so a browser has no
+    /// override for any host below them. Only the whole-TLD preloads of the Google registry that are certain; everything else is learned
+    /// from a Strict-Transport-Security header, which WebKit does not show the app (see `visit`).
+    nonisolated static let preloadedTopLevelDomains: Set<String> = [
+        "dev", "app", "page", "new", "day", "foo", "gle", "zip", "mov", "nexus", "ing", "meme", "phd", "prof", "esq", "channel", "boo", "dad", "soy",
+        "how", "rsvp",
+    ]
+
+    nonisolated static func isPreloadedStrictTransport(host: String) -> Bool {
+        let labels = host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".")).split(separator: ".")
+        guard labels.count >= 1, let last = labels.last else { return false }
+        return preloadedTopLevelDomains.contains(String(last))
+    }
+
+    enum Visit: Equatable {
+        /// The user may choose to go on.
+        case offered
+        /// The site is https-only by the preload list: no way on.
+        case refusedStrictTransport
+        /// The same host and port loaded over a trusted connection earlier in this run and fails now: a certificate that was fine and is not is the case of
+        /// someone in the middle, so there is no way on either.
+        case refusedWentBad
+    }
+
+    /// Whether "Visit This Website" is offered. `wasTrusted`: this host and port loaded over a connection the Mac trusted earlier in this run.
+    nonisolated static func visit(host: String, wasTrusted: Bool) -> Visit {
+        if isPreloadedStrictTransport(host: host) { return .refusedStrictTransport }
+        return wasTrusted ? .refusedWentBad : .offered
+    }
+}
+
+/// The hosts and ports that loaded over a connection the Mac trusted, per store: a later failure for one of them is not a site that never had a good
+/// certificate.
+struct TrustedSites {
+    private var sites: Set<ServerTrustExceptions.Site> = []
+    mutating func add(host: String, port: Int, store: UUID?) { sites.insert(.init(host: host, port: port, store: store)) }
+    func contains(host: String, port: Int, store: UUID?) -> Bool { sites.contains(.init(host: host, port: port, store: store)) }
+}
+
+extension ServerTrust {
+    /// Where "Go Back" goes from the warning: the nearest page before it that is not itself one the tab may not show now (a page restored from the
+    /// back/forward list is not asked about again, so it would simply be shown). `history` is oldest first, the page the warning is over last.
+    /// An index into `history`, or nil when there is no page before that could be shown.
+    nonisolated static func backTarget(history: [URL], isStopped: (URL) -> Bool) -> Int? {
+        history.indices.dropLast().reversed().first { !isStopped(history[$0]) }
+    }
+
+    /// Text from a certificate or an address as it is shown to the user: without control characters and the characters that turn text around or hide
+    /// it (bidirectional overrides and isolates, line and paragraph separators), and no longer than `limit`.
+    nonisolated static func sanitized(_ text: String, limit: Int = 200) -> String {
+        let hidden: Set<UInt32> = [0x061C, 0x200E, 0x200F, 0x2028, 0x2029, 0x202A, 0x202B, 0x202C, 0x202D, 0x202E, 0x2066, 0x2067, 0x2068, 0x2069, 0xFEFF]
+        var scalars = String.UnicodeScalarView()
+        scalars.append(contentsOf: text.unicodeScalars.filter { $0.properties.generalCategory != .control && !hidden.contains($0.value) })
+        let clean = String(scalars)
+        return clean.count > limit ? String(clean.prefix(limit)) + "…" : clean
+    }
+
+    /// A host written in Unicode: the labels of an internationalized name are punycode ("xn--…") in an address. The host as it is when no label decodes.
+    nonisolated static func unicodeHost(_ host: String) -> String {
+        host.split(separator: ".", omittingEmptySubsequences: false).map { label -> String in
+            let text = String(label)
+            guard text.lowercased().hasPrefix("xn--"), let decoded = decodePunycode(String(text.dropFirst(4))) else { return text }
+            return decoded
+        }.joined(separator: ".")
+    }
+
+    /// RFC 3492.
+    nonisolated private static func decodePunycode(_ input: String) -> String? {
+        let base = 36, tMin = 1, tMax = 26, skew = 38, damp = 700
+        var n = 128, i = 0, bias = 72
+        var output: [UInt32] = []
+        var rest = Substring(input)
+        if let dash = input.lastIndex(of: "-") {
+            output = input[..<dash].unicodeScalars.map(\.value)
+            rest = input[input.index(after: dash)...]
+        }
+        func digit(_ c: Character) -> Int? {
+            guard let a = c.asciiValue else { return nil }
+            switch a {
+            case 48...57: return Int(a) - 22
+            case 65...90: return Int(a) - 65
+            case 97...122: return Int(a) - 97
+            default: return nil
+            }
+        }
+        func adapt(_ delta: Int, _ count: Int, _ first: Bool) -> Int {
+            var delta = first ? delta / damp : delta / 2
+            delta += delta / count
+            var k = 0
+            while delta > ((base - tMin) * tMax) / 2 { delta /= base - tMin; k += base }
+            return k + (base - tMin + 1) * delta / (delta + skew)
+        }
+        var index = rest.startIndex
+        while index < rest.endIndex {
+            let oldI = i
+            var w = 1, k = base
+            while true {
+                guard index < rest.endIndex, let d = digit(rest[index]) else { return nil }
+                index = rest.index(after: index)
+                i += d * w
+                let t = k <= bias ? tMin : (k >= bias + tMax ? tMax : k - bias)
+                if d < t { break }
+                w *= base - t
+                k += base
+            }
+            bias = adapt(i - oldI, output.count + 1, oldI == 0)
+            n += i / (output.count + 1)
+            i %= output.count + 1
+            guard n <= 0x10FFFF, output.count < 255 else { return nil }
+            output.insert(UInt32(n), at: i)
+            i += 1
+        }
+        var scalars = String.UnicodeScalarView()
+        for value in output { guard let scalar = Unicode.Scalar(value) else { return nil }; scalars.append(scalar) }
+        return String(scalars)
+    }
+}
+
 /// Why the certificate was refused, in the words the page says.
 enum TrustReason: Equatable {
     case selfSigned, unknownAuthority, expired(Date), notYetValid(Date), nameMismatch, other
@@ -82,8 +202,8 @@ struct CertificateDetails: Equatable {
     init?(_ certificate: SecCertificate) {
         let der = SecCertificateCopyData(certificate) as Data
         guard let parts = Self.parts(ofCertificate: der), let dates = ClientCertificates.fields(ofCertificate: der) else { return nil }
-        self.init(subject: Self.commonName(parts.subject) ?? (SecCertificateCopySubjectSummary(certificate) as String?) ?? "",
-                  issuer: Self.commonName(parts.issuer) ?? "", notBefore: dates.notBefore, notAfter: dates.notAfter,
+        self.init(subject: ServerTrust.sanitized(Self.commonName(parts.subject) ?? (SecCertificateCopySubjectSummary(certificate) as String?) ?? ""),
+                  issuer: ServerTrust.sanitized(Self.commonName(parts.issuer) ?? ""), notBefore: dates.notBefore, notAfter: dates.notAfter,
                   fingerprint: ServerTrust.fingerprint(of: certificate), names: parts.names, isSelfSigned: parts.subject == parts.issuer)
     }
 
@@ -161,6 +281,18 @@ struct TrustFailure: Equatable {
     let certificate: CertificateDetails
     /// An exception was made for this site before, and this is another certificate: the page is more alarming then.
     let changed: Bool
+    /// Whether the user may go on (see ServerTrustPolicy).
+    var visit: ServerTrustPolicy.Visit = .offered
+
+    /// The host with its port, as the page says where it is: `localhost:8443`, `[::1]:443`.
+    var hostAndPort: String { ServerTrust.sanitized(host.contains(":") ? "[\(host)]:\(port)" : "\(host):\(port)") }
+    /// The host in Unicode when it is an internationalized name (the address has it as punycode), else nil.
+    var unicodeHost: String? {
+        let shown = ServerTrust.sanitized(ServerTrust.unicodeHost(host))
+        return shown == ServerTrust.sanitized(host) ? nil : shown
+    }
+    /// The whole address as it was asked for, in full.
+    var address: String { ServerTrust.sanitized(url.absoluteString, limit: 500) }
 
     /// The address a warning is for when the certificate is refused in a challenge (which has no address of its own): the main frame load that is
     /// still pending, if the challenge is for its host and port. With no such load (a subresource, a later load, one that has committed or failed) there is
@@ -171,19 +303,22 @@ struct TrustFailure: Equatable {
     }
 
     /// From a failed load: nil if its error is not one of the certificate's, or has no certificate in it.
-    static func from(error: NSError, url: URL?, changed: (_ host: String, _ port: Int, _ fingerprint: String) -> Bool, now: Date = Date()) -> TrustFailure? {
+    static func from(error: NSError, url: URL?, changed: (_ host: String, _ port: Int, _ fingerprint: String) -> Bool,
+                     wasTrusted: (_ host: String, _ port: Int) -> Bool = { _, _ in false }, now: Date = Date()) -> TrustFailure? {
         guard ServerTrust.failureCodes.contains(error.code), error.domain == NSURLErrorDomain,
               let url = (error.userInfo[NSURLErrorFailingURLErrorKey] as? URL) ?? url,
               let raw = error.userInfo[NSURLErrorFailingURLPeerTrustErrorKey], CFGetTypeID(raw as CFTypeRef) == SecTrustGetTypeID() else { return nil }
-        return from(trust: raw as! SecTrust, url: url, code: error.code, changed: changed, now: now)
+        return from(trust: raw as! SecTrust, url: url, code: error.code, changed: changed, wasTrusted: wasTrusted, now: now)
     }
 
     /// From the trust a server's certificate was judged by, for a load of `url`.
-    static func from(trust: SecTrust, url: URL, code: Int, changed: (_ host: String, _ port: Int, _ fingerprint: String) -> Bool, now: Date = Date()) -> TrustFailure? {
+    static func from(trust: SecTrust, url: URL, code: Int, changed: (_ host: String, _ port: Int, _ fingerprint: String) -> Bool,
+                     wasTrusted: (_ host: String, _ port: Int) -> Bool = { _, _ in false }, now: Date = Date()) -> TrustFailure? {
         guard url.scheme?.lowercased() == "https", let host = url.host(), let leaf = ServerTrust.leaf(of: trust), let certificate = CertificateDetails(leaf) else { return nil }
         let port = url.port ?? 443
         return TrustFailure(url: url, host: host, port: port, code: code, reason: TrustReason.determine(code: code, certificate: certificate, host: host, now: now),
-                            certificate: certificate, changed: changed(host, port, certificate.fingerprint))
+                            certificate: certificate, changed: changed(host, port, certificate.fingerprint),
+                            visit: ServerTrustPolicy.visit(host: host, wasTrusted: wasTrusted(host, port)))
     }
 }
 
@@ -203,10 +338,21 @@ struct ServerTrustExceptions {
     }
 
     private var accepted: [Site: String] = [:]
+    /// What the certificate that was accepted looked like, so that the warning can be shown again when the exception is taken away.
+    private var details: [Site: CertificateDetails] = [:]
 
-    mutating func grant(host: String, port: Int, fingerprint: String, store: UUID?) { accepted[Site(host: host, port: port, store: store)] = fingerprint }
-    mutating func revoke(host: String, port: Int, store: UUID?) { accepted[Site(host: host, port: port, store: store)] = nil }
-    mutating func removeAll() { accepted = [:] }
+    mutating func grant(host: String, port: Int, fingerprint: String, store: UUID?, details certificate: CertificateDetails? = nil) {
+        accepted[Site(host: host, port: port, store: store)] = fingerprint
+        details[Site(host: host, port: port, store: store)] = certificate
+    }
+    /// Takes the exception away; the certificate it was for, if it was kept.
+    @discardableResult
+    mutating func revoke(host: String, port: Int, store: UUID?) -> CertificateDetails? {
+        let site = Site(host: host, port: port, store: store)
+        accepted[site] = nil
+        return details.removeValue(forKey: site)
+    }
+    mutating func removeAll() { accepted = [:]; details = [:] }
 
     /// The site's certificate is the one the user went on with.
     func allows(host: String, port: Int, fingerprint: String, store: UUID?) -> Bool {
@@ -225,14 +371,37 @@ struct ServerTrustExceptions {
 /// network session for as long as the app runs, whoever asks, whichever store or private window it asks from, and whatever the app has forgotten since;
 /// so these are not the exceptions (which are per store and can be taken away) but a record of where WebKit may let a page through on its own.
 struct AcceptedSites {
-    private var sites: Set<String> = []
+    /// By host and port: accepted in a window that is not private, which lasts the run.
+    private var permanent: Set<String> = []
+    /// The certificate last gone on with, by host and port, for the warning when a load of the site is stopped before it is asked.
+    private var certificates: [String: CertificateDetails] = [:]
+    /// Accepted in private windows, by the windows: they go when the window does.
+    private var owners: [String: Set<ObjectIdentifier>] = [:]
 
     private static func key(_ host: String, _ port: Int) -> String {
         host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".")) + ":\(port)"
     }
 
-    mutating func add(host: String, port: Int) { sites.insert(Self.key(host, port)) }
-    func contains(host: String, port: Int) -> Bool { sites.contains(Self.key(host, port)) }
+    /// `owner` is a private window's, whose entry goes when it closes.
+    mutating func add(host: String, port: Int, owner: ObjectIdentifier? = nil, certificate: CertificateDetails? = nil) {
+        if let certificate { certificates[Self.key(host, port)] = certificate }
+        if let owner { owners[Self.key(host, port), default: []].insert(owner) } else { permanent.insert(Self.key(host, port)) }
+    }
+
+    /// A private window closed: what only it accepted goes (its session, and WebKit's memory of the certificate, go with it).
+    mutating func removeAll(ownedBy owner: ObjectIdentifier) {
+        for key in Array(owners.keys) {
+            owners[key]?.remove(owner)
+            if owners[key]?.isEmpty == true { owners[key] = nil; if !permanent.contains(key) { certificates[key] = nil } }
+        }
+    }
+
+    func contains(host: String, port: Int) -> Bool {
+        let key = Self.key(host, port)
+        return permanent.contains(key) || owners[key] != nil
+    }
+
+    func certificate(host: String, port: Int) -> CertificateDetails? { certificates[Self.key(host, port)] }
 }
 
 /// What to do with a server's certificate that WebKit asks the tab about.
@@ -262,4 +431,9 @@ final class ServerTrustStore {
     var exceptions = ServerTrustExceptions()
     /// Where the user went on in this run, whichever store or window (see AcceptedSites).
     static var acceptedAnywhere = AcceptedSites()
+    /// The hosts that loaded over a connection the Mac trusted, in this store's windows.
+    var trusted = TrustedSites()
+    /// Whether the page at this host and port is one whose certificate the user went on with, in any store or window of this run: nothing the user
+    /// keeps for a site (saved logins, remembered permissions) is used on it.
+    static func isUnverified(host: String, port: Int) -> Bool { acceptedAnywhere.contains(host: host, port: port) }
 }

@@ -712,7 +712,6 @@
 "The model and effort for your next messages (also in Settings › AI)" = "Le modèle et l’effort pour vos prochains messages (aussi dans Réglages › IA)";
 "Working for %@" = "En cours depuis %@";
 "You chose to be asked before every action." = "Vous avez choisi d’être consulté avant chaque action.";
-"Authentication is required to visit a website whose certificate can’t be verified" = "Une authentification est requise pour visiter un site web dont le certificat ne peut pas être vérifié";
 "Certificate Details" = "Détails du certificat";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "Changmun ne peut pas confirmer que vous êtes connecté à %@. Quelqu’un sur le réseau pourrait se faire passer pour ce site et voir ce que vous envoyez.";
 "Don’t enter passwords or payment details here unless you know and trust this site." = "Ne saisissez ici ni mots de passe ni informations de paiement si vous ne connaissez pas ce site et ne lui faites pas confiance.";
@@ -735,3 +734,8 @@
 "Valid from" = "Valide à partir du";
 "Visit This Website" = "Visiter ce site web";
 "Certificate not verified" = "Certificat non vérifié";
+"Authentication is required to visit %@ although its certificate can’t be verified" = "Une authentification est requise pour visiter %@ bien que son certificat ne puisse pas être vérifié";
+"This site insists on a secure connection, so its certificate can’t be overridden." = "Ce site exige une connexion sécurisée : l’avertissement sur son certificat ne peut pas être ignoré.";
+"This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on." = "Le certificat de ce site était valide plus tôt dans cette session et ne l’est plus. Quelqu’un intercepte peut-être la connexion : il n’y a pas moyen de continuer.";
+"The site named other certificate issuers than yours, so all your certificates are shown." = "Le site a indiqué d’autres émetteurs de certificats que les vôtres : tous vos certificats sont donc affichés.";
+"This page's certificate wasn't verified: you chose to go on." = "Le certificat de cette page n’a pas été vérifié : vous avez choisi de continuer.";

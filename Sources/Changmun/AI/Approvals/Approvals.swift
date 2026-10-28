@@ -47,7 +47,7 @@ enum Approvals {
 
     /// A tab and the site it is on, or the site given when that is where its content came from.
     private static func key(_ tab: Tab, host: String? = nil) -> String {
-        "\(tab.id)|\(host ?? site(of: tab.url) ?? "")"
+        "\(tab.id)|\(host ?? site(of: tab.url) ?? "")" + (tab.showsUnverifiedPage ? "|unverified" : "")
     }
 
     /// Whether the title and address of a tab can be told to the caller as they are: the tab is in front of the user, or the
@@ -127,9 +127,13 @@ enum Approvals {
         guard Preferences.shared.aiApprovalMode.asksAboutOtherSites else { return true }
         let key = key(tab, host: host)
         let current = host ?? site(of: tab.url) ?? ""
-        if tabs[caller]?.contains(key) == true || (reading && caller == ChatStore.caller && attached[tab.id] == current) { return true }
+        // A page whose certificate the user went on with is read as another site's would be: the tab being attached to the chat is not enough.
+        let unverified = tab.showsUnverifiedPage
+        if tabs[caller]?.contains(key) == true || (reading && !unverified && caller == ChatStore.caller && attached[tab.id] == current) { return true }
         let allowed = await ask(String(localized: "The AI wants to use a tab you aren't looking at"),
-                                "\(display(current))\n\n#\(tab.id) \(shown(tab.displayTitle, limit: 80).text)\n\n" + String(localized: "If you allow it, you won't be asked again while this tab stays on this site."),
+                                "\(display(current))\n\n#\(tab.id) \(shown(tab.displayTitle, limit: 80).text)\n\n"
+                                    + (unverified ? String(localized: "This page's certificate wasn't verified: you chose to go on.") + "\n\n" : "")
+                                    + String(localized: "If you allow it, you won't be asked again while this tab stays on this site."),
                                 caller: caller)
         if allowed { tabs[caller, default: []].insert(key) }
         return allowed

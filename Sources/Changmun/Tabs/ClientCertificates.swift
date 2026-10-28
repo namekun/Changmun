@@ -84,6 +84,12 @@ enum ClientCertificates {
         return accepted.isEmpty ? usable(candidates, acceptedIssuers: [], now: now) : accepted
     }
 
+    /// Whether the identities are all shown though none of them is from an issuer the site named (see `offered`): the chooser says so.
+    static func isShownBeyondNamedIssuers(_ list: [Candidate], acceptedIssuers: [Data]) -> Bool {
+        let accepted = Set(acceptedIssuers.map(key(ofName:)))
+        return !accepted.isEmpty && !list.isEmpty && list.allSatisfy { $0.issuers.isDisjoint(with: accepted) }
+    }
+
     /// The system's preference for the site comes first (it is what the user, or Safari, said), then the user's earlier choice in
     /// this window; each only while it is something the site accepts, valid, and still in the keychain (`exists`: a smart card may
     /// have been taken out since). Otherwise the user is asked, also when there is only one identity (nothing is chosen for them), and

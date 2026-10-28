@@ -132,7 +132,8 @@ enum ToolCatalog {
         }
         // Only the tab in front of the user goes without asking, closing a tab too. What was approved is the site it was on when
         // it was asked about, and the tools that act on the page check the page they reach against it.
-        let needsApproval = tab.id != browser.activeID || browser !== Browser.recent
+        // A page whose certificate the user went on with, though it could not be verified, is asked about even in front: the AI reads it as another site's.
+        let needsApproval = tab.id != browser.activeID || browser !== Browser.recent || tab.showsUnverifiedPage
         let approvedHost = Approvals.site(of: tab.url)
         let session = Session(caller: caller, approved: needsApproval ? approvedHost ?? "" : nil)
         if needsApproval {

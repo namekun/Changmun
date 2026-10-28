@@ -36,9 +36,9 @@ struct AddressPill: View {
         let hasSite = tab.url?.scheme?.hasPrefix("http") == true && host?.isEmpty == false
         HStack(spacing: 8) {
             HStack(spacing: 2) {
-                Image(systemName: tab.usesTrustException ? "exclamationmark.triangle.fill" : tab.url?.scheme == "https" ? "lock.fill" : "globe")
+                Image(systemName: tab.isUnverified ? "exclamationmark.triangle.fill" : tab.url?.scheme == "https" ? "lock.fill" : "globe")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(tab.usesTrustException ? Theme.waiting : Theme.secondary)
+                    .foregroundStyle(tab.isUnverified ? Theme.waiting : Theme.secondary)
                     .frame(width: 22, height: 22)
                     .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(hasSite && (siteHover || showSite) ? Theme.pill : .clear))
                     .contentShape(Rectangle())
@@ -96,9 +96,9 @@ struct AddressField: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: tab.usesTrustException ? "exclamationmark.triangle.fill" : tab.url?.scheme == "https" ? "lock.fill" : "globe")
+            Image(systemName: tab.isUnverified ? "exclamationmark.triangle.fill" : tab.url?.scheme == "https" ? "lock.fill" : "globe")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(tab.usesTrustException ? Theme.waiting : Theme.secondary)
+                .foregroundStyle(tab.isUnverified ? Theme.waiting : Theme.secondary)
             TextField("Search or enter address", text: $text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13, weight: .medium))

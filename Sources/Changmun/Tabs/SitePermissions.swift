@@ -48,14 +48,21 @@ final class SitePermissions: ObservableObject {
         UserDefaults.standard.set(stored, forKey: "sitePermissions")
     }
 
-    /// `remember` false (a private window) never offers to keep the answer, which would record the site.
-    func decide(host: String, type: WKMediaCaptureType, remember: Bool = true) -> WKPermissionDecision {
+    /// What a remembered decision comes to on a page whose certificate the user went on with though it could not be verified: a refusal stands, but an
+    /// allowance is not applied there (the page is asked again each time, and nothing is kept).
+    nonisolated static func effective(_ decision: Decision, unverified: Bool) -> Decision {
+        unverified && decision == .allow ? .ask : decision
+    }
+
+    /// `remember` false (a private window) never offers to keep the answer, which would record the site. `unverified`: the page's certificate was not verified.
+    func decide(host: String, type: WKMediaCaptureType, remember: Bool = true, unverified: Bool = false) -> WKPermissionDecision {
+        let remember = remember && !unverified
         let devices: [Device] = switch type {
         case .camera: [.camera]
         case .microphone: [.microphone]
         default: [.camera, .microphone]
         }
-        let decisions = devices.map { decision(host, $0) }
+        let decisions = devices.map { Self.effective(decision(host, $0), unverified: unverified) }
         if decisions.contains(.deny) { return .deny }
         if decisions.allSatisfy({ $0 == .allow }) { return .grant }
         if Headless.isOn { return .deny }

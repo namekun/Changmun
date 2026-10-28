@@ -26,9 +26,16 @@ struct TrustFailureView: View {
                     Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 26)).foregroundStyle(Theme.waiting)
                     Text("This connection isn’t private").font(.system(size: 22, weight: .semibold)).foregroundStyle(Theme.primary)
                 }
-                Text("Changmun can’t confirm that you are connected to \(DisplayHost.trimmed(failure.host)). Someone on the network may be pretending to be this site and could see what you send.")
+                // The host with its port (never trimmed of its www), an internationalized name in Unicode as well, and the whole address.
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: failure.hostAndPort).font(.system(size: 15, weight: .semibold, design: .monospaced)).foregroundStyle(Theme.primary)
+                    if let unicode = failure.unicodeHost { Text(verbatim: unicode).font(.system(size: 13)).foregroundStyle(Theme.body) }
+                    Text(verbatim: failure.address).font(.system(size: 11, design: .monospaced)).foregroundStyle(Theme.secondary).lineLimit(3)
+                }
+                .textSelection(.enabled)
+                Text("Changmun can’t confirm that you are connected to \(failure.hostAndPort). Someone on the network may be pretending to be this site and could see what you send.")
                     .font(.system(size: 13)).foregroundStyle(Theme.body).fixedSize(horizontal: false, vertical: true)
-                Text(Self.reason(failure.reason, host: DisplayHost.trimmed(failure.host)))
+                Text(Self.reason(failure.reason, host: ServerTrust.sanitized(failure.host)))
                     .font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).fixedSize(horizontal: false, vertical: true)
                 if failure.changed {
                     Label("The certificate of this site has changed since you chose to go on. Don’t continue unless you know why.", systemImage: "exclamationmark.octagon.fill")
@@ -45,12 +52,21 @@ struct TrustFailureView: View {
                 } label: {
                     Text("Certificate Details").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary)
                 }
-                if showDetails {
-                    Text("Don’t enter passwords or payment details here unless you know and trust this site.")
-                        .font(.system(size: 12)).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
-                    Button(action: visit) { Text("Visit This Website").font(.system(size: 12)) }
-                        .buttonStyle(.link)
-                        .controlSize(.small)
+                switch failure.visit {
+                case .offered:
+                    if showDetails {
+                        Text("Don’t enter passwords or payment details here unless you know and trust this site.")
+                            .font(.system(size: 12)).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
+                        Button(action: visit) { Text("Visit This Website").font(.system(size: 12)) }
+                            .buttonStyle(.link)
+                            .controlSize(.small)
+                    }
+                case .refusedStrictTransport:
+                    Label("This site insists on a secure connection, so its certificate can’t be overridden.", systemImage: "lock.slash.fill")
+                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
+                case .refusedWentBad:
+                    Label("This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on.", systemImage: "exclamationmark.octagon.fill")
+                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
                 }
             }
             .frame(maxWidth: 560, alignment: .leading)
@@ -67,7 +83,7 @@ struct TrustFailureView: View {
             row(String(localized: "Issued by"), c.issuer)
             row(String(localized: "Valid from"), c.notBefore.formatted(date: .long, time: .omitted))
             row(String(localized: "Expires"), c.notAfter.formatted(date: .long, time: .omitted))
-            if !c.names.isEmpty { row(String(localized: "Other names"), c.names.joined(separator: ", ")) }
+            if !c.names.isEmpty { row(String(localized: "Other names"), ServerTrust.sanitized(c.names.joined(separator: ", "), limit: 400)) }
             row(String(localized: "SHA-256 fingerprint"), c.spacedFingerprint)
         }
         .textSelection(.enabled)

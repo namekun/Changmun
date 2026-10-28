@@ -77,6 +77,9 @@ enum SignIn {
     @MainActor static func forgetDeclined(caller: String) { declined[caller] = nil }
     @MainActor static func wasDeclinedAnywhere(caller: String) -> Bool { declined[caller] != nil }
 
+    /// Whether the user went on to this host (on the standard port, the only one a login is saved for) though its certificate could not be verified.
+    @MainActor static func isUnverified(host: String) -> Bool { ServerTrustStore.isUnverified(host: host, port: 443) }
+
     /// The host a saved login must be filed under for a document of this origin: only a page on https, with a host of its own
     /// and no port of its own (another port is another site). nil for anything else (http, a sandboxed frame, a data: page).
     nonisolated static func loginHost(ofOrigin origin: String) -> String? {
@@ -125,6 +128,10 @@ extension ToolCatalog {
             return refused("saved logins are used only on https pages (and frames) that have a host of their own, on the standard port.")
         }
         let shownHost = Approvals.shown(host, limit: 100).text
+        // A page whose certificate the user went on with, though it could not be verified, is not one to put a saved login in.
+        if SignIn.isUnverified(host: host) {
+            return refused("the certificate of \(shownHost) was not verified (the user chose to go on without), so no saved login is used there.")
+        }
         // A form that sends what is typed in it to another site is not one to put a login in: nor is one that has a button which does
         // (a formaction), whichever the user would press.
         let actions = found["actions"] as? [String] ?? []

@@ -712,7 +712,6 @@
 "The model and effort for your next messages (also in Settings › AI)" = "Modell und Aufwand für deine nächsten Nachrichten (auch unter Einstellungen › KI)";
 "Working for %@" = "Seit %@ in Arbeit";
 "You chose to be asked before every action." = "Du hast festgelegt, vor jeder Aktion gefragt zu werden.";
-"Authentication is required to visit a website whose certificate can’t be verified" = "Zum Besuch einer Website, deren Zertifikat nicht überprüft werden kann, ist eine Authentifizierung erforderlich";
 "Certificate Details" = "Zertifikatdetails";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "Changmun kann nicht bestätigen, dass du mit %@ verbunden bist. Jemand im Netzwerk könnte sich als diese Website ausgeben und sehen, was du sendest.";
 "Don’t enter passwords or payment details here unless you know and trust this site." = "Gib hier keine Passwörter oder Zahlungsdaten ein, wenn du diese Website nicht kennst und ihr nicht vertraust.";
@@ -735,3 +734,8 @@
 "Valid from" = "Gültig ab";
 "Visit This Website" = "Diese Website besuchen";
 "Certificate not verified" = "Zertifikat nicht überprüft";
+"Authentication is required to visit %@ although its certificate can’t be verified" = "Zum Besuch von %@ ist eine Authentifizierung erforderlich, obwohl sein Zertifikat nicht überprüft werden kann";
+"This site insists on a secure connection, so its certificate can’t be overridden." = "Diese Website besteht auf einer sicheren Verbindung, daher lässt sich die Zertifikatswarnung nicht umgehen.";
+"This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on." = "Das Zertifikat dieser Website war früher in dieser Sitzung in Ordnung und ist es jetzt nicht mehr. Jemand könnte die Verbindung abfangen, daher gibt es keinen Weg weiter.";
+"The site named other certificate issuers than yours, so all your certificates are shown." = "Die Website nennt andere Zertifikataussteller als deine, daher werden alle deine Zertifikate angezeigt.";
+"This page's certificate wasn't verified: you chose to go on." = "Das Zertifikat dieser Seite wurde nicht überprüft: Du hast dich fürs Fortfahren entschieden.";
