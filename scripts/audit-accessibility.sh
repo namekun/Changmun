@@ -6,7 +6,7 @@
 # button, check box, text field, menu button, link, image or pressable row without a name (scripts/audit-accessibility.py has the rules and the
 # list of known exceptions). It checks names, not how a screen reader reads them: that takes a real VoiceOver session.
 #
-#   scripts/audit-accessibility.sh [state ...]    state: sidebar, top, command, find, ai, settings, trust (all by default)
+#   scripts/audit-accessibility.sh [state ...]    state: sidebar, top, command, find, flash, ai, settings, trust (all by default)
 #   AUDIT_DUMP=folder scripts/audit-accessibility.sh    also keeps each state's whole tree as JSON in that folder
 #
 # Starts the headless app if it isn't running (and stops it again then; one that is already running keeps its language). Take a fresh

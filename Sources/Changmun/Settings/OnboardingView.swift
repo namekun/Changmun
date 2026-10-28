@@ -230,6 +230,7 @@ struct SourceRow: View {
         .background { if isOn { SelectedBackground(radius: 10) } }
         .contentShape(Rectangle())
         .onTapGesture(perform: toggle)
+        .accessibleButton(source.title, value: Accessibility.onOffValue(isOn), selected: isOn, activate: toggle)
     }
 }
 

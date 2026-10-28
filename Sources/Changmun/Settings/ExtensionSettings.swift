@@ -28,7 +28,7 @@ struct ContentBlockerSection: View {
             }
             ForEach(host.blockers) { blocker in
                 HStack(spacing: 10) {
-                    Image(systemName: "shield.lefthalf.filled").frame(width: 24, height: 24).foregroundStyle(.secondary)
+                    Image(systemName: "shield.lefthalf.filled").frame(width: 24, height: 24).foregroundStyle(.secondary).decorative()
                     VStack(alignment: .leading, spacing: 2) {
                         Text(blocker.name).lineLimit(1)
                         if let status = host.status[blocker.bundleID] {
@@ -119,7 +119,7 @@ struct ExtensionRow: View {
             if let icon = item?.context.webExtension.icon(for: CGSize(width: 24, height: 24)) {
                 Image(nsImage: icon).resizable().frame(width: 24, height: 24)
             } else {
-                Image(systemName: "puzzlepiece.extension").frame(width: 24, height: 24).foregroundStyle(.secondary)
+                Image(systemName: "puzzlepiece.extension").frame(width: 24, height: 24).foregroundStyle(.secondary).decorative()
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(item?.name ?? Self.name(source)).lineLimit(1)

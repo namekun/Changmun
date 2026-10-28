@@ -67,6 +67,7 @@ Si solo tienes instaladas las Command Line Tools, los scripts compilan con el SD
 - **Archivar pestañas antiguas** (desactivado por defecto). Aparta las pestañas que ya no miras, pero sin tirarlas. Las pestañas que no has mirado durante un tiempo determinado (de 12 horas a 30 días, contado solo mientras Changmun está abierto) se cierran en Historial › Pestañas archivadas, listas para volver a abrirse en su grupo. Las pestañas visibles, con reproducción, en imagen en imagen, con cámara o micrófono, las favoritas y las privadas nunca se archivan.
 - **Pestañas suspendidas.** Deja que las pestañas en segundo plano echen una siesta y te devuelvan la memoria. Las pestañas en segundo plano que no has visto en 20 minutos, y todas las pestañas en segundo plano cuando hay poca memoria, devuelven su proceso web y vuelven con su historial cuando regresas a ellas.
 - **Barra de comandos** (⌘T). Un solo cuadro para todo: buscar, escribir direcciones, cambiar a pestañas abiertas, marcadores e historial, y preguntar a la IA.
+- **VoiceOver y teclado.** La barra lateral, la barra de pestañas, la barra de direcciones, la barra de comandos, la búsqueda en la página, el panel de IA y los Ajustes funcionan con VoiceOver y con el acceso total con el teclado: cada botón, campo, pestaña y fila tiene un nombre (y su estado, si lo tiene), y las filas y los botones se pueden pulsar desde el teclado. Los mensajes de estado se anuncian al aparecer.
 
 ### Espacios y perfiles
 

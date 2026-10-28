@@ -36,6 +36,7 @@ struct HistoryView: View {
                                     }
                                 }
                                 .onTapGesture(count: 2) { open(visit) }
+                                .accessibleButton(Accessibility.bookmarkLabel(title: visit.title, url: visit.url), value: URL(string: visit.url)?.host(), hint: String(localized: "Opens in a new tab")) { open(visit) }
                         }
                     }
                 }
@@ -89,6 +90,7 @@ struct ArchiveView: View {
                         Button("Remove from Archive") { archive.remove(entry.id) }
                     }
                     .onTapGesture(count: 2) { open(entry) }
+                    .accessibleButton(Accessibility.bookmarkLabel(title: entry.title, url: entry.url), value: entry.group, hint: String(localized: "Reopens the tab")) { open(entry) }
             }
             .overlay {
                 if entries.isEmpty { Text(search.isEmpty ? String(localized: "No archived tabs") : String(localized: "No matching tabs")).foregroundStyle(.secondary) }

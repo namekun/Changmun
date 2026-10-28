@@ -106,6 +106,7 @@ struct CommandBar: View {
                     Image(systemName: mode == .editCurrent ? "link" : "magnifyingglass")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Theme.secondary)
+                        .decorative()
                     TextField(placeholder, text: $text)
                         .textFieldStyle(.plain)
                         .font(.system(size: 16, weight: .semibold))
@@ -154,6 +155,10 @@ struct CommandBar: View {
             .padding(.top, 96)
             .padding(.leading, area.leading)
             .padding(.trailing, area.trailing)
+            // What is behind the bar is not for a screen reader to wander into while it is open.
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(String(localized: "Search"))
+            .accessibilityAddTraits(.isModal)
             .onKeyPress(.downArrow) { selection = max(0, min(selection + 1, items.count - 1)); return .handled }
             .onKeyPress(.upArrow) { selection = max(selection - 1, 0); return .handled }
             .onKeyPress(.escape) { dismiss(); return .handled }
@@ -314,7 +319,7 @@ struct SuggestionRow: View {
             .onEnded { value in
                 if let pressed = press.ended(inside: CGRect(origin: .zero, size: size).contains(value.location)) { run(pressed) }
             })
-        .accessibleButton(Accessibility.suggestionLabel(kind), value: Accessibility.suggestionValue(kind), hint: String(localized: "Return opens it"), selected: selected) { run(item) }
+        .accessibleButton(Accessibility.suggestionLabel(kind), value: Accessibility.suggestionValue(kind), hint: selected ? String(localized: "Return opens it") : nil, selected: selected) { run(item) }
     }
 
     private var kind: Accessibility.SuggestionKind {

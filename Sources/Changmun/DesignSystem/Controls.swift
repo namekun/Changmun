@@ -101,13 +101,14 @@ struct FloatingPanel: ViewModifier {
     let radius: CGFloat
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    func body(content: Content) -> some View {
+    @ViewBuilder func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        content
-            // With Reduce Transparency on the page doesn't show through the panel.
-            .background { if reduceTransparency { shape.fill(Theme.card) } else { shape.fill(.regularMaterial) } }
-            .overlay(shape.strokeBorder(Theme.cardEdge, lineWidth: 0.5))
-            .shadow(color: Theme.cardShadow, radius: 16, y: 6)
+        // With Reduce Transparency on the page doesn't show through the panel.
+        Group {
+            if reduceTransparency { content.background(Theme.card, in: shape) } else { content.background(.regularMaterial, in: shape) }
+        }
+        .overlay(shape.strokeBorder(Theme.cardEdge, lineWidth: 0.5))
+        .shadow(color: Theme.cardShadow, radius: 16, y: 6)
     }
 }
 

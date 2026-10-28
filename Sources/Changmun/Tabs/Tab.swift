@@ -276,7 +276,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         ]
         webView = view
         audioWatcher = AudioWatcher(view) { [weak self] playing in
-            if self?.webView != nil { self?.isPlayingAudio = playing }
+            guard let self, self.webView != nil else { return }
+            self.isPlayingAudio = playing
+            // A tab behind the one shown that starts to make sound is said so: its icon is all that tells a person who can't see it.
+            if playing, !self.isMuted, self.browser?.active !== self { Announcer.announce(String(localized: "\(self.displayTitle) is playing audio")) }
         }
         if isMuted || isHeldBehind || Headless.isOn { Self.setMuted(true, in: view) }
         // Off screen counts as hidden, and WebKit stops drawing hidden pages.
@@ -289,6 +292,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     func toggleMute() {
         if let webView, !Self.setMuted(!isMuted || isHeldBehind || Headless.isOn, in: webView) { return }
         isMuted.toggle()
+        Announcer.announce(isMuted ? String(localized: "\(displayTitle) is muted") : String(localized: "\(displayTitle) is not muted"))
     }
 
     /// The tab is held behind the page in front, or no longer is: it is silent while held, and sounds as the user left it after.

@@ -54,7 +54,8 @@ struct PeekCard: View {
         }
         .animation(Motion.quick, value: tab.isLoading)
         .onAppear {
-            Announcer.announce(String(localized: "Previewing \(tab.url?.host().map(DisplayHost.trimmed) ?? ""). Press Command Return to open it as a tab, or Escape to close it."), important: true)
+            guard let host = tab.url?.host().map(DisplayHost.trimmed), !host.isEmpty else { return }
+            Announcer.announce(String(localized: "Previewing \(host). Press Command Return to open it as a tab, or Escape to close it."), important: true)
         }
     }
 }

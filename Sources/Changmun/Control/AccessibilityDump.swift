@@ -103,6 +103,7 @@ enum AccessibilityDump {
         if object.responds(to: actionNames), let actions = object.perform(actionNames)?.takeUnretainedValue() as? [String], !actions.isEmpty {
             node["actions"] = actions
         }
+        if object.responds(to: NSSelectorFromString("accessibilityPerformPress")) { node["canPress"] = true }
         // What the element does besides pressing: the actions VoiceOver lists in its actions rotor, by name.
         let custom = NSSelectorFromString("accessibilityCustomActions")
         if object.responds(to: custom), let actions = object.perform(custom)?.takeUnretainedValue() as? [NSAccessibilityCustomAction], !actions.isEmpty {
@@ -122,7 +123,9 @@ enum AccessibilityDump {
 
 extension ControlServer {
     /// Tests only: the accessibility tree of the front window ("window": "front", the default) or the settings window ("settings"), with the
-    /// popovers and sheets that are over it. The answer is {"trees": [...]}, the window's first.
+    /// popovers and sheets that are over it. The answer is {"trees": [...]}, the window's first, the announcements made so far ("announcements",
+    /// the last few) and the class of what has the keyboard ("firstResponder"). "flash" shows a status message in the front window, "undo" one that
+    /// offers to be taken back, as the browser's own do; "approval" puts a question of the AI on a card in its panel (true) or takes it away (false).
     func handleAccessibilityRequest(_ request: HTTPRequest, on connection: NWConnection) -> Bool {
         guard Headless.isTestCopy, request.method == "POST", request.path == "/accessibility" else { return false }
         let body = (try? JSONSerialization.jsonObject(with: request.body) as? [String: Any]) ?? [:]
@@ -140,8 +143,11 @@ extension ControlServer {
                     for card in ApprovalCards.shared.cards { ApprovalCards.shared.remove(card.id) }
                 }
             }
+            if let text = body["flash"] as? String { Browser.current?.flashStatus(text) }
+            if let text = body["undo"] as? String { Browser.current?.offerUndo(text) {} }
             await AccessibilityDump.wake(window)
-            self.respond(connection, status: "200 OK", body: ["trees": [AccessibilityDump.tree(of: window)] + AccessibilityDump.attached(to: window)])
+            self.respond(connection, status: "200 OK", body: ["trees": [AccessibilityDump.tree(of: window)] + AccessibilityDump.attached(to: window),
+                                                              "announcements": Announcer.recent, "firstResponder": String(describing: window.firstResponder.map { type(of: $0) })])
         }
         return true
     }

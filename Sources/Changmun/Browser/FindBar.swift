@@ -11,7 +11,7 @@ struct FindBar: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
+            Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary).decorative()
             TextField("Find on Page", text: $overlay.findText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13, weight: .medium))

@@ -26,6 +26,9 @@
 "Update password for %@?" = "要更新 %@ 的密码吗？";
 "a frame of an unknown site" = "来源不明的框架";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "完整地址可以直接在原位编辑（⌘L）。若显示网站和标题，按 ⌘L 会打开搜索栏进行编辑。";
+"%@ is muted" = "已将“%@”静音";
+"%@ is not muted" = "已取消“%@”的静音";
+"%@ is playing audio" = "“%@”正在播放声音";
 "%@. Undo is available in the sidebar." = "%@。可在边栏中撤销。";
 "%lld bookmark" = "%lld 个书签";
 "%lld bookmarks" = "%lld 个书签";
@@ -79,6 +82,7 @@
 "Allow pop-ups" = "允许弹出式窗口";
 "Always Allow for %@" = "始终允许 %@";
 "Always Allow for This Site" = "始终允许此网站";
+"Amber" = "琥珀色";
 "an image you added" = "你添加的图片";
 "and %lld more" = "另外 %lld 个";
 "Approval needed" = "需要批准";
@@ -96,6 +100,7 @@
 "Back (⌘[)" = "后退 (⌘[)";
 "Block" = "拦截";
 "Block ads and trackers" = "拦截广告和追踪器";
+"Blue" = "蓝色";
 "Bookmarks" = "书签";
 "Bookmarks %@" = "书签 %@";
 "Bookmarks Bar" = "书签栏";
@@ -164,6 +169,7 @@
 "Copy Password" = "拷贝密码";
 "Copy Path" = "拷贝路径";
 "Copying requires Touch ID or your Mac password. Passwords are stored only in this Mac’s keychain." = "拷贝需要触控 ID 或 Mac 密码验证。密码仅存储在这台 Mac 的钥匙串中。";
+"Coral" = "珊瑚色";
 "Couldn't build the %@ rules" = "无法生成 %@ 规则";
 "Couldn't download (HTTP %lld)" = "无法下载（HTTP %lld）";
 "Couldn't find the `claude` CLI. Install Claude Code and try again." = "找不到 `claude` CLI。请安装 Claude Code 后重试。";
@@ -220,6 +226,8 @@
 "Edit the address" = "编辑地址";
 "Either way, it asks every time before something that looks like it pays, orders, sends, posts, shares, grants access, deletes or cancels." = "无论如何设置，遇到看起来像付款、下单、发送、发布、分享、授予访问权限、删除或取消的操作，每次都会先询问。";
 "Expanded" = "已展开";
+"Gray" = "灰色";
+"Green" = "绿色";
 "Hidden" = "已隐藏";
 "Image" = "图片";
 "In group %@" = "所在群组：%@";
@@ -231,12 +239,16 @@
 "No suggestions" = "没有建议";
 "Not open" = "未打开";
 "Open %@" = "打开 %@";
+"Opens in a new tab" = "在新标签页中打开";
 "Page translated" = "页面已翻译";
+"Pink" = "粉色";
 "Pinned" = "已固定";
 "Playing audio" = "正在播放声音";
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "正在预览 %@。按 Command-Return 在标签页中打开，按 Esc 关闭。";
+"Purple" = "紫色";
 "Remove %@" = "移除 %@";
 "Remove this image" = "移除此图片";
+"Reopens the tab" = "重新打开标签页";
 "Return opens it" = "按 Return 键打开";
 "Search for %@" = "搜索 %@";
 "Secure connection" = "安全连接";
@@ -250,6 +262,7 @@
 "Split View Divider" = "分屏浏览分隔条";
 "Switch to tab %@" = "切换到标签页 %@";
 "Switch to tab %@ in %@" = "切换到 %2$@ 中的标签页 %1$@";
+"Teal" = "青绿色";
 "That image is too large to attach." = "图片太大,无法附加。";
 "That isn't an image Changmun can read." = "这不是 Changmun 能读取的图片。";
 "The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "AI 正在使用此标签页。仅当你愿意向此网站表明身份时，才选择证书。";

@@ -26,6 +26,9 @@
 "Update password for %@?" = "¿Actualizar la contraseña de %@?";
 "a frame of an unknown site" = "un marco de un sitio desconocido";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "Una dirección completa se puede editar directamente (⌘L). Con sitio y título, ⌘L abre el campo de búsqueda para editarla.";
+"%@ is muted" = "%@ está silenciada";
+"%@ is not muted" = "%@ ya no está silenciada";
+"%@ is playing audio" = "%@ está reproduciendo audio";
 "%@. Undo is available in the sidebar." = "%@. Puedes deshacerlo en la barra lateral.";
 "%lld bookmark" = "%lld marcador";
 "%lld bookmarks" = "%lld marcadores";
@@ -79,6 +82,7 @@
 "Allow pop-ups" = "Permitir ventanas emergentes";
 "Always Allow for %@" = "Permitir siempre en %@";
 "Always Allow for This Site" = "Permitir siempre en este sitio";
+"Amber" = "Ámbar";
 "an image you added" = "una imagen que añadiste";
 "and %lld more" = "y %lld más";
 "Approval needed" = "Se necesita aprobación";
@@ -96,6 +100,7 @@
 "Back (⌘[)" = "Atrás (⌘[)";
 "Block" = "Bloquear";
 "Block ads and trackers" = "Bloquear anuncios y rastreadores";
+"Blue" = "Azul";
 "Bookmarks" = "Marcadores";
 "Bookmarks %@" = "Marcadores %@";
 "Bookmarks Bar" = "Barra de marcadores";
@@ -164,6 +169,7 @@
 "Copy Password" = "Copiar contraseña";
 "Copy Path" = "Copiar ruta";
 "Copying requires Touch ID or your Mac password. Passwords are stored only in this Mac’s keychain." = "Para copiar se necesita Touch ID o la contraseña de tu Mac. Las contraseñas solo se guardan en el llavero de este Mac.";
+"Coral" = "Coral";
 "Couldn't build the %@ rules" = "No se han podido crear las reglas de %@";
 "Couldn't download (HTTP %lld)" = "No se ha podido descargar (HTTP %lld)";
 "Couldn't find the `claude` CLI. Install Claude Code and try again." = "No se ha encontrado la CLI `claude`. Instala Claude Code e inténtalo de nuevo.";
@@ -220,6 +226,8 @@
 "Edit the address" = "Edita la dirección";
 "Either way, it asks every time before something that looks like it pays, orders, sends, posts, shares, grants access, deletes or cancels." = "Pase lo que pase, pregunta siempre antes de algo que parezca pagar, pedir, enviar, publicar, compartir, dar acceso, eliminar o cancelar.";
 "Expanded" = "Expandido";
+"Gray" = "Gris";
+"Green" = "Verde";
 "Hidden" = "Oculto";
 "Image" = "Imagen";
 "In group %@" = "En el grupo %@";
@@ -231,12 +239,16 @@
 "No suggestions" = "Sin sugerencias";
 "Not open" = "No abierto";
 "Open %@" = "Abrir %@";
+"Opens in a new tab" = "Se abre en una pestaña nueva";
 "Page translated" = "Página traducida";
+"Pink" = "Rosa";
 "Pinned" = "Fijada";
 "Playing audio" = "Reproduciendo audio";
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "Vista previa de %@. Pulsa Comando-Retorno para abrirla como pestaña o Escape para cerrarla.";
+"Purple" = "Morado";
 "Remove %@" = "Quitar %@";
 "Remove this image" = "Quitar esta imagen";
+"Reopens the tab" = "Vuelve a abrir la pestaña";
 "Return opens it" = "Retorno lo abre";
 "Search for %@" = "Buscar %@";
 "Secure connection" = "Conexión segura";
@@ -250,6 +262,7 @@
 "Split View Divider" = "Divisor de vista dividida";
 "Switch to tab %@" = "Cambiar a la pestaña %@";
 "Switch to tab %@ in %@" = "Cambiar a la pestaña %1$@ en %2$@";
+"Teal" = "Verde azulado";
 "That image is too large to attach." = "La imagen es demasiado grande para adjuntarla.";
 "That isn't an image Changmun can read." = "Eso no es una imagen que Changmun pueda leer.";
 "The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "La IA está usando esta pestaña. Elige un certificado solo si quieres identificarte ante este sitio.";

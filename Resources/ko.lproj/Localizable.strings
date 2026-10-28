@@ -26,6 +26,9 @@
 "Update password for %@?" = "%@의 비밀번호를 업데이트할까요?";
 "a frame of an unknown site" = "알 수 없는 사이트의 프레임";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "전체 주소는 그 자리에서 바로 고칠 수 있어요 (⌘L). 사이트와 제목은 ⌘L로 검색 창에서 고쳐요.";
+"%@ is muted" = "%@의 소리를 껐어요";
+"%@ is not muted" = "%@의 소리를 켰어요";
+"%@ is playing audio" = "%@에서 소리가 나요";
 "%@. Undo is available in the sidebar." = "%@. 실행 취소는 사이드바에 있어요.";
 "%lld bookmark" = "북마크 %lld개";
 "%lld bookmarks" = "북마크 %lld개";
@@ -79,6 +82,7 @@
 "Allow pop-ups" = "팝업 허용";
 "Always Allow for %@" = "%@ 항상 허용";
 "Always Allow for This Site" = "이 사이트는 항상 허용";
+"Amber" = "호박색";
 "an image you added" = "직접 추가한 이미지";
 "and %lld more" = "%lld개 더";
 "Approval needed" = "승인이 필요해요";
@@ -96,6 +100,7 @@
 "Back (⌘[)" = "뒤로 (⌘[)";
 "Block" = "차단";
 "Block ads and trackers" = "광고·추적 차단";
+"Blue" = "파란색";
 "Bookmarks" = "북마크";
 "Bookmarks %@" = "북마크 %@";
 "Bookmarks Bar" = "북마크 바";
@@ -164,6 +169,7 @@
 "Copy Password" = "비밀번호 복사";
 "Copy Path" = "경로 복사";
 "Copying requires Touch ID or your Mac password. Passwords are stored only in this Mac’s keychain." = "복사하려면 Touch ID나 Mac 암호로 확인해야 해요. 비밀번호는 이 Mac의 키체인에만 있어요.";
+"Coral" = "코랄";
 "Couldn't build the %@ rules" = "%@ 규칙을 만들지 못했어요";
 "Couldn't download (HTTP %lld)" = "받지 못했어요 (HTTP %lld)";
 "Couldn't find the `claude` CLI. Install Claude Code and try again." = "`claude` CLI를 찾지 못했어요. Claude Code를 설치한 뒤 다시 시도해 주세요.";
@@ -220,6 +226,8 @@
 "Edit the address" = "주소를 고쳐요";
 "Either way, it asks every time before something that looks like it pays, orders, sends, posts, shares, grants access, deletes or cancels." = "어느 쪽이든 결제, 주문, 전송, 게시, 공유, 접근 허용, 삭제, 취소처럼 보이는 일은 매번 먼저 물어봐요.";
 "Expanded" = "펼침";
+"Gray" = "회색";
+"Green" = "초록색";
 "Hidden" = "숨김";
 "Image" = "이미지";
 "In group %@" = "그룹: %@";
@@ -231,12 +239,16 @@
 "No suggestions" = "추천 없음";
 "Not open" = "열려 있지 않아요";
 "Open %@" = "%@ 열기";
+"Opens in a new tab" = "새 탭에서 열어요";
 "Page translated" = "페이지를 번역했어요";
+"Pink" = "분홍색";
 "Pinned" = "고정됨";
 "Playing audio" = "소리 재생 중";
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "%@ 미리보기 중이에요. ⌘Return을 누르면 탭으로 열고, Esc를 누르면 닫아요.";
+"Purple" = "보라색";
 "Remove %@" = "%@ 제거";
 "Remove this image" = "이 이미지 빼기";
+"Reopens the tab" = "탭을 다시 열어요";
 "Return opens it" = "Return 키로 열어요";
 "Search for %@" = "%@ 검색";
 "Secure connection" = "보안 연결";
@@ -250,6 +262,7 @@
 "Split View Divider" = "분할 보기 구분선";
 "Switch to tab %@" = "%@ 탭으로 전환";
 "Switch to tab %@ in %@" = "%2$@의 %1$@ 탭으로 전환";
+"Teal" = "청록색";
 "That image is too large to attach." = "이미지가 너무 커서 붙일 수 없어요.";
 "That isn't an image Changmun can read." = "Changmun이 읽을 수 있는 이미지가 아니에요.";
 "The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "AI가 이 탭을 쓰고 있어요. 이 사이트에 본인을 알려도 될 때만 인증서를 고르세요.";

@@ -86,13 +86,16 @@ def describe(node):
 failures = []
 checked = 0
 states = 0
+reply = {}
 
 
 def audit(state, window="front", expect=None):
     """Reads the tree after a moment for the views to settle, and checks every control in it (and the popovers and sheets over it)."""
     global checked, states
     time.sleep(0.8)
-    trees = post("/accessibility", {"window": window, **(expect or {})})["trees"]
+    global reply
+    reply = post("/accessibility", {"window": window, **(expect or {})})
+    trees = reply["trees"]
     states += 1
     if TREES:
         os.makedirs(TREES, exist_ok=True)
@@ -127,16 +130,35 @@ def expect_controls(state, nodes, wanted):
     """What the state shows has to be reachable as a control that takes a press (a button, or anything with the press action), by the name given."""
     for text in wanted:
         found = [n for n, _ in nodes if text in (n.get("label") or n.get("title") or "")
-                 and (n.get("role") in PRESSABLE or "AXPress" in n.get("actions", []))]
+                 and (n.get("role") in PRESSABLE or "AXPress" in n.get("actions", []) or n.get("canPress"))]
         if not found:
             failures.append((state, f"no pressable control named {text!r}"))
 
 
+def find(nodes, label):
+    return [n for n, _ in nodes if (n.get("label") or n.get("title") or "") == label]
+
+
 def expect_value(state, nodes, label, value):
-    for n, _ in nodes:
-        if (n.get("label") or n.get("title")) == label and value in (n.get("value") or ""):
-            return
-    failures.append((state, f"the control {label!r} should have the value {value!r}"))
+    if not any(value in (n.get("value") or "") for n in find(nodes, label)):
+        failures.append((state, f"the control {label!r} should have the value {value!r} (it has {[n.get('value') for n in find(nodes, label)]})"))
+
+
+def expect_selected(state, nodes, label):
+    if not any(n.get("selected") for n in find(nodes, label)):
+        failures.append((state, f"the control {label!r} should be selected"))
+
+
+def expect_actions(state, nodes, label, actions):
+    have = {a for n in find(nodes, label) for a in n.get("customActions", [])}
+    for action in actions:
+        if action not in have:
+            failures.append((state, f"the control {label!r} should offer the action {action!r} (it offers {sorted(have)})"))
+
+
+def expect_announced(state, text):
+    if not any(text in said for said in reply.get("announcements", [])):
+        failures.append((state, f"nothing announced with {text!r} (announced: {reply.get('announcements', [])[-6:]})"))
 
 
 def page(title):
@@ -182,22 +204,48 @@ def main():
     ui(appearance="light", tabs="sidebar", toolbar="sidebar", sidebar=True, command="none", find=False)
     ids = seed()
     ui(progress=0.4)
+    toolbar = ["Sidebar", "Back", "Forward", "Stop", "Bookmarks", "Downloads", "AI Panel", "Address"]
+    rows = [*TABS, "Audit group", "Fav one", "Fav two", "Mark one", "AuditFolder", "New Tab"]
 
     if wanted("sidebar"):
         print("sidebar layout")
-        nodes = audit("sidebar, toolbar in the sidebar")
-        expect_controls("sidebar, toolbar in the sidebar", nodes, [*TABS, "Audit group", "Fav one", "Fav two", "Mark one", "AuditFolder", "New Tab", "Sidebar", "Back", "Forward", "Reload",
-                                                              "Bookmarks", "Downloads", "AI Panel", "Address"])
+        state = "sidebar, toolbar in the sidebar"
+        nodes = audit(state)
+        expect_controls(state, nodes, toolbar + rows)
+        expect_selected(state, nodes, "Alpha")
+        expect_value(state, nodes, "Alpha", "Loading")
+        expect_value(state, nodes, "Audit group", "Expanded, 2 tabs")
+        expect_value(state, nodes, "Charlie", "In group Audit group")
+        expect_value(state, nodes, "Fav one", "Not open")
+        expect_value(state, nodes, "AuditFolder", "Expanded, 2 bookmarks")
+        expect_value(state, nodes, "Sidebar", "Shown")
+        expect_value(state, nodes, "Loading", "40 percent")
+        expect_value(state, nodes, "Address", "")
+        expect_actions(state, nodes, "Bravo", ["Close Tab", "Rename", "Reload"])
+        expect_actions(state, nodes, "Audit group", ["Collapse", "Rename"])
+        expect_actions(state, nodes, "AuditFolder", ["Collapse", "Rename"])
+        expect_actions(state, nodes, "Mark one", ["Rename"])
+        state = "sidebar, toolbar over the page"
         ui(toolbar="page")
-        audit("sidebar, toolbar over the page")
+        nodes = audit(state)
+        expect_controls(state, nodes, ["Sidebar", "Back", "Forward", "Address", "AI Panel", *rows])
         ui(toolbar="sidebar")
 
     if wanted("top"):
         print("tabs on top")
         ui(tabs="top", overlay=False)
-        audit("tabs on top")
+        state = "tabs on top"
+        nodes = audit(state)
+        expect_controls(state, nodes, [*TABS, "Audit group", "Fav one", "New Tab", "Sidebar", "Back", "Forward", "Address", "Downloads", "AI Panel"])
+        expect_selected(state, nodes, "Alpha")
+        expect_value(state, nodes, "Sidebar", "Hidden")
+        expect_value(state, nodes, "Audit group", "Expanded, 2 tabs")
+        expect_actions(state, nodes, "Bravo", ["Close Tab", "Rename"])
         ui(overlay=True)
-        audit("tabs on top, sidebar over the page")
+        state = "tabs on top, sidebar over the page"
+        nodes = audit(state)
+        expect_value(state, nodes, "Sidebar", "Shown")
+        expect_controls(state, nodes, ["Bookmarks", "AuditFolder", "Mark one"])
         ui(overlay=False, tabs="sidebar")
 
     if wanted("command"):
@@ -205,14 +253,36 @@ def main():
         ui(command="newTab")
         time.sleep(0.5)
         key("exam", 0)
-        nodes = audit("command bar open")
+        time.sleep(1.2)
+        state = "command bar open"
+        nodes = audit(state)
+        expect_controls(state, nodes, ["Search for exam", "Ask AI: exam"])
+        expect_label(state, nodes, "Search, enter an address or ask AI")
+        expect_selected(state, nodes, "Search for exam")
+        expect_announced(state, "suggestions")
         ui(command="none")
+        time.sleep(0.8)
+        state = "command bar closed"
+        audit(state)
+        if "WebView" not in reply.get("firstResponder", ""):
+            failures.append((state, f"the keyboard should be back on the page, it is on {reply.get('firstResponder')}"))
 
     if wanted("find"):
         print("find bar")
         ui(find=True, findText="Alpha")
-        audit("find bar")
+        time.sleep(1.2)
+        state = "find bar"
+        nodes = audit(state)
+        expect_controls(state, nodes, ["Previous", "Next", "Close"])
+        expect_label(state, nodes, "Find on Page")
         ui(find=False)
+
+    if wanted("flash"):
+        print("announcements")
+        post("/accessibility", {"flash": "Address copied", "undo": "Closed 1 tab"})
+        audit("a status message and an undo notice")
+        expect_announced("a status message and an undo notice", "Address copied")
+        expect_announced("a status message and an undo notice", "Closed 1 tab. Undo is available in the sidebar.")
 
     if wanted("ai"):
         print("AI panel")
@@ -224,9 +294,21 @@ def main():
             {"kind": "assistant", "text": "The page says **Alpha**."},
         ], "running": 12, "step": "Reading the page", "context": {"used": 40000, "window": 200000}})
         post("/panel", {"open": True})
-        audit("AI panel, a conversation")
+        state = "AI panel, a conversation"
+        nodes = audit(state)
+        expect_controls(state, nodes, ["New Chat", "Open in its own window", "Close", "Dictate", "Stop"])
+        expect_label(state, nodes, "AI said")
+        expect_label(state, nodes, "Working")
+        if not any((n.get("value") or "") == "You said: Summarize this page" for n, _ in nodes):
+            failures.append((state, "the user's message should be read as 'You said: …'"))
+        expect_value(state, nodes, "Working", "Reading the page")
+        expect_value(state, nodes, "AI Panel", "Turned on")
         post("/accessibility", {"approval": True})
-        audit("AI panel, a question waiting")
+        state = "AI panel, a question waiting"
+        nodes = audit(state)
+        expect_controls(state, nodes, ["Don’t Allow", "Allow Once", "Allow on example.com for This Chat"])
+        expect_label(state, nodes, "Approval needed")
+        expect_announced(state, "Approval needed: Let the AI type into this page?")
         post("/accessibility", {"approval": False})
         post("/ai-chat", {"showHistory": True})
         audit("AI panel, chat history")
@@ -264,7 +346,10 @@ def trust():
             reply = post("/server-trust", {"open": f"https://localhost:{port}/", "wait": 3500})
             if not reply.get("failure"):
                 failures.append(("trust warning", "the warning did not come up"))
-            audit("trust warning")
+            nodes = audit("trust warning")
+            expect_label("trust warning", nodes, "Certificate warning")
+            expect_controls("trust warning", nodes, ["Go Back"])
+            expect_announced("trust warning", "This connection isn’t private")
             post("/server-trust", {"exceptions": "clear", "action": "back", "wait": 500})
         finally:
             server.kill()

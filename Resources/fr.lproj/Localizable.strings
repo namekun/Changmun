@@ -26,6 +26,9 @@
 "Update password for %@?" = "Mettre à jour le mot de passe de %@ ?";
 "a frame of an unknown site" = "un cadre d’un site inconnu";
 "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "Une adresse complète peut être modifiée directement sur place (⌘L). Avec le site et le titre, ⌘L ouvre le champ de recherche pour la modifier.";
+"%@ is muted" = "%@ : son coupé";
+"%@ is not muted" = "%@ : son réactivé";
+"%@ is playing audio" = "%@ : lecture du son";
 "%@. Undo is available in the sidebar." = "%@. Vous pouvez annuler dans la barre latérale.";
 "%lld bookmark" = "%lld signet";
 "%lld bookmarks" = "%lld signets";
@@ -79,6 +82,7 @@
 "Allow pop-ups" = "Autoriser les pop-ups";
 "Always Allow for %@" = "Toujours autoriser pour %@";
 "Always Allow for This Site" = "Toujours autoriser pour ce site";
+"Amber" = "Ambre";
 "an image you added" = "une image que vous avez ajoutée";
 "and %lld more" = "et %lld de plus";
 "Approval needed" = "Approbation requise";
@@ -96,6 +100,7 @@
 "Back (⌘[)" = "Précédent (⌘[)";
 "Block" = "Bloquer";
 "Block ads and trackers" = "Bloquer les publicités et les traqueurs";
+"Blue" = "Bleu";
 "Bookmarks" = "Signets";
 "Bookmarks %@" = "Signets %@";
 "Bookmarks Bar" = "Barre de signets";
@@ -164,6 +169,7 @@
 "Copy Password" = "Copier le mot de passe";
 "Copy Path" = "Copier le chemin";
 "Copying requires Touch ID or your Mac password. Passwords are stored only in this Mac’s keychain." = "La copie nécessite Touch ID ou le mot de passe de votre Mac. Les mots de passe sont stockés uniquement dans le trousseau de ce Mac.";
+"Coral" = "Corail";
 "Couldn't build the %@ rules" = "Impossible de créer les règles %@";
 "Couldn't download (HTTP %lld)" = "Téléchargement impossible (HTTP %lld)";
 "Couldn't find the `claude` CLI. Install Claude Code and try again." = "Impossible de trouver la CLI `claude`. Installez Claude Code, puis réessayez.";
@@ -220,6 +226,8 @@
 "Edit the address" = "Modifier l’adresse";
 "Either way, it asks every time before something that looks like it pays, orders, sends, posts, shares, grants access, deletes or cancels." = "Dans tous les cas, l’IA demande à chaque fois avant ce qui ressemble à un paiement, une commande, un envoi, une publication, un partage, un accès accordé, une suppression ou une annulation.";
 "Expanded" = "Déplié";
+"Gray" = "Gris";
+"Green" = "Vert";
 "Hidden" = "Masqué";
 "Image" = "Image";
 "In group %@" = "Dans le groupe %@";
@@ -231,12 +239,16 @@
 "No suggestions" = "Aucune suggestion";
 "Not open" = "Non ouvert";
 "Open %@" = "Ouvrir %@";
+"Opens in a new tab" = "S’ouvre dans un nouvel onglet";
 "Page translated" = "Page traduite";
+"Pink" = "Rose";
 "Pinned" = "Épinglé";
 "Playing audio" = "Lecture du son";
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "Aperçu de %@. Appuyez sur Commande-Retour pour l’ouvrir dans un onglet, ou sur Échap pour le fermer.";
+"Purple" = "Violet";
 "Remove %@" = "Retirer %@";
 "Remove this image" = "Retirer cette image";
+"Reopens the tab" = "Rouvre l’onglet";
 "Return opens it" = "Retour l’ouvre";
 "Search for %@" = "Rechercher %@";
 "Secure connection" = "Connexion sécurisée";
@@ -250,6 +262,7 @@
 "Split View Divider" = "Séparateur de l’écran partagé";
 "Switch to tab %@" = "Passer à l’onglet %@";
 "Switch to tab %@ in %@" = "Passer à l’onglet %1$@ dans %2$@";
+"Teal" = "Sarcelle";
 "That image is too large to attach." = "Cette image est trop volumineuse pour être jointe.";
 "That isn't an image Changmun can read." = "Ce n’est pas une image que Changmun peut lire.";
 "The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "L’IA utilise cet onglet. Ne choisissez un certificat que si vous voulez vous identifier auprès de ce site.";

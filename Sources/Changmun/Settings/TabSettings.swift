@@ -24,7 +24,7 @@ struct TabSettings: View {
                     HStack {
                         Text(host)
                         Spacer()
-                        Button(role: .destructive) { prefs.neverSleepHosts.removeAll { $0 == host } } label: { Image(systemName: "minus.circle") }
+                        Button(role: .destructive) { prefs.neverSleepHosts.removeAll { $0 == host } } label: { Image(systemName: "minus.circle") }.accessibilityLabel(String(localized: "Remove \(host)"))
                             .buttonStyle(.borderless)
                     }
                 }

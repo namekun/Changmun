@@ -178,6 +178,22 @@ enum Accessibility {
     static func widthValue(_ width: Double) -> String { String(localized: "\(Int(width.rounded())) points") }
 }
 
+extension SpaceTint {
+    /// What the colour is called, for the picker's buttons: a colour alone says nothing to a screen reader.
+    var name: String {
+        switch self {
+        case .blue: String(localized: "Blue")
+        case .coral: String(localized: "Coral")
+        case .green: String(localized: "Green")
+        case .purple: String(localized: "Purple")
+        case .amber: String(localized: "Amber")
+        case .teal: String(localized: "Teal")
+        case .pink: String(localized: "Pink")
+        case .gray: String(localized: "Gray")
+        }
+    }
+}
+
 // MARK: - Announcements
 
 /// What is said aloud once and not again: a short run of the same words is one announcement, and nothing is announced over a person who is
@@ -205,13 +221,15 @@ enum Announcer {
     private(set) static var recent: [String] = []
     /// Where announcements go; a test puts its own here.
     static var deliver: (String, Bool) -> Void = { text, important in
+        // Without an application (the unit tests') there is nobody to tell.
+        guard NSApp != nil else { return }
         var announcement = AttributedString(text)
         announcement.accessibilitySpeechAnnouncementPriority = important ? .high : .low
         AccessibilityNotification.Announcement(announcement).post()
     }
 
     /// Whether a text field of the app has the keyboard: the field editor is the first responder.
-    static var isTyping: Bool { (NSApp.keyWindow?.firstResponder as? NSTextView)?.isFieldEditor == true }
+    static var isTyping: Bool { (NSApp?.keyWindow?.firstResponder as? NSTextView)?.isFieldEditor == true }
 
     /// `important` speaks over what is being said and over a person typing; `whileTyping` is for what answers the typing itself (the command
     /// bar's number of suggestions), which is only said in the pauses.
