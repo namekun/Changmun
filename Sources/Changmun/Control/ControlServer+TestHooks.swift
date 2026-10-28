@@ -102,6 +102,18 @@ extension ControlServer {
             }
             return true
         }
+        // Tests only: the front window closed as its close button does, answering first (the last window may end the app). "windows" is how many ordinary and private windows are open before.
+        if Headless.isTestCopy, request.method == "POST", request.path == "/window-close" {
+            Task { @MainActor in
+                guard let window = Browser.current?.window else {
+                    return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
+                }
+                self.respond(connection, status: "200 OK", body: ["windows": Browser.all.count])
+                try? await Task.sleep(for: .milliseconds(100))
+                window.performClose(nil)
+            }
+            return true
+        }
         // Tests only: the front window's spaces. "action" is list, create (name, symbol, tint, profile), switch, delete (by
         // name), or sheet (shows the new-space sheet, or the edit sheet of the space named); the answer lists the spaces.
         if Headless.isTestCopy, request.method == "POST", request.path == "/spaces",
