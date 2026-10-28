@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Changmun — A light Mac browser with a sidebar</title>
+<meta name="description" content="Changmun is a light Mac browser with vertical tabs and favorites in the sidebar and a Claude panel that can read pages, click and type. Free and open source.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Changmun — A light Mac browser with a sidebar">
+<meta property="og:description" content="Changmun is a light Mac browser with vertical tabs and favorites in the sidebar and a Claude panel that can read pages, click and type. Free and open source.">
+<meta property="og:image" content="https://namekun.github.io/Changmun/images/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Changmun — A light Mac browser with a sidebar">
+<meta name="twitter:image" content="https://namekun.github.io/Changmun/images/og.jpg">
+<link rel="icon" type="image/png" href="../images/icon.png">
+<link rel="apple-touch-icon" href="../images/icon.png">
+<style>
+  /* Tokens. Light is a clean white and grey page; dark is the hero look. .dk pins the dark tokens on a band inside a light page. */
+  :root {
+    --bg: #fff; --card: #f5f5f7; --card2: #ebebf0; --tx: #1d1d1f; --dim: #6e6e73; --faint: #c9c9ce; --line: rgba(0,0,0,.1);
+    --blue: #0071e3; --blue-h: #0077ed; --link: #0066cc;
+    --g1: #0a8fb5; --g2: #356a97; --g3: #4d5b70;
+    --nav-bg: rgba(255,255,255,.88);
+    --shot-ring: rgba(0,0,0,.1); --shot-shadow: 0 50px 90px -30px rgba(30,60,100,.38), 0 18px 36px -18px rgba(30,60,100,.22);
+    --glow: radial-gradient(50% 48% at 50% 52%, rgba(120,190,235,.42), rgba(120,190,235,0) 72%), radial-gradient(32% 30% at 78% 40%, rgba(255,214,160,.38), rgba(255,214,160,0) 70%);
+    --code-bg: #161618;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo", "Hiragino Sans", "PingFang SC", "Segoe UI", "Noto Sans CJK KR", "Noto Sans CJK JP", "Noto Sans CJK SC", system-ui, sans-serif;
+    --head: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Apple SD Gothic Neo", "Hiragino Sans", "PingFang SC", "Segoe UI", "Noto Sans CJK KR", "Noto Sans CJK JP", "Noto Sans CJK SC", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --wrap: min(1120px, 100% - 48px);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #000; --card: #1d1d1f; --card2: #2a2a2d; --tx: #f5f5f7; --dim: #86868b; --faint: #3a3a3d; --line: rgba(255,255,255,.14);
+      --link: #2997ff; --g1: #c8f3ff; --g2: #7ec6e6; --g3: #5b7a96; --nav-bg: rgba(0,0,0,.86);
+      --shot-ring: rgba(255,255,255,.14); --shot-shadow: 0 60px 100px -30px rgba(0,0,0,.9), 0 0 120px -30px rgba(60,170,220,.28);
+      --glow: radial-gradient(48% 46% at 50% 52%, rgba(30,150,200,.42), rgba(30,150,200,0) 72%), radial-gradient(30% 28% at 80% 38%, rgba(70,90,200,.34), rgba(70,90,200,0) 70%);
+      color-scheme: dark; }
+  }
+  .dk { --bg: #000; --card: #1c1c1e; --card2: #2c2c2e; --tx: #f5f5f7; --dim: #a1a1a6; --faint: #3a3a3d; --line: rgba(255,255,255,.14); --link: #2997ff; --g1: #c8f3ff; --g2: #7ec6e6; --g3: #5b7a96; color-scheme: dark; }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; overflow-x: clip; scroll-padding-top: 64px; }
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+  body { margin: 0; background: var(--bg); color: var(--tx); font: 400 17px/1.47 var(--sans); letter-spacing: -.01em; -webkit-font-smoothing: antialiased; overflow-x: clip; overflow-wrap: break-word; -webkit-tap-highlight-color: transparent; }
+  :lang(ko) { word-break: keep-all; }
+  :lang(ja), :lang(zh) { line-break: strict; }
+  :lang(de), :lang(es), :lang(fr) { hyphens: manual; }
+  img { display: block; max-width: 100%; height: auto; }
+  a { color: inherit; text-underline-offset: 3px; }
+  button { font: inherit; color: inherit; touch-action: manipulation; }
+  code { font-family: var(--mono); }
+  :focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 6px; }
+  .skip { position: fixed; left: 12px; top: -80px; z-index: 200; background: var(--blue); color: #fff; padding: 10px 16px; border-radius: 10px; text-decoration: none; transition: top .2s; }
+  .skip:focus { top: 12px; }
+  .wrap { width: var(--wrap); margin-inline: auto; }
+  .sec { padding-top: clamp(88px, 14vw, 180px); }
+
+  /* Type: tight at display sizes, a little open at small ones */
+  .grad { background: linear-gradient(95deg, var(--g1) 0%, var(--g2) 52%, var(--g3) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; padding-bottom: .1em; }
+  h1, h2, h3, p { margin: 0; }
+  h1 { font: 700 clamp(44px, 7.6vw, 96px)/1.04 var(--head); letter-spacing: -.045em; text-wrap: balance; }
+  h2 { font: 700 clamp(36px, 6.2vw, 76px)/1.06 var(--head); letter-spacing: -.04em; text-wrap: balance; }
+  h3 { font: 600 clamp(21px, 2.2vw, 28px)/1.2 var(--head); letter-spacing: -.02em; }
+  :lang(ko) h1, :lang(ko) h2 { letter-spacing: -.035em; line-height: 1.18; }
+  :lang(ja) h1, :lang(ja) h2, :lang(zh) h1, :lang(zh) h2 { letter-spacing: -.02em; line-height: 1.2; }
+  .center { text-align: center; }
+  .lede { font-size: clamp(19px, 2.1vw, 26px); line-height: 1.38; font-weight: 500; color: var(--dim); letter-spacing: -.012em; text-wrap: pretty; }
+  .lede b, .dimp b { color: var(--tx); font-weight: inherit; }
+  .small { font-size: 14px; color: var(--dim); letter-spacing: 0; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 26px; border-radius: 980px; background: var(--blue); color: #fff; font-size: 17px; font-weight: 500; letter-spacing: -.01em; text-decoration: none; transition: background .2s, transform .2s; }
+  .btn:active { transform: scale(.97); }
+  @media (hover: hover) { .btn:hover { background: var(--blue-h); } }
+  .brew { display: flex; align-items: center; gap: 4px; min-height: 48px; padding: 0 6px 0 20px; border-radius: 980px; background: var(--card); max-width: 100%; min-width: 0; }
+  .brew code { min-width: 0; font-size: 14px; letter-spacing: 0; white-space: nowrap; overflow-x: auto; scrollbar-width: none; user-select: all; }
+  .brew code::-webkit-scrollbar { display: none; }
+  .copy { position: relative; flex: none; min-height: 36px; min-width: 64px; padding: 0 14px; border: 0; border-radius: 980px; background: transparent; color: var(--link); font-size: 14px; font-weight: 500; cursor: pointer; }
+  .copy .ok { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0; }
+  .copy .lbl { display: block; }
+  .copy.done .lbl { opacity: 0; } .copy.done .ok { opacity: 1; }
+  @media (hover: hover) { .copy:hover { background: var(--card2); } }
+  .cta-row { max-width: 100%; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px 14px; }
+
+  /* Nav: brand and language from the start; section links and the pill come in once the hero's own button has scrolled away. */
+  .nav { position: sticky; top: 0; z-index: 100; height: 52px; }
+  .nav::before { content: ""; position: absolute; inset: 0; background: var(--nav-bg); border-bottom: 1px solid var(--line); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); }
+  html.js:not(.past) .nav::before { opacity: 0; }
+  .nav::before { transition: opacity .3s; }
+  .nav-in { position: relative; width: var(--wrap); height: 100%; margin-inline: auto; display: flex; align-items: center; gap: 24px; }
+  .nav-brand { display: flex; align-items: center; gap: 9px; text-decoration: none; font: 600 19px var(--head); letter-spacing: -.02em; min-height: 44px; }
+  .nav-brand img { width: 24px; height: 24px; border-radius: 6px; }
+  .nav-links { display: flex; gap: 4px; margin: 0 0 0 auto; padding: 0; list-style: none; transition: opacity .3s, visibility .3s; }
+  .nav-links a { position: relative; display: block; padding: 8px 12px; font-size: 13px; letter-spacing: 0; color: var(--dim); text-decoration: none; transition: color .2s; }
+  .nav-links a[aria-current] { color: var(--tx); }
+  @media (hover: hover) { .nav-links a:hover { color: var(--tx); } }
+  .nav-end { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+  .nav-links + .nav-end { margin-left: 0; }
+  .pillcta { position: relative; display: inline-flex; align-items: center; min-height: 28px; padding: 0 13px; border-radius: 980px; background: var(--blue); color: #fff; font-size: 13px; letter-spacing: 0; text-decoration: none; transition: opacity .3s, visibility .3s, background .2s; }
+  .pillcta::after { content: ""; position: absolute; inset: -8px -4px; }
+  html.js:not(.past) .nav-links, html.js:not(.past) .pillcta { opacity: 0; visibility: hidden; }
+  .lang { position: relative; }
+  .lang-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; border: 0; border-radius: 980px; background: transparent; color: var(--dim); font-size: 13px; letter-spacing: 0; cursor: pointer; }
+  @media (hover: hover) { .lang-btn:hover { color: var(--tx); } }
+  .lang.open .lang-btn { color: var(--tx); }
+  .lang-btn svg { width: 16px; height: 16px; }
+  .lang-menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 168px; margin: 0; padding: 6px; list-style: none; border-radius: 14px; background: var(--card); border: 1px solid var(--line); box-shadow: 0 24px 48px -12px rgba(0,0,0,.35);
+    opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity .2s, transform .25s cubic-bezier(.2,.7,.2,1), visibility 0s linear .2s; }
+  .lang.open .lang-menu { opacity: 1; visibility: visible; transform: none; transition: opacity .2s, transform .25s cubic-bezier(.2,.7,.2,1), visibility 0s; }
+  .lang-menu button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 40px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--dim); font-size: 15px; text-align: left; cursor: pointer; }
+  .lang-menu button:hover, .lang-menu button:focus-visible { background: var(--card2); color: var(--tx); outline-offset: -2px; }
+  .lang-menu button[aria-selected="true"] { color: var(--tx); font-weight: 600; }
+  .lang-menu button[aria-selected="true"]::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--blue); }
+  @media (max-width: 860px) { .nav-links { display: none; } .nav-end { margin-left: auto; } }
+  @media (max-width: 520px) { #langLabel { display: none; } .nav-in { gap: 8px; } }
+
+  /* Hero */
+  .hero { position: relative; padding-top: clamp(32px, 5.5vw, 72px); text-align: center; overflow-x: clip; }
+  .hero-text { width: var(--wrap); margin-inline: auto; display: flex; flex-direction: column; align-items: center; gap: clamp(12px, 1.6vw, 18px); }
+  .wordmark { font: 600 clamp(19px, 2.4vw, 28px)/1 var(--head); letter-spacing: -.02em; }
+  .wordmark span { color: var(--dim); margin-right: .25em; font-weight: 500; }
+  .hero-sub { font: 600 clamp(22px, 3.2vw, 40px)/1.15 var(--head); letter-spacing: -.025em; }
+  .hero-lead { max-width: 34em; font-size: clamp(17px, 1.8vw, 21px); color: var(--dim); text-wrap: balance; }
+  .hero .cta-row { margin-top: 10px; }
+  .hero-meta { font-size: 13px; color: var(--dim); letter-spacing: 0; }
+  .hero-stage { position: relative; width: min(1180px, 100% - 32px); margin: clamp(32px, 4.4vw, 56px) auto 0; perspective: 1800px; }
+  .hero-stage::before { content: ""; position: absolute; inset: -18% -14% -10%; background: var(--glow); pointer-events: none; }
+
+  @media (max-width: 640px) {
+    /* On a phone the whole window would be unreadable: show its left part, the sidebar and the page, larger. */
+    .hero-stage { width: 100%; overflow: hidden; margin-top: 28px; }
+    .hero-stage .hero-shot { width: 215%; max-width: none; margin-left: -6%; }
+    .hero .brew { border-radius: 24px; padding-block: 4px; }
+    .hero .brew code { white-space: normal; overflow-wrap: anywhere; padding: 8px 0; }
+  }
+  /* Product shots float on their own backdrop: rounded corners and a shadow, never baked into the image. */
+  .shot { position: relative; margin: 0; border-radius: clamp(8px, 1.3vw, 14px); overflow: hidden; background: var(--card); box-shadow: 0 0 0 1px var(--shot-ring), var(--shot-shadow); aspect-ratio: 1440 / 900; }
+  .shot img, .shot picture { display: block; width: 100%; height: 100%; }
+
+  /* Light by design */
+  .reveal-p { max-width: 860px; margin: clamp(32px, 5vw, 56px) auto 0; font: 600 clamp(21px, 2.9vw, 32px)/1.34 var(--head); letter-spacing: -.02em; color: var(--dim); text-align: center; text-wrap: pretty; }
+  .reveal-p b, .reveal-p .k { color: var(--tx); font-weight: inherit; }
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: clamp(56px, 8vw, 96px); }
+  .tile { border-radius: 28px; background: var(--card); padding: clamp(22px, 2.6vw, 34px); }
+  .stat { display: flex; flex-direction: column; justify-content: flex-end; min-height: clamp(200px, 22vw, 280px); }
+  .stat-n { font: 700 clamp(34px, 3.8vw, 52px)/1.04 var(--head); letter-spacing: -.045em; padding-bottom: .08em; }
+  .stat p { margin-top: 8px; font-size: 17px; line-height: 1.35; font-weight: 500; color: var(--dim); }
+  @media (max-width: 960px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stat { min-height: 200px; } }
+  @media (max-width: 420px) { .stat p { font-size: 15px; } }
+
+  /* Layouts: the text scrolls, the shot beside it stays and swaps. */
+  .lay-grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 9fr); gap: clamp(24px, 4vw, 56px); align-items: start; margin-top: clamp(40px, 6vw, 72px); }
+  .steps { display: flex; flex-direction: column; }
+  .step { min-height: 78vh; min-height: 78svh; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+  .step-k { font-size: 14px; font-weight: 600; letter-spacing: .02em; color: var(--link); }
+  .step p { font-size: clamp(17px, 1.7vw, 21px); line-height: 1.42; color: var(--dim); font-weight: 500; letter-spacing: -.01em; }
+  .step .shot { display: none; margin-top: 18px; }
+  .lay-stage { position: sticky; top: clamp(72px, calc(50vh - 240px), 220px); }
+  .lay-stage .shot picture { position: absolute; inset: 0; opacity: 0; transition: opacity .6s ease; }
+  .lay-stage[data-step="0"] .p0, .lay-stage[data-step="1"] .p1, .lay-stage[data-step="2"] .p2 { opacity: 1; }
+  html:not(.js) .lay-stage .p0 { opacity: 1; }
+  html.js .step { opacity: .38; transition: opacity .5s; }
+  html.js .step.on { opacity: 1; }
+  @media (max-width: 899px) {
+    .lay-grid { grid-template-columns: 1fr; }
+    .lay-stage { display: none; }
+    .step { min-height: 0; padding-bottom: 56px; }
+    .step .shot { display: block; }
+    html.js .step { opacity: 1; }
+  }
+
+  /* AI band: always dark */
+  .band { position: relative; margin-top: clamp(88px, 14vw, 180px); width: min(1320px, 100% - 24px); margin-inline: auto; border-radius: clamp(28px, 4vw, 48px); background: #0a0a0c; color: var(--tx); overflow: hidden; padding: clamp(40px, 7vw, 96px) clamp(22px, 5vw, 80px); box-shadow: 0 0 0 1px rgba(255,255,255,.07) inset; }
+  .band::before { content: ""; position: absolute; inset: 0; background: radial-gradient(46% 56% at 88% 20%, rgba(40,150,210,.26), transparent 70%), radial-gradient(40% 50% at 6% 96%, rgba(90,80,220,.18), transparent 70%); pointer-events: none; }
+  .ai-grid { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px); gap: clamp(32px, 5vw, 80px); align-items: center; }
+  .ai-text h2 { font-size: clamp(34px, 5.2vw, 64px); }
+  .ai-text .lede { margin-top: clamp(16px, 2vw, 24px); }
+  .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 28px; margin: clamp(32px, 4vw, 48px) 0 0; padding: 0; list-style: none; }
+  .facts h3 { font-size: 17px; font-weight: 600; letter-spacing: -.01em; line-height: 1.25; }
+  .facts p { margin-top: 6px; font-size: 15px; line-height: 1.42; color: var(--dim); letter-spacing: 0; }
+  @media (max-width: 1000px) { .ai-grid { grid-template-columns: 1fr; } .mock-wrap { max-width: 480px; } }
+  @media (max-width: 560px) { .facts { grid-template-columns: 1fr; } }
+
+  /* The AI panel, built live in HTML */
+  .mock { border-radius: 22px; background: #1c1c1e; box-shadow: 0 0 0 1px rgba(255,255,255,.1), 0 40px 80px -30px rgba(0,0,0,.8); padding: 14px; display: flex; flex-direction: column; gap: 12px; font-size: 14px; line-height: 1.4; letter-spacing: 0; color: #f5f5f7; }
+  .mk-head { display: flex; align-items: center; gap: 8px; padding: 2px 4px 10px; border-bottom: 1px solid rgba(255,255,255,.09); }
+  .mk-head b { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mk-head svg { width: 18px; height: 18px; flex: none; color: #98989d; }
+  .mk-user { align-self: flex-end; max-width: 86%; padding: 9px 13px; border-radius: 16px 16px 4px 16px; background: #0a84ff; color: #fff; }
+  .mk-steps { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .mk-steps li { display: flex; align-items: center; gap: 9px; padding: 8px 11px; border-radius: 11px; background: #2c2c2e; color: #d1d1d6; }
+  .mk-steps svg { width: 16px; height: 16px; flex: none; }
+  .mk-steps .done svg { color: #30d158; }
+  .mk-steps .run svg { color: #64d2ff; }
+  .mk-steps .run { color: #f5f5f7; }
+  .mk-work { display: flex; align-items: center; gap: 8px; color: #98989d; font-size: 13px; padding-left: 2px; }
+  .mk-dot { width: 7px; height: 7px; border-radius: 50%; background: #64d2ff; }
+  .mk-ask { border-radius: 16px; background: #2c2c2e; box-shadow: 0 0 0 1px rgba(100,210,255,.35); padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+  .mk-ask strong { font-size: 15px; font-weight: 600; }
+  .mk-ask p { color: #a1a1a6; font-size: 13.5px; }
+  .mk-btns { display: flex; gap: 8px; margin-top: 8px; }
+  .mk-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 0 10px; border-radius: 10px; background: #3a3a3c; font-weight: 500; font-size: 13.5px; text-align: center; }
+  .mk-btn.go { background: #0a84ff; color: #fff; }
+  .mk-btn kbd { font: 500 11px var(--sans); opacity: .7; }
+  .mk-box { border-radius: 16px; background: #2c2c2e; padding: 11px 12px 8px; display: flex; flex-direction: column; gap: 14px; color: #8e8e93; }
+  .mk-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .mk-model { font-size: 12.5px; color: #c7c7cc; padding: 3px 9px; border-radius: 980px; background: #3a3a3c; white-space: nowrap; }
+  .mk-send { width: 26px; height: 26px; border-radius: 50%; background: #f5f5f7; color: #1c1c1e; display: grid; place-items: center; flex: none; }
+  .mk-send svg { width: 14px; height: 14px; }
+
+  /* Bento */
+  .bento { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: clamp(48px, 7vw, 88px); }
+  .bc { position: relative; display: flex; flex-direction: column; min-height: clamp(280px, 28vw, 340px); overflow: hidden; }
+  .bc.w2 { grid-column: span 2; }
+  .bc h3 { font-size: 15px; font-weight: 600; letter-spacing: 0; color: var(--dim); }
+  .bc .glyph { margin-top: auto; font: 700 clamp(34px, 4.2vw, 56px)/1.05 var(--head); letter-spacing: -.035em; padding-bottom: .08em; }
+  .bc .glyph.sm { font-size: clamp(28px, 3.3vw, 42px); }
+  .bc p { margin-top: 10px; font-size: 17px; line-height: 1.35; font-weight: 600; letter-spacing: -.012em; color: var(--tx); max-width: 26em; }
+  .bc p span { color: var(--dim); }
+  .tag { display: inline-block; margin-top: 8px; font-size: 12px; font-weight: 500; letter-spacing: .02em; color: var(--dim); }
+  .vis { position: absolute; pointer-events: none; }
+  .sk { right: clamp(18px, 3vw, 36px); top: clamp(22px, 3vw, 34px); width: min(46%, 300px); display: flex; flex-direction: column; gap: 9px; padding: 18px; border-radius: 16px; background: var(--bg); box-shadow: 0 0 0 1px var(--line), 0 18px 36px -18px rgba(0,0,0,.3); transform: rotate(2.4deg); }
+  .sk i { display: block; height: 7px; border-radius: 4px; background: var(--card2); }
+  .sk i:first-child { height: 11px; width: 70%; background: var(--dim); opacity: .7; margin-bottom: 4px; }
+  .bc.hp h3 { max-width: calc(100% - 120px); }
+  .pip { right: 30px; top: 24px; width: 76px; height: 50px; border-radius: 10px; background: var(--bg); box-shadow: 0 0 0 1px var(--line); }
+  .pip::after { content: ""; position: absolute; right: -8px; bottom: -10px; width: 52px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, var(--g1), var(--g3)); box-shadow: 0 8px 16px -6px rgba(0,0,0,.4); }
+  .dots { right: clamp(18px, 2.6vw, 30px); top: clamp(24px, 2.8vw, 32px); display: flex; align-items: center; gap: 6px; }
+  .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); }
+  .dots i.on { width: 26px; border-radius: 5px; background: var(--blue); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+  .chips span { padding: 8px 16px; border-radius: 980px; background: var(--card2); font: 600 clamp(15px, 1.6vw, 19px) var(--head); letter-spacing: -.01em; }
+  @media (max-width: 960px) { .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); } .bc { min-height: 280px; } }
+  @media (max-width: 560px) { .bento { grid-template-columns: 1fr; } .bc.w2 { grid-column: auto; } .bc { min-height: 240px; } .sk { width: 44%; } }
+
+  /* Agents */
+  .code { width: min(860px, 100%); margin: clamp(40px, 6vw, 64px) auto 0; border-radius: 22px; background: var(--code-bg); box-shadow: 0 0 0 1px rgba(255,255,255,.1), 0 40px 80px -40px rgba(0,0,0,.6); text-align: left; overflow: hidden; color: #f5f5f7; }
+  .code-top { display: flex; gap: 8px; padding: 16px 20px 0; }
+  .code-top i { width: 12px; height: 12px; border-radius: 50%; background: #3a3a3c; }
+  .code pre { margin: 0; padding: 18px 24px 26px; overflow-x: auto; font: 400 clamp(13px, 1.5vw, 15.5px)/1.9 var(--mono); letter-spacing: 0; tab-size: 2; }
+  .code pre:focus-visible { outline-offset: -4px; }
+  .code .l { display: block; white-space: pre; }
+  .code .pr { color: #6e6e73; font-style: normal; user-select: none; margin-right: 1ch; }
+  .code .f { color: #7ec6e6; } .code .c { color: #f5f5f7; } .code .p { color: #a1a1a6; }
+  .notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; width: min(860px, 100%); margin: 16px auto 0; text-align: left; }
+  .notes .tile { padding: 22px 26px; }
+  .notes h3 { font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+  .notes p { margin-top: 4px; font-size: 15px; color: var(--dim); letter-spacing: 0; }
+  @media (max-width: 560px) { .notes { grid-template-columns: 1fr; } }
+
+  /* Privacy */
+  .pv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: clamp(48px, 7vw, 88px); }
+  .pv .tile { display: flex; flex-direction: column; gap: 12px; min-height: 260px; padding: clamp(26px, 3vw, 40px); }
+  .pv h3 { font-size: clamp(24px, 2.8vw, 34px); letter-spacing: -.03em; line-height: 1.12; }
+  .pv p { font-size: 17px; line-height: 1.42; font-weight: 500; color: var(--dim); max-width: 34em; }
+  .pv .wide { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 380px); gap: clamp(24px, 4vw, 56px); align-items: center; min-height: 0; }
+  .pv .wide > div { display: flex; flex-direction: column; gap: 12px; }
+  .cert { border-radius: 18px; background: var(--bg); box-shadow: 0 0 0 1px var(--line), 0 24px 48px -24px rgba(0,0,0,.35); padding: 22px; display: flex; flex-direction: column; gap: 10px; letter-spacing: 0; }
+  .cert svg { width: 30px; height: 30px; color: #ff9f0a; }
+  .cert strong { font-size: 16px; font-weight: 600; line-height: 1.25; }
+  .cert .small { font-size: 13px; }
+  .cert .small code { font-size: 12px; }
+  .cert-b { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+  .cert-b span:first-child { display: inline-flex; align-items: center; min-height: 34px; padding: 0 16px; border-radius: 980px; background: var(--blue); color: #fff; font-size: 14px; font-weight: 500; }
+  .cert-b span:last-child { font-size: 13px; color: var(--dim); text-decoration: underline; text-underline-offset: 3px; text-align: right; }
+  @media (max-width: 800px) { .pv { grid-template-columns: 1fr; } .pv .wide { grid-template-columns: 1fr; } }
+
+  /* Install */
+  .install { border-radius: clamp(28px, 4vw, 48px); background: var(--card); padding: clamp(44px, 7vw, 96px) clamp(22px, 5vw, 80px); text-align: center; display: flex; flex-direction: column; align-items: center; gap: clamp(16px, 2vw, 24px); }
+  .install .lede { max-width: 36em; }
+  .install .cta-row { margin-top: 12px; }
+  .or { font-size: 14px; color: var(--dim); }
+  .install .brew { background: var(--bg); }
+  .install .brew .copy:hover { background: var(--card); }
+  .links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 24px; margin-top: 4px; }
+  .links a { color: var(--link); text-decoration: none; font-size: 17px; }
+  @media (hover: hover) { .links a:hover { text-decoration: underline; } }
+  .req { width: min(860px, 100%); margin: clamp(28px, 4vw, 48px) 0 0; padding: 0; text-align: left; }
+  .req h3 { font-size: 21px; margin-bottom: 8px; text-align: center; }
+  .req dl { margin: 0; }
+  .req .r { display: grid; grid-template-columns: minmax(96px, 1fr) minmax(0, 3fr); gap: 4px 24px; padding: 16px 0; border-top: 1px solid var(--line); font-size: 15px; letter-spacing: 0; }
+  .req dt { color: var(--dim); } .req dd { margin: 0; }
+  @media (max-width: 560px) { .req .r { grid-template-columns: 1fr; } }
+
+  footer { width: var(--wrap); margin: clamp(56px, 8vw, 96px) auto 0; padding: 22px 0 max(36px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); font-size: 12px; line-height: 1.6; letter-spacing: 0; color: var(--dim); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 32px; }
+  footer a { color: inherit; }
+  .foot-lang { display: flex; flex-wrap: wrap; gap: 2px 14px; }
+  .foot-lang button { min-height: 32px; padding: 0; border: 0; background: none; color: var(--dim); font-size: 12px; cursor: pointer; }
+  .foot-lang button[aria-current="true"] { color: var(--tx); font-weight: 600; }
+  @media (hover: hover) { .foot-lang button:hover { color: var(--tx); } }
+  .sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  /* Motion: progressive enhancement. Content is visible by default; scroll-driven animations where supported, an IntersectionObserver fallback elsewhere. */
+  @keyframes rv { from { opacity: 0; transform: translateY(44px) scale(.97); } to { opacity: 1; transform: none; } }
+  @keyframes rise { from { transform: translateY(7%) scale(.86) rotateX(9deg); } to { transform: none; } }
+  @keyframes away { from { opacity: 1; transform: none; } to { opacity: .12; transform: translateY(-36px) scale(.97); } }
+  @keyframes lit { from { color: var(--faint); } }
+  @keyframes pulse { 50% { opacity: .3; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: no-preference) {
+    .mk-dot { animation: pulse 1.4s ease-in-out infinite; }
+    .mk-steps .run svg { animation: spin 1.1s linear infinite; }
+    .hero-shot { transform-origin: 50% 0; }
+    @supports (animation-timeline: view()) {
+      .rv { animation: rv linear both; animation-timeline: view(); animation-range: entry calc(var(--d, 0) * 6%) entry calc(60% + var(--d, 0) * 6%); }
+      .hero-shot { animation: rise linear both; animation-timeline: scroll(root); animation-range: 0 62vh; }
+      .hero-text { animation: away linear both; animation-timeline: scroll(root); animation-range: 8vh 58vh; }
+      .reveal-p { view-timeline: --rp block; }
+      .reveal-p .w { animation: lit linear both; animation-timeline: --rp; animation-range: cover calc(14% + var(--s) * 26%) cover calc(22% + var(--s) * 26%); }
+    }
+    html.io .rv { opacity: 0; transform: translateY(32px); transition: opacity .9s cubic-bezier(.2,.7,.2,1), transform .9s cubic-bezier(.2,.7,.2,1); transition-delay: calc(var(--d, 0) * 90ms); }
+    html.io .rv.in { opacity: 1; transform: none; }
+    html.io .hero-shot { opacity: 0; transform: translateY(5%) scale(.9); transition: opacity 1s, transform 1.2s cubic-bezier(.2,.7,.2,1); }
+    html.io .hero-shot.in { opacity: 1; transform: none; }
+    html.io .reveal-p .w { color: var(--faint); transition: color .6s; transition-delay: calc(var(--s) * 700ms); }
+    html.io .reveal-p .w.k { color: var(--faint); }
+    html.io .reveal-p.on .w { color: var(--dim); }
+    html.io .reveal-p.on .w.k { color: var(--tx); }
+  }
+  @media (prefers-reduced-motion: reduce) { .lay-stage .shot picture, html.js .step { transition: none; } }
+</style>
+</head>
+<body data-lang="en">
+<a class="skip" href="#main" data-i="skip">Skip to content</a>
+
+<nav class="nav" aria-label="Sections" data-a="aria-label:n_aria">
+  <div class="nav-in">
+    <a class="nav-brand" href="#top" aria-label="Changmun"><img src="../images/icon.png" width="24" height="24" alt="">Changmun</a>
+    <ul class="nav-links">
+      <li><a href="#light" data-i="n_light">Light</a></li>
+      <li><a href="#layouts" data-i="n_layouts">Layouts</a></li>
+      <li><a href="#ai" data-i="n_ai">AI</a></li>
+      <li><a href="#features" data-i="n_features">Features</a></li>
+      <li><a href="#agents" data-i="n_agents">Agents</a></li>
+      <li><a href="#privacy" data-i="n_privacy">Privacy</a></li>
+    </ul>
+    <div class="nav-end">
+      <div class="lang" id="lang">
+        <button class="lang-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z"/></svg>
+          <span id="langLabel">English</span>
+        </button>
+        <ul class="lang-menu" role="listbox" aria-label="Language" data-a="aria-label:langLbl">
+          <li role="none"><button type="button" role="option" tabindex="-1" data-set="en" lang="en">English</button></li>
+          <li role="none"><button type="button" role="option" tabindex="-1" data-set="ko" lang="ko">한국어</button></li>
+          <li role="none"><button type="button" role="option" tabindex="-1" data-set="ja" lang="ja">日本語</button></li>
+          <li role="none"><button type="button" role="option" tabindex="-1" data-set="zh-Hans" lang="zh-Hans">简体中文</button></li>
+          <li role="none"><button type="button" role="option" tabindex="-1" data-set="es" lang="es">Español</button></li>
+          <li role="none"><button type="button" role="option" tabindex="-1" data-set="de" lang="de">Deutsch</button></li>
+          <li role="none"><button type="button" role="option" tabindex="-1" data-set="fr" lang="fr">Français</button></li>
+        </ul>
+      </div>
+      <a class="pillcta" href="https://github.com/namekun/Changmun/releases/latest/download/Changmun.dmg" data-i="dl">Download</a>
+    </div>
+  </div>
+</nav>
+
+<main id="main">
+<header class="hero">
+  <div class="hero-text">
+    <p class="wordmark"><span lang="ko">창문</span>Changmun</p>
+    <h1 class="grad" data-i="h1">One window is enough.</h1>
+    <p class="hero-sub" data-i="h_sub">A browser with a sidebar.</p>
+    <p class="hero-lead" data-i="h_lead">A light Mac browser on Safari’s WebKit engine, with an AI that can use it.</p>
+    <div class="cta-row" id="heroCta">
+      <a class="btn" href="https://github.com/namekun/Changmun/releases/latest/download/Changmun.dmg" data-i="dl_mac">Download for Mac</a>
+      <div class="brew"><code>brew install --cask namekun/tap/changmun</code><button class="copy" type="button" data-copy="brew install --cask namekun/tap/changmun"><span class="lbl" data-i="copy">Copy</span><span class="ok" aria-hidden="true" data-i="copied_lbl">Copied</span></button></div>
+    </div>
+    <p class="hero-meta">v<span data-version>0.8.6</span> · macOS 14+ · <span data-i="si">Apple silicon</span> · <span data-i="sn">signed and notarized by Apple</span></p>
+  </div>
+  <div class="hero-stage">
+    <figure class="shot hero-shot">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="../images/hero-dark.webp" type="image/webp">
+        <img src="../images/hero-light.webp" width="1440" height="900" alt="Changmun with the sidebar on the left, a page in the middle and the AI panel on the right." data-a="alt:h_alt" fetchpriority="high">
+      </picture>
+    </figure>
+  </div>
+</header>
+
+<section class="sec wrap" id="light">
+  <h2 class="grad center rv" data-i="l_h">Light by design.</h2>
+  <p class="reveal-p" data-i="l_p">Changmun doesn’t ship its own engine. It <b>borrows the WebKit already on your Mac</b>, the same one Safari uses. So the download is <b>about 3 MB</b>, it’s <b>easy on the battery</b>, and security fixes arrive with macOS.</p>
+  <div class="stats">
+    <div class="tile stat rv" style="--d:0"><div class="stat-n grad">~3 MB</div><p data-i="st1_l">Download. The DMG is 2.6 MB, not hundreds.</p></div>
+    <div class="tile stat rv" style="--d:1"><div class="stat-n grad">WebKit</div><p data-i="st2_l">The engine Safari uses, already on your Mac.</p></div>
+    <div class="tile stat rv" style="--d:2"><div class="stat-n grad" data-i="st3_n">Native</div><p data-i="st3_l">macOS scrolling, text and gestures, in native Swift.</p></div>
+    <div class="tile stat rv" style="--d:3"><div class="stat-n grad">0</div><p data-i="st4_l">accounts, servers or analytics.</p></div>
+  </div>
+</section>
+
+<section class="sec wrap" id="layouts">
+  <h2 class="grad center rv" data-i="y_h">Tabs where you want them.</h2>
+  <div class="lay-grid">
+    <div class="steps">
+      <article class="step on" data-n="0">
+        <span class="step-k" data-i="y_k1">Sidebar</span>
+        <p data-i="y_t1">Favorites as tiles, bookmark folders and vertical tabs, all in one column. Titles get room to breathe.</p>
+        <figure class="shot"><picture><source media="(prefers-color-scheme: dark)" srcset="../images/lay-sidebar-dark.webp" type="image/webp"><img src="../images/lay-sidebar-light.webp" width="1440" height="900" loading="lazy" alt="Changmun with favorites and vertical tabs in a sidebar on the left." data-a="alt:y_a1"></picture></figure>
+      </article>
+      <article class="step" data-n="1">
+        <span class="step-k" data-i="y_k2">Tabs on top</span>
+        <p data-i="y_t2">Prefer a strip? It’s one setting. Favorites come first, groups fold into colored chips, and the sidebar opens over the page when you call it.</p>
+        <figure class="shot"><picture><source media="(prefers-color-scheme: dark)" srcset="../images/lay-top-dark.webp" type="image/webp"><img src="../images/lay-top-light.webp" width="1440" height="900" loading="lazy" alt="Changmun with the tabs in a strip above the address bar." data-a="alt:y_a2"></picture></figure>
+      </article>
+      <article class="step" data-n="2">
+        <span class="step-k" data-i="y_k3">Just the page</span>
+        <p data-i="y_t3">Hide the sidebar and the page gets the whole window. Focus mode (⌘⇧F) goes further and hides everything else too.</p>
+        <figure class="shot"><picture><source media="(prefers-color-scheme: dark)" srcset="../images/lay-hidden-dark.webp" type="image/webp"><img src="../images/lay-hidden-light.webp" width="1440" height="900" loading="lazy" alt="Changmun with the sidebar hidden and only the page showing." data-a="alt:y_a3"></picture></figure>
+      </article>
+    </div>
+    <div class="lay-stage" data-step="0" aria-hidden="true">
+      <figure class="shot">
+        <picture class="p0"><source media="(prefers-color-scheme: dark)" srcset="../images/lay-sidebar-dark.webp" type="image/webp"><img src="../images/lay-sidebar-light.webp" width="1440" height="900" loading="lazy" alt=""></picture>
+        <picture class="p1"><source media="(prefers-color-scheme: dark)" srcset="../images/lay-top-dark.webp" type="image/webp"><img src="../images/lay-top-light.webp" width="1440" height="900" loading="lazy" alt=""></picture>
+        <picture class="p2"><source media="(prefers-color-scheme: dark)" srcset="../images/lay-hidden-dark.webp" type="image/webp"><img src="../images/lay-hidden-light.webp" width="1440" height="900" loading="lazy" alt=""></picture>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="band dk" id="ai">
+  <div class="ai-grid">
+    <div class="ai-text">
+      <h2 class="grad rv" data-i="a_h">An AI that uses the browser.</h2>
+      <p class="lede rv" data-i="a_p">The panel runs on the claude CLI you already have, so it uses your Claude Code subscription. It reads pages, clicks and types, and it asks before anything risky.</p>
+      <ul class="facts">
+        <li class="rv" style="--d:0"><h3 data-i="a_f1t">Asks before it acts</h3><p data-i="a_f1">Using a tab you aren’t looking at, or opening an unfamiliar address, comes with a question first. Passwords stay off limits.</p></li>
+        <li class="rv" style="--d:1"><h3 data-i="a_f2t">Shows its work</h3><p data-i="a_f2">Live steps while it works, and questions arrive as a card above the box. ⌘Return allows once, Esc declines.</p></li>
+        <li class="rv" style="--d:0"><h3 data-i="a_f3t">Your model, your effort</h3><p data-i="a_f3">Pick the model and how hard it thinks from the menu under the box.</p></li>
+        <li class="rv" style="--d:1"><h3 data-i="a_f4t">Pops out</h3><p data-i="a_f4">Move the panel into a window of its own. Closing it puts the panel back.</p></li>
+      </ul>
+    </div>
+    <div class="mock-wrap">
+      <div class="mock" role="group" aria-label="Illustration of the AI panel" data-a="aria-label:m_aria">
+        <div class="mk-head rv"><b data-i="m_title">Book Friday’s 9:40 train</b>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+        </div>
+        <div class="mk-user rv" data-i="m_user">Book the 9:40 train to Busan on Friday.</div>
+        <ul class="mk-steps">
+          <li class="done rv"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="m6.8 10.2 2.2 2.2 4.2-4.6"/></svg><span data-i="m_s1">Read the page</span></li>
+          <li class="done rv"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="m6.8 10.2 2.2 2.2 4.2-4.6"/></svg><span data-i="m_s2">Type “Busan”</span></li>
+          <li class="done rv"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="m6.8 10.2 2.2 2.2 4.2-4.6"/></svg><span data-i="m_s3">Click “Fri 9:40”</span></li>
+          <li class="run rv"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5" opacity=".28"/><path d="M10 2.5a7.5 7.5 0 0 1 7.5 7.5"/></svg><span data-i="m_s4">Open pay.example</span></li>
+        </ul>
+        <div class="mk-work rv"><i class="mk-dot"></i><span data-i="m_work">Working for 12 s</span></div>
+        <div class="mk-ask rv">
+          <strong data-i="m_ask">Open a new address?</strong>
+          <p data-i="m_askd">The AI wants to open pay.example, which you haven’t visited.</p>
+          <div class="mk-btns"><span class="mk-btn go"><span data-i="m_allow">Allow once</span><kbd>⌘↩</kbd></span><span class="mk-btn"><span data-i="m_deny">Decline</span><kbd>esc</kbd></span></div>
+        </div>
+        <div class="mk-box rv">
+          <span data-i="m_ph">Ask about this page</span>
+          <div class="mk-row"><span class="mk-model">Sonnet · High</span><span class="mk-send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec wrap" id="features">
+  <h2 class="grad center rv" data-i="f_h">Everything else, built in.</h2>
+  <div class="bento">
+    <article class="tile bc w2 rv" style="--d:0">
+      <h3 data-i="b1t">Reader mode</h3>
+      <div class="vis sk" aria-hidden="true"><i></i><i></i><i style="width:92%"></i><i></i><i style="width:64%"></i></div>
+      <div class="glyph grad">⇧⌘R</div>
+      <p data-i="b1l">An article, stripped down to clean text, right over the page.</p>
+    </article>
+    <article class="tile bc rv" style="--d:1">
+      <h3 data-i="b2t">Translation</h3>
+      <div class="glyph grad">⌥⌘T</div>
+      <p data-i="b2l">Translated in place with your Mac’s on-device translation. The text never leaves it.</p>
+      <span class="tag">macOS 26+</span>
+    </article>
+    <article class="tile bc hp rv" style="--d:2">
+      <h3 data-i="b3t">Picture in picture</h3>
+      <div class="vis pip" aria-hidden="true"></div>
+      <div class="glyph grad">⌃⌘P</div>
+      <p data-i="b3l">A video stays in view after you leave its tab. It switches on by itself.</p>
+    </article>
+    <article class="tile bc rv" style="--d:0">
+      <h3 data-i="b4t">Spaces</h3>
+      <div class="vis dots" aria-hidden="true"><i></i><i class="on"></i><i></i></div>
+      <div class="glyph grad">⌃1–9</div>
+      <p data-i="b4l">Work stays out of your weekend. Add a profile and cookies stay apart too.</p>
+    </article>
+    <article class="tile bc rv" style="--d:1">
+      <h3 data-i="b5t">Extensions</h3>
+      <div class="glyph sm grad">Safari<br>+ Chrome</div>
+      <p data-i="b5l">Safari and Chrome web extensions, added straight from the Chrome Web Store. macOS 15.4 or later.</p>
+    </article>
+    <article class="tile bc w2 rv" style="--d:2">
+      <h3 data-i="b6t">Ad blocking</h3>
+      <div class="glyph grad" data-i="b6g">Every 4 days</div>
+      <p data-i="b6l">EasyList and EasyPrivacy, built in and refreshed on their own.</p>
+    </article>
+    <article class="tile bc w2 rv" style="--d:0">
+      <h3 data-i="b7t">Import</h3>
+      <div class="chips" aria-hidden="true"><span>Chrome</span><span>Arc</span><span>Safari</span></div>
+      <p data-i="b7l">Bookmarks and history come along. From Chromium browsers, sign-ins do too.</p>
+    </article>
+    <article class="tile bc w2 rv" style="--d:1">
+      <h3 data-i="b8t">Private windows</h3>
+      <div class="glyph grad" data-i="b8g">Gone when closed</div>
+      <p data-i="b8l">Cookies and site data live in memory only. Nothing reaches history or the AI.</p>
+    </article>
+  </div>
+</section>
+
+<section class="sec wrap center" id="agents">
+  <h2 class="grad rv" data-i="g_h">Agents are welcome.</h2>
+  <p class="lede rv" style="max-width:36em;margin:clamp(16px,2vw,24px) auto 0" data-i="g_p">The same tools are there from a shell with the changmun command, and over MCP for agents like Claude Code. Headless mode runs it off screen with a profile of its own.</p>
+  <div class="code rv" role="group" aria-label="Terminal">
+    <div class="code-top" aria-hidden="true"><i></i><i></i><i></i></div>
+    <pre tabindex="0"><code><span class="l"><i class="pr">$</i><span class="c">changmun</span> <span class="p">headless start</span></span><span class="l"><i class="pr">$</i><span class="c">changmun</span> <span class="f">--headless</span> <span class="p">open example.com</span></span><span class="l"><i class="pr">$</i><span class="c">changmun</span> <span class="f">--headless</span> <span class="p">read</span></span><span class="l"><i class="pr">$</i><span class="c">claude</span> <span class="p">mcp add changmun --</span> <span class="p">/Applications/Changmun.app/Contents/MacOS/Changmun</span> <span class="f">--mcp</span></span></code></pre>
+  </div>
+  <div class="notes">
+    <div class="tile rv" style="--d:0"><h3 data-i="g_n1t">Local only</h3><p data-i="g_n1">The control server listens only on 127.0.0.1.</p></div>
+    <div class="tile rv" style="--d:1"><h3 data-i="g_n2t">Fresh token</h3><p data-i="g_n2">Every launch gets a new token.</p></div>
+  </div>
+</section>
+
+<section class="sec wrap" id="privacy">
+  <h2 class="grad center rv" data-i="v_h">Private by default.</h2>
+  <div class="pv">
+    <article class="tile rv" style="--d:0"><h3 data-i="v1t">No account. No tracking.</h3><p data-i="v1">Changmun has no account, server or analytics. The AI panel is the one exception: it sends what you ask and the pages it reads to Anthropic through the claude CLI.</p></article>
+    <article class="tile rv" style="--d:1"><h3 data-i="v2t">Passwords stay in your Keychain.</h3><p data-i="v2">Touch ID or your Mac password is asked before one is copied or filled in. The AI never receives it.</p></article>
+    <article class="tile wide rv">
+      <div><h3 data-i="v3t">Certificates, handled.</h3><p data-i="v3">Sites that ask for a client certificate get the system’s own sheet, as in Safari. One that can’t be verified gets a warning drawn by the app, and “Visit This Website” asks for Touch ID first.</p></div>
+      <div class="cert" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 21 19H3L12 3.5Z"/><path d="M12 10v4M12 16.6v.01"/></svg>
+        <strong data-i="c_t">This website’s certificate can’t be verified</strong>
+        <span class="small"><code>intranet.example</code> · <span data-i="c_d">Self-signed certificate</span></span>
+        <div class="cert-b"><span data-i="c_b1">Go back</span><span data-i="c_b2">Visit This Website</span></div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section class="sec wrap" id="install">
+  <div class="install">
+    <h2 class="grad rv" data-i="i_h">Download it and it just opens.</h2>
+    <p class="lede rv" data-i="i_p">Signed with a Developer ID and notarized by Apple, so it opens without warnings. On first launch it offers to import from the browser you use now.</p>
+    <div class="cta-row rv">
+      <a class="btn" href="https://github.com/namekun/Changmun/releases/latest/download/Changmun.dmg" data-i="dl_mac">Download for Mac</a>
+    </div>
+    <p class="or rv" data-i="i_brew">Or with Homebrew</p>
+    <div class="brew rv"><code>brew install --cask namekun/tap/changmun</code><button class="copy" type="button" data-copy="brew install --cask namekun/tap/changmun"><span class="lbl" data-i="copy">Copy</span><span class="ok" aria-hidden="true" data-i="copied_lbl">Copied</span></button></div>
+    <p class="small">v<span data-version>0.8.6</span> · macOS 14+ · <span data-i="si">Apple silicon</span></p>
+    <p class="small" style="max-width:40em" data-i="i_note">Updates arrive inside the app: Changmun › Check for Updates…, and automatic by default. Homebrew or the DMG is only for installing.</p>
+    <div class="links">
+      <a href="https://github.com/namekun/Changmun/releases" data-i="rel">Release notes</a>
+      <a href="https://github.com/namekun/Changmun" data-i="gh">See it on GitHub</a>
+    </div>
+    <div class="req rv">
+      <h3 data-i="rq_h">Requirements</h3>
+      <dl>
+        <div class="r"><dt data-i="rq1k">System</dt><dd data-i="rq1v">macOS 14 Sonoma or later</dd></div>
+        <div class="r"><dt data-i="rq2k">Chip</dt><dd data-i="rq2v">Apple silicon Mac</dd></div>
+        <div class="r"><dt data-i="rq3k">Signing</dt><dd data-i="rq3v">Developer ID, notarized</dd></div>
+        <div class="r"><dt data-i="rq4k">macOS 26 or later</dt><dd data-i="rq4v">Page translation, Apple Intelligence tab grouping</dd></div>
+        <div class="r"><dt data-i="rq5k">AI panel</dt><dd data-i="rq5v">claude CLI (optional)</dd></div>
+      </dl>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <span data-i="foot">Changmun · MIT License · Sister app: <a href="https://namekun.github.io/Nunsseop/">Nunsseop</a></span>
+  <div class="foot-lang" role="group" aria-label="Language" data-a="aria-label:langLbl">
+    <button type="button" data-set="en" lang="en">English</button><button type="button" data-set="ko" lang="ko">한국어</button><button type="button" data-set="ja" lang="ja">日本語</button><button type="button" data-set="zh-Hans" lang="zh-Hans">简体中文</button><button type="button" data-set="es" lang="es">Español</button><button type="button" data-set="de" lang="de">Deutsch</button><button type="button" data-set="fr" lang="fr">Français</button>
+  </div>
+</footer>
+<div class="sr" id="live" aria-live="polite"></div>
+
+<script>
+(function () {
+  var LANGS = ['en', 'ko', 'ja', 'zh-Hans', 'es', 'de', 'fr'];
+  var D = {"a_f1":["보고 있지 않은 탭을 쓰거나 낯선 주소를 열기 전에는 먼저 물어봐요. 비밀번호 칸은 건드리지 못해요.","見ていないタブを使うときや、見慣れないアドレスを開くときは、先に確認します。パスワード欄には触れません。","要用你没在看的标签页，或打开陌生网址之前，它会先问你。密码栏它碰不了。","Antes de usar una pestaña que no estás viendo o de abrir una dirección desconocida, te lo consulta. Las contraseñas quedan fuera de su alcance.","Bevor es einen Tab nutzt, den du nicht ansiehst, oder eine unbekannte Adresse öffnet, fragt es nach. Passwörter bleiben tabu.","Avant d’utiliser un onglet que vous ne regardez pas ou d’ouvrir une adresse inconnue, il vous pose la question. Les mots de passe restent hors de sa portée."],"a_f1t":["행동 전에 먼저 물어봐요","動く前に、確認します","动手之前先问你","Pregunta antes de actuar","Fragt, bevor es handelt","Demande avant d’agir"],"a_f2":["작업 중에는 단계가 실시간으로 보이고, 질문은 입력창 위 카드로 떠요. ⌘Return은 한 번만 허용, Esc는 허용 안 함이에요.","作業中は手順がリアルタイムで表示され、質問は入力欄の上のカードで届きます。⌘Returnで一度だけ許可、Escで許可しません。","工作时会实时显示每一步，提问则以卡片形式出现在输入框上方。⌘Return 允许一次，Esc 拒绝。","Verás los pasos en directo, y las preguntas llegan en una tarjeta sobre la caja. ⌘Retorno lo permite una vez; Esc lo rechaza.","Die Schritte siehst du live, Fragen erscheinen als Karte über dem Eingabefeld. ⌘Return erlaubt einmal, Esc lehnt ab.","Les étapes s’affichent en direct et les questions arrivent sous forme de carte au-dessus du champ. ⌘Retour autorise une fois, Échap refuse."],"a_f2t":["하는 일을 보여 줘요","していることが見えます","做了什么，一目了然","Muestra lo que hace","Zeigt, was es tut","Montre ce qu’il fait"],"a_f3":["입력창 아래 메뉴에서 모델과 생각의 깊이를 골라요.","入力欄の下のメニューで、モデルと考える深さを選べます。","在输入框下方的菜单里选择模型，以及它思考的力度。","Elige el modelo y cuánto razona desde el menú bajo la caja.","Im Menü unter dem Eingabefeld wählst du Modell und Denkaufwand.","Choisissez le modèle et l’intensité de réflexion dans le menu sous le champ."],"a_f3t":["모델도, 생각의 깊이도","モデルも、深さも選べます","模型和思考力度，自己选","Tu modelo, tu nivel de esfuerzo","Dein Modell, dein Aufwand","Votre modèle, votre effort"],"a_f4":["패널을 자기 창으로 꺼내 쓸 수 있어요. 창을 닫으면 패널이 제자리로 돌아와요.","パネルを独立したウインドウに出せます。ウインドウを閉じると、パネルは元の場所に戻ります。","可以把面板弹出成独立窗口。关掉窗口，面板就回到原位。","Saca el panel a una ventana propia. Al cerrarla, el panel vuelve a su sitio.","Die Seitenleiste wandert in ein eigenes Fenster. Schließt du es, kehrt sie zurück.","Sortez le panneau dans sa propre fenêtre. En la fermant, il retourne dans le navigateur."],"a_f4t":["따로 떼어 낼 수 있어요","別ウインドウに取り出せます","还能单独弹出","Se abre en su propia ventana","Lässt sich ablösen","Se détache en fenêtre"],"a_h":["브라우저를 직접 쓰는 AI.","ブラウザを自分で使うAI。","会自己用浏览器的 AI。","Una IA que usa el navegador.","Eine KI, die den Browser bedient.","Une IA qui se sert du navigateur."],"a_p":["패널은 이미 설치된 claude CLI로 돌아가서 Claude Code 구독을 그대로 써요. 페이지를 읽고, 클릭하고, 입력해요. 위험할 수 있는 일은 먼저 물어봐요.","パネルはすでにあるclaude CLIで動くので、Claude Codeのサブスクリプションをそのまま使えます。ページを読み、クリックし、入力します。リスクのある操作は、先に確認します。","面板通过你已有的 claude CLI 运行，直接使用你的 Claude Code 订阅。它会读取页面、点击和输入，遇到有风险的操作会先问你。","El panel funciona con la CLI claude que ya tienes, así que usa tu suscripción a Claude Code. Lee páginas, hace clic y escribe, y pregunta antes de cualquier paso arriesgado.","Die Seitenleiste läuft über die claude-CLI, die du schon hast, und nutzt so dein Claude-Code-Abo. Sie liest Seiten, klickt und tippt – und fragt nach, bevor es riskant wird.","Le panneau s’appuie sur la CLI claude que vous avez déjà, donc sur votre abonnement Claude Code. Il lit les pages, clique et saisit, et demande avant toute action risquée."],"b1l":["기사에서 글만 남겨 페이지 위에 깔끔하게 보여 줘요.","記事を読みやすい文章だけにして、ページの上に表示します。","把文章精简成干净的文字，直接盖在页面上。","Un artículo reducido a texto limpio, justo sobre la página.","Ein Artikel, reduziert auf sauberen Text, direkt über der Seite.","Un article réduit à un texte propre, affiché sur la page."],"b1t":["읽기 모드","リーダー","阅读器","Modo lector","Lesemodus","Mode lecture"],"b2l":["Mac 안의 번역으로 그 자리에서 옮겨요. 글은 Mac 밖으로 나가지 않아요.","Macのオンデバイス翻訳で、その場で翻訳します。文章はMacの外に出ません。","用 Mac 的本机翻译就地翻译，文字不会离开你的 Mac。","Se traduce en la propia página con la traducción en el dispositivo de tu Mac. El texto no sale de él.","Direkt auf der Seite übersetzt, mit der Übersetzung deines Macs. Der Text verlässt ihn nie.","Traduite sur place par la traduction locale de votre Mac. Le texte ne le quitte jamais."],"b2t":["번역","翻訳","翻译","Traducción","Übersetzung","Traduction"],"b3l":["탭을 떠나도 영상이 계속 보여요. 알아서 켜져요.","タブを離れても、動画は見えたまま。自動でオンになります。","离开标签页后，视频仍留在画面里，而且会自动开启。","El vídeo sigue a la vista al salir de su pestaña. Se activa solo.","Das Video bleibt im Blick, wenn du den Tab verlässt. Es schaltet sich von selbst ein.","La vidéo reste visible quand vous quittez son onglet. Elle s’active toute seule."],"b3t":["화면 속 화면","ピクチャインピクチャ","画中画","Imagen en imagen","Bild im Bild","Image dans l’image"],"b4l":["일하던 탭이 주말까지 따라오지 않아요. 프로필을 켜면 쿠키도 따로예요.","仕事のタブが週末までついてきません。プロファイルを使えばCookieも別々に。","工作不会跟到周末。开启配置文件，连 Cookie 也各管各的。","El trabajo no te sigue al fin de semana. Con un perfil, hasta las cookies van aparte.","Die Arbeit bleibt aus deinem Wochenende raus. Mit Profil bleiben auch Cookies getrennt.","Le travail ne vous suit pas le week-end. Avec un profil, même les cookies restent séparés."],"b4t":["스페이스","スペース","空间","Espacios","Spaces","Espaces"],"b5l":["Safari와 Chrome 웹 확장을 써요. Chrome 웹 스토어에서 바로 추가해요. macOS 15.4 이상.","SafariとChromeのWeb機能拡張に対応。Chromeウェブストアから直接追加できます。macOS 15.4以降。","支持 Safari 和 Chrome 网页扩展，可直接从 Chrome 应用商店添加。需要 macOS 15.4 或更高版本。","Extensiones web de Safari y de Chrome, añadidas directo desde la Chrome Web Store. Requiere macOS 15.4 o posterior.","Web-Erweiterungen von Safari und Chrome, direkt aus dem Chrome Web Store. Ab macOS 15.4.","Extensions web Safari et Chrome, ajoutées depuis le Chrome Web Store. macOS 15.4 ou ultérieur."],"b5t":["확장 프로그램","機能拡張","扩展","Extensiones","Erweiterungen","Extensions"],"b6g":["4일마다","4日ごと","每 4 天","Cada 4 días","Alle 4 Tage","Tous les 4 jours"],"b6l":["EasyList와 EasyPrivacy가 기본으로 들어 있고, 알아서 새로 받아요.","EasyListとEasyPrivacyを内蔵し、自動で更新します。","内置 EasyList 和 EasyPrivacy，并自动更新。","EasyList y EasyPrivacy incluidas, y se actualizan solas.","EasyList und EasyPrivacy sind eingebaut und aktualisieren sich selbst.","EasyList et EasyPrivacy sont intégrées et se mettent à jour seules."],"b6t":["광고 차단","広告ブロック","广告拦截","Bloqueo de anuncios","Werbeblocker","Blocage des publicités"],"b7l":["북마크와 방문 기록이 그대로 와요. 크로미움 계열이면 로그인 상태까지요.","ブックマークと履歴をそのまま引き継ぎます。Chromium系なら、サインイン状態も。","书签和历史记录原样带过来。来自 Chromium 系浏览器的话，登录状态也能带上。","Marcadores e historial vienen contigo. Desde navegadores Chromium, también tus sesiones.","Lesezeichen und Verlauf kommen mit. Aus Chromium-Browsern auch deine Anmeldungen.","Signets et historique suivent. Depuis un navigateur Chromium, vos connexions aussi."],"b7t":["가져오기","読み込み","导入","Importar","Import","Import"],"b8g":["닫으면 사라져요","閉じれば消える","关闭即清空","Se borra al cerrar","Weg beim Schließen","Effacé à la fermeture"],"b8l":["쿠키와 사이트 데이터는 메모리에만 있어요. 기록에도, AI에도 남지 않아요.","Cookieとサイトデータはメモリ上だけ。履歴にもAIにも渡りません。","Cookie 和网站数据只存在于内存中，不会进入历史记录，也不会交给 AI。","Las cookies y los datos de sitios solo viven en memoria. Nada llega al historial ni a la IA.","Cookies und Websitedaten liegen nur im Arbeitsspeicher. Nichts landet im Verlauf oder bei der KI.","Cookies et données de sites restent en mémoire. Rien n’arrive dans l’historique ni à l’IA."],"b8t":["비공개 윈도","プライベートウインドウ","无痕窗口","Ventanas privadas","Private Fenster","Fenêtres privées"],"c_b1":["돌아가기","戻る","返回","Volver","Zurück","Retour"],"c_b2":["이 웹사이트 방문","このWebサイトを閲覧","访问此网站","Visitar este sitio web","Diese Website besuchen","Visiter ce site web"],"c_d":["자체 서명 인증서","自己署名証明書","自签名证书","Certificado autofirmado","Selbstsigniertes Zertifikat","Certificat auto-signé"],"c_t":["이 웹사이트의 인증서를 확인할 수 없어요","このWebサイトの証明書を検証できません","无法验证此网站的证书","No se puede verificar el certificado de este sitio","Das Zertifikat dieser Website lässt sich nicht überprüfen","Le certificat de ce site n’a pas pu être vérifié"],"copied_lbl":["복사됨","コピーしました","已复制","Copiado","Kopiert","Copié"],"copy":["복사","コピー","复制","Copiar","Kopieren","Copier"],"desc":["Changmun은 사이드바에 세로 탭과 즐겨찾기가 있고, 페이지를 읽고 클릭하고 입력하는 Claude 패널이 달린 가벼운 Mac 브라우저예요. 무료 오픈 소스예요.","Changmunは、縦型タブとお気に入りをサイドバーに備え、ページを読み、クリックや入力までこなすClaudeパネルを載せた軽量なMac用ブラウザです。無料のオープンソース。","Changmun 是一款轻巧的 Mac 浏览器：边栏里有垂直标签页和个人收藏，Claude 面板能读取页面、点按和输入。免费开源。","Changmun es un navegador ligero para Mac con pestañas verticales y favoritos en la barra lateral, y un panel de Claude que lee páginas, hace clic y escribe. Gratuito y de código abierto.","Changmun ist ein schlanker Mac-Browser mit vertikalen Tabs und Favoriten in der Seitenleiste und einer Claude-Seitenleiste, die Seiten liest, klickt und tippt. Kostenlos und Open Source.","Changmun est un navigateur Mac léger : onglets verticaux et favoris dans la barre latérale, et un panneau Claude qui lit les pages, clique et saisit du texte. Gratuit et open source."],"dl":["다운로드","ダウンロード","下载","Descargar","Download","Télécharger"],"dl_mac":["Mac용 다운로드","Mac版をダウンロード","下载 Mac 版","Descargar para Mac","Für Mac herunterladen","Télécharger pour Mac"],"f_h":["나머지도 전부 들어 있어요.","ほかも、ぜんぶ入っています。","其余的，也都内置。","Y todo lo demás, incluido.","Und alles andere ist schon drin.","Et tout le reste, déjà inclus."],"foot":["Changmun · MIT 라이선스 · 자매 앱 <a href=\"https://namekun.github.io/Nunsseop/\">Nunsseop</a>","Changmun · MITライセンス · 姉妹アプリ <a href=\"https://namekun.github.io/Nunsseop/\">Nunsseop</a>","Changmun · MIT 许可证 · 姊妹应用 <a href=\"https://namekun.github.io/Nunsseop/\">Nunsseop</a>","Changmun · Licencia MIT · App hermana: <a href=\"https://namekun.github.io/Nunsseop/\">Nunsseop</a>","Changmun · MIT-Lizenz · Schwester-App <a href=\"https://namekun.github.io/Nunsseop/\">Nunsseop</a>","Changmun · Licence MIT · App sœur : <a href=\"https://namekun.github.io/Nunsseop/\">Nunsseop</a>"],"g_h":["에이전트도 환영이에요.","エージェントも歓迎です。","智能体也欢迎。","Los agentes también son bienvenidos.","Agenten sind willkommen.","Les agents sont les bienvenus."],"g_n1":["제어 서버는 127.0.0.1에서만 열려요.","制御サーバーは127.0.0.1でのみ待ち受けます。","控制服务器只监听 127.0.0.1。","El servidor de control solo escucha en 127.0.0.1.","Der Steuerserver lauscht nur auf 127.0.0.1.","Le serveur de contrôle n’écoute que sur 127.0.0.1."],"g_n1t":["내 Mac 안에서만","このMacの中だけ","只在本机","Solo en local","Nur lokal","En local seulement"],"g_n2":["실행할 때마다 토큰이 새로 바뀌어요.","起動のたびにトークンが新しくなります。","每次启动都会换一个新令牌。","Cada arranque genera un token nuevo.","Bei jedem Start gibt es ein neues Token.","Chaque lancement génère un nouveau jeton."],"g_n2t":["새 토큰","毎回新しいトークン","令牌常新","Token nuevo","Frisches Token","Jeton neuf"],"g_p":["같은 도구를 셸에서는 changmun 명령으로, Claude Code 같은 에이전트에서는 MCP로 쓸 수 있어요. 헤드리스 모드는 화면 밖에서 자기만의 프로필로 돌아가요.","同じツールを、シェルからはchangmunコマンドで、Claude CodeのようなエージェントからはMCP経由で使えます。ヘッドレスモードなら、画面の外で専用のプロファイルを使って動きます。","同样的工具，在 shell 里用 changmun 命令，在 Claude Code 这类智能体里走 MCP。无头模式会在屏幕之外，用独立的配置文件运行。","Las mismas herramientas desde el shell con el comando changmun, y por MCP para agentes como Claude Code. El modo headless lo ejecuta fuera de pantalla, con un perfil propio.","Dieselben Werkzeuge gibt es in der Shell mit dem Befehl changmun und per MCP für Agenten wie Claude Code. Der Headless-Modus läuft unsichtbar mit eigenem Profil.","Les mêmes outils sont disponibles dans un shell avec la commande changmun, et via MCP pour des agents comme Claude Code. Le mode headless tourne hors écran, avec son propre profil."],"gh":["GitHub에서 보기","GitHubで見る","在 GitHub 查看","Ver en GitHub","Auf GitHub ansehen","Voir sur GitHub"],"h1":["창문 하나로 충분한","窓ひとつで十分。","一扇窗就够了。","Una ventana basta.","Ein Fenster genügt.","Une fenêtre suffit."],"h_alt":["왼쪽에 사이드바, 가운데에 페이지, 오른쪽에 AI 패널이 열린 Changmun 창","左にサイドバー、中央にページ、右にAIパネルを開いたChangmunのウインドウ","Changmun 窗口：左侧是边栏，中间是页面，右侧打开着 AI 面板","Ventana de Changmun con la barra lateral a la izquierda, una página en el centro y el panel de IA a la derecha","Changmun-Fenster mit Seitenleiste links, Seite in der Mitte und KI-Seitenleiste rechts","Fenêtre Changmun : barre latérale à gauche, page au centre, panneau IA à droite"],"h_lead":["Safari와 같은 WebKit 엔진 위에 올린 가벼운 Mac 브라우저. 직접 쓸 줄 아는 AI까지 들어 있어요.","SafariのWebKitエンジンで動く軽量なMacブラウザ。使いこなせるAIも入っています。","基于 Safari 同款 WebKit 引擎的轻巧 Mac 浏览器，还有一位会自己动手的 AI。","Un navegador ligero para Mac con el motor WebKit de Safari y una IA que sabe usarlo.","Ein leichter Mac-Browser auf Safaris WebKit-Engine, mit einer KI, die ihn bedienen kann.","Un navigateur Mac léger sur le moteur WebKit de Safari, avec une IA qui sait s’en servir."],"h_sub":["사이드바 브라우저.","サイドバーのブラウザ。","带边栏的浏览器。","Un navegador con barra lateral.","Ein Browser mit Seitenleiste.","Un navigateur à barre latérale."],"i_brew":["또는 Homebrew로","またはHomebrewで","或使用 Homebrew","O con Homebrew","Oder mit Homebrew","Ou avec Homebrew"],"i_h":["내려받아 열면 바로 열려요.","ダウンロードして開くだけ。","下载后直接打开。","Descárgala y se abre sin más.","Laden, öffnen, fertig.","Téléchargez, ouvrez, c’est prêt."],"i_note":["업데이트는 앱 안에서 받아요(Changmun › 업데이트 확인…, 기본은 자동). Homebrew나 DMG는 설치할 때만 쓰면 돼요.","アップデートはアプリの中で届きます (Changmun › アップデートを確認…、初期設定では自動)。HomebrewやDMGはインストールにだけ使います。","更新会在 App 内收到（Changmun › 检查更新…，默认自动）。Homebrew 或 DMG 只用于安装。","Las actualizaciones llegan dentro de la app (Changmun › Buscar actualizaciones…, automáticas por defecto). Homebrew o el DMG solo hacen falta para instalar.","Updates kommen direkt in der App an (Changmun › Nach Updates suchen…, standardmäßig automatisch). Homebrew oder das DMG brauchst du nur zum Installieren.","Les mises à jour arrivent dans l’app (Changmun › Rechercher des mises à jour…, automatiques par défaut). Homebrew ou le DMG ne servent qu’à installer."],"i_p":["Developer ID로 서명하고 Apple 공증을 받아서 경고 없이 열려요. 처음 실행하면 지금 쓰는 브라우저에서 가져올지 물어봐요.","Developer IDで署名し、Appleの公証を受けているので、警告なしで開けます。初回起動時に、いま使っているブラウザから読み込むかどうかを確認します。","已使用 Developer ID 签名并经过 Apple 公证，打开时不会出现警告。首次启动时，会询问是否从你现在用的浏览器导入。","Está firmada con un Developer ID y notarizada por Apple, así que se abre sin avisos. En el primer arranque ofrece importar desde el navegador que usas ahora.","Mit einer Developer ID signiert und von Apple notarisiert, daher öffnet sie sich ohne Warnungen. Beim ersten Start bietet sie an, aus deinem bisherigen Browser zu importieren.","Signée avec un Developer ID et notarisée par Apple, elle s’ouvre sans avertissement. Au premier lancement, elle propose d’importer depuis le navigateur que vous utilisez actuellement."],"l_h":["처음부터 가볍게.","軽さは、設計から。","轻，是设计出来的。","Ligero por diseño.","Leicht aus Prinzip.","Léger par conception."],"l_p":["Changmun은 자기 엔진을 싣고 다니지 않아요. <b>Mac에 이미 있는 WebKit을 빌려 써요.</b> Safari가 쓰는 바로 그 엔진이에요. 그래서 내려받는 크기는 <b>약 3MB</b>, <b>배터리도 아끼고</b> 보안 수정은 macOS와 함께 들어와요.","Changmunは独自のエンジンを持ち歩きません。<b>Macに入っているWebKitを借りて</b>動きます。Safariと同じエンジンです。だからダウンロードは<b>約3MB</b>、<b>バッテリーにも優しく</b>、セキュリティ修正はmacOSと一緒に届きます。","Changmun 不自带引擎，而是<b>借用 Mac 里现成的 WebKit</b>，也就是 Safari 用的那一个。所以下载只有<b>约 3 MB</b>，<b>更省电</b>，安全修复也随 macOS 一起到来。","Changmun no trae su propio motor. <b>Usa el WebKit que ya hay en tu Mac</b>, el mismo que usa Safari. Por eso la descarga es de <b>unos 3 MB</b>, <b>cuida la batería</b> y las correcciones de seguridad llegan con macOS.","Changmun bringt keine eigene Engine mit. Es <b>nutzt das WebKit, das schon auf deinem Mac ist</b>, dieselbe Engine wie in Safari. Darum ist der Download <b>nur etwa 3 MB</b> groß, <b>schont den Akku</b> und Sicherheitsupdates kommen mit macOS.","Changmun n’embarque pas son propre moteur. Il <b>emprunte le WebKit déjà présent sur votre Mac</b>, celui de Safari. Le téléchargement ne pèse donc que <b>3 Mo environ</b>, il <b>ménage la batterie</b> et les correctifs de sécurité arrivent avec macOS."],"langLbl":["언어","言語","语言","Idioma","Sprache","Langue"],"m_allow":["한 번만 허용","一度だけ許可","允许一次","Permitir una vez","Einmal erlauben","Autoriser une fois"],"m_aria":["AI 패널 예시","AIパネルのイメージ","AI 面板示意","Ilustración del panel de IA","Illustration der KI-Seitenleiste","Illustration du panneau IA"],"m_ask":["새 주소를 열까요?","新しいアドレスを開きますか?","要打开新的网址吗？","¿Abrir una dirección nueva?","Neue Adresse öffnen?","Ouvrir une nouvelle adresse ?"],"m_askd":["AI가 방문한 적 없는 pay.example을 열려고 해요.","AIが、まだ訪れていないpay.exampleを開こうとしています。","AI 想打开你没访问过的 pay.example。","La IA quiere abrir pay.example, que no has visitado.","Die KI will pay.example öffnen, das du noch nicht besucht hast.","L’IA veut ouvrir pay.example, que vous n’avez jamais visité."],"m_deny":["허용 안 함","許可しない","拒绝","Rechazar","Ablehnen","Refuser"],"m_ph":["이 페이지에 대해 물어보세요","このページについて質問","询问这个页面","Pregunta sobre esta página","Frag etwas zu dieser Seite","Posez une question sur cette page"],"m_s1":["페이지 읽기","ページを読む","读取页面","Leer la página","Seite lesen","Lire la page"],"m_s2":["“부산” 입력","「釜山」と入力","输入“釜山”","Escribir «Busan»","„Busan“ eingeben","Saisir « Busan »"],"m_s3":["“금 9:40” 클릭","「金 9:40」をクリック","点击“周五 9:40”","Pulsar «Vie 9:40»","„Fr 9:40“ klicken","Cliquer sur « Ven 9:40 »"],"m_s4":["pay.example 열기","pay.exampleを開く","打开 pay.example","Abrir pay.example","pay.example öffnen","Ouvrir pay.example"],"m_title":["금요일 9시 40분 기차 예매","金曜9:40の列車を予約","预订周五 9:40 的火车","Reservar el tren del viernes","Zug für Freitag buchen","Réserver le train de vendredi"],"m_user":["금요일 9시 40분 부산행 기차 예매해 줘.","金曜9:40発の釜山行きの列車を予約して。","帮我订周五 9:40 去釜山的火车。","Reserva el tren de las 9:40 a Busan el viernes.","Buch den Zug um 9:40 nach Busan am Freitag.","Réserve le train de 9h40 pour Busan vendredi."],"m_work":["12초째 작업 중","12秒作業中","已工作 12 秒","Trabajando desde hace 12 s","Arbeitet seit 12 s","Au travail depuis 12 s"],"n_agents":["에이전트","エージェント","智能体","Agentes","Agenten","Agents"],"n_ai":["AI","AI","AI","IA","KI","IA"],"n_aria":["섹션","セクション","章节","Secciones","Abschnitte","Sections"],"n_features":["기능","機能","功能","Funciones","Funktionen","Fonctions"],"n_layouts":["레이아웃","レイアウト","布局","Diseños","Layouts","Dispositions"],"n_light":["가벼움","軽さ","轻巧","Ligero","Leicht","Léger"],"n_privacy":["개인정보","プライバシー","隐私","Privacidad","Datenschutz","Confidentialité"],"rel":["릴리스 노트","リリースノート","发行说明","Notas de la versión","Versionshinweise","Notes de version"],"rq1k":["시스템","システム","系统","Sistema","System","Système"],"rq1v":["macOS 14 Sonoma 이상","macOS 14 Sonoma以降","macOS 14 Sonoma 或更高版本","macOS 14 Sonoma o posterior","macOS 14 Sonoma oder neuer","macOS 14 Sonoma ou ultérieur"],"rq2k":["칩","チップ","芯片","Chip","Chip","Puce"],"rq2v":["Apple 실리콘 Mac","Appleシリコン搭載のMac","搭载 Apple 芯片的 Mac","Mac con Apple silicon","Mac mit Apple Chip","Mac avec puce Apple"],"rq3k":["서명","署名","签名","Firma","Signatur","Signature"],"rq3v":["Developer ID, Apple 공증","Developer ID、Apple公証済み","Developer ID，Apple 公证","Developer ID, notarizada","Developer ID, notarisiert","Developer ID, notarisée"],"rq4k":["macOS 26 이상","macOS 26以降","macOS 26 或更高","macOS 26 o posterior","macOS 26 oder neuer","macOS 26 ou ultérieur"],"rq4v":["페이지 번역, Apple Intelligence 탭 정리","ページの翻訳、Apple Intelligenceによるタブの整理","页面翻译、借助 Apple Intelligence 整理标签页","Traducción de páginas, ordenar pestañas con Apple Intelligence","Seitenübersetzung, Tabs ordnen mit Apple Intelligence","Traduction des pages, rangement des onglets avec Apple Intelligence"],"rq5k":["AI 패널","AIパネル","AI 面板","Panel de IA","KI-Seitenleiste","Panneau IA"],"rq5v":["claude CLI (선택)","claude CLI（任意）","claude CLI（可选）","CLI claude (opcional)","claude-CLI (optional)","CLI claude (facultative)"],"rq_h":["요구 사항","動作環境","系统要求","Requisitos","Voraussetzungen","Configuration requise"],"si":["Apple 실리콘","Appleシリコン","Apple 芯片","Apple silicon","Apple Chip","puce Apple"],"skip":["본문으로 건너뛰기","本文へスキップ","跳到正文","Saltar al contenido","Zum Inhalt springen","Aller au contenu"],"sn":["서명 및 Apple 공증 완료","署名とApple公証済み","已签名并经 Apple 公证","firmada y notarizada por Apple","signiert und von Apple notarisiert","signée et notarisée par Apple"],"st1_l":["내려받는 크기. DMG는 2.6MB예요. 수백 MB가 아니고요.","ダウンロードサイズ。DMGは2.6MBで、数百MBではありません。","下载体积。DMG 只有 2.6 MB，而不是几百 MB。","Descarga. El DMG pesa 2,6 MB, no cientos.","Download. Das DMG ist 2,6 MB groß, nicht Hunderte.","Téléchargement. Le DMG pèse 2,6 Mo, pas des centaines."],"st2_l":["Safari와 같은 엔진이에요. 이미 Mac 안에 있어요.","Safariと同じエンジン。すでにMacの中にあります。","Safari 用的引擎，已经在你的 Mac 里。","El motor de Safari, ya instalado en tu Mac.","Die Engine von Safari, schon auf deinem Mac.","Le moteur de Safari, déjà sur votre Mac."],"st3_l":["macOS 고유의 스크롤, 글자, 제스처를 네이티브 Swift로.","macOSならではのスクロール、文字、ジェスチャ。ネイティブSwiftで作っています。","macOS 原生的滚动、文字和手势，用原生 Swift 写成。","Desplazamiento, texto y gestos de macOS, en Swift nativo.","Scrollen, Text und Gesten wie in macOS, in nativem Swift.","Défilement, texte et gestes de macOS, en Swift natif."],"st3_n":["네이티브","ネイティブ","原生","Nativo","Nativ","Natif"],"st4_l":["계정, 서버, 분석 도구.","アカウント、サーバー、アナリティクス。","账号、服务器和统计分析。","cuentas, servidores o analíticas.","Konten, Server oder Analysetools.","compte, serveur ou outil d’analyse."],"title":["Changmun — 창문 같은 Mac 브라우저","Changmun — サイドバーのある軽量Macブラウザ","Changmun — 带边栏的轻巧 Mac 浏览器","Changmun — Un navegador ligero para Mac con barra lateral","Changmun — Schlanker Mac-Browser mit Seitenleiste","Changmun — Navigateur Mac léger à barre latérale"],"v1":["Changmun에는 계정도 서버도 분석 도구도 없어요. AI 패널만은 예외라서, 묻는 말과 AI가 읽은 페이지를 claude CLI를 통해 Anthropic에 보내요.","Changmunにはアカウントもサーバーもアナリティクスもありません。例外はAIパネルだけで、質問内容とAIが読んだページを、claude CLI経由でAnthropicに送ります。","Changmun 没有账号、服务器，也没有统计分析。唯一的例外是 AI 面板：你的提问和 AI 读取的页面，会通过 claude CLI 发送给 Anthropic。","Changmun no tiene cuenta, servidor ni analíticas. El panel de IA es la única excepción: envía lo que preguntas y las páginas que lee a Anthropic a través de la CLI claude.","Changmun hat kein Konto, keinen Server und keine Analysetools. Die einzige Ausnahme ist die KI-Seitenleiste: Sie schickt deine Fragen und die gelesenen Seiten über die claude-CLI an Anthropic.","Changmun n’a ni compte, ni serveur, ni outil d’analyse. Seul le panneau IA fait exception : il envoie vos questions et les pages lues à Anthropic via la CLI claude."],"v1t":["계정도, 추적도 없어요.","アカウントも、追跡もなし。","没有账号，没有追踪。","Sin cuenta. Sin rastreo.","Kein Konto. Kein Tracking.","Pas de compte. Pas de suivi."],"v2":["복사하거나 채우기 전에 Touch ID나 Mac 암호로 확인해요. AI는 비밀번호를 받지 못해요.","コピーや自動入力の前にTouch IDかMacのパスワードで確認します。AIがパスワードを受け取ることはありません。","复制或填写密码前，会先用 Touch ID 或 Mac 密码确认。AI 永远拿不到密码。","Antes de copiar o rellenar una, se pide Touch ID o la contraseña del Mac. La IA nunca la recibe.","Vor dem Kopieren oder Ausfüllen fragt der Mac nach Touch ID oder Passwort. Die KI erhält es nie.","Touch ID ou le mot de passe du Mac est demandé avant de copier ou de remplir. L’IA ne le reçoit jamais."],"v2t":["비밀번호는 키체인에만 있어요.","パスワードはキーチェーンの中だけ。","密码只留在钥匙串里。","Las contraseñas se quedan en tu Llavero.","Passwörter bleiben im Schlüsselbund.","Les mots de passe restent dans votre Trousseau."],"v3":["클라이언트 인증서를 요구하는 사이트에는 Safari처럼 시스템 시트가 떠요. 확인할 수 없는 인증서는 앱이 직접 그린 경고로 알려 주고, ‘이 웹사이트 방문’은 Touch ID로 먼저 확인해요.","クライアント証明書を求めるサイトには、Safariと同じくシステムのシートが出ます。検証できない証明書はアプリ自身が描く警告でお知らせし、「このWebサイトを閲覧」にはまずTouch IDでの確認が入ります。","要求客户端证书的网站，会像 Safari 一样弹出系统自带的面板。无法验证的证书会由应用自己绘制警告，而“访问此网站”需要先通过 Touch ID 确认。","Si un sitio pide un certificado de cliente, aparece la hoja del propio sistema, como en Safari. Si uno no se puede verificar, la app dibuja el aviso, y «Visitar este sitio web» pide primero Touch ID.","Verlangt eine Website ein Clientzertifikat, erscheint das Systemfenster, wie in Safari. Bei einem nicht überprüfbaren Zertifikat warnt die App selbst, und „Diese Website besuchen“ verlangt zuerst Touch ID.","Un site qui demande un certificat client obtient la feuille du système, comme dans Safari. Pour un certificat invérifiable, l’app affiche elle-même l’avertissement, et « Visiter ce site web » demande d’abord Touch ID."],"v3t":["인증서도 제대로 다뤄요.","証明書も、きちんと。","证书，也妥善处理。","Los certificados, bien resueltos.","Zertifikate, sauber gelöst.","Les certificats, gérés."],"v_h":["기본값이 비공개예요.","最初からプライベート。","默认就私密。","Privado de serie.","Privat ab Werk.","Privé par défaut."],"y_a1":["왼쪽 사이드바에 즐겨찾기와 세로 탭이 모인 Changmun","左のサイドバーにお気に入りと縦型タブが並ぶChangmun","左侧边栏里是收藏夹和垂直标签页的 Changmun","Changmun con favoritos y pestañas verticales en la barra lateral izquierda","Changmun mit Favoriten und vertikalen Tabs in der Seitenleiste links","Changmun avec les favoris et les onglets verticaux dans la barre latérale de gauche"],"y_a2":["주소창 위에 탭이 한 줄로 놓인 Changmun","アドレスバーの上にタブが一列に並ぶChangmun","标签页排成一条、位于地址栏上方的 Changmun","Changmun con las pestañas en una tira sobre la barra de direcciones","Changmun mit den Tabs in einer Leiste über der Adressleiste","Changmun avec les onglets en barre au-dessus de la barre d’adresse"],"y_a3":["사이드바를 숨기고 페이지만 보이는 Changmun","サイドバーを隠してページだけを表示したChangmun","隐藏边栏、只显示页面的 Changmun","Changmun con la barra lateral oculta y solo la página","Changmun mit ausgeblendeter Seitenleiste, nur die Seite","Changmun avec la barre latérale masquée, rien que la page"],"y_h":["탭은 원하는 자리에.","タブは、好きな場所に。","标签页，放你想放的地方。","Las pestañas donde quieras.","Tabs, wo du sie willst.","Les onglets où vous voulez."],"y_k1":["사이드바","サイドバー","边栏","Barra lateral","Seitenleiste","Barre latérale"],"y_k2":["위쪽 탭","上部のタブ","顶部标签页","Pestañas arriba","Tabs oben","Onglets en haut"],"y_k3":["페이지만","ページだけ","只留页面","Solo la página","Nur die Seite","Rien que la page"],"y_t1":["즐겨찾기 타일, 북마크 폴더, 세로 탭이 한 줄에 모여요. 탭 제목도 숨 쉴 자리가 생겨요.","お気に入りのタイル、ブックマークフォルダ、縦型タブがひとつの列に。タブの名前にも余裕が生まれます。","收藏夹磁贴、书签文件夹和垂直标签页，集中在一列里。标签页标题也有了舒展的空间。","Favoritos como mosaicos, carpetas de marcadores y pestañas verticales en una sola columna. Los títulos respiran.","Favoriten als Kacheln, Lesezeichenordner und vertikale Tabs in einer Spalte. Titel bekommen Platz zum Atmen.","Favoris en tuiles, dossiers de signets et onglets verticaux dans une seule colonne. Les titres respirent enfin."],"y_t2":["탭 줄이 편하면 설정 하나로 바꿔요. 즐겨찾기가 맨 앞에 오고, 그룹은 색 칩으로 접히고, 사이드바는 부르면 페이지 위로 열려요.","タブの帯が好みなら、設定をひとつ変えるだけ。お気に入りが先頭に並び、グループは色付きのチップに折りたためて、サイドバーは呼べばページの上に開きます。","更喜欢顶部标签栏？改一个设置就行。收藏夹排在最前，标签组折叠成彩色小块，需要边栏时它会浮在页面上方打开。","¿Prefieres una tira? Es un solo ajuste. Los favoritos van primero, los grupos se pliegan en chips de color y la barra lateral se abre sobre la página cuando la llamas.","Lieber eine Leiste? Das ist eine Einstellung. Favoriten stehen vorn, Gruppen klappen sich zu bunten Chips zusammen, und die Seitenleiste öffnet sich bei Bedarf über der Seite.","Vous préférez une barre ? C’est un réglage. Les favoris passent en premier, les groupes se replient en pastilles colorées et la barre latérale s’ouvre sur la page à la demande."],"y_t3":["사이드바를 숨기면 페이지가 창을 다 써요. 집중 모드(⌘⇧F)는 나머지까지 모두 숨겨요.","サイドバーを隠せば、ページがウインドウ全体を使えます。集中モード(⌘⇧F)なら、それ以外もすべて隠れます。","隐藏边栏，页面就占满整个窗口。专注模式（⌘⇧F）则连其余界面也一并隐藏。","Oculta la barra lateral y la página ocupa toda la ventana. El modo concentración (⌘⇧F) va más lejos y oculta todo lo demás.","Blende die Seitenleiste aus, und die Seite hat das ganze Fenster. Der Fokusmodus (⌘⇧F) blendet auch alles andere aus.","Masquez la barre latérale et la page occupe toute la fenêtre. Le mode concentration (⌘⇧F) va plus loin et masque tout le reste."]};
+  var root = document.documentElement;
+  root.classList.add('js');
+  var metaDesc = document.querySelector('meta[name="description"]');
+  var orig = { title: document.title, desc: metaDesc.getAttribute('content') };
+  var texts = [].slice.call(document.querySelectorAll('[data-i]'));
+  var attrs = [].slice.call(document.querySelectorAll('[data-a]'));
+  texts.forEach(function (n) { var k = n.getAttribute('data-i'); if (!(k in orig)) orig[k] = n.innerHTML; });
+  attrs.forEach(function (n) {
+    var p = n.getAttribute('data-a').split(':');
+    if (!(p[1] in orig)) orig[p[1]] = n.getAttribute(p[0]);
+  });
+  var langBox = document.getElementById('lang');
+  var langBtn = langBox.querySelector('.lang-btn');
+  var setters = [].slice.call(document.querySelectorAll('[data-set]'));
+  var options = [].slice.call(langBox.querySelectorAll('[role="option"]'));
+  var live = document.getElementById('live');
+  var current = 'en';
+
+  function norm(code) {
+    code = String(code || '').toLowerCase().replace('_', '-');
+    if (code.indexOf('zh') === 0) return 'zh-Hans';
+    code = code.split('-')[0];
+    return LANGS.indexOf(code) >= 0 ? code : null;
+  }
+  function tr(key, lang) {
+    if (lang === 'en' || !D[key]) return orig[key];
+    return D[key][LANGS.indexOf(lang) - 1];
+  }
+
+  // The dim-to-bright paragraph: every word becomes a span with its place (0..1) in the paragraph; words inside <b> are the key phrases.
+  function words(text) {
+    if (window.Intl && Intl.Segmenter && /^(ja|zh)/.test(current)) {
+      var out = [], seg = new Intl.Segmenter(current, { granularity: 'word' });
+      for (var s of seg.segment(text)) out.push(s.segment);
+      return out;
+    }
+    return text.split(/(\s+)/);
+  }
+  function wordify(el) {
+    var list = [];
+    [].slice.call(el.childNodes).forEach(function (node) {
+      var key = node.nodeType === 1 && node.tagName === 'B';
+      var frag = document.createDocumentFragment();
+      words(node.textContent).forEach(function (w) {
+        if (!w) return;
+        if (/^\s+$/.test(w)) { frag.appendChild(document.createTextNode(w)); return; }
+        var s = document.createElement('span');
+        s.className = key ? 'w k' : 'w';
+        s.textContent = w; list.push(s); frag.appendChild(s);
+      });
+      el.replaceChild(frag, node);
+    });
+    list.forEach(function (s, i) { s.style.setProperty('--s', list.length > 1 ? (i / (list.length - 1)).toFixed(3) : 0); });
+  }
+  var revealP = document.querySelector('.reveal-p');
+
+  function setLang(lang, save) {
+    current = lang;
+    document.body.setAttribute('data-lang', lang);
+    root.lang = lang;
+    document.title = tr('title', lang);
+    metaDesc.setAttribute('content', tr('desc', lang));
+    texts.forEach(function (n) { n.innerHTML = tr(n.getAttribute('data-i'), lang); });
+    attrs.forEach(function (n) { var p = n.getAttribute('data-a').split(':'); n.setAttribute(p[0], tr(p[1], lang)); });
+    wordify(revealP);
+    setters.forEach(function (b) {
+      var on = b.getAttribute('data-set') === lang;
+      if (b.getAttribute('role') === 'option') b.setAttribute('aria-selected', String(on));
+      else b.setAttribute('aria-current', String(on));
+      if (on && b.getAttribute('role') === 'option') {
+        document.getElementById('langLabel').textContent = b.textContent;
+        langBtn.setAttribute('aria-label', tr('langLbl', lang) + ': ' + b.textContent);
+      }
+    });
+    if (save) { try { localStorage.setItem('changmun-lang', lang); } catch (e) {} }
+  }
+  function initialLang() {
+    var q = null, saved = null, i;
+    try { q = norm(new URLSearchParams(location.search).get('lang')); } catch (e) {}
+    if (q) return q;
+    try { saved = norm(localStorage.getItem('changmun-lang')); } catch (e) {}
+    if (saved) return saved;
+    var prefs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''];
+    for (i = 0; i < prefs.length; i++) { var c = norm(prefs[i]); if (c) return c; }
+    return 'en';
+  }
+  setLang(initialLang(), false);
+
+  // Language menu: a button that opens a listbox; arrows, Home/End, Escape and Tab all work from the keyboard.
+  function openMenu(v) { langBox.classList.toggle('open', v); langBtn.setAttribute('aria-expanded', String(v)); }
+  function selectedOption() { return langBox.querySelector('[aria-selected="true"]') || options[0]; }
+  langBtn.addEventListener('click', function () { var v = !langBox.classList.contains('open'); openMenu(v); if (v) selectedOption().focus(); });
+  langBtn.addEventListener('keydown', function (e) { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); openMenu(true); selectedOption().focus(); } });
+  options.forEach(function (o, i) {
+    o.addEventListener('keydown', function (e) {
+      var n = options.length;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); options[(i + (e.key === 'ArrowDown' ? 1 : n - 1)) % n].focus(); }
+      else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); options[e.key === 'Home' ? 0 : n - 1].focus(); }
+    });
+  });
+  setters.forEach(function (b) {
+    b.addEventListener('click', function () {
+      setLang(b.getAttribute('data-set'), true);
+      if (b.getAttribute('role') === 'option') { openMenu(false); langBtn.focus(); }
+    });
+  });
+  document.addEventListener('click', function (e) { if (!langBox.contains(e.target)) openMenu(false); });
+  langBox.addEventListener('mousedown', function (e) { e.preventDefault(); });
+  langBox.addEventListener('focusout', function () { setTimeout(function () { if (!langBox.contains(document.activeElement)) openMenu(false); }, 0); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && langBox.classList.contains('open')) { openMenu(false); langBtn.focus(); } });
+
+  // Copy: the label turns into "Copied" for a moment; if the browser refuses, the command is selected for ⌘C.
+  function legacyCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta); ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return legacyCopy(text); });
+    return Promise.resolve(legacyCopy(text));
+  }
+  [].forEach.call(document.querySelectorAll('[data-copy]'), function (btn) {
+    var timer = 0;
+    btn.addEventListener('click', function () {
+      copyText(btn.getAttribute('data-copy')).then(function (ok) {
+        if (!ok) { var r = document.createRange(); r.selectNodeContents(btn.parentNode.querySelector('code')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); return; }
+        btn.classList.add('done');
+        live.textContent = tr('copied_lbl', current);
+        clearTimeout(timer);
+        timer = setTimeout(function () { btn.classList.remove('done'); live.textContent = ''; }, 1600);
+      });
+    });
+  });
+
+  if (!('IntersectionObserver' in window)) return;
+
+  // Nav: the section links and the pill come in once the hero's own button has scrolled away.
+  new IntersectionObserver(function (es) {
+    var e = es[es.length - 1];
+    root.classList.toggle('past', !e.isIntersecting && e.boundingClientRect.top < 0);
+  }).observe(document.getElementById('heroCta'));
+
+  // Which section is in view.
+  var links = [].slice.call(document.querySelectorAll('.nav-links a'));
+  var spy = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      links.forEach(function (a) { if (a.getAttribute('href') === '#' + e.target.id) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
+    });
+  }, { rootMargin: '-45% 0px -50% 0px' });
+  links.forEach(function (a) { var t = document.querySelector(a.getAttribute('href')); if (t) spy.observe(t); });
+
+  // Layouts: the step in the middle of the screen picks the shot beside it. Nothing is hijacked; the page scrolls as usual.
+  var stage = document.querySelector('.lay-stage');
+  var steps = [].slice.call(document.querySelectorAll('.step'));
+  var stepIO = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      steps.forEach(function (s) { s.classList.toggle('on', s === e.target); });
+      stage.setAttribute('data-step', e.target.getAttribute('data-n'));
+    });
+  }, { rootMargin: '-42% 0px -42% 0px' });
+  steps.forEach(function (s) { stepIO.observe(s); });
+
+  // Reveal fallback for browsers without scroll-driven animations.
+  var scrollDriven = window.CSS && CSS.supports && CSS.supports('animation-timeline: view()');
+  var still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!scrollDriven && !still) {
+    root.classList.add('io');
+    var rv = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); e.target.classList.add('on'); rv.unobserve(e.target); } });
+    }, { rootMargin: '0px 0px -12% 0px', threshold: 0.12 });
+    [].forEach.call(document.querySelectorAll('.rv, .reveal-p'), function (n) { rv.observe(n); });
+    var hs = document.querySelector('.hero-shot');
+    requestAnimationFrame(function () { requestAnimationFrame(function () { hs.classList.add('in'); }); });
+  }
+})();
+</script>
+</body>
+</html>
