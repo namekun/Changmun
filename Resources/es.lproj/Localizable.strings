@@ -839,3 +839,5 @@
 "Mark as Unread" = "Marcar como no leído";
 "Copy Link" = "Copiar enlace";
 "Reading List %@" = "Lista de lectura %@";
+"Read" = "Leído";
+"Unread" = "Sin leer";

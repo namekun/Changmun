@@ -80,6 +80,11 @@ enum Accessibility {
 
     // MARK: The page bar
 
+    /// What a saved page says besides its title: whether it is still to be read, where it is from and how long ago it was saved.
+    static func readingValue(read: Bool, site: String, added: String) -> String {
+        join([read ? String(localized: "Read") : String(localized: "Unread"), site, added])
+    }
+
     static func shownValue(_ shown: Bool) -> String { shown ? String(localized: "Shown") : String(localized: "Hidden") }
 
     static func onOffValue(_ on: Bool) -> String { on ? String(localized: "Turned on") : String(localized: "Turned off") }

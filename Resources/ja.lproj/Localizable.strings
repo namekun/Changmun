@@ -839,3 +839,5 @@
 "Mark as Unread" = "未読にする";
 "Copy Link" = "リンクをコピー";
 "Reading List %@" = "リーディングリスト %@";
+"Read" = "既読";
+"Unread" = "未読";

@@ -9,6 +9,12 @@ import Testing
 struct AccessibilityTests {
     // MARK: Words
 
+    @Test func aSavedPageSaysWhetherItIsStillToBeRead() {
+        #expect(Accessibility.readingValue(read: false, site: "example.com", added: "Yesterday").hasPrefix(String(localized: "Unread")))
+        #expect(Accessibility.readingValue(read: true, site: "example.com", added: "Yesterday").hasPrefix(String(localized: "Read")))
+        #expect(Accessibility.readingValue(read: true, site: "", added: "").hasSuffix(String(localized: "Read")))
+    }
+
     @Test func partsOfSpeechAreJoinedWithoutGaps() {
         #expect(Accessibility.join(["a", nil, "", "b"]) == "a, b")
         #expect(Accessibility.join([nil, ""]) == "")

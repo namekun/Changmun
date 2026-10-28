@@ -87,7 +87,12 @@ struct ReadingRow: View {
             Button("Remove from Reading List") { browser.removeReadingItem(item) }
         }
         .help(item.url)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
+        .accessibleButton(item.title, value: Accessibility.readingValue(read: item.read, site: ReadingList.siteName(of: item.url), added: ReadingList.dateLabel(item.added)),
+                          actions: [
+                              .init(name: String(localized: "Open in New Tab")) { browser.openReadingItem(item, inNewTab: true) },
+                              .init(name: item.read ? String(localized: "Mark as Unread") : String(localized: "Mark as Read")) { browser.markReadingItem(item, read: !item.read) },
+                              .init(name: String(localized: "Remove from Reading List")) { browser.removeReadingItem(item) },
+                          ],
+                          activate: { browser.openReadingItem(item, inNewTab: false) })
     }
 }
