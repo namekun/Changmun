@@ -740,6 +740,7 @@
 "The site named other certificate issuers than yours, so all your certificates are shown." = "사이트가 지정한 인증서 발급 기관이 내 인증서와 달라서 모든 인증서를 보여 드려요.";
 "This page's certificate wasn't verified: you chose to go on." = "이 페이지의 인증서는 확인되지 않았어요. 계속하기로 직접 선택했어요.";
 "Stay signed in after quitting" = "종료한 뒤에도 로그인 유지";
-"Keeps the sign-in cookies that sites meant to end when the browser closes, encrypted on this Mac, until you turn it off or clear site data." = "사이트가 브라우저를 닫으면 끝나도록 만든 로그인 쿠키를 이 Mac에 암호화해서 보관해요. 이 설정을 끄거나 사이트 데이터를 지울 때까지 유지돼요.";
+"Keeps the sign-in cookies that sites meant to end when the browser closes, for up to 30 days, in a file on this Mac encrypted with a key from your login Keychain, until you turn it off or clear site data." = "사이트가 브라우저를 닫으면 끝나도록 만든 로그인 쿠키를 최대 30일 동안, 로그인 키체인의 키로 암호화해서 이 Mac의 파일에 보관해요. 이 설정을 끄거나 사이트 데이터를 지울 때까지 유지돼요.";
 "Quit when the last window is closed" = "마지막 창을 닫으면 종료";
-"Turned off, Changmun stays open without a window, like Safari. Click its Dock icon to open one again." = "끄면 창이 없어도 Changmun이 Safari처럼 계속 열려 있어요. Dock의 아이콘을 누르면 창이 다시 열려요.";
+"Turned off, Changmun stays open without a window, like Safari. Clicking its Dock icon or choosing New Window reopens the last session." = "끄면 창이 없어도 Changmun이 Safari처럼 계속 열려 있어요. Dock의 아이콘을 누르거나 새 윈도우를 선택하면 마지막 세션이 다시 열려요.";
+"Couldn’t use the Keychain, so sign-ins won’t survive quitting." = "키체인을 사용할 수 없어서 종료하면 로그인이 유지되지 않아요.";

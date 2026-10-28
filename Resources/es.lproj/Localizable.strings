@@ -740,6 +740,7 @@
 "The site named other certificate issuers than yours, so all your certificates are shown." = "El sitio indicó emisores de certificados distintos de los tuyos, así que se muestran todos tus certificados.";
 "This page's certificate wasn't verified: you chose to go on." = "El certificado de esta página no se verificó: elegiste continuar.";
 "Stay signed in after quitting" = "Mantener la sesión al salir";
-"Keeps the sign-in cookies that sites meant to end when the browser closes, encrypted on this Mac, until you turn it off or clear site data." = "Conserva las cookies de inicio de sesión que los sitios querían borrar al cerrar el navegador, cifradas en este Mac, hasta que lo desactives o borres los datos de sitios.";
+"Keeps the sign-in cookies that sites meant to end when the browser closes, for up to 30 days, in a file on this Mac encrypted with a key from your login Keychain, until you turn it off or clear site data." = "Conserva las cookies de inicio de sesión que los sitios querían borrar al cerrar el navegador, hasta 30 días, en un archivo de este Mac cifrado con una clave de tu llavero de inicio de sesión, hasta que lo desactives o borres los datos de sitios.";
 "Quit when the last window is closed" = "Salir al cerrar la última ventana";
-"Turned off, Changmun stays open without a window, like Safari. Click its Dock icon to open one again." = "Si lo desactivas, Changmun sigue abierto sin ventanas, como Safari. Haz clic en su icono del Dock para abrir una de nuevo.";
+"Turned off, Changmun stays open without a window, like Safari. Clicking its Dock icon or choosing New Window reopens the last session." = "Si lo desactivas, Changmun sigue abierto sin ventanas, como Safari. Al hacer clic en su icono del Dock o elegir Nueva ventana, se vuelve a abrir la última sesión.";
+"Couldn’t use the Keychain, so sign-ins won’t survive quitting." = "No se pudo usar el Llavero, así que las sesiones no se mantendrán al salir.";

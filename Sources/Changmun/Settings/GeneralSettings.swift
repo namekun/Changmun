@@ -32,7 +32,7 @@ struct GeneralSettings: View {
             }
             Section("Browser") {
                 Toggle("Quit when the last window is closed", isOn: $prefs.quitWhenLastWindowCloses)
-                Caption(text: "Turned off, Changmun stays open without a window, like Safari. Click its Dock icon to open one again.")
+                Caption(text: "Turned off, Changmun stays open without a window, like Safari. Clicking its Dock icon or choosing New Window reopens the last session.")
                 LabeledContent("Default Browser") {
                     if isDefaultBrowser {
                         Text("Changmun is your default browser").foregroundStyle(.secondary)

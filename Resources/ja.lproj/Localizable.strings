@@ -740,6 +740,7 @@
 "The site named other certificate issuers than yours, so all your certificates are shown." = "サイトが指定した証明書の発行元があなたの証明書と異なるため、すべての証明書を表示しています。";
 "This page's certificate wasn't verified: you chose to go on." = "このページの証明書は確認されていません。続行を選択しました。";
 "Stay signed in after quitting" = "終了後もサインインを保持";
-"Keeps the sign-in cookies that sites meant to end when the browser closes, encrypted on this Mac, until you turn it off or clear site data." = "ブラウザを閉じると終了するようサイトが設定したサインイン用Cookieを、このMacに暗号化して保存します。この設定をオフにするか、サイトデータを消去するまで保持されます。";
+"Keeps the sign-in cookies that sites meant to end when the browser closes, for up to 30 days, in a file on this Mac encrypted with a key from your login Keychain, until you turn it off or clear site data." = "ブラウザを閉じると終了するようサイトが設定したサインイン用Cookieを、最長30日間、ログインキーチェーンの鍵で暗号化してこのMacのファイルに保存します。この設定をオフにするか、サイトデータを消去するまで保持されます。";
 "Quit when the last window is closed" = "最後のウインドウを閉じたら終了";
-"Turned off, Changmun stays open without a window, like Safari. Click its Dock icon to open one again." = "オフにすると、ウインドウがなくてもSafariのようにChangmunは開いたままになります。Dockのアイコンをクリックすると、ウインドウが再び開きます。";
+"Turned off, Changmun stays open without a window, like Safari. Clicking its Dock icon or choosing New Window reopens the last session." = "オフにすると、ウインドウがなくてもSafariのようにChangmunは開いたままになります。Dockのアイコンをクリックするか「新規ウインドウ」を選ぶと、最後のセッションが再び開きます。";
+"Couldn’t use the Keychain, so sign-ins won’t survive quitting." = "キーチェーンを使用できないため、終了するとサインインは保持されません。";

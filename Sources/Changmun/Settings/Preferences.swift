@@ -245,7 +245,7 @@ final class Preferences: ObservableObject {
         archiveHours = d.object(forKey: "archiveTabsAfterHours") as? Int ?? 0
         groupNewTabs = d.object(forKey: "groupNewTabs") as? Bool ?? true
         blockTrackers = d.object(forKey: "blockTrackers") as? Bool ?? true
-        keepSessionCookies = d.object(forKey: "keepSessionCookies") as? Bool ?? true
+        keepSessionCookies = CookieJournal.storedSetting()
         requireAuthToFill = d.object(forKey: "requireAuthToFill") as? Bool ?? true
         customFilterLists = d.stringArray(forKey: "customFilterLists") ?? []
         disabledFilterLists = d.stringArray(forKey: "disabledFilterLists") ?? []

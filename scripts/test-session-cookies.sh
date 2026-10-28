@@ -3,8 +3,8 @@
 # one, SameSite Lax and Strict ones, and two that last a day), and Changmun Headless.app is stopped in each way a browser ends, started again, and asked
 # which cookies the server gets:
 #   a quit right after signing in, SIGTERM and SIGKILL a few seconds later, closing the last window, in the default store and in a profile space's;
-#   a sign-out the server asked for is not undone by the journal; with "Stay signed in after quitting" off only the day-long cookies are back and no
-#   journal file is left; with "Quit when the last window is closed" off the window closes and the app goes on, and a new window opens.
+#   a sign-out the server asked for is not undone by the journal; with "Stay signed in after quitting" off, and by default in the headless apps, only
+#   the day-long cookies (which WebKit keeps itself) are back and no journal file is left; with "Quit when the last window is closed" off the window closes and the app goes on, and a new window opens.
 # The journal's files are checked to be private and to hold none of the values. Run in Changmun Headless.app, which it starts for each case (and stops
 # after); it needs a fresh bundle (rm -rf build/Changmun.app && scripts/bundle.sh). Cleans up the cookies, the space and the settings it makes.
 #
@@ -69,6 +69,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# The headless apps keep no sign-ins unless told to: this test tells the test copy to.
+defaults write "$BUNDLE_ID" keepSessionCookies -bool true
 if pgrep -f "Changmun Headless[.]app/Contents" >/dev/null; then echo "a Changmun Headless is running: stop it first (this test restarts it)" >&2; exit 2; fi
 [[ -d build/Changmun.app ]] || scripts/bundle.sh >/dev/null || exit 1
 
@@ -181,24 +183,30 @@ expect "signing out: after a kill, nothing comes back" "" "$(cookies)"
 close_local_tabs
 stop_app
 
-# The switch off: only what lasts a day is back, and no file or key is left.
+# The switch off, and the headless apps' own default (off): only what lasts a day is back, and no file is left.
+off_case() { # what
+    start_app
+    login
+    close_local_tabs
+    expect "$1: signed in" "$ALL" "$(cookies)"
+    sleep 3
+    local pid
+    pid="$(field pid)"
+    osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1
+    wait_gone "$pid" 15 || { kill -9 "$pid"; wait_gone "$pid" 10; }
+    rm -f "$ENDPOINT"
+    start_app
+    expect "$1: only the cookies that last a day are back" "$DAY" "$(cookies)"
+    [[ -z "$(ls "$SUPPORT"/Cookies/*.journal 2>/dev/null)" ]] && ok "$1: no journal file is left" || bad "$1: a journal file is left"
+    logout
+    close_local_tabs
+    stop_app
+}
 defaults write "$BUNDLE_ID" keepSessionCookies -bool false
-start_app
-login
-close_local_tabs
-expect "stay signed in off: signed in" "$ALL" "$(cookies)"
-sleep 3
-pid="$(field pid)"
-osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1
-wait_gone "$pid" 15 || { kill -9 "$pid"; wait_gone "$pid" 10; }
-rm -f "$ENDPOINT"
-start_app
-expect "stay signed in off: only the cookies that last a day are back" "$DAY" "$(cookies)"
-[[ -z "$(ls "$SUPPORT"/Cookies/*.journal 2>/dev/null)" ]] && ok "stay signed in off: no journal file is left" || bad "stay signed in off: a journal file is left"
-logout
-close_local_tabs
-stop_app
+off_case "stay signed in off"
 defaults delete "$BUNDLE_ID" keepSessionCookies
+off_case "headless default (nothing set)"
+defaults write "$BUNDLE_ID" keepSessionCookies -bool true
 
 # Closing the last window with "Quit when the last window is closed" off: the app goes on, with no window, and opens one when asked.
 defaults write "$BUNDLE_ID" quitWhenLastWindowCloses -bool false
