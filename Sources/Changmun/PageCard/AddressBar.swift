@@ -44,6 +44,10 @@ struct AddressPill: View {
                     .contentShape(Rectangle())
                     .onHover { siteHover = $0 }
                     .onTapGesture { if hasSite { showSite = true } else { edit() } }
+                    .accessibleButton(hasSite ? String(localized: "Site Settings") : String(localized: "Edit Address"),
+                                      value: Accessibility.connectionValue(scheme: tab.url?.scheme, unverified: tab.isUnverified, choseToGoOn: tab.usesTrustException)) {
+                        if hasSite { showSite = true } else { edit() }
+                    }
                     .popover(isPresented: $showSite, arrowEdge: .bottom) { SiteSettings(tab: tab) }
                     .onChange(of: tab.url?.host()) { _, _ in showSite = false }
                     .help(tab.usesTrustException ? String(localized: "The certificate wasn’t verified: you chose to go on") : hasSite ? String(localized: "Site Settings") : String(localized: "Edit Address (⌘L)"))
@@ -51,10 +55,11 @@ struct AddressPill: View {
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
                     .foregroundStyle(Theme.primary)
+                    .accessibleButton(String(localized: "Address"), value: tab.url?.absoluteString ?? "", hint: String(localized: "Edit the address"), activate: edit)
             }
             .layoutPriority(1)
             if !compact, let title = Self.shownTitle(tab.title, host: host) {
-                Text(verbatim: "·").font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.faint)
+                Text(verbatim: "·").font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.faint).decorative()
                 Text(verbatim: title)
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
@@ -99,11 +104,15 @@ struct AddressField: View {
             Image(systemName: tab.isUnverified ? "exclamationmark.triangle.fill" : tab.url?.scheme == "https" ? "lock.fill" : "globe")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(tab.isUnverified ? Theme.waiting : Theme.secondary)
+                .accessibilityLabel(Accessibility.connectionValue(scheme: tab.url?.scheme, unverified: tab.isUnverified, choseToGoOn: tab.usesTrustException) ?? "")
+                .accessibilityHidden(Accessibility.connectionValue(scheme: tab.url?.scheme, unverified: tab.isUnverified, choseToGoOn: tab.usesTrustException) == nil)
             TextField("Search or enter address", text: $text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Theme.primary)
                 .focused($focused)
+                .accessibilityLabel(String(localized: "Address"))
+                .accessibilityHint(String(localized: "Type an address or words to search for, then press Return"))
                 .onSubmit {
                     browser.open(text, in: .editCurrent)
                     focused = false
@@ -155,5 +164,6 @@ struct AddressPlaceholder: View {
         .contentShape(Rectangle())
         .onHover { hover = $0 }
         .onTapGesture(perform: open)
+        .accessibleButton(String(localized: "Address"), hint: String(localized: "Search or enter address"), activate: open)
     }
 }

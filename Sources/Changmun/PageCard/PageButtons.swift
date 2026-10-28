@@ -18,6 +18,8 @@ struct ReaderButton: View {
             .buttonStyle(.plain)
             .foregroundStyle(tab.isReading ? Theme.primary : Theme.dim)
             .help(tab.isReading ? String(localized: "Exit Reader Mode (\(key))") : String(localized: "Reader Mode (\(key))"))
+            .accessibilityLabel(String(localized: "Reader Mode"))
+            .accessibilityValue(Accessibility.onOffValue(tab.isReading))
         }
     }
 }
@@ -42,6 +44,8 @@ struct TranslateButton: View {
             .buttonStyle(.plain)
             .foregroundStyle(tab.translation == .translated ? Theme.primary : Theme.dim)
             .help(tab.translation == .translated ? String(localized: "Show Original (⌥⌘T)") : String(localized: "Translate (⌥⌘T)"))
+            .accessibilityLabel(String(localized: "Translate"))
+            .accessibilityValue(tab.translation == .translating ? String(localized: "Translating") : Accessibility.onOffValue(tab.translation == .translated))
         }
     }
 }
@@ -61,6 +65,7 @@ struct PictureInPictureButton: View {
             .buttonStyle(.plain)
             .foregroundStyle(Theme.secondary)
             .help("Picture in Picture (⌃⌘P)")
+            .accessibilityLabel(String(localized: "Picture in Picture"))
         }
     }
 }
@@ -81,6 +86,8 @@ struct AdBlockShield: View {
             }
             .buttonStyle(.plain)
             .help(off ? String(localized: "Turn on ad blocking for this site") : String(localized: "Turn off ad blocking for this site (if it breaks)"))
+            .accessibilityLabel(String(localized: "Ad blocking for this site"))
+            .accessibilityValue(Accessibility.onOffValue(!off))
         }
     }
 }
@@ -110,5 +117,6 @@ struct BookmarkStar: View {
         }
         .buttonStyle(.plain)
         .help(marked ? String(localized: "Remove from Favorites (⌘D)") : String(localized: "Add to Favorites (⌘D)"))
+        .accessibilityLabel(marked ? String(localized: "Remove from Favorites") : String(localized: "Add to Favorites"))
     }
 }

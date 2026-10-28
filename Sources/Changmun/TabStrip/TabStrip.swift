@@ -81,6 +81,8 @@ struct TabStrip: View {
                 }
                 // The tab shown comes into view: when the strip appears, and when another tab is switched to from the keyboard or the command bar.
                 .background(StripWheelScroll())
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(String(localized: "Tabs"))
                 .onAppear {
                     DispatchQueue.main.async { if let id = browser.activeID { scroller.scrollTo("tab:\(id)", anchor: .center) } }
                 }

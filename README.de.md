@@ -68,6 +68,7 @@ Sind nur die Command Line Tools installiert, bauen die Skripte gegen das macOS-2
 - **Alte Tabs archivieren** (standardmäßig aus). Räumt Tabs weg, die du nicht mehr ansiehst, statt sie wegzuwerfen. Tabs, die du eine bestimmte Zeit nicht angesehen hast (12 Stunden bis 30 Tage, nur gezählt, solange Changmun läuft), werden geschlossen und landen unter Verlauf › Archivierte Tabs, bereit zum erneuten Öffnen in ihrer Gruppe. Sichtbare Tabs, Tabs mit Wiedergabe, Bild-in-Bild, Kamera/Mikrofon sowie Favoriten und private Tabs werden nie archiviert.
 - **Tabs im Ruhezustand.** Lässt Hintergrund-Tabs ein Nickerchen machen und gibt dafür Speicher frei. Hintergrund-Tabs, die du 20 Minuten nicht gesehen hast, und bei knappem Speicher alle Hintergrund-Tabs geben ihren Webprozess frei und kommen samt Verlauf zurück, sobald du zu ihnen wechselst.
 - **Befehlsleiste** (⌘T). Ein Feld für alles: Suche, Adressen, den Wechsel zu offenen Tabs, Lesezeichen und Verlauf sowie Fragen an die KI.
+- **VoiceOver und Tastatur.** Seitenleiste, Tab-Leiste, Adressleiste, Befehlsleiste, Suchen, KI-Seitenleiste und Einstellungen funktionieren mit VoiceOver und dem vollständigen Tastaturzugriff: Jede Taste, jedes Feld, jeder Tab und jede Zeile hat einen Namen (und, wo es ihn gibt, einen Zustand), und Zeilen und Tasten lassen sich per Tastatur betätigen. Statusmeldungen werden beim Erscheinen angesagt.
 
 ### Spaces und Profile
 

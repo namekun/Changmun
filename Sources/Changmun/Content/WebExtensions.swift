@@ -607,6 +607,8 @@ struct ExtensionButton: View {
         .buttonStyle(.plain)
         .onHover { hover = $0 }
         .help(action?.label.isEmpty == false ? action!.label : item.name)
+        .accessibilityLabel(action?.label.isEmpty == false ? action!.label : item.name)
+        .accessibilityValue(action?.badgeText ?? "")
         .background(PopoverAnchor { view in
             ExtensionHost.shared.anchors[item.id, default: .weakObjects()].add(view)
         })

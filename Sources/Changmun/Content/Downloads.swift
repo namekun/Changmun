@@ -290,6 +290,7 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         item(download)?.progress = 1
         item(download)?.bytes = download.progress.completedUnitCount
         item(download)?.state = .finished
+        if let name = item(download)?.filename { Announcer.announce(String(localized: "Downloaded \(name)")) }
         if let id = item(download)?.id { resumers[id] = nil }
         settle(item(download))
         if !Headless.isOn { NSSound(named: "Glass")?.play() }
@@ -310,6 +311,7 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         guard let item = item(download) else { return }
         resumers[item.id] = nil
         item.state = cancelled ? .cancelled : .failed(error.localizedDescription)
+        if !cancelled { Announcer.announce(String(localized: "Couldn’t download \(item.filename)"), important: true) }
         if !cancelled {
             item.resumeData = resumeData
             item.origin = origin

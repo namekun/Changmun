@@ -24,6 +24,7 @@ struct StripFavorite<MenuItems: View>: View {
             .contextMenu(menuItems: menu)
             .renamePopover(shown: entry.title.isEmpty ? entry.url : entry.title, isPresented: renaming, finish: finishRenaming)
             .help(entry.title.isEmpty ? entry.url : entry.title)
+            .accessibleButton(Accessibility.bookmarkLabel(title: entry.title, url: entry.url), value: Accessibility.bookmarkValue(state), selected: state == .shown, activate: open)
     }
 }
 
@@ -82,6 +83,7 @@ struct StripTab: View {
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(Theme.faint)
                         .help("Split View")
+                        .decorative()
                 }
             }
             .frame(width: Metrics.action)
@@ -97,6 +99,7 @@ struct StripTab: View {
         .overlay { MiddleClick { browser.close(tab.id) } }
         .contextMenu { TabMenu(tab: tab, browser: browser, isActive: isActive) { browser.close(tab.id) } }
         .help(tab.url?.absoluteString ?? "")
+        .accessibleTab(tab, in: browser, isActive: isActive, renaming: renaming, close: { browser.close(tab.id) }) { browser.activate(tab.id) }
     }
 
     private func commit() {
@@ -180,6 +183,10 @@ struct StripGroupChip: View {
         .onHover { hover = $0 }
         .contextMenu { GroupMenu(group: group, browser: browser) }
         .help(group.isOpen ? String(localized: "Collapse") : String(localized: "Expand"))
+        .accessibleButton(group.name, value: Accessibility.groupValue(open: group.isOpen, tabs: count), header: true, enabled: !renaming, actions: [
+            .init(Accessibility.toggleAction(open: group.isOpen)) { browser.clickGroup(group.id, clickCount: 1) },
+            .init(String(localized: "Rename")) { browser.renamingGroup = group.id },
+        ]) { browser.clickGroup(group.id, clickCount: 1) }
     }
 
     private func commit() {

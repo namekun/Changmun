@@ -113,6 +113,10 @@ struct SpaceSwitcher: View {
         .background(Capsule().fill(Theme.selectedFill).overlay(Capsule().strokeBorder(Theme.selectedEdge, lineWidth: 0.5))
             .shadow(color: Theme.selectedShadow, radius: 1, y: 1))
         .help(space.name)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(space.name)
+        .accessibilityValue(Accessibility.spaceValue(isProfile: space.isProfile) ?? "")
+        .accessibilityAddTraits([.isButton, .isSelected])
     }
 
     private func dot(_ space: Space, number: Int) -> some View {
@@ -126,6 +130,8 @@ struct SpaceSwitcher: View {
         .buttonStyle(FillStyle(radius: nil))
         .foregroundStyle(Theme.secondary)
         .help(number <= 9 ? "\(space.name)  ⌃\(number)" : space.name)
+        .accessibilityLabel(space.name)
+        .accessibilityValue(Accessibility.spaceValue(isProfile: space.isProfile) ?? "")
     }
 
     /// A profile's symbol wears a small key: its logins and cookies are its own.
@@ -244,6 +250,7 @@ struct SpaceSheet: View {
                     .textFieldStyle(.plain)
                     .font(.system(size: 14, weight: .semibold))
                     .focused($focused)
+                    .accessibilityLabel(String(localized: "Name"))
                     .onSubmit(save)
                     .padding(.horizontal, 10)
                     .frame(height: 36)
@@ -264,6 +271,7 @@ struct SpaceSheet: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
+                .accessibilityLabel(String(localized: "Icon"))
                 .frame(width: 130)
                 .onChange(of: showsEmoji) { symbol = (showsEmoji ? Space.emoji : Space.symbols)[0] }
             }
@@ -277,6 +285,7 @@ struct SpaceSheet: View {
                             .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(symbol == item ? tint.color : .clear, lineWidth: 1.5))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityAddTraits(symbol == item ? .isSelected : [])
                 }
             }
         }
@@ -296,6 +305,8 @@ struct SpaceSheet: View {
                             .overlay(Circle().strokeBorder(Theme.primary, lineWidth: tint == item ? 2 : 0).padding(-4))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(item.name)
+                    .accessibilityAddTraits(tint == item ? .isSelected : [])
                 }
             }
             .padding(.leading, 4)
@@ -310,6 +321,7 @@ struct SpaceSheet: View {
             }
             Spacer(minLength: 0)
             Toggle("", isOn: $isProfile).toggleStyle(.switch).labelsHidden().disabled(editing)
+                .accessibilityLabel(String(localized: "Keep logins and cookies separate (profile)"))
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.field))

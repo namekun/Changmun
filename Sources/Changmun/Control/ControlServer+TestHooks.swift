@@ -7,6 +7,7 @@ extension ControlServer {
     /// Answers the request and returns true if it is one of the test copy's own endpoints; false lets `handle()` go on.
     func handleTestRequest(_ request: HTTPRequest, on connection: NWConnection) -> Bool {
         if handlePrivacyTestRequest(request, on: connection) { return true }
+        if handleAccessibilityRequest(request, on: connection) { return true }
         // Tests only: a picture of the front window, sidebar and all, with a popover over it ("popoverAt": [x, y] says where its top left corner goes).
         if Headless.isTestCopy, request.method == "POST", request.path == "/window-image" {
             let at = ((try? JSONSerialization.jsonObject(with: request.body) as? [String: Any])?["popoverAt"] as? [Double]).flatMap { $0.count == 2 ? CGPoint(x: $0[0], y: $0[1]) : nil }

@@ -29,6 +29,12 @@ struct SidebarResizeHandle: View {
             )
             .onTapGesture(count: 2) { width = Preferences.defaultSidebarWidth }
             .help("Drag to resize the sidebar · double-click for default width")
+            .accessibilityElement()
+            .accessibilityLabel(String(localized: "Sidebar Width"))
+            .accessibilityValue(Accessibility.widthValue(width))
+            .accessibilityAdjustableAction { direction in
+                width = Accessibility.adjusted(width, direction, step: 20, in: Preferences.sidebarWidths)
+            }
     }
 }
 

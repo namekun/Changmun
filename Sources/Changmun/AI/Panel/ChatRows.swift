@@ -45,6 +45,7 @@ struct ChatRow: View {
                         .textSelection(.enabled)
                         .padding(.horizontal, 12).padding(.vertical, 7)
                         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.field))
+                        .accessibilityLabel(Accessibility.youSaid(item.text))
                 }
                 .modifier(SentImages(images: item.images))
             }
@@ -81,6 +82,8 @@ struct AnswerRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .onHover { hover = $0 }
         .environment(\.openURL, OpenURLAction { url in ChatLinks.open(url) })
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Accessibility.aiSaid)
     }
 }
 

@@ -68,6 +68,7 @@ With only the Command Line Tools installed, the scripts build against the macOS 
 - **Archive old tabs** (off by default). Tabs you've stopped using get put away, not thrown away. Tabs you haven't looked at for a set time (12 hours to 30 days, counted only while Changmun runs) close into History › Archived Tabs, ready to reopen into their group. Visible, playing, picture-in-picture, camera/mic, favorite and private tabs are never archived.
 - **Sleeping tabs.** Lets background tabs nap and hands their memory back. Background tabs you haven't seen in 20 minutes, and all background tabs under memory pressure, give back their web process and come back with their history when you return.
 - **Command bar** (⌘T). One box, many errands: search, addresses, switching to open tabs, bookmarks and history, and asking the AI.
+- **VoiceOver and keyboard.** The sidebar, the tab strip, the address bar, the command bar, find, the AI panel and Settings work with VoiceOver and Full Keyboard Access: every button, field, tab and row has a name (and its state, where it has one), and rows and buttons can be pressed from the keyboard. Status messages are announced as they appear.
 
 ### Spaces and profiles
 

@@ -23,8 +23,9 @@ struct TrustFailureView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 10) {
-                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 26)).foregroundStyle(Theme.waiting)
+                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 26)).foregroundStyle(Theme.waiting).decorative()
                     Text("This connection isn’t private").font(.system(size: 22, weight: .semibold)).foregroundStyle(Theme.primary)
+                        .accessibilityAddTraits(.isHeader)
                 }
                 // The host with its port (never trimmed of its www), an internationalized name in Unicode as well, and the whole address.
                 VStack(alignment: .leading, spacing: 2) {
@@ -74,6 +75,10 @@ struct TrustFailureView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Theme.card)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(String(localized: "Certificate warning"))
+        // The page is behind this view: a person who can't see it has to be told that it stands there.
+        .onAppear { Announcer.announce(String(localized: "This connection isn’t private. \(Self.reason(failure.reason, host: ServerTrust.sanitized(failure.host)))"), important: true) }
     }
 
     private var details: some View {

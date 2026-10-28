@@ -296,6 +296,7 @@ struct LoginButton: View {
             .fixedSize()
             .foregroundStyle(Theme.primary)
             .help("Fill in saved login")
+            .accessibilityLabel(String(localized: "Fill in saved login"))
         }
     }
 }

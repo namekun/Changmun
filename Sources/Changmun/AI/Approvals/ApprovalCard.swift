@@ -299,7 +299,7 @@ struct ApprovalCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Image(systemName: "hand.raised.fill").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.waitingText)
+                Image(systemName: "hand.raised.fill").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.waitingText).decorative()
                 Text(verbatim: card.prompt.message).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.primary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -329,6 +329,10 @@ struct ApprovalCardView: View {
         .focusEffectDisabled()
         .focused($focused)
         .onChange(of: focused) { ApprovalCards.shared.noteCardFocus(focused, of: card) }
+        // The question is said as it appears: the AI waits for an answer, and a person who can't see the card would not know.
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(String(localized: "Approval needed"))
+        .onAppear { Announcer.announce(String(localized: "Approval needed: \(card.prompt.message)"), important: true) }
         .task {
             let wait = ApprovalKeys.yesDelay - Date().timeIntervalSince(ApprovalCards.shared.visibleSince(card.id))
             if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
@@ -383,6 +387,7 @@ struct ApprovalCardView: View {
             .opacity(live ? 1 : 0.5)
         }
         .buttonStyle(.plain)
+        .accessibilityHint(choice == .deny ? String(localized: "Shortcut: Return") : choice == .once ? String(localized: "Shortcut: Command Return") : String(localized: "Shortcut: Option Command Return"))
         .disabled(!live)
         .focused($focusedButton, equals: choice)
         .onChange(of: focusedButton == choice) { _, has in ApprovalCards.shared.noteButtonFocus(has, choice, of: card.id) }

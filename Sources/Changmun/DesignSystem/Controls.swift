@@ -9,6 +9,7 @@ struct RowChrome: ViewModifier {
     var radius = Metrics.rowRadius
     var resting: Color = .clear
     @StateObject private var press = PressState()
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var withoutColor
 
     func body(content: Content) -> some View {
         let pressed = press.isPressed
@@ -23,6 +24,10 @@ struct RowChrome: ViewModifier {
             }
             .contentShape(Rectangle())
             .pressArea(press)
+            // With Differentiate Without Color on, a selected row is told from the others by a mark and not by its fill alone.
+            .overlay(alignment: .leading) {
+                if selected && withoutColor { Capsule().fill(Theme.primary).frame(width: 3, height: 14).padding(.leading, 1) }
+            }
     }
 }
 
@@ -86,6 +91,7 @@ struct MoreButton<Items: View>: View {
         .background(RoundedRectangle(cornerRadius: inBar ? Metrics.rowRadius : 6, style: .continuous).fill(inBar ? .clear : Theme.field))
         .foregroundStyle(Theme.secondary)
         .help("More")
+        .accessibilityLabel(String(localized: "More"))
     }
 }
 
@@ -93,13 +99,16 @@ struct MoreButton<Items: View>: View {
 /// with an edge and a soft shadow.
 struct FloatingPanel: ViewModifier {
     let radius: CGFloat
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    func body(content: Content) -> some View {
+    @ViewBuilder func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        content
-            .background(.regularMaterial, in: shape)
-            .overlay(shape.strokeBorder(Theme.cardEdge, lineWidth: 0.5))
-            .shadow(color: Theme.cardShadow, radius: 16, y: 6)
+        // With Reduce Transparency on the page doesn't show through the panel.
+        Group {
+            if reduceTransparency { content.background(Theme.card, in: shape) } else { content.background(.regularMaterial, in: shape) }
+        }
+        .overlay(shape.strokeBorder(Theme.cardEdge, lineWidth: 0.5))
+        .shadow(color: Theme.cardShadow, radius: 16, y: 6)
     }
 }
 
@@ -220,6 +229,7 @@ struct HoverAction: View {
         .buttonStyle(FillStyle(resting: Theme.field, hoverFill: Theme.pill, radius: 6))
         .foregroundStyle(Theme.secondary)
         .help(help)
+        .accessibilityLabel(Accessibility.label(fromHelp: help))
     }
 }
 

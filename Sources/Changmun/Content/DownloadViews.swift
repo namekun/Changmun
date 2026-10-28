@@ -35,6 +35,8 @@ struct DownloadButton: View {
         .buttonStyle(FillStyle(resting: browser.showDownloads ? Theme.field : .clear))
         .foregroundStyle(progress != nil ? Theme.primary : Theme.secondary)
         .help("Downloads")
+        .accessibilityLabel(String(localized: "Downloads"))
+        .accessibilityValue(Accessibility.downloadsValue(active: items.filter { $0.state == .running }.count) ?? (unseen ? String(localized: "New download finished") : ""))
         .popover(isPresented: $browser.showDownloads, arrowEdge: arrowEdge) {
             DownloadList(browser: browser)
         }
@@ -161,6 +163,7 @@ struct DownloadRow: View {
         // A row that goes away under the pointer gets no "left": the shelf must not wait for it.
         .onDisappear { item.isHovered = false }
         .onTapGesture { open() }
+        .accessibleButton(item.filename, value: downloadValue, actions: downloadActions) { open() }
         .modifier(FileDrag(file: file))
         .contextMenu {
             if let file {
@@ -182,6 +185,23 @@ struct DownloadRow: View {
             }
         }
         .help(file.map { "\($0.path)\n" + (Downloads.opensOnClick($0) ? String(localized: "Click to open it. You can drag it into another app.") : String(localized: "Click to show it in Finder. You can drag it into another app.")) } ?? item.filename)
+    }
+
+    /// How far it has come, or why it stopped.
+    private var downloadValue: String? {
+        switch item.state {
+        case .running: Accessibility.percentValue(item.progress)
+        case .failed(let message): message
+        case .finished, .cancelled: nil
+        }
+    }
+
+    private var downloadActions: [AccessibleButton.Action] {
+        var actions: [AccessibleButton.Action] = []
+        if item.state == .running { actions.append(.init(String(localized: "Cancel")) { item.cancel() }) }
+        if item.resumeData != nil { actions.append(.init(String(localized: "Try Again")) { Downloads.shared.retry(item) }) }
+        if let file { actions.append(.init(String(localized: "Show in Finder")) { NSWorkspace.shared.activateFileViewerSelecting([file]) }) }
+        return actions
     }
 
     @ViewBuilder private var detail: some View {

@@ -68,6 +68,7 @@ Si seuls les Command Line Tools sont installés, les scripts compilent avec le S
 - **Archivage des anciens onglets** (désactivé par défaut). Met de côté les onglets que vous ne regardez plus, au lieu de les jeter. Les onglets que vous n’avez pas consultés depuis un délai défini (de 12 heures à 30 jours, décompté uniquement pendant que Changmun est ouvert) se ferment dans Historique › Onglets archivés, prêts à être rouverts dans leur groupe. Les onglets visibles, en lecture, en image dans l’image, utilisant la caméra ou le micro, les favoris et les onglets privés ne sont jamais archivés.
 - **Onglets en veille.** Laisse les onglets en arrière-plan faire la sieste et vous rend leur mémoire. Les onglets en arrière-plan que vous n’avez pas vus depuis 20 minutes, et tous les onglets en arrière-plan quand la mémoire se fait rare, libèrent leur processus web et reviennent avec leur historique quand vous les rouvrez.
 - **Barre de commande** (⌘T). Une seule zone pour tout : la recherche, les adresses, le passage aux onglets ouverts, les signets et l’historique, et les questions à l’IA.
+- **VoiceOver et clavier.** La barre latérale, la barre d’onglets, la barre d’adresse, la barre de commande, la recherche dans la page, le panneau IA et les Réglages fonctionnent avec VoiceOver et l’accès complet au clavier : chaque bouton, champ, onglet et ligne porte un nom (et son état, s’il en a un), et les lignes et les boutons peuvent être activés au clavier. Les messages d’état sont annoncés dès qu’ils apparaissent.
 
 ### Espaces et profils
 

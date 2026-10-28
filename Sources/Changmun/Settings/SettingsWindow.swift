@@ -113,7 +113,7 @@ struct SettingsView: View {
 
     private var searchField: some View {
         HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary).decorative()
             TextField("Search", text: $query).textFieldStyle(.plain)
         }
         .padding(.horizontal, 8).padding(.vertical, 5)

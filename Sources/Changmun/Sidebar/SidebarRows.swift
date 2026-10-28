@@ -35,6 +35,7 @@ struct FavoriteTile<MenuItems: View>: View {
             .contextMenu(menuItems: menu)
             .renamePopover(shown: entry.title.isEmpty ? entry.url : entry.title, isPresented: renaming, finish: finishRenaming)
             .help(entry.title.isEmpty ? entry.url : entry.title)
+            .accessibleButton(Accessibility.bookmarkLabel(title: entry.title, url: entry.url), value: Accessibility.bookmarkValue(state), selected: state == .shown, activate: open)
     }
 }
 
@@ -87,6 +88,8 @@ struct FolderRow<MenuItems: View>: View {
     /// Its name is being typed in the row (see `Browser.renamingFolder`); `finishRenaming` gets what was typed, or nil for Esc. A row that can't be renamed leaves both.
     var renaming = false
     var finishRenaming: (String?) -> Void = { _ in }
+    /// Starts typing the name (for VoiceOver's actions); nil for a row that can't be renamed.
+    var startRenaming: (() -> Void)?
     /// A click on the row, with how many clicks it is (2 for the second of a double-click).
     let click: (Int) -> Void
     @ViewBuilder let menu: () -> MenuItems
@@ -141,6 +144,11 @@ struct FolderRow<MenuItems: View>: View {
             withAnimation(Motion.standard) { click(Browser.clickCount) }
         }
         .contextMenu(menuItems: menu)
+        .accessibleButton(name, value: Accessibility.folderValue(open: isOpen, bookmarks: count), enabled: !renaming,
+                          actions: [.init(Accessibility.toggleAction(open: isOpen)) { withAnimation(Motion.standard) { click(1) } }]
+                              + (startRenaming.map { start in [AccessibleButton.Action(String(localized: "Rename"), start)] } ?? [])) {
+            withAnimation(Motion.standard) { click(1) }
+        }
     }
 }
 
@@ -206,6 +214,8 @@ struct BookmarkRow<MenuItems: View>: View {
         .simultaneousGesture(TapGesture(count: 2).onEnded(startRenaming))
         .contextMenu(menuItems: menu)
         .help(entry.url)
+        .accessibleButton(Accessibility.bookmarkLabel(title: entry.title, url: entry.url), value: Accessibility.bookmarkValue(state), selected: state == .shown, enabled: !renaming,
+                          actions: [.init(String(localized: "Rename"), startRenaming)], activate: open)
     }
 }
 
@@ -363,6 +373,10 @@ struct TabGroupHeader: View {
         }
         .contextMenu { GroupMenu(group: group, browser: browser) }
         .help(group.isOpen ? String(localized: "Collapse") : String(localized: "Expand"))
+        .accessibleButton(group.name, value: Accessibility.groupValue(open: group.isOpen, tabs: count), header: true, enabled: browser.renamingGroup != group.id, actions: [
+            .init(Accessibility.toggleAction(open: group.isOpen)) { withAnimation(Motion.standard) { browser.clickGroup(group.id, clickCount: 1) } },
+            .init(String(localized: "Rename")) { browser.renamingGroup = group.id },
+        ]) { withAnimation(Motion.standard) { browser.clickGroup(group.id, clickCount: 1) } }
         .modifier(GroupDrag(group: group, disabled: browser.renamingGroup == group.id))
     }
 
@@ -407,6 +421,7 @@ struct TidyButton: View {
         .foregroundStyle(Theme.secondary)
         .disabled(browser.tidying)
         .help("Tidy Tabs: group tabs that are not in a group by similarity")
+        .accessibilityLabel(String(localized: "Tidy Tabs"))
     }
 }
 
@@ -462,5 +477,6 @@ struct NewTabRow: View {
         .onHover { hover = $0 }
         .onTapGesture(perform: action)
         .help("New Tab (⌘T)")
+        .accessibleButton(String(localized: "New Tab"), activate: action)
     }
 }

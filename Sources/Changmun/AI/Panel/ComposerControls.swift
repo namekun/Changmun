@@ -231,6 +231,7 @@ struct ComposerPlusMenu: View {
         }
         .plainMenu()
         .help("Add tabs, a screenshot or images for the AI to look at")
+        .accessibilityLabel(String(localized: "Add tabs, a screenshot or images for the AI to look at"))
     }
 }
 
@@ -246,6 +247,7 @@ struct ComposerMicButton: View {
         }
         .buttonStyle(.plain)
         .help("Dictate")
+        .accessibilityLabel(String(localized: "Dictate"))
     }
 
     /// The action behind the Edit menu's "Start Dictation…", which the application answers for the text in front (it has no Swift name).
