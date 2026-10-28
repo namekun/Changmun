@@ -108,4 +108,22 @@ R="$(trust '{"action": "revoke"}' failure.reason)"
 expect "an exception taken away blocks the page again" "$R" selfSigned
 expect "and the address bar stops marking it" "$(trust '{}' usesException)" false
 
+# A subresource of a page that is fine, from a host the user went on with earlier and no longer has an exception for: it fails, and the page gets no warning
+# (the warning is for the page being loaded, not for what it pulls in).
+post /load-html "{\"html\": \"<title>waiting</title><script>fetch('https://localhost:$SELF/x', {mode: 'no-cors'}).then(() => document.title = 'loaded', () => document.title = 'failed')</script>\", \"base\": \"https://lab.test/\"}" >/dev/null
+sleep 3
+expect "a subresource from a host that has no exception now fails" "$(trust '{}' title)" failed
+expect "and brings no warning over the page" "$(trust '{}' failure)" ""
+
+# Another store: WebKit keeps what it was told to go on with for the whole run, so what was accepted in the default store must not carry over to a profile.
+trust '{"auth": true}' failure >/dev/null
+trust "{\"open\": \"https://localhost:$SELF/\", \"wait\": 3000}" failure >/dev/null
+trust '{"auth": true, "action": "visit"}' failure >/dev/null
+expect "the exception is made in the default store" "$(trust '{}' usesException)" true
+post /spaces '{"action": "create", "name": "Trust test", "profile": true}' >/dev/null
+R="$(trust "{\"open\": \"https://localhost:$SELF/\", \"wait\": 3500}" failure.reason)"
+expect "a profile space is warned though another store went on" "$R" selfSigned
+expect "and has no exception" "$(trust '{}' usesException)" false
+post /spaces '{"action": "delete", "name": "Trust test"}' >/dev/null
+
 [[ $FAILED -eq 0 ]] && echo "all passed" || { echo "FAILED" >&2; exit 1; }

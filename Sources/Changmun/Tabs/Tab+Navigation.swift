@@ -10,7 +10,6 @@ extension Tab: WKNavigationDelegate {
             return (.cancel, preferences)
         }
         if action.shouldPerformDownload { return (.download, preferences) }
-        if action.targetFrame?.isMainFrame ?? true, let target = action.request.url, ["http", "https"].contains(target.scheme?.lowercased() ?? "") { navigatingTo = target }
         let userInitiated = !AppScripts.drives(webView) && Self.userStartedForAppLinks(Self.isUserInitiated(action), knowsUserInitiated: Self.knowsUserInitiated)
         if let url = action.request.url, let scheme = url.scheme?.lowercased(), !Self.browserSchemes.contains(scheme) {
             // A frame can't speak for the page: the question is only for what the page itself, or the user's click, asks.
@@ -37,6 +36,8 @@ extension Tab: WKNavigationDelegate {
             browser?.openPeek(url)
             return (.cancel, preferences)
         }
+        // The load that is allowed is the one whose certificate a challenge is for, until it commits or fails (see TrustFailure.pendingTarget).
+        if action.targetFrame?.isMainFrame ?? true, let target = action.request.url, ["http", "https"].contains(target.scheme?.lowercased() ?? "") { navigatingTo = target }
         return (Self.allowHere, preferences)
     }
 
@@ -152,6 +153,7 @@ extension Tab: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         navigations += 1
+        navigatingTo = nil
         if webView.url?.isFileURL != true { userFileLoad = nil }
         // A new site gets its own zoom; staying on the same one keeps what the user set (a private tab never saves it).
         let host = webView.url?.host()
@@ -169,6 +171,7 @@ extension Tab: WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        navigatingTo = nil
         finishedState = webView.interactionState as? Data
         loadFavicon()
         if sortsIntoGroup, webView.url?.scheme?.hasPrefix("http") == true, webView.title?.isEmpty == false {
@@ -199,6 +202,7 @@ extension Tab: WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        navigatingTo = nil
         let nsError = error as NSError
         guard nsError.code != NSURLErrorCancelled, nsError.domain != "WebKitErrorDomain" || nsError.code != 102 else { return }
         let failing = (nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL) ?? url

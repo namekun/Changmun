@@ -48,18 +48,45 @@ struct ServerTrustExceptionTests {
         #expect(exceptions.allows(host: "a.test", port: 443, fingerprint: "bb", store: nil))
     }
 
-    @Test func takingAnExceptionAwayStopsItFromApplyingButIsRemembered() {
+    @Test func takingAnExceptionAwayStopsItFromApplying() {
         var exceptions = ServerTrustExceptions()
         exceptions.grant(host: "a.test", port: 443, fingerprint: "aa", store: nil)
         exceptions.revoke(host: "a.test", port: 443, store: nil)
         #expect(!exceptions.hasException(host: "a.test", port: 443, store: nil))
         #expect(!exceptions.allows(host: "a.test", port: 443, fingerprint: "aa", store: nil))
-        // WebKit keeps the certificate it was let through with, so the site is still judged by the Mac's trust afterwards.
-        #expect(exceptions.hadException(host: "a.test", port: 443, store: nil))
         exceptions.grant(host: "b.test", port: 443, fingerprint: "aa", store: nil)
         exceptions.removeAll()
-        #expect(!exceptions.hasException(host: "b.test", port: 443, store: nil) && exceptions.hadException(host: "b.test", port: 443, store: nil))
-        #expect(!exceptions.hadException(host: "never.test", port: 443, store: nil))
+        #expect(!exceptions.hasException(host: "b.test", port: 443, store: nil))
+    }
+
+    /// WebKit keeps a certificate it was told to go on with in a session of its own, and the sessions are not the app's stores or windows, so what was
+    /// accepted anywhere is remembered by host and port for the whole run, whatever happens to the exceptions.
+    @Test func aHostAcceptedAnywhereIsRememberedForTheRunByHostAndPort() {
+        var accepted = AcceptedSites()
+        #expect(!accepted.contains(host: "a.test", port: 443))
+        accepted.add(host: "A.test.", port: 443)
+        #expect(accepted.contains(host: "a.test", port: 443))
+        #expect(!accepted.contains(host: "a.test", port: 8443), "another port")
+        #expect(!accepted.contains(host: "b.test", port: 443), "another host")
+    }
+
+    @Test func aChallengeForAHostAcceptedAnywhereIsRefusedUnlessThisStoresExceptionCoversIt() {
+        typealias Decision = ServerTrustChallengeDecision
+        #expect(Decision.decide(acceptedAnywhere: false, exceptionMatches: false, mayOffer: true) == .defaultHandling, "a host nobody went on with is judged as ever")
+        #expect(Decision.decide(acceptedAnywhere: true, exceptionMatches: true, mayOffer: true) == .useException)
+        #expect(Decision.decide(acceptedAnywhere: true, exceptionMatches: false, mayOffer: true) == .refuseUnlessTrusted, "another store, window or certificate")
+        #expect(Decision.decide(acceptedAnywhere: true, exceptionMatches: true, mayOffer: false) == .refuseUnlessTrusted, "a page the AI drives")
+        #expect(Decision.decide(acceptedAnywhere: true, exceptionMatches: false, mayOffer: false) == .refuseUnlessTrusted)
+    }
+
+    @Test func theWarningIsForTheMainFrameLoadThatIsPendingAndNothingElse() {
+        let pending = URL(string: "https://Intranet.test:8443/page?x=1")
+        #expect(TrustFailure.pendingTarget(navigatingTo: pending, host: "intranet.test", port: 8443) == pending)
+        #expect(TrustFailure.pendingTarget(navigatingTo: nil, host: "intranet.test", port: 8443) == nil, "no main frame load is pending: a subresource, or a later load")
+        #expect(TrustFailure.pendingTarget(navigatingTo: pending, host: "cdn.test", port: 8443) == nil, "another host than the page's")
+        #expect(TrustFailure.pendingTarget(navigatingTo: pending, host: "intranet.test", port: 443) == nil, "another port")
+        #expect(TrustFailure.pendingTarget(navigatingTo: URL(string: "https://intranet.test/")!, host: "intranet.test", port: 443) != nil, "the port of https is 443")
+        #expect(TrustFailure.pendingTarget(navigatingTo: URL(string: "http://intranet.test/")!, host: "intranet.test", port: 80) == nil, "only https")
     }
 
     @Test func noExceptionIsOfferedToThePagesOfTheAIOrToAHeadlessChangmun() {

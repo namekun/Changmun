@@ -161,6 +161,14 @@ struct TrustFailure: Equatable {
     /// An exception was made for this site before, and this is another certificate: the page is more alarming then.
     let changed: Bool
 
+    /// The address a warning is for when the certificate is refused in a challenge (which has no address of its own): the main frame load that is
+    /// still pending, if the challenge is for its host and port. With no such load (a subresource, a later load, one that has committed or failed) there is
+    /// nothing to warn about and the challenge is cancelled with no view.
+    static func pendingTarget(navigatingTo: URL?, host: String, port: Int) -> URL? {
+        guard let target = navigatingTo, target.scheme?.lowercased() == "https", target.host()?.lowercased() == host.lowercased(), (target.port ?? 443) == port else { return nil }
+        return target
+    }
+
     /// From a failed load: nil if its error is not one of the certificate's, or has no certificate in it.
     static func from(error: NSError, url: URL?, changed: (_ host: String, _ port: Int, _ fingerprint: String) -> Bool, now: Date = Date()) -> TrustFailure? {
         guard ServerTrust.failureCodes.contains(error.code), error.domain == NSURLErrorDomain,
@@ -194,17 +202,10 @@ struct ServerTrustExceptions {
     }
 
     private var accepted: [Site: String] = [:]
-    /// The sites that have had an exception in this run, whether it still stands or not: WebKit keeps the certificate a page was let through with
-    /// for as long as the app runs, so after one is taken away its challenges are judged again by the Mac's trust rather than waved through.
-    private(set) var everAccepted: Set<Site> = []
 
-    mutating func grant(host: String, port: Int, fingerprint: String, store: UUID?) {
-        accepted[Site(host: host, port: port, store: store)] = fingerprint
-        everAccepted.insert(Site(host: host, port: port, store: store))
-    }
+    mutating func grant(host: String, port: Int, fingerprint: String, store: UUID?) { accepted[Site(host: host, port: port, store: store)] = fingerprint }
     mutating func revoke(host: String, port: Int, store: UUID?) { accepted[Site(host: host, port: port, store: store)] = nil }
     mutating func removeAll() { accepted = [:] }
-    func hadException(host: String, port: Int, store: UUID?) -> Bool { everAccepted.contains(Site(host: host, port: port, store: store)) }
 
     /// The site's certificate is the one the user went on with.
     func allows(host: String, port: Int, fingerprint: String, store: UUID?) -> Bool {
@@ -219,9 +220,41 @@ struct ServerTrustExceptions {
     }
 }
 
+/// The hosts and ports the user went on with in this run, in any store or window. WebKit keeps a certificate it was told to go on with in the
+/// network session for as long as the app runs, whoever asks, whichever store or private window it asks from, and whatever the app has forgotten since;
+/// so these are not the exceptions (which are per store and can be taken away) but a record of where WebKit may let a page through on its own.
+struct AcceptedSites {
+    private var sites: Set<String> = []
+
+    private static func key(_ host: String, _ port: Int) -> String {
+        host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".")) + ":\(port)"
+    }
+
+    mutating func add(host: String, port: Int) { sites.insert(Self.key(host, port)) }
+    func contains(host: String, port: Int) -> Bool { sites.contains(Self.key(host, port)) }
+}
+
+/// What to do with a server's certificate that WebKit asks the tab about.
+enum ServerTrustChallengeDecision: Equatable {
+    /// The user never went on with this host and port: judged as ever.
+    case defaultHandling
+    /// This store's exception covers this very certificate, for a page that may use it.
+    case useException
+    /// The user went on with this host and port somewhere, but not here (or not with this certificate, or not for this page): the Mac's own trust decides,
+    /// and the load is cancelled unless it passes.
+    case refuseUnlessTrusted
+
+    static func decide(acceptedAnywhere: Bool, exceptionMatches: Bool, mayOffer: Bool) -> Self {
+        guard acceptedAnywhere else { return .defaultHandling }
+        return exceptionMatches && mayOffer ? .useException : .refuseUnlessTrusted
+    }
+}
+
 /// The exceptions, held in memory by the app (the windows that are not private share one) or by a private window.
 @MainActor
 final class ServerTrustStore {
     static let shared = ServerTrustStore()
     var exceptions = ServerTrustExceptions()
+    /// Where the user went on in this run, whichever store or window (see AcceptedSites).
+    static var acceptedAnywhere = AcceptedSites()
 }
