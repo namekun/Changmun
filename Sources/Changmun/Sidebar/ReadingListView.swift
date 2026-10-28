@@ -9,7 +9,7 @@ struct ReadingListSection: View {
 
     var body: some View {
         let items = library.readingList
-        FolderRow(name: String(localized: "Reading List"), symbol: "eyeglasses", count: items.count, isOpen: !collapsed,
+        FolderRow(name: String(localized: "Reading List"), symbol: "eyeglasses", count: items.count, isOpen: !collapsed, showCount: !items.isEmpty,
                   click: { _ in collapsed.toggle() }) {
             Button("Clear Read Items") { browser.clearReadItems() }
                 .disabled(!items.contains(where: \.read))

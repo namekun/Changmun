@@ -395,6 +395,13 @@ extension ControlServer {
                     if folder["pin"] as? Bool == true { browser.spaces.pinFolder(name, before: nil, in: browser.spaceID) }
                     if folder["open"] as? Bool == true, !browser.space.openFolders.contains("pin:" + name) { browser.spaces.toggleOpen("pin:" + name, in: browser.spaceID) }
                 }
+                if body["clearReadingList"] as? Bool == true { for item in Library.shared.readingList() { Library.shared.removeFromReadingList(url: item.url) } }
+                for item in body["readingList"] as? [[String: Any]] ?? [] {
+                    guard let url = item["url"] as? String else { continue }
+                    Library.shared.addToReadingList(url: url, title: item["title"] as? String ?? "", added: Date().addingTimeInterval(-(item["days"] as? Double ?? 0) * 86400))
+                    if item["read"] as? Bool == true { Library.shared.markReadingItem(url: url, read: true) }
+                }
+                if body["readingListAddActive"] as? Bool == true, let tab = browser.active { browser.addToReadingList(tab) }
                 if let page = body["renamingBookmark"] as? [String], page.count == 2 { browser.renamingBookmark = Browser.bookmarkKey(url: page[0], folder: page[1]) }
                 if let key = body["renamingFolder"] as? String { browser.renamingFolder = key.isEmpty ? nil : key }
                 if let renames = body["renameFolder"] as? [String], renames.count == 2 { Library.shared.renameFolder(key: renames[0], to: renames[1]) }
@@ -416,6 +423,7 @@ extension ControlServer {
                 self.respond(connection, status: "200 OK", body: [
                     "renamingGroup": browser.renamingGroup?.uuidString ?? "", "renamingTab": browser.renamingTab ?? -1,
                     "renamingBookmark": browser.renamingBookmark ?? "", "renamingFolder": browser.renamingFolder ?? "",
+                    "readingList": Library.shared.readingList().map { ["url": $0.url, "title": $0.title, "read": $0.read] },
                     "openFolders": browser.space.openFolders, "pinnedFolders": browser.space.pinnedFolders, "folderNames": Library.shared.folderNames(),
                     "groups": browser.groups.map { ["name": $0.name, "open": $0.isOpen] },
                     "tabs": browser.tabs.map { ["id": $0.id, "title": $0.displayTitle] }, "active": browser.activeID ?? -1,
