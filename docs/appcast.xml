@@ -6,6 +6,18 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.8.7</title>
+      <pubDate>Wed, 28 Oct 2026 12:58:19 +0000</pubDate>
+      <sparkle:version>37</sparkle:version>
+      <sparkle:shortVersionString>0.8.7</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.8.7</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Sign-ins survive quitting.** Many sites keep you signed in with a cookie meant to end when the browser closes, so closing Changmun signed you out of them every time. Those session cookies are now kept, encrypted with a key in your login Keychain, for up to 30 days and put back before your windows open. Settings › Privacy › "Stay signed in after quitting" turns it off (which also deletes them); clearing site data deletes them too, private windows never keep any, and the Agent copy doesn't keep sign-ins.
+- **Stay open after the last window closes, if you like.** Settings › General › "Quit when the last window is closed" is on, as before; turn it off and Changmun keeps running like Safari, and the Dock icon or ⌘N brings back your last session.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.7/Changmun-0.8.7.dmg" length="5622394" type="application/octet-stream" sparkle:edSignature="YQ95f5oTroybBUQ8dV+4xDbrBrImHyUBK9yr/zC3sDPVBfrAi6fGahYJMJW2lHzAJo60r+LQsN1dfNXCxwXXAA==" />
+    </item>
+    <item>
       <title>0.8.6</title>
       <pubDate>Wed, 28 Oct 2026 05:20:18 +0000</pubDate>
       <sparkle:version>36</sparkle:version>
@@ -134,20 +146,9 @@
 - **Ranges in AI answers read right.** "3~5" and "10~20" no longer turn the words between them into strikethrough; only ~~two tildes~~ strike through.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.5/Changmun-0.7.5.dmg" length="4964517" type="application/octet-stream" sparkle:edSignature="+7tXH/D9RSVEaFs4H3Zh4L/jf5jky5L6s4uQWw8iRytPCchWjC0ik0ZglWVr0cEE0cw9wzoL0wfKbW3nkPQPBA==" />
     </item>
-    <item>
-      <title>0.7.4</title>
-      <pubDate>Sat, 24 Oct 2026 15:36:13 +0000</pubDate>
-      <sparkle:version>27</sparkle:version>
-      <sparkle:shortVersionString>0.7.4</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.7.4</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **No more white page after full-screen video.** Leaving a video's full screen (YouTube's f key, for one) could leave the page blank and white until something else happened. Changmun redrew the tab while the video was full screen and lost the spot the page had to come back to. It now leaves the page alone during full screen and puts it back in place when you leave it.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.4/Changmun-0.7.4.dmg" length="4873284" type="application/octet-stream" sparkle:edSignature="gsG6GcBaEfKc6zk6FPXVBKOLFajkzq7APGK3YQiIBh37n4WhJJhzNuALTONH0m88I0r2s0BZBbc8851OgezhDQ==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: a3dtsOa4kxUdWfYwOo4P+DYVuwHolRNxHBHLPpWvAlgyuItimGIwF+8bn1PoBRH/gg2cfyeWN9GcHT7J1dzWCw==
-length: 19056
+edSignature: ouFwm2Eb9ML5eSXF/0Del7HFR0qEOUdynPL8FI+2ZPpnqnNMJynP8TObvE8w0F82dLDGxtacwes7Gix0/IX8DQ==
+length: 19449
 -->
