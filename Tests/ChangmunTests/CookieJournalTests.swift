@@ -79,6 +79,30 @@ private final class FakeSource: CookieSource {
     }
 }
 
+/// What takes a store's files away while a snapshot of it is on its way.
+enum Taking: CaseIterable { case clearing, forgetting, turningOff }
+
+/// The journal's wait for the cookies to be still, held by hand: a test lets it end at the moment it chooses.
+@MainActor
+private final class DebounceGate {
+    private(set) var isOpen = true
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+
+    func close() { isOpen = false }
+
+    func open() {
+        isOpen = true
+        let waiters = waiting
+        waiting = []
+        waiters.forEach { $0.resume() }
+    }
+
+    func wait() async {
+        if isOpen { return }
+        await withCheckedContinuation { waiting.append($0) }
+    }
+}
+
 /// A journal over a folder of its own and a key held in memory: nothing of the user's is reached.
 @MainActor
 private struct Rig {
@@ -539,6 +563,61 @@ struct CookieJournalTests {
         source.release()
         await quietFor(.milliseconds(200))
         #expect(!FileManager.default.fileExists(atPath: rig.file().path), "what was read before the clearing is not written after it")
+    }
+
+    /// One round of the race: a snapshot has been decided on (the cookies were still for the debounce) and has not yet begun, or is reading the store,
+    /// when the files are taken away. `pauses` is how far the snapshot gets before that: each is one turn of the main actor; `held` is whether the store
+    /// is still answering when it begins. Returns whether a file was left behind.
+    private func leftAFile(taking: Taking, pauses: Int, held: Bool, linger: Duration = .zero) async -> Bool {
+        let gate = DebounceGate()
+        let rig = Rig(debounce: .milliseconds(1), sleep: { _ in await gate.wait() })
+        defer { rig.finish() }
+        let id = taking == .forgetting ? UUID().uuidString : "default"
+        let source = FakeSource([cookie("sid")])
+        await rig.journal.attach(id, source)
+        let written = await eventually { await rig.names(id) == ["sid"] }
+        guard written else { return true }
+        // Nothing more is written until the gate is opened by hand.
+        gate.close()
+        if held { source.hold() }
+        source.become([cookie("sid"), cookie("late")])
+        gate.open()
+        for _ in 0..<pauses { await Task.yield() }
+        if linger > .zero { try? await Task.sleep(for: linger) }
+        switch taking {
+        case .clearing: rig.journal.clearing()
+        case .forgetting: rig.journal.forget(id)
+        case .turningOff: rig.journal.setEnabled(false)
+        }
+        source.release()
+        for _ in 0..<4 {
+            try? await Task.sleep(for: .milliseconds(3))
+            await rig.journal.flush(within: .seconds(2))
+            await rig.journal.files.drain()
+        }
+        return FileManager.default.fileExists(atPath: rig.file(id).path)
+    }
+
+    @Test(arguments: Taking.allCases)
+    func aSnapshotDecidedOnBeforeTheFilesWereTakenIsNotWrittenAfter(taking: Taking) async throws {
+        for pauses in 0...4 {
+            for held in [false, true] {
+                #expect(await !leftAFile(taking: taking, pauses: pauses, held: held), "\(taking), after \(pauses) turns, store held: \(held)")
+            }
+        }
+    }
+
+    /// The same race many times, each with its own small delays; set CHANGMUN_JOURNAL_STRESS to a number of rounds to run more of them.
+    @Test func theRaceBetweenASnapshotAndTheClearingNeverLeavesAFile() async throws {
+        let rounds = Int(ProcessInfo.processInfo.environment["CHANGMUN_JOURNAL_STRESS"] ?? "") ?? 150
+        var left = 0
+        for round in 0..<rounds {
+            let taking = Taking.allCases[round % Taking.allCases.count]
+            let linger = Duration.microseconds(Int.random(in: 0...1_500))
+            if await leftAFile(taking: taking, pauses: Int.random(in: 0...2), held: Bool.random(), linger: linger) { left += 1 }
+        }
+        #expect(left == 0, "a file was left behind in \(left) of \(rounds) rounds")
+        print("[STRESS] files left: \(left) of \(rounds)")
     }
 
     @Test func turningItOffTakesEverythingAndTurningItOnWritesAgain() async throws {

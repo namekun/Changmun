@@ -610,10 +610,12 @@ final class CookieJournal {
         tracker.lastChange = time
         if tracker.firstChange == nil { tracker.firstChange = time }
         guard tracker.pending == nil else { return }
-        tracker.pending = Task { await self.waitThenSnapshot(id) }
+        // The epoch this change belongs to: if the files are thrown away before the snapshot it asks for is begun, that snapshot is not taken.
+        let epoch = tracker.epoch
+        tracker.pending = Task { await self.waitThenSnapshot(id, epoch: epoch) }
     }
 
-    private func waitThenSnapshot(_ id: String) async {
+    private func waitThenSnapshot(_ id: String, epoch: Int) async {
         while let tracker = trackers[id], let first = tracker.firstChange {
             let wait = CookieJournalSchedule.delay(now: now(), firstChange: first, lastChange: tracker.lastChange, notBefore: tracker.retryAt,
                                                    quiet: debounce.seconds, maxWait: maxWait.seconds)
@@ -622,32 +624,35 @@ final class CookieJournal {
             if Task.isCancelled { return }
         }
         guard !Task.isCancelled else { return }
-        await snapshot(id)
+        await snapshot(id, epoch: epoch)
     }
 
-    private func snapshot(_ id: String) async {
+    /// `epoch` is the one the snapshot was asked for in. Its task starts later than this call, so the epoch and the file generation it is bound to are
+    /// taken here, in one go with the check: read when the task starts, they could already be those of a clearing that came between, and the snapshot
+    /// would then pass for one asked for after it.
+    private func snapshot(_ id: String, epoch: Int) async {
         guard let tracker = trackers[id] else { return }
         // One at a time: a change that came in meanwhile is taken after.
         while let running = tracker.running { await running.value }
-        guard tracker.phase == .live, enabled else { return }
+        guard tracker.phase == .live, enabled, tracker.epoch == epoch else { return }
         tracker.pending = nil
         tracker.firstChange = nil
-        let run = Task { await self.takeSnapshot(id, tracker) }
+        let generation = files.generation(id)
+        let run = Task { await self.takeSnapshot(id, tracker, epoch: epoch, generation: generation) }
         tracker.running = run
         await run.value
     }
 
-    private func takeSnapshot(_ id: String, _ tracker: Tracker) async {
+    private func takeSnapshot(_ id: String, _ tracker: Tracker, epoch: Int, generation: Int) async {
         inFlight += 1
         defer {
             inFlight -= 1
             tracker.running = nil
         }
-        let epoch = tracker.epoch
         let cookies = await tracker.source.allCookies()
         // Switched off, or the file thrown away, while the cookies were being read.
         guard tracker.phase == .live, tracker.epoch == epoch, enabled else { return }
-        let result = await files.snapshot(id, cookies: cookies, known: tracker.known, lastDigest: tracker.lastDigest, generation: files.generation(id))
+        let result = await files.snapshot(id, cookies: cookies, known: tracker.known, lastDigest: tracker.lastDigest, generation: generation)
         guard tracker.epoch == epoch else { return }
         switch result {
         case .written(let digest, let known):
@@ -695,7 +700,7 @@ final class CookieJournal {
         for (id, tracker) in trackers {
             if tracker.pending != nil {
                 tracker.pending?.cancel()
-                await snapshot(id)
+                await snapshot(id, epoch: tracker.epoch)
             } else if let running = tracker.running {
                 await running.value
             }
