@@ -4,7 +4,12 @@ its accessibility tree in the app's own process (POST /accessibility, see Access
 
 A control needs a label when its role is a button, check box, radio button, menu button, pop-up button, text field, link, slider,
 disclosure triangle or tab, when it is an image (an image that VoiceOver should skip is hidden from the tree), or when it takes a press
-(a row that is only a tap gesture shows as a group with AXPress). A label is the element's description or its title.
+(a row that is only a tap gesture shows as a group with AXPress). A label is the element's description or its title; a form control may be
+named by the text beside it (the element AppKit names its title element), and a text field by its placeholder.
+
+It also checks that what the states show is there as it should be: pressable controls by name, the state a control says ("Expanded, 2 tabs"),
+what is selected, the actions on a row, what was announced, and that the keyboard goes back to the page when the command bar closes. What it can't
+tell is how well something reads: that takes a real VoiceOver session.
 
 Run through scripts/audit-accessibility.sh, which starts the headless app (in English) and stops it again.
 """
@@ -193,6 +198,9 @@ def unseed():
     post("/accessibility", {"approval": False})
     post("/panel", {"open": False})
     ui(tabs="sidebar", toolbar="sidebar", sidebar=True, appearance="system")
+    for tab in ui()["tabs"]:
+        if tab["title"] in TABS:
+            call("close_tab", {"tab_id": tab["id"]})
 
 
 def main():
