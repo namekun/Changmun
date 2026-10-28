@@ -9,8 +9,9 @@ import Security
 /// as the Mac's owner, can go on, and then for that certificate only. Everything here is pure or in memory; the exceptions are never written
 /// to disk and go when the app does.
 enum ServerTrust {
-    /// What happened to such a site, in Console (subsystem io.github.namekun.Changmun, category certificate): the error code, host and port,
-    /// the answer, and the first eight digits of a certificate's fingerprint; nothing else a certificate holds.
+    /// What happened to such a site, in Console (subsystem io.github.namekun.Changmun, category certificate; the same as for client certificates, see
+    /// ClientCertificates.log): the error code, the port, the answer, and the first eight digits of a certificate's fingerprint; the host is private and
+    /// nothing is written for a private window. Nothing else a certificate holds.
     nonisolated static let log = Logger(subsystem: "io.github.namekun.Changmun", category: "certificate")
 
     /// The errors of a page whose server's certificate was refused: untrusted, bad date, unknown root, not yet valid.

@@ -1,11 +1,23 @@
 import CryptoKit
 import Foundation
+import os
 import Security
 
 /// Sites that ask for a certificate to identify the user (TLS client authentication, as Safari does it): which of the Mac's
 /// identities the site accepts, which one is used, and when the user is asked. The choosing is pure, with the keychain and the
 /// panel handed in, so the rules can be tested without either.
 enum ClientCertificates {
+    /// What happened to a site's request for a certificate, in Console (subsystem io.github.namekun.Changmun, category certificate):
+    /// `log show --last 5m --predicate 'subsystem == "io.github.namekun.Changmun" && category == "certificate"'`. Only the site's host and
+    /// port and counts and outcomes; never what a certificate holds (names, serials, keys).
+    nonisolated static let log = Logger(subsystem: "io.github.namekun.Changmun", category: "certificate")
+
+    /// One line of that log, also kept for the test copy's tests. Nothing is logged for a private window, which leaves nothing behind.
+    nonisolated static func note(_ message: String, logging: Bool = true) {
+        if logging { log.notice("\(message, privacy: .public)") }
+        ClientCertificateTestHook.record(message)
+    }
+
     /// An identity (a certificate with its private key) as the rules see it.
     struct Candidate: Equatable {
         /// The certificate's SHA-256, which tells two copies of one identity (a keychain and a smart card) apart from two identities.
@@ -17,6 +29,12 @@ enum ClientCertificates {
         let notAfter: Date
         /// Nil only where a test stands in for the keychain.
         let identity: SecIdentity?
+        /// False where the certificate says what it may be used for and client authentication is not among it (a server or code signing
+        /// certificate): a site would refuse it, and the chooser should not offer it.
+        var allowsClientAuthentication = true
+        /// The certificates above this one that were found, the root left out: what the site needs to build the chain up to the CA it trusts,
+        /// which it has not got when the CA below it is an intermediate.
+        var intermediates: [SecCertificate] = []
 
         static func == (a: Candidate, b: Candidate) -> Bool { a.id == b.id }
     }
@@ -44,18 +62,26 @@ enum ClientCertificates {
 
     // MARK: Choosing
 
-    /// What the site accepts and has not run out: issued by (or below) one of the CAs it named, if it named any, and valid now.
-    /// Each identity once, by name and then the newer first.
+    /// What the site accepts and has not run out: issued by (or below) one of the CAs it named, if it named any, valid now, and not marked
+    /// as meant for something other than client authentication. Each identity once, by name and then the newer first.
     static func usable(_ candidates: [Candidate], acceptedIssuers: [Data], now: Date) -> [Candidate] {
         let accepted = Set(acceptedIssuers.map(key(ofName:)))
         var seen = Set<String>()
         return candidates.filter {
-            $0.notBefore <= now && now <= $0.notAfter && (accepted.isEmpty || !$0.issuers.isDisjoint(with: accepted)) && seen.insert($0.id).inserted
+            $0.notBefore <= now && now <= $0.notAfter && $0.allowsClientAuthentication && (accepted.isEmpty || !$0.issuers.isDisjoint(with: accepted)) && seen.insert($0.id).inserted
         }.sorted {
             let order = $0.name.localizedStandardCompare($1.name)
             if order != .orderedSame { return order == .orderedAscending }
             return $0.notBefore != $1.notBefore ? $0.notBefore > $1.notBefore : $0.id < $1.id
         }
+    }
+
+    /// What the user is offered: what the site accepts and, if that leaves nothing, every identity that is valid. The list a site sends is a
+    /// guess at who can sign in (it can name a CA our matching does not tie to the certificate: an intermediate whose certificate is not on the
+    /// Mac, a cross-signed root, a name spelled another way), and a wrong guess must not look like a missing feature; the site has the last word.
+    static func offered(_ candidates: [Candidate], acceptedIssuers: [Data], now: Date) -> [Candidate] {
+        let accepted = usable(candidates, acceptedIssuers: acceptedIssuers, now: now)
+        return accepted.isEmpty ? usable(candidates, acceptedIssuers: [], now: now) : accepted
     }
 
     /// The system's preference for the site comes first (it is what the user, or Safari, said), then the user's earlier choice in
@@ -71,7 +97,7 @@ enum ClientCertificates {
         if !situation.agentDriven, !situation.isProfile, let preferred = preferred(),
            let found = usable([preferred], acceptedIssuers: acceptedIssuers, now: now).first, exists(found) { return .use(found) }
         if !situation.agentDriven, let remembered, let found = usable([remembered], acceptedIssuers: acceptedIssuers, now: now).first, exists(found) { return .use(found) }
-        let list = usable(candidates(), acceptedIssuers: acceptedIssuers, now: now)
+        let list = offered(candidates(), acceptedIssuers: acceptedIssuers, now: now)
         return list.isEmpty ? .continueWithout : .ask(list)
     }
 
@@ -79,6 +105,8 @@ enum ClientCertificates {
     struct Environment {
         var situation: Situation
         var now: () -> Date = Date.init
+        /// Whether the log is written (not for a private window).
+        var logs = true
         var identities: () -> [Candidate]
         var preferred: ([String], [Data]) -> Candidate?
         var remembered: Candidate?
@@ -91,12 +119,25 @@ enum ClientCertificates {
     /// The identity to answer the site with, or nil to go on without one.
     static func resolve(host: String, port: Int, acceptedIssuers: [Data], environment env: Environment) async -> Candidate? {
         guard !env.situation.isHeadless else { return nil }
-        let plan = plan(candidates: env.identities(), preferred: env.preferred(preferenceNames(host: host, port: port), acceptedIssuers), remembered: env.remembered,
-                        acceptedIssuers: acceptedIssuers, now: env.now(), situation: env.situation, exists: env.exists)
+        var listed: [Candidate]?
+        let now = env.now()
+        let plan = plan(candidates: { let all = env.identities(); listed = all; return all }(), preferred: env.preferred(preferenceNames(host: host, port: port), acceptedIssuers), remembered: env.remembered,
+                        acceptedIssuers: acceptedIssuers, now: now, situation: env.situation, exists: env.exists)
+        if let listed {
+            note("identities: \(listed.count) found, \(usable(listed, acceptedIssuers: [], now: now).count) valid now, \(usable(listed, acceptedIssuers: acceptedIssuers, now: now).count) accepted by the site", logging: env.logs)
+        }
         switch plan {
-        case .use(let candidate): return candidate
-        case .continueWithout: return nil
-        case .ask(let list): return await env.ask(list)
+        case .use(let candidate):
+            note("plan: use the preference or the earlier choice", logging: env.logs)
+            return candidate
+        case .continueWithout:
+            note("plan: continue without a certificate", logging: env.logs)
+            return nil
+        case .ask(let list):
+            note("plan: ask the user among \(list.count)", logging: env.logs)
+            let choice = await env.ask(list)
+            note("answer: \(choice == nil ? "cancelled" : "chosen")", logging: env.logs)
+            return choice
         }
     }
 
@@ -126,12 +167,17 @@ enum ClientCertificates {
     // MARK: The keychain
 
     /// Every identity the Mac holds (the keychains in the search list and the smart cards CryptoTokenKit shows), or those of `searchList`.
+    /// The certificates of those keychains are what a chain is built from, so an identity issued by an intermediate whose certificate is
+    /// kept beside it is known to be below the root the site names.
     static func keychainIdentities(searchList: CFArray? = nil) -> [Candidate] {
         var query: [String: Any] = [kSecClass as String: kSecClassIdentity, kSecMatchLimit as String: kSecMatchLimitAll, kSecReturnRef as String: true]
         if let searchList { query[kSecMatchSearchList as String] = searchList }
         var result: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let found = result as? [SecIdentity] else { return [] }
-        return found.compactMap(candidate(for:))
+        query[kSecClass as String] = kSecClassCertificate
+        result = nil
+        let kept = SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess ? (result as? [SecCertificate]) ?? [] : []
+        return found.compactMap { candidate(for: $0, among: kept) }
     }
 
     /// Whether the identity is still held: a query for that very identity in the keychains of the search list (or `searchList`) and the
@@ -153,23 +199,31 @@ enum ClientCertificates {
         return nil
     }
 
-    static func candidate(for identity: SecIdentity) -> Candidate? {
+    /// The identity as the rules see it. `kept` are the other certificates the Mac holds, which a chain may pass through.
+    static func candidate(for identity: SecIdentity, among kept: [SecCertificate] = []) -> Candidate? {
         var certificate: SecCertificate?
-        guard SecIdentityCopyCertificate(identity, &certificate) == errSecSuccess, let certificate,
-              let leaf = fields(ofCertificate: SecCertificateCopyData(certificate) as Data) else { return nil }
+        guard SecIdentityCopyCertificate(identity, &certificate) == errSecSuccess, let certificate else { return nil }
+        let der = SecCertificateCopyData(certificate) as Data
+        guard let leaf = fields(ofCertificate: der) else { return nil }
         var issuers: Set<String> = [key(ofName: leaf.issuer)]
+        var intermediates: [SecCertificate] = []
         // The chain, so a certificate issued by an intermediate is offered to a site that named the root. Nothing is fetched for it.
         var trust: SecTrust?
-        if SecTrustCreateWithCertificates(certificate, SecPolicyCreateBasicX509(), &trust) == errSecSuccess, let trust {
+        if SecTrustCreateWithCertificates([certificate] + kept as CFArray, SecPolicyCreateBasicX509(), &trust) == errSecSuccess, let trust {
             SecTrustSetNetworkFetchAllowed(trust, false)
             _ = SecTrustEvaluateWithError(trust, nil)
-            for above in (SecTrustCopyCertificateChain(trust) as? [SecCertificate]) ?? [] {
+            for above in ((SecTrustCopyCertificateChain(trust) as? [SecCertificate]) ?? []).dropFirst() {
                 if let issuer = fields(ofCertificate: SecCertificateCopyData(above) as Data)?.issuer { issuers.insert(key(ofName: issuer)) }
+                // A root is what the site has already; the others it may lack.
+                if SecCertificateCopyNormalizedIssuerSequence(above) as Data? != SecCertificateCopyNormalizedSubjectSequence(above) as Data? { intermediates.append(above) }
             }
         }
-        let digest = SHA256.hash(data: SecCertificateCopyData(certificate) as Data).map { String(format: "%02x", $0) }.joined()
+        let digest = SHA256.hash(data: der).map { String(format: "%02x", $0) }.joined()
+        let uses = extendedKeyUsages(ofCertificate: der)
         return Candidate(id: digest, name: SecCertificateCopySubjectSummary(certificate) as String? ?? "", issuers: issuers,
-                         notBefore: leaf.notBefore, notAfter: leaf.notAfter, identity: identity)
+                         notBefore: leaf.notBefore, notAfter: leaf.notAfter, identity: identity,
+                         allowsClientAuthentication: uses.map { $0.contains(Self.clientAuthentication) || $0.contains(Self.anyExtendedKeyUsage) } ?? true,
+                         intermediates: intermediates)
     }
 
     // MARK: Reading certificates (DER)
@@ -186,6 +240,25 @@ enum ClientCertificates {
               let notBefore = date(validity[0]), let notAfter = date(validity[1]) else { return nil }
         return (Data(parts[start + 2].whole), notBefore, notAfter)
     }
+
+    /// The OIDs (as hex of their content) a certificate lists as its extended key usages; nil where it has none, which means any.
+    static func extendedKeyUsages(ofCertificate der: Data) -> Set<String>? {
+        guard let top = elements(Array(der)), top.count == 1, let certificate = elements(top[0].content), let tbs = certificate.first,
+              let parts = elements(tbs.content), let extensions = parts.last(where: { $0.tag == 0xA3 }),
+              let list = elements(extensions.content).flatMap({ $0.first }), list.tag == 0x30, let all = elements(list.content) else { return nil }
+        for one in all {
+            // OID, an optional BOOLEAN (critical), then an OCTET STRING holding the SEQUENCE of purposes.
+            guard let fields = elements(one.content), fields.first?.tag == 0x06, fields[0].content == [0x55, 0x1D, 0x25],
+                  let value = fields.last(where: { $0.tag == 0x04 }), let purposes = elements(value.content), purposes.count == 1,
+                  let oids = elements(purposes[0].content) else { continue }
+            return Set(oids.filter { $0.tag == 0x06 }.map { hex($0.content) })
+        }
+        return nil
+    }
+
+    /// 1.3.6.1.5.5.7.3.2 (id-kp-clientAuth) and 2.5.29.37.0 (anyExtendedKeyUsage), as `extendedKeyUsages` writes them.
+    static let clientAuthentication = "2b06010505070302"
+    static let anyExtendedKeyUsage = "551d2500"
 
     /// A distinguished name in a form that two spellings of one name share (letter case, runs of spaces, and the string type
     /// are left out, as the Mac's own matching does); one that can't be read stands for its bytes.
@@ -324,10 +397,12 @@ struct CertificatePromptQueue<Waiter, Info> {
     /// A tab went away (closed, put to sleep, stopped): its waiters are handed back to be answered with nothing. `emptiedActive` says the
     /// entry on screen has no one left to answer; it is gone from the queue at once, so a challenge that comes while its sheet is
     /// closing begins an entry of its own and is asked in a sheet of its own, not answered with the cancel of the old one.
-    mutating func drop(tab: Int) -> (released: [Waiter], emptiedActive: Bool) {
+    /// `keeping` says which entries stay as they are for this tab: the challenge of a load that is the one now starting (WebKit can deliver a challenge
+    /// before it says the load began) is not the old page's.
+    mutating func drop(tab: Int, keeping: (Info) -> Bool = { _ in false }) -> (released: [Waiter], emptiedActive: Bool) {
         var released: [Waiter] = []
         var emptiedActive = false
-        for index in entries.indices {
+        for index in entries.indices where !keeping(entries[index].info) {
             released += entries[index].waiters.filter { $0.tab == tab }.map(\.waiter)
             entries[index].waiters.removeAll { $0.tab == tab }
             if entries[index].waiters.isEmpty, entries[index].key == activeKey { emptiedActive = true }

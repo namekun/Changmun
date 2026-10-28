@@ -146,7 +146,8 @@ extension Tab: WKNavigationDelegate {
         // while the tab's address and the bar's site have parted ways.
         blockedPopup = nil
         // A certificate a page asked for is not wanted by the one that replaces it.
-        browser?.certificatePrompter.forget(self)
+        // WebKit can deliver the challenge of this very load before it says the load began: that one is not the old page's.
+        browser?.certificatePrompter.forget(self, keepingSiteOf: webView.url)
         // The warning about a certificate belongs to the page that failed, not to the one that comes next (or our own page for the error).
         if navigation == nil || navigation !== errorNavigation { trustFailure = nil }
     }
@@ -233,7 +234,14 @@ extension Tab: WKNavigationDelegate {
     func webView(_ webView: WKWebView, respondTo challenge: URLAuthenticationChallenge) async -> (URLSession.AuthChallengeDisposition, URLCredential?) {
         let method = challenge.protectionSpace.authenticationMethod
         if method == NSURLAuthenticationMethodClientCertificate { return await answerCertificateRequest(challenge) }
-        if method == NSURLAuthenticationMethodServerTrust { return answerServerTrust(challenge, in: webView) }
+        if method == NSURLAuthenticationMethodServerTrust {
+            // A test copy's test servers are trusted by a CA of the test's own, for one host and port.
+            if let trust = challenge.protectionSpace.serverTrust,
+               let credential = ClientCertificateTestHook.credential(forServerTrust: trust, host: challenge.protectionSpace.host, port: challenge.protectionSpace.port) {
+                return (.useCredential, credential)
+            }
+            return answerServerTrust(challenge, in: webView)
+        }
         guard method == NSURLAuthenticationMethodHTTPBasic || method == NSURLAuthenticationMethodHTTPDigest else { return (.performDefaultHandling, nil) }
         guard challenge.previousFailureCount < 3, !Headless.isOn else { return (.cancelAuthenticationChallenge, nil) }
         let alert = NSAlert()
@@ -259,30 +267,42 @@ extension Tab: WKNavigationDelegate {
     /// without one (`performDefaultHandling`, not cancelling the load): a site that asks for a certificate but doesn't insist shows its own
     /// page, and one that does insist fails the connection, which Changmun's error page reports, where a cancelled load would leave a blank tab.
     private func answerCertificateRequest(_ challenge: URLAuthenticationChallenge) async -> (URLSession.AuthChallengeDisposition, URLCredential?) {
-        guard !Headless.isOn, let browser else { return (.performDefaultHandling, nil) }
+        // A test copy with a keychain of its own answers as a window on screen would.
+        let testing = ClientCertificateTestHook.isActive
         let space = challenge.protectionSpace
         let issuers = space.distinguishedNames ?? []
+        // The host is not for the log (private); the port and the number of names are.
+        if !isPrivate { ClientCertificates.log.notice("challenge: \(space.host, privacy: .private(mask: .hash)):\(space.port, privacy: .public), \(issuers.count, privacy: .public) accepted issuer names") }
+        ClientCertificateTestHook.record("challenge: \(space.host):\(space.port), \(issuers.count) accepted issuer names")
+        guard !Headless.isOn || testing, let browser else {
+            ClientCertificates.note("disposition: default handling (headless)", logging: !isPrivate)
+            return (.performDefaultHandling, nil)
+        }
         // A profile space has a website data store of its own, and what was chosen in it is not what is chosen in another.
         let profile = browser.isPrivate ? nil : browser.spaces.space(spaceID).dataStoreID
         let site = ClientCertificates.requestKey(host: space.host, port: space.port, acceptedIssuers: issuers, store: profile)
         let prompter = browser.certificatePrompter
         let agentDriven = AgentActivity.shared.holds(self)
         let prompt = { (candidates: [ClientCertificates.Candidate]) in
-            ClientCertificatePrompter.Prompt(host: space.host, candidates: candidates, agentDriven: agentDriven,
+            ClientCertificatePrompter.Prompt(host: space.host, port: space.port, candidates: candidates, agentDriven: agentDriven,
                                              domain: ClientCertificates.domainToRemember(host: space.host, port: space.port, isPrivate: self.isPrivate, agentDriven: agentDriven,
                                                                         isProfile: profile != nil))
         }
         let environment = ClientCertificates.Environment(
-            situation: ClientCertificates.Situation(isHeadless: Headless.isOn, agentDriven: agentDriven, isProfile: profile != nil),
-            identities: { ClientCertificates.keychainIdentities() },
-            preferred: { ClientCertificates.preferredIdentity(names: $0, acceptedIssuers: $1) },
+            situation: ClientCertificates.Situation(isHeadless: Headless.isOn && !testing, agentDriven: agentDriven, isProfile: profile != nil),
+            logs: !isPrivate,
+            identities: { ClientCertificates.keychainIdentities(searchList: ClientCertificateTestHook.searchList) },
+            preferred: { testing ? nil : ClientCertificates.preferredIdentity(names: $0, acceptedIssuers: $1) },
             remembered: prompter.remembered.choice(forSite: site, agentDriven: agentDriven),
-            exists: { ClientCertificates.identityExists($0) },
+            exists: { ClientCertificates.identityExists($0, searchList: ClientCertificateTestHook.searchList) },
             ask: { await prompter.ask(prompt($0), queueKey: ClientCertificates.queueKey(site: site, agentDriven: agentDriven, tab: self.id), site: site, tab: self) })
-        guard let identity = await ClientCertificates.resolve(host: space.host, port: space.port, acceptedIssuers: issuers, environment: environment)?.identity else {
+        guard let chosen = await ClientCertificates.resolve(host: space.host, port: space.port, acceptedIssuers: issuers, environment: environment), let identity = chosen.identity else {
+            ClientCertificates.note("disposition: default handling (no certificate)", logging: !isPrivate)
             return (.performDefaultHandling, nil)
         }
-        return (.useCredential, URLCredential(identity: identity, certificates: nil, persistence: .forSession))
+        let chain = chosen.intermediates
+        ClientCertificates.note("disposition: use credential, \(chain.count) intermediate certificates", logging: !isPrivate)
+        return (.useCredential, URLCredential(identity: identity, certificates: chain.isEmpty ? nil : chain, persistence: .forSession))
     }
 
     /// The page's process went away (it crashed, or was killed for memory): load it again, but a page that keeps

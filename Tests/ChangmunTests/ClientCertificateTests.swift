@@ -110,7 +110,8 @@ struct ClientCertificateTests {
     @Test func noIdentityMeansNoPanel() {
         #expect(plan([]) == .continueWithout)
         #expect(plan([candidate("Expired", to: -1)]) == .continueWithout)
-        #expect(plan([candidate("Other", issuer: "Elsewhere")], issuers: ["Root"]) == .continueWithout)
+        // A list the site sends that matches nothing is a guess that may be wrong: the valid identities are offered all the same (see ClientCertificateOfferTests).
+        #expect(plan([candidate("Other", issuer: "Elsewhere")], issuers: ["Root"]) == .ask([candidate("Other", issuer: "Elsewhere")]))
     }
 
     @Test func theUsersEarlierChoiceInTheWindowIsReusedButNotForTheAI() {
@@ -390,6 +391,43 @@ struct ClientCertificateTests {
     }
 }
 
+struct ClientCertificateOfferTests {
+    private func candidate(_ name: String, issuer: String = "Root", from: TimeInterval = -30, to: TimeInterval = 30, clientAuth: Bool = true) -> ClientCertificates.Candidate {
+        var made = ClientCertificates.Candidate(id: name, name: name, issuers: [ClientCertificates.key(ofName: dn(issuer))], notBefore: now + from * day, notAfter: now + to * day, identity: nil)
+        made.allowsClientAuthentication = clientAuth
+        return made
+    }
+
+    /// The list a site sends is a guess at who can sign in: when it matches nothing the user is still offered every valid identity, not left with a feature that does nothing.
+    @Test func aSiteWhoseListMatchesNothingIsOfferedEveryValidIdentity() {
+        let all = [candidate("A", issuer: "One"), candidate("B", issuer: "Two"), candidate("Old", issuer: "One", to: -1)]
+        let plan = ClientCertificates.plan(candidates: all, preferred: nil, remembered: nil, acceptedIssuers: [dn("Elsewhere")], now: now, situation: .init())
+        #expect(plan == .ask([all[0], all[1]]), "the expired one is not offered")
+        #expect(ClientCertificates.offered(all, acceptedIssuers: [dn("One")], now: now).map(\.name) == ["A"], "what matches is offered alone")
+    }
+
+    @Test func nothingValidMeansTheSiteIsVisitedWithoutOne() {
+        let plan = ClientCertificates.plan(candidates: [candidate("Old", to: -1), candidate("Soon", from: 2, to: 30)], preferred: nil, remembered: nil,
+                                           acceptedIssuers: [dn("Elsewhere")], now: now, situation: .init())
+        #expect(plan == .continueWithout)
+    }
+
+    @Test func anIdentityThatIsOnlyForOtherUsesIsNotOffered() {
+        let list = ClientCertificates.offered([candidate("Server", clientAuth: false), candidate("Person")], acceptedIssuers: [], now: now)
+        #expect(list.map(\.name) == ["Person"])
+        #expect(ClientCertificates.offered([candidate("Server", clientAuth: false)], acceptedIssuers: [dn("Root")], now: now).isEmpty)
+    }
+
+    @Test func aLoadThatBeginsKeepsTheChallengeOfItsOwnSiteAndDropsTheRest() {
+        var queue = CertificatePromptQueue<String, String>()
+        queue.add(key: "a", tab: 1, info: "a.test", waiter: "A")
+        queue.add(key: "b", tab: 1, info: "b.test", waiter: "B")
+        let dropped = queue.drop(tab: 1, keeping: { $0 == "a.test" })
+        #expect(dropped.released == ["B"], "the old page's challenge goes, the one for the page now loading stays")
+        #expect(queue.isWaiting(tab: 1) && queue.entries.map(\.key) == ["a"])
+    }
+}
+
 // MARK: Against a real keychain
 
 /// The calls that make a keychain file: deprecated, and the only way to keep a throwaway keychain out of the search list. They are looked up
@@ -463,5 +501,68 @@ struct ClientCertificateKeychainTests {
         KeychainFile.delete(keychain)
         #expect(!ClientCertificates.identityExists(identity, searchList: [keychain] as CFArray))
         #expect(!ClientCertificates.identityExists(identity))
+    }
+
+    /// A certificate issued by an intermediate, which a site that names the root accepts only if the chain is known: the intermediate kept beside the identity
+    /// ties it to the root, and is what the site is sent with it. Without it the identity is below nothing the site named.
+    @Test func anIdentityBelowAnIntermediateIsTiedToTheRootAndBringsTheIntermediate() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("changmun-crt-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        try #require(openssl(["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "root.key", "-out", "root.pem", "-days", "30", "-subj", "/CN=Test Root"], in: folder))
+        try #require(openssl(["req", "-newkey", "rsa:2048", "-nodes", "-keyout", "inter.key", "-out", "inter.csr", "-subj", "/CN=Test Intermediate"], in: folder))
+        try "basicConstraints=critical,CA:TRUE\nkeyUsage=critical,keyCertSign\n".write(to: folder.appendingPathComponent("ca.ext"), atomically: true, encoding: .utf8)
+        try #require(openssl(["x509", "-req", "-in", "inter.csr", "-CA", "root.pem", "-CAkey", "root.key", "-CAcreateserial", "-out", "inter.pem", "-days", "20", "-extfile", "ca.ext"], in: folder))
+        try #require(openssl(["req", "-newkey", "rsa:2048", "-nodes", "-keyout", "client.key", "-out", "client.csr", "-subj", "/CN=Staff Member"], in: folder))
+        try #require(openssl(["x509", "-req", "-in", "client.csr", "-CA", "inter.pem", "-CAkey", "inter.key", "-CAcreateserial", "-out", "client.pem", "-days", "10"], in: folder))
+        // One file with the intermediate, one without.
+        try #require(openssl(["pkcs12", "-export", "-inkey", "client.key", "-in", "client.pem", "-certfile", "inter.pem", "-out", "with.p12", "-passout", "pass:test"], in: folder))
+        try #require(openssl(["pkcs12", "-export", "-inkey", "client.key", "-in", "client.pem", "-out", "without.p12", "-passout", "pass:test"], in: folder))
+        let rootName = try #require(ClientCertificates.fields(ofCertificate: try der(of: "root.pem", in: folder))).issuer
+
+        func identity(from p12: String) throws -> (found: ClientCertificates.Candidate, release: () -> Void) {
+            let keychain = try #require(KeychainFile.create(at: folder.appendingPathComponent("\(p12).keychain-db").path, password: "test"))
+            var imported: CFArray?
+            let options = [kSecImportExportPassphrase as String: "test", kSecImportExportKeychain as String: keychain] as CFDictionary
+            try #require(SecPKCS12Import(try Data(contentsOf: folder.appendingPathComponent(p12)) as CFData, options, &imported) == errSecSuccess)
+            let found = try #require(ClientCertificates.keychainIdentities(searchList: [keychain] as CFArray).first)
+            return (found, { KeychainFile.delete(keychain) })
+        }
+        let with = try identity(from: "with.p12")
+        defer { with.release() }
+        #expect(ClientCertificates.usable([with.found], acceptedIssuers: [rootName], now: Date()).count == 1, "tied to the root through the intermediate beside it")
+        #expect(with.found.intermediates.count == 1, "and the intermediate is what the site is sent")
+        #expect(with.found.allowsClientAuthentication, "no extended key usage says any")
+
+        let without = try identity(from: "without.p12")
+        defer { without.release() }
+        #expect(ClientCertificates.usable([without.found], acceptedIssuers: [rootName], now: Date()).isEmpty, "nothing ties it to the root")
+        #expect(without.found.intermediates.isEmpty)
+        // The list that matches nothing still offers it (the site has the last word).
+        #expect(ClientCertificates.offered([without.found], acceptedIssuers: [rootName], now: Date()).count == 1)
+    }
+
+    @Test func theExtendedKeyUsagesOfACertificateAreReadFromIt() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("changmun-crt-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        func make(_ name: String, _ usage: String?) throws -> Data {
+            var arguments = ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "\(name).key", "-out", "\(name).pem", "-days", "5", "-subj", "/CN=\(name)"]
+            if let usage { arguments += ["-addext", "extendedKeyUsage=\(usage)"] }
+            try #require(openssl(arguments, in: folder))
+            return try der(of: "\(name).pem", in: folder)
+        }
+        #expect(ClientCertificates.extendedKeyUsages(ofCertificate: try make("none", nil)) == nil, "none listed means any")
+        #expect(ClientCertificates.extendedKeyUsages(ofCertificate: try make("client", "clientAuth")) == [ClientCertificates.clientAuthentication])
+        let server = try #require(ClientCertificates.extendedKeyUsages(ofCertificate: try make("server", "serverAuth")))
+        #expect(!server.isEmpty && !server.contains(ClientCertificates.clientAuthentication), "a server certificate is not for clients")
+        let both = try #require(ClientCertificates.extendedKeyUsages(ofCertificate: try make("both", "serverAuth,clientAuth,codeSigning")))
+        #expect(both.count == 3 && both.contains(ClientCertificates.clientAuthentication))
+        #expect(ClientCertificates.extendedKeyUsages(ofCertificate: try make("any", "anyExtendedKeyUsage")) == [ClientCertificates.anyExtendedKeyUsage])
+    }
+
+    private func der(of file: String, in folder: URL) throws -> Data {
+        let pem = try String(contentsOf: folder.appendingPathComponent(file), encoding: .utf8)
+        return try #require(Data(base64Encoded: pem.split(separator: "\n").filter { !$0.hasPrefix("-----") }.joined()))
     }
 }

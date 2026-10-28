@@ -241,7 +241,7 @@ extension ControlServer {
             Task { @MainActor in
                 guard let browser = Browser.recent else { return self.respond(connection, status: "404 Not Found", body: ["error": "no window"]) }
                 // "open" loads an address in a new tab as the user does (the AI's tools mark a tab as the AI's, which is never offered the way on).
-                if let address = (body["open"] as? String).flatMap(URL.init(string:)) { browser.openTab(url: nil).load(address) }
+                if let address = (body["open"] as? String).flatMap(URL.init(string:)) { _ = browser.openTab(url: address) }
                 guard let tab = browser.active else { return self.respond(connection, status: "404 Not Found", body: ["error": "no tab"]) }
                 if let answer = body["auth"] as? Bool {
                     ServerTrust.confirm = { _ in
@@ -264,6 +264,39 @@ extension ControlServer {
                 }
                 self.respond(connection, status: "200 OK", body: ["failure": failure ?? NSNull(), "usesException": tab.usesTrustException, "authAsked": ServerTrustTestState.asked, "challenges": ServerTrustTestState.challenges,
                                                                   "url": tab.url?.absoluteString ?? "", "title": tab.webView?.title ?? ""])
+            }
+            return true
+        }
+        // Tests only: a TLS client-certificate request run end to end against a local server, without the user's keychains or trust settings.
+        // "keychain" ({"path", "identities": [[p12 file, password]], "certificates": [PEM/DER files]}) makes a keychain file of its own that the identities
+        // are searched in alone; "trust" ({"host", "ports", "anchors": [PEM files]}) trusts the server's certificate for that host and port against those
+        // CAs alone; "choose" is first, last, cancel or an identity's name, which answers the chooser instead of the user (null leaves it to the user, whose sheet "sheet" ends);
+        // "reset" takes the keychain file away. The answer is the events since the last call (see ClientCertificates.note) and the lists the chooser got.
+        if Headless.isTestCopy, request.method == "POST", request.path == "/client-cert",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                if body["reset"] as? Bool == true { ClientCertificateTestHook.reset() }
+                var problem: String?
+                if let keychain = body["keychain"] as? [String: Any], let path = keychain["path"] as? String {
+                    let identities = (keychain["identities"] as? [[String]] ?? []).filter { $0.count == 2 }.map { (file: $0[0], password: $0[1]) }
+                    problem = ClientCertificateTestHook.makeKeychain(at: path, identities: identities, certificates: keychain["certificates"] as? [String] ?? [])
+                }
+                if let trust = body["trust"] as? [String: Any], let host = trust["host"] as? String {
+                    let anchors = (trust["anchors"] as? [String] ?? []).compactMap { file -> SecCertificate? in
+                        guard let pem = try? String(contentsOfFile: file, encoding: .utf8) else { return nil }
+                        let base64 = pem.split(separator: "\n").filter { !$0.hasPrefix("-----") }.joined()
+                        return Data(base64Encoded: base64).flatMap { SecCertificateCreateWithData(nil, $0 as CFData) }
+                    }
+                    ClientCertificateTestHook.trust(host: host, ports: trust["ports"] as? [Int] ?? [], anchors: anchors)
+                }
+                if body.keys.contains("choose") { ClientCertificateTestHook.setChoice(body["choose"] as? String) }
+                // "sheet" is ok or cancel: ends the chooser sheet if one is up, as the user's Continue or Cancel would. "sheetUp" says whether one was.
+                let prompter = Browser.current?.certificatePrompter
+                let sheetUp = prompter?.sheetIsUp ?? false
+                if let end = body["sheet"] as? String { prompter?.endSheetForTest(ok: end == "ok") }
+                if body["sheet"] != nil { try? await Task.sleep(for: .milliseconds(1500)) }
+                let drained = ClientCertificateTestHook.drain()
+                self.respond(connection, status: "200 OK", body: ["events": drained.events, "asked": drained.asked, "problem": problem ?? "", "sheetUp": sheetUp])
             }
             return true
         }

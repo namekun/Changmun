@@ -14,7 +14,7 @@ extension SharedAgentState {
         }
 
         private func prompt(agent: Bool = false) -> ClientCertificatePrompter.Prompt {
-            .init(host: "mtls.example", candidates: [], agentDriven: agent, domain: nil)
+            .init(host: "mtls.example", port: 443, candidates: [], agentDriven: agent, domain: nil)
         }
 
         /// Asks for `tab` and returns once the challenge is queued; the task ends when the challenge is answered.

@@ -8,6 +8,7 @@ import SecurityInterface
 final class ClientCertificatePrompter {
     struct Prompt {
         let host: String
+        let port: Int
         let candidates: [ClientCertificates.Candidate]
         let agentDriven: Bool
         /// What the panel files the choice under (an identity preference in the user's keychain), or nil to keep nothing there.
@@ -19,6 +20,8 @@ final class ClientCertificatePrompter {
     /// What the user chose in this window, which is kept as long as the window is (also in a private one, which keeps nothing else).
     private(set) var remembered = RememberedChoices()
     private var shown: (panel: SFChooseIdentityPanel, delegate: SheetEnd)?
+    /// The window the panel put up on the browser's window as its sheet: it is not the panel itself, and ending the panel's does nothing.
+    private var shownSheet: NSWindow?
     /// The sheet on screen is being closed because the tab it was for went away: its end is not an answer to anyone.
     private var sheetEnding = false
     /// Tests only: how often a sheet was looked for.
@@ -79,6 +82,16 @@ final class ClientCertificatePrompter {
     /// Waits for the user's choice among `candidates`; nil when they cancel, or the tab goes away first. `queueKey` is what challenges
     /// share one answer by (see ClientCertificates.queueKey), `site` what the choice is remembered for.
     func ask(_ prompt: Prompt, queueKey: String, site: String, tab: Tab) async -> ClientCertificates.Candidate? {
+        // The test copy's test answers for the user: the chooser can't be clicked headlessly.
+        if Headless.isTestCopy, let choice = ClientCertificateTestHook.choice {
+            ClientCertificateTestHook.recordAsked(prompt.candidates.map(\.name))
+            switch choice {
+            case "cancel": return nil
+            case "last": return prompt.candidates.last
+            case "first": return prompt.candidates.first
+            default: return prompt.candidates.first { $0.name == choice }
+            }
+        }
         // The AI's panel says what the page is waiting for, as long as nothing else has taken the line.
         let waiting = String(localized: "Waiting for you to choose a certificate")
         let before = ChatStore.shared.step
@@ -125,6 +138,7 @@ final class ClientCertificatePrompter {
             if self.sheetEnding {
                 self.sheetEnding = false
                 self.shown = nil
+                self.shownSheet = nil
                 self.show()
                 return
             }
@@ -135,15 +149,26 @@ final class ClientCertificatePrompter {
             self.answer(entry.key, with: choice)
         }
         shown = (panel, delegate)
+        let sheetBefore = window.attachedSheet
+        defer { shownSheet = sheetBefore == nil ? window.attachedSheet : nil }
         panel.beginSheet(for: window, modalDelegate: delegate, didEnd: #selector(SheetEnd.sheetDidEnd(_:returnCode:contextInfo:)), contextInfo: nil,
                          identities: entry.info.candidates.compactMap(\.identity), message: String(localized: "\(entry.info.host) wants a certificate to identify you."))
     }
 
     private func answer(_ key: String, with choice: ClientCertificates.Candidate?) {
         shown = nil
+        shownSheet = nil
         for waiter in queue.finish(key) { waiter.resume(returning: choice) }
         refreshWaiting()
         show()
+    }
+
+    /// Tests only (the test copy's `/client-cert`): whether a sheet is up on the window, and ending it as the user's OK or Cancel would.
+    var sheetIsUp: Bool { Headless.isTestCopy && shown != nil && shownSheet != nil && browser?.window?.attachedSheet === shownSheet }
+
+    func endSheetForTest(ok: Bool) {
+        guard Headless.isTestCopy, let sheet = shownSheet, let window = browser?.window else { return }
+        window.endSheet(sheet, returnCode: ok ? .OK : .cancel)
     }
 
     /// Each tab says whether a challenge of its own is waiting for the user.
@@ -154,15 +179,20 @@ final class ClientCertificatePrompter {
         }
     }
 
-    /// A tab went away or stopped loading: what it waited for is answered with nothing, and the sheet closes if it was the only one waiting.
-    func forget(_ tab: Tab) {
-        let dropped = queue.drop(tab: tab.id)
+    /// A tab went away or stopped loading: what it waited for is answered with nothing, and the sheet closes if it was the only one waiting. A load that
+    /// begins for the site of `site` keeps what its own challenge already asked: WebKit may deliver the challenge before it says the load began.
+    func forget(_ tab: Tab, keepingSiteOf site: URL? = nil) {
+        let host = site?.host()?.lowercased()
+        let port = site.map { $0.port ?? 443 }
+        let dropped = queue.drop(tab: tab.id) { info in host != nil && info.host.lowercased() == host && info.port == port }
+        if !dropped.released.isEmpty { ClientCertificates.note("forget: \(dropped.released.count) waiting answers dropped", logging: browser?.isPrivate != true) }
         for waiter in dropped.released { waiter.resume(returning: nil) }
         refreshWaiting()
-        tab.waitingForCertificate = false
-        if dropped.emptiedActive, let panel = shown?.panel, let window = browser?.window {
+        tab.waitingForCertificate = queue.isWaiting(tab: tab.id)
+        // The sheet that is up is the panel's own window; one that is not up yet (behind another sheet) cannot be ended, and its end finds nobody waiting.
+        if dropped.emptiedActive, shown != nil, let sheet = shownSheet, let window = browser?.window {
             sheetEnding = true
-            window.endSheet(panel, returnCode: .cancel)
+            window.endSheet(sheet, returnCode: .cancel)
         }
     }
 
