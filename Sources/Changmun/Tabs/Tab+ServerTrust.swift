@@ -38,20 +38,23 @@ extension Tab {
         let space = challenge.protectionSpace
         if Headless.isTestCopy { ServerTrustTestState.challenges.append("\(space.host):\(space.port)") }
         let accepted = ServerTrustStore.acceptedAnywhere.contains(host: space.host, port: space.port)
-        guard accepted, let trust = space.serverTrust, let store = browser?.trustStore, let leaf = ServerTrust.leaf(of: trust) else { return (.performDefaultHandling, nil) }
-        let fingerprint = ServerTrust.fingerprint(of: leaf)
+        guard accepted else { return (.performDefaultHandling, nil) }
+        // From here on nothing that is missing lets the load through: see ServerTrustChallengeDecision.
+        let trust = space.serverTrust, store = browser?.trustStore
+        let leaf = trust.flatMap(ServerTrust.leaf(of:))
+        let fingerprint = leaf.map(ServerTrust.fingerprint(of:))
         let mayOffer = mayOfferTrustException
-        let matches = store.exceptions.allows(host: space.host, port: space.port, fingerprint: fingerprint, store: trustStoreID)
-        switch ServerTrustChallengeDecision.decide(acceptedAnywhere: accepted, exceptionMatches: matches, mayOffer: mayOffer) {
+        let matches = fingerprint.map { store?.exceptions.allows(host: space.host, port: space.port, fingerprint: $0, store: trustStoreID) ?? false } ?? false
+        switch ServerTrustChallengeDecision.decide(accepted: accepted, hasTrust: trust != nil, hasStore: store != nil, hasLeaf: leaf != nil,
+                                                   systemTrusts: trust.map { SecTrustEvaluateWithError($0, nil) } ?? false, exceptionMatches: matches, mayOffer: mayOffer) {
         case .defaultHandling:
             return (.performDefaultHandling, nil)
         case .useException:
-            trustLog { $0.notice("trust: exception applies to \(space.host, privacy: .private(mask: .hash)):\(space.port, privacy: .public), \(fingerprint.prefix(8), privacy: .public)") }
-            return (.useCredential, URLCredential(trust: trust))
-        case .refuseUnlessTrusted:
-            guard !SecTrustEvaluateWithError(trust, nil) else { return (.performDefaultHandling, nil) }
-            trustLog { $0.notice("trust: \(space.host, privacy: .private(mask: .hash)):\(space.port, privacy: .public) is not covered by an exception here and the Mac does not trust it, \(fingerprint.prefix(8), privacy: .public); refused") }
-            if let target = TrustFailure.pendingTarget(navigatingTo: navigatingTo, host: space.host, port: space.port) {
+            trustLog { $0.notice("trust: exception applies to \(space.host, privacy: .private(mask: .hash)):\(space.port, privacy: .public), \((fingerprint ?? "").prefix(8), privacy: .public)") }
+            return (.useCredential, URLCredential(trust: trust!))
+        case .cancel:
+            trustLog { $0.notice("trust: \(space.host, privacy: .private(mask: .hash)):\(space.port, privacy: .public) is not covered by an exception here and the Mac does not trust it, \((fingerprint ?? "-").prefix(8), privacy: .public); refused") }
+            if let trust, let store, let target = TrustFailure.pendingTarget(navigatingTo: navigatingTo, host: space.host, port: space.port) {
                 let exceptions = store.exceptions, storeID = trustStoreID
                 let failure = TrustFailure.from(trust: trust, url: target, code: NSURLErrorServerCertificateUntrusted) {
                     exceptions.isChanged(host: $0, port: $1, fingerprint: $2, store: storeID)

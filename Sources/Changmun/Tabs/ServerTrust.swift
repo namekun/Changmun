@@ -236,17 +236,21 @@ struct AcceptedSites {
 
 /// What to do with a server's certificate that WebKit asks the tab about.
 enum ServerTrustChallengeDecision: Equatable {
-    /// The user never went on with this host and port: judged as ever.
+    /// Judged as ever: the user never went on with this host and port, or the Mac's own trust passes it on its own.
     case defaultHandling
     /// This store's exception covers this very certificate, for a page that may use it.
     case useException
-    /// The user went on with this host and port somewhere, but not here (or not with this certificate, or not for this page): the Mac's own trust decides,
-    /// and the load is cancelled unless it passes.
-    case refuseUnlessTrusted
+    /// The user went on with this host and port somewhere, but this load is not covered and the Mac does not trust the certificate (or there is nothing
+    /// to judge it by): the load is cancelled.
+    case cancel
 
-    static func decide(acceptedAnywhere: Bool, exceptionMatches: Bool, mayOffer: Bool) -> Self {
-        guard acceptedAnywhere else { return .defaultHandling }
-        return exceptionMatches && mayOffer ? .useException : .refuseUnlessTrusted
+    /// For a host and port the user went on with anywhere in this run, everything that is missing counts against the load: it goes through only on this
+    /// store's exception for this certificate, or when the Mac trusts the certificate by itself. `systemTrusts` is looked at only when it is needed.
+    static func decide(accepted: Bool, hasTrust: Bool, hasStore: Bool, hasLeaf: Bool, systemTrusts: @autoclosure () -> Bool,
+                       exceptionMatches: Bool, mayOffer: Bool) -> Self {
+        guard accepted else { return .defaultHandling }
+        if hasTrust, hasStore, hasLeaf, exceptionMatches, mayOffer { return .useException }
+        return hasTrust && systemTrusts() ? .defaultHandling : .cancel
     }
 }
 

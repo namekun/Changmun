@@ -70,13 +70,37 @@ struct ServerTrustExceptionTests {
         #expect(!accepted.contains(host: "b.test", port: 443), "another host")
     }
 
-    @Test func aChallengeForAHostAcceptedAnywhereIsRefusedUnlessThisStoresExceptionCoversIt() {
+    /// Every combination of what a challenge has (or lacks) and what is true of it, against what a challenge for a host the user went on with must do.
+    @Test func aChallengeForAHostAcceptedAnywhereGoesThroughOnlyOnThisStoresExceptionOrTheMacsOwnTrust() {
         typealias Decision = ServerTrustChallengeDecision
-        #expect(Decision.decide(acceptedAnywhere: false, exceptionMatches: false, mayOffer: true) == .defaultHandling, "a host nobody went on with is judged as ever")
-        #expect(Decision.decide(acceptedAnywhere: true, exceptionMatches: true, mayOffer: true) == .useException)
-        #expect(Decision.decide(acceptedAnywhere: true, exceptionMatches: false, mayOffer: true) == .refuseUnlessTrusted, "another store, window or certificate")
-        #expect(Decision.decide(acceptedAnywhere: true, exceptionMatches: true, mayOffer: false) == .refuseUnlessTrusted, "a page the AI drives")
-        #expect(Decision.decide(acceptedAnywhere: true, exceptionMatches: false, mayOffer: false) == .refuseUnlessTrusted)
+        let flags = [false, true]
+        var seen = 0
+        for accepted in flags { for hasTrust in flags { for hasStore in flags { for hasLeaf in flags { for systemTrusts in flags { for matches in flags { for mayOffer in flags {
+            let got = Decision.decide(accepted: accepted, hasTrust: hasTrust, hasStore: hasStore, hasLeaf: hasLeaf, systemTrusts: systemTrusts,
+                                      exceptionMatches: matches, mayOffer: mayOffer)
+            let wanted: Decision
+            if !accepted { wanted = .defaultHandling }
+            else if hasTrust && hasStore && hasLeaf && matches && mayOffer { wanted = .useException }
+            else if hasTrust && systemTrusts { wanted = .defaultHandling }
+            else { wanted = .cancel }
+            #expect(got == wanted, "accepted \(accepted) trust \(hasTrust) store \(hasStore) leaf \(hasLeaf) system \(systemTrusts) matches \(matches) mayOffer \(mayOffer)")
+            seen += 1
+        } } } } } } }
+        #expect(seen == 128)
+    }
+
+    @Test func aMissingPieceNeverLetsAChallengeForAnAcceptedHostThrough() {
+        typealias Decision = ServerTrustChallengeDecision
+        // Nothing to judge it by: cancelled, whatever else is true.
+        #expect(Decision.decide(accepted: true, hasTrust: false, hasStore: true, hasLeaf: true, systemTrusts: true, exceptionMatches: true, mayOffer: true) == .cancel)
+        #expect(Decision.decide(accepted: true, hasTrust: true, hasStore: false, hasLeaf: true, systemTrusts: false, exceptionMatches: true, mayOffer: true) == .cancel)
+        #expect(Decision.decide(accepted: true, hasTrust: true, hasStore: true, hasLeaf: false, systemTrusts: false, exceptionMatches: true, mayOffer: true) == .cancel)
+        // A host nobody went on with is judged as ever, with or without the pieces.
+        #expect(Decision.decide(accepted: false, hasTrust: false, hasStore: false, hasLeaf: false, systemTrusts: false, exceptionMatches: false, mayOffer: false) == .defaultHandling)
+        // The Mac's own trust is only asked when the exception does not decide it.
+        var asked = 0
+        _ = Decision.decide(accepted: true, hasTrust: true, hasStore: true, hasLeaf: true, systemTrusts: { asked += 1; return false }(), exceptionMatches: true, mayOffer: true)
+        #expect(asked == 0)
     }
 
     @Test func theWarningIsForTheMainFrameLoadThatIsPendingAndNothingElse() {
