@@ -739,3 +739,7 @@
 "This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on." = "このサイトの証明書は、このセッションの先ほどまでは問題ありませんでしたが、今は問題があります。誰かが通信を傍受している可能性があるため、続行できません。";
 "The site named other certificate issuers than yours, so all your certificates are shown." = "サイトが指定した証明書の発行元があなたの証明書と異なるため、すべての証明書を表示しています。";
 "This page's certificate wasn't verified: you chose to go on." = "このページの証明書は確認されていません。続行を選択しました。";
+"Stay signed in after quitting" = "終了後もサインインを保持";
+"Keeps the sign-in cookies that sites meant to end when the browser closes, encrypted on this Mac, until you turn it off or clear site data." = "ブラウザを閉じると終了するようサイトが設定したサインイン用Cookieを、このMacに暗号化して保存します。この設定をオフにするか、サイトデータを消去するまで保持されます。";
+"Quit when the last window is closed" = "最後のウインドウを閉じたら終了";
+"Turned off, Changmun stays open without a window, like Safari. Click its Dock icon to open one again." = "オフにすると、ウインドウがなくてもSafariのようにChangmunは開いたままになります。Dockのアイコンをクリックすると、ウインドウが再び開きます。";

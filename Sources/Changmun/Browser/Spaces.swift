@@ -276,12 +276,24 @@ final class SpaceStore: ObservableObject {
 @MainActor
 enum Profiles {
     private static var configurations: [UUID: WKWebViewConfiguration] = [:]
+    private static var dataStores: [UUID: WKWebsiteDataStore] = [:]
+
+    /// The profile's data store: one for as long as the profile lasts, which the cookie journal watches.
+    static func dataStore(_ id: UUID) -> WKWebsiteDataStore {
+        if let kept = dataStores[id] { return kept }
+        let made = WKWebsiteDataStore(forIdentifier: id)
+        dataStores[id] = made
+        return made
+    }
 
     /// `base` for an ordinary space; for a profile, the same settings, scripts and blocking rules over its own data store.
     static func configuration(for space: Space, base: WKWebViewConfiguration) -> WKWebViewConfiguration {
         guard let id = space.dataStoreID else { return base }
         if let kept = configurations[id] { return kept }
-        let made = Browser.makeConfiguration(store: WKWebsiteDataStore(forIdentifier: id), extensions: !Headless.isOn)
+        let store = dataStore(id)
+        // A profile made now has no kept cookies to wait for; one from an earlier run was put back at launch, and this changes nothing.
+        CookieJournal.shared.attachInBackground(id.uuidString, WebKitCookieSource(store))
+        let made = Browser.makeConfiguration(store: store, extensions: !Headless.isOn)
         configurations[id] = made
         return made
     }
@@ -302,6 +314,9 @@ enum Profiles {
                 continue
             }
             configurations[id] = nil
+            // Its kept cookies go with it, and nothing holds the store any longer.
+            CookieJournal.shared.forget(id.uuidString)
+            dataStores[id] = nil
             for delay in delays {
                 if (try? await remover(id)) != nil {
                     store.finishRemoval(id)
@@ -318,7 +333,7 @@ enum Profiles {
 
     /// Every profile's store, for clearing website data in Settings.
     static func stores(_ spaces: [Space]) -> [WKWebsiteDataStore] {
-        spaces.compactMap(\.dataStoreID).map { WKWebsiteDataStore(forIdentifier: $0) }
+        spaces.compactMap(\.dataStoreID).map(dataStore)
     }
 }
 

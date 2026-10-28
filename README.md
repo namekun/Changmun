@@ -263,6 +263,7 @@ On first launch, or from the menu, Changmun imports bookmarks and history from S
 - Your browsing stays on your Mac. Changmun has no account, server or analytics.
 - The update check fetches a small list of releases (`appcast.xml`) from GitHub Pages. GitHub sees the request like any web server does, including Changmun's name and version; Sparkle's system profile, which would add details about your Mac, is off and stays off (Settings › Advanced turns the check off).
 - Search suggestions send what you type in the command bar to your search engine (turn them off in Settings; never sent from private windows).
+- "Stay signed in after quitting" (Settings › Privacy, on by default) keeps the sign-in cookies that sites meant to end when the browser closes. They're kept in a file on this Mac, encrypted with a key in your Keychain, until you turn it off or clear site data; private windows never write one.
 - The AI panel sends your messages, the images you attach and the page content the AI reads, to Anthropic through the `claude` CLI. Tidy tabs and page translation run on your Mac.
 
 ## Passwords and security

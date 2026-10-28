@@ -31,6 +31,8 @@ struct GeneralSettings: View {
                 Toggle("Ask where to save each download", isOn: $prefs.askWhereToSave)
             }
             Section("Browser") {
+                Toggle("Quit when the last window is closed", isOn: $prefs.quitWhenLastWindowCloses)
+                Caption(text: "Turned off, Changmun stays open without a window, like Safari. Click its Dock icon to open one again.")
                 LabeledContent("Default Browser") {
                     if isDefaultBrowser {
                         Text("Changmun is your default browser").foregroundStyle(.secondary)

@@ -244,6 +244,7 @@ En el primer arranque, o desde el menú, Changmun importa marcadores e historial
 - Tu navegación se queda en tu Mac. Changmun no tiene cuentas, servidores ni analíticas.
 - La búsqueda de actualizaciones descarga de GitHub Pages una pequeña lista de versiones (`appcast.xml`). GitHub recibe la petición como cualquier servidor web, con el nombre y la versión de Changmun; el perfil del sistema de Sparkle, que añadiría datos de tu Mac, está desactivado y sigue así (Ajustes › Avanzado desactiva la búsqueda).
 - Las sugerencias de búsqueda envían a tu buscador lo que escribes en la barra de comandos (desactívalas en Ajustes; nunca se envían desde ventanas privadas).
+- «Mantener la sesión al salir» (Ajustes › Privacidad, activado de serie) conserva las cookies de inicio de sesión que los sitios querían borrar al cerrar el navegador. Se guardan en un archivo de este Mac, cifrado con una clave del Llavero, hasta que lo desactives o borres los datos de sitios; las ventanas privadas nunca guardan nada.
 - El panel de IA envía tus mensajes, las imágenes que adjuntas y el contenido de las páginas que lee la IA, a Anthropic a través de la CLI `claude`. Ordenar pestañas y la traducción de páginas se ejecutan en tu Mac.
 
 ## Contraseñas y seguridad

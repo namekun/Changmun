@@ -244,6 +244,7 @@ Beim ersten Start oder über das Menü importiert Changmun Lesezeichen und Verla
 - Dein Surfverhalten bleibt auf deinem Mac. Changmun hat kein Konto, keinen Server und keine Analyse.
 - Die Update-Prüfung lädt eine kleine Liste der Versionen (`appcast.xml`) von GitHub Pages. GitHub sieht die Anfrage wie jeder Webserver, mit Name und Version von Changmun; das Systemprofil von Sparkle, das Angaben zu deinem Mac hinzufügen würde, ist aus und bleibt aus (die Prüfung selbst lässt sich unter Einstellungen › Erweitert abschalten).
 - Suchvorschläge senden, was du in die Befehlsleiste eingibst, an deine Suchmaschine (in den Einstellungen ausschaltbar; aus privaten Fenstern wird nie etwas gesendet).
+- „Nach dem Beenden angemeldet bleiben“ (Einstellungen › Datenschutz, standardmäßig an) behält die Anmelde-Cookies, die Websites beim Schließen des Browsers verfallen lassen wollten. Sie liegen verschlüsselt in einer Datei auf diesem Mac, mit einem Schlüssel aus deinem Schlüsselbund, bis du die Option ausschaltest oder die Websitedaten löschst; private Fenster schreiben nie etwas.
 - Die KI-Seitenleiste sendet deine Nachrichten, angehängte Bilder und die Seiteninhalte, die die KI liest, über das `claude`-CLI an Anthropic. „Tabs aufräumen“ und die Seitenübersetzung laufen auf deinem Mac.
 
 ## Passwörter und Sicherheit

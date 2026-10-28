@@ -93,6 +93,8 @@ final class Preferences: ObservableObject {
     @Published var restoreTabs: Bool { didSet { defaults.set(restoreTabs, forKey: "restoreTabs") } }
     @Published var downloadFolder: URL { didSet { defaults.set(downloadFolder.path, forKey: "downloadFolder") } }
     @Published var askWhereToSave: Bool { didSet { defaults.set(askWhereToSave, forKey: "askWhereToSave") } }
+    /// Closing the last window ends the app (as it always has); off, the app stays open with no window, like Safari.
+    @Published var quitWhenLastWindowCloses: Bool { didSet { defaults.set(quitWhenLastWindowCloses, forKey: "quitWhenLastWindowCloses") } }
 
     // MARK: Tabs and looks
 
@@ -160,6 +162,13 @@ final class Preferences: ObservableObject {
             Task { await AdBlocker.shared.apply(enabled: blockTrackers) }
         }
     }
+    /// Keeps the sign-ins that sites meant to end when the browser closes (session cookies), in an encrypted file, until this is turned off.
+    @Published var keepSessionCookies: Bool {
+        didSet {
+            defaults.set(keepSessionCookies, forKey: "keepSessionCookies")
+            CookieJournal.shared.setEnabled(keepSessionCookies)
+        }
+    }
     /// Filling a saved password asks for Touch ID or the Mac's password first.
     @Published var requireAuthToFill: Bool { didSet { defaults.set(requireAuthToFill, forKey: "requireAuthToFill") } }
     @Published var customFilterLists: [String] { didSet { defaults.set(customFilterLists, forKey: "customFilterLists") } }
@@ -216,6 +225,7 @@ final class Preferences: ObservableObject {
         downloadFolder = d.string(forKey: "downloadFolder").map { URL(fileURLWithPath: $0) }
             ?? FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
         askWhereToSave = d.bool(forKey: "askWhereToSave")
+        quitWhenLastWindowCloses = d.object(forKey: "quitWhenLastWindowCloses") as? Bool ?? true
         appearance = AppAppearance(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
         sidebarWidth = Self.clampedSidebarWidth(d.object(forKey: "sidebarWidth") as? Double ?? Self.defaultSidebarWidth)
         // The address moved into the sidebar with the glass look; everyone starts there once, and can move it back.
@@ -235,6 +245,7 @@ final class Preferences: ObservableObject {
         archiveHours = d.object(forKey: "archiveTabsAfterHours") as? Int ?? 0
         groupNewTabs = d.object(forKey: "groupNewTabs") as? Bool ?? true
         blockTrackers = d.object(forKey: "blockTrackers") as? Bool ?? true
+        keepSessionCookies = d.object(forKey: "keepSessionCookies") as? Bool ?? true
         requireAuthToFill = d.object(forKey: "requireAuthToFill") as? Bool ?? true
         customFilterLists = d.stringArray(forKey: "customFilterLists") ?? []
         disabledFilterLists = d.stringArray(forKey: "disabledFilterLists") ?? []

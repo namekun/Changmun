@@ -61,6 +61,10 @@ struct PrivacySettings: View {
                                 isPresented: $confirming) {
                 Button("Clear", role: .destructive, action: clear)
             }
+            Section {
+                Toggle("Stay signed in after quitting", isOn: $prefs.keepSessionCookies)
+                Caption(text: "Keeps the sign-in cookies that sites meant to end when the browser closes, encrypted on this Mac, until you turn it off or clear site data.")
+            }
             AdBlockSection(prefs: prefs)
             Section {
                 LabeledContent("Saved Passwords") {
@@ -132,8 +136,12 @@ struct PrivacySettings: View {
             Task { await Browser.pruneIcons() }
         }
         if clearSiteData {
-            for store in [WKWebsiteDataStore.default()] + Profiles.stores(SpaceStore.shared.spaces) {
-                store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: since) {}
+            // The kept cookies go first, so a snapshot of cookies about to be erased can't be written after; what the stores keep is written once they are done.
+            CookieJournal.shared.clearing()
+            let stores = [WKWebsiteDataStore.default()] + Profiles.stores(SpaceStore.shared.spaces)
+            Task {
+                for store in stores { await store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: since) }
+                CookieJournal.shared.cleared()
             }
             done.append(String(localized: "Site data"))
         }

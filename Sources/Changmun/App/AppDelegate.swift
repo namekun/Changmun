@@ -42,11 +42,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { await ContentBlockerHost.shared.start() }
             if #available(macOS 15.4, *) { Task { await ExtensionHost.shared.start() } }
         }
-        let saved = Browser.savedWindows()
-        if saved.isEmpty {
-            BrowserWindow.open().commandBar = .newTab
-        } else {
-            for session in saved { BrowserWindow.open(restoring: session) }
+        // Every store's cookies are put back before any window loads a page, or the sites it shows would see a browser that was never signed in.
+        let launch = Task { await CookieJournal.shared.restoreAtLaunch(profiles: SpaceStore.shared.spaces) }
+        Task {
+            await Self.waitAtMost(.seconds(5), for: launch)
+            self.finishLaunching()
+        }
+    }
+
+    /// Waits for the task, but not longer than `limit`: a keychain that asks a question must not keep the browser from opening.
+    private static func waitAtMost(_ limit: Duration, for task: Task<Void, Never>) async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let once = ResumeOnce(continuation)
+            Task { await task.value; once.resume() }
+            Task { try? await Task.sleep(for: limit); once.resume() }
+        }
+    }
+
+    /// Windows come up once the cookies are back.
+    private var launched = false
+    private var pendingURLs: [URL] = []
+
+    private func finishLaunching() {
+        launched = true
+        openWindowsFromSession()
+        if !pendingURLs.isEmpty {
+            application(NSApp, open: pendingURLs)
+            pendingURLs = []
         }
         ControlServer.shared.start()
         sessionTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { _ in
@@ -62,6 +84,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate()
     }
 
+    /// The windows the last session left, or a new one when it left none (or the setting says to start with a new tab).
+    private func openWindowsFromSession() {
+        let saved = Browser.savedWindows()
+        if saved.isEmpty {
+            BrowserWindow.open().commandBar = .newTab
+        } else {
+            for session in saved { BrowserWindow.open(restoring: session) }
+        }
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         Browser.saveSession()
         ChatStore.shared.stopForQuit()
@@ -69,9 +101,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ControlServer.shared.stop()
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        LastWindow.quits(quitWhenLastWindowCloses: Preferences.shared.quitWhenLastWindowCloses)
+    }
+
+    /// What was changed a moment ago is written to the cookie journal before the app ends.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard CookieJournal.shared.hasPendingWork else { return .terminateNow }
+        Task {
+            await CookieJournal.shared.flush(within: .seconds(2))
+            NSApp.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
+
+    /// The Dock icon, with no window open (the setting lets the app stay): a window comes back as it would at a launch.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        guard launched else { return true }
+        switch LastWindow.reopen(openWindows: Browser.all.count, savedWindows: Preferences.shared.restoreTabs ? Browser.savedWindows().count : 0) {
+        case .system: return true
+        case .restoreSession, .blankWindow:
+            openWindowsFromSession()
+            return false
+        }
+    }
 
     func application(_ application: NSApplication, open urls: [URL]) {
+        // A link that opened the app comes in before the cookies are back: it waits for them.
+        guard launched else { pendingURLs += urls; return }
         let browser = Browser.recent ?? BrowserWindow.open()
         for url in urls { browser.openTab(url: url) }
         browser.window?.makeKeyAndOrderFront(nil)
@@ -79,7 +136,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: Menu actions
 
-    @objc func newWindow(_ sender: Any?) { BrowserWindow.open().commandBar = .newTab }
+    @objc func newWindow(_ sender: Any?) {
+        // With none open (the app stayed after its last window closed) the session comes back, as from the Dock.
+        if Browser.all.isEmpty { openWindowsFromSession() } else { BrowserWindow.open().commandBar = .newTab }
+    }
     @objc func newPrivateWindow(_ sender: Any?) { BrowserWindow.open(private: true).commandBar = .newTab }
     @objc func closeWindow(_ sender: Any?) {
         if ChatPopOut.shared.closeFromMenu() { return }
