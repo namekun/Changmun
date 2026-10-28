@@ -749,5 +749,3 @@
 "Prefer secure connections" = "安全な接続を優先";
 "Tries an http address over https first, and loads it over http only when the site can’t be reached over https. A certificate that can’t be verified is never answered with http." = "http のアドレスをまず https で試し、https で接続できないときだけ http で読み込みます。確認できない証明書は、http に切り替えずにそのままブロックします。";
 "This connection isn’t secure" = "この接続は安全ではありません";
-"Can’t open the page securely" = "ページを安全に開けません";
-"This site sends you from a secure address back to an insecure one." = "このサイトは、安全なアドレスから安全でないアドレスへ送り返してきます。";

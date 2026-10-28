@@ -36,8 +36,9 @@ extension Tab: WKNavigationDelegate {
             browser?.openPeek(url)
             return (.cancel, preferences)
         }
-        // The other tab's own load is rewritten there. Here the load that is going to happen in this tab begins again with the address rewritten.
-        if rewriteNavigation(action, userInitiated: userInitiated, in: webView) { return (.cancel, preferences) }
+        // A link the user pressed here is gone to again by the page's own frame, with the address rewritten (see rewriteClick). The other tab's
+        // load, and every load the browser starts, is rewritten before it begins; whatever else the page does is loaded as it is.
+        if rewriteClick(action, userInitiated: userInitiated, in: webView) { return (.cancel, preferences) }
         // After the branches that send the address to another tab (⌘-click, middle click, the peek), which decide for themselves: only the load that is
         // going to happen in this tab is stopped, never the page that is shown for a link opened elsewhere.
         if let target = action.request.url, stopsLoad(of: target, isMainFrame: action.targetFrame?.isMainFrame ?? true, in: webView) { return (.cancel, preferences) }
@@ -161,7 +162,6 @@ extension Tab: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         navigations += 1
         navigatingTo = nil
-        linkRewrite.chain.removeAll()
         linkRewrite.pendingUpgrade = nil
         hasUnverifiedFrame = false
         if webView.url?.isFileURL != true { userFileLoad = nil }

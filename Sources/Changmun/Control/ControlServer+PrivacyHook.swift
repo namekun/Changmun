@@ -19,9 +19,9 @@ extension ControlServer {
                     (value["hosts"] as? [String]).map { HTTPSFirst.Override(hosts: Set($0), plainPort: value["plain"] as? Int ?? 80, securePort: value["secure"] as? Int ?? 443) }
                 }
             }
-            if body["forgetPlainHosts"] as? Bool == true { PlainHosts.normal = []; PlainHosts.privateWindows = [] }
+            if body["forgetPlainHosts"] as? Bool == true { PlainHosts.memory = PlainHostMemory() }
             self.respond(connection, status: "200 OK", body: ["tracking": prefs.removeTrackingFromLinks, "https": prefs.preferSecureConnections,
-                                                              "keptHosts": prefs.trackingKeptHosts, "plainHosts": PlainHosts.normal.sorted()])
+                                                              "keptHosts": prefs.trackingKeptHosts, "plainHosts": PlainHosts.memory.hosts(store: nil, isPrivate: false).sorted()])
         }
         return true
     }

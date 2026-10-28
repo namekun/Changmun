@@ -1,4 +1,5 @@
 import Foundation
+import WebKit
 
 /// The parameters sites and advertisers add to an address to follow a click around the web. They tell the page nothing it needs, so they are
 /// taken out before the page loads. The list is exact names and a few prefixes, kept to names that mean nothing else: an ambiguous one
@@ -117,5 +118,39 @@ enum LinkRewrite {
         let cleaned = stripsTracking ? TrackingParameters.strip(url) : url
         if upgrades, let secure = HTTPSFirst.secureURL(for: cleaned, plainHosts: plainHosts, override: override) { return Result(url: secure, plain: cleaned) }
         return cleaned == url ? nil : Result(url: cleaned, plain: nil)
+    }
+
+    /// Whether a navigation the page started may be rewritten, and the page's own frame is then what navigates (a navigation the app issues in
+    /// its place would be the browser's: no initiator, so a site's SameSite cookies and Sec-Fetch-Site would no longer tell a cross-site link
+    /// from the user typing the address). Only a link the user pressed, in the page itself and for the page itself, a plain GET. A redirect, a
+    /// script's navigation, a form, a reload and back or forward are loaded as they are; so is a user's click that cannot be told from a script's
+    /// (`userInitiated` is false where WebKit's flag can't be read). A load the browser starts itself (the address bar, a bookmark, a link opened
+    /// in a new tab, the AI's tools) has no page to speak for and is rewritten before it begins.
+    static func mayRewriteInPage(type: WKNavigationType, userInitiated: Bool, sourceIsMainFrame: Bool, targetIsMainFrame: Bool, isPlainGET: Bool) -> Bool {
+        type == .linkActivated && userInitiated && sourceIsMainFrame && targetIsMainFrame && isPlainGET
+    }
+}
+
+/// The hosts whose secure attempt found no site: not tried over https again for a while. Kept in memory only, apart for each website data store
+/// (a profile space has its own) and for private windows, and forgotten after `lifetime`, so that a connection that was blocked once doesn't keep a
+/// host on http for the whole run.
+struct PlainHostMemory {
+    static let lifetime: TimeInterval = 15 * 60
+
+    private struct Key: Hashable {
+        var store: UUID?
+        var isPrivate: Bool
+        var host: String
+    }
+
+    private var entries: [Key: Date] = [:]
+
+    mutating func insert(host: String, store: UUID?, isPrivate: Bool, now: Date = Date()) {
+        entries = entries.filter { now.timeIntervalSince($0.value) < Self.lifetime }
+        entries[Key(store: store, isPrivate: isPrivate, host: HTTPSFirst.normalized(host))] = now
+    }
+
+    func hosts(store: UUID?, isPrivate: Bool, now: Date = Date()) -> Set<String> {
+        Set(entries.filter { $0.key.store == store && $0.key.isPrivate == isPrivate && now.timeIntervalSince($0.value) < Self.lifetime }.map(\.key.host))
     }
 }

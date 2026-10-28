@@ -1,77 +1,78 @@
 import WebKit
 
-/// What a tab remembers of the rewrites in one navigation (see `Tab.rewriteNavigation`).
+/// What a tab remembers of the secure attempt in flight (see `Tab.rewriteForBrowserLoad`).
 struct LinkRewriteState {
-    /// The addresses already rewritten since the user last started a navigation: one is never rewritten twice, so a site that sends the page back
-    /// to the address it was rewritten from can't make a loop.
-    var chain: Set<URL> = []
-    /// The secure attempt in flight and the http address to go back to if the site isn't there over https.
-    var pendingUpgrade: (secure: URL, plain: URL)?
-    /// Http addresses the user was offered after a secure address sent them back to http: they load as they are once.
-    var plainOnce: Set<URL> = []
+    /// The secure attempt in flight, the http address to go back to if the site isn't there over https, and the frame that clicked the link (nil
+    /// for a load the browser started).
+    var pendingUpgrade: (secure: URL, plain: URL, initiator: WKFrameInfo?)?
 }
 
-/// The hosts whose secure attempt found no site, or that the user went on with over http: kept for the run, in memory, apart for private windows.
 @MainActor enum PlainHosts {
-    static var normal: Set<String> = []
-    static var privateWindows: Set<String> = []
+    static var memory = PlainHostMemory()
 }
 
 extension Tab {
-    private var plainHosts: Set<String> {
-        get { isPrivate ? PlainHosts.privateWindows : PlainHosts.normal }
-        set { if isPrivate { PlainHosts.privateWindows = newValue } else { PlainHosts.normal = newValue } }
+    private var activePlainHosts: Set<String> { PlainHosts.memory.hosts(store: trustStoreID, isPrivate: isPrivate) }
+
+    private func plan(_ url: URL) -> LinkRewrite.Result? {
+        guard ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return nil }
+        let prefs = Preferences.shared
+        return LinkRewrite.rewrite(url, stripsTracking: prefs.removeTrackingFromLinks && !Preferences.matches(url.host(), prefs.trackingKeptHosts),
+                                   upgrades: prefs.preferSecureConnections, plainHosts: activePlainHosts, override: HTTPSFirst.testOverride)
     }
 
-    /// Takes tracking parameters out of an address and tries http addresses over https first (see LinkRewrite): when the page about to load is
-    /// another address than the one asked for, this load is cancelled and the other one begins. True when it was. This is the one place every
-    /// main frame navigation passes, whoever started it: a click, a redirect, the address bar, a link opened in a new tab, the AI's tools.
-    /// Back, forward and reload load what the history holds, and a form that sends data is not loaded twice.
-    func rewriteNavigation(_ action: WKNavigationAction, userInitiated: Bool, in webView: WKWebView) -> Bool {
-        guard action.targetFrame?.isMainFrame == true, let url = action.request.url, ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
-              action.navigationType != .backForward, action.navigationType != .reload else { return false }
-        if Self.startsUserNavigation(action.navigationType, userInitiated: userInitiated) { linkRewrite.chain.removeAll() }
+    /// The address a load the browser starts itself really loads (the address bar, a bookmark, a link opened in a new tab or the peek, the AI's
+    /// tools): without tracking parameters, and over https when that is tried first. Nobody else started that load, so there is no initiator to keep
+    /// (see `LinkRewrite.mayRewriteInPage` for the page's).
+    func rewriteForBrowserLoad(_ url: URL) -> (url: URL, timeout: TimeInterval?) {
+        linkRewrite.pendingUpgrade = nil
+        guard let rewrite = plan(url) else { return (url, nil) }
+        linkRewrite.pendingUpgrade = rewrite.plain.map { (secure: rewrite.url, plain: $0, initiator: nil) }
+        return (rewrite.url, rewrite.plain == nil ? nil : HTTPSFirst.timeout)
+    }
+
+    /// A link the user pressed in the page: the address is rewritten, and the page's own frame goes there, as the link would have. The navigation
+    /// keeps its initiator that way (the page's site, for SameSite cookies and Sec-Fetch-Site: a cross-site link stays a cross-site link), where a
+    /// load the app issued for it would be the browser's own. True when the click is replaced; any other navigation of the page is loaded as it is.
+    func rewriteClick(_ action: WKNavigationAction, userInitiated: Bool, in webView: WKWebView) -> Bool {
+        guard let url = action.request.url, ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return false }
+        guard action.targetFrame?.isMainFrame == true else { return false }
         if linkRewrite.pendingUpgrade?.secure != url { linkRewrite.pendingUpgrade = nil }
-        guard action.request.httpMethod?.uppercased() == "GET", action.request.httpBody == nil, action.request.httpBodyStream == nil else { return false }
-        let prefs = Preferences.shared
-        let isForm = action.navigationType == .formSubmitted || action.navigationType == .formResubmitted
-        let stripsTracking = prefs.removeTrackingFromLinks && !isForm && !Preferences.matches(url.host(), prefs.trackingKeptHosts)
-        var upgrades = prefs.preferSecureConnections
-        if linkRewrite.plainOnce.remove(url) != nil {
-            upgrades = false
-            if let host = url.host().map(HTTPSFirst.normalized) { plainHosts.insert(host) }
-        }
-        guard let rewrite = LinkRewrite.rewrite(url, stripsTracking: stripsTracking, upgrades: upgrades, plainHosts: plainHosts, override: HTTPSFirst.testOverride) else { return false }
-        if linkRewrite.chain.contains(url) {
-            // A tracking parameter that comes back is the site's to send. A secure address that sends the page back to http is not followed
-            // silently: the user is told, and an http page loads only when they press on.
-            guard rewrite.plain != nil else { return false }
-            linkRewrite.plainOnce.insert(url)
-            Task { @MainActor [weak self, weak webView] in
-                guard let self, let webView else { return }
-                errorNavigation = showError(String(localized: "Can’t open the page securely"),
-                                            String(localized: "This site sends you from a secure address back to an insecure one."), address: url, in: webView)
-            }
-            return true
-        }
-        linkRewrite.chain.insert(url)
-        linkRewrite.pendingUpgrade = rewrite.plain.map { (secure: rewrite.url, plain: $0) }
-        var request = action.request
-        request.url = rewrite.url
-        if rewrite.plain != nil { request.timeoutInterval = HTTPSFirst.timeout }
-        Task { @MainActor [weak webView] in webView?.load(request) }
+        guard LinkRewrite.mayRewriteInPage(type: action.navigationType, userInitiated: userInitiated, sourceIsMainFrame: action.sourceFrame.isMainFrame,
+                                           targetIsMainFrame: action.targetFrame?.isMainFrame == true,
+                                           isPlainGET: action.request.httpMethod?.uppercased() == "GET" && action.request.httpBody == nil && action.request.httpBodyStream == nil),
+              let rewrite = plan(url) else { return false }
+        linkRewrite.pendingUpgrade = rewrite.plain.map { (secure: rewrite.url, plain: $0, initiator: action.sourceFrame) }
+        navigate(action.sourceFrame, to: rewrite.url, in: webView)
         return true
     }
 
-    /// A secure attempt that found no site is tried again over http, once, and the host is not tried over https again in this run. Any other
-    /// failure, a certificate's above all, is left to the error and the warning: it is never answered with http. True when http was loaded.
+    /// The page's frame navigates to the address, from the app's own isolated world (the page's scripts and its content security policy are not
+    /// involved). If the frame is gone the page the user clicked in is gone too, and there is nothing to go on from.
+    private func navigate(_ frame: WKFrameInfo, to url: URL, in webView: WKWebView) {
+        Task { @MainActor [weak self, weak webView] in
+            do {
+                _ = try await webView?.callAsyncJavaScript("location.assign(address)", arguments: ["address": url.absoluteString], in: frame, contentWorld: .defaultClient)
+            } catch {
+                self?.linkRewrite.pendingUpgrade = nil
+            }
+        }
+    }
+
+    /// A secure attempt that found no site is tried again over http, once, and the host is not tried over https again for a while. Any other
+    /// failure, a certificate's above all, is left to the error and the warning: it is never answered with http. A link the user pressed is
+    /// gone to the same way it was gone to (by the page's frame). True when http is on its way.
     func fallBackToHTTP(after error: NSError, in webView: WKWebView) -> Bool {
         guard let pending = linkRewrite.pendingUpgrade else { return false }
         let failing = error.userInfo[NSURLErrorFailingURLErrorKey] as? URL
         guard HTTPSFirst.fallsBack(domain: error.domain, code: error.code, failing: failing, upgraded: pending.secure) else { return false }
         linkRewrite.pendingUpgrade = nil
-        if let host = pending.plain.host().map(HTTPSFirst.normalized) { plainHosts.insert(host) }
-        Self.load(pending.plain, in: webView)
+        if let host = pending.plain.host() { PlainHosts.memory.insert(host: host, store: trustStoreID, isPrivate: isPrivate) }
+        if let frame = pending.initiator {
+            navigate(frame, to: pending.plain, in: webView)
+        } else {
+            Self.load(pending.plain, in: webView)
+        }
         return true
     }
 }

@@ -99,7 +99,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var agent = AgentState()
     /// When the page last asked for a window with a user gesture behind it, and the event of that gesture (see createWebViewWith).
     var lastGestureWindow: (at: Date, event: TimeInterval?)?
-    /// What the address rewrites of the navigation in flight leave behind (see rewriteNavigation).
+    /// The secure attempt in flight (see rewriteForBrowserLoad).
     var linkRewrite = LinkRewriteState()
     /// The tab has asked to open an app (see appLinkRequested): it doesn't ask again until the user navigates, so a page can't loop.
     var askedForAppSinceUserNavigation = false
@@ -185,7 +185,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         if let savedState {
             view.interactionState = savedState as NSData
         } else if let url {
-            Self.load(url, in: view)
+            let target = rewriteForBrowserLoad(url)
+            Self.load(target.url, in: view, timeout: target.timeout)
         }
         finishedState = savedState
         savedState = nil
@@ -235,18 +236,20 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// question about an app back. The AI's tools pass false.
     func load(_ url: URL, byUser: Bool = true) {
         self.url = url
-        linkRewrite.chain.removeAll()
         if byUser { askedForAppSinceUserNavigation = false }
         if url.isFileURL { userFileLoad = url }
-        Self.load(url, in: wake())
+        let target = rewriteForBrowserLoad(url)
+        Self.load(target.url, in: wake(), timeout: target.timeout)
     }
 
     /// Local files the user opened may read their folder (for the page's own images and styles).
-    static func load(_ url: URL, in view: WKWebView) {
+    static func load(_ url: URL, in view: WKWebView, timeout: TimeInterval? = nil) {
         if url.isFileURL {
             view.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
         } else {
-            view.load(URLRequest(url: url))
+            var request = URLRequest(url: url)
+            if let timeout { request.timeoutInterval = timeout }
+            view.load(request)
         }
     }
 

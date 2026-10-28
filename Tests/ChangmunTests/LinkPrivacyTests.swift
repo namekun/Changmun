@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import WebKit
 @testable import Changmun
 
 private func stripped(_ text: String) -> String {
@@ -277,6 +278,20 @@ struct LinkRewriteTests {
         #expect(rewrite("http://example.com/", plainHosts: ["example.com"]) == nil)
     }
 
+    @Test func onlyAUsersClickInThePageItselfIsRewrittenInPage() {
+        let yes = LinkRewrite.mayRewriteInPage(type: .linkActivated, userInitiated: true, sourceIsMainFrame: true, targetIsMainFrame: true, isPlainGET: true)
+        #expect(yes)
+        #expect(!LinkRewrite.mayRewriteInPage(type: .linkActivated, userInitiated: false, sourceIsMainFrame: true, targetIsMainFrame: true, isPlainGET: true),
+                "a click that can't be told from a script's")
+        #expect(!LinkRewrite.mayRewriteInPage(type: .linkActivated, userInitiated: true, sourceIsMainFrame: false, targetIsMainFrame: true, isPlainGET: true), "a frame in the page")
+        #expect(!LinkRewrite.mayRewriteInPage(type: .linkActivated, userInitiated: true, sourceIsMainFrame: true, targetIsMainFrame: false, isPlainGET: true), "a link into a frame")
+        #expect(!LinkRewrite.mayRewriteInPage(type: .linkActivated, userInitiated: true, sourceIsMainFrame: true, targetIsMainFrame: true, isPlainGET: false))
+        for type in [WKNavigationType.other, .formSubmitted, .formResubmitted, .reload, .backForward] {
+            #expect(!LinkRewrite.mayRewriteInPage(type: type, userInitiated: true, sourceIsMainFrame: true, targetIsMainFrame: true, isPlainGET: true),
+                    "\(type.rawValue): a redirect, a script, a form, reload and history are loaded as they are")
+        }
+    }
+
     @Test func rewritingTheResultAgainChangesNothing() {
         for text in ["http://example.com/?utm_source=x&a=1", "https://example.com/?fbclid=1", "http://127.0.0.1/?gclid=1"] {
             guard let first = rewrite(text) else { Issue.record("no rewrite of \(text)"); continue }
@@ -300,5 +315,42 @@ struct LinkRewriteTests {
         #expect(!Preferences.matches("example.org", kept))
         kept = Preferences.removing("shop.example.com", from: kept)
         #expect(kept.isEmpty)
+    }
+}
+
+struct PlainHostMemoryTests {
+    private let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+
+    @Test func aHostIsRemembered() {
+        var memory = PlainHostMemory()
+        memory.insert(host: "Example.com.", store: nil, isPrivate: false, now: t0)
+        #expect(memory.hosts(store: nil, isPrivate: false, now: t0 + 60) == ["example.com"])
+    }
+
+    @Test func aStaleEntryNeverHoldsAHostOnHTTPLater() {
+        var memory = PlainHostMemory()
+        memory.insert(host: "example.com", store: nil, isPrivate: false, now: t0)
+        #expect(memory.hosts(store: nil, isPrivate: false, now: t0 + PlainHostMemory.lifetime - 1) == ["example.com"])
+        #expect(memory.hosts(store: nil, isPrivate: false, now: t0 + PlainHostMemory.lifetime).isEmpty)
+        let secure = HTTPSFirst.secureURL(for: URL(string: "http://example.com/")!, plainHosts: memory.hosts(store: nil, isPrivate: false, now: t0 + PlainHostMemory.lifetime + 1))
+        #expect(secure?.absoluteString == "https://example.com/", "after it ran out the host is tried over https again")
+    }
+
+    @Test func aProfileAndAPrivateWindowKeepTheirOwn() {
+        var memory = PlainHostMemory()
+        let profile = UUID()
+        memory.insert(host: "a.example", store: profile, isPrivate: false, now: t0)
+        memory.insert(host: "b.example", store: nil, isPrivate: true, now: t0)
+        #expect(memory.hosts(store: nil, isPrivate: false, now: t0).isEmpty)
+        #expect(memory.hosts(store: profile, isPrivate: false, now: t0) == ["a.example"])
+        #expect(memory.hosts(store: nil, isPrivate: true, now: t0) == ["b.example"])
+        #expect(memory.hosts(store: UUID(), isPrivate: false, now: t0).isEmpty)
+    }
+
+    @Test func oldEntriesAreDroppedWhenANewOneComes() {
+        var memory = PlainHostMemory()
+        memory.insert(host: "old.example", store: nil, isPrivate: false, now: t0)
+        memory.insert(host: "new.example", store: nil, isPrivate: false, now: t0 + PlainHostMemory.lifetime + 5)
+        #expect(memory.hosts(store: nil, isPrivate: false, now: t0 + PlainHostMemory.lifetime + 5) == ["new.example"])
     }
 }

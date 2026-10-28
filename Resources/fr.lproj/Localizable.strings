@@ -749,5 +749,3 @@
 "Prefer secure connections" = "Préférer les connexions sécurisées";
 "Tries an http address over https first, and loads it over http only when the site can’t be reached over https. A certificate that can’t be verified is never answered with http." = "Essaie d’abord une adresse http en https, et ne la charge en http que si le site est injoignable en https. Un certificat impossible à vérifier n’est jamais contourné par du http.";
 "This connection isn’t secure" = "Cette connexion n’est pas sécurisée";
-"Can’t open the page securely" = "Impossible d’ouvrir la page de façon sécurisée";
-"This site sends you from a secure address back to an insecure one." = "Ce site vous renvoie d’une adresse sécurisée vers une adresse non sécurisée.";
