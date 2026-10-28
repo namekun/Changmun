@@ -6,6 +6,17 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.8.6</title>
+      <pubDate>Wed, 28 Oct 2026 05:20:18 +0000</pubDate>
+      <sparkle:version>36</sparkle:version>
+      <sparkle:shortVersionString>0.8.6</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.8.6</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Sidebar hidden: the sidebar button no longer crowds the window buttons.** With the sidebar collapsed, its button sat only 8 points from the green window button; it now has the same room as the first tab tile has with the tabs on top.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.6/Changmun-0.8.6.dmg" length="5523198" type="application/octet-stream" sparkle:edSignature="0myrY56WiGiG029cVsC6FEImHAnFzm3Cn70yBFdAPM/Zy27XB3rKXSfc5VWCmINhgHqm3WCAG/wUiPcPqL41Bg==" />
+    </item>
+    <item>
       <title>0.8.5</title>
       <pubDate>Wed, 28 Oct 2026 02:52:54 +0000</pubDate>
       <sparkle:version>35</sparkle:version>
@@ -134,21 +145,9 @@
       <description sparkle:format="markdown">- **No more white page after full-screen video.** Leaving a video's full screen (YouTube's f key, for one) could leave the page blank and white until something else happened. Changmun redrew the tab while the video was full screen and lost the spot the page had to come back to. It now leaves the page alone during full screen and puts it back in place when you leave it.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.4/Changmun-0.7.4.dmg" length="4873284" type="application/octet-stream" sparkle:edSignature="gsG6GcBaEfKc6zk6FPXVBKOLFajkzq7APGK3YQiIBh37n4WhJJhzNuALTONH0m88I0r2s0BZBbc8851OgezhDQ==" />
     </item>
-    <item>
-      <title>0.7.3</title>
-      <pubDate>Sat, 24 Oct 2026 06:23:24 +0000</pubDate>
-      <sparkle:version>26</sparkle:version>
-      <sparkle:shortVersionString>0.7.3</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.7.3</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Translation tries the other engine.** On some Macs, the translation engine macOS reports as ready refuses to translate. When one engine turns down the whole page, Changmun now tries the other one, then the system's default, before giving up. If macOS's translation doesn't respond at all, it says so and points to Translation Languages in System Settings.
-- **A record of why a translation failed.** Changmun notes in the system log which languages and engines it tried and what macOS answered, never the page's text or address. If a page still won't translate, run `log show --last 10m --style compact --predicate 'subsystem == "io.github.namekun.Changmun" AND category == "translation"'` in Terminal and send the output along with your report.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.3/Changmun-0.7.3.dmg" length="4864175" type="application/octet-stream" sparkle:edSignature="W5Jt6Tz7qr23Dw5WBOt9p6x777mP+glATcbCNbMvzMoABTinofw/iIO7qhWLaAi5gcgcVSyIEoCpiPc5zoS0DQ==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: /DyenAqZzuv4fwGBkQ3hnzFZBExeo+jpUGDYm1W36CVCi6tehreN3IoMSbiwTDA5yyMPrHyTFG+XjwkasRZ7AA==
-length: 19568
+edSignature: a3dtsOa4kxUdWfYwOo4P+DYVuwHolRNxHBHLPpWvAlgyuItimGIwF+8bn1PoBRH/gg2cfyeWN9GcHT7J1dzWCw==
+length: 19056
 -->
