@@ -6,6 +6,18 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.8.5</title>
+      <pubDate>Wed, 28 Oct 2026 02:52:54 +0000</pubDate>
+      <sparkle:version>35</sparkle:version>
+      <sparkle:shortVersionString>0.8.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.8.5</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Go on to a site whose certificate can't be verified, as in Safari.** A site with a self-signed certificate, one from a private CA your Mac doesn't trust, an expired one or one for another name now gets a warning drawn by the app itself, with the reason and the certificate's details; "Go Back" is the default, and "Visit This Website" sits under the details and asks for Touch ID or your password. The exception is for that one certificate on that site, lives only until you quit, shows a warning triangle in the address bar and can be taken away in the site's settings. A changed certificate is blocked again. Pages the AI drives never get one, sites that insist on HTTPS (such as .dev and .app) and certificates that went bad since you last visited can't be overridden, and a page you went on to is treated as unverified: no saved-password fill or sign-in, remembered camera, microphone and location permissions ask again, and the AI asks before reading it.
+- **Client certificates work in more cases.** If none of your certificates match the issuers a site names, you now get the list of all valid ones (with a note) instead of nothing; certificates issued through an intermediate CA are sent with their chain; ones not meant for client use are left out; the chooser no longer cancels itself on the first load or lingers after its tab closes.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.5/Changmun-0.8.5.dmg" length="5523617" type="application/octet-stream" sparkle:edSignature="PzqpzQnkvecYY2Wa0Ql44uRCMEH5FxBZwaT81KE7Prk6wUWxPXETQ+MXo1iVw+fYWWUzdCbU2yrvMJGgJUNwDg==" />
+    </item>
+    <item>
       <title>0.8.4</title>
       <pubDate>Tue, 27 Oct 2026 06:47:29 +0000</pubDate>
       <sparkle:version>34</sparkle:version>
@@ -134,20 +146,9 @@
 - **A record of why a translation failed.** Changmun notes in the system log which languages and engines it tried and what macOS answered, never the page's text or address. If a page still won't translate, run `log show --last 10m --style compact --predicate 'subsystem == "io.github.namekun.Changmun" AND category == "translation"'` in Terminal and send the output along with your report.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.3/Changmun-0.7.3.dmg" length="4864175" type="application/octet-stream" sparkle:edSignature="W5Jt6Tz7qr23Dw5WBOt9p6x777mP+glATcbCNbMvzMoABTinofw/iIO7qhWLaAi5gcgcVSyIEoCpiPc5zoS0DQ==" />
     </item>
-    <item>
-      <title>0.7.2</title>
-      <pubDate>Fri, 23 Oct 2026 21:19:28 +0000</pubDate>
-      <sparkle:version>25</sparkle:version>
-      <sparkle:shortVersionString>0.7.2</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.7.2</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **The loading bar keeps clear of the address.** It still touched letters like g and p at the bottom of the address bar. Loading now shows as a thin line along the top edge of the page, in every toolbar layout.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.2/Changmun-0.7.2.dmg" length="4849945" type="application/octet-stream" sparkle:edSignature="VS51dq6qbZlyN7nNTKIszXKEE4mUyOH3NR3qCFshePxaYnnqsShlC+044jpysTLTJk3GYa5+l7ptCPuWu8iODQ==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: 03BHblZBUMPOT5Hf0wCxiXA2zd5lJJRCocDhahOl6NSmLOHKCl27hDWHDGTuyLLnZnCrSuL8YD75pg6N0yW6Bw==
-length: 18430
+edSignature: /DyenAqZzuv4fwGBkQ3hnzFZBExeo+jpUGDYm1W36CVCi6tehreN3IoMSbiwTDA5yyMPrHyTFG+XjwkasRZ7AA==
+length: 19568
 -->
