@@ -8,8 +8,9 @@ Every request is printed on its own line ("GET /path?query") so the script can s
   /echo           a page titled with its own query string
   /redir?to=U     a 302 to U
   /sticky         a 302 to /sticky?utm_source=again (a site that puts a tracking parameter back); /sticky?... is a page titled "sticky"
-  /setcookie      sets a SameSite=Strict cookie "sid=1"; /whoami is a page whose request line in the log also says the Cookie and Sec-Fetch-Site it came with
-  /xlink?to=U     a page that is one link (id=l) to U covering the whole window; with &csp=1 under a content security policy that allows nothing
+  /setcookie      sets a SameSite=Strict cookie "sid=1"; /whoami is a page whose request line in the log also says the Cookie, Sec-Fetch-Site and Referer it came with
+  /xlink?to=U     a page that is one link (id=l) to U covering the whole window; with &csp=1 under a content security policy that allows nothing, &noref=1
+                  with rel=noreferrer, &blank=1 with target=_blank
   /bounce         over https: a 302 to http://localhost:<plain-port>/bounce (a secure address that sends you back to http); over http: a page titled "bounce-plain"
   /links          a page with a link (id=l) to /echo?utm_source=a&keep=1&fbclid=z
   anything else   a page titled "ok"
@@ -52,7 +53,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         url = urllib.parse.urlsplit(self.path)
         if url.path == "/whoami":
-            print("GET %s cookie=[%s] site=[%s]" % (self.path, self.headers.get("Cookie", ""), self.headers.get("Sec-Fetch-Site", "")), flush=True)
+            print("GET %s cookie=[%s] site=[%s] referer=[%s]" % (self.path, self.headers.get("Cookie", ""), self.headers.get("Sec-Fetch-Site", ""), self.headers.get("Referer", "")), flush=True)
         else:
             print("GET " + self.path, flush=True)
         if url.path == "/setcookie":
@@ -63,7 +64,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             query = urllib.parse.parse_qs(url.query)
             target = query["to"][0].replace("&", "&amp;").replace("'", "&#39;")
             headers = [("Content-Security-Policy", "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'")] if "csp" in query else []
-            self.page("xlink", "<a id=l href='%s' style='position:fixed;inset:0;display:block'>go</a>" % target, headers)
+            attributes = (" rel=noreferrer" if "noref" in query else "") + (" target=_blank" if "blank" in query else "")
+            self.page("xlink", "<a id=l href='%s'%s style='position:fixed;inset:0;display:block'>go</a>" % (target, attributes), headers)
         elif url.path == "/echo":
             self.page("q:" + url.query, "<script>document.title = 'q:' + location.search.slice(1)</script>")
         elif url.path == "/redir":

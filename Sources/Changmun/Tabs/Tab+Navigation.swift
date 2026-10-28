@@ -36,9 +36,6 @@ extension Tab: WKNavigationDelegate {
             browser?.openPeek(url)
             return (.cancel, preferences)
         }
-        // A link the user pressed here is gone to again by the page's own frame, with the address rewritten (see rewriteClick). The other tab's
-        // load, and every load the browser starts, is rewritten before it begins; whatever else the page does is loaded as it is.
-        if rewriteClick(action, userInitiated: userInitiated, in: webView) { return (.cancel, preferences) }
         // After the branches that send the address to another tab (⌘-click, middle click, the peek), which decide for themselves: only the load that is
         // going to happen in this tab is stopped, never the page that is shown for a link opened elsewhere.
         if let target = action.request.url, stopsLoad(of: target, isMainFrame: action.targetFrame?.isMainFrame ?? true, in: webView) { return (.cancel, preferences) }
@@ -162,7 +159,7 @@ extension Tab: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         navigations += 1
         navigatingTo = nil
-        linkRewrite.pendingUpgrade = nil
+        pendingUpgrade = nil
         hasUnverifiedFrame = false
         if webView.url?.isFileURL != true { userFileLoad = nil }
         // A new site gets its own zoom; staying on the same one keeps what the user set (a private tab never saves it).
@@ -214,7 +211,7 @@ extension Tab: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         navigatingTo = nil
         let nsError = error as NSError
-        if fallBackToHTTP(after: nsError, in: webView) { return }
+        if fallBackToHTTP(after: nsError, of: navigation, in: webView) { return }
         guard nsError.code != NSURLErrorCancelled, nsError.domain != "WebKitErrorDomain" || nsError.code != 102 else { return }
         let failing = (nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL) ?? url
         errorNavigation = showError(String(localized: "Can’t open the page"), nsError.localizedDescription, address: failing, in: webView)

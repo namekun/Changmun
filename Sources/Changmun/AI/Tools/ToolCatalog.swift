@@ -113,6 +113,8 @@ enum ToolCatalog {
             Approvals.allowOpened(tab, at: url, caller: caller)
             defer { Approvals.noteRead(tab, caller: caller) }
             await waitForLoad(tab)
+            // An http address that was tried over https first is the same host: what the AI may do there doesn't change, and it isn't asked again for the scheme.
+            if let committed = tab.url, HTTPSFirst.isSchemeUpgrade(from: url, to: committed) { Approvals.allowOpened(tab, at: committed, caller: caller) }
             return .text("Opened tab #\(tab.id): \(tab.aiTitle) — \(tab.url?.absoluteString ?? "")")
         }
         if name == "read_tabs" { return await readTabs(args, caller: caller) }

@@ -99,8 +99,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var agent = AgentState()
     /// When the page last asked for a window with a user gesture behind it, and the event of that gesture (see createWebViewWith).
     var lastGestureWindow: (at: Date, event: TimeInterval?)?
-    /// The secure attempt in flight (see rewriteForBrowserLoad).
-    var linkRewrite = LinkRewriteState()
+    /// The secure attempt of the load the browser started (see browserLoad).
+    var pendingUpgrade: PendingUpgrade?
     /// The tab has asked to open an app (see appLinkRequested): it doesn't ask again until the user navigates, so a page can't loop.
     var askedForAppSinceUserNavigation = false
     /// The question about an app is on screen.
@@ -185,8 +185,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         if let savedState {
             view.interactionState = savedState as NSData
         } else if let url {
-            let target = rewriteForBrowserLoad(url)
-            Self.load(target.url, in: view, timeout: target.timeout)
+            browserLoad(url, in: view)
         }
         finishedState = savedState
         savedState = nil
@@ -238,18 +237,18 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         self.url = url
         if byUser { askedForAppSinceUserNavigation = false }
         if url.isFileURL { userFileLoad = url }
-        let target = rewriteForBrowserLoad(url)
-        Self.load(target.url, in: wake(), timeout: target.timeout)
+        browserLoad(url, in: wake())
     }
 
     /// Local files the user opened may read their folder (for the page's own images and styles).
-    static func load(_ url: URL, in view: WKWebView, timeout: TimeInterval? = nil) {
+    @discardableResult
+    static func load(_ url: URL, in view: WKWebView, timeout: TimeInterval? = nil) -> WKNavigation? {
         if url.isFileURL {
-            view.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+            return view.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
         } else {
             var request = URLRequest(url: url)
             if let timeout { request.timeoutInterval = timeout }
-            view.load(request)
+            return view.load(request)
         }
     }
 

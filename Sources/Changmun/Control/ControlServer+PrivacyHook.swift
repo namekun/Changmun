@@ -21,7 +21,7 @@ extension ControlServer {
             }
             if body["forgetPlainHosts"] as? Bool == true { PlainHosts.memory = PlainHostMemory() }
             self.respond(connection, status: "200 OK", body: ["tracking": prefs.removeTrackingFromLinks, "https": prefs.preferSecureConnections,
-                                                              "keptHosts": prefs.trackingKeptHosts, "plainHosts": PlainHosts.memory.hosts(store: nil, isPrivate: false).sorted()])
+                                                              "keptHosts": prefs.trackingKeptHosts, "plainHosts": PlainHosts.memory.hosts(store: nil, privateWindow: nil).sorted()])
         }
         return true
     }

@@ -182,6 +182,27 @@ struct HTTPSFirstTests {
         }
     }
 
+    @Test func hostsAreJudgedAsTheyAreNotAsTheyAreWritten() {
+        for text in ["http://127.0.0.%31/", "http://%6Cocalhost/", "http://LOCALHOST./", "http://127.1/", "http://0177.0.0.1/", "http://0x7f.0.0.1/", "http://2130706433/",
+                     "http://[::ffff:127.0.0.1]/", "http://[0:0:0:0:0:0:0:1]/", "http://printer.%6Cocal/", "http://nas%2Elocal/", "http://10.0.0.%35/"] {
+            guard let url = URL(string: text) else { continue }
+            #expect(secure(text) == nil, "\(text) (\(HTTPSFirst.hostName(of: url) ?? "-"))")
+        }
+        #expect(HTTPSFirst.hostName(of: URL(string: "http://127.0.0.%31/")!) == "127.0.0.1")
+        #expect(secure("http://exa%6Dple.com/") != nil, "an encoded public name is a public name")
+    }
+
+    @Test func anUpgradeOnlyChangesTheScheme() {
+        let asked = URL(string: "http://example.com/a?b=1")!
+        #expect(HTTPSFirst.isSchemeUpgrade(from: asked, to: URL(string: "https://example.com/other")!))
+        #expect(HTTPSFirst.isSchemeUpgrade(from: URL(string: "http://example.com:80/")!, to: URL(string: "https://Example.com./")!))
+        #expect(!HTTPSFirst.isSchemeUpgrade(from: asked, to: URL(string: "https://www.example.com/")!), "another host")
+        #expect(!HTTPSFirst.isSchemeUpgrade(from: asked, to: URL(string: "https://example.com:8443/")!), "another port")
+        #expect(!HTTPSFirst.isSchemeUpgrade(from: asked, to: URL(string: "http://example.com/")!), "not an upgrade")
+        #expect(!HTTPSFirst.isSchemeUpgrade(from: URL(string: "http://example.com:8080/")!, to: URL(string: "https://example.com/")!), "another port asked for")
+        #expect(!HTTPSFirst.isSchemeUpgrade(from: URL(string: "https://example.com/")!, to: URL(string: "https://example.com/")!))
+    }
+
     @Test func aHostTheUserWentOnWithOverHTTPStaysHTTP() {
         #expect(secure("http://example.com/", plainHosts: ["example.com"]) == nil)
         #expect(secure("http://Example.com./x", plainHosts: ["example.com"]) == nil)
@@ -207,6 +228,15 @@ struct HTTPSFirstTests {
     @Test func onlyAFailedConnectionFallsBackToHTTP() {
         for code in [NSURLErrorCannotConnectToHost, NSURLErrorTimedOut, NSURLErrorNetworkConnectionLost] {
             #expect(HTTPSFirst.fallsBack(domain: NSURLErrorDomain, code: code, failing: attempt, upgraded: attempt), "\(code)")
+        }
+    }
+
+    @Test func aTimeoutFallsBackOnlyForTheUsersOwnLoad() {
+        #expect(HTTPSFirst.fallsBack(domain: NSURLErrorDomain, code: NSURLErrorTimedOut, failing: attempt, upgraded: attempt, allowsTimeout: true))
+        #expect(!HTTPSFirst.fallsBack(domain: NSURLErrorDomain, code: NSURLErrorTimedOut, failing: attempt, upgraded: attempt, allowsTimeout: false),
+                "a slow server that works must not become an http page for what the AI opens")
+        for code in HTTPSFirst.connectionCodes {
+            #expect(HTTPSFirst.fallsBack(domain: NSURLErrorDomain, code: code, failing: attempt, upgraded: attempt, allowsTimeout: false), "\(code)")
         }
     }
 
@@ -278,20 +308,6 @@ struct LinkRewriteTests {
         #expect(rewrite("http://example.com/", plainHosts: ["example.com"]) == nil)
     }
 
-    @Test func onlyAUsersClickInThePageItselfIsRewrittenInPage() {
-        let yes = LinkRewrite.mayRewriteInPage(type: .linkActivated, userInitiated: true, sourceIsMainFrame: true, targetIsMainFrame: true, isPlainGET: true)
-        #expect(yes)
-        #expect(!LinkRewrite.mayRewriteInPage(type: .linkActivated, userInitiated: false, sourceIsMainFrame: true, targetIsMainFrame: true, isPlainGET: true),
-                "a click that can't be told from a script's")
-        #expect(!LinkRewrite.mayRewriteInPage(type: .linkActivated, userInitiated: true, sourceIsMainFrame: false, targetIsMainFrame: true, isPlainGET: true), "a frame in the page")
-        #expect(!LinkRewrite.mayRewriteInPage(type: .linkActivated, userInitiated: true, sourceIsMainFrame: true, targetIsMainFrame: false, isPlainGET: true), "a link into a frame")
-        #expect(!LinkRewrite.mayRewriteInPage(type: .linkActivated, userInitiated: true, sourceIsMainFrame: true, targetIsMainFrame: true, isPlainGET: false))
-        for type in [WKNavigationType.other, .formSubmitted, .formResubmitted, .reload, .backForward] {
-            #expect(!LinkRewrite.mayRewriteInPage(type: type, userInitiated: true, sourceIsMainFrame: true, targetIsMainFrame: true, isPlainGET: true),
-                    "\(type.rawValue): a redirect, a script, a form, reload and history are loaded as they are")
-        }
-    }
-
     @Test func rewritingTheResultAgainChangesNothing() {
         for text in ["http://example.com/?utm_source=x&a=1", "https://example.com/?fbclid=1", "http://127.0.0.1/?gclid=1"] {
             guard let first = rewrite(text) else { Issue.record("no rewrite of \(text)"); continue }
@@ -320,37 +336,71 @@ struct LinkRewriteTests {
 
 struct PlainHostMemoryTests {
     private let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+    private final class Anchor {}
+    private let anchor = Anchor(), otherAnchor = Anchor()
+    private var window: ObjectIdentifier { ObjectIdentifier(anchor) }
+    private var other: ObjectIdentifier { ObjectIdentifier(otherAnchor) }
 
     @Test func aHostIsRemembered() {
         var memory = PlainHostMemory()
-        memory.insert(host: "Example.com.", store: nil, isPrivate: false, now: t0)
-        #expect(memory.hosts(store: nil, isPrivate: false, now: t0 + 60) == ["example.com"])
+        memory.insert(host: "Example.com.", store: nil, privateWindow: nil, now: t0)
+        #expect(memory.hosts(store: nil, privateWindow: nil, now: t0 + 60) == ["example.com"])
     }
 
     @Test func aStaleEntryNeverHoldsAHostOnHTTPLater() {
         var memory = PlainHostMemory()
-        memory.insert(host: "example.com", store: nil, isPrivate: false, now: t0)
-        #expect(memory.hosts(store: nil, isPrivate: false, now: t0 + PlainHostMemory.lifetime - 1) == ["example.com"])
-        #expect(memory.hosts(store: nil, isPrivate: false, now: t0 + PlainHostMemory.lifetime).isEmpty)
-        let secure = HTTPSFirst.secureURL(for: URL(string: "http://example.com/")!, plainHosts: memory.hosts(store: nil, isPrivate: false, now: t0 + PlainHostMemory.lifetime + 1))
-        #expect(secure?.absoluteString == "https://example.com/", "after it ran out the host is tried over https again")
+        memory.insert(host: "example.com", store: nil, privateWindow: nil, now: t0)
+        #expect(memory.hosts(store: nil, privateWindow: nil, now: t0 + PlainHostMemory.lifetime - 1) == ["example.com"])
+        let later = memory.hosts(store: nil, privateWindow: nil, now: t0 + PlainHostMemory.lifetime)
+        #expect(later.isEmpty)
+        #expect(HTTPSFirst.secureURL(for: URL(string: "http://example.com/")!, plainHosts: later)?.absoluteString == "https://example.com/", "after it ran out the host is tried over https again")
     }
 
-    @Test func aProfileAndAPrivateWindowKeepTheirOwn() {
+    @Test func aProfileKeepsItsOwn() {
         var memory = PlainHostMemory()
         let profile = UUID()
-        memory.insert(host: "a.example", store: profile, isPrivate: false, now: t0)
-        memory.insert(host: "b.example", store: nil, isPrivate: true, now: t0)
-        #expect(memory.hosts(store: nil, isPrivate: false, now: t0).isEmpty)
-        #expect(memory.hosts(store: profile, isPrivate: false, now: t0) == ["a.example"])
-        #expect(memory.hosts(store: nil, isPrivate: true, now: t0) == ["b.example"])
-        #expect(memory.hosts(store: UUID(), isPrivate: false, now: t0).isEmpty)
+        memory.insert(host: "a.example", store: profile, privateWindow: nil, now: t0)
+        #expect(memory.hosts(store: nil, privateWindow: nil, now: t0).isEmpty)
+        #expect(memory.hosts(store: profile, privateWindow: nil, now: t0) == ["a.example"])
+        #expect(memory.hosts(store: UUID(), privateWindow: nil, now: t0).isEmpty)
+    }
+
+    @Test func eachPrivateWindowKeepsItsOwnAndLosesItWithTheWindow() {
+        var memory = PlainHostMemory()
+        memory.insert(host: "b.example", store: nil, privateWindow: window, windows: [window, other], now: t0)
+        #expect(memory.hosts(store: nil, privateWindow: window, windows: [window, other], now: t0) == ["b.example"])
+        #expect(memory.hosts(store: nil, privateWindow: other, windows: [window, other], now: t0).isEmpty, "another private window")
+        #expect(memory.hosts(store: nil, privateWindow: nil, now: t0).isEmpty, "a normal window")
+        #expect(memory.hosts(store: nil, privateWindow: other, windows: [other], now: t0 + 1).isEmpty)
+        #expect(memory.hosts(store: nil, privateWindow: window, windows: [window], now: t0 + 2).isEmpty, "the window closed: what it knew went with it")
     }
 
     @Test func oldEntriesAreDroppedWhenANewOneComes() {
         var memory = PlainHostMemory()
-        memory.insert(host: "old.example", store: nil, isPrivate: false, now: t0)
-        memory.insert(host: "new.example", store: nil, isPrivate: false, now: t0 + PlainHostMemory.lifetime + 5)
-        #expect(memory.hosts(store: nil, isPrivate: false, now: t0 + PlainHostMemory.lifetime + 5) == ["new.example"])
+        memory.insert(host: "old.example", store: nil, privateWindow: nil, now: t0)
+        memory.insert(host: "new.example", store: nil, privateWindow: nil, now: t0 + PlainHostMemory.lifetime + 5)
+        #expect(memory.hosts(store: nil, privateWindow: nil, now: t0 + PlainHostMemory.lifetime + 5) == ["new.example"])
+    }
+}
+
+/// What the rule-list experiment found: WebKit compiles a rule list with a redirect action (its keys "transform", "queryTransform" and
+/// "remove-parameters" are accepted) and then does nothing with it in a plain web view: a main frame load kept its tracking parameters, while a block
+/// rule did stop it. So a rewrite inside the request is not on offer. Only the compile is checked here; that the rule is ignored was seen by loading a
+/// page against a local server in a web view, which needs a window and a network.
+@MainActor struct ContentRuleListFindingTests {
+    @Test func aRedirectRuleCompilesButIsNotApplied() async throws {
+        let rules = #"[{"trigger":{"url-filter":".*","resource-type":["document"]},"action":{"type":"redirect","redirect":{"transform":{"queryTransform":{"remove-parameters":["utm_source"]}}}}}]"#
+        let id = "changmun-test-redirect-\(UUID().uuidString)"
+        let list = try await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: id, encodedContentRuleList: rules)
+        #expect(list != nil, "it compiles, which is what made it look possible")
+        try? await WKContentRuleListStore.default().removeContentRuleList(forIdentifier: id)
+    }
+
+    @Test func aBlockRuleStopsAMainFrameLoadButCannotChangeIt() async throws {
+        let rules = #"[{"trigger":{"url-filter":"utm_source","resource-type":["document"]},"action":{"type":"block"}}]"#
+        let id = "changmun-test-block-\(UUID().uuidString)"
+        let list = try await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: id, encodedContentRuleList: rules)
+        #expect(list != nil)
+        try? await WKContentRuleListStore.default().removeContentRuleList(forIdentifier: id)
     }
 }

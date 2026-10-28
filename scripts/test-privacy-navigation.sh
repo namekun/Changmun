@@ -1,10 +1,10 @@
 #!/bin/bash
 # Removing tracking from links and preferring secure connections, end to end: local servers (python, scripts/test-privacy-server.py) loaded in
 # Changmun Headless.app as the user does:
-#   tracking parameters are taken out of a typed address, a link opened in a new tab and the AI's navigate, and out of a link the user presses in a
-#   page (by the page's own frame, so that a cross-site click is still cross-site: no SameSite=Strict cookie, Sec-Fetch-Site: cross-site, also under a
-#   content security policy that allows nothing); everything else in the address stays; nothing with a tracking parameter reaches the server from
-#   those; what the page does itself (a script's click, a redirect, a form) is loaded as it is; the setting and a site's switch turn it off;
+#   tracking parameters are taken out of a typed address, a link opened in a new tab and the AI's navigate; everything else in the address stays;
+#   nothing with a tracking parameter reaches the server from those; what the page does itself (a link pressed in it, a script's click, a redirect, a
+#   form) is loaded as the site wrote it, and a pressed cross-site link is what it would be without the feature (no SameSite=Strict cookie,
+#   Sec-Fetch-Site: cross-site, rel=noreferrer and target=_blank working); the setting and a site's switch turn it off;
 #   an http address of a loopback host stays http; a host standing in for a public one (the test copy's override) is tried over https first,
 #   falls back to http when nothing answers there (and is not tried again), and when the secure server's certificate can't be verified shows
 #   the certificate warning and NEVER loads the page over http; a secure address that redirects to http is the site's own redirect and loads.
@@ -124,24 +124,27 @@ R="$(open_tab "$L/xlink?to=x" 1000)"
 R="$(post /server-trust "{\"eval\": \"location.href = '$L/echo?fbclid=1&s=2'\", \"wait\": 2500}")"
 expect "and so is a script's navigation" "$(jget "$R" webViewURL)" "$L/echo?fbclid=1&s=2"
 
-# A link the user presses, cross-site: the page's own frame goes there (so the site still sees a cross-site navigation, as for an unchanged link).
+# A link the user presses in a page is the page's: it is loaded as the site wrote it, so it is exactly what it would be without the feature (the site
+# sees a cross-site navigation: no SameSite=Strict cookie, Sec-Fetch-Site: cross-site; rel=noreferrer and target=_blank work).
 enc() { python3 -I -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$1"; }
 open_tab "$XSITE/setcookie" 1500 >/dev/null
 expect "(a SameSite=Strict cookie is set for the site)" "$(jget "$(state)" title)" cookie-set
 open_tab "$XSITE/whoami" 1500 >/dev/null
-expect "(typed by the user, the site gets its Strict cookie, and no initiator)" "$(last http '/whoami')" "GET /whoami cookie=[sid=1] site=[none]"
-for csp in "" "&csp=1"; do
-    open_tab "$L/xlink?to=$(enc "$XSITE/whoami?utm_source=a&k=1")$csp" 1500 >/dev/null
+expect "(typed by the user, the site gets its Strict cookie, and no initiator)" "$(last http '/whoami' | cut -d' ' -f1-4)" "GET /whoami cookie=[sid=1] site=[none]"
+N=0
+for extra in "" "&csp=1" "&noref=1" "&blank=1"; do
+    N=$((N + 1))
+    open_tab "$L/xlink?to=$(enc "$XSITE/whoami?utm_source=a&k=$N")$extra" 1500 >/dev/null
+    TABS="$(jget "$(state)" tabs)"
     click_link
-    R="$(state)"
-    expect "a pressed cross-site link loses its tracking parameters${csp:+ under a policy that allows nothing}" "$(jget "$R" webViewURL)" "$XSITE/whoami?k=1"
-    expect "the site sees a cross-site navigation with no Strict cookie, as for an unchanged link" "$(last http '/whoami?k=1')" "GET /whoami?k=1 cookie=[] site=[cross-site]"
+    LINE="$(last http "/whoami?utm_source=a&k=$N")"
+    expect "a pressed cross-site link${extra:+ ($extra)} is loaded as the site wrote it, cross-site, with no Strict cookie" "$(cut -d' ' -f1-4 <<<"$LINE")" "GET /whoami?utm_source=a&k=$N cookie=[] site=[cross-site]"
+    case "$extra" in
+        "&noref=1") expect "rel=noreferrer keeps the Referer away" "${LINE##* }" "referer=[]" ;;
+        "&blank=1") expect "target=_blank opens the page in a new tab" "$(( $(jget "$(state)" tabs) - TABS ))" 1 ;;
+        *) expect "the Referer is the page's, as it would be" "${LINE##* }" "referer=[$L/]" ;;
+    esac
 done
-privacy '{"tracking": false}'
-open_tab "$L/xlink?to=$(enc "$XSITE/whoami?utm_source=a&k=2")" 1500 >/dev/null
-click_link
-expect "(control: with the setting off the same click is untouched)" "$(last http '/whoami?utm_source=a&k=2')" "GET /whoami?utm_source=a&k=2 cookie=[] site=[cross-site]"
-privacy '{"tracking": true}'
 
 privacy '{"tracking": false}'
 R="$(open_tab "$L/echo?utm_source=a&keep=1")"
@@ -204,15 +207,11 @@ R="$(state)"
 expect "not later either" "$(( $(requests http 'GET /echo?x=8') - BEFORE ))" 0
 expect "and the warning is still up" "$(jget "$R" failure.reason)" selfSigned
 
-# A user's click on a link, tried over https by the page's own frame; and over http by the same frame when nothing answers.
+# A link pressed in a page is the page's: an http link stays http (no cancel and load again by the app, which would lose what the site sees of the click).
 privacy "{\"override\": {\"hosts\": [\"localhost\"], \"plain\": $HTTP, \"secure\": $GOOD}, \"forgetPlainHosts\": true}"
 open_tab "$L/xlink?to=$(enc "http://localhost:$HTTP/echo?utm_source=a&c=1")" 1500 >/dev/null
-click_link 3.5
-expect "a pressed http link is tried over https, and cleaned" "$(jget "$(state)" webViewURL)" "https://localhost:$GOOD/echo?c=1"
-privacy "{\"override\": {\"hosts\": [\"localhost\"], \"plain\": $HTTP, \"secure\": $CLOSED}, \"forgetPlainHosts\": true}"
-open_tab "$L/xlink?to=$(enc "http://localhost:$HTTP/echo?c=2")" 1500 >/dev/null
-click_link 4
-expect "and falls back to http from the page's frame when nothing answers" "$(jget "$(state)" webViewURL)" "http://localhost:$HTTP/echo?c=2"
+click_link 3
+expect "a pressed http link is loaded as the page wrote it" "$(jget "$(state)" webViewURL)" "http://localhost:$HTTP/echo?utm_source=a&c=1"
 
 # A secure address that redirects to http is the site's own redirect: it loads (the app does not send the page back to https behind the site's back).
 privacy "{\"override\": {\"hosts\": [\"localhost\"], \"plain\": $HTTP, \"secure\": $GOOD}, \"forgetPlainHosts\": true}"
