@@ -64,7 +64,7 @@ cleanup() {
     stop_app
     defaults delete "$BUNDLE_ID" keepSessionCookies >/dev/null 2>&1
     defaults delete "$BUNDLE_ID" quitWhenLastWindowCloses >/dev/null 2>&1
-    [[ -z "$SERVER" ]] || kill "$SERVER" 2>/dev/null
+    [[ -z "$SERVER" ]] || { kill "$SERVER" 2>/dev/null; wait "$SERVER" 2>/dev/null; }
     rm -rf "$WORK"
 }
 trap cleanup EXIT
@@ -185,6 +185,8 @@ stop_app
 defaults write "$BUNDLE_ID" keepSessionCookies -bool false
 start_app
 login
+close_local_tabs
+expect "stay signed in off: signed in" "$ALL" "$(cookies)"
 sleep 3
 pid="$(field pid)"
 osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1
@@ -211,6 +213,17 @@ if kill -0 "$pid" 2>/dev/null; then
     sleep 1.5
     [[ "$(call read_page '{"max_chars":300}')" == *COOKIES* ]] && ok "last window closed: a new window opens and loads a page" || bad "last window closed: no window came back"
     kill -0 "$pid" 2>/dev/null && [[ "$(field pid)" == "$pid" ]] && ok "last window closed: it is the same process" || bad "last window closed: not the same process"
+    # The Dock icon (the app asked to open again) and ⌘N with no window bring the session back as at a launch: the tab the last window had.
+    post /window-close '{}' >/dev/null
+    sleep 1.5
+    TABS="$(post /reopen '{"how":"reopen"}')"
+    [[ "$TABS" == *'"windows":1'* && "$TABS" != *'"tabs":0'* && "$(call list_tabs)" == *127.0.0.1* ]] && ok "the Dock icon opens a window with the last session's tab ($TABS)" || bad "the Dock icon didn't bring the session back ($TABS)"
+    post /window-close '{}' >/dev/null
+    sleep 1.5
+    TABS="$(post /reopen '{"how":"newWindow"}')"
+    [[ "$TABS" == *'"windows":1'* && "$TABS" != *'"tabs":0'* && "$(call list_tabs)" == *127.0.0.1* ]] && ok "⌘N with no window opens the last session's tab ($TABS)" || bad "⌘N with no window didn't bring the session back ($TABS)"
+    TABS="$(post /reopen '{"how":"reopen"}')"
+    [[ "$TABS" == *'"windows":1'* ]] && ok "the Dock icon with a window open opens no other" || bad "the Dock icon opened another window ($TABS)"
     close_local_tabs
 fi
 stop_app

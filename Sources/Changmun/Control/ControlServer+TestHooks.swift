@@ -114,6 +114,16 @@ extension ControlServer {
             }
             return true
         }
+        // Tests only: what the Dock icon does ("how": reopen, the app asked to open again) or ⌘N ("how": newWindow); the answer is how many windows there are then.
+        if Headless.isTestCopy, request.method == "POST", request.path == "/reopen",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any], let delegate = NSApp.delegate as? AppDelegate {
+            Task { @MainActor in
+                if body["how"] as? String == "newWindow" { delegate.newWindow(nil) } else { _ = delegate.applicationShouldHandleReopen(NSApp, hasVisibleWindows: false) }
+                try? await Task.sleep(for: .milliseconds(300))
+                self.respond(connection, status: "200 OK", body: ["windows": Browser.all.count, "tabs": Browser.recent?.tabs.count ?? 0])
+            }
+            return true
+        }
         // Tests only: the front window's spaces. "action" is list, create (name, symbol, tint, profile), switch, delete (by
         // name), or sheet (shows the new-space sheet, or the edit sheet of the space named); the answer lists the spaces.
         if Headless.isTestCopy, request.method == "POST", request.path == "/spaces",

@@ -435,6 +435,11 @@ final class CookieJournal {
         }
     }
 
+    /// A journal that is off at launch holds nothing: files it left (the setting was turned off some other way, or their removal never finished) go.
+    func wipeIfOff() async {
+        if !enabled { await files.removeEverything() }
+    }
+
     /// Files of stores that are no longer there (a profile whose deletion was never finished) are not kept.
     func removeOrphans(keeping ids: Set<String>) {
         Task { await files.removeFiles(except: ids.union(trackers.keys).union(["default"])) }
@@ -458,6 +463,7 @@ extension CookieJournal {
     /// The default store's cookies and each profile's, put back: the app waits for this before it opens a window. Files of stores that are gone go.
     func restoreAtLaunch(profiles spaces: [Space]) async {
         let ids = spaces.compactMap(\.dataStoreID)
+        await wipeIfOff()
         await attach("default", WebKitCookieSource(.default()))
         for id in ids { await attach(id.uuidString, WebKitCookieSource(Profiles.dataStore(id))) }
         removeOrphans(keeping: Set(ids.map(\.uuidString)))

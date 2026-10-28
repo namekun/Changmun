@@ -485,6 +485,18 @@ struct CookieJournalTests {
         #expect(!FileManager.default.fileExists(atPath: rig.file().path))
     }
 
+    @Test func aJournalThatIsOffAtLaunchLeavesNothingBehind() async throws {
+        let rig = Rig()
+        defer { rig.finish() }
+        await rig.journal.files.write("default", [record("a")])
+        await rig.journal.wipeIfOff()
+        #expect(FileManager.default.fileExists(atPath: rig.file().path) && rig.keys.hasKey, "on: left alone")
+
+        let off = CookieJournal(folder: rig.folder, keys: rig.keys, enabled: false, debounce: .milliseconds(20))
+        await off.wipeIfOff()
+        #expect(!FileManager.default.fileExists(atPath: rig.file().path) && !rig.keys.hasKey, "off: the file and the key are gone")
+    }
+
     @Test func filesOfStoresThatAreGoneAreRemovedAtLaunch() async throws {
         let rig = Rig()
         defer { rig.finish() }
