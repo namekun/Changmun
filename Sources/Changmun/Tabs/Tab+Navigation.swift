@@ -186,6 +186,7 @@ extension Tab: WKNavigationDelegate {
             browser?.sortIntoGroup(self)
         }
         if !isPrivate, let url = webView.url?.absoluteString { Library.shared.recordVisit(url: url, title: webView.title ?? "") }
+        browser?.pageLoaded(webView.url?.absoluteString)
         checkForLogins()
         let page = page
         Task {

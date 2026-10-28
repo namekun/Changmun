@@ -32,6 +32,7 @@ struct ImportOptions: Equatable {
 struct ImportReport {
     var source: String
     var bookmarks = 0
+    var readingList = 0
     var history = 0
     var passwords = 0
     /// Logins that Changmun had already for the same site and account, which were not written over.
@@ -42,6 +43,7 @@ struct ImportReport {
     var summary: String {
         var parts: [String] = []
         if bookmarks > 0 { parts.append(String(localized: "Bookmarks \(bookmarks.formatted())")) }
+        if readingList > 0 { parts.append(String(localized: "Reading List \(readingList.formatted())")) }
         if history > 0 { parts.append(String(localized: "History \(history.formatted())")) }
         if passwords > 0 { parts.append(String(localized: "Passwords \(passwords.formatted())")) }
         if cookies > 0 { parts.append(String(localized: "Cookies \(cookies.formatted())")) }
@@ -353,6 +355,25 @@ enum SafariImporter {
         return entries
     }
 
+    /// The pages in Safari's Reading List (the folder `bookmarks` leaves out). Each has its own dates: `DateAdded` when it was saved, and
+    /// `DateLastViewed`, which is there once it has been read. The title is `URIDictionary`'s, the address's site while it has none.
+    static func readingList(folder: URL) throws -> [ReadingItem] {
+        let data = try Data(contentsOf: folder.appendingPathComponent("Bookmarks.plist"))
+        guard let root = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else { return [] }
+        return readingItems(inRoot: root)
+    }
+
+    static func readingItems(inRoot root: [String: Any]) -> [ReadingItem] {
+        let list = (root["Children"] as? [[String: Any]])?.first { $0["Title"] as? String == "com.apple.ReadingList" }
+        return (list?["Children"] as? [[String: Any]] ?? []).compactMap { child in
+            guard child["WebBookmarkType"] as? String == "WebBookmarkTypeLeaf", let address = child["URLString"] as? String,
+                  let key = ReadingList.key(for: address) else { return nil }
+            let dates = child["ReadingList"] as? [String: Any]
+            return ReadingItem(url: key, title: ReadingList.title((child["URIDictionary"] as? [String: Any])?["title"] as? String ?? "", for: key),
+                               added: dates?["DateAdded"] as? Date ?? Date(), read: dates?["DateLastViewed"] is Date)
+        }
+    }
+
     static func history(folder: URL, limit: Int = 50_000) throws -> [(url: String, title: String, visits: Int, lastVisit: Date)] {
         try withDatabaseCopy(folder.appendingPathComponent("History.db")) { db in try db.query("""
         SELECT i.url, (SELECT title FROM history_visits WHERE history_item = i.id ORDER BY visit_time DESC LIMIT 1), i.visit_count, MAX(v.visit_time)
@@ -374,8 +395,10 @@ enum ImportRunner {
         case .safari:
             if options.bookmarks {
                 progress(String(localized: "Safari bookmarks"))
-                do { report.bookmarks = try library.importBookmarks(SafariImporter.bookmarks(folder: source.directory)) }
-                catch { report.problems.append(safariProblem(error)) }
+                do {
+                    report.bookmarks = try library.importBookmarks(SafariImporter.bookmarks(folder: source.directory))
+                    report.readingList = try library.importReadingList(SafariImporter.readingList(folder: source.directory))
+                } catch { report.problems.append(safariProblem(error)) }
             }
             if options.history {
                 progress(String(localized: "Safari history"))

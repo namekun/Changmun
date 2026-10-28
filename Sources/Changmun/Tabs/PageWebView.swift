@@ -7,7 +7,7 @@ extension WKWebView {
     var isAway: Bool { fullscreenState != .notInFullscreen }
 }
 
-/// A tab's web view: WebKit's own, with "Ask AI About Selection" added to its context menu.
+/// A tab's web view: WebKit's own, with "Ask AI About Selection" and "Add Link to Reading List" added to its context menu.
 final class PageWebView: WKWebView {
     weak var owner: Tab?
 
@@ -38,15 +38,29 @@ final class PageWebView: WKWebView {
 
     /// WebKit's identifier for the menu's "Copy", which is there when text is selected.
     private static let copyItem = "WKMenuItemIdentifierCopy"
+    /// WebKit's identifier for the link menu's "Copy Link".
+    private static let copyLinkItem = "WKMenuItemIdentifierCopyLink"
 
     override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
         super.willOpenMenu(menu, with: event)
+        // The link the pointer is over (see `LinkHover`), not in a private window.
+        if let link = owner?.browser?.hoveredLink, owner?.isPrivate == false, ReadingList.key(for: link) != nil,
+           let at = menu.items.firstIndex(where: { $0.identifier?.rawValue == Self.copyLinkItem }) {
+            let item = NSMenuItem(title: String(localized: "Add Link to Reading List"), action: #selector(addLinkToReadingList(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = link
+            menu.insertItem(item, at: at + 1)
+        }
         guard let index = menu.items.firstIndex(where: { $0.identifier?.rawValue == Self.copyItem }),
               owner?.canAskAIAboutSelection == true else { return }
         let item = NSMenuItem(title: String(localized: "Ask AI About Selection"), action: #selector(askAI), keyEquivalent: "")
         item.target = self
         item.image = NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil)
         menu.insertItem(item, at: index + 1)
+    }
+
+    @objc private func addLinkToReadingList(_ item: NSMenuItem) {
+        owner?.browser?.addToReadingList(url: item.representedObject as? String, title: "")
     }
 
     @objc private func askAI() { owner?.askAIAboutSelection() }

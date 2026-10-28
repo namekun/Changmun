@@ -132,6 +132,8 @@ struct TabMenu: View {
                     browser.bind(tab, to: Browser.bookmarkKey(url: url, folder: tab.favoritesFolder))
                 }
             }
+            Button("Add to Reading List") { browser.addToReadingList(tab) }
+                .disabled(!ReadingList.canSave(tab.url?.absoluteString, isPrivate: false))
         }
         if tab.groupID == nil {
             Button("Add to New Group") { _ = withAnimation(Motion.standard) { browser.group([tab.id]) } }
