@@ -10,6 +10,7 @@ extension Tab: WKNavigationDelegate {
             return (.cancel, preferences)
         }
         if action.shouldPerformDownload { return (.download, preferences) }
+        if action.targetFrame?.isMainFrame ?? true, let target = action.request.url, ["http", "https"].contains(target.scheme?.lowercased() ?? "") { navigatingTo = target }
         let userInitiated = !AppScripts.drives(webView) && Self.userStartedForAppLinks(Self.isUserInitiated(action), knowsUserInitiated: Self.knowsUserInitiated)
         if let url = action.request.url, let scheme = url.scheme?.lowercased(), !Self.browserSchemes.contains(scheme) {
             // A frame can't speak for the page: the question is only for what the page itself, or the user's click, asks.
@@ -145,6 +146,8 @@ extension Tab: WKNavigationDelegate {
         blockedPopup = nil
         // A certificate a page asked for is not wanted by the one that replaces it.
         browser?.certificatePrompter.forget(self)
+        // The warning about a certificate belongs to the page that failed, not to the one that comes next (or our own page for the error).
+        if navigation == nil || navigation !== errorNavigation { trustFailure = nil }
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
@@ -161,6 +164,7 @@ extension Tab: WKNavigationDelegate {
         if let offer = loginOffer, !Self.sameSite(Logins.hostname(ofKey: offer.host), host) { loginOffer = nil }
         forgetPage()
         agent.reset()
+        refreshTrustException()
         if let host = webView.url?.host(), let cached = Browser.favicons[host] { favicon = cached }
     }
 
@@ -198,18 +202,20 @@ extension Tab: WKNavigationDelegate {
         let nsError = error as NSError
         guard nsError.code != NSURLErrorCancelled, nsError.domain != "WebKitErrorDomain" || nsError.code != 102 else { return }
         let failing = (nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL) ?? url
-        showError(String(localized: "Can’t open the page"), nsError.localizedDescription, address: failing, in: webView)
+        errorNavigation = showError(String(localized: "Can’t open the page"), nsError.localizedDescription, address: failing, in: webView)
         if let failing { url = failing }
+        offerTrustException(after: nsError, in: webView)
     }
 
     /// A page of our own in place of one that couldn't be shown, with a way to try again.
-    private func showError(_ heading: String, _ message: String, address: URL?, in webView: WKWebView) {
+    @discardableResult
+    func showError(_ heading: String, _ message: String, address: URL?, in webView: WKWebView) -> WKNavigation? {
         let escape = { (text: String) in
             text.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: "\"", with: "&quot;")
         }
         let link = address.flatMap { ["http", "https"].contains($0.scheme?.lowercased()) ? escape($0.absoluteString) : nil }
         let retry = link.map { "<a href=\"\($0)\" style=\"display: inline-block; margin-top: 16px; padding: 6px 14px; border-radius: 8px; background: rgba(128,128,128,0.16); color: CanvasText; text-decoration: none; font-weight: 600; font-size: 13px\">\(escape(String(localized: "Try Again")))</a>" } ?? ""
-        webView.loadHTMLString("""
+        return webView.loadHTMLString("""
         <meta name="color-scheme" content="light dark"><title>\(escape(heading))</title>
         <body style="font: 13px -apple-system; display: grid; place-content: center; height: 90vh; text-align: center; color: #888">
         <h2 style="color: CanvasText; font-weight: 600; font-size: 17px; margin: 0 0 8px">\(escape(heading))</h2><div>\(escape(message))</div>
@@ -223,6 +229,7 @@ extension Tab: WKNavigationDelegate {
     func webView(_ webView: WKWebView, respondTo challenge: URLAuthenticationChallenge) async -> (URLSession.AuthChallengeDisposition, URLCredential?) {
         let method = challenge.protectionSpace.authenticationMethod
         if method == NSURLAuthenticationMethodClientCertificate { return await answerCertificateRequest(challenge) }
+        if method == NSURLAuthenticationMethodServerTrust { return answerServerTrust(challenge, in: webView) }
         guard method == NSURLAuthenticationMethodHTTPBasic || method == NSURLAuthenticationMethodHTTPDigest else { return (.performDefaultHandling, nil) }
         guard challenge.previousFailureCount < 3, !Headless.isOn else { return (.cancelAuthenticationChallenge, nil) }
         let alert = NSAlert()

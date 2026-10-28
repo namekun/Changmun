@@ -22,6 +22,12 @@ struct SiteSettings: View {
                 .foregroundStyle(Theme.primary)
                 .lineLimit(1)
                 .frame(height: Metrics.row)
+            if tab.usesTrustException {
+                row(String(localized: "Certificate not verified")) { EmptyView() }
+                Button("Stop Trusting This Certificate") { tab.stopTrustingCertificate() }
+                    .buttonStyle(.link)
+                    .frame(height: Metrics.row)
+            }
             if prefs.blockTrackers && !tab.isPrivate {
                 row(String(localized: "Block ads and trackers")) {
                     switchFor(Binding(get: { !AdBlocker.shared.isAllowed(host) }, set: { if !host.isEmpty { AdBlocker.shared.setBlocking($0, for: host) } }))

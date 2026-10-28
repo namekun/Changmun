@@ -231,6 +231,42 @@ extension ControlServer {
             }
             return true
         }
+        // Tests only: a page whose server's certificate can't be verified (see ServerTrust). "auth" is what the Mac's owner is made to answer to the
+        // confirmation ("Visit This Website" asks) in the test's place, true or false; "action" is visit, back or revoke, pressed on the tab in front as
+        // the buttons would (visit waits for the confirmation and the page loading again); "exceptions": "clear" forgets them all. The answer says what the
+        // tab in front shows: the warning (its reason, host, port, fingerprint, whether the certificate changed), whether the address bar marks an
+        // exception, how often the confirmation was asked, and the page's address and title.
+        if Headless.isTestCopy, request.method == "POST", request.path == "/server-trust",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                guard let browser = Browser.recent else { return self.respond(connection, status: "404 Not Found", body: ["error": "no window"]) }
+                // "open" loads an address in a new tab as the user does (the AI's tools mark a tab as the AI's, which is never offered the way on).
+                if let address = (body["open"] as? String).flatMap(URL.init(string:)) { browser.openTab(url: nil).load(address) }
+                guard let tab = browser.active else { return self.respond(connection, status: "404 Not Found", body: ["error": "no tab"]) }
+                if let answer = body["auth"] as? Bool {
+                    ServerTrust.confirm = { _ in
+                        ServerTrustTestState.asked += 1
+                        return answer
+                    }
+                }
+                if body["exceptions"] as? String == "clear" { browser.trustStore.exceptions.removeAll() }
+                switch body["action"] as? String {
+                case "visit": await tab.continueToUntrustedSite()
+                case "back": tab.leaveUntrustedSite()
+                case "revoke": tab.stopTrustingCertificate()
+                default: break
+                }
+                if body["action"] != nil || body["wait"] != nil { try? await Task.sleep(for: .milliseconds(body["wait"] as? Int ?? 2500)) }
+                let failure = tab.trustFailure.map { failure -> [String: Any] in
+                    ["host": failure.host, "port": failure.port, "code": failure.code, "reason": "\(failure.reason)", "changed": failure.changed,
+                     "fingerprint": failure.certificate.fingerprint, "subject": failure.certificate.subject, "issuer": failure.certificate.issuer,
+                     "names": failure.certificate.names, "selfSigned": failure.certificate.isSelfSigned]
+                }
+                self.respond(connection, status: "200 OK", body: ["failure": failure ?? NSNull(), "usesException": tab.usesTrustException, "authAsked": ServerTrustTestState.asked, "challenges": ServerTrustTestState.challenges,
+                                                                  "url": tab.url?.absoluteString ?? "", "title": tab.webView?.title ?? ""])
+            }
+            return true
+        }
         // Tests only: the saved logins of the headless app, which keeps them in memory (it never touches the keychain). "host",
         // "username" and "password" add one; "clear" empties them; the answer is how many there are.
         if Headless.isTestCopy, request.method == "POST", request.path == "/logins",
@@ -509,4 +545,11 @@ extension ControlServer {
         }
         return false
     }
+}
+
+/// How often the test copy's stand-in for the Mac's owner was asked.
+@MainActor enum ServerTrustTestState {
+    static var asked = 0
+    /// The server certificates WebKit asked the tab about (host:port), since the test copy started.
+    static var challenges: [String] = []
 }

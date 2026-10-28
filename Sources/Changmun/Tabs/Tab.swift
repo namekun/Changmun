@@ -70,6 +70,16 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// A site asked for a client certificate and the user has not chosen yet (see ClientCertificatePrompter): for a tab in the
     /// background or one the AI drives, the sheet waits until it is shown.
     @Published var waitingForCertificate = false
+    /// The page could not be shown because its server's certificate can't be verified: the view over the tab says so and offers the user the way on
+    /// (see Tab+ServerTrust).
+    @Published var trustFailure: TrustFailure?
+    /// The page is shown on the strength of a certificate that the user chose to go on with, which nothing vouches for: the address bar says so.
+    @Published var usesTrustException = false
+    /// The address the main frame was last told to load, which a server's certificate is for when the challenge comes (the web view's own address is
+    /// still the page before).
+    var navigatingTo: URL?
+    /// The load of our own page for an error, which is not a new page that takes the failure away.
+    var errorNavigation: WKNavigation?
     @Published private(set) var isPlayingAudio = false
     @Published private(set) var isMuted = false
     /// The AI is using the tab behind the page in front (held by whatever shows the page, see PageHost): in the window, so WebKit counts

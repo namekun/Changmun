@@ -204,14 +204,14 @@ enum ClientCertificates {
         return names.joined(separator: ",")
     }
 
-    private struct Element {
+    struct Element {
         let tag: UInt8
         let content: [UInt8]
         let whole: [UInt8]
     }
 
     /// The elements one after another in `bytes`; nil when they don't add up (only tags of one byte are known).
-    private static func elements(_ bytes: [UInt8]) -> [Element]? {
+    static func elements(_ bytes: [UInt8]) -> [Element]? {
         var found: [Element] = []
         var at = 0
         while at < bytes.count {
@@ -266,7 +266,7 @@ enum ClientCertificates {
         return text.lowercased().split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 
-    private static func hex(_ bytes: [UInt8]) -> String { bytes.map { String(format: "%02x", $0) }.joined() }
+    static func hex(_ bytes: [UInt8]) -> String { bytes.map { String(format: "%02x", $0) }.joined() }
     private static func raw(_ der: Data) -> String { "raw:" + hex(Array(der)) }
 }
 

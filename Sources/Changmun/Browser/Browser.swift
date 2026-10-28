@@ -39,6 +39,9 @@ final class Browser: ObservableObject {
     weak var window: NSWindow?
     /// Asks which certificate to show a site that wants one (see ClientCertificates).
     private(set) lazy var certificatePrompter = ClientCertificatePrompter(browser: self)
+    /// The sites whose certificate the user chose to go on with, though it can't be verified (see ServerTrust): shared by the windows that are not
+    /// private; a private window has its own, which goes with it.
+    private(set) lazy var trustStore = isPrivate ? ServerTrustStore() : ServerTrustStore.shared
 
     /// A new window starts in the space the one in front is in, and the first window in the one used last.
     init(isPrivate: Bool = false, spaces: SpaceStore? = nil) {

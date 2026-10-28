@@ -63,6 +63,7 @@ struct WebCard: View {
             if let tab {
                 Theme.page
                 WebViewHost(tab: tab, browser: browser)
+                TrustFailureOverlay(tab: tab)
             } else {
                 Theme.card
                 EmptyPage()
