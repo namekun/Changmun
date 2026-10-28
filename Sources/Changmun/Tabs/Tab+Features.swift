@@ -87,6 +87,7 @@ extension Tab {
             translating?.cancel()
             translating = nil
             translation = .original
+            Announcer.announce(String(localized: "Showing the original page"))
             Task { await PageTranslator.showOriginal(webView) }
             return
         }
@@ -112,7 +113,7 @@ extension Tab {
             case .nothingToTranslate: browser?.flashStatus(String(localized: "No text in another language to translate"))
             case .failed: browser?.flashStatus(String(localized: "Couldn't translate this page"))
             case .engineFailed: browser?.flashStatus(String(localized: "Couldn't translate this page. macOS’s translation didn’t respond — try again, or check System Settings › General › Language & Region › Translation Languages."))
-            case .translated: break
+            case .translated: Announcer.announce(String(localized: "Page translated"))
             }
         }
     }

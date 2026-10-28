@@ -11,7 +11,7 @@ struct SidebarToolbar: View {
         VStack(spacing: Metrics.inset) {
             HStack(spacing: Metrics.rowGap) {
                 Spacer(minLength: 0)
-                BarButton(symbol: "sidebar.left", help: String(localized: "Hide Sidebar")) { browser.showSidebar.toggle() }
+                BarButton(symbol: "sidebar.left", help: String(localized: "Hide Sidebar"), label: String(localized: "Sidebar"), value: Accessibility.shownValue(browser.showSidebar)) { browser.showSidebar.toggle() }
                 if let tab = browser.active { NavigationButtons(tab: tab) } else { DisabledNavigationButtons() }
             }
             .padding(.leading, browser.fullScreen ? Metrics.inset : BrowserWindow.windowButtonsTrailing)

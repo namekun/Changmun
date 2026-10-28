@@ -17,12 +17,24 @@ enum Theme {
         dynamic(light: NSColor(white: 0, alpha: opacity), dark: NSColor(white: 1, alpha: opacity))
     }
 
+    /// Quieter text and lines are drawn stronger when the user has asked for more contrast (System Settings › Accessibility › Display).
+    static func boosted(_ opacity: Double, highContrast: Bool) -> Double { highContrast ? min(1, opacity * 0.6 + 0.4) : opacity }
+
+    static func inkText(_ opacity: Double) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let name = appearance.bestMatch(from: [.aqua, .darkAqua, .accessibilityHighContrastAqua, .accessibilityHighContrastDarkAqua])
+            let dark = name == .darkAqua || name == .accessibilityHighContrastDarkAqua
+            let high = name == .accessibilityHighContrastAqua || name == .accessibilityHighContrastDarkAqua
+            return NSColor(white: dark ? 1 : 0, alpha: boosted(opacity, highContrast: high))
+        })
+    }
+
     static let primary = ink(1)
     static let body = ink(0.9)
-    static let secondary = ink(0.6)
-    static let dim = ink(0.55)
-    static let faint = ink(0.5)
-    static let hairline = ink(0.24)
+    static let secondary = inkText(0.6)
+    static let dim = inkText(0.55)
+    static let faint = inkText(0.5)
+    static let hairline = inkText(0.24)
     static let pill = ink(0.16)
     static let field = ink(0.1)
     static let selected = ink(0.08)

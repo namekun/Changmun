@@ -49,8 +49,13 @@ struct PeekCard: View {
             .padding(.trailing, area.trailing)
             .padding(.top, BrowserWindow.pageTop)
             .padding(.bottom, 32)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(String(localized: "Link Preview"))
         }
         .animation(Motion.quick, value: tab.isLoading)
+        .onAppear {
+            Announcer.announce(String(localized: "Previewing \(tab.url?.host().map(DisplayHost.trimmed) ?? ""). Press Command Return to open it as a tab, or Escape to close it."), important: true)
+        }
     }
 }
 
@@ -80,6 +85,7 @@ struct TabSwitcherView: View {
                 .background { if tab.id == picked { SelectedBackground() } }
                 .contentShape(Rectangle())
                 .onTapGesture { browser.finishSwitching(to: tab.id) }
+                .accessibleButton(tab.displayTitle, selected: tab.id == picked) { browser.finishSwitching(to: tab.id) }
             }
         }
         .padding(8)

@@ -279,5 +279,11 @@ struct AIPanelResizeHandle: View {
             )
             .onTapGesture(count: 2) { width = Preferences.defaultAIPanelWidth }
             .help("Drag to resize the AI panel · double-click for default width")
+            .accessibilityElement()
+            .accessibilityLabel(String(localized: "AI Panel Width"))
+            .accessibilityValue(Accessibility.widthValue(width))
+            .accessibilityAdjustableAction { direction in
+                width = Preferences.clampedAIPanelWidth(Accessibility.adjusted(width, direction, step: 20, in: 0...10_000))
+            }
     }
 }

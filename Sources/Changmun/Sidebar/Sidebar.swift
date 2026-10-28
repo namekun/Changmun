@@ -156,7 +156,10 @@ struct Sidebar: View {
                 .dropDestination(for: SidebarDrop.self) { items, _ in
                     SidebarDrag.drop(items.texts, onFavorite: nil, browser: browser)
                 } isTargeted: { target("fav:end", $0) }
+                .accessibilityHidden(true)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(String(localized: "Favorites"))
     }
 
     /// Folders kept under the favorites, opened where they are, then a gap before the tabs. A folder dropped in
@@ -301,6 +304,7 @@ struct Sidebar: View {
         return FolderRow(name: folder.label, count: folder.count, isOpen: browser.space.openFolders.contains(openKey), showCount: false,
                          target: over && !places && SidebarDrag.dragging != .folder, renaming: browser.renamingFolder == openKey,
                          finishRenaming: { browser.finishRenamingFolder(key: folder.key, scope: scope, shown: folder.label, with: $0) },
+                         startRenaming: { browser.renamingFolder = openKey },
                          click: { browser.clickFolder(openKey: openKey, clickCount: $0) }) {
             if isPinned {
                 Button("Unpin from Sidebar") { browser.spaces.unpinFolder(folder.key, in: browser.spaceID) }

@@ -11,10 +11,12 @@ struct PageBar: View {
         HStack(spacing: Metrics.rowGap) {
             if prefs.tabLayout == .top {
                 // The tabs are in the strip above: this opens the rest of the sidebar over the page.
-                BarButton(symbol: "sidebar.left", help: browser.showSidebarOverlay ? String(localized: "Hide Sidebar") : String(localized: "Show Sidebar")) { browser.showSidebarOverlay.toggle() }
+                BarButton(symbol: "sidebar.left", help: browser.showSidebarOverlay ? String(localized: "Hide Sidebar") : String(localized: "Show Sidebar"),
+                          label: String(localized: "Sidebar"), value: Accessibility.shownValue(browser.showSidebarOverlay)) { browser.showSidebarOverlay.toggle() }
             } else {
                 if !browser.showSidebar && !browser.fullScreen { Color.clear.frame(width: BrowserWindow.windowButtonsTrailing - Metrics.inset) }
-                BarButton(symbol: "sidebar.left", help: browser.showSidebar ? String(localized: "Hide Sidebar") : String(localized: "Show Sidebar")) { browser.showSidebar.toggle() }
+                BarButton(symbol: "sidebar.left", help: browser.showSidebar ? String(localized: "Hide Sidebar") : String(localized: "Show Sidebar"),
+                          label: String(localized: "Sidebar"), value: Accessibility.shownValue(browser.showSidebar)) { browser.showSidebar.toggle() }
             }
             if let tab = browser.active { NavigationButtons(tab: tab) } else { DisabledNavigationButtons() }
             Group {
@@ -51,7 +53,7 @@ struct NavigationButtons: View {
     var body: some View {
         BarButton(symbol: "chevron.left", help: String(localized: "Back (⌘[)")) { tab.webView?.goBack() }.disabled(!tab.canGoBack)
         BarButton(symbol: "chevron.right", help: String(localized: "Forward (⌘])")) { tab.webView?.goForward() }.disabled(!tab.canGoForward)
-        BarButton(symbol: tab.isLoading ? "xmark" : "arrow.clockwise", help: String(localized: "Reload (⌘R)")) {
+        BarButton(symbol: tab.isLoading ? "xmark" : "arrow.clockwise", help: String(localized: "Reload (⌘R)"), label: tab.isLoading ? String(localized: "Stop") : String(localized: "Reload")) {
             if tab.isLoading { tab.webView?.stopLoading() } else { tab.webView?.reload() }
         }
     }
@@ -93,12 +95,21 @@ struct LoadingLine: View {
         .frame(height: 2)
         .allowsHitTesting(false)
         .animation(Motion.quick, value: tab.isLoading)
+        // Said as a value that changes all the time, not announced at every step.
+        .accessibilityElement(children: .ignore)
+        .accessibilityHidden(!tab.isLoading)
+        .accessibilityLabel(String(localized: "Loading"))
+        .accessibilityValue(Accessibility.loadingValue(progress: tab.progress))
+        .accessibilityAddTraits(.updatesFrequently)
     }
 }
 
 struct BarButton: View {
     let symbol: String
     let help: String
+    /// What VoiceOver calls it, when that isn't the help text without its shortcut; `value` says its state.
+    var label: String?
+    var value: String?
     let action: () -> Void
     @Environment(\.isEnabled) private var enabled
 
@@ -112,6 +123,8 @@ struct BarButton: View {
         .buttonStyle(FillStyle())
         .foregroundStyle(enabled ? Theme.secondary : Theme.ink(0.22))
         .help(help)
+        .accessibilityLabel(label ?? Accessibility.label(fromHelp: help))
+        .accessibilityValue(value ?? "")
     }
 }
 
@@ -133,6 +146,8 @@ struct AIButton: View {
         }
         .buttonStyle(FillStyle(resting: isOn ? Theme.pill : Theme.hoverTab, hoverFill: isOn ? Theme.pill : Theme.field, radius: nil))
         .help("AI Panel (⌘E)")
+        .accessibilityLabel(String(localized: "AI Panel"))
+        .accessibilityValue(Accessibility.onOffValue(isOn))
     }
 }
 
@@ -148,6 +163,9 @@ struct PrivateBadge: View {
         .foregroundStyle(Theme.primary)
         .background(Capsule().strokeBorder(Theme.hairline, lineWidth: 0.5))
         .help("Leaves no history, cookies or site data. AI and extensions can’t see this window.")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "Private Window"))
+        .accessibilityHint(String(localized: "Leaves no history, cookies or site data. AI and extensions can’t see this window."))
     }
 }
 

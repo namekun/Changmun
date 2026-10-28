@@ -68,6 +68,7 @@ struct SidebarTabRow: View {
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(Theme.faint)
                         .help("Split View")
+                        .decorative()
                 }
             }
             .frame(width: Metrics.action)
@@ -82,6 +83,7 @@ struct SidebarTabRow: View {
         .simultaneousGesture(TapGesture(count: 2).onEnded { browser.renamingTab = tab.id })
         .contextMenu { TabMenu(tab: tab, browser: browser, isActive: isActive, close: close) }
         .help(tab.url?.absoluteString ?? "")
+        .accessibleTab(tab, in: browser, isActive: isActive, renaming: renaming, close: close) { select() }
     }
 
     private func commit() {

@@ -113,6 +113,10 @@ struct SpaceSwitcher: View {
         .background(Capsule().fill(Theme.selectedFill).overlay(Capsule().strokeBorder(Theme.selectedEdge, lineWidth: 0.5))
             .shadow(color: Theme.selectedShadow, radius: 1, y: 1))
         .help(space.name)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(space.name)
+        .accessibilityValue(Accessibility.spaceValue(isProfile: space.isProfile) ?? "")
+        .accessibilityAddTraits([.isButton, .isSelected])
     }
 
     private func dot(_ space: Space, number: Int) -> some View {
@@ -126,6 +130,8 @@ struct SpaceSwitcher: View {
         .buttonStyle(FillStyle(radius: nil))
         .foregroundStyle(Theme.secondary)
         .help(number <= 9 ? "\(space.name)  ⌃\(number)" : space.name)
+        .accessibilityLabel(space.name)
+        .accessibilityValue(Accessibility.spaceValue(isProfile: space.isProfile) ?? "")
     }
 
     /// A profile's symbol wears a small key: its logins and cookies are its own.

@@ -2,7 +2,7 @@
 # Changmun Headless.app: the browser for tests and agents. It stays off screen, never takes focus or plays sound,
 # and has its own profile (settings, cookies, history in ~/Library/Application Support/Changmun Headless).
 #
-#   scripts/headless.sh start               copy build/Changmun.app as the headless app and start it
+#   scripts/headless.sh start               copy build/Changmun.app as the headless app and start it ($CHANGMUN_HEADLESS_ARGS: its arguments)
 #   scripts/headless.sh call <tool> [json]  run a browser tool: list_tabs, open_tab, navigate, read_page, click, screenshot…
 #   scripts/headless.sh shot <file.png>     capture the front window, sidebar and all
 #   scripts/headless.sh mouse <down|drag|up|right> <x> <y>   a mouse event at a point in the window, from its top left
@@ -43,7 +43,9 @@ start)
     ditto "$WORK/Changmun Headless.app" "$APP"
     rm -rf "$WORK"
     rm -f "$ENDPOINT"
-    open -g "$APP"
+    # $CHANGMUN_HEADLESS_ARGS goes to the app as its arguments (-AppleLanguages "(en)" runs it in English), for this run only.
+    # shellcheck disable=SC2086
+    open -g "$APP" ${CHANGMUN_HEADLESS_ARGS:+--args $CHANGMUN_HEADLESS_ARGS}
     for _ in $(seq 100); do
         if running; then echo "started (pid $(field pid))"; exit 0; fi
         sleep 0.15

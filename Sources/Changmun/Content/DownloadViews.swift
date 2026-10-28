@@ -35,6 +35,8 @@ struct DownloadButton: View {
         .buttonStyle(FillStyle(resting: browser.showDownloads ? Theme.field : .clear))
         .foregroundStyle(progress != nil ? Theme.primary : Theme.secondary)
         .help("Downloads")
+        .accessibilityLabel(String(localized: "Downloads"))
+        .accessibilityValue(Accessibility.downloadsValue(active: items.filter { $0.state == .running }.count) ?? (unseen ? String(localized: "New download finished") : ""))
         .popover(isPresented: $browser.showDownloads, arrowEdge: arrowEdge) {
             DownloadList(browser: browser)
         }

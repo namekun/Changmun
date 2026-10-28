@@ -18,6 +18,7 @@ struct CommandBar: View {
     @State private var pointer = PointerMovement()
     @StateObject private var source = SuggestionSource()
     @FocusState private var focused: Bool
+    @State private var announceTask: Task<Void, Never>?
 
     enum Suggestion: Hashable {
         case open(String)
@@ -110,6 +111,8 @@ struct CommandBar: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(Theme.primary)
                         .focused($focused)
+                        .accessibilityLabel(mode == .editCurrent ? String(localized: "Address") : placeholder)
+                        .accessibilityHint(String(localized: "Type to see suggestions. Use the up and down arrow keys to choose one, and Return to open it"))
                         // The list as it is when Return is pressed: the field keeps the handler it was given when its text last changed, so
                         // the `items` of that render would hold the rows from before the local and engine results came in.
                         .onSubmit { run(Self.chosen(suggestions, at: selection)) }
@@ -156,6 +159,23 @@ struct CommandBar: View {
             .onKeyPress(.escape) { dismiss(); return .handled }
         }
         .onChange(of: items) { old, new in keepSelection(old, new) }
+        // The number of suggestions is said once the typing pauses, not at every letter.
+        .onChange(of: items.count) { _, count in
+            announceTask?.cancel()
+            announceTask = Task {
+                try? await Task.sleep(for: .milliseconds(700))
+                if !Task.isCancelled { Announcer.announce(Accessibility.resultsCount(count), whileTyping: true) }
+            }
+        }
+        .onDisappear {
+            announceTask?.cancel()
+            // The keyboard goes back to the page it was on before the bar opened, unless something else (the find bar, another field) has it by now.
+            DispatchQueue.main.async {
+                guard let window = browser.window, window.firstResponder == nil || window.firstResponder === window, browser.commandBar == nil,
+                      !browser.findBarVisible, !browser.showOnboarding, let page = browser.active?.webView, page.window === window else { return }
+                window.makeFirstResponder(page)
+            }
+        }
         .onAppear {
             text = mode == .editCurrent ? (browser.active?.url?.absoluteString ?? "") : ""
             shown = text
@@ -294,6 +314,17 @@ struct SuggestionRow: View {
             .onEnded { value in
                 if let pressed = press.ended(inside: CGRect(origin: .zero, size: size).contains(value.location)) { run(pressed) }
             })
+        .accessibleButton(Accessibility.suggestionLabel(kind), value: Accessibility.suggestionValue(kind), hint: String(localized: "Return opens it"), selected: selected) { run(item) }
+    }
+
+    private var kind: Accessibility.SuggestionKind {
+        switch item {
+        case .open(let text): .open(text)
+        case .search(let text), .suggested(let text): .search(text)
+        case .ask(let text): .ask(text)
+        case .tab(_, let url, let title, let space): .tab(title: title, host: URL(string: url)?.host() ?? "", space: space)
+        case .page(let url, let title): .page(title: title, host: URL(string: url)?.host() ?? url)
+        }
     }
 
     @ViewBuilder private var icon: some View {

@@ -39,6 +39,7 @@ struct ContentBlockerSection: View {
                     Toggle("", isOn: Binding(get: { host.isEnabled(blocker) }, set: { on in Task { await host.setEnabled(blocker, on) } }))
                         .labelsHidden()
                         .toggleStyle(.switch)
+                        .accessibilityLabel(blocker.name)
                 }
             }
             Caption(text: "Reads the rules saved by the blocker app. The first time you turn one on, macOS asks whether Changmun may access another app’s data. If you change the rules in the blocker app, they take effect the next time you launch Changmun.")
@@ -137,10 +138,12 @@ struct ExtensionRow: View {
             }
             if source.kind == .folder {
                 Button { Task { await host.removeFolder(source) } } label: { Image(systemName: "minus.circle") }.buttonStyle(.borderless)
+                    .accessibilityLabel(String(localized: "Remove \(item?.name ?? Self.name(source))"))
             }
             Toggle("", isOn: Binding(get: { host.isLoaded(source) }, set: { on in Task { await host.setEnabled(source, on) } }))
                 .labelsHidden()
                 .toggleStyle(.switch)
+                .accessibilityLabel(item?.name ?? Self.name(source))
         }
     }
 

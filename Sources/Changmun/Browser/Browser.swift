@@ -263,6 +263,7 @@ final class Browser: ObservableObject {
 
     func flashStatus(_ message: String) {
         overlay.statusMessage = message
+        Announcer.announce(message)
         // Long enough to read: a short word for a moment, a sentence for longer.
         DispatchQueue.main.asyncAfter(deadline: .now() + max(1.6, Double(message.count) * 0.06)) { [weak self] in
             if self?.overlay.statusMessage == message { self?.overlay.statusMessage = nil }

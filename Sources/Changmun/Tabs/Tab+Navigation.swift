@@ -214,6 +214,7 @@ extension Tab: WKNavigationDelegate {
         let failing = (nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL) ?? url
         errorNavigation = showError(String(localized: "Can’t open the page"), nsError.localizedDescription, address: failing, in: webView)
         if let failing { url = failing }
+        if browser?.active === self { Announcer.announce(String(localized: "Can’t open the page") + ". " + nsError.localizedDescription, important: true) }
         offerTrustException(after: nsError, in: webView)
     }
 

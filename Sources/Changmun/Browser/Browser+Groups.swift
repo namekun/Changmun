@@ -284,6 +284,7 @@ extension Browser {
     func offerUndo(_ message: String, undo: @escaping () -> Void) {
         let notice = Notice(message: message, undo: undo)
         self.notice = notice
+        Announcer.announce(String(localized: "\(message). Undo is available in the sidebar."))
         DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in
             if self?.notice == notice { self?.notice = nil }
         }

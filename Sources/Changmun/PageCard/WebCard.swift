@@ -106,5 +106,11 @@ struct SplitDivider: View {
             )
             .onTapGesture(count: 2) { fraction = 0.5 }
             .help("Drag to resize · double-click to split evenly")
+            .accessibilityElement()
+            .accessibilityLabel(String(localized: "Split View Divider"))
+            .accessibilityValue(Accessibility.percentValue(fraction))
+            .accessibilityAdjustableAction { direction in
+                fraction = Browser.clampedSplitFraction(Accessibility.adjusted(fraction, direction, step: 0.05, in: 0...1))
+            }
     }
 }

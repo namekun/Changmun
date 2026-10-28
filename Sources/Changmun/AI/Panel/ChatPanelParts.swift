@@ -12,6 +12,7 @@ struct QueuedChip: View {
             Button(action: remove) { Image(systemName: "xmark").font(.system(size: 8, weight: .bold)) }
                 .buttonStyle(.plain)
                 .help("Remove from the queue")
+                .accessibilityLabel(String(localized: "Remove from the queue"))
         }
         .font(.system(size: 11, weight: .semibold))
         .foregroundStyle(Theme.secondary)
@@ -32,6 +33,7 @@ struct AttachedTabChip: View {
             Button(action: remove) { Image(systemName: "xmark").font(.system(size: 8, weight: .bold)) }
                 .buttonStyle(.plain)
                 .help("Remove from the AI's tabs")
+                .accessibilityLabel(String(localized: "Remove from the AI's tabs"))
         }
         .font(.system(size: 11, weight: .semibold))
         .foregroundStyle(Theme.secondary)
@@ -107,7 +109,8 @@ struct Working: View {
         VStack(alignment: .leading, spacing: 6) {
             Button { open.toggle() } label: {
                 TimelineView(.periodic(from: started ?? .now, by: 1)) { context in
-                    let label = started.map { String(localized: "Working for \(ElapsedText.text(seconds: Int(context.date.timeIntervalSince($0))))") } ?? String(localized: "Working")
+                    let elapsed = started.map { ElapsedText.text(seconds: Int(context.date.timeIntervalSince($0))) }
+                    let label = elapsed.map { String(localized: "Working for \($0)") } ?? String(localized: "Working")
                     HStack(spacing: 6) {
                         Circle().fill(Theme.working).frame(width: 6, height: 6).opacity(on ? 1 : 0.35)
                         Text(verbatim: label)
@@ -122,15 +125,19 @@ struct Working: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Theme.secondary)
                     .contentShape(Rectangle())
+                    // The time is a value that keeps changing, not a label to be read again every second.
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(label + (step.map { ", " + $0 } ?? ""))
+                    .accessibilityLabel(String(localized: "Working"))
+                    .accessibilityValue(Accessibility.workingValue(elapsed: elapsed, step: step))
+                    .accessibilityAddTraits(.updatesFrequently)
                 }
             }
             .buttonStyle(.plain)
             .disabled(steps == nil)
             if open, let steps { ChatStepsRow(row: steps) }
         }
-        .onAppear { withAnimation(.easeInOut(duration: 0.8).repeatForever()) { on = true } }
+        // With Reduce Motion on the dot stays lit instead of pulsing.
+        .onAppear { if Motion.reduced { on = true } else { withAnimation(.easeInOut(duration: 0.8).repeatForever()) { on = true } } }
     }
 }
 

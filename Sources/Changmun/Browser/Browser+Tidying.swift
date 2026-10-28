@@ -59,6 +59,7 @@ extension Browser {
             return flashStatus(String(localized: "No tabs to group"))
         }
         lastTidy = tidy
+        Announcer.announce(tidy.message)
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
             if self?.lastTidy == tidy { self?.lastTidy = nil }
         }
