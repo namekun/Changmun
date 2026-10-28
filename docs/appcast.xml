@@ -6,6 +6,21 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.9.0</title>
+      <pubDate>Wed, 28 Oct 2026 23:53:54 +0000</pubDate>
+      <sparkle:version>38</sparkle:version>
+      <sparkle:shortVersionString>0.9.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.9.0</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Works with VoiceOver and the keyboard.** The sidebar, tab strip, page bar, command bar, find bar, AI panel, approval cards, settings and the untrusted-certificate warning now have names, states and actions; rows that were only clickable can be pressed from the keyboard and by VoiceOver; status messages (undo, downloads, translation, load errors) are announced. An audit that dumps the app's own accessibility tree found 113 unnamed controls before and none after, and the look is unchanged. (Not yet tried with a real VoiceOver session, so tell me what reads oddly.)
+- **Reading List.** Save a page for later from Bookmarks › Add to Reading List (⇧⌘D), a tab's menu or a link's menu; the list sits at the top of the bookmarks popover with unread pages in bold, marks pages read when you open them, and comes along when you import from Safari. It is never shown to the AI and never kept from private windows.
+- **Tracking removed from addresses you open.** Known tracking parameters (utm_*, fbclid, gclid and the like) are taken out of addresses you type, bookmarks, links you open in a new tab or peek, and what the AI opens. Links you click inside a page are left alone, because rewriting them from outside the engine would weaken sites' cross-site cookie protection. Switch in Settings › Privacy, and per site in the site's settings.
+- **Prefer secure connections.** An http:// address you open is tried over https first and falls back to http only if the site refuses or drops the connection, never after a certificate error. Switch in Settings › Privacy.
+- **Clearing site data now really clears your saved sign-ins.** A sign-in snapshot taken a moment before you cleared site data (or removed a profile, or turned "Stay signed in after quitting" off) could still be written afterwards and come back at the next launch. That race, in 0.8.7, is closed, and a test now hammers it.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.9.0/Changmun-0.9.0.dmg" length="5844236" type="application/octet-stream" sparkle:edSignature="Vxqtleu9sISmd/0IteMMTmUhQEr0HrXUn5plX/xPE9ubQjOD4NoIYVorptbDl9+m+TVMqHw9HjfqUcoVzlF0AQ==" />
+    </item>
+    <item>
       <title>0.8.7</title>
       <pubDate>Wed, 28 Oct 2026 12:58:19 +0000</pubDate>
       <sparkle:version>37</sparkle:version>
@@ -127,28 +142,9 @@
 - **Safari's favorites folder** no longer shows as "/ Favorites".</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.6/Changmun-0.7.6.dmg" length="4998867" type="application/octet-stream" sparkle:edSignature="8f/1pvAIwIYmmxVAN/m3SBl5oFiGHVN6moR4IYCTvczELe6tfdA9sDWzWR0E4IZBgLMI4Ty2lOLruRt3zA2QCw==" />
     </item>
-    <item>
-      <title>0.7.5</title>
-      <pubDate>Sun, 25 Oct 2026 01:05:35 +0000</pubDate>
-      <sparkle:version>28</sparkle:version>
-      <sparkle:shortVersionString>0.7.5</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.7.5</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">A sweep for bugs that hadn't bitten anyone yet, 47 of them. The ones you might have met:
-
-- **Your newer passwords stay.** Importing again from another browser no longer puts its older passwords and sign-in cookies over the ones you changed in Changmun. Logins on different ports of one host stay apart, and a two-step sign-in updates your account instead of saving a nameless one.
-- **Nothing is wiped by a damaged file.** If chat history or archived tabs can't be read, the file is kept aside instead of being written over with an empty one. Saving a page with a long Korean title works, and downloading over an existing file keeps it until the new one is whole.
-- **Videos and pages stay put.** A paused picture-in-picture video is no longer put to sleep, a page in full screen can't be taken by the AI, a page whose process crashed on its first load loads again, and sign-in pop-ups from the preview card finish.
-- **Tabs where you left them.** Undoing "close all in group" or a tidy brings tabs back in order, a tab whose bookmark was deleted or moved to another space's favorites stays in the list, and private windows can't save to your bookmarks.
-- **Smoother start and quit.** Changmun no longer waits on the Safari extension list at launch, ends Claude Code before it quits, and won't wake a tab you closed while it was asking.
-- **Command line and agents.** `changmun` rejects arguments a command doesn't take, finds and restarts the app after a crash, and the MCP bridge keeps each connection's calls in order and answers pings right away.
-- **Ranges in AI answers read right.** "3~5" and "10~20" no longer turn the words between them into strikethrough; only ~~two tildes~~ strike through.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.5/Changmun-0.7.5.dmg" length="4964517" type="application/octet-stream" sparkle:edSignature="+7tXH/D9RSVEaFs4H3Zh4L/jf5jky5L6s4uQWw8iRytPCchWjC0ik0ZglWVr0cEE0cw9wzoL0wfKbW3nkPQPBA==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: ouFwm2Eb9ML5eSXF/0Del7HFR0qEOUdynPL8FI+2ZPpnqnNMJynP8TObvE8w0F82dLDGxtacwes7Gix0/IX8DQ==
-length: 19449
+edSignature: J0i/g8U9OwdT2rjPgTE+eS2R+HIy7HZIdNnESUNpV+2oGh/sKEfBIXZXU+9uubJUqb6te7aa8iGlEP6mUyPAAg==
+length: 19645
 -->
