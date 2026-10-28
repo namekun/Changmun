@@ -83,6 +83,7 @@ enum AppMenu {
         add(history, "Forward", #selector(AppDelegate.goForward(_:)), "]")
         history.addItem(.separator())
         add(history, "Add/Remove Bookmark", #selector(AppDelegate.toggleBookmark(_:)), "d")
+        add(history, "Add to Reading List", #selector(AppDelegate.addToReadingList(_:)), "d", [.command, .shift])
         history.addItem(.separator())
         add(history, "Show All History", #selector(AppDelegate.showHistory(_:)), "y")
         add(history, "Archived Tabs", #selector(AppDelegate.showArchive(_:)))

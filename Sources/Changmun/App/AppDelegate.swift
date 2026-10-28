@@ -303,6 +303,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             current?.isPrivate != true
         case #selector(checkForUpdates(_:)): Updates.shared.canCheck
         case #selector(toggleBookmark(_:)): current?.active?.isPrivate != true
+        case #selector(addToReadingList(_:)): current?.active.map { ReadingList.canSave($0.url?.absoluteString, isPrivate: $0.isPrivate) } ?? false
         case #selector(savePDF(_:)): current?.active?.webView != nil
         case #selector(captureFullPage(_:)): current?.active?.webView != nil && current?.active?.showsPDF != true
         default: true
@@ -426,6 +427,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = Library.shared.toggleBookmark(url: url, title: tab.bookmarkTitle, in: tab.favoritesFolder)
         tab.objectWillChange.send()
     }
+    @objc func addToReadingList(_ sender: Any?) { if let tab = browser.active { browser.addToReadingList(tab) } }
     @objc func importData(_ sender: Any?) { browser.showOnboarding = true }
     @objc func checkForUpdates(_ sender: Any?) { Updates.shared.checkForUpdates() }
     @objc func newChat(_ sender: Any?) {

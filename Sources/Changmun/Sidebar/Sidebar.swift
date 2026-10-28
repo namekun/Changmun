@@ -178,6 +178,7 @@ struct Sidebar: View {
     private var allBookmarks: some View {
         VStack(spacing: 0) {
             if library.sources.isEmpty {
+                VStack(spacing: 0) { ReadingListSection(browser: browser) }.padding([.horizontal, .top], Metrics.inset)
                 VStack(spacing: Metrics.section) {
                     Text("Bookmarks you bring over from another browser show up here.")
                         .font(.row)
@@ -204,6 +205,7 @@ struct Sidebar: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: Metrics.rowGap) {
                         if bookmarkQuery.trimmingCharacters(in: .whitespaces).isEmpty {
+                            ReadingListSection(browser: browser)
                             bookmarkSources
                         } else {
                             ForEach(foundBookmarks) { row in treeRow(row) }
