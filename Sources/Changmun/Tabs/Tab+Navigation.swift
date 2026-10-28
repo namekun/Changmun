@@ -36,6 +36,8 @@ extension Tab: WKNavigationDelegate {
             browser?.openPeek(url)
             return (.cancel, preferences)
         }
+        // The other tab's own load is rewritten there. Here the load that is going to happen in this tab begins again with the address rewritten.
+        if rewriteNavigation(action, userInitiated: userInitiated, in: webView) { return (.cancel, preferences) }
         // After the branches that send the address to another tab (⌘-click, middle click, the peek), which decide for themselves: only the load that is
         // going to happen in this tab is stopped, never the page that is shown for a link opened elsewhere.
         if let target = action.request.url, stopsLoad(of: target, isMainFrame: action.targetFrame?.isMainFrame ?? true, in: webView) { return (.cancel, preferences) }
@@ -159,6 +161,8 @@ extension Tab: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         navigations += 1
         navigatingTo = nil
+        linkRewrite.chain.removeAll()
+        linkRewrite.pendingUpgrade = nil
         hasUnverifiedFrame = false
         if webView.url?.isFileURL != true { userFileLoad = nil }
         // A new site gets its own zoom; staying on the same one keeps what the user set (a private tab never saves it).
@@ -210,6 +214,7 @@ extension Tab: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         navigatingTo = nil
         let nsError = error as NSError
+        if fallBackToHTTP(after: nsError, in: webView) { return }
         guard nsError.code != NSURLErrorCancelled, nsError.domain != "WebKitErrorDomain" || nsError.code != 102 else { return }
         let failing = (nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL) ?? url
         errorNavigation = showError(String(localized: "Can’t open the page"), nsError.localizedDescription, address: failing, in: webView)

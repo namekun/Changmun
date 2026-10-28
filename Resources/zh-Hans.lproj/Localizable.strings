@@ -744,3 +744,10 @@
 "Quit when the last window is closed" = "关闭最后一个窗口时退出";
 "Turned off, Changmun stays open without a window, like Safari. Clicking its Dock icon or choosing New Window reopens the last session." = "关闭后，没有窗口时 Changmun 也会像 Safari 一样继续运行。点按 Dock 中的图标或选取“新建窗口”，即可重新打开上次的会话。";
 "Couldn’t use the Keychain, so sign-ins won’t survive quitting." = "无法使用钥匙串，因此退出后不会保持登录。";
+"Remove tracking from links" = "移除链接中的跟踪参数";
+"Takes known tracking parameters (utm_source, fbclid, gclid and the like) out of an address before its page loads. Everything else in the address stays. A site where it breaks a page has its own switch in the address bar." = "在加载页面之前，从地址中去掉 utm_source、fbclid、gclid 等已知的跟踪参数，地址的其余部分保持不变。如果某个网站因此出现问题，可以在地址栏里单独为它关闭。";
+"Prefer secure connections" = "优先使用安全连接";
+"Tries an http address over https first, and loads it over http only when the site can’t be reached over https. A certificate that can’t be verified is never answered with http." = "先用 https 尝试 http 地址，只有无法通过 https 连接时才用 http 加载。无法验证的证书不会因此改用 http，而是照常拦截。";
+"This connection isn’t secure" = "此连接不安全";
+"Can’t open the page securely" = "无法安全地打开页面";
+"This site sends you from a secure address back to an insecure one." = "此网站把你从安全地址又送回了不安全的地址。";

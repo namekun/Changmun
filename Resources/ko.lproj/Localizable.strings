@@ -744,3 +744,10 @@
 "Quit when the last window is closed" = "마지막 창을 닫으면 종료";
 "Turned off, Changmun stays open without a window, like Safari. Clicking its Dock icon or choosing New Window reopens the last session." = "끄면 창이 없어도 Changmun이 Safari처럼 계속 열려 있어요. Dock의 아이콘을 누르거나 새 윈도우를 선택하면 마지막 세션이 다시 열려요.";
 "Couldn’t use the Keychain, so sign-ins won’t survive quitting." = "키체인을 사용할 수 없어서 종료하면 로그인이 유지되지 않아요.";
+"Remove tracking from links" = "링크에서 추적 정보 제거";
+"Takes known tracking parameters (utm_source, fbclid, gclid and the like) out of an address before its page loads. Everything else in the address stays. A site where it breaks a page has its own switch in the address bar." = "utm_source, fbclid, gclid처럼 알려진 추적 매개변수를 페이지를 불러오기 전에 주소에서 빼요. 주소의 나머지는 그대로 둬요. 이 때문에 페이지가 깨지는 사이트는 주소창에서 따로 끌 수 있어요.";
+"Prefer secure connections" = "보안 연결 우선";
+"Tries an http address over https first, and loads it over http only when the site can’t be reached over https. A certificate that can’t be verified is never answered with http." = "http 주소를 먼저 https로 시도하고, https로 연결할 수 없을 때만 http로 불러와요. 확인할 수 없는 인증서는 http로 넘어가는 일 없이 그대로 막아요.";
+"This connection isn’t secure" = "안전하지 않은 연결이에요";
+"Can’t open the page securely" = "안전하게 페이지를 열 수 없어요";
+"This site sends you from a secure address back to an insecure one." = "이 사이트가 보안 주소에서 보안되지 않은 주소로 되돌려 보내요.";

@@ -744,3 +744,10 @@
 "Quit when the last window is closed" = "Beenden, wenn das letzte Fenster geschlossen wird";
 "Turned off, Changmun stays open without a window, like Safari. Clicking its Dock icon or choosing New Window reopens the last session." = "Ist die Option aus, bleibt Changmun wie Safari ohne Fenster geöffnet. Ein Klick auf das Symbol im Dock oder „Neues Fenster“ öffnet die letzte Sitzung wieder.";
 "Couldn’t use the Keychain, so sign-ins won’t survive quitting." = "Der Schlüsselbund konnte nicht verwendet werden, daher bleibst du nach dem Beenden nicht angemeldet.";
+"Remove tracking from links" = "Tracking aus Links entfernen";
+"Takes known tracking parameters (utm_source, fbclid, gclid and the like) out of an address before its page loads. Everything else in the address stays. A site where it breaks a page has its own switch in the address bar." = "Entfernt bekannte Tracking-Parameter (utm_source, fbclid, gclid und ähnliche) aus einer Adresse, bevor die Seite lädt. Der Rest der Adresse bleibt unverändert. Geht dadurch auf einer Website etwas kaputt, hat sie in der Adressleiste einen eigenen Schalter.";
+"Prefer secure connections" = "Sichere Verbindungen bevorzugen";
+"Tries an http address over https first, and loads it over http only when the site can’t be reached over https. A certificate that can’t be verified is never answered with http." = "Versucht eine http-Adresse zuerst über https und lädt sie nur dann über http, wenn die Website über https nicht erreichbar ist. Ein Zertifikat, das sich nicht überprüfen lässt, wird nie mit http beantwortet.";
+"This connection isn’t secure" = "Diese Verbindung ist nicht sicher";
+"Can’t open the page securely" = "Die Seite kann nicht sicher geöffnet werden";
+"This site sends you from a secure address back to an insecure one." = "Diese Website leitet von einer sicheren Adresse zurück auf eine unsichere um.";

@@ -169,6 +169,12 @@ final class Preferences: ObservableObject {
             CookieJournal.shared.setEnabled(keepSessionCookies)
         }
     }
+    /// Takes known tracking parameters out of an address before the page loads (see TrackingParameters); default on.
+    @Published var removeTrackingFromLinks: Bool { didSet { defaults.set(removeTrackingFromLinks, forKey: "removeTrackingFromLinks") } }
+    /// Tries an http address over https first, and goes back to http only when the site isn't there over https (see HTTPSFirst); default on.
+    @Published var preferSecureConnections: Bool { didSet { defaults.set(preferSecureConnections, forKey: "preferSecureConnections") } }
+    /// Sites whose addresses keep their tracking parameters (the site settings' switch).
+    @Published var trackingKeptHosts: [String] { didSet { defaults.set(trackingKeptHosts, forKey: "trackingKeptHosts") } }
     /// Filling a saved password asks for Touch ID or the Mac's password first.
     @Published var requireAuthToFill: Bool { didSet { defaults.set(requireAuthToFill, forKey: "requireAuthToFill") } }
     @Published var customFilterLists: [String] { didSet { defaults.set(customFilterLists, forKey: "customFilterLists") } }
@@ -247,6 +253,9 @@ final class Preferences: ObservableObject {
         blockTrackers = d.object(forKey: "blockTrackers") as? Bool ?? true
         keepSessionCookies = CookieJournal.storedSetting()
         requireAuthToFill = d.object(forKey: "requireAuthToFill") as? Bool ?? true
+        removeTrackingFromLinks = Self.privacySwitch(d.object(forKey: "removeTrackingFromLinks"))
+        preferSecureConnections = Self.privacySwitch(d.object(forKey: "preferSecureConnections"))
+        trackingKeptHosts = d.stringArray(forKey: "trackingKeptHosts") ?? []
         customFilterLists = d.stringArray(forKey: "customFilterLists") ?? []
         disabledFilterLists = d.stringArray(forKey: "disabledFilterLists") ?? []
         adBlockAllowlist = d.stringArray(forKey: "adBlockAllowlist") ?? []
@@ -264,6 +273,9 @@ final class Preferences: ObservableObject {
         addressBar = AddressBarChoice(rawValue: d.string(forKey: "addressBar") ?? "") ?? .automatic
         shortcuts = ShortcutScheme(rawValue: d.string(forKey: "shortcuts") ?? "") ?? .safari
     }
+
+    /// A privacy switch that is on until the user turns it off: nothing stored (everyone who had the app before it), or a value of another kind, is on.
+    nonisolated static func privacySwitch(_ stored: Any?) -> Bool { stored as? Bool ?? true }
 
     var addressBarOnTop: Bool { Self.onTop(addressBar, developerMode: developerMode) }
 

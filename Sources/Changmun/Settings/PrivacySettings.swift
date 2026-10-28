@@ -71,6 +71,12 @@ struct PrivacySettings: View {
             }
             AdBlockSection(prefs: prefs)
             Section {
+                Toggle("Remove tracking from links", isOn: $prefs.removeTrackingFromLinks)
+                Caption(text: "Takes known tracking parameters (utm_source, fbclid, gclid and the like) out of an address before its page loads. Everything else in the address stays. A site where it breaks a page has its own switch in the address bar.")
+                Toggle("Prefer secure connections", isOn: $prefs.preferSecureConnections)
+                Caption(text: "Tries an http address over https first, and loads it over http only when the site can’t be reached over https. A certificate that can’t be verified is never answered with http.")
+            }
+            Section {
                 LabeledContent("Saved Passwords") {
                     HStack {
                         Text(passwordCount == 1 ? String(localized: "\(passwordCount) password") : String(localized: "\(passwordCount) passwords")).foregroundStyle(.secondary)

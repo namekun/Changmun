@@ -22,6 +22,9 @@ struct SiteSettings: View {
                 .foregroundStyle(Theme.primary)
                 .lineLimit(1)
                 .frame(height: Metrics.row)
+            if tab.url?.scheme?.lowercased() == "http" {
+                row(String(localized: "This connection isn’t secure")) { EmptyView() }
+            }
             if tab.usesTrustException {
                 row(String(localized: "Certificate not verified")) { EmptyView() }
                 Button("Stop Trusting This Certificate") { tab.stopTrustingCertificate() }
@@ -31,6 +34,13 @@ struct SiteSettings: View {
             if prefs.blockTrackers && !tab.isPrivate {
                 row(String(localized: "Block ads and trackers")) {
                     switchFor(Binding(get: { !AdBlocker.shared.isAllowed(host) }, set: { if !host.isEmpty { AdBlocker.shared.setBlocking($0, for: host) } }))
+                }
+            }
+            if prefs.removeTrackingFromLinks && !tab.isPrivate {
+                row(String(localized: "Remove tracking from links")) {
+                    switchFor(Binding(get: { !Preferences.matches(host, prefs.trackingKeptHosts) }, set: {
+                        prefs.trackingKeptHosts = $0 ? Preferences.removing(host, from: prefs.trackingKeptHosts) : Preferences.adding(host, to: prefs.trackingKeptHosts)
+                    }))
                 }
             }
             row(String(localized: "Zoom")) {

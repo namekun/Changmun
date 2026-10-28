@@ -99,6 +99,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var agent = AgentState()
     /// When the page last asked for a window with a user gesture behind it, and the event of that gesture (see createWebViewWith).
     var lastGestureWindow: (at: Date, event: TimeInterval?)?
+    /// What the address rewrites of the navigation in flight leave behind (see rewriteNavigation).
+    var linkRewrite = LinkRewriteState()
     /// The tab has asked to open an app (see appLinkRequested): it doesn't ask again until the user navigates, so a page can't loop.
     var askedForAppSinceUserNavigation = false
     /// The question about an app is on screen.
@@ -233,6 +235,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// question about an app back. The AI's tools pass false.
     func load(_ url: URL, byUser: Bool = true) {
         self.url = url
+        linkRewrite.chain.removeAll()
         if byUser { askedForAppSinceUserNavigation = false }
         if url.isFileURL { userFileLoad = url }
         Self.load(url, in: wake())

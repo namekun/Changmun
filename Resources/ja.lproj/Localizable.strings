@@ -744,3 +744,10 @@
 "Quit when the last window is closed" = "最後のウインドウを閉じたら終了";
 "Turned off, Changmun stays open without a window, like Safari. Clicking its Dock icon or choosing New Window reopens the last session." = "オフにすると、ウインドウがなくてもSafariのようにChangmunは開いたままになります。Dockのアイコンをクリックするか「新規ウインドウ」を選ぶと、最後のセッションが再び開きます。";
 "Couldn’t use the Keychain, so sign-ins won’t survive quitting." = "キーチェーンを使用できないため、終了するとサインインは保持されません。";
+"Remove tracking from links" = "リンクからトラッキングを削除";
+"Takes known tracking parameters (utm_source, fbclid, gclid and the like) out of an address before its page loads. Everything else in the address stays. A site where it breaks a page has its own switch in the address bar." = "utm_source、fbclid、gclid など既知のトラッキングパラメータを、ページを読み込む前にアドレスから取り除きます。アドレスのそれ以外の部分はそのままです。これでページが崩れるサイトは、アドレスバーでサイトごとにオフにできます。";
+"Prefer secure connections" = "安全な接続を優先";
+"Tries an http address over https first, and loads it over http only when the site can’t be reached over https. A certificate that can’t be verified is never answered with http." = "http のアドレスをまず https で試し、https で接続できないときだけ http で読み込みます。確認できない証明書は、http に切り替えずにそのままブロックします。";
+"This connection isn’t secure" = "この接続は安全ではありません";
+"Can’t open the page securely" = "ページを安全に開けません";
+"This site sends you from a secure address back to an insecure one." = "このサイトは、安全なアドレスから安全でないアドレスへ送り返してきます。";
