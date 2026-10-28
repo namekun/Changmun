@@ -8,6 +8,7 @@ Every response carries X-Conn, the number of the connection it came on. Paths:
   /            a page titled "ok"
   /conn        the connection number, as text (CORS open)
   /conn-page   a page whose title becomes "conn:<number>" once it has fetched /conn
+  /frame-page  a page that tells its parent window 'framed' (for iframes)
   /page        a page that fetches /conn, starts a dedicated worker that fetches it too, and opens wss://host/ws; its title ends up "fetch:ok worker:ok ws:ok"
   /worker.js   the worker
   /redir?to=U  a 302 to U
@@ -71,6 +72,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.reply(str(self.conn).encode(), "text/plain")
         if url.path == "/conn-page":
             return self.reply(b"<title>waiting</title><script>fetch('/conn').then(r => r.text()).then(t => document.title = 'conn:' + t)</script>")
+        if url.path == "/frame-page":
+            return self.reply(b"<title>frame</title><script>parent.postMessage('framed', '*')</script>")
         if url.path == "/page":
             return self.reply(PAGE)
         if url.path == "/worker.js":

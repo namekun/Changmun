@@ -78,6 +78,11 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// The address the main frame was last told to load, which a server's certificate is for when the challenge comes (the web view's own address is
     /// still the page before).
     var navigatingTo: URL?
+    /// A frame in the page was let through on a host the user went on with though its certificate could not be verified: the page counts as unverified until
+    /// another page commits.
+    @Published var hasUnverifiedFrame = false
+    /// Counts the provisional navigations that began, so work decided for one load does not land on the next (see stopsLoad).
+    var loadGeneration = 0
     /// The Mac's owner is being asked to confirm going on to a site whose certificate can't be verified: a second press does not ask again.
     var isConfirmingTrust = false
     /// The load of our own page for an error, which is not a new page that takes the failure away.

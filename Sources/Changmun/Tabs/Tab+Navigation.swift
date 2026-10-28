@@ -10,7 +10,6 @@ extension Tab: WKNavigationDelegate {
             return (.cancel, preferences)
         }
         if action.shouldPerformDownload { return (.download, preferences) }
-        if action.targetFrame?.isMainFrame ?? true, let target = action.request.url, stopsLoad(of: target, in: webView) { return (.cancel, preferences) }
         let userInitiated = !AppScripts.drives(webView) && Self.userStartedForAppLinks(Self.isUserInitiated(action), knowsUserInitiated: Self.knowsUserInitiated)
         if let url = action.request.url, let scheme = url.scheme?.lowercased(), !Self.browserSchemes.contains(scheme) {
             // A frame can't speak for the page: the question is only for what the page itself, or the user's click, asks.
@@ -37,6 +36,9 @@ extension Tab: WKNavigationDelegate {
             browser?.openPeek(url)
             return (.cancel, preferences)
         }
+        // After the branches that send the address to another tab (⌘-click, middle click, the peek), which decide for themselves: only the load that is
+        // going to happen in this tab is stopped, never the page that is shown for a link opened elsewhere.
+        if let target = action.request.url, stopsLoad(of: target, isMainFrame: action.targetFrame?.isMainFrame ?? true, in: webView) { return (.cancel, preferences) }
         // The load that is allowed is the one whose certificate a challenge is for, until it commits or fails (see TrustFailure.pendingTarget).
         if action.targetFrame?.isMainFrame ?? true, let target = action.request.url, ["http", "https"].contains(target.scheme?.lowercased() ?? "") { navigatingTo = target }
         return (Self.allowHere, preferences)
@@ -146,6 +148,7 @@ extension Tab: WKNavigationDelegate {
         // The page that asked for the pop-up is on its way out: its bar goes now, not at the commit, so that no button is pressed
         // while the tab's address and the bar's site have parted ways.
         blockedPopup = nil
+        loadGeneration += 1
         // A certificate a page asked for is not wanted by the one that replaces it.
         // WebKit can deliver the challenge of this very load before it says the load began: that one is not the old page's.
         browser?.certificatePrompter.forget(self, keepingSiteOf: webView.url)
@@ -156,6 +159,7 @@ extension Tab: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         navigations += 1
         navigatingTo = nil
+        hasUnverifiedFrame = false
         if webView.url?.isFileURL != true { userFileLoad = nil }
         // A new site gets its own zoom; staying on the same one keeps what the user set (a private tab never saves it).
         let host = webView.url?.host()

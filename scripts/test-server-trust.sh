@@ -237,4 +237,23 @@ trust '{"authDelay": 0}' failure >/dev/null
 
 # A certificate that was fine and is not: this host is also "trusted earlier" for the Mac; the policy itself is unit-tested (ServerTrustPolicyTests).
 
+# A frame in a page: the same stop as for a page (a connection kept alive would otherwise carry it), and a frame that is let through makes the page unverified.
+cat > "$WORK/frame.html" <<'HTML'
+<title>waiting</title><script>
+window.onmessage = e => document.title = String(e.data);
+</script>
+<iframe src="https://localhost:@/frame-page"></iframe>
+HTML
+trust '{"auth": true, "exceptions": "clear"}' failure >/dev/null
+trust "{\"open\": \"https://localhost:$KA1/conn-page\", \"wait\": 3000}" failure >/dev/null
+trust '{"action": "visit", "wait": 3500}' failure >/dev/null
+FROM_LAB "$WORK/frame.html" "$KA1"
+expect "a frame on a host with an exception loads" "$(trust '{}' title)" framed
+expect "and makes the page unverified (no saved login, no remembered permission, the AI asks first)" "$(trust '{}' unverified)" true
+trust '{"exceptions": "clear"}' failure >/dev/null
+FROM_LAB "$WORK/frame.html" "$KA1"
+expect "with the exception gone the frame is stopped, though the connection is kept alive" "$(trust '{}' title)" waiting
+expect "silently: no warning over the page" "$(trust '{}' failure)" ""
+expect "and the page is not unverified for a frame that never loaded" "$(trust '{}' unverified)" false
+
 [[ $FAILED -eq 0 ]] && echo "all passed" || { echo "FAILED" >&2; exit 1; }

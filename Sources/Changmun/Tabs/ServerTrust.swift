@@ -81,40 +81,77 @@ struct TrustedSites {
 }
 
 extension ServerTrust {
+    /// Whether a load (of the main frame or of a frame in the page) is stopped by the app: the host and port are ones the user went on with in this run
+    /// (`unverified`) and this tab may not use an exception for them (`hasException` false in this store, or the AI drives the page). WebKit may carry such a
+    /// load over a connection kept alive from before, with no certificate question to cancel, so the app decides before the load starts.
+    /// A host the Mac now trusts on its own (a CA was installed since) is let through, by the same rule as a challenge (ServerTrustChallengeDecision).
+    nonisolated static func stopsLoad(unverified: Bool, hasException: Bool, mayOffer: Bool, systemTrusts: @autoclosure () -> Bool = false) -> Bool {
+        unverified && !(mayOffer && hasException) && !systemTrusts()
+    }
+
+    /// Whether the Mac trusts a certificate for a host now, as it would for a connection: the system's rules for a TLS server, with the host's name.
+    nonisolated static func systemTrusts(_ certificate: CertificateDetails, host: String) -> Bool {
+        guard !certificate.der.isEmpty, let leaf = SecCertificateCreateWithData(nil, certificate.der as CFData) else { return false }
+        var trust: SecTrust?
+        guard SecTrustCreateWithCertificates(leaf, SecPolicyCreateSSL(true, host as CFString), &trust) == errSecSuccess, let trust else { return false }
+        return SecTrustEvaluateWithError(trust, nil)
+    }
+
+    /// A frame of the page that was let through on a host the user went on with makes the page unverified for what the app keeps for a site.
+    nonisolated static func frameMakesPageUnverified(unverified: Bool, stopped: Bool) -> Bool { unverified && !stopped }
+
     /// Where "Go Back" goes from the warning: the nearest page before it that is not itself one the tab may not show now (a page restored from the
     /// back/forward list is not asked about again, so it would simply be shown). `history` is oldest first, the page the warning is over last.
     /// An index into `history`, or nil when there is no page before that could be shown.
     nonisolated static func backTarget(history: [URL], isStopped: (URL) -> Bool) -> Int? {
-        history.indices.dropLast().reversed().first { !isStopped(history[$0]) }
+        // An empty page of the app's own (what a warning replaced a page with) is no page to go back to.
+        history.indices.dropLast().reversed().first { history[$0].scheme?.lowercased() != "about" && !isStopped(history[$0]) }
     }
 
-    /// Text from a certificate or an address as it is shown to the user: without control characters and the characters that turn text around or hide
-    /// it (bidirectional overrides and isolates, line and paragraph separators), and no longer than `limit`.
+    /// Text from a certificate or an address as it is shown to the user, by the rules the AI's questions use (Approvals.isHidden): every character that is
+    /// invisible or lets text pass for other text (controls and line breaks, format and default-ignorable characters, bidi controls, variation selectors, tag
+    /// characters, the Hangul fillers), and private-use and unassigned code points, is shown as a box, not left out, so a changed text looks changed. No more
+    /// than `limit` characters (graphemes) and no more than `limit` unicode scalars (one character can be many): what does not fit is cut, and said so with "…".
     nonisolated static func sanitized(_ text: String, limit: Int = 200) -> String {
-        let hidden: Set<UInt32> = [0x061C, 0x200E, 0x200F, 0x2028, 0x2029, 0x202A, 0x202B, 0x202C, 0x202D, 0x202E, 0x2066, 0x2067, 0x2068, 0x2069, 0xFEFF]
-        var scalars = String.UnicodeScalarView()
-        scalars.append(contentsOf: text.unicodeScalars.filter { $0.properties.generalCategory != .control && !hidden.contains($0.value) })
-        let clean = String(scalars)
-        return clean.count > limit ? String(clean.prefix(limit)) + "…" : clean
+        var out = String.UnicodeScalarView()
+        var characters = 0, scalars = 0
+        for character in text {
+            let pieces = character.unicodeScalars
+            guard characters < limit, scalars + pieces.count <= limit else { out.append("…"); break }
+            for scalar in pieces {
+                let category = scalar.properties.generalCategory
+                out.append(Approvals.isHidden(scalar) || category == .privateUse || category == .unassigned || category == .surrogate ? "▯" : scalar)
+            }
+            characters += 1
+            scalars += pieces.count
+        }
+        return String(out)
     }
 
-    /// A host written in Unicode: the labels of an internationalized name are punycode ("xn--…") in an address. The host as it is when no label decodes.
+    /// A host written in Unicode: the labels of an internationalized name are punycode ("xn--…") in an address. The host as it is when it is too long to be a
+    /// host (253 characters; a label over 63) and for each label that does not decode: only its ASCII form is then shown.
     nonisolated static func unicodeHost(_ host: String) -> String {
-        host.split(separator: ".", omittingEmptySubsequences: false).map { label -> String in
+        guard host.utf8.count <= 253 else { return host }
+        return host.split(separator: ".", omittingEmptySubsequences: false).map { label -> String in
             let text = String(label)
-            guard text.lowercased().hasPrefix("xn--"), let decoded = decodePunycode(String(text.dropFirst(4))) else { return text }
+            guard text.utf8.count <= 63, text.lowercased().hasPrefix("xn--"), let decoded = decodePunycode(String(text.dropFirst(4))) else { return text }
             return decoded
         }.joined(separator: ".")
     }
 
-    /// RFC 3492.
+    /// RFC 3492, with every sum and product checked against the 32-bit bound the RFC's own code uses (§6.4): a value that would pass it means the input is
+    /// not punycode that stands for a name, and the result is nil. Nothing here can trap.
     nonisolated private static func decodePunycode(_ input: String) -> String? {
         let base = 36, tMin = 1, tMax = 26, skew = 38, damp = 700
+        let maxInt = Int(UInt32.max)
         var n = 128, i = 0, bias = 72
         var output: [UInt32] = []
         var rest = Substring(input)
         if let dash = input.lastIndex(of: "-") {
-            output = input[..<dash].unicodeScalars.map(\.value)
+            // The part before the last dash is the basic code points: ASCII, or it is not punycode.
+            let basic = input[..<dash].unicodeScalars
+            guard basic.allSatisfy({ $0.value < 128 }) else { return nil }
+            output = basic.map(\.value)
             rest = input[input.index(after: dash)...]
         }
         func digit(_ c: Character) -> Int? {
@@ -140,16 +177,22 @@ extension ServerTrust {
             while true {
                 guard index < rest.endIndex, let d = digit(rest[index]) else { return nil }
                 index = rest.index(after: index)
+                // i += d * w, as the RFC checks it: d * w must not pass what is left below the bound.
+                guard d <= (maxInt - i) / w else { return nil }
                 i += d * w
                 let t = k <= bias ? tMin : (k >= bias + tMax ? tMax : k - bias)
                 if d < t { break }
+                guard w <= maxInt / (base - t) else { return nil }
                 w *= base - t
                 k += base
             }
-            bias = adapt(i - oldI, output.count + 1, oldI == 0)
-            n += i / (output.count + 1)
-            i %= output.count + 1
-            guard n <= 0x10FFFF, output.count < 255 else { return nil }
+            let count = output.count + 1
+            bias = adapt(i - oldI, count, oldI == 0)
+            guard i / count <= maxInt - n else { return nil }
+            n += i / count
+            i %= count
+            // A code point past Unicode, and the halves of surrogate pairs, are not names; so is a name longer than a label can hold.
+            guard n <= 0x10FFFF, Unicode.Scalar(UInt32(n)) != nil, output.count < 63 else { return nil }
             output.insert(UInt32(n), at: i)
             i += 1
         }
@@ -185,18 +228,18 @@ struct CertificateDetails: Equatable {
     /// The DNS names and addresses it says it is for.
     var names: [String]
     var isSelfSigned: Bool
+    /// The certificate itself (DER), for judging it again; empty where a test stands in.
+    var der = Data()
 
     /// The fingerprint as pairs of digits ("AB:CD:…"), for reading.
     var spacedFingerprint: String {
-        stride(from: 0, to: fingerprint.count, by: 2).map { i in
-            let start = fingerprint.index(fingerprint.startIndex, offsetBy: i)
-            return fingerprint[start..<fingerprint.index(start, offsetBy: 2)].uppercased()
-        }.joined(separator: ":")
+        let digits = Array(fingerprint.uppercased())
+        return stride(from: 0, to: digits.count, by: 2).map { String(digits[$0..<min($0 + 2, digits.count)]) }.joined(separator: ":")
     }
 
-    init(subject: String, issuer: String, notBefore: Date, notAfter: Date, fingerprint: String, names: [String], isSelfSigned: Bool) {
-        (self.subject, self.issuer, self.notBefore, self.notAfter, self.fingerprint, self.names, self.isSelfSigned) =
-            (subject, issuer, notBefore, notAfter, fingerprint, names, isSelfSigned)
+    init(subject: String, issuer: String, notBefore: Date, notAfter: Date, fingerprint: String, names: [String], isSelfSigned: Bool, der: Data = Data()) {
+        (self.subject, self.issuer, self.notBefore, self.notAfter, self.fingerprint, self.names, self.isSelfSigned, self.der) =
+            (subject, issuer, notBefore, notAfter, fingerprint, names, isSelfSigned, der)
     }
 
     init?(_ certificate: SecCertificate) {
@@ -204,7 +247,7 @@ struct CertificateDetails: Equatable {
         guard let parts = Self.parts(ofCertificate: der), let dates = ClientCertificates.fields(ofCertificate: der) else { return nil }
         self.init(subject: ServerTrust.sanitized(Self.commonName(parts.subject) ?? (SecCertificateCopySubjectSummary(certificate) as String?) ?? ""),
                   issuer: ServerTrust.sanitized(Self.commonName(parts.issuer) ?? ""), notBefore: dates.notBefore, notAfter: dates.notAfter,
-                  fingerprint: ServerTrust.fingerprint(of: certificate), names: parts.names, isSelfSigned: parts.subject == parts.issuer)
+                  fingerprint: ServerTrust.fingerprint(of: certificate), names: parts.names, isSelfSigned: parts.subject == parts.issuer, der: der)
     }
 
     /// Whether the certificate is for the host: a DNS name it lists (a `*.` in front stands for one label) or, for an address, that address.
@@ -373,8 +416,9 @@ struct ServerTrustExceptions {
 struct AcceptedSites {
     /// By host and port: accepted in a window that is not private, which lasts the run.
     private var permanent: Set<String> = []
-    /// The certificate last gone on with, by host and port, for the warning when a load of the site is stopped before it is asked.
-    private var certificates: [String: CertificateDetails] = [:]
+    /// The certificate last gone on with, by host and port and by who accepted it (a private window, or nil for the windows that are not): a window that
+    /// is not private never shows what a private one saw.
+    private var certificates: [String: [ObjectIdentifier?: CertificateDetails]] = [:]
     /// Accepted in private windows, by the windows: they go when the window does.
     private var owners: [String: Set<ObjectIdentifier>] = [:]
 
@@ -384,15 +428,20 @@ struct AcceptedSites {
 
     /// `owner` is a private window's, whose entry goes when it closes.
     mutating func add(host: String, port: Int, owner: ObjectIdentifier? = nil, certificate: CertificateDetails? = nil) {
-        if let certificate { certificates[Self.key(host, port)] = certificate }
-        if let owner { owners[Self.key(host, port), default: []].insert(owner) } else { permanent.insert(Self.key(host, port)) }
+        let key = Self.key(host, port)
+        if let certificate { certificates[key, default: [:]][owner] = certificate }
+        if let owner { owners[key, default: []].insert(owner) } else { permanent.insert(key) }
     }
 
     /// A private window closed: what only it accepted goes (its session, and WebKit's memory of the certificate, go with it).
     mutating func removeAll(ownedBy owner: ObjectIdentifier) {
         for key in Array(owners.keys) {
             owners[key]?.remove(owner)
-            if owners[key]?.isEmpty == true { owners[key] = nil; if !permanent.contains(key) { certificates[key] = nil } }
+            if owners[key]?.isEmpty == true { owners[key] = nil }
+        }
+        for key in Array(certificates.keys) {
+            certificates[key]?[owner] = nil
+            if certificates[key]?.isEmpty == true { certificates[key] = nil }
         }
     }
 
@@ -401,7 +450,12 @@ struct AcceptedSites {
         return permanent.contains(key) || owners[key] != nil
     }
 
-    func certificate(host: String, port: Int) -> CertificateDetails? { certificates[Self.key(host, port)] }
+    /// The certificate last gone on with that a window may see: its own (`owner`, nil for a window that is not private), and for a private window also
+    /// the one a window that is not private went on with.
+    func certificate(host: String, port: Int, viewedBy owner: ObjectIdentifier? = nil) -> CertificateDetails? {
+        let byWho = certificates[Self.key(host, port)]
+        return byWho?[owner] ?? (owner != nil ? byWho?[nil] : nil)
+    }
 }
 
 /// What to do with a server's certificate that WebKit asks the tab about.
@@ -431,8 +485,9 @@ final class ServerTrustStore {
     var exceptions = ServerTrustExceptions()
     /// Where the user went on in this run, whichever store or window (see AcceptedSites).
     static var acceptedAnywhere = AcceptedSites()
-    /// The hosts that loaded over a connection the Mac trusted, in this store's windows.
-    var trusted = TrustedSites()
+    /// The hosts and ports whose certificate the Mac itself trusted in this run (seen in a certificate question, see Tab.answerServerTrust), for the whole
+    /// app: a certificate that was fine and is not now is the case of someone in the middle.
+    static var trustedAnywhere = TrustedSites()
     /// Whether the page at this host and port is one whose certificate the user went on with, in any store or window of this run: nothing the user
     /// keeps for a site (saved logins, remembered permissions) is used on it.
     static func isUnverified(host: String, port: Int) -> Bool { acceptedAnywhere.contains(host: host, port: port) }

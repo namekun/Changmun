@@ -35,10 +35,35 @@ final class ExtensionHost: NSObject, ObservableObject {
     /// Each extension's button in every window, so its popup opens in the window it was clicked in.
     var anchors: [String: NSHashTable<NSView>] = [:]
     private var optionsWindows: [String: NSWindow] = [:]
+    /// Hosts the user went on to though their certificate could not be verified (see ServerTrust): no extension may act on them for the rest of the run, so a
+    /// password manager with access to every site does not fill a page that someone in the middle could be serving.
+    private(set) var deniedHosts: Set<String> = []
 
     private override init() {
         super.init()
         controller.delegate = self
+    }
+
+    // MARK: Hosts whose certificate was not verified
+
+    /// The match pattern that stands for a host in every scheme, or nil for a host no pattern can name. (Patterns have no port: every port of the host.)
+    nonisolated static func denyPattern(forHost host: String) -> String? {
+        let name = host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        guard !name.isEmpty, !name.contains("*"), !name.contains("/") else { return nil }
+        let written = name.contains(":") && !name.hasPrefix("[") ? "[\(name)]" : name
+        return "*://\(written)/*"
+    }
+
+    /// Takes the extension's access to the host away; an explicit denial outweighs what it was granted for all sites.
+    static func deny(host: String, in context: WKWebExtensionContext) {
+        guard let string = denyPattern(forHost: host), let pattern = try? WKWebExtension.MatchPattern(string: string) else { return }
+        context.setPermissionStatus(.deniedExplicitly, for: pattern)
+    }
+
+    /// The user went on to this host: from now on no loaded extension (and none loaded later) acts on it. Nothing is written to disk, so a new run starts as it was.
+    func denyAccess(toHost host: String) {
+        deniedHosts.insert(host.lowercased())
+        for item in loaded { Self.deny(host: host, in: item.context) }
     }
 
     // MARK: Finding and loading
@@ -114,6 +139,7 @@ final class ExtensionHost: NSObject, ObservableObject {
             for pattern in webExtension.allRequestedMatchPatterns where granted.contains(pattern.string) {
                 context.setPermissionStatus(.grantedExplicitly, for: pattern)
             }
+            for host in deniedHosts { Self.deny(host: host, in: context) }
             try controller.load(context)
             try? await context.loadBackgroundContent()
             loaded.append(Loaded(source: source, context: context, name: webExtension.displayName ?? url.lastPathComponent))

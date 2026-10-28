@@ -38,7 +38,13 @@ extension Tab {
         let space = challenge.protectionSpace
         if Headless.isTestCopy { ServerTrustTestState.challenges.append("\(space.host):\(space.port)") }
         let accepted = ServerTrustStore.acceptedAnywhere.contains(host: space.host, port: space.port)
-        guard accepted else { return (.performDefaultHandling, nil) }
+        guard accepted else {
+            // What the Mac itself trusts is remembered, once per host and port: a certificate that was fine and is not later is the case of someone in the middle.
+            if let trust = space.serverTrust, !ServerTrustStore.trustedAnywhere.contains(host: space.host, port: space.port, store: nil), SecTrustEvaluateWithError(trust, nil) {
+                ServerTrustStore.trustedAnywhere.add(host: space.host, port: space.port, store: nil)
+            }
+            return (.performDefaultHandling, nil)
+        }
         // From here on nothing that is missing lets the load through: see ServerTrustChallengeDecision.
         let trust = space.serverTrust, store = browser?.trustStore
         let leaf = trust.flatMap(ServerTrust.leaf(of:))
@@ -51,17 +57,21 @@ extension Tab {
             return (.performDefaultHandling, nil)
         case .useException:
             trustLog { $0.notice("trust: exception applies to \(space.host, privacy: .private(mask: .hash)):\(space.port, privacy: .public), \((fingerprint ?? "").prefix(8), privacy: .public)") }
-            return (.useCredential, URLCredential(trust: trust!))
+            guard let trust else { return (.cancelAuthenticationChallenge, nil) }
+            return (.useCredential, URLCredential(trust: trust))
         case .cancel:
             trustLog { $0.notice("trust: \(space.host, privacy: .private(mask: .hash)):\(space.port, privacy: .public) is not covered by an exception here and the Mac does not trust it, \((fingerprint ?? "-").prefix(8), privacy: .public); refused") }
             if let trust, let store, let target = TrustFailure.pendingTarget(navigatingTo: navigatingTo, host: space.host, port: space.port) {
                 let failure = makeTrustFailure(trust: trust, url: target, code: NSURLErrorServerCertificateUntrusted, store: store)
-                if mayOffer, failure != nil {
+                if mayOffer, let failure {
                     // The page that was shown may still be running behind the warning: it is replaced by an empty one, so there is nothing under the view
                     // and "Go Back" is one step.
                     errorNavigation = webView.loadHTMLString("", baseURL: nil)
                     trustFailure = failure
-                } else if !mayOffer { showError(String(localized: "Can’t open the page"), String(localized: "The certificate of this site can’t be verified."), address: target, in: webView) }
+                } else {
+                    // Never a silent cancel: with no warning to show (the AI's page, or no certificate to describe) the page says it could not be opened.
+                    showError(String(localized: "Can’t open the page"), String(localized: "The certificate of this site can’t be verified."), address: target, in: webView)
+                }
             }
             return (.cancelAuthenticationChallenge, nil)
         }
@@ -71,9 +81,9 @@ extension Tab {
     /// connection the Mac trusted earlier in this run.
     private func makeTrustFailure(trust: SecTrust? = nil, error: NSError? = nil, url: URL?, code: Int, store: ServerTrustStore) -> TrustFailure? {
         let storeID = trustStoreID
-        let exceptions = store.exceptions, trusted = store.trusted
+        let exceptions = store.exceptions, trusted = ServerTrustStore.trustedAnywhere
         let changed = { (host: String, port: Int, fingerprint: String) in exceptions.isChanged(host: host, port: port, fingerprint: fingerprint, store: storeID) }
-        let wasTrusted = { (host: String, port: Int) in trusted.contains(host: host, port: port, store: storeID) }
+        let wasTrusted = { (host: String, port: Int) in trusted.contains(host: host, port: port, store: nil) }
         if let error { return TrustFailure.from(error: error, url: url, changed: changed, wasTrusted: wasTrusted) }
         guard let trust, let url else { return nil }
         return TrustFailure.from(trust: trust, url: url, code: code, changed: changed, wasTrusted: wasTrusted)
@@ -101,13 +111,16 @@ extension Tab {
         isConfirmingTrust = true
         defer { isConfirmingTrust = false }
         let confirmed = await ServerTrust.confirm(String(localized: "Authentication is required to visit \(failure.hostAndPort) although its certificate can’t be verified"))
-        // The page may have been replaced, or taken by the AI, while the Mac asked.
-        guard confirmed, trustFailure == failure, mayOfferTrustException else {
+        // The page may have been replaced, or taken by the AI, while the Mac asked; the window may have closed (a private one takes its exceptions with it, and
+        // nothing is made for a window that is gone).
+        guard confirmed, trustFailure == failure, mayOfferTrustException, let browser, browser.trustStore === store, Browser.all.contains(where: { $0 === browser }) else {
             trustLog { $0.notice("trust: not confirmed for \(failure.host, privacy: .private(mask: .hash)):\(failure.port, privacy: .public)") }
             return
         }
         store.exceptions.grant(host: failure.host, port: failure.port, fingerprint: failure.certificate.fingerprint, store: trustStoreID, details: failure.certificate)
-        ServerTrustStore.acceptedAnywhere.add(host: failure.host, port: failure.port, owner: browser?.isPrivate == true ? browser.map(ObjectIdentifier.init) : nil, certificate: failure.certificate)
+        ServerTrustStore.acceptedAnywhere.add(host: failure.host, port: failure.port, owner: browser.isPrivate ? ObjectIdentifier(browser) : nil, certificate: failure.certificate)
+        // What a password manager extension may do on the site is taken away for the run (see ExtensionHost.denyAccess).
+        if #available(macOS 15.4, *) { ExtensionHost.shared.denyAccess(toHost: failure.host) }
         trustLog { $0.notice("trust: the user went on with \(failure.host, privacy: .private(mask: .hash)):\(failure.port, privacy: .public), \(failure.certificate.fingerprint.prefix(8), privacy: .public)") }
         trustFailure = nil
         load(failure.url)
@@ -126,7 +139,7 @@ extension Tab {
             guard let host = url.host(), url.scheme?.lowercased() == "https" else { return false }
             return self.browser?.trustStore.exceptions.hasException(host: host, port: url.port ?? 443, store: self.trustStoreID) == true
         }
-        if let index = ServerTrust.backTarget(history: history + [url ?? URL(string: "about:blank")!],
+        if let index = ServerTrust.backTarget(history: history + [url ?? URL(fileURLWithPath: "/")],
                                               isStopped: { Self.isUnverified($0) && !(self.mayOfferTrustException && hasException($0)) }), index < list.backList.count {
             webView.go(to: items[index])
         }
@@ -145,27 +158,41 @@ extension Tab {
         errorNavigation = webView.loadHTMLString("", baseURL: nil)
         trustFailure = TrustFailure(url: url, host: host, port: port, code: NSURLErrorServerCertificateUntrusted,
                                     reason: TrustReason.determine(code: NSURLErrorServerCertificateUntrusted, certificate: certificate, host: host, now: Date()),
-                                    certificate: certificate, changed: false, visit: ServerTrustPolicy.visit(host: host, wasTrusted: false))
+                                    certificate: certificate, changed: false,
+                                    visit: ServerTrustPolicy.visit(host: host, wasTrusted: ServerTrustStore.trustedAnywhere.contains(host: host, port: port, store: nil)))
     }
 
-    /// A main frame load of a host and port the user went on with in this run, which this tab may not use (the AI drives it, or this store has no exception for
-    /// it): stopped here, because WebKit may carry it over a connection kept alive from before and then there is no certificate question to cancel.
-    /// The user's tab gets the warning, with the certificate last gone on with; the AI's tab, the plain error. True when the load is stopped.
-    func stopsLoad(of target: URL, in webView: WKWebView) -> Bool {
+    /// A load of a host and port the user went on with in this run, which this tab may not use (the AI drives it, or this store has no exception for it):
+    /// stopped here, because WebKit may carry it over a connection kept alive from before and then there is no certificate question to cancel. That holds
+    /// for a frame in the page as for the page: a frame is stopped without a word (there is no view for it), the page gets the warning (the user's tab, with the
+    /// certificate last gone on with) or the plain error (the AI's). A frame that is let through on such a host makes the page unverified (`hasUnverifiedFrame`).
+    /// What cannot be reached: a subresource, a worker or a WebSocket (no policy question is asked for them: they come under the challenge, or ride a warm
+    /// connection that way). True when the load is stopped.
+    func stopsLoad(of target: URL, isMainFrame: Bool, in webView: WKWebView) -> Bool {
         guard target.scheme?.lowercased() == "https", let host = target.host(), let store = browser?.trustStore else { return false }
         let port = target.port ?? 443
-        guard ServerTrustStore.isUnverified(host: host, port: port) else { return false }
+        let unverified = ServerTrustStore.isUnverified(host: host, port: port)
         let mayOffer = mayOfferTrustException
-        if mayOffer, store.exceptions.hasException(host: host, port: port, store: trustStoreID) { return false }
-        trustLog { $0.notice("trust: load of \(host, privacy: .private(mask: .hash)):\(port, privacy: .public) stopped, no exception covers it here") }
+        let owner = browser.flatMap { $0.isPrivate ? ObjectIdentifier($0) : nil }
+        let certificate = unverified ? ServerTrustStore.acceptedAnywhere.certificate(host: host, port: port, viewedBy: owner) : nil
+        let stopped = ServerTrust.stopsLoad(unverified: unverified, hasException: store.exceptions.hasException(host: host, port: port, store: trustStoreID), mayOffer: mayOffer,
+                                            systemTrusts: certificate.map { ServerTrust.systemTrusts($0, host: host) } ?? false)
+        if !isMainFrame, ServerTrust.frameMakesPageUnverified(unverified: unverified, stopped: stopped) { hasUnverifiedFrame = true }
+        guard stopped else { return false }
+        trustLog { $0.notice("trust: load of \(host, privacy: .private(mask: .hash)):\(port, privacy: .public) stopped (\(isMainFrame ? "page" : "frame", privacy: .public)), no exception covers it here") }
+        guard isMainFrame else { return true }
+        // The page is replaced in the next turn of the main loop, and only if no other load has begun since: a newer navigation of the user's is not blanked.
+        let generation = loadGeneration
         Task { @MainActor [weak self] in
-            guard let self else { return }
-            if mayOffer, let certificate = ServerTrustStore.acceptedAnywhere.certificate(host: host, port: port) {
+            guard let self, self.loadGeneration == generation else { return }
+            if mayOffer, let certificate {
                 self.errorNavigation = webView.loadHTMLString("", baseURL: nil)
                 self.trustFailure = TrustFailure(url: target, host: host, port: port, code: NSURLErrorServerCertificateUntrusted,
                                                  reason: TrustReason.determine(code: NSURLErrorServerCertificateUntrusted, certificate: certificate, host: host, now: Date()),
-                                                 certificate: certificate, changed: false, visit: ServerTrustPolicy.visit(host: host, wasTrusted: false))
+                                                 certificate: certificate, changed: false,
+                                                 visit: ServerTrustPolicy.visit(host: host, wasTrusted: ServerTrustStore.trustedAnywhere.contains(host: host, port: port, store: nil)))
             } else {
+                // Never a silent stop: with no warning to show the page says it could not be opened.
                 self.showError(String(localized: "Can’t open the page"), String(localized: "The certificate of this site can’t be verified."), address: target, in: webView)
             }
         }
@@ -182,15 +209,13 @@ extension Tab {
         let port = url.port ?? 443
         let uses = store.exceptions.hasException(host: host, port: port, store: trustStoreID)
         if usesTrustException != uses { usesTrustException = uses }
-        // A page that committed with no exception, and that WebKit was not let through on its own, has a certificate the Mac trusts.
-        if !uses, !ServerTrustStore.isUnverified(host: host, port: port) { store.trusted.add(host: host, port: port, store: trustStoreID) }
     }
 
     /// The address bar does not show a lock: the page is one whose certificate could not be verified (a warning is up, or the user went on).
     var isUnverified: Bool { trustFailure != nil || usesTrustException || showsUnverifiedPage }
 
     /// Whether the page shown (or the origin of a frame in it) is one whose certificate the user went on with: nothing kept for a site is used there.
-    var showsUnverifiedPage: Bool { Self.isUnverified(webView?.url) }
+    var showsUnverifiedPage: Bool { hasUnverifiedFrame || Self.isUnverified(webView?.url ?? url) }
 
     static func isUnverified(_ url: URL?) -> Bool {
         guard let url, let host = url.host() else { return false }

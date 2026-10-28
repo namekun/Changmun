@@ -328,7 +328,7 @@ enum ClientCertificates {
             (components.month, components.day, components.hour, components.minute, components.second) = (number(4..<6), number(6..<8), number(8..<10), number(10..<12), number(12..<14))
         }
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
+        calendar.timeZone = .gmt
         return calendar.date(from: components)
     }
 

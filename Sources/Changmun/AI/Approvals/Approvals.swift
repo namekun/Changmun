@@ -55,13 +55,24 @@ enum Approvals {
     static func mayShow(_ tab: Tab, caller: String) -> Bool {
         guard Preferences.shared.aiApprovalMode.asksAboutOtherSites, let browser = tab.browser else { return true }
         if tab.id == browser.activeID && browser === Browser.recent { return true }
-        if caller == ChatStore.caller, attached[tab.id] == (site(of: tab.url) ?? "") { return true }
+        // A page whose certificate the user went on with is shown to the AI only as another site's would be, attached to the chat or not.
+        if caller == ChatStore.caller, !tab.showsUnverifiedPage, attached[tab.id] == (site(of: tab.url) ?? "") { return true }
         return tabs[caller]?.contains(key(tab)) == true
     }
 
     /// A tab the AI opened itself is its to use, on the site it was opened on.
     static func allowOpened(_ tab: Tab, at url: URL, caller: String) {
         tabs[caller, default: []].insert(key(tab, host: site(of: url)))
+    }
+
+    /// A character that is invisible or lets text pass for other text: controls, line and paragraph separators, format and default-ignorable characters,
+    /// variation selectors, bidi controls, the Hangul fillers and the blank braille pattern. Shared by every place that shows text from outside.
+    nonisolated static func isHidden(_ scalar: Unicode.Scalar) -> Bool {
+        let properties = scalar.properties
+        let category = properties.generalCategory
+        return category == .control || category == .lineSeparator || category == .paragraphSeparator || category == .format
+            || properties.isDefaultIgnorableCodePoint || properties.isVariationSelector || properties.isBidiControl
+            || [0x115F, 0x1160, 0x3164, 0xFFA0, 0x2800].contains(scalar.value)
     }
 
     /// What the AI chose (or a page named), as a question shows it, counted and cut by unicode scalars: line breaks and every
@@ -79,9 +90,7 @@ enum Approvals {
             if scalar == "\n" || scalar == "\r" || scalar == "\t" {
                 marks = 0
                 clean.append(scalar == "\t" ? "⇥" : "⏎")
-            } else if category == .control || category == .lineSeparator || category == .paragraphSeparator || category == .format
-                        || properties.isDefaultIgnorableCodePoint || properties.isVariationSelector || properties.isBidiControl
-                        || [0x115F, 0x1160, 0x3164, 0xFFA0, 0x2800].contains(scalar.value) {
+            } else if isHidden(scalar) {
                 marks = 0
                 altered = true
                 clean.append("▯")

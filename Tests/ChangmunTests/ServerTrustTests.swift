@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import WebKit
 import Testing
 @testable import Changmun
 
@@ -284,14 +285,19 @@ struct ServerTrustPolicyTests {
 }
 
 struct ServerTrustTextTests {
-    @Test func textFromACertificateLosesControlAndTurningCharactersAndIsCapped() {
-        #expect(ServerTrust.sanitized("a\u{0}b\u{7}c\nd\te") == "abcde")
-        #expect(ServerTrust.sanitized("pay\u{202E}lap.com") == "paylap.com", "a right-to-left override would show the end first")
-        #expect(ServerTrust.sanitized("x\u{2066}y\u{2069}z\u{200F}\u{061C}\u{2028}") == "xyz")
+    @Test func textFromACertificateShowsHiddenAndTurningCharactersAsBoxesAndIsCapped() {
+        #expect(ServerTrust.sanitized("a\u{0}b\u{7}c\nd\te") == "a▯b▯c▯d▯e")
+        #expect(ServerTrust.sanitized("pay\u{202E}lap.com") == "pay▯lap.com", "a right-to-left override would show the end first; it is seen as changed")
+        #expect(ServerTrust.sanitized("x\u{2066}y\u{2069}z\u{200F}\u{061C}\u{2028}") == "x▯y▯z▯▯▯")
+        #expect(ServerTrust.sanitized("a\u{3164}b\u{115F}c\u{FE0F}d\u{E0041}e") == "a▯b▯c▯d▯e", "the Hangul fillers, variation selectors and tag characters")
+        #expect(ServerTrust.sanitized("a\u{E000}b\u{0378}c") == "a▯b▯c", "private-use and unassigned code points")
         #expect(ServerTrust.sanitized("한국 ✓ é") == "한국 ✓ é", "ordinary text is kept")
         let long = String(repeating: "a", count: 300)
         #expect(ServerTrust.sanitized(long) == String(repeating: "a", count: 200) + "…")
         #expect(ServerTrust.sanitized(long, limit: 500) == long)
+        // One character can be many scalars: a base letter under a long run of combining marks is capped by scalars as well.
+        let stacked = "e" + String(repeating: "\u{0301}", count: 400)
+        #expect(ServerTrust.sanitized(stacked, limit: 50).unicodeScalars.count <= 51, "a character made of 401 scalars does not get past the scalar cap")
     }
 
     @Test func anInternationalizedHostIsAlsoShownInUnicode() {
@@ -372,5 +378,195 @@ struct ServerTrustBackTests {
         #expect(ServerTrust.backTarget(history: history, isStopped: { $0.host() == "unverified.test" }) == 0, "the page that was on an exception is skipped")
         #expect(ServerTrust.backTarget(history: history, isStopped: { _ in true }) == nil, "nothing before it can be shown")
         #expect(ServerTrust.backTarget(history: urls("about:blank"), isStopped: { _ in false }) == nil, "no page before")
+        #expect(ServerTrust.backTarget(history: urls("https://a.test/", "about:blank", "about:blank", "about:blank"), isStopped: { _ in false }) == 0, "the app's own empty pages are gone past")
+        #expect(ServerTrust.backTarget(history: urls("about:blank", "about:blank", "about:blank"), isStopped: { _ in false }) == nil, "only empty pages remain: no page to go to")
+    }
+}
+
+/// Hosts and certificates come from the network: nothing parsed from them may trap, whatever the bytes.
+struct ServerTrustParsingSafetyTests {
+    /// A tiny deterministic generator, so a failure repeats.
+    private struct Random: RandomNumberGenerator {
+        var state: UInt64
+        mutating func next() -> UInt64 {
+            state = state &* 6364136223846793005 &+ 1442695040888963407
+            return state ^ (state >> 29)
+        }
+    }
+
+    @Test func craftedPunycodeThatOverflowsDecodesToNothingInsteadOfTrapping() {
+        let crafted = [
+            "xn--" + String(repeating: "z", count: 59),
+            "xn--" + String(repeating: "9", count: 59),
+            "xn--" + String(repeating: "a", count: 59),
+            "xn--a-" + String(repeating: "z", count: 50),
+            "xn--" + String(repeating: "zzzzzzzzzzzzzzzz", count: 3) + "9",
+            "xn--9999999999-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+            "xn--" + String(repeating: "zy", count: 29),
+        ]
+        for label in crafted {
+            let host = label + ".example"
+            // Whatever comes back, it came back: a label that does not decode is left as it is.
+            let shown = ServerTrust.unicodeHost(host)
+            #expect(!shown.isEmpty, "\(label)")
+        }
+        #expect(ServerTrust.unicodeHost("xn--" + String(repeating: "z", count: 59)) == "xn--" + String(repeating: "z", count: 59), "overflow: the ASCII form stays")
+    }
+
+    @Test func aHostOrLabelThatIsTooLongIsNotDecoded() {
+        let long = "xn--" + String(repeating: "a", count: 70)   // a label of 74
+        #expect(ServerTrust.unicodeHost(long + ".example") == long + ".example")
+        let host = (0..<30).map { _ in "xn--bcher-kva" }.joined(separator: ".")   // over 253 characters
+        #expect(host.count > 253 && ServerTrust.unicodeHost(host) == host)
+        #expect(ServerTrust.unicodeHost("xn--bcher-kva") == "bücher", "an ordinary one still decodes")
+        #expect(ServerTrust.unicodeHost("xn--é-kva") == "xn--é-kva", "a basic part that is not ASCII is not a punycode label")
+    }
+
+    @Test func thousandsOfRandomPunycodeLabelsNeverTrap() {
+        var random = Random(state: 20_261_028)
+        let alphabet = Array("abcdefghijklmnopqrstuvwxyz0123456789-")
+        let heavy = Array("zyxw9876-")
+        for round in 0..<6000 {
+            let length = Int.random(in: 1...59, using: &random)
+            let from = round % 3 == 0 ? heavy : alphabet
+            let label = "xn--" + String((0..<length).map { _ in from.randomElement(using: &random)! })
+            _ = ServerTrust.unicodeHost(label + ".example")
+            _ = ServerTrust.unicodeHost(label)
+        }
+    }
+
+    @Test func randomBytesAndDamagedCertificatesNeverTrapTheDERReaders() throws {
+        var random = Random(state: 9_001)
+        for _ in 0..<4000 {
+            let bytes = Data((0..<Int.random(in: 0...200, using: &random)).map { _ in UInt8.random(in: 0...255, using: &random) })
+            _ = ClientCertificates.fields(ofCertificate: bytes)
+            _ = ClientCertificates.extendedKeyUsages(ofCertificate: bytes)
+            _ = ClientCertificates.key(ofName: bytes)
+            _ = CertificateDetails.parts(ofCertificate: bytes)
+            _ = CertificateDetails.commonName(Array(bytes))
+        }
+        // A real certificate with bytes changed and cut: the structure is right up to the damage, which is where a reader goes wrong.
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("changmun-fuzz-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
+        process.arguments = ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "k.pem", "-out", "c.pem", "-days", "5", "-subj", "/CN=fuzz.test",
+                             "-addext", "subjectAltName=DNS:fuzz.test,IP:10.0.0.1", "-addext", "extendedKeyUsage=clientAuth,serverAuth"]
+        process.currentDirectoryURL = folder
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        let pem = try String(contentsOf: folder.appendingPathComponent("c.pem"), encoding: .utf8)
+        let der = try #require(Data(base64Encoded: pem.split(separator: "\n").filter { !$0.hasPrefix("-----") }.joined()))
+        #expect(ClientCertificates.extendedKeyUsages(ofCertificate: der)?.contains(ClientCertificates.clientAuthentication) == true, "the undamaged one reads")
+        for _ in 0..<6000 {
+            var damaged = [UInt8](der)
+            for _ in 0..<Int.random(in: 1...6, using: &random) { damaged[Int.random(in: 0..<damaged.count, using: &random)] = UInt8.random(in: 0...255, using: &random) }
+            if Bool.random(using: &random) { damaged = Array(damaged.prefix(Int.random(in: 0...damaged.count, using: &random))) }
+            let data = Data(damaged)
+            _ = ClientCertificates.fields(ofCertificate: data)
+            _ = ClientCertificates.extendedKeyUsages(ofCertificate: data)
+            _ = CertificateDetails.parts(ofCertificate: data)
+            if let certificate = SecCertificateCreateWithData(nil, data as CFData) { _ = CertificateDetails(certificate) }
+        }
+    }
+}
+
+struct ServerTrustFrameTests {
+    @Test func aLoadIsStoppedForAHostTheUserWentOnWithUnlessThisTabMayUseItsException() {
+        #expect(!ServerTrust.stopsLoad(unverified: false, hasException: false, mayOffer: true), "a host nobody went on with")
+        #expect(!ServerTrust.stopsLoad(unverified: true, hasException: true, mayOffer: true), "this store's exception covers it")
+        #expect(ServerTrust.stopsLoad(unverified: true, hasException: false, mayOffer: true), "another store, or an exception taken away")
+        #expect(ServerTrust.stopsLoad(unverified: true, hasException: true, mayOffer: false), "a page the AI drives")
+        #expect(ServerTrust.stopsLoad(unverified: true, hasException: false, mayOffer: false))
+        #expect(!ServerTrust.stopsLoad(unverified: true, hasException: false, mayOffer: true, systemTrusts: true), "the Mac trusts it now (a CA was installed): judged as ever")
+        #expect(!ServerTrust.stopsLoad(unverified: true, hasException: false, mayOffer: false, systemTrusts: true))
+        var asked = 0
+        _ = ServerTrust.stopsLoad(unverified: false, hasException: false, mayOffer: true, systemTrusts: { asked += 1; return true }())
+        _ = ServerTrust.stopsLoad(unverified: true, hasException: true, mayOffer: true, systemTrusts: { asked += 1; return true }())
+        #expect(asked == 0, "the Mac's trust is asked only when it can decide")
+    }
+
+    @Test func aFrameThatIsLetThroughOnAnUnverifiedHostMakesThePageUnverified() {
+        #expect(ServerTrust.frameMakesPageUnverified(unverified: true, stopped: false))
+        #expect(!ServerTrust.frameMakesPageUnverified(unverified: true, stopped: true), "a stopped frame shows nothing")
+        #expect(!ServerTrust.frameMakesPageUnverified(unverified: false, stopped: false))
+    }
+}
+
+struct ServerTrustCertificateRecordTests {
+    private func details(_ name: String) -> CertificateDetails {
+        CertificateDetails(subject: name, issuer: name, notBefore: Date(), notAfter: Date(), fingerprint: "ab", names: [], isSelfSigned: true)
+    }
+
+    @Test func aPrivateWindowsCertificateIsNotShownByAWindowThatIsNotPrivate() {
+        var accepted = AcceptedSites()
+        let window = NSObject(), other = NSObject()
+        accepted.add(host: "a.test", port: 443, owner: ObjectIdentifier(window), certificate: details("private"))
+        #expect(accepted.certificate(host: "a.test", port: 443, viewedBy: ObjectIdentifier(window))?.subject == "private")
+        #expect(accepted.certificate(host: "a.test", port: 443, viewedBy: nil) == nil, "the other windows never see it")
+        #expect(accepted.certificate(host: "a.test", port: 443, viewedBy: ObjectIdentifier(other)) == nil, "nor another private window")
+        accepted.add(host: "a.test", port: 443, certificate: details("shared"))
+        #expect(accepted.certificate(host: "a.test", port: 443, viewedBy: nil)?.subject == "shared")
+        #expect(accepted.certificate(host: "a.test", port: 443, viewedBy: ObjectIdentifier(window))?.subject == "private", "its own comes first")
+        #expect(accepted.certificate(host: "a.test", port: 443, viewedBy: ObjectIdentifier(other))?.subject == "shared", "a private window may see what the others went on with")
+        accepted.removeAll(ownedBy: ObjectIdentifier(window))
+        #expect(accepted.certificate(host: "a.test", port: 443, viewedBy: ObjectIdentifier(window))?.subject == "shared", "what it saw goes with it")
+    }
+
+    @Test func theMacsTrustIsAskedOfTheCertificateThatWasGoneOnWith() throws {
+        // A certificate nobody vouches for is not trusted; one with no bytes (a test's stand-in) is not either.
+        #expect(!ServerTrust.systemTrusts(details("none"), host: "a.test"))
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("changmun-sys-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
+        process.arguments = ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "k.pem", "-out", "c.pem", "-days", "5", "-subj", "/CN=a.test", "-addext", "subjectAltName=DNS:a.test"]
+        process.currentDirectoryURL = folder
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        let pem = try String(contentsOf: folder.appendingPathComponent("c.pem"), encoding: .utf8)
+        let der = try #require(Data(base64Encoded: pem.split(separator: "\n").filter { !$0.hasPrefix("-----") }.joined()))
+        let certificate = try #require(SecCertificateCreateWithData(nil, der as CFData))
+        let read = try #require(CertificateDetails(certificate))
+        #expect(!read.der.isEmpty && !ServerTrust.systemTrusts(read, host: "a.test"), "a self-signed certificate is not trusted by the Mac")
+    }
+}
+
+@MainActor
+struct ExtensionDenialTests {
+    @Test func aHostPatternNamesTheHostInEveryScheme() {
+        guard #available(macOS 15.4, *) else { return }
+        #expect(ExtensionHost.denyPattern(forHost: "Intranet.Example.com") == "*://intranet.example.com/*")
+        #expect(ExtensionHost.denyPattern(forHost: "example.com.") == "*://example.com/*")
+        #expect(ExtensionHost.denyPattern(forHost: "::1") == "*://[::1]/*")
+        #expect(ExtensionHost.denyPattern(forHost: "") == nil)
+        #expect(ExtensionHost.denyPattern(forHost: "a*b") == nil && ExtensionHost.denyPattern(forHost: "a/b") == nil)
+    }
+
+    @Test func anExtensionWithAccessToEverySiteLosesTheHostTheUserWentOnTo() async throws {
+        guard #available(macOS 15.4, *) else { return }
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("ext-deny-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        try Data(#"""
+        {"manifest_version": 3, "name": "Manager", "version": "1.0", "host_permissions": ["<all_urls>"],
+         "content_scripts": [{"matches": ["<all_urls>"], "js": ["fill.js"]}]}
+        """#.utf8).write(to: folder.appendingPathComponent("manifest.json"))
+        try Data("1".utf8).write(to: folder.appendingPathComponent("fill.js"))
+        let ext = try await WKWebExtension(resourceBaseURL: folder)
+        let context = WKWebExtensionContext(for: ext)
+        for pattern in ext.allRequestedMatchPatterns { context.setPermissionStatus(.grantedExplicitly, for: pattern) }
+        let excepted = try #require(URL(string: "https://intranet.test:8443/login")), other = try #require(URL(string: "https://example.com/login"))
+        #expect(context.permissionStatus(for: excepted) == .grantedExplicitly || context.permissionStatus(for: excepted) == .grantedImplicitly, "access to every site, before")
+        ExtensionHost.deny(host: "intranet.test", in: context)
+        #expect(context.permissionStatus(for: excepted) == .deniedExplicitly, "none on the host the user went on to (any port)")
+        #expect(context.permissionStatus(for: URL(string: "http://intranet.test/")!) == .deniedExplicitly)
+        #expect(context.permissionStatus(for: other) != .deniedExplicitly, "every other site is as it was")
     }
 }
