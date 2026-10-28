@@ -363,7 +363,7 @@ final class CookieJournal {
     }
 
     /// The same set of cookies has the same digest, whatever order WebKit lists them in.
-    static func digest(_ records: [CookieRecord]) -> SHA256.Digest {
+    nonisolated static func digest(_ records: [CookieRecord]) -> SHA256.Digest {
         var hash = SHA256()
         for record in records.sorted(by: { $0.key < $1.key }) {
             hash.update(data: Data("\(record.key)\n\(record.value)\n\(record.expires?.timeIntervalSince1970 ?? -1)\n\(record.secure)\(record.httpOnly)\(record.sameSite ?? "-")\u{0}".utf8))
