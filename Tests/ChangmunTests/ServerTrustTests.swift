@@ -481,12 +481,8 @@ struct ServerTrustFrameTests {
         #expect(ServerTrust.stopsLoad(unverified: true, hasException: false, mayOffer: true), "another store, or an exception taken away")
         #expect(ServerTrust.stopsLoad(unverified: true, hasException: true, mayOffer: false), "a page the AI drives")
         #expect(ServerTrust.stopsLoad(unverified: true, hasException: false, mayOffer: false))
-        #expect(!ServerTrust.stopsLoad(unverified: true, hasException: false, mayOffer: true, systemTrusts: true), "the Mac trusts it now (a CA was installed): judged as ever")
-        #expect(!ServerTrust.stopsLoad(unverified: true, hasException: false, mayOffer: false, systemTrusts: true))
-        var asked = 0
-        _ = ServerTrust.stopsLoad(unverified: false, hasException: false, mayOffer: true, systemTrusts: { asked += 1; return true }())
-        _ = ServerTrust.stopsLoad(unverified: true, hasException: true, mayOffer: true, systemTrusts: { asked += 1; return true }())
-        #expect(asked == 0, "the Mac's trust is asked only when it can decide")
+        // Nothing the app knows of an earlier certificate says what the connection in use now presents: the Mac's trust is no way through here (a new
+        // connection is judged by the challenge, which lets a certificate the Mac trusts through).
     }
 
     @Test func aFrameThatIsLetThroughOnAnUnverifiedHostMakesThePageUnverified() {
@@ -514,27 +510,6 @@ struct ServerTrustCertificateRecordTests {
         #expect(accepted.certificate(host: "a.test", port: 443, viewedBy: ObjectIdentifier(other))?.subject == "shared", "a private window may see what the others went on with")
         accepted.removeAll(ownedBy: ObjectIdentifier(window))
         #expect(accepted.certificate(host: "a.test", port: 443, viewedBy: ObjectIdentifier(window))?.subject == "shared", "what it saw goes with it")
-    }
-
-    @Test func theMacsTrustIsAskedOfTheCertificateThatWasGoneOnWith() throws {
-        // A certificate nobody vouches for is not trusted; one with no bytes (a test's stand-in) is not either.
-        #expect(!ServerTrust.systemTrusts(details("none"), host: "a.test"))
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("changmun-sys-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: folder) }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
-        process.arguments = ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "k.pem", "-out", "c.pem", "-days", "5", "-subj", "/CN=a.test", "-addext", "subjectAltName=DNS:a.test"]
-        process.currentDirectoryURL = folder
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        try process.run()
-        process.waitUntilExit()
-        let pem = try String(contentsOf: folder.appendingPathComponent("c.pem"), encoding: .utf8)
-        let der = try #require(Data(base64Encoded: pem.split(separator: "\n").filter { !$0.hasPrefix("-----") }.joined()))
-        let certificate = try #require(SecCertificateCreateWithData(nil, der as CFData))
-        let read = try #require(CertificateDetails(certificate))
-        #expect(!read.der.isEmpty && !ServerTrust.systemTrusts(read, host: "a.test"), "a self-signed certificate is not trusted by the Mac")
     }
 }
 
@@ -568,5 +543,39 @@ struct ExtensionDenialTests {
         #expect(context.permissionStatus(for: excepted) == .deniedExplicitly, "none on the host the user went on to (any port)")
         #expect(context.permissionStatus(for: URL(string: "http://intranet.test/")!) == .deniedExplicitly)
         #expect(context.permissionStatus(for: other) != .deniedExplicitly, "every other site is as it was")
+    }
+
+    @Test func aGrantAfterTheDenialDoesNotGiveTheHostBackAndABroadPatternIsGrantedButStillDenied() async throws {
+        guard #available(macOS 15.4, *) else { return }
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("ext-deny2-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        try Data(#"""
+        {"manifest_version": 3, "name": "Manager", "version": "1.0", "host_permissions": ["<all_urls>"],
+         "content_scripts": [{"matches": ["<all_urls>"], "js": ["fill.js"]}]}
+        """#.utf8).write(to: folder.appendingPathComponent("manifest.json"))
+        try Data("1".utf8).write(to: folder.appendingPathComponent("fill.js"))
+        let ext = try await WKWebExtension(resourceBaseURL: folder)
+        let context = WKWebExtensionContext(for: ext)
+        let excepted = try #require(URL(string: "https://intranet.test/login")), other = try #require(URL(string: "https://example.com/login"))
+        ExtensionHost.deny(host: "intranet.test", in: context)
+        // The user, asked later, grants every site (or a pattern for the host itself): what the prompt handlers pass on is filtered, and the denial is put back.
+        let all = try WKWebExtension.MatchPattern(string: "<all_urls>"), own = try WKWebExtension.MatchPattern(string: "https://intranet.test/*"), star = try WKWebExtension.MatchPattern(string: "https://*.test/*")
+        #expect(ExtensionHost.withoutDeniedHosts([all, own, star], denied: ["intranet.test"]).map(\.string).sorted() == ["<all_urls>", "https://*.test/*"], "a pattern for the host itself is not granted; broad ones are")
+        #expect(ExtensionHost.withoutDeniedHosts(urls: [excepted, other], denied: ["intranet.test"]) == [other])
+        for pattern in [all, own, star] { context.setPermissionStatus(.grantedExplicitly, for: pattern) }
+        ExtensionHost.reapplyDenials(in: context, hosts: ["intranet.test"])
+        #expect(context.permissionStatus(for: excepted) == .deniedExplicitly, "the explicit denial wins after the grants")
+        #expect(context.permissionStatus(for: other) == .grantedExplicitly || context.permissionStatus(for: other) == .grantedImplicitly, "every other host is granted")
+    }
+
+    @Test func aHostPatternIsRecognisedWhateverTheSchemeAndCase() {
+        guard #available(macOS 15.4, *) else { return }
+        let denied: Set<String> = ["intranet.test"]
+        #expect(ExtensionHost.patternNamesDeniedHost("*://Intranet.Test/*", denied: denied))
+        #expect(ExtensionHost.patternNamesDeniedHost("https://intranet.test/a/b", denied: denied))
+        #expect(!ExtensionHost.patternNamesDeniedHost("<all_urls>", denied: denied))
+        #expect(!ExtensionHost.patternNamesDeniedHost("*://*.intranet.test/*", denied: denied), "a wider pattern is granted and denied after")
+        #expect(!ExtensionHost.patternNamesDeniedHost("*://other.test/*", denied: denied))
     }
 }

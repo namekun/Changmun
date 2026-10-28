@@ -175,8 +175,7 @@ extension Tab {
         let mayOffer = mayOfferTrustException
         let owner = browser.flatMap { $0.isPrivate ? ObjectIdentifier($0) : nil }
         let certificate = unverified ? ServerTrustStore.acceptedAnywhere.certificate(host: host, port: port, viewedBy: owner) : nil
-        let stopped = ServerTrust.stopsLoad(unverified: unverified, hasException: store.exceptions.hasException(host: host, port: port, store: trustStoreID), mayOffer: mayOffer,
-                                            systemTrusts: certificate.map { ServerTrust.systemTrusts($0, host: host) } ?? false)
+        let stopped = ServerTrust.stopsLoad(unverified: unverified, hasException: store.exceptions.hasException(host: host, port: port, store: trustStoreID), mayOffer: mayOffer)
         if !isMainFrame, ServerTrust.frameMakesPageUnverified(unverified: unverified, stopped: stopped) { hasUnverifiedFrame = true }
         guard stopped else { return false }
         trustLog { $0.notice("trust: load of \(host, privacy: .private(mask: .hash)):\(port, privacy: .public) stopped (\(isMainFrame ? "page" : "frame", privacy: .public)), no exception covers it here") }

@@ -42,6 +42,13 @@ final class ExtensionHost: NSObject, ObservableObject {
     private override init() {
         super.init()
         controller.delegate = self
+        // Whatever grants a match pattern later (a prompt, a tab's own grant), the explicit denial of a host the user went on to is put back.
+        NotificationCenter.default.addObserver(forName: WKWebExtensionContext.permissionMatchPatternsWereGrantedNotification, object: nil, queue: .main) { [weak self] note in
+            MainActor.assumeIsolated {
+                guard let self, let context = note.object as? WKWebExtensionContext else { return }
+                Self.reapplyDenials(in: context, hosts: self.deniedHosts)
+            }
+        }
     }
 
     // MARK: Hosts whose certificate was not verified
@@ -58,6 +65,38 @@ final class ExtensionHost: NSObject, ObservableObject {
     static func deny(host: String, in context: WKWebExtensionContext) {
         guard let string = denyPattern(forHost: host), let pattern = try? WKWebExtension.MatchPattern(string: string) else { return }
         context.setPermissionStatus(.deniedExplicitly, for: pattern)
+    }
+
+    /// Denies every host again, for a context whose grants changed: an explicit denial must always win. Only what is not denied is touched.
+    static func reapplyDenials(in context: WKWebExtensionContext, hosts: Set<String>) {
+        for host in hosts {
+            guard denyPattern(forHost: host) != nil, let url = URL(string: "https://\(host.contains(":") ? "[\(host)]" : host)/"), context.permissionStatus(for: url) != .deniedExplicitly else { continue }
+            deny(host: host, in: context)
+        }
+    }
+
+    /// The host a match pattern or address names, lower case; nil for a pattern with no host of its own (`<all_urls>`).
+    nonisolated static func patternHost(_ pattern: String) -> String? {
+        guard let scheme = pattern.range(of: "://") else { return nil }
+        let rest = pattern[scheme.upperBound...]
+        let host = rest.prefix { $0 != "/" }
+        return host.isEmpty ? nil : host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+    }
+
+    /// Whether the pattern is for exactly one of the denied hosts. Wider patterns (`<all_urls>`, `*://*/*`, `*.example.com`) are not: they are granted, and the
+    /// denial is put back over them.
+    nonisolated static func patternNamesDeniedHost(_ pattern: String, denied: Set<String>) -> Bool {
+        patternHost(pattern).map { denied.contains($0) } ?? false
+    }
+
+    /// What a prompt may grant: the patterns for a denied host itself are left out.
+    static func withoutDeniedHosts(_ patterns: Set<WKWebExtension.MatchPattern>, denied: Set<String>) -> Set<WKWebExtension.MatchPattern> {
+        patterns.filter { !patternNamesDeniedHost($0.string, denied: denied) }
+    }
+
+    /// Likewise for addresses.
+    nonisolated static func withoutDeniedHosts(urls: Set<URL>, denied: Set<String>) -> Set<URL> {
+        urls.filter { url in url.host().map { !denied.contains($0.lowercased()) } ?? true }
     }
 
     /// The user went on to this host: from now on no loaded extension (and none loaded later) acts on it. Nothing is written to disk, so a new run starts as it was.
@@ -367,7 +406,10 @@ extension ExtensionHost: WKWebExtensionControllerDelegate {
         let name = extensionContext.webExtension.displayName ?? String(localized: "Extension")
         let allowed = ask(String(localized: "'\(name)' wants to access this site"),
                           matchPatterns.map(\.string).sorted().joined(separator: "\n"))
-        completionHandler(allowed ? matchPatterns : [], nil)
+        completionHandler(allowed ? Self.withoutDeniedHosts(matchPatterns, denied: deniedHosts) : [], nil)
+        // The grant lands after this returns (and a broad pattern covers a denied host): the denial is put back at once and again when the grant is announced.
+        Self.reapplyDenials(in: extensionContext, hosts: deniedHosts)
+        DispatchQueue.main.async { [deniedHosts] in Self.reapplyDenials(in: extensionContext, hosts: deniedHosts) }
     }
 
     func webExtensionController(_ controller: WKWebExtensionController, promptForPermissionToAccess urls: Set<URL>,
@@ -376,7 +418,9 @@ extension ExtensionHost: WKWebExtensionControllerDelegate {
         let name = extensionContext.webExtension.displayName ?? String(localized: "Extension")
         let allowed = ask(String(localized: "'\(name)' wants to access this site"),
                           urls.compactMap { $0.host() }.sorted().joined(separator: "\n"))
-        completionHandler(allowed ? urls : [], nil)
+        completionHandler(allowed ? Self.withoutDeniedHosts(urls: urls, denied: deniedHosts) : [], nil)
+        Self.reapplyDenials(in: extensionContext, hosts: deniedHosts)
+        DispatchQueue.main.async { [deniedHosts] in Self.reapplyDenials(in: extensionContext, hosts: deniedHosts) }
     }
 
     func webExtensionController(_ controller: WKWebExtensionController, didUpdate action: WKWebExtension.Action,

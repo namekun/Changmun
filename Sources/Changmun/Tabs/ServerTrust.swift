@@ -84,17 +84,10 @@ extension ServerTrust {
     /// Whether a load (of the main frame or of a frame in the page) is stopped by the app: the host and port are ones the user went on with in this run
     /// (`unverified`) and this tab may not use an exception for them (`hasException` false in this store, or the AI drives the page). WebKit may carry such a
     /// load over a connection kept alive from before, with no certificate question to cancel, so the app decides before the load starts.
-    /// A host the Mac now trusts on its own (a CA was installed since) is let through, by the same rule as a challenge (ServerTrustChallengeDecision).
-    nonisolated static func stopsLoad(unverified: Bool, hasException: Bool, mayOffer: Bool, systemTrusts: @autoclosure () -> Bool = false) -> Bool {
-        unverified && !(mayOffer && hasException) && !systemTrusts()
-    }
-
-    /// Whether the Mac trusts a certificate for a host now, as it would for a connection: the system's rules for a TLS server, with the host's name.
-    nonisolated static func systemTrusts(_ certificate: CertificateDetails, host: String) -> Bool {
-        guard !certificate.der.isEmpty, let leaf = SecCertificateCreateWithData(nil, certificate.der as CFData) else { return false }
-        var trust: SecTrust?
-        guard SecTrustCreateWithCertificates(leaf, SecPolicyCreateSSL(true, host as CFString), &trust) == errSecSuccess, let trust else { return false }
-        return SecTrustEvaluateWithError(trust, nil)
+    /// The Mac's own trust is not a way through here: what is known of the certificate gone on with says nothing of the one the connection in use presents
+    /// now (someone in the middle may be on it). A new connection is judged by the certificate question, which lets a certificate the Mac trusts through.
+    nonisolated static func stopsLoad(unverified: Bool, hasException: Bool, mayOffer: Bool) -> Bool {
+        unverified && !(mayOffer && hasException)
     }
 
     /// A frame of the page that was let through on a host the user went on with makes the page unverified for what the app keeps for a site.
@@ -228,8 +221,6 @@ struct CertificateDetails: Equatable {
     /// The DNS names and addresses it says it is for.
     var names: [String]
     var isSelfSigned: Bool
-    /// The certificate itself (DER), for judging it again; empty where a test stands in.
-    var der = Data()
 
     /// The fingerprint as pairs of digits ("AB:CD:…"), for reading.
     var spacedFingerprint: String {
@@ -237,9 +228,9 @@ struct CertificateDetails: Equatable {
         return stride(from: 0, to: digits.count, by: 2).map { String(digits[$0..<min($0 + 2, digits.count)]) }.joined(separator: ":")
     }
 
-    init(subject: String, issuer: String, notBefore: Date, notAfter: Date, fingerprint: String, names: [String], isSelfSigned: Bool, der: Data = Data()) {
-        (self.subject, self.issuer, self.notBefore, self.notAfter, self.fingerprint, self.names, self.isSelfSigned, self.der) =
-            (subject, issuer, notBefore, notAfter, fingerprint, names, isSelfSigned, der)
+    init(subject: String, issuer: String, notBefore: Date, notAfter: Date, fingerprint: String, names: [String], isSelfSigned: Bool) {
+        (self.subject, self.issuer, self.notBefore, self.notAfter, self.fingerprint, self.names, self.isSelfSigned) =
+            (subject, issuer, notBefore, notAfter, fingerprint, names, isSelfSigned)
     }
 
     init?(_ certificate: SecCertificate) {
@@ -247,7 +238,7 @@ struct CertificateDetails: Equatable {
         guard let parts = Self.parts(ofCertificate: der), let dates = ClientCertificates.fields(ofCertificate: der) else { return nil }
         self.init(subject: ServerTrust.sanitized(Self.commonName(parts.subject) ?? (SecCertificateCopySubjectSummary(certificate) as String?) ?? ""),
                   issuer: ServerTrust.sanitized(Self.commonName(parts.issuer) ?? ""), notBefore: dates.notBefore, notAfter: dates.notAfter,
-                  fingerprint: ServerTrust.fingerprint(of: certificate), names: parts.names, isSelfSigned: parts.subject == parts.issuer, der: der)
+                  fingerprint: ServerTrust.fingerprint(of: certificate), names: parts.names, isSelfSigned: parts.subject == parts.issuer)
     }
 
     /// Whether the certificate is for the host: a DNS name it lists (a `*.` in front stands for one label) or, for an address, that address.
