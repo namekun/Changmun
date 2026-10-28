@@ -9,6 +9,8 @@ final class LibraryWatcher: ObservableObject {
     /// Every space's favorites, by the folder they are kept in.
     @Published private(set) var favoritesByFolder: [String: [Library.Entry]] = [:]
     @Published private(set) var sources: [(source: String, folders: [Library.Folder])] = []
+    /// The pages saved to read later, newest first.
+    @Published private(set) var readingList: [ReadingItem] = []
     /// The favorites' addresses, for the star in the address bar.
     private var favoriteURLs: [String: Set<String>] = [:]
     private var reading = false
@@ -27,6 +29,7 @@ final class LibraryWatcher: ObservableObject {
 
     private init() {
         if let read = Library.shared.readBookmarks() { apply(read) }
+        readingList = Library.shared.readingList()
         NotificationCenter.default.addObserver(forName: Library.didChange, object: nil, queue: .main) { _ in
             MainActor.assumeIsolated { LibraryWatcher.shared.reload() }
         }
@@ -37,9 +40,10 @@ final class LibraryWatcher: ObservableObject {
         reading = true
         Task {
             // An unreadable library (locked, damaged, a full disk) keeps what is shown, and every tab keeps its bookmark.
-            let read = await Library.shared.inBackground { $0.readBookmarks() }
+            let (read, saved) = await Library.shared.inBackground { ($0.readBookmarks(), $0.readReadingList()) }
             // Changed while reading: this read may already be old, so only the next one counts.
             if let read, !readAgain { apply(read) }
+            if let saved, !readAgain, saved != readingList { readingList = saved }
             reading = false
             if readAgain {
                 readAgain = false

@@ -28,7 +28,7 @@ final class Library: @unchecked Sendable {
         var title: String
     }
 
-    private let db: SQLite?
+    let db: SQLite?
     private let path: String
     /// Why the database can't be used (it wouldn't open, or its bookmarks couldn't be brought up to date), or nil. Every write
     /// then fails without a word, so the app tells the user once.
@@ -53,6 +53,7 @@ final class Library: @unchecked Sendable {
                 "CREATE TABLE IF NOT EXISTS bookmarks (id INTEGER PRIMARY KEY, url TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', folder TEXT NOT NULL DEFAULT '', added REAL NOT NULL, position REAL, UNIQUE(url, folder))",
                 "CREATE INDEX IF NOT EXISTS history_recent ON history(last_visit DESC)",
                 "CREATE TABLE IF NOT EXISTS folder_names (key TEXT PRIMARY KEY, name TEXT NOT NULL)",
+                "CREATE TABLE IF NOT EXISTS reading_list (url TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', added REAL NOT NULL, read INTEGER NOT NULL DEFAULT 0)",
             ] {
                 do { try db.execute(statement) } catch { NSLog("Changmun: the library at %@ could not run \"%@\": %@", path, statement, error.localizedDescription) }
             }
@@ -113,13 +114,13 @@ final class Library: @unchecked Sendable {
         """, [url, title, date.timeIntervalSince1970])
     }
 
-    private func changed() {
+    func changed() {
         DispatchQueue.main.async { NotificationCenter.default.post(name: Library.didChange, object: nil) }
     }
 
     /// Imports run off the main thread on their own connection, committing in chunks so the
     /// browser's own writes (visits, bookmarks) never land in, or wait long behind, an import's transaction.
-    private func importing<T>(_ items: [T], _ write: (SQLite, T) throws -> Bool) throws -> Int {
+    func importing<T>(_ items: [T], _ write: (SQLite, T) throws -> Bool) throws -> Int {
         let db = try SQLite(path: path)
         var count = 0
         var start = 0
