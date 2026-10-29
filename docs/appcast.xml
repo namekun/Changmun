@@ -6,6 +6,17 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.10.1</title>
+      <pubDate>Thu, 29 Oct 2026 08:32:24 +0000</pubDate>
+      <sparkle:version>40</sparkle:version>
+      <sparkle:shortVersionString>0.10.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.10.1</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Bookmarks inside a folder can be put in order.** Drag a bookmark in a sidebar folder and drop it on another row of the same folder to place it just above that row; drop it on the folder itself to send it to the end. A bookmark dragged in from another folder lands at the row you drop it on. Folders you have never arranged stay exactly as they were imported, and a bookmark added or moved in later goes last. (Tabs and links dropped on a row of a folder now go into that folder, as if dropped on the folder. Tried through the code and the saved order; the drag itself is not yet tried by hand, so tell me if it doesn't take.)</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.10.1/Changmun-0.10.1.dmg" length="6741417" type="application/octet-stream" sparkle:edSignature="VQoVfTN7BkrRIuON5veHvilZCa2Psk2tzW+bG4yvTWLgHB3DajvmsbLxRsymqdx/vKgJ6uD+bWPjxEmvZ3WmBw==" />
+    </item>
+    <item>
       <title>0.10.0</title>
       <pubDate>Thu, 29 Oct 2026 07:50:45 +0000</pubDate>
       <sparkle:version>39</sparkle:version>
@@ -127,26 +138,9 @@
 - **A group chip being renamed in the tab strip** no longer hides the first letter behind its dot.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.1/Changmun-0.8.1.dmg" length="5230743" type="application/octet-stream" sparkle:edSignature="n4xkiPEl3aRyoTGwKW7ADGYYkA5K6BfFYV5+Nu2P0Kg/P6DIXyK2grme0oY7e0PxcDuDjuPNfrjGK7jGJLDxCw==" />
     </item>
-    <item>
-      <title>0.8.0</title>
-      <pubDate>Mon, 26 Oct 2026 00:12:50 +0000</pubDate>
-      <sparkle:version>30</sparkle:version>
-      <sparkle:shortVersionString>0.8.0</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.8.0</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Tabs on top, if you like.** Settings › Appearance › Tab Layout now offers On Top: a tab strip above the address bar, with your favorites first as icon-only tiles, then the space's tabs, tab groups as a chip that collapses them, and a + button that stays in view when the tabs overflow. Middle-click closes a tab, dragging reorders, double-clicking renames, and the menus are the sidebar's. The rest of the sidebar opens over the page from the button beside the address bar. The sidebar layout is unchanged and still the default.
-- **Choose the model and how hard it thinks.** The menu under the AI message box picks the model and an effort level (Auto, Low, Medium, High, Extra High, Max), passed to Claude Code; Auto leaves it to Claude Code.
-- **Three approval modes.** Ask after reading other sites (the default, as before), Ask before every action (also before typing, choosing or clicking on a page when the chat has read nothing else), or Ask only for actions that can't be undone (the old "off"). Paying, sending, posting, deleting and the like, sign-ins and cookie banners are asked in every mode. Choose from the hand menu under the message box or in Settings › AI; your current setting carries over.
-- **A + menu and dictation in the message box.** Add Tab…, Attach Screenshot and Add Image… live in one menu, the mic starts macOS dictation, and Stop sits in the box (Esc still stops).
-- **The panel's head shows the chat.** Its title with a menu of recent chats and Show All Chats, a new-chat button, and a button that pops the panel out into its own window (closing it docks the panel back; the AI's questions come to that window).
-- **See what it's doing.** "Working for 12 s" with the live steps underneath, cards for the pages that went with your message, and a small ring showing how much of the model's context the chat uses.
-- **Double-clicking the bar zooms the window again,** following System Settings › Desktop &amp; Dock › "Double-click a window's title bar to".</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.0/Changmun-0.8.0.dmg" length="5207893" type="application/octet-stream" sparkle:edSignature="rhFVlJ+60yUCXubmzuzhAgsbcWR4nmgqnEKGg56Ekxo46Hlnk3pR+7B7joVWkK0Gwz5xHxg6pF+G6kPBfvphAQ==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: sWH961Ovf49/NgWY/0vKpRueLDeSEFsOxDY3PwIxKTKLPRkrL85ca073sJJ8Rs0+gBB2IAMEStwW6jp0p09CBQ==
-length: 20715
+edSignature: iDSHkxOIkMB+P4k3v3WQiz0THOt15TRfEDSfcohWTkeOULifYsvdyFszvhI9sgDt4C+eDexneyc4uzKDZaC9DA==
+length: 19346
 -->
