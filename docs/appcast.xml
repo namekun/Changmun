@@ -6,6 +6,21 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.10.0</title>
+      <pubDate>Thu, 29 Oct 2026 07:50:45 +0000</pubDate>
+      <sparkle:version>39</sparkle:version>
+      <sparkle:shortVersionString>0.10.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.10.0</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **A start page of your own.** A new tab, a new window and an empty space now open a start page instead of a blank bar: a search field that takes addresses, searches and questions for the AI, your favorites as tiles, "Continue viewing" (recently closed tabs and recent pages), your Reading List, frequently visited sites, and a row of things to ask the AI. ⌘T opens a tab showing it with the search field ready; ⌘L still goes to the address.
+- **Make it yours.** Three styles (Dashboard, Quiet, AI First); turn each section on or off, drag them into the order you like, and set per-section options. Pick the background: the space's colour glow, plain, one of eight colours or your own, or one picture of yours (shrunk and stripped of its metadata, with a veil that keeps the text readable). Choose what a new tab opens: the start page, the command bar, a blank page or an address you set. Customize from the page itself, from View › Customize Start Page…, or in Settings › Start Page.
+- **Private by design.** A private window's start page shows no history, closed tabs, Reading List or AI suggestions, and ignores a custom new-tab address. The AI, MCP, the command-line tool and extensions see a start tab as a blank page and never read what it shows. Items you hide from the page are kept only as salted hashes, and are wiped when you clear history or site data.
+- **Clearing history now also forgets recently closed tabs**, so they no longer come back on the start page.
+- **Fixed:** a private window's search suggestions no longer list pages from your normal history. (The picture, the layout and the options are tried headlessly; the blur, the Customize popover's look, drag-to-reorder and typing with a Korean keyboard are not yet tried by hand, so tell me what looks or feels off.)</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.10.0/Changmun-0.10.0.dmg" length="6720713" type="application/octet-stream" sparkle:edSignature="2wLfYc8eeFcMfHbbhX7+XoZRc9sKB7+QH6I2U7+HobhjMkVkeEHUCgsmlEZMIjQnr5G/pWEQzV+IVYd6S/lABA==" />
+    </item>
+    <item>
       <title>0.9.0</title>
       <pubDate>Wed, 28 Oct 2026 23:53:54 +0000</pubDate>
       <sparkle:version>38</sparkle:version>
@@ -129,22 +144,9 @@
 - **Double-clicking the bar zooms the window again,** following System Settings › Desktop &amp; Dock › "Double-click a window's title bar to".</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.0/Changmun-0.8.0.dmg" length="5207893" type="application/octet-stream" sparkle:edSignature="rhFVlJ+60yUCXubmzuzhAgsbcWR4nmgqnEKGg56Ekxo46Hlnk3pR+7B7joVWkK0Gwz5xHxg6pF+G6kPBfvphAQ==" />
     </item>
-    <item>
-      <title>0.7.6</title>
-      <pubDate>Sun, 25 Oct 2026 02:27:02 +0000</pubDate>
-      <sparkle:version>29</sparkle:version>
-      <sparkle:shortVersionString>0.7.6</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.7.6</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Rename a tab.** Double-click a tab's title in the sidebar, or choose Rename Tab… from its menu, and give it a name of your own. The name stays through new pages, restarts and reopening; Reset Name brings back the page's title. The AI still sees the page's real title next to your name.
-- **Imported folders keep one name.** Folders brought in from Chrome, Arc or Safari are stored under the same name whatever language your Mac is in, and shown in yours, so importing again after a language change no longer makes a second copy. Folders imported before are renamed once at launch, with a backup kept first, and folders imported twice in two languages are merged.
-- **Safari's favorites folder** no longer shows as "/ Favorites".</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.7.6/Changmun-0.7.6.dmg" length="4998867" type="application/octet-stream" sparkle:edSignature="8f/1pvAIwIYmmxVAN/m3SBl5oFiGHVN6moR4IYCTvczELe6tfdA9sDWzWR0E4IZBgLMI4Ty2lOLruRt3zA2QCw==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: J0i/g8U9OwdT2rjPgTE+eS2R+HIy7HZIdNnESUNpV+2oGh/sKEfBIXZXU+9uubJUqb6te7aa8iGlEP6mUyPAAg==
-length: 19645
+edSignature: sWH961Ovf49/NgWY/0vKpRueLDeSEFsOxDY3PwIxKTKLPRkrL85ca073sJJ8Rs0+gBB2IAMEStwW6jp0p09CBQ==
+length: 20715
 -->
