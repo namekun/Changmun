@@ -87,7 +87,8 @@ extension Browser {
     /// (with the command bar as the setting, an empty window is the empty card with the bar over it, as it was).
     func showsStartPage(for tab: Tab?) -> Bool {
         if let tab { return tab.isStart }
-        return newTabRoute(.emptied) != .commandBar
+        // Only the setting "command bar" routes to the command bar (see `NewTabRoute.decide`): the custom address needn't be checked on every redraw.
+        return startPageStore.settings.newTab != .commandBar
     }
 
     var showsStartPage: Bool { showsStartPage(for: active) }

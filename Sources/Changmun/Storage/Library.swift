@@ -465,14 +465,14 @@ final class Library: @unchecked Sendable {
         folders.isEmpty ? ("1", []) : ("folder NOT IN (\(Array(repeating: "?", count: folders.count).joined(separator: ", ")))", folders)
     }
 
-    /// Bookmarks first, then history ranked by visits and recency.
-    func search(_ text: String, limit: Int = 6, hiding folders: [String] = []) -> [Entry] {
+    /// Bookmarks first, then history ranked by visits and recency; a private window asks for `history: false`, which leaves the history out.
+    func search(_ text: String, limit: Int = 6, hiding folders: [String] = [], history: Bool = true) -> [Entry] {
         let words = text.lowercased().split(separator: " ").map(String.init).filter { !$0.isEmpty }
         guard !words.isEmpty else { return [] }
         let (clause, values) = Self.containing(words)
         let hidden = Self.notIn(folders)
         let marks = rows("SELECT url, title FROM bookmarks WHERE \(clause) AND \(hidden.clause) LIMIT ?", values + hidden.values + [limit])
-        let recent = rows("""
+        let recent = !history ? [] : rows("""
         SELECT url, title FROM history WHERE \(clause)
         ORDER BY visits * 1.0 / (1 + (strftime('%s','now') - last_visit) / 604800.0) DESC LIMIT ?
         """, values + [limit])

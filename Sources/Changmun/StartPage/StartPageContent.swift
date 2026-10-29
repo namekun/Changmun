@@ -2,10 +2,10 @@ import AppKit
 import CryptoKit
 import SwiftUI
 
-/// What the user took off the page with the ✕ of a card or row. It is kept as salted hashes only, never as an address or a site: the list must not
-/// say which sites were visited, and so it is wiped when history or site data is cleared, on "Reset to Defaults", and pruned at page load of
-/// everything that no history, closed tab or site on the page matches any more. At most `limit` entries, the oldest dropped. A private window
-/// neither reads nor writes it.
+/// What the user took off the page with the ✕ of a card or row. No address or site is stored as such: only salted hashes, with the random salt kept
+/// next to them on this Mac (so a short, guessable key can be tried against the list; it is not a secret). It is wiped when history or site data is
+/// cleared, on "Reset to Defaults", and pruned at page load of everything that no history, closed tab or site on the page matches any more.
+/// At most `limit` entries, the oldest dropped. A private window neither reads nor writes it.
 struct StartHiddenList: Codable, Equatable {
     static let limit = 500
 
@@ -55,7 +55,10 @@ final class StartHiddenItems: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         defaults.removeObject(forKey: Self.legacyKey)
-        list = defaults.data(forKey: Self.defaultsKey).flatMap { try? JSONDecoder().decode(StartHiddenList.self, from: $0) }
+        list = defaults.data(forKey: Self.defaultsKey).flatMap { try? JSONDecoder().decode(StartHiddenList.self, from: $0) }.map {
+            // A list longer than `limit` (a damaged or edited file) is cut to its newest entries.
+            StartHiddenList(salt: $0.salt, hashes: Array($0.hashes.suffix(StartHiddenList.limit)))
+        }
     }
 
     var count: Int { list?.hashes.count ?? 0 }
@@ -111,7 +114,8 @@ enum StartPageUI {
 
     /// The View menu's item: the popover on the start page of the window in front, or the Settings page when that window shows none.
     static func customize(_ browser: Browser?) {
-        if let browser, isShown(in: browser) {
+        // A private window draws no customize button for the popover to sit on (and no setting is changed from there): Settings is opened instead.
+        if let browser, !browser.isPrivate, isShown(in: browser) {
             NotificationCenter.default.post(name: customizeRequested, object: browser, userInfo: ["open": true])
         } else {
             StartPageActions.openSettings(.startPage)

@@ -8,7 +8,7 @@ import UniformTypeIdentifiers
 enum StartPageImage {
     /// Largest file, in bytes, and largest picture, in pixels, that are looked at at all.
     static let maxFileBytes = 100 * 1024 * 1024
-    static let maxPixels = 100_000_000
+    static let maxPixels = 40_000_000
     /// The long edge of the copy, in pixels.
     static let maxLongEdge = 3840
     static let quality = 0.85
@@ -108,14 +108,15 @@ enum StartPageImage {
         try? folder.setResourceValues(values)
     }
 
-    /// Takes away the copies in `folder` that the settings don't name (`keeping`), and the temporary files an interrupted write left (DurableFile names them after the copy).
+    /// The copies in `folder` that the settings don't name (`keeping`), and the temporary files an interrupted write left (DurableFile names them after the copy).
+    static func orphans(in folder: URL, keeping: Set<String>) -> [String] {
+        let files = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+        return files.filter { ($0.hasPrefix(filePrefix) || $0.hasPrefix("." + filePrefix)) && !keeping.contains($0) }
+    }
+
+    /// Takes away what `orphans` finds.
     @discardableResult
     static func removeOrphans(in folder: URL, keeping: Set<String>) -> Int {
-        let files = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
-        var removed = 0
-        for name in files where (name.hasPrefix(filePrefix) || name.hasPrefix("." + filePrefix)) && !keeping.contains(name) {
-            if (try? FileManager.default.removeItem(at: folder.appendingPathComponent(name))) != nil { removed += 1 }
-        }
-        return removed
+        orphans(in: folder, keeping: keeping).filter { (try? FileManager.default.removeItem(at: folder.appendingPathComponent($0))) != nil }.count
     }
 }

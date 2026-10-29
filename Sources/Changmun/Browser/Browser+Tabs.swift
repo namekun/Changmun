@@ -121,6 +121,11 @@ extension Browser {
         return true
     }
 
+    /// Forgets the tabs closed since `date` (clearing history takes them off the start page's "Continue viewing" too).
+    func removeClosedTabs(since date: Date) {
+        closedTabs.removeAll { $0.closedAt >= date }
+    }
+
     private func reopen(_ closed: ClosedTab) {
         let tab = Tab(id: Self.takeID(), url: closed.url, title: closed.title, state: closed.state, browser: self)
         tab.customTitle = closed.customTitle

@@ -143,7 +143,7 @@ struct StartSearchBox: View {
 
     private func refresh() {
         let word = query
-        source.update(word, remote: !word.isEmpty && prefs.searchSuggestions && !browser.isPrivate, hiding: CommandBar.hiddenFavorites(browser))
+        source.update(word, remote: !word.isEmpty && prefs.searchSuggestions && !browser.isPrivate, hiding: CommandBar.hiddenFavorites(browser), history: !browser.isPrivate)
     }
 
     private func clear() {

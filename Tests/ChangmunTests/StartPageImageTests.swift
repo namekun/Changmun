@@ -193,7 +193,7 @@ struct StartPageImageTests {
         #expect(throws: StartPageImage.Failure.tooLarge) { try StartPageImage.importPicture(from: url, into: place.folder, maxFileBytes: data.count - 1) }
         #expect(throws: StartPageImage.Failure.tooLarge) { try StartPageImage.importPicture(from: url, into: place.folder, maxPixels: 99 * 100) }
         #expect(throws: Never.self) { try StartPageImage.importPicture(from: url, into: place.folder, maxFileBytes: data.count, maxPixels: 100 * 100) }
-        #expect(StartPageImage.maxFileBytes == 100 * 1024 * 1024 && StartPageImage.maxPixels == 100_000_000 && StartPageImage.maxLongEdge == 3840)
+        #expect(StartPageImage.maxFileBytes == 100 * 1024 * 1024 && StartPageImage.maxPixels == 40_000_000 && StartPageImage.maxLongEdge == 3840)
     }
 
     @Test func aLinkToAPictureIsReadThroughButNotAFolder() async throws {

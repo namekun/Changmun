@@ -165,8 +165,12 @@ enum ToolCatalog {
         case "navigate":
             guard let url = webURL(args["url"]) else { return .text("Give an http(s) URL, a domain, or search words.", error: true) }
             AgentActivity.shared.step(String(localized: "Opening \(url.host() ?? "")"), caller: caller)
-            guard await Approvals.allowNavigation(url, caller: caller) else { return declined }
-            if session.stopped { return stopped }
+            let allowed = await Approvals.allowNavigation(url, caller: caller)
+            if !allowed || session.stopped {
+                // The tab was woken above: a start tab that nothing is opened in has no web view again.
+                if tab.isStart { tab.sleep() }
+                return allowed ? stopped : declined
+            }
             // Not the user's address: it doesn't give a page back the question about an app.
             tab.load(url, byUser: false)
             await waitForLoad(tab)

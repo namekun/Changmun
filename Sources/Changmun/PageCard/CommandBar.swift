@@ -239,7 +239,7 @@ struct CommandBar: View {
         if query.isEmpty || (mode == .editCurrent && query == browser.active?.url?.absoluteString) {
             source.update("", remote: false, hiding: hiddenFavorites)
         } else {
-            source.update(shown, remote: prefs.searchSuggestions && !browser.isPrivate, hiding: hiddenFavorites)
+            source.update(shown, remote: prefs.searchSuggestions && !browser.isPrivate, hiding: hiddenFavorites, history: !browser.isPrivate)
         }
     }
 

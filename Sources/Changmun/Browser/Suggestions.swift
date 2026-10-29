@@ -64,8 +64,8 @@ final class SuggestionSource: ObservableObject {
     private var pageTask: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
 
-    /// `hiding`: favorites of other profile spaces, which this window's suggestions must not show.
-    func update(_ raw: String, remote: Bool, hiding: [String] = []) {
+    /// `hiding`: favorites of other profile spaces, which this window's suggestions must not show. `history` false (a private window): bookmarks only.
+    func update(_ raw: String, remote: Bool, hiding: [String] = [], history: Bool = true) {
         pageTask?.cancel()
         searchTask?.cancel()
         let query = raw.trimmingCharacters(in: .whitespaces)
@@ -80,7 +80,7 @@ final class SuggestionSource: ObservableObject {
         pageTask = Task {
             try? await Task.sleep(for: .milliseconds(40))
             guard !Task.isCancelled else { return }
-            let found = await Library.shared.inBackground { $0.search(query, hiding: hiding) }
+            let found = await Library.shared.inBackground { $0.search(query, hiding: hiding, history: history) }
             if !Task.isCancelled { pages = found }
         }
         guard remote, SearchSuggestions.mayAsk(query), !AddressInput.isAddress(query) else {
