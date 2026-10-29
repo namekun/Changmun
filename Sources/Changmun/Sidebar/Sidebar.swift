@@ -289,7 +289,11 @@ struct Sidebar: View {
                 BookmarkMenu(browser: browser, url: entry.url, title: entry.title, folder: folder, key: key)
             }
             .padding(.leading, CGFloat(depth) * Metrics.indent)
+            .dropLine(dropTarget == "bm:" + row.id && SidebarDrag.dragging == .bookmark)
             .draggingRow(SidebarDrag.bookmark(entry.url, in: folder), unless: browser.renamingBookmark == key)
+            .dropDestination(for: SidebarDrop.self) { items, _ in
+                SidebarDrag.drop(items.texts, onBookmark: entry.url, in: folder, browser: browser)
+            } isTargeted: { target("bm:" + row.id, $0) }
         }
     }
 

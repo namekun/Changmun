@@ -25,6 +25,32 @@ extension SharedAgentState {
             }
         }
 
+        // MARK: Bookmarks within a folder
+
+        @Test func aBookmarkDroppedOnARowOfItsFolderGoesAboveItAndOneFromElsewhereMovesIn() {
+            let work = "Chrome Bookmarks Bar / Folder Order Test", other = "Chrome Bookmarks Bar / Folder Order Other"
+            defer { Library.shared.removeFolder(work); Library.shared.removeFolder(other) }
+            let url = { (name: String) in "https://folder-order-\(name).example/" }
+            for name in ["a", "b", "c"] { Library.shared.addBookmark(url: url(name), title: name, folder: work) }
+            Library.shared.addBookmark(url: url("z"), title: "z", folder: other)
+            let b = Browser()
+            defer { b.windowClosed() }
+            func shown() -> [String] { Library.shared.folders().first { $0.name == work }?.entries.map(\.url) ?? [] }
+            #expect(SidebarDrag.drop([SidebarDrag.bookmark(url("c"), in: work)], onBookmark: url("a"), in: work, browser: b))
+            #expect(shown() == [url("c"), url("a"), url("b")])
+            // From another folder it moves in, at that place.
+            #expect(SidebarDrag.drop([SidebarDrag.bookmark(url("z"), in: other)], onBookmark: url("b"), in: work, browser: b))
+            #expect(shown() == [url("c"), url("a"), url("z"), url("b")])
+            #expect(Library.shared.folders().first { $0.name == other } == nil, "it left the folder it came from")
+            // On the folder itself, one of its own goes to the end.
+            #expect(SidebarDrag.drop([SidebarDrag.bookmark(url("c"), in: work)], onFolder: work, browser: b))
+            #expect(shown() == [url("a"), url("z"), url("b"), url("c")])
+            // On itself: nothing moves, and the drag is over.
+            #expect(SidebarDrag.drop([SidebarDrag.bookmark(url("a"), in: work)], onBookmark: url("a"), in: work, browser: b))
+            #expect(shown() == [url("a"), url("z"), url("b"), url("c")])
+            #expect(SidebarDrag.dragging == nil)
+        }
+
         // MARK: What a drag carries
 
         /// What SwiftUI does with a `.draggable` payload and a `.dropDestination(for: SidebarDrop.self)`: the payload goes

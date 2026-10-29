@@ -35,11 +35,14 @@ final class Library: @unchecked Sendable {
     private(set) var problem: String?
     /// How the favorites are ordered: by their positions, or by when they were added while the database has no position column to read.
     private let favoriteOrder: String
+    /// Whether bookmarks in folders can have an order of their own: the column is there. Without it (a read-only file) they stay as imported.
+    private let foldersAreOrdered: Bool
 
     init(path: String) {
         self.path = path
         var opened: SQLite?
         var ordered = false
+        var foldersOrdered = false
         do {
             let db = try SQLite(path: path)
             opened = db
@@ -64,6 +67,9 @@ final class Library: @unchecked Sendable {
                 NSLog("Changmun: the library at %@ could not be brought up to date: %@", path, error.localizedDescription)
             }
             ordered = (try? db.query("PRAGMA table_info(bookmarks)").contains { $0[1] as? String == "position" }) ?? false
+            // Not a problem when it can't be added: the folders are then read as they were.
+            try? Self.addFolderPositionColumn(db)
+            foldersOrdered = (try? db.query("PRAGMA table_info(bookmarks)").contains { $0[1] as? String == "folder_position" }) ?? false
         } catch {
             opened = nil
             problem = error.localizedDescription
@@ -71,6 +77,7 @@ final class Library: @unchecked Sendable {
         }
         db = opened
         favoriteOrder = ordered ? Self.byPosition : "added, id"
+        foldersAreOrdered = foldersOrdered
     }
 
     /// Bookmarks had their order in `added`, which a move of a favorite overwrote with positions (so "recent bookmarks" was wrong).
@@ -92,6 +99,19 @@ final class Library: @unchecked Sendable {
         } catch {
             // Another connection (a background read opening the library at the same moment) did it first.
             guard try hasPosition() else { throw error }
+        }
+    }
+
+    /// The order the user gave the bookmarks of a folder has a column of its own, empty until a bookmark of the folder is moved, so
+    /// that a folder nobody has arranged is shown as it always was (by when it was imported).
+    private static func addFolderPositionColumn(_ db: SQLite) throws {
+        func has() throws -> Bool { try db.query("PRAGMA table_info(bookmarks)").contains { $0[1] as? String == "folder_position" } }
+        guard try !has() else { return }
+        do {
+            try db.execute("ALTER TABLE bookmarks ADD COLUMN folder_position REAL")
+        } catch {
+            // Another connection (a background read opening the library at the same moment) did it first.
+            guard try has() else { throw error }
         }
     }
 
@@ -274,7 +294,7 @@ final class Library: @unchecked Sendable {
 
     /// Imported bookmarks grouped by folder, folders in the order they were first imported.
     func folders() -> [(name: String, entries: [Entry])] {
-        Self.grouped((try? db?.query(Self.foldersQuery)) ?? [])
+        Self.grouped((try? db?.query(foldersQuery)) ?? [])
     }
 
     /// Every space's favorites (by their folder) and the folders in one read, or nil when the database can't be read:
@@ -284,7 +304,7 @@ final class Library: @unchecked Sendable {
         // One snapshot: a bookmark moving between folders meanwhile is in one place or the other, never neither.
         defer { try? db.execute("COMMIT") }
         guard let favorites = try? db.query("SELECT folder, url, title FROM bookmarks WHERE folder = '' OR substr(folder, 1, 1) = char(1) ORDER BY \(favoriteOrder)"),
-              let folders = try? db.query(Self.foldersQuery) else { return nil }
+              let folders = try? db.query(foldersQuery) else { return nil }
         var byFolder: [String: [Entry]] = [:]
         for row in favorites {
             guard let folder = row[0] as? String, let url = row[1] as? String else { continue }
@@ -298,17 +318,33 @@ final class Library: @unchecked Sendable {
     /// Favorites in the order the user put them in; those without a position yet (added since) come after, in the order they were added.
     private static let byPosition = "position IS NULL, position, added, id"
 
-    private static let foldersQuery = "SELECT folder, url, title FROM bookmarks WHERE folder <> '' AND substr(folder, 1, 1) <> char(1) ORDER BY id"
+    /// Folders in the order they were imported; the bookmarks in one are put in the user's order afterwards (see `grouped`).
+    private var foldersQuery: String {
+        "SELECT folder, url, title, \(foldersAreOrdered ? "folder_position" : "NULL") FROM bookmarks WHERE folder <> '' AND substr(folder, 1, 1) <> char(1) ORDER BY id"
+    }
 
     private static func grouped(_ all: [[Any?]]) -> [(name: String, entries: [Entry])] {
         var order: [String] = []
-        var groups: [String: [Entry]] = [:]
+        var groups: [String: [(entry: Entry, place: Double?)]] = [:]
         for row in all {
             guard let folder = row[0] as? String, let url = row[1] as? String else { continue }
             if groups[folder] == nil { order.append(folder) }
-            groups[folder, default: []].append(Entry(url: url, title: row[2] as? String ?? ""))
+            groups[folder, default: []].append((Entry(url: url, title: row[2] as? String ?? ""), row.count > 3 ? row[3] as? Double : nil))
         }
-        return order.map { ($0, groups[$0] ?? []) }
+        return order.map { ($0, arranged(groups[$0] ?? [])) }
+    }
+
+    /// The bookmarks of a folder, in the order they were imported (as given) except those the user placed, who come first in their order;
+    /// once a bookmark of a folder is moved, every one of them has a place.
+    private static func arranged(_ rows: [(entry: Entry, place: Double?)]) -> [Entry] {
+        rows.enumerated().sorted { a, b in
+            switch (a.element.place, b.element.place) {
+            case let (x?, y?): x != y ? x < y : a.offset < b.offset
+            case (_?, nil): true
+            case (nil, _?): false
+            case (nil, nil): a.offset < b.offset
+            }
+        }.map(\.element.entry)
     }
 
     func knowsURL(_ url: String) -> Bool {
@@ -398,6 +434,30 @@ final class Library: @unchecked Sendable {
             }
         }
         changed()
+    }
+
+    /// Moves a bookmark of a folder to just before another bookmark of it (dropping it on that row, where the drop line shows), or to the
+    /// end. Every bookmark of the folder is given its place, in the order it is shown now, so none of the others moves. Returns whether it moved.
+    @discardableResult
+    func moveFolderBookmark(_ url: String, to target: String?, in folder: String) -> Bool {
+        guard foldersAreOrdered, let db, !Self.isFavorites(folder) else { return false }
+        let original = folders().first { $0.name == folder }?.entries.map(\.url) ?? []
+        guard let from = original.firstIndex(of: url), url != target else { return false }
+        var order = original
+        order.remove(at: from)
+        if let target, let to = order.firstIndex(of: target) { order.insert(url, at: to) } else { order.append(url) }
+        guard order != original else { return false }
+        do {
+            try db.transaction {
+                for (place, item) in order.enumerated() {
+                    try db.run("UPDATE bookmarks SET folder_position = ? WHERE url = ? AND folder = ?", [Double(place), item, folder])
+                }
+            }
+        } catch {
+            return false
+        }
+        changed()
+        return true
     }
 
     /// Moves every favorite of one space to another, as one change, leaving out those already there. Returns whether it worked.

@@ -196,6 +196,36 @@ struct LibraryDataTests {
         #expect(library.favorites().map(\.url).last == "https://d.example/")
     }
 
+    @Test func aBookmarkOfAFolderMovesWithinItAndTheRestStayWhereTheyAre() throws {
+        let (library, folder) = try library()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        for name in ["a", "b", "c", "d"] { library.addBookmark(url: "https://\(name).example/", title: name, folder: "Work") }
+        library.addBookmark(url: "https://x.example/", title: "x", folder: "Home")
+        library.addBookmark(url: "https://y.example/", title: "y", folder: "Home")
+        func urls(_ name: String) -> [String] { library.folders().first { $0.name == name }?.entries.map(\.url) ?? [] }
+        let untouched = ["https://a.example/", "https://b.example/", "https://c.example/", "https://d.example/"]
+        #expect(urls("Work") == untouched, "a folder nobody arranged is as it was")
+        #expect(library.moveFolderBookmark("https://d.example/", to: "https://b.example/", in: "Work"))
+        #expect(urls("Work") == ["https://a.example/", "https://d.example/", "https://b.example/", "https://c.example/"])
+        #expect(urls("Home") == ["https://x.example/", "https://y.example/"], "another folder is not touched")
+        #expect(library.folders().map(\.name) == ["Work", "Home"], "the folders keep their order")
+        #expect(library.moveFolderBookmark("https://a.example/", to: nil, in: "Work"))
+        #expect(urls("Work") == ["https://d.example/", "https://b.example/", "https://c.example/", "https://a.example/"], "to the end")
+        #expect(!library.moveFolderBookmark("https://a.example/", to: nil, in: "Work"), "already last: nothing moves")
+        #expect(!library.moveFolderBookmark("https://a.example/", to: "https://a.example/", in: "Work"), "dropped on itself")
+        #expect(!library.moveFolderBookmark("https://nowhere.example/", to: nil, in: "Work"))
+        // A bookmark added or moved in afterwards comes last, and the folder stays as arranged.
+        library.addBookmark(url: "https://e.example/", title: "e", folder: "Work")
+        #expect(urls("Work").last == "https://e.example/")
+        #expect(library.moveBookmark(url: "https://x.example/", from: "Home", to: "Work"))
+        #expect(urls("Work") == ["https://d.example/", "https://b.example/", "https://c.example/", "https://a.example/", "https://e.example/", "https://x.example/"])
+        // It is kept: another connection to the same file sees it.
+        #expect(Library(path: folder.appendingPathComponent("library.sqlite").path).folders().first { $0.name == "Work" }?.entries.first?.url == "https://d.example/")
+        // The favorites are not a folder to arrange this way.
+        library.addBookmark(url: "https://f.example/", title: "f", folder: Library.favoritesFolder)
+        #expect(!library.moveFolderBookmark("https://f.example/", to: nil, in: Library.favoritesFolder))
+    }
+
     @Test func aLibraryFromBeforeTheOrderColumnKeepsItsOrderAndItsDates() throws {
         let old = try oldLibrary([("https://a.example/", "", 10), ("https://b.example/", "", 5), ("https://x.example/", "Chrome Bookmarks Bar", 7),
                                   ("https://c.example/", "", 20), ("https://y.example/", "Chrome Bookmarks Bar", 3)])
