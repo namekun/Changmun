@@ -91,6 +91,10 @@ expect "…with no web view" "false" "$(val "$R" 'd["hasWebView"]')"
 expect "…and no command bar" "none" "$(vs "$R" 'd["commandBar"]')"
 expect "…and the field asked for the focus" "true" "$(val "$R" "d[\"focusRequests\"] > $BEFORE")"
 expect "…titled New Tab, with no address" "true" "$(val "$R" 'd["tabs"][0]["url"] == "" and d["tabs"][0]["title"] in ("New Tab", "새 탭")')"
+# The page is drawn for the start tab: its "Customize" control is in what VoiceOver sees (named in English or Korean, as the app is).
+sleep 0.5
+AX="$(post /accessibility '{}')"
+expect "…and the page is on screen for it" "true" "$(val "$AX" '"Customize Start Page" in json.dumps(d, ensure_ascii=False) or "시작 페이지 맞춤 설정" in json.dumps(d, ensure_ascii=False)')"
 BEFORE="$(val "$R" 'd["focusRequests"]')"
 R="$(sp '{"action": "newTab"}')"
 expect "a second ⌘T goes to the field of the same tab" "true" "$(val "$R" "len(d[\"tabs\"]) == 1 and d[\"focusRequests\"] > $BEFORE")"
