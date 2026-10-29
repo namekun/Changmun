@@ -58,6 +58,8 @@ extension ControlServer {
                 ChatStore.shared.refreshAvailability()
             }
             browser.commandBar = nil
+            // Takes away the space shown (not the first one): for the extra space a test made to see a space's colour.
+            if body["removeSpace"] as? Bool == true, browser.spaceID != Space.defaultID { Browser.deleteSpace(browser.spaceID, from: browser.spaces) }
             if body["clear"] as? Bool == true { StartPageTestSeed.clear(in: browser) }
             if body["reset"] as? Bool == true { store.reset(); StartHiddenItems.shared.showAll() }
             if let name = body["appearance"] as? String, let appearance = AppAppearance(rawValue: name) { Preferences.shared.appearance = appearance }

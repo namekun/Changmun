@@ -257,10 +257,12 @@ struct StartBackgroundView: View {
     /// The space's colour as a soft glow from the top of the page: the same in light and dark, a little stronger in dark.
     private func glow(dark: Bool) -> some View {
         GeometryReader { geo in
-            RadialGradient(colors: [tint.color.opacity(dark ? 0.30 : 0.24), tint.color.opacity(0)], center: .top,
-                           startRadius: 0, endRadius: max(geo.size.width * 0.5, 1))
-                .frame(height: min(geo.size.height, 460))
-                .scaleEffect(x: 1.25, y: 1, anchor: .top)
+            // A circle that fades out before its frame ends, spread sideways to the page's width: no edge shows where the frame stops.
+            let height: CGFloat = 460
+            RadialGradient(colors: [tint.color.opacity(dark ? 0.30 : 0.24), tint.color.opacity(0)], center: .top, startRadius: 0, endRadius: height)
+                .frame(width: height * 2, height: height)
+                .scaleEffect(x: max(geo.size.width * 0.62 / height, 1), y: 1, anchor: .top)
+                .frame(width: geo.size.width, height: height, alignment: .top)
         }
     }
 
