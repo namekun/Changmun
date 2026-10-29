@@ -5,7 +5,7 @@ extension Browser {
     // MARK: Find in page
 
     func showFindBar() {
-        guard active != nil else { return }
+        guard let active, !active.isStart else { return }
         findBarVisible = true
         overlay.findFocusRequest += 1
     }

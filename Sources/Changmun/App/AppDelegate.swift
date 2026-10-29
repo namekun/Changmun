@@ -71,6 +71,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             pendingURLs = []
         }
         ControlServer.shared.start()
+        // The start page's picture copies that no setting names (left by a reset or an interrupted import) go once a launch.
+        Task { await StartPageStore.shared.removeOrphanedImages() }
         sessionTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { _ in
             MainActor.assumeIsolated { Browser.saveSessionIfChanged() }
         }
@@ -294,7 +296,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case #selector(nextSpace(_:)), #selector(previousSpace(_:)), #selector(selectNumberedSpace(_:)), #selector(newSpace(_:)):
             current?.isPrivate != true
         case #selector(checkForUpdates(_:)): Updates.shared.canCheck
-        case #selector(toggleBookmark(_:)): current?.active?.isPrivate != true
+        case #selector(toggleBookmark(_:)): current?.active?.isPrivate != true && current?.active?.isStart != true
+        // A start tab has no page: nothing to print, find in, zoom, translate, read, mute or float.
+        case #selector(printPage(_:)), #selector(showFind(_:)), #selector(findNext(_:)), #selector(findPrevious(_:)), #selector(reload(_:)), #selector(hardReload(_:)),
+             #selector(zoomIn(_:)), #selector(zoomOut(_:)), #selector(actualSize(_:)), #selector(translatePage(_:)), #selector(toggleReader(_:)),
+             #selector(toggleMute(_:)), #selector(togglePictureInPicture(_:)), #selector(seekBack(_:)), #selector(seekForward(_:)), #selector(copyAddress(_:)):
+            current?.active?.isStart != true
         case #selector(addToReadingList(_:)): current?.active.map { ReadingList.canSave($0.url?.absoluteString, isPrivate: $0.isPrivate) } ?? false
         case #selector(savePDF(_:)): current?.active?.webView != nil
         case #selector(captureFullPage(_:)): current?.active?.webView != nil && current?.active?.showsPDF != true

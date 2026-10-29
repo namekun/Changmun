@@ -238,12 +238,14 @@ extension ChatStore {
 
     /// Whether the visible part of a tab can be attached: only a tab the AI may see, never a private window's.
     func canAttachScreenshot(of tab: Tab?) -> Bool {
-        guard let tab, !tab.isPrivate, ToolCatalog.findTab(tab.id) != nil else { return false }
+        guard let tab, !tab.isPrivate, !tab.isStart, ToolCatalog.findTab(tab.id) != nil else { return false }
         return images.count + pendingImages < ImageIntake.maxCount && !capturing
     }
 
     /// Takes the picture the AI's screenshot tool takes (JPEG, nil when it failed) and the sites of the frames it shows. Tests stand in for it.
     static var capturePage: (Tab) async -> (Data?, Set<String>) = { tab in
+        // A start tab shows the start page, which the AI never sees: no picture of it.
+        guard !tab.isStart else { return (nil, []) }
         let webView = tab.wake()
         // The frames in view on either side of the picture count: one that came or went while it was taken is caught either way.
         let before = await ToolCatalog.shownFrameHosts(tab, webView)

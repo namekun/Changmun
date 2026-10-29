@@ -193,8 +193,8 @@ enum StartPageFiles {
     }
 
     /// The copy of the picture for a stored file name; nil for names that aren't plain file names.
-    static func imageURL(_ file: String?) -> URL? {
+    static func imageURL(_ file: String?, in folder: URL = folder()) -> URL? {
         guard let file, !file.isEmpty, !file.contains("/"), !file.hasPrefix(".") else { return nil }
-        return folder().appendingPathComponent(file)
+        return folder.appendingPathComponent(file)
     }
 }

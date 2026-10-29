@@ -132,6 +132,9 @@ enum ToolCatalog {
         guard let tab, let browser = tab.browser else {
             return .text(args["tab_id"] == nil ? "No tab is open. Use open_tab first." : "No tab with that id.", error: true)
         }
+        // A start tab shows the start page (history, closed tabs, the reading list), which the AI never sees: to every tool it is a blank page,
+        // and nothing is woken, read or recorded as read.
+        if tab.isStart, let answer = startTabAnswer(name, tab, browser) { return answer }
         // Only the tab in front of the user goes without asking, closing a tab too. What was approved is the site it was on when
         // it was asked about, and the tools that act on the page check the page they reach against it.
         // A page whose certificate the user went on with, though it could not be verified, is asked about even in front: the AI reads it as another site's.
@@ -227,6 +230,29 @@ enum ToolCatalog {
         }
     }
 
+    /// What the tools answer for a start tab, which has no page: the ones that read or act on a page say it is blank, switching to it and closing it need no
+    /// question; nil for the one that gives it a page (navigate), which goes the usual way.
+    static let blankTab = "The page is blank (about:blank): this is a new, empty tab with nothing in it. Use navigate to open a page in it."
+
+    @MainActor
+    static func startTabAnswer(_ name: String, _ tab: Tab, _ browser: Browser) -> ToolResult? {
+        switch name {
+        case "switch_tab":
+            browser.activate(tab.id)
+            return .text("Showing tab #\(tab.id): New Tab")
+        case "close_tab":
+            // Nothing in it to ask about, and nothing of it to bring back.
+            browser.close(tab.id)
+            return .text("Closed tab #\(tab.id).")
+        case "read_page", "screenshot", "wait_for", "scroll", "go_back", "go_forward", "reload":
+            return .text(blankTab)
+        case "click", "click_at", "type_text", "press_key", "select_option", "hover", "drag", "sign_in":
+            return .text("Error: " + blankTab, error: true)
+        default:
+            return nil
+        }
+    }
+
     /// Tab ids are unique across windows. Private windows are not the AI's to use.
     @MainActor
     static func findTab(_ id: Int) -> Tab? {
@@ -253,6 +279,10 @@ enum ToolCatalog {
             }
             if Date() >= deadline {
                 sections[id] = "Not reached in time. Try again."
+                continue
+            }
+            if tab.isStart {
+                sections[id] = Self.blankTab
                 continue
             }
             let inFront = tab.id == browser.activeID && browser === Browser.recent
@@ -351,6 +381,8 @@ enum ToolCatalog {
         let lines = visible.map { tab in
             let space = named ? " [\(browser.spaces.space(tab.spaceID).name)]" : ""
             let mark = "\(tab.id == browser.activeID ? "*" : " ") #\(tab.id)\(space)"
+            // A start tab is a blank "New Tab": nothing of it to hold back or to record as told.
+            if tab.isStart { return "\(mark) New Tab — about:blank" }
             guard Approvals.mayShow(tab, caller: caller) else {
                 let site = Approvals.site(of: tab.url).map { Approvals.shown($0, limit: 100).text } ?? "no page"
                 return "\(mark) (a tab on \(site); its title and address are shown once you use it and the user allows it)\(tab.isAsleep ? " (asleep)" : "")"
