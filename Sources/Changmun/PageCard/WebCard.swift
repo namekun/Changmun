@@ -60,13 +60,13 @@ struct WebCard: View {
         // In a split, the pane with the active tab (what the address bar and keys act on) wears the hairline.
         let focused = browser.shownSplit != nil && tab?.id == browser.activeID
         return ZStack {
-            if let tab {
+            if let tab, !tab.isStart {
                 Theme.page
                 WebViewHost(tab: tab, browser: browser)
                 TrustFailureOverlay(tab: tab)
             } else {
                 Theme.card
-                StartPageContent(browser: browser)
+                StartPageContent(browser: browser, mode: tab == nil ? .newTab : .editCurrent)
                 HeldPagesHost(browser: browser)
             }
         }
