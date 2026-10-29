@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Changmun 시작 페이지 시안</title>
+<style>
+  :root {
+    --bg:#fff; --card:#f5f5f7; --card2:#ebebf0; --tx:#1d1d1f; --dim:#6e6e73; --line:rgba(0,0,0,.1);
+    --blue:#0071e3; --link:#0066cc; --g1:#0a8fb5; --g2:#356a97; --g3:#4d5b70;
+    --shot-ring:rgba(0,0,0,.12); --shot-shadow:0 40px 70px -30px rgba(30,60,100,.35), 0 14px 28px -16px rgba(30,60,100,.2);
+    --glow:radial-gradient(50% 60% at 50% 0%, rgba(120,190,235,.35), rgba(120,190,235,0) 70%);
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Apple SD Gothic Neo","Noto Sans CJK KR",system-ui,sans-serif;
+    --head:-apple-system,BlinkMacSystemFont,"SF Pro Display","Apple SD Gothic Neo","Noto Sans CJK KR",system-ui,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) { --bg:#000; --card:#1d1d1f; --card2:#2a2a2d; --tx:#f5f5f7; --dim:#a1a1a6; --line:rgba(255,255,255,.14);
+      --link:#2997ff; --g1:#c8f3ff; --g2:#7ec6e6; --g3:#5b7a96; --shot-ring:rgba(255,255,255,.14);
+      --shot-shadow:0 50px 90px -30px rgba(0,0,0,.9), 0 0 100px -30px rgba(60,170,220,.25);
+      --glow:radial-gradient(50% 60% at 50% 0%, rgba(30,150,200,.35), rgba(30,150,200,0) 70%); }
+  }
+  :root[data-theme=dark] { --bg:#000; --card:#1d1d1f; --card2:#2a2a2d; --tx:#f5f5f7; --dim:#a1a1a6; --line:rgba(255,255,255,.14);
+      --link:#2997ff; --g1:#c8f3ff; --g2:#7ec6e6; --g3:#5b7a96; --shot-ring:rgba(255,255,255,.14);
+      --shot-shadow:0 50px 90px -30px rgba(0,0,0,.9), 0 0 100px -30px rgba(60,170,220,.25);
+      --glow:radial-gradient(50% 60% at 50% 0%, rgba(30,150,200,.35), rgba(30,150,200,0) 70%); color-scheme:dark; }
+  :root[data-theme=light] { color-scheme:light; }
+
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; scroll-behavior:smooth; scroll-padding-top:68px; }
+  body { margin:0; background:var(--bg); color:var(--tx); font:400 17px/1.55 var(--sans); word-break:keep-all; overflow-wrap:break-word;
+         padding-inline:env(safe-area-inset-left) env(safe-area-inset-right); -webkit-font-smoothing:antialiased; -webkit-tap-highlight-color:transparent; }
+  img { display:block; max-width:100%; height:auto; }
+  a { color:var(--link); text-decoration:none; }
+  .wrap { width:min(1120px, 100% - 40px); margin-inline:auto; }
+
+  /* top bar */
+  .bar { position:sticky; top:0; z-index:20; height:52px; background:color-mix(in srgb, var(--bg) 88%, transparent);
+         -webkit-backdrop-filter:saturate(180%) blur(20px); backdrop-filter:saturate(180%) blur(20px); border-bottom:1px solid var(--line); }
+  .bar .wrap { height:100%; display:flex; align-items:center; gap:14px; }
+  .bar b { font:600 15px/1 var(--head); white-space:nowrap; }
+  .bar nav { min-width:0; display:flex; gap:2px; overflow-x:auto; scrollbar-width:none; flex:1; }
+  .bar nav::-webkit-scrollbar { display:none; }
+  .bar nav a { padding:8px 11px; font-size:13px; color:var(--dim); white-space:nowrap; border-radius:980px; }
+  .seg { display:inline-flex; background:var(--card); border-radius:980px; padding:2px; flex:none; }
+  .seg button { appearance:none; border:0; background:transparent; color:var(--dim); font:500 12px/1 var(--sans); min-height:30px; padding:0 11px; border-radius:980px; cursor:pointer; }
+  .seg button[aria-pressed=true] { background:var(--bg); color:var(--tx); box-shadow:0 1px 3px rgba(0,0,0,.18); }
+
+  /* hero */
+  .hero { position:relative; text-align:center; padding:72px 0 28px; }
+  .hero::before { content:""; position:absolute; inset:0 -20px auto; height:420px; background:var(--glow); pointer-events:none; }
+  .hero > * { position:relative; }
+  .eyebrow { font:600 14px/1.2 var(--sans); color:var(--dim); letter-spacing:.01em; }
+  h1 { font:600 clamp(34px, 6vw, 64px)/1.12 var(--head); letter-spacing:-.012em; margin:10px 0 0; text-wrap:balance; }
+  .grad { background:linear-gradient(95deg, var(--g1), var(--g2) 52%, var(--g3)); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent; padding-bottom:.08em; }
+  .lede { font:400 clamp(17px, 2vw, 21px)/1.5 var(--sans); color:var(--dim); max-width:36em; margin:18px auto 0; text-wrap:balance; }
+  .now { display:inline-block; margin-top:22px; padding:10px 16px; border-radius:14px; background:var(--card); font-size:14px; color:var(--dim); text-align:left; }
+  .key { display:inline-block; white-space:nowrap; min-width:22px; padding:1px 6px; border-radius:5px; background:var(--card2); color:var(--tx); font:500 12px/1.5 var(--sans); text-align:center; }
+
+  /* quick compare */
+  .three { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:34px; }
+  .mini { text-align:left; background:var(--card); border-radius:18px; padding:20px; text-decoration:none; color:var(--tx); display:block; }
+  .mini h3 { margin:0; font:600 19px/1.25 var(--head); }
+  .mini .tag { display:inline-block; font:600 12px/1 var(--sans); color:var(--dim); margin-bottom:10px; }
+  .mini p { margin:8px 0 0; font-size:14.5px; line-height:1.5; color:var(--dim); }
+  .mini.rec { box-shadow:0 0 0 2px var(--blue) inset; }
+  .mini .star { color:var(--blue); font-weight:600; }
+
+  /* sections */
+  section { padding-top:96px; }
+  h2 { font:600 clamp(28px, 4.4vw, 48px)/1.14 var(--head); letter-spacing:-.008em; margin:0; text-wrap:balance; }
+  h3 { font:600 19px/1.3 var(--head); margin:0 0 8px; }
+  .sub { font:400 clamp(16px, 1.8vw, 19px)/1.5 var(--sans); color:var(--dim); margin:12px 0 0; max-width:40em; text-wrap:pretty; }
+  .shot { margin-top:30px; }
+  .pair .d { display:none; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme]) .pair .l { display:none; } :root:not([data-theme]) .pair .d { display:block; } }
+  :root[data-theme=dark] .pair .l { display:none; } :root[data-theme=dark] .pair .d { display:block; }
+  .pair a { display:block; border-radius:12px; box-shadow:0 0 0 1px var(--shot-ring), var(--shot-shadow); overflow:hidden; background:var(--card); }
+  .pair img { width:100%; aspect-ratio:1440/900; }
+  .cap { font-size:13px; color:var(--dim); margin:10px 2px 0; }
+
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:26px; }
+  .cols.c3 { grid-template-columns:repeat(3,1fr); }
+  .box { background:var(--card); border-radius:18px; padding:20px 22px; }
+  .box p, .box li { font-size:15px; line-height:1.6; color:var(--dim); margin:0; }
+  .box li + li { margin-top:6px; }
+  .box ul { margin:0; padding-left:1.15em; }
+  .box b, .box strong { color:var(--tx); font-weight:600; }
+  .pros li::marker { color:#30a46c; } .cons li::marker { color:#e5484d; }
+  .beh { margin-top:12px; background:var(--card); border-radius:18px; padding:6px 22px; }
+  .beh dl { margin:0; display:grid; grid-template-columns:8.5em 1fr; }
+  .beh dt, .beh dd { padding:13px 0; border-top:1px solid var(--line); margin:0; font-size:15px; line-height:1.6; }
+  .beh dt:first-of-type, .beh dd:first-of-type { border-top:0; }
+  .beh dt { font-weight:600; padding-right:14px; }
+  .beh dd { color:var(--dim); }
+  .beh dd b { color:var(--tx); font-weight:600; }
+  code, .mono { font-family:var(--mono); font-size:.88em; background:var(--card2); padding:1px 6px; border-radius:5px; color:var(--tx); }
+
+  /* recommendation */
+  .recbanner { margin-top:96px; border-radius:28px; padding:48px 28px; text-align:center; background:var(--card); position:relative; overflow:hidden; }
+  .recbanner::before { content:""; position:absolute; inset:0; background:var(--glow); opacity:.9; pointer-events:none; }
+  .recbanner > * { position:relative; }
+  .pill { display:inline-block; font:600 12px/1 var(--sans); padding:7px 12px; border-radius:980px; background:var(--blue); color:#fff; }
+
+  .tints { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:22px; }
+  .tints .t { border-radius:10px; overflow:hidden; box-shadow:0 0 0 1px var(--shot-ring); }
+  .tints .t span { display:block; font-size:12px; color:var(--dim); padding:8px 4px 0; text-align:center; }
+
+  /* faux settings */
+  .set { background:var(--card); border-radius:18px; padding:8px 22px; max-width:640px; margin-top:18px; }
+  .set .r { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:13px 0; border-top:1px solid var(--line); font-size:15px; }
+  .set .r:first-child { border-top:0; }
+  .set .r small { display:block; color:var(--dim); font-size:12.5px; line-height:1.4; margin-top:1px; }
+  .set .hd { font-weight:600; font-size:13px; color:var(--dim); padding-top:14px; border-top:0; }
+  .tg { flex:none; width:38px; height:23px; border-radius:12px; background:rgba(120,120,128,.35); position:relative; }
+  .tg::after { content:""; position:absolute; top:2px; left:2px; width:19px; height:19px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+  .tg.on { background:#34c759; } .tg.on::after { left:17px; }
+  .rd { display:flex; gap:8px; flex:none; } .rd span { font-size:13px; padding:5px 11px; border-radius:8px; background:var(--card2); color:var(--dim); }
+  .rd span.on { background:var(--blue); color:#fff; }
+
+  ol.q { padding:0; margin:20px 0 0; list-style:none; counter-reset:q; display:grid; gap:12px; }
+  ol.q li { counter-increment:q; background:var(--card); border-radius:18px; padding:18px 22px 18px 64px; position:relative; font-size:15.5px; line-height:1.6; color:var(--dim); }
+  ol.q li::before { content:counter(q); position:absolute; left:20px; top:18px; width:30px; height:30px; border-radius:50%; background:var(--blue); color:#fff; font:600 15px/30px var(--sans); text-align:center; }
+  ol.q li b { color:var(--tx); display:block; font-size:16.5px; margin-bottom:2px; }
+
+  footer { padding:96px 0 72px; color:var(--dim); font-size:13px; }
+  footer p { margin:6px 0; }
+
+  @media (max-width: 820px) {
+    .three, .cols, .cols.c3 { grid-template-columns:1fr; }
+    .tints { grid-template-columns:1fr 1fr; }
+    .beh dl { grid-template-columns:1fr; }
+    .beh dt { border-top:1px solid var(--line); padding-bottom:0; } .beh dd { border-top:0; padding-top:4px; }
+    .beh dt:first-of-type { border-top:0; }
+    section { padding-top:72px; } .recbanner { margin-top:72px; padding:36px 20px; border-radius:22px; }
+    .bar b { display:none; }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior:auto; } }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <b>창문 시작 페이지</b>
+    <nav aria-label="목차">
+      <a href="#a">A 조용히</a><a href="#b">B 대시보드</a><a href="#c">C AI 먼저</a><a href="#rec">추천</a><a href="#behave">동작·설정</a><a href="#privacy">개인정보</a><a href="#ask">질문</a>
+    </nav>
+    <div class="seg" role="group" aria-label="화면 모드">
+      <button type="button" data-set="auto" aria-pressed="true">자동</button>
+      <button type="button" data-set="light" aria-pressed="false">밝게</button>
+      <button type="button" data-set="dark" aria-pressed="false">어둡게</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<div class="hero">
+  <div class="eyebrow">Changmun · 시작 페이지 시안 3가지</div>
+  <h1>비어 있던 카드를<br><span class="grad">무엇으로 채울까요</span></h1>
+  <p class="lede">지금은 <span class="key">⌘T</span>를 누르면 빈 페이지 카드 위에 명령 막대만 떠요. 그 빈 카드를 채우는 시안을 셋 만들었어요. 모두 실제 앱 창(1440×900) 위에 올려 놓았고, 보이는 정보는 전부 이 Mac 안의 것이에요. 이미지를 누르면 원본이 열려요.</p>
+  <div class="now">현재 · <span class="key">⌘T</span> → 명령 막대(모달) + 빈 카드 &nbsp;|&nbsp; 탭이 없는 스페이스도 빈 카드</div>
+
+  <div class="three">
+    <a class="mini" href="#a"><span class="tag">A · 조용히</span><h3>검색창 하나, 즐겨찾기 한 줄</h3><p>거의 비어 있어요. 스페이스 색이 은은하게 번지는 배경만 더했어요.</p></a>
+    <a class="mini rec" href="#b"><span class="tag"><span class="star">★ 추천</span> · B · 대시보드</span><h3>이어서 보기 + 읽기 목록</h3><p>방금 닫은 탭, 안 읽은 글, 자주 가는 곳을 한눈에. 비어 있는 칸은 알아서 접혀요.</p></a>
+    <a class="mini" href="#c"><span class="tag">C · AI 먼저</span><h3>“무엇을 도와드릴까요?”</h3><p>큰 프롬프트 상자와 제안 4개. 검색은 두 번째, AI 패널은 쓸 때만 열려요.</p></a>
+  </div>
+</div>
+
+<!-- A -->
+<section id="a">
+  <div class="eyebrow">시안 A</div>
+  <h2>조용히</h2>
+  <p class="sub">명령 막대와 똑같이 생긴 검색창 하나, 그 아래 즐겨찾기 한 줄. 사이드바가 이미 많은 것을 맡고 있으니 가운데는 비워 두는 쪽이에요. 탭이 하나도 없는 창에서 지금의 빈 카드 자리를 그대로 채우는 모습으로 그렸어요.</p>
+  <div class="shot pair">
+    <a class="l" href="A-light.jpg"><img src="A-light.jpg" alt="시안 A 밝은 모드" loading="lazy"></a>
+    <a class="d" href="A-dark.jpg"><img src="A-dark.jpg" alt="시안 A 어두운 모드" loading="lazy"></a>
+    <p class="cap">탭이 없는 창(빈 카드). 스페이스 “개인”(파랑)의 색이 위쪽 배경과 이름 앞 점에 쓰여요.</p>
+  </div>
+  <div class="cols">
+    <div class="box pros"><h3>좋은 점</h3><ul><li>가장 가볍고 빠르게 읽혀요. “가볍다”는 앱의 성격과 잘 맞아요.</li><li>기록을 거의 안 건드려서 개인정보 걱정이 가장 적어요.</li><li>만들기 쉬워요. 검색창과 타일만 있으면 돼요.</li></ul></div>
+    <div class="box cons"><h3>아쉬운 점</h3><ul><li>사이드바 즐겨찾기를 그대로 되풀이해요(사이드바를 숨기면 의미가 생겨요).</li><li>“어제 하던 일”처럼 시간 축의 도움은 못 줘요.</li><li>AI를 쓰게 만드는 단서가 거의 없어요.</li></ul></div>
+  </div>
+  <div class="beh"><dl>
+    <dt>⌘T</dt><dd>탭을 만들고 이 페이지를 보여 줘요. <b>검색창에 포커스</b>가 이미 들어가 있어요.</dd>
+    <dt>입력할 때</dt><dd>글자를 치면 검색창 아래로 제안 목록이 펼쳐지고 즐겨찾기는 살짝 흐려져요. 목록은 지금 명령 막대의 것과 같아요.</dd>
+    <dt>키보드</dt><dd>↑↓ 제안 선택, ⏎ 열기, ⌘⏎ 새 탭. 검색창이 비어 있을 때 ↓ 를 누르면 즐겨찾기로 내려가고 방향키로 옮겨요.</dd>
+    <dt>스페이스 색</dt><dd>위쪽 배경 번짐과 이름 앞 점. 스페이스를 바꾸면 즐겨찾기와 색이 같이 바뀌어요.</dd>
+    <dt>개인 창</dt><dd>이 화면 대신 개인 창 안내(아래 추천 시안 참고).</dd>
+  </dl></div>
+</section>
+
+<!-- B -->
+<section id="b">
+  <div class="eyebrow">시안 B · 추천</div>
+  <h2>대시보드</h2>
+  <p class="sub">검색창 아래에 “이어서 보기”(방금 닫은 탭과 최근 페이지), 읽기 목록의 안 읽은 글, 자주 방문하는 곳을 모았어요. Safari 시작 페이지와 비슷한 밀도지만 Changmun의 사이드바 어휘(행, 점, 작은 캡션)로 그렸어요.</p>
+  <div class="shot pair">
+    <a class="l" href="B-light.jpg"><img src="B-light.jpg" alt="시안 B 밝은 모드" loading="lazy"></a>
+    <a class="d" href="B-dark.jpg"><img src="B-dark.jpg" alt="시안 B 어두운 모드" loading="lazy"></a>
+    <p class="cap">⌘T로 만든 새 탭(사이드바의 “새 탭” 행). 첫 카드는 포인터가 올라간 상태, “닫은 탭”은 ⌘⇧T와 같은 되돌리기예요.</p>
+  </div>
+  <div class="cols">
+    <div class="box pros"><h3>좋은 점</h3><ul><li>사이드바에 없는 것, 곧 <b>시간 축</b>(방금 닫은 탭, 읽으려던 글)을 채워 줘요.</li><li>읽기 목록이 팝오버 안에 숨어 있었는데 눈에 들어와요.</li><li>섹션마다 켜고 끌 수 있고, 데이터가 없으면 접혀서 A처럼 조용해져요.</li><li>기존 부품(명령 막대 제안, ReadingRow, SiteIcon)을 거의 재사용해요.</li></ul></div>
+    <div class="box cons"><h3>아쉬운 점</h3><ul><li>A보다 정보가 많아서 “가볍다”는 인상과 줄다리기가 있어요.</li><li>기록 기반 섹션은 화면 공유 때 민감한 제목이 보일 수 있어요(항목 숨기기 필요).</li><li>favicon 해상도가 낮은 사이트는 큰 카드에서 티가 나요(글자 타일로 대체).</li></ul></div>
+  </div>
+  <div class="beh"><dl>
+    <dt>⌘T</dt><dd>새 탭 + 시작 페이지, 검색창 포커스. 지금의 명령 막대는 설정으로 남겨요.</dd>
+    <dt>입력할 때</dt><dd>검색창 아래에 제안 목록이 열리고, 나머지 섹션은 흐려져 뒤로 물러나요. Esc를 누르면 입력이 지워지고 섹션이 돌아와요.</dd>
+    <dt>키보드</dt><dd>⇥ 로 섹션 사이를 이동, 방향키로 타일·카드·행 이동, ␣/⏎ 열기, ⌘⏎ 새 탭. “닫은 탭” 카드에서 ⏎는 그 탭을 되살려요.</dd>
+    <dt>스페이스 색</dt><dd>배경 번짐, “닫은 탭” 태그, 기본 버튼에만 써요. 닫은 탭과 즐겨찾기는 그 스페이스 것만 보여요.</dd>
+    <dt>AI</dt><dd>검색창 아래 칩 한 줄(“열린 탭 요약해 줘” 등). 누르면 AI 패널이 열리면서 그 문장이 전송돼요. 패널이 열려 있으면 칩은 숨겨요.</dd>
+    <dt>개인 창</dt><dd>기록 기반 섹션과 AI 칩이 통째로 없어요.</dd>
+  </dl></div>
+</section>
+
+<!-- C -->
+<section id="c">
+  <div class="eyebrow">시안 C</div>
+  <h2>AI 먼저</h2>
+  <p class="sub">“무엇을 도와드릴까요?”(AI 패널 첫 화면과 같은 문구)와 큰 프롬프트 상자. 검색·주소 입력은 두 번째 줄로 내리고 즐겨찾기는 그 아래에 둬요. AI 패널은 상자에서 ⏎를 누를 때까지 닫혀 있어요.</p>
+  <div class="shot pair">
+    <a class="l" href="C-light.jpg"><img src="C-light.jpg" alt="시안 C 밝은 모드" loading="lazy"></a>
+    <a class="d" href="C-dark.jpg"><img src="C-dark.jpg" alt="시안 C 어두운 모드" loading="lazy"></a>
+    <p class="cap">열린 탭 4개가 있는 상태. 탭이 없으면 첫 두 제안은 “웹에서 찾아보고 정리해 줘” 같은 것으로 바뀌어요.</p>
+  </div>
+  <div class="cols">
+    <div class="box pros"><h3>좋은 점</h3><ul><li>Changmun만의 차별점(페이지를 읽고 직접 하는 AI)을 첫 화면에서 보여 줘요.</li><li>제안을 누르면 바로 시작되니 “뭘 시킬 수 있지?”가 풀려요.</li><li>시각적으로 가장 인상적이고 이야기하기 쉬워요.</li></ul></div>
+    <div class="box cons"><h3>아쉬운 점</h3><ul><li>AI를 안 쓰는 사람, Claude CLI가 없는 Mac, 개인 창에서는 통째로 쓸모가 없어요.</li><li>매번 열 때마다 AI를 권하는 화면은 “가볍고 조용한 브라우저”와 거리가 있어요.</li><li>검색이 두 번째로 밀려서 가장 흔한 동작이 한 칸 더 멀어져요.</li></ul></div>
+  </div>
+  <div class="beh"><dl>
+    <dt>⌘T</dt><dd>새 탭 + 이 페이지. 포커스는 <b>프롬프트 상자</b>에 들어가요. 주소·검색은 ⌘L.</dd>
+    <dt>입력할 때</dt><dd>글자가 “http”나 도메인처럼 보이면 상자 아래에 “열기: …” 한 줄이 나타나 ⏎가 주소 열기로 바뀌어요. 그 밖에는 AI에게 보내요. 아래 작은 검색창에 치면 명령 막대 제안이 열려요.</dd>
+    <dt>키보드</dt><dd>⏎ 전송, ⇧⏎ 줄바꿈, ⇥ 로 제안 4개와 검색창, 즐겨찾기를 차례로 이동.</dd>
+    <dt>스페이스 색</dt><dd>동그란 AI 아이콘과 상자 그림자에 스페이스 색이 번져요(가장 강하게 드러나요).</dd>
+    <dt>개인 창</dt><dd>AI 상자 대신 개인 창 안내. 개인 창은 AI에게 보여 줄 수 없어요.</dd>
+  </dl></div>
+</section>
+
+<!-- Recommendation -->
+<div class="recbanner" id="rec">
+  <span class="pill">추천</span>
+  <h2 style="margin-top:16px">B를 바탕으로, 조용하게 시작하는 대시보드</h2>
+  <p class="sub" style="margin-inline:auto">“적응형”으로 만들자는 제안이에요. 모든 섹션이 켜져 있어도 <b>데이터가 없는 섹션은 보이지 않고</b>, 막 설치한 사람은 첫 실행 안내를, 개인 창은 개인 창 안내를 봐요. 아무것도 없으면 A와 같은 모습이 돼요. AI는 C처럼 전면에 세우지 않고 검색창 아래 칩 한 줄로만 둬요.</p>
+</div>
+
+<div class="cols c3" style="margin-top:18px">
+  <div class="box"><h3>왜 B인가</h3><p>사이드바가 즐겨찾기·북마크·탭을 이미 맡고 있어서, 시작 페이지가 더할 수 있는 건 <b>시간 축</b>이에요. 방금 닫은 탭과 안 읽은 글이 그 자리예요. 지금 가장 아쉬운 두 곳(탭을 닫고 후회할 때, 읽기 목록이 팝오버에 묻혀 있을 때)을 정확히 풀어 줘요.</p></div>
+  <div class="box"><h3>왜 A나 C가 아닌가</h3><p>A는 사이드바와 겹쳐서 새로 주는 게 적어요. C는 AI가 선택 기능이고 개인 창·CLI 없는 Mac에서는 쓸 수 없다는 점에서 첫 화면을 맡기엔 무거워요. B는 설정으로 A만큼 줄일 수 있고, AI는 칩으로 C의 맛만 가져와요.</p></div>
+  <div class="box"><h3>만드는 비용</h3><p>명령 막대의 제안 소스, 읽기 목록 행, 사이트 아이콘, 닫은 탭 목록, 기록 조회가 이미 있어서 새로 만들 것은 레이아웃과 설정 토글, 첫 실행·개인 창 화면 정도예요(이 시안은 앱 코드를 건드리지 않았어요).</p></div>
+</div>
+
+<h3 style="margin-top:56px">추천안 · AI 패널을 연 좁은 폭</h3>
+<p class="sub" style="margin-top:0">패널(360pt)이 열리면 페이지 영역이 827pt로 줄어요. 카드는 4개에서 3개로, AI 칩은 숨겨요(패널이 이미 그 역할을 해요).</p>
+<div class="shot pair" style="margin-top:18px">
+  <a class="l" href="rec-ai-panel.jpg"><img src="rec-ai-panel.jpg" alt="추천안, AI 패널을 연 모습 (밝게)" loading="lazy"></a>
+  <a class="d" href="rec-ai-panel-dark.jpg"><img src="rec-ai-panel-dark.jpg" alt="추천안, AI 패널을 연 모습 (어둡게)" loading="lazy"></a>
+</div>
+
+<h3 style="margin-top:56px">추천안 · 처음 설치했을 때(빈 프로필)</h3>
+<p class="sub" style="margin-top:0">북마크·기록 가져오기, 기본 브라우저 설정, AI 연결 세 가지만 권해요. 즐겨찾기 자리는 점선 타일로 비워 두고, 쓰다 보면 이 화면이 일반 대시보드로 바뀌어요. 안내는 설정에서 다시 볼 수 있어요.</p>
+<div class="shot pair" style="margin-top:18px">
+  <a class="l" href="rec-empty.jpg"><img src="rec-empty.jpg" alt="추천안, 첫 실행 안내 (밝게)" loading="lazy"></a>
+  <a class="d" href="rec-empty-dark.jpg"><img src="rec-empty-dark.jpg" alt="추천안, 첫 실행 안내 (어둡게)" loading="lazy"></a>
+</div>
+
+<h3 style="margin-top:56px">추천안 · 개인 창</h3>
+<p class="sub" style="margin-top:0">기록이나 AI와 관련된 것은 하나도 불러오지 않고, 무엇이 남지 않고 무엇이 그대로 보이는지만 차분히 알려요. 실제 개인 창의 사이드바(“개인 창” 표시, 스페이스 없음)에 올렸어요.</p>
+<div class="shot pair" style="margin-top:18px">
+  <a class="l" href="rec-private.jpg"><img src="rec-private.jpg" alt="추천안, 개인 창 (밝게)" loading="lazy"></a>
+  <a class="d" href="rec-private-dark.jpg"><img src="rec-private-dark.jpg" alt="추천안, 개인 창 (어둡게)" loading="lazy"></a>
+</div>
+
+<h3 style="margin-top:56px">추천안 · 스페이스 색</h3>
+<p class="sub" style="margin-top:0">같은 화면이 스페이스 색에 따라 달라지는 모습이에요(파랑·산호·초록·보라, 절반 크기). 색은 배경 번짐과 작은 태그에만 써서 내용은 중립으로 남아요.</p>
+<div class="tints pair">
+  <div class="t"><a class="l" href="tint-blue-light.jpg"><img src="tint-blue-light.jpg" alt="파랑" loading="lazy"></a><a class="d" href="tint-blue-dark.jpg"><img src="tint-blue-dark.jpg" alt="파랑" loading="lazy"></a><span>파랑 · 개인</span></div>
+  <div class="t"><a class="l" href="tint-coral-light.jpg"><img src="tint-coral-light.jpg" alt="산호" loading="lazy"></a><a class="d" href="tint-coral-dark.jpg"><img src="tint-coral-dark.jpg" alt="산호" loading="lazy"></a><span>산호</span></div>
+  <div class="t"><a class="l" href="tint-green-light.jpg"><img src="tint-green-light.jpg" alt="초록" loading="lazy"></a><a class="d" href="tint-green-dark.jpg"><img src="tint-green-dark.jpg" alt="초록" loading="lazy"></a><span>초록</span></div>
+  <div class="t"><a class="l" href="tint-purple-light.jpg"><img src="tint-purple-light.jpg" alt="보라" loading="lazy"></a><a class="d" href="tint-purple-dark.jpg"><img src="tint-purple-dark.jpg" alt="보라" loading="lazy"></a><span>보라</span></div>
+</div>
+
+<!-- Behaviour -->
+<section id="behave">
+  <div class="eyebrow">동작과 설정</div>
+  <h2>⌘T를 누르면</h2>
+  <div class="beh"><dl>
+    <dt>오늘</dt><dd><span class="key">⌘T</span> → 빈 카드 위에 명령 막대(모달)만 떠요. 탭이 없는 스페이스도 빈 카드에 명령 막대(<code>commandBar = .newTab</code>)예요.</dd>
+    <dt>제안</dt><dd><span class="key">⌘T</span> → <b>탭을 하나 만들고</b>(사이드바에 “새 탭” 행) 시작 페이지를 보여 주며, <b>검색창에 포커스</b>가 이미 들어가 있어요. 모달이 아니라서 사이드바와 즐겨찾기 타일이 그대로 눌려요. 탭이 없는 창·스페이스도 같은 화면을 보여 줘요.</dd>
+    <dt>입력하면</dt><dd>글자를 치는 순간 지금 명령 막대와 같은 제안 목록(열기/검색/AI에게 묻기/열린 탭/기록)이 검색창 아래에 열려요. 나머지 섹션은 흐려지고, Esc로 지우면 돌아와요. 개인 창에서는 AI 줄과 검색어 추천이 없는 것도 지금과 같아요.</dd>
+    <dt>⌘L</dt><dd>시작 페이지가 떠 있을 때는 검색창에 포커스. 일반 페이지에서는 지금처럼 현재 주소 편집.</dd>
+    <dt>키보드</dt><dd>⇥ 섹션 이동 → 방향키로 항목 이동 → ␣/⏎ 열기, ⌘⏎ 새 탭, ⌫(닫은 탭·읽기 항목)은 목록에서 빼기. 모든 타일·카드는 VoiceOver 버튼으로 읽혀요.</dd>
+    <dt>모션</dt><dd>앱의 스프링(감쇠 1.0, 오버슈트 없음)을 써요. 섹션 등장은 위에서부터 아주 짧은 간격의 페이드. “동작 줄이기”에서는 페이드만 써요.</dd>
+  </dl></div>
+
+  <h3 style="margin-top:40px">설정 안(설정 › 일반 › 시작 페이지)</h3>
+  <div class="set" aria-label="설정 화면 예시">
+    <div class="r hd">새 탭을 열 때</div>
+    <div class="r"><span>새 탭 열기<small>⌘T와 사이드바의 “+ 새 탭”</small></span><span class="rd"><span class="on">시작 페이지</span><span>명령 막대</span></span></div>
+    <div class="r hd">시작 페이지에 보일 것</div>
+    <div class="r"><span>즐겨찾기</span><span class="tg on"></span></div>
+    <div class="r"><span>이어서 보기<small>최근에 닫은 탭과 최근 방문한 페이지</small></span><span class="tg on"></span></div>
+    <div class="r"><span>읽기 목록<small>안 읽은 항목이 있을 때만</small></span><span class="tg on"></span></div>
+    <div class="r"><span>자주 방문<small>방문 기록에서 계산해요</small></span><span class="tg"></span></div>
+    <div class="r"><span>AI 제안<small>AI를 쓸 수 있을 때만 보여요</small></span><span class="tg on"></span></div>
+    <div class="r"><span>스페이스 색을 배경에 쓰기</span><span class="tg on"></span></div>
+  </div>
+  <p class="cap" style="max-width:640px">기본값 제안: 자주 방문만 꺼 두어요(기록을 가장 직접적으로 드러내는 섹션이라서). “새 탭 열기: 명령 막대”를 고르면 오늘과 똑같이 동작해요.</p>
+</section>
+
+<!-- Privacy -->
+<section id="privacy">
+  <div class="eyebrow">개인정보</div>
+  <h2>전부 이 Mac 안에서만</h2>
+  <div class="cols" style="margin-top:22px">
+    <div class="box"><ul>
+      <li><b>네트워크 요청이 없어요.</b> 날씨·뉴스·추천 같은 위젯, 추적기, 원격 이미지가 전혀 없고 정적인 화면이에요.</li>
+      <li><b>쓰는 데이터</b>는 즐겨찾기와 핀 폴더, 기록(주소·제목·방문 횟수·마지막 방문), 닫은 탭, 읽기 목록, 스페이스 이름과 색뿐이에요.</li>
+      <li><b>아이콘</b>은 이미 저장된 것만 써요. 큰 아이콘을 새로 받아 오면 사이트에 요청이 나가므로 하지 않고, 없거나 작으면 글자 타일을 써요.</li>
+    </ul></div>
+    <div class="box"><ul>
+      <li><b>개인 창</b>은 기록·닫은 탭·읽기 목록을 읽지도 않고, 아이콘도 저장하지 않으며, AI 칩도 없어요. 사이드바의 즐겨찾기·북마크는 그대로 있어요.</li>
+      <li><b>AI 칩</b>은 열린 탭을 기준으로 해요. 읽기 목록은 AI에게 보이지 않는 데이터라서 제안에서도 쓰지 않아요.</li>
+      <li><b>화면 공유</b>: 기록 기반 섹션은 설정으로 끄고, 카드마다 호버 ✕로 숨길 수 있게 하자고 제안해요. 기록을 지우면 섹션도 같이 비워져요.</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- Questions -->
+<section id="ask">
+  <div class="eyebrow">고르실 것</div>
+  <h2>열린 질문 5가지</h2>
+  <ol class="q">
+    <li><b>⌘T의 기본값은?</b>탭을 만들며 시작 페이지(추천)로 바꿀지, 지금처럼 명령 막대로 둘지. 어느 쪽이든 설정에서 바꿀 수 있게 해요.</li>
+    <li><b>즐겨찾기가 사이드바와 겹치는 것</b>(a) 항상 보이기 (b) 사이드바를 숨겼을 때만 (c) 시작 페이지엔 빼고 핀 폴더나 최근 북마크로 바꾸기. 추천은 (a)이고, 겹쳐도 큰 타일이 눌러 보기 편해요.</li>
+    <li><b>기록 기반 섹션의 범위</b>기록은 모든 스페이스가 함께 쓰는데 닫은 탭은 스페이스별이에요. “이어서 보기”와 “자주 방문”을 현재 스페이스로 한정할지, 전체를 보여 줄지(프로필 스페이스는 한정이 자연스러워요).</li>
+    <li><b>AI를 어디까지?</b>추천처럼 칩 한 줄만 둘지, C의 큰 프롬프트 상자를 켜는 옵션(“시작 페이지 스타일: 대시보드 · 조용히 · AI 먼저”)까지 둘지.</li>
+    <li><b>탭이 없는 창</b>(마지막 탭을 닫았을 때)에도 같은 시작 페이지를 보여 줄지, 지금의 ✦ 안내(⌘T·⌘E)를 남길지.</li>
+  </ol>
+</section>
+
+<footer>
+  <p>목업의 한계: 화면의 데이터(사이트·제목·시각)는 가짜이고, 아이콘은 이 Mac에 저장된 favicon(16~256px)과 직접 그린 단순 아이콘이에요. 실제 구현에서는 해상도가 낮은 favicon을 흰 판 위에 작게 얹고, 없으면 글자 타일로 대체하는 규칙이 필요해요.</p>
+  <p>실제 앱 창은 한국어 로캘의 헤드리스 앱(밝게·어둡게, 사이드바 도구 막대, 1×)을 그대로 캡처했고, 시작 페이지는 정적 HTML/CSS(시스템 글꼴, 앱의 색·반경·글자 크기 토큰)를 Chromium으로 찍어 페이지 영역(x=253부터)에 픽셀 단위로 올렸어요. 앱 코드는 바꾸지 않았어요.</p>
+</footer>
+
+</main>
+
+<script>
+(function () {
+  var root = document.documentElement, btns = document.querySelectorAll('.seg button');
+  function apply(mode) {
+    if (mode === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', mode);
+    btns.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.set === mode)); });
+    try { localStorage.setItem('stm-theme', mode); } catch (e) {}
+  }
+  btns.forEach(function (b) { b.addEventListener('click', function () { apply(b.dataset.set); }); });
+  try { var s = localStorage.getItem('stm-theme'); if (s && s !== 'auto') apply(s); } catch (e) {}
+})();
+</script>
+</body>
+</html>
