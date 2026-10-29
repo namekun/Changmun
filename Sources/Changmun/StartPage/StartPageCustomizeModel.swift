@@ -92,6 +92,7 @@ final class StartPageCustomizeModel: ObservableObject {
     private let offerUndo: (String, @escaping () -> Void) -> Void
     private let importImage: (URL) async -> Bool
     private let announce: (String) -> Void
+    private let hidden: StartHiddenItems
     private var watch: AnyCancellable?
 
     /// The section whose options are open: one at a time.
@@ -105,7 +106,8 @@ final class StartPageCustomizeModel: ObservableObject {
 
     init(store: StartPageStore? = nil, expanded: StartSection? = nil,
          offerUndo: @escaping (String, @escaping () -> Void) -> Void = { _, _ in },
-         importImage: ((URL) async -> Bool)? = nil, announce: ((String) -> Void)? = nil) {
+         importImage: ((URL) async -> Bool)? = nil, announce: ((String) -> Void)? = nil, hidden: StartHiddenItems? = nil) {
+        self.hidden = hidden ?? StartHiddenItems.shared
         let store = store ?? StartPageStore.shared
         self.store = store
         self.expanded = expanded
@@ -293,9 +295,11 @@ final class StartPageCustomizeModel: ObservableObject {
 
     // MARK: Reset
 
-    /// Everything back to the defaults at once, with no question, and "Undo" in the window's notice to take it back.
+    /// Everything back to the defaults at once, with no question, and "Undo" in the window's notice to take it back. What was taken off the page
+    /// with a card's ✕ is forgotten too, and Undo does not bring it back: the list is wiped, not kept, because it names sites.
     func reset() {
         let before = store.reset()
+        hidden.showAll()
         address = ""
         addressState = nil
         expanded = nil

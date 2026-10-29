@@ -44,7 +44,7 @@ extension ControlServer {
     /// private window; "noTabs" closes the tabs of the space shown so that the page shows; "seed" ({"icons", "favorites": [[url, title]],
     /// "history": [[url, title, visits, minutesAgo]], "closed": [[url, title, minutesAgo]], "reading": [[url, title, days, read]], "tabs": [url]}) fills the
     /// profile, and "clear" takes what was seeded away again; "popover" ({"open": true, "expand": "favorites"}) opens or closes the Customize popover;
-    /// "ai" is ready or none (what the AI chips go by). The answer says how the page stands.
+    /// "empty" shows the page of a fresh profile, "ai" is ready or none (what the AI chips go by). The answer says how the page stands.
     func handleStartPageTestRequest(_ request: HTTPRequest, on connection: NWConnection) -> Bool {
         guard Headless.isTestCopy, request.method == "POST", request.path == "/start-page",
               let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] else { return false }
@@ -52,6 +52,7 @@ extension ControlServer {
             let store = StartPageStore.shared
             if body["private"] as? Bool == true { BrowserWindow.open(private: true) }
             guard let browser = Browser.current else { return self.respond(connection, status: "404 Not Found", body: ["error": "no window"]) }
+            if let empty = body["empty"] as? Bool { StartPageUI.showsAsEmpty = empty }
             if let ai = body["ai"] as? String {
                 AIAvailability.detector = { ai == "ready" ? .ready : .none }
                 ChatStore.shared.refreshAvailability()

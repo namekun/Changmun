@@ -95,21 +95,21 @@ enum StartPageData {
     static func key(_ address: String) -> String { ReadingList.key(for: address) ?? address }
 
     /// The closed tabs of this space, newest first, then (unless `closedOnly`) the pages most recently visited: no page twice, none that is
-    /// open now, none that is on a card already, none the user took off the page (`hidden` holds `key`s). Nothing at all in a private window.
+    /// open now, none that is on a card already, none the user took off the page (`isHidden` is asked with the address). Nothing at all in a private window.
     /// `closed` is in the order the browser keeps it, the most recently closed last; `history` newest first.
     static func continueCards(closed: [StartClosedTab], history: [Library.Visit], open: [String], space: UUID, closedOnly: Bool,
-                              limit: Int = cardLimit, hidden: Set<String> = [], isPrivate: Bool) -> [StartContinueCard] {
+                              limit: Int = cardLimit, isHidden: (String) -> Bool = { _ in false }, isPrivate: Bool) -> [StartContinueCard] {
         guard !isPrivate, limit > 0 else { return [] }
-        var taken = Set(open.map(key)).union(hidden)
+        var taken = Set(open.map(key))
         var cards: [StartContinueCard] = []
         for tab in closed.reversed() where tab.space == space {
-            guard let url = tab.url?.nonEmpty, url.hasPrefix("http"), taken.insert(key(url)).inserted else { continue }
+            guard let url = tab.url?.nonEmpty, url.hasPrefix("http"), !isHidden(url), taken.insert(key(url)).inserted else { continue }
             cards.append(StartContinueCard(kind: .closedTab(tab.id), url: url, title: tab.title.isEmpty ? url : tab.title, date: tab.closedAt))
             if cards.count == limit { return cards }
         }
         guard !closedOnly else { return cards }
         for visit in history {
-            guard visit.url.hasPrefix("http"), taken.insert(key(visit.url)).inserted else { continue }
+            guard visit.url.hasPrefix("http"), !isHidden(visit.url), taken.insert(key(visit.url)).inserted else { continue }
             cards.append(StartContinueCard(kind: .page, url: visit.url, title: visit.title.isEmpty ? visit.url : visit.title, date: visit.lastVisit))
             if cards.count == limit { break }
         }
@@ -124,12 +124,10 @@ enum StartPageData {
         return (shown, unread.count)
     }
 
-    static func frequentSites(_ sites: [StartFrequentSite], eight: Bool, hidden: Set<String> = [], isPrivate: Bool) -> [StartFrequentSite] {
+    static func frequentSites(_ sites: [StartFrequentSite], eight: Bool, isHidden: (String) -> Bool = { _ in false }, isPrivate: Bool) -> [StartFrequentSite] {
         guard !isPrivate else { return [] }
-        return Array(sites.filter { !hidden.contains(hiddenKey(site: $0.host)) }.prefix(eight ? 8 : 4))
+        return Array(sites.filter { !isHidden($0.host) }.prefix(eight ? 8 : 4))
     }
-
-    static func hiddenKey(site host: String) -> String { "site:" + host }
 }
 
 private extension String {

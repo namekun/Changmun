@@ -1,28 +1,93 @@
 import AppKit
+import CryptoKit
 import SwiftUI
 
-/// What was taken off the page with the ✕ of a card or row: kept by address (or site) in the user defaults, and only ever off this page.
+/// What the user took off the page with the ✕ of a card or row. It is kept as salted hashes only, never as an address or a site: the list must not
+/// say which sites were visited, and so it is wiped when history or site data is cleared, on "Reset to Defaults", and pruned at page load of
+/// everything that no history, closed tab or site on the page matches any more. At most `limit` entries, the oldest dropped. A private window
+/// neither reads nor writes it.
+struct StartHiddenList: Codable, Equatable {
+    static let limit = 500
+
+    var salt: Data
+    /// Oldest first.
+    var hashes: [String]
+
+    static func fresh() -> StartHiddenList {
+        StartHiddenList(salt: Data((0..<16).map { _ in UInt8.random(in: 0...255) }), hashes: [])
+    }
+
+    /// The salted SHA-256 of a normalised key, in hex.
+    static func digest(_ key: String, salt: Data) -> String {
+        SHA256.hash(data: salt + Data(key.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// The keys: a page by its address as `ReadingList.key` writes it (no fragment, no slash at the end), a site by its lower-case host.
+    static func pageKey(_ address: String) -> String { "page:" + StartPageData.key(address) }
+    static func siteKey(_ host: String) -> String { "site:" + host.lowercased() }
+
+    func contains(_ key: String) -> Bool { hashes.contains(Self.digest(key, salt: salt)) }
+
+    mutating func hide(_ key: String) {
+        let hash = Self.digest(key, salt: salt)
+        guard !hashes.contains(hash) else { return }
+        hashes.append(hash)
+        if hashes.count > Self.limit { hashes.removeFirst(hashes.count - Self.limit) }
+    }
+
+    /// Only what one of `keys` still matches stays.
+    func pruned(keeping keys: [String]) -> StartHiddenList {
+        let current = Set(keys.map { Self.digest($0, salt: salt) })
+        return StartHiddenList(salt: salt, hashes: hashes.filter(current.contains))
+    }
+}
+
 @MainActor
 final class StartHiddenItems: ObservableObject {
     static let shared = StartHiddenItems()
-    static let defaultsKey = "startPageHidden"
+    static let defaultsKey = "startPageHiddenItems"
+    /// Where the list was kept before it was hashed: raw addresses, which are not to stay on disk.
+    static let legacyKey = "startPageHidden"
 
-    @Published private(set) var keys: Set<String>
+    @Published private(set) var list: StartHiddenList?
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        keys = Set(defaults.stringArray(forKey: Self.defaultsKey) ?? [])
+        defaults.removeObject(forKey: Self.legacyKey)
+        list = defaults.data(forKey: Self.defaultsKey).flatMap { try? JSONDecoder().decode(StartHiddenList.self, from: $0) }
     }
 
-    func hide(_ key: String) {
-        keys.insert(key)
-        defaults.set(Array(keys), forKey: Self.defaultsKey)
+    var count: Int { list?.hashes.count ?? 0 }
+
+    func isHidden(page address: String) -> Bool { list?.contains(StartHiddenList.pageKey(address)) == true }
+    func isHidden(site host: String) -> Bool { list?.contains(StartHiddenList.siteKey(host)) == true }
+
+    func hide(page address: String) { hide(StartHiddenList.pageKey(address)) }
+    func hide(site host: String) { hide(StartHiddenList.siteKey(host)) }
+
+    private func hide(_ key: String) {
+        var next = list ?? .fresh()
+        next.hide(key)
+        save(next)
     }
 
+    /// Drops what no page, closed tab or site in `pages` and `sites` is any more.
+    func prune(pages: [String], sites: [String]) {
+        guard let list else { return }
+        let next = list.pruned(keeping: pages.map(StartHiddenList.pageKey) + sites.map(StartHiddenList.siteKey))
+        if next.hashes.count != list.hashes.count { save(next.hashes.isEmpty ? nil : next) }
+    }
+
+    /// Everything shown again, and nothing left on disk (not the salt either).
     func showAll() {
-        keys = []
         defaults.removeObject(forKey: Self.defaultsKey)
+        list = nil
+    }
+
+    private func save(_ next: StartHiddenList?) {
+        list = next
+        if let next, let data = try? JSONEncoder().encode(next) { defaults.set(data, forKey: Self.defaultsKey) } else { defaults.removeObject(forKey: Self.defaultsKey) }
     }
 }
 
@@ -30,6 +95,8 @@ final class StartHiddenItems: ObservableObject {
 @MainActor
 enum StartPageUI {
     static let customizeRequested = Notification.Name("ChangmunStartPageCustomize")
+    /// The test copy's way to see the page of a fresh profile without emptying the one it has.
+    static var showsAsEmpty = false
     private static var shown: [ObjectIdentifier: Int] = [:]
 
     static func appeared(in browser: Browser) { shown[ObjectIdentifier(browser), default: 0] += 1 }
@@ -58,6 +125,8 @@ final class StartPageModel: ObservableObject {
     @Published private(set) var recent: [Library.Visit] = []
     @Published private(set) var frequent: [StartFrequentSite] = []
     @Published private(set) var historyCount = 0
+    /// Counts the reads that have finished, so that what depends on a read can run after it.
+    @Published private(set) var stamp = 0
     private var task: Task<Void, Never>?
 
     /// Nothing is read in a private window.
@@ -75,6 +144,7 @@ final class StartPageModel: ObservableObject {
             recent = read.0
             frequent = StartFrequentSite.group(read.1)
             historyCount = read.2
+            stamp += 1
         }
     }
 }
@@ -131,15 +201,19 @@ struct StartPageContent: View {
     private func data(columns: Int) -> PageData {
         let isPrivate = browser.isPrivate
         var data = PageData()
+        guard !StartPageUI.showsAsEmpty else {
+            data.contents = StartPageContents(isPrivate: isPrivate, aiReady: !isPrivate && chat.availability == .ready)
+            return data
+        }
         data.favorites = isPrivate ? [] : library.favorites(in: browser.favoritesFolder)
         let closed = browser.closedTabs.map { StartClosedTab(id: $0.id, url: $0.url?.absoluteString, title: $0.title, closedAt: $0.closedAt, space: $0.space) }
         let cardCount = narrowStyle ? 3 : columns
         data.cards = StartPageData.continueCards(closed: closed, history: model.recent, open: browser.tabs.compactMap { $0.url?.absoluteString }, space: browser.spaceID,
-                                                 closedOnly: option(.continueViewing) == 1, limit: cardCount, hidden: hidden.keys, isPrivate: isPrivate)
+                                                 closedOnly: option(.continueViewing) == 1, limit: cardCount, isHidden: { hidden.isHidden(page: $0) }, isPrivate: isPrivate)
         let reading = StartPageData.readingItems(library.readingList, all: option(.readingList) == 1, isPrivate: isPrivate)
         data.reading = reading.shown
         data.unread = reading.unread
-        data.frequent = StartPageData.frequentSites(model.frequent, eight: option(.frequent) == 1, hidden: hidden.keys, isPrivate: isPrivate)
+        data.frequent = StartPageData.frequentSites(model.frequent, eight: option(.frequent) == 1, isHidden: { hidden.isHidden(site: $0) }, isPrivate: isPrivate)
         let aiReady = !isPrivate && chat.availability == .ready
         let tabs = browser.spaceTabs.count
         data.chips = aiReady ? StartPageAI.suggestions(tabs: tabs, limit: style == .aiFirst ? 4 : 3) : []
@@ -195,6 +269,7 @@ struct StartPageContent: View {
             DispatchQueue.main.async { searchFocus += 1 }
         }
         .onDisappear { StartPageUI.disappeared(from: browser) }
+        .onChange(of: model.stamp) { pruneHidden() }
         .onChange(of: browser.tabs.count) { model.reload(isPrivate: browser.isPrivate); now = Date() }
         .onChange(of: browser.addressFocusRequest) { cursor = StartPageCursor(); searchFocus += 1 }
         .onReceive(NotificationCenter.default.publisher(for: Library.didChange)) { _ in model.reload(isPrivate: browser.isPrivate) }
@@ -348,7 +423,7 @@ struct StartPageContent: View {
                 HStack(alignment: .top, spacing: 12) {
                     ForEach(Array(page.cards.enumerated()), id: \.element.id) { index, card in
                         StartContinueCardView(card: card, tint: tint, focused: isFocused(.continueViewing, index), now: now,
-                                              open: { newTab in openCard(card, inNewTab: newTab) }, hide: { hidden.hide(StartPageData.key(card.url)) })
+                                              open: { newTab in openCard(card, inNewTab: newTab) }, hide: { if !browser.isPrivate { hidden.hide(page: card.url) } })
                             .id(Self.scrollID(.init(part: .section(.continueViewing), item: index)))
                     }
                     ForEach(page.cards.count..<max(page.cards.count, columns), id: \.self) { _ in Color.clear.frame(maxWidth: .infinity) }
@@ -357,7 +432,7 @@ struct StartPageContent: View {
                 VStack(spacing: 0) {
                     ForEach(Array(page.cards.enumerated()), id: \.element.id) { index, card in
                         StartContinueRowView(card: card, tint: tint, focused: isFocused(.continueViewing, index), now: now,
-                                             open: { newTab in openCard(card, inNewTab: newTab) }, hide: { hidden.hide(StartPageData.key(card.url)) })
+                                             open: { newTab in openCard(card, inNewTab: newTab) }, hide: { if !browser.isPrivate { hidden.hide(page: card.url) } })
                             .id(Self.scrollID(.init(part: .section(.continueViewing), item: index)))
                     }
                 }
@@ -391,7 +466,7 @@ struct StartPageContent: View {
             rowsFlow(flow) {
                 ForEach(Array(page.frequent.enumerated()), id: \.element.id) { index, site in
                     StartFrequentRow(site: site, most: most, focused: isFocused(.frequent, index),
-                                     open: { newTab in openSite(site, inNewTab: newTab) }, hide: { hidden.hide(StartPageData.hiddenKey(site: site.host)) })
+                                     open: { newTab in openSite(site, inNewTab: newTab) }, hide: { if !browser.isPrivate { hidden.hide(site: site.host) } })
                         .id(Self.scrollID(.init(part: .section(.frequent), item: index)))
                 }
             }
@@ -470,6 +545,15 @@ struct StartPageContent: View {
                 pageFocused = true
             }
         }
+    }
+
+    // MARK: Hidden items
+
+    /// What the user took off the page is kept only while a page, closed tab or site it names is still there to be shown.
+    private func pruneHidden() {
+        guard !browser.isPrivate else { return }
+        let closed = Browser.all.flatMap(\.closedTabs).compactMap { $0.url?.absoluteString }
+        hidden.prune(pages: model.recent.map(\.url) + closed, sites: model.frequent.map(\.host))
     }
 
     // MARK: Opening

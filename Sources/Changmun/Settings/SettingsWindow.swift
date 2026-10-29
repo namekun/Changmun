@@ -21,7 +21,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .general: String(localized: "General")
         case .appearance: String(localized: "Appearance")
         case .tabs: String(localized: "Tabs")
-        case .startPage: String(localized: "New Tab & Start Page")
+        case .startPage: String(localized: "Start Page")
         case .privacy: String(localized: "Privacy")
         case .extensions: String(localized: "Extensions")
         case .ai: String(localized: "AI")

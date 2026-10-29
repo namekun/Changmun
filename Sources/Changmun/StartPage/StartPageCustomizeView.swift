@@ -37,9 +37,9 @@ struct StartPageCustomizeView: View {
                     group(String(localized: "Style")) { StartStyleTiles(model: model, tint: browser.space.tint) }
                     group(String(localized: "Sections"), trailing: String(localized: "Drag to reorder")) {
                         StartComponentsList(model: model, contents: contents)
-                        if !hidden.keys.isEmpty {
+                        if hidden.count > 0 {
                             Button { hidden.showAll() } label: {
-                                Text(hidden.keys.count == 1 ? String(localized: "Show 1 hidden item again") : String(localized: "Show \(hidden.keys.count) hidden items again"))
+                                Text(hidden.count == 1 ? String(localized: "Show 1 hidden item again") : String(localized: "Show \(hidden.count) hidden items again"))
                                     .font(.system(size: 11.5)).foregroundStyle(Color.accentColor)
                             }
                             .buttonStyle(.plain)
@@ -109,8 +109,8 @@ struct StartPageSettingsView: View {
             Section("Sections") {
                 StartComponentsList(model: model, inline: true)
                 Caption(text: "Drag to reorder. Each style remembers its own sections. A section with nothing to show hides itself.")
-                if !hidden.keys.isEmpty {
-                    Button(hidden.keys.count == 1 ? String(localized: "Show 1 hidden item again") : String(localized: "Show \(hidden.keys.count) hidden items again")) { hidden.showAll() }
+                if hidden.count > 0 {
+                    Button(hidden.count == 1 ? String(localized: "Show 1 hidden item again") : String(localized: "Show \(hidden.count) hidden items again")) { hidden.showAll() }
                 }
             }
             Section("Background") { StartBackgroundControls(model: model, tint: tint) }
