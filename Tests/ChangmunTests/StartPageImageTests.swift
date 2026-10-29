@@ -65,6 +65,10 @@ struct StartPageImageTests {
         return CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as! [CFString: Any]
     }
 
+    @Test func theProductionFolderIsInsideTheAppsDataFolder() {
+        #expect(StartPageFiles.folder() == Library.folder.appendingPathComponent("StartPage", isDirectory: true))
+    }
+
     // MARK: The copy
 
     @Test func aPhotoIsShrunkToTheLimitAndKeepsItsLookAndShape() async throws {

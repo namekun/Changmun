@@ -188,8 +188,8 @@ enum StartAddressCheck: Equatable, Sendable {
 /// Where the user's background picture lives: one copy, shrunk, in the app's own folder.
 enum StartPageFiles {
     static func folder() -> URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Changmun", isDirectory: true).appendingPathComponent("StartPage", isDirectory: true)
+        // The app's data folder, which the headless copies and tests have apart from the user's.
+        Library.folder.appendingPathComponent("StartPage", isDirectory: true)
     }
 
     /// The copy of the picture for a stored file name; nil for names that aren't plain file names.
