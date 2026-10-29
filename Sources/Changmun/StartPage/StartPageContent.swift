@@ -619,6 +619,7 @@ struct StartPageContent: View {
 
     private func handle(_ press: KeyPress, shapes: [StartPageCursor.Shape], page: PageData) -> KeyPress.Result {
         let command = press.modifiers.contains(.command)
+        if StartPageKeys.leavesToSearch(press.key, typing: typing, inSearch: cursor.stop == nil) { return .ignored }
         switch press.key {
         case .tab:
             guard !command else { return .ignored }

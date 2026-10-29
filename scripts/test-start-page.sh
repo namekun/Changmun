@@ -102,6 +102,20 @@ BEFORE="$(val "$R" 'd["focusRequests"]')"
 R="$(sp '{"action": "openLocation"}')"
 expect "⌘L on a start tab focuses the field" "true" "$(val "$R" "d[\"focusRequests\"] > $BEFORE and d[\"commandBar\"] == \"none\"")"
 
+# Typing in the field and pressing ↓ chooses the next suggestion: the page behind the list does not take the key.
+chosen() { post /accessibility '{}' | python3 -I -c 'import json, sys
+def walk(n):
+    yield n
+    for c in n.get("children", []): yield from walk(c)
+labels = [n.get("label", "") for t in json.load(sys.stdin)["trees"] for n in walk(t["root"]) if n.get("selected") and "127" in n.get("label", "")]
+print("|".join(labels))'; }
+post /window-text '{"commit": true, "marked": "127"}' >/dev/null
+FIRST="$(chosen)"
+post /window-key '{"chars": "\uf701", "keyCode": 125}' >/dev/null
+SECOND="$(chosen)"
+expect "↓ with text in the field moves to the next suggestion" "true" "$([[ -n "$FIRST" && -n "$SECOND" && "$FIRST" != "$SECOND" ]] && echo true || echo "false ($FIRST / $SECOND)")"
+post /window-key '{"chars": "\u001b", "keyCode": 53}' >/dev/null
+
 # --- the AI on a start tab sees a blank page (the history the page would show is seeded first) ---
 sp '{"seed": {"history": [["'"$SECRET_PAGE"'", "SECRET-RECENT-PAGE"]], "closed": [["'"$SECRET_CLOSED"'", "SECRET-CLOSED-TAB"]]}}' >/dev/null
 TAB="$(val "$R" 'd["activeID"]')"

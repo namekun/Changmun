@@ -121,6 +121,27 @@ extension Browser {
         offerUndo(String(localized: "Renamed the folder")) { Library.shared.renameFolder(key: key, to: before) }
     }
 
+    /// Takes a folder off the sidebar. The tabs of its bookmarks show only where the folder is, so they come back to the tab list, as a
+    /// group named for the folder (one alone as a plain tab): nothing that was open goes out of sight. The folder stays among the bookmarks.
+    func unpinFolder(_ key: String, named name: String) {
+        let space = spaceID
+        let below = key + " / "
+        let bound = tabs.filter { tab in
+            guard tab.spaceID == space, let bookmark = tab.bookmarkKey else { return false }
+            let folder = String(bookmark.prefix { $0 != "\n" })
+            return folder == key || folder.hasPrefix(below)
+        }
+        spaces.unpinFolder(key, in: space)
+        guard !bound.isEmpty else { return }
+        for tab in bound { tab.bookmarkKey = nil }
+        if bound.count > 1 {
+            group(bound.map(\.id), name: name)
+            // Named already, so not asked for a name.
+            renamingGroup = nil
+        }
+        objectWillChange.send()
+    }
+
     /// Turns an open tab into a bookmark's tab (pinning it).
     func bind(_ tab: Tab, to key: String) {
         guard bookmarkTab(key) == nil else { return }

@@ -223,9 +223,9 @@ enum SidebarDrag {
         return Int(item.dropFirst("changmun-tab:".count))
     }
 
-    /// A bookmark dropped on a row of a folder goes just above it, in that folder (from another folder it moves in); anything else
-    /// dropped there lands in the folder as it would on the folder itself.
-    static func drop(_ items: [String], onBookmark target: String, in folder: String, browser: Browser) -> Bool {
+    /// A bookmark dropped on a row of a folder goes just above it, in that folder (from another folder it moves in); with no row
+    /// (below the last one), to the end of it. Anything else dropped there lands in the folder as it would on the folder itself.
+    static func drop(_ items: [String], onBookmark target: String?, in folder: String, browser: Browser) -> Bool {
         guard let (url, from) = bookmark(items) else { return drop(items, onFolder: folder, browser: browser) }
         defer { dragging = nil }
         guard url != target || from != folder else { return true }
@@ -234,6 +234,12 @@ enum SidebarDrag {
             Library.shared.moveFolderBookmark(url, to: target, in: folder)
         }
         return true
+    }
+
+    /// A tab (or a link) dropped below the last tab of a group goes to the end of the group, from inside it too.
+    static func drop(_ items: [String], onEndOf group: UUID, browser: Browser) -> Bool {
+        guard groupID(items) == nil else { dragging = nil; return false }
+        return drop(items, onGroup: group, browser: browser)
     }
 
     /// A favorite dropped on a favorite moves there; a bookmark from a folder or a tab dropped on one is pinned there.

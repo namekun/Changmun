@@ -128,6 +128,39 @@ extension SharedAgentState {
 
         private var name: String? { Library.shared.folderNames()[key] }
 
+        @Test func unpinningAFolderBringsItsOpenTabsBackAsAGroupAndKeepsTheFolder() {
+            rig { browser, store in
+                let id = browser.spaceID
+                let inner = key + " / Inner"
+                for (n, folder) in [(1, key), (2, key), (3, inner)] {
+                    Library.shared.addBookmark(url: "https://folder-rename.example/\(n)", title: "\(n)", folder: folder)
+                    let tab = browser.openTab(url: URL(string: "https://folder-rename.example/\(n)"), activate: false)
+                    browser.bind(tab, to: Browser.bookmarkKey(url: "https://folder-rename.example/\(n)", folder: folder))
+                }
+                let other = browser.openTab(url: URL(string: "https://elsewhere.example/"), activate: false)
+                defer { Library.shared.removeFolder(inner) }
+                store.pinFolder(key, in: id)
+                #expect(browser.listedTabs.map(\.id) == [other.id], "the folder's tabs show with the folder")
+                browser.unpinFolder(key, named: "Reading")
+                #expect(!store.space(id).pinnedFolders.contains(key))
+                let group = browser.groups.first { $0.name == "Reading" }
+                #expect(group != nil)
+                #expect(browser.tabs.filter { $0.groupID == group?.id }.count == 3, "the folder's tabs and the inner folder's are all back")
+                #expect(browser.tabs.allSatisfy { $0.bookmarkKey == nil })
+                #expect(browser.renamingGroup == nil)
+                #expect(Library.shared.folders().first { $0.name == key }?.entries.count == 3, "the folder is still among the bookmarks, with all it had")
+                // One tab alone comes back as a plain tab, and a folder with none open only goes.
+                let lone = browser.openTab(url: URL(string: "https://folder-rename.example/1"), activate: false)
+                browser.bind(lone, to: Browser.bookmarkKey(url: "https://folder-rename.example/1", folder: key))
+                store.pinFolder(key, in: id)
+                browser.unpinFolder(key, named: "Reading")
+                #expect(lone.bookmarkKey == nil && lone.groupID == nil)
+                store.pinFolder(key, in: id)
+                browser.unpinFolder(key, named: "Reading")
+                #expect(browser.groups.filter { $0.name == "Reading" }.count == 1)
+            }
+        }
+
         @Test func aDoubleClickLeavesTheFolderAsOpenAsItWasAndRenamesIt() {
             rig { browser, store in
                 let id = browser.spaceID

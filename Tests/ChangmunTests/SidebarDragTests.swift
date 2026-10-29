@@ -25,6 +25,27 @@ extension SharedAgentState {
             }
         }
 
+        // MARK: The end of a group
+
+        @Test func aTabDroppedBelowAGroupsLastTabGoesToTheEndOfItFromInsideOrOutside() throws {
+            let b = browser(5)
+            let t = ids(b)
+            let group = try #require(b.group([t[1], t[2], t[3]], name: "G"))
+            #expect(shown(b) == ["\(t[0])", "G[\(t[1]) \(t[2]) \(t[3])]", "\(t[4])"])
+            // The first tab of the group, to its end: the others move up.
+            #expect(SidebarDrag.drop([SidebarDrag.tab(t[1])], onEndOf: group, browser: b))
+            #expect(shown(b) == ["\(t[0])", "G[\(t[2]) \(t[3]) \(t[1])]", "\(t[4])"])
+            // The tab before the last one, too (dropped on the last it would only stay above it).
+            #expect(SidebarDrag.drop([SidebarDrag.tab(t[3])], onEndOf: group, browser: b))
+            #expect(shown(b) == ["\(t[0])", "G[\(t[2]) \(t[1]) \(t[3])]", "\(t[4])"])
+            // From outside, it joins at the end.
+            #expect(SidebarDrag.drop([SidebarDrag.tab(t[0])], onEndOf: group, browser: b))
+            #expect(shown(b) == ["G[\(t[2]) \(t[1]) \(t[3]) \(t[0])]", "\(t[4])"])
+            // A group is not dropped there, and the drag is over.
+            #expect(!SidebarDrag.drop([SidebarDrag.group(group)], onEndOf: group, browser: b))
+            #expect(SidebarDrag.dragging == nil)
+        }
+
         // MARK: Bookmarks within a folder
 
         @Test func aBookmarkDroppedOnARowOfItsFolderGoesAboveItAndOneFromElsewhereMovesIn() {
@@ -45,9 +66,14 @@ extension SharedAgentState {
             // On the folder itself, one of its own goes to the end.
             #expect(SidebarDrag.drop([SidebarDrag.bookmark(url("c"), in: work)], onFolder: work, browser: b))
             #expect(shown() == [url("a"), url("z"), url("b"), url("c")])
+            // Below the last row: to the end of the folder.
+            #expect(SidebarDrag.drop([SidebarDrag.bookmark(url("a"), in: work)], onBookmark: nil, in: work, browser: b))
+            #expect(shown() == [url("z"), url("b"), url("c"), url("a")])
+            #expect(SidebarDrag.drop([SidebarDrag.bookmark(url("a"), in: work)], onBookmark: nil, in: work, browser: b), "already last: it stays")
+            #expect(shown() == [url("z"), url("b"), url("c"), url("a")])
             // On itself: nothing moves, and the drag is over.
             #expect(SidebarDrag.drop([SidebarDrag.bookmark(url("a"), in: work)], onBookmark: url("a"), in: work, browser: b))
-            #expect(shown() == [url("a"), url("z"), url("b"), url("c")])
+            #expect(shown() == [url("z"), url("b"), url("c"), url("a")])
             #expect(SidebarDrag.dragging == nil)
         }
 

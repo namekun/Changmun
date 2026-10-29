@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// What the start page shows and when, worked out from plain values so that the rules can be tested without a window:
 /// which closed tabs and pages make the "Continue where you left off" cards, which sections are visible, in what arrangement,
@@ -375,6 +376,15 @@ enum StartPageTime {
 }
 
 // MARK: Keyboard
+
+/// Which keys the page leaves to the search field: while something is typed in it (its suggestions are up), the arrows choose a suggestion
+/// and ⇥ is the field's, not the page's, which would otherwise take them first and move among the sections behind the list.
+enum StartPageKeys {
+    static func leavesToSearch(_ key: KeyEquivalent, typing: Bool, inSearch: Bool) -> Bool {
+        guard typing, inSearch else { return false }
+        return [KeyEquivalent.upArrow, .downArrow, .leftArrow, .rightArrow, .tab].contains(key)
+    }
+}
 
 /// Where the keyboard is on the page when it is not in the search field: a part (a section or the Customize button) and an item in it.
 /// Pure, so the moves can be tested: ⇥ and ⇧⇥ go from part to part, the arrows within one and on into the next.

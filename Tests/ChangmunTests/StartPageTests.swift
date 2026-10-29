@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 @testable import Changmun
 
@@ -576,5 +577,15 @@ struct StartPageCustomizeModelTests {
         spy.undo?.run()
         #expect(store.settings == changed)
         #expect(hidden.count == 0, "and Undo does not bring it back")
+    }
+
+    @Test func theArrowsAndTabAreTheSearchFieldsWhileSomethingIsTypedInIt() {
+        for key in [KeyEquivalent.upArrow, .downArrow, .leftArrow, .rightArrow, .tab] {
+            #expect(StartPageKeys.leavesToSearch(key, typing: true, inSearch: true), "\(key)")
+            #expect(!StartPageKeys.leavesToSearch(key, typing: false, inSearch: true), "with nothing typed the page takes ↓ and ⇥ into its sections")
+            #expect(!StartPageKeys.leavesToSearch(key, typing: true, inSearch: false), "on a section the page has the keys")
+        }
+        #expect(!StartPageKeys.leavesToSearch(.return, typing: true, inSearch: true))
+        #expect(!StartPageKeys.leavesToSearch(.escape, typing: true, inSearch: true))
     }
 }

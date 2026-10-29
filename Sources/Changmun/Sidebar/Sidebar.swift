@@ -53,8 +53,17 @@ struct Sidebar: View {
                                 .dropDestination(for: SidebarDrop.self) { items, _ in
                                     SidebarDrag.drop(items.texts, onGroup: group.id, browser: browser)
                                 } isTargeted: { target("group:\(group.id)", $0) }
-                            ForEach(browser.shown(tabs, in: group)) { tab in
+                            let rows = browser.shown(tabs, in: group)
+                            ForEach(rows) { tab in
                                 tabRow(tab, depth: 1)
+                            }
+                            // Below the group's last tab: a tab dropped here goes to the end of the group.
+                            if !rows.isEmpty {
+                                EndOfListDrop(depth: 1)
+                                    .dropLine(dropTarget == "group-end:\(group.id)" && SidebarDrag.carriesTab)
+                                    .dropDestination(for: SidebarDrop.self) { items, _ in
+                                        SidebarDrag.drop(items.texts, onEndOf: group.id, browser: browser)
+                                    } isTargeted: { target("group-end:\(group.id)", $0) }
                             }
                         }
                     }
@@ -256,12 +265,15 @@ struct Sidebar: View {
     enum TreeRow: Identifiable {
         case folder(Library.Folder, depth: Int, scope: String, pinned: Bool)
         case bookmark(Library.Entry, folder: String, depth: Int, scope: String)
+        /// Below the last bookmark of an open folder: where a bookmark dropped goes to the end of it.
+        case end(folder: String, depth: Int, scope: String)
 
         /// Carries the part of the sidebar: a folder can show both pinned and under Bookmarks.
         var id: String {
             switch self {
             case .folder(let folder, _, let scope, _): scope + folder.key
             case .bookmark(let entry, let folder, _, let scope): scope + folder + "\n" + entry.url
+            case .end(let folder, _, let scope): scope + folder + "\n\u{1}end"
             }
         }
     }
@@ -272,6 +284,7 @@ struct Sidebar: View {
         guard browser.space.openFolders.contains(scope + folder.key) else { return rows }
         for child in folder.children { rows += treeRows(child, depth: depth + 1, scope: scope, pinned: pinned) }
         rows += folder.entries.map { .bookmark($0, folder: folder.key, depth: depth + 1, scope: scope) }
+        if !folder.entries.isEmpty { rows.append(.end(folder: folder.key, depth: depth + 1, scope: scope)) }
         return rows
     }
 
@@ -294,6 +307,12 @@ struct Sidebar: View {
             .dropDestination(for: SidebarDrop.self) { items, _ in
                 SidebarDrag.drop(items.texts, onBookmark: entry.url, in: folder, browser: browser)
             } isTargeted: { target("bm:" + row.id, $0) }
+        case .end(let folder, let depth, _):
+            EndOfListDrop(depth: depth)
+                .dropLine(dropTarget == "bm:" + row.id && SidebarDrag.dragging == .bookmark)
+                .dropDestination(for: SidebarDrop.self) { items, _ in
+                    SidebarDrag.drop(items.texts, onBookmark: nil, in: folder, browser: browser)
+                } isTargeted: { target("bm:" + row.id, $0) }
         }
     }
 
@@ -313,7 +332,7 @@ struct Sidebar: View {
                          startRenaming: { browser.renamingFolder = openKey },
                          click: { browser.clickFolder(openKey: openKey, clickCount: $0) }) {
             if isPinned {
-                Button("Unpin from Sidebar") { browser.spaces.unpinFolder(folder.key, in: browser.spaceID) }
+                Button("Unpin from Sidebar") { browser.unpinFolder(folder.key, named: folder.label) }
             } else if !browser.space.hasPinnedAncestor(folder.key) {
                 Button("Pin to Sidebar") { browser.spaces.pinFolder(folder.key, in: browser.spaceID) }
             }
@@ -383,6 +402,20 @@ struct Sidebar: View {
 }
 
 /// The space between two parts of the sidebar.
+/// A thin strip below the last row of a group or a folder, to drop on to put something at the end of it (the rows take what is
+/// dropped just above them).
+struct EndOfListDrop: View {
+    let depth: Int
+
+    var body: some View {
+        Color.clear
+            .frame(height: 6)
+            .contentShape(Rectangle())
+            .padding(.leading, CGFloat(depth) * Metrics.indent)
+            .accessibilityHidden(true)
+    }
+}
+
 struct SectionGap: View {
     var body: some View {
         Color.clear
