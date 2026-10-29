@@ -537,7 +537,8 @@ struct StartPageContent: View {
             StartPageCustomizeView(browser: browser, expand: expand, pageHeight: height, contents: contents)
         }
         .padding(16)
-        .opacity(shown ? 1 : 0)
+        // Hidden, it is still there for a screen reader (a view with no opacity at all is left out of what it reads).
+        .opacity(shown || NSWorkspace.shared.isVoiceOverEnabled ? 1 : 0.01)
         .allowsHitTesting(shown)
         .animation(Motion.quick, value: shown)
         .onChange(of: customizing) { _, now in

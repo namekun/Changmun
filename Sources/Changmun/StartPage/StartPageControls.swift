@@ -136,7 +136,6 @@ struct StartComponentsList: View {
                 Toggle("", isOn: Binding(get: { item.enabled }, set: { _ in model.toggle(section) }))
                     .labelsHidden().toggleStyle(.switch).controlSize(.small)
                     .accessibilityLabel(String(localized: "Show \(section.title)"))
-                    .accessibilityValue(Accessibility.onOffValue(item.enabled))
             }
             .padding(.horizontal, 10)
             .frame(height: StartPageCustomizeModel.rowHeight)

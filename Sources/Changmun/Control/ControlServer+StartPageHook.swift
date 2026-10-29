@@ -113,7 +113,11 @@ extension ControlServer {
                 }
                 for url in seed["tabs"] as? [String] ?? [] { browser.openTab(url: URL(string: url), activate: false) }
             }
-            if body["noTabs"] as? Bool == true { for tab in browser.spaceTabs { browser.close(tab.id, remember: false) } }
+            if body["noTabs"] as? Bool == true {
+                for tab in browser.spaceTabs { browser.close(tab.id, remember: false) }
+                // Closing the last tab brings up the command bar, which the page is looked at without.
+                browser.commandBar = nil
+            }
             if let popover = body["popover"] as? [String: Any] {
                 let open = popover["open"] as? Bool ?? true
                 var info: [String: Any] = ["open": open]
