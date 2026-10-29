@@ -70,7 +70,8 @@ enum StartPageImage {
         var thumbnail: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
                                           kCGImageSourceShouldCacheImmediately: true]
         if max(width, height) > maxLongEdge { thumbnail[kCGImageSourceThumbnailMaxPixelSize] = maxLongEdge }
-        guard var image = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnail as CFDictionary) else { throw Failure.undecodable }
+        guard var image = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnail as CFDictionary),
+              CGImageSourceGetStatusAtIndex(source, 0) == .statusComplete else { throw Failure.undecodable }
         image = flattened(image)
         let output = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(output, UTType.jpeg.identifier as CFString, 1, nil) else { throw Failure.notSaved }

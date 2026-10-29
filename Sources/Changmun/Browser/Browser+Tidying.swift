@@ -15,8 +15,8 @@ extension Browser {
         var tabs: Int { placed.count }
     }
 
-    /// The tabs a tidy sorts: those in no group (favorites and bookmarks live in their own places).
-    var looseTabs: [Tab] { spaceTabs.filter { $0.groupID == nil && $0.bookmarkKey == nil } }
+    /// The tabs a tidy sorts: those in no group (favorites and bookmarks live in their own places), apart from start tabs, which have no page to sort by.
+    var looseTabs: [Tab] { spaceTabs.filter { $0.groupID == nil && $0.bookmarkKey == nil && !$0.isStart } }
 
     func tidyTabs() {
         guard !tidying else { return }
@@ -86,7 +86,7 @@ extension Browser {
         guard Preferences.shared.groupNewTabs, tab.groupID == nil, tab.bookmarkKey == nil, tab.openerID == nil, !spaceGroups.isEmpty,
               tab.spaceID == spaceID else { return }
         let ids = spaceGroups.map(\.id)
-        let candidates = spaceGroups.map { group in (name: group.name, members: tabs.filter { $0.groupID == group.id }.map(\.sortItem)) }
+        let candidates = spaceGroups.map { group in (name: group.name, members: tabs.filter { $0.groupID == group.id && !$0.isStart }.map(\.sortItem)) }
         let item = tab.sortItem
         Task {
             guard let index = await TabSorter.fit(item, groups: candidates), self.tab(tab.id) === tab, tab.groupID == nil,
