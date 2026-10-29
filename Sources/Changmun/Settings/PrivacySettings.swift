@@ -144,6 +144,8 @@ struct PrivacySettings: View {
             // The tab archive names the sites too, and so do the icons cached for them.
             TabArchive.shared.remove(since: since)
             Task { await Browser.pruneIcons() }
+            // What was taken off the start page names sites too.
+            StartHiddenItems.shared.showAll()
         }
         if clearSiteData {
             // The kept cookies go first, so a snapshot of cookies about to be erased can't be written after; what the stores keep is written once they are done.
@@ -153,6 +155,7 @@ struct PrivacySettings: View {
                 for store in stores { await store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: since) }
                 CookieJournal.shared.cleared()
             }
+            StartHiddenItems.shared.showAll()
             done.append(String(localized: "Site data"))
         }
         cleared = String(localized: "Cleared: \(done.joined(separator: ", "))")

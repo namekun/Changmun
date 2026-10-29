@@ -10,9 +10,9 @@ import WebKit
 
 /// The pages in the settings sidebar, in groups.
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case general, appearance, tabs, privacy, extensions, ai, advanced
+    case general, appearance, tabs, startPage, privacy, extensions, ai, advanced
 
-    static let groups: [[SettingsPage]] = [[.general, .appearance, .tabs], [.privacy, .extensions, .ai], [.advanced]]
+    static let groups: [[SettingsPage]] = [[.general, .appearance, .tabs, .startPage], [.privacy, .extensions, .ai], [.advanced]]
 
     var id: String { rawValue }
 
@@ -21,6 +21,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .general: String(localized: "General")
         case .appearance: String(localized: "Appearance")
         case .tabs: String(localized: "Tabs")
+        case .startPage: String(localized: "Start Page")
         case .privacy: String(localized: "Privacy")
         case .extensions: String(localized: "Extensions")
         case .ai: String(localized: "AI")
@@ -33,6 +34,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .general: "gearshape"
         case .appearance: "macwindow"
         case .tabs: "square.on.square"
+        case .startPage: "square.grid.2x2"
         case .privacy: "hand.raised"
         case .extensions: "puzzlepiece.extension"
         case .ai: "sparkles"
@@ -54,6 +56,8 @@ enum SettingsPage: String, CaseIterable, Identifiable {
             [String(localized: "Play video in Picture in Picture when you switch to another tab"), String(localized: "Sleep inactive tabs"),
              String(localized: "Sites that never sleep"), String(localized: "Tab Cleanup"),
              String(localized: "Automatically put new tabs in the right group"), String(localized: "Archive tabs you haven’t viewed in a while")]
+        case .startPage:
+            [String(localized: "Style"), String(localized: "Sections"), String(localized: "Background"), String(localized: "New Tabs Open")]
         case .privacy:
             [String(localized: "Clear History"), String(localized: "Ad Blocking"), String(localized: "Saved Passwords"),
              String(localized: "Pop-ups"), String(localized: "Camera & Microphone")]
@@ -126,6 +130,7 @@ struct SettingsView: View {
         case .general: GeneralSettings(prefs: prefs)
         case .appearance: AppearanceSettings(prefs: prefs)
         case .tabs: TabSettings(prefs: prefs)
+        case .startPage: StartPageSettingsView()
         case .privacy: PrivacySettings(prefs: prefs)
         case .extensions: ExtensionSettings()
         case .ai: AISettings(prefs: prefs)

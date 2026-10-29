@@ -209,6 +209,9 @@ def main():
     def wanted(name):
         return not only or name in only
 
+    if only == {"start"}:
+        start_page()
+        return
     ui(appearance="light", tabs="sidebar", toolbar="sidebar", sidebar=True, command="none", find=False)
     ids = seed()
     ui(progress=0.4)
@@ -323,9 +326,12 @@ def main():
         post("/ai-chat", {"items": []})
         post("/panel", {"open": False})
 
+    if wanted("start"):
+        start_page()
+
     if wanted("settings"):
         print("settings window")
-        for name in ("general", "appearance", "tabs", "privacy", "extensions", "ai", "advanced"):
+        for name in ("general", "appearance", "tabs", "startPage", "privacy", "extensions", "ai", "advanced"):
             post("/settings-image", {"page": name})
             audit(f"settings, {name}", window="settings")
 
@@ -334,6 +340,57 @@ def main():
         trust()
 
     unseed()
+
+
+def start_page():
+    """The start page in each style (from a window with no tab, with something of every kind to show), the Customize popover over it, and a
+    private window's page. What it shows has to be pressable by name, and the popover's handles, switches and tiles say what and where they are."""
+    print("start page")
+    start = lambda **fields: post("/start-page", fields)
+    start(reset=True, ai="ready", noTabs=True, appearance="light", style="dashboard", sections=["aiSuggestions", "favorites", "continueViewing", "readingList", "frequent"],
+          seed={"icons": False, "favorites": [["https://audit-fav.test/", "Audit Fav"]], "history": [["https://audit-page.test/", "Audit Page", 3, 0]],
+                "closed": [["https://audit-closed.test/", "Audit Closed", 5]], "reading": [["https://audit-read.test/a", "Audit Unread", 1, False]]})
+    state = "start page, dashboard"
+    nodes = audit(state)
+    expect_controls(state, nodes, ["Audit Fav", "Audit Closed", "Audit Page", "Audit Unread", "Customize Start Page", "Show History", "Ask AI"])
+    expect_value(state, nodes, "Audit Closed", "Closed Tab")
+    expect_label(state, nodes, "Start Page")
+    state = "start page, quiet"
+    start(style="quiet", sections=["favorites", "continueViewing", "readingList"])
+    nodes = audit(state)
+    expect_controls(state, nodes, ["Audit Fav", "Audit Closed", "Audit Unread", "Customize Start Page"])
+    state = "start page, AI first"
+    start(style="aiFirst", sections=["aiSuggestions", "favorites"])
+    nodes = audit(state)
+    expect_controls(state, nodes, ["Audit Fav", "Customize Start Page", "Ask AI", "Send"])
+    expect_label(state, nodes, "Ask the AI")
+    state = "start page, customize popover"
+    start(style="dashboard", sections=["aiSuggestions", "favorites", "continueViewing", "readingList", "frequent"], popover={"open": True})
+    nodes = audit(state)
+    expect_controls(state, nodes, ["Dashboard", "Quiet", "AI First", "Space Color", "Plain", "Colors", "Image…", "None", "Reset to Defaults", "Done",
+                                   "Start Page", "Command Bar", "Blank Page", "Address", "Favorites options", "Reorder Reading List"])
+    expect_selected(state, nodes, "Dashboard")
+    expect_selected(state, nodes, "Space Color")
+    expect_selected(state, nodes, "Start Page")
+    expect_value(state, nodes, "Reorder AI Suggestions", "1 of 5")
+    expect_value(state, nodes, "Reorder Reading List", "4 of 5")
+    expect_actions(state, nodes, "Reorder Reading List", ["Move Up", "Move Down"])
+    expect_value(state, nodes, "Show Reading List", "1")
+    expect_value(state, nodes, "Favorites options", "Collapsed")
+    expect_announced(state, "Customize Start Page")
+    state = "start page, customize popover, options open"
+    start(popover={"open": False})
+    time.sleep(0.5)
+    start(popover={"open": True, "expand": "favorites"})
+    nodes = audit(state)
+    expect_value(state, nodes, "Favorites options", "Expanded")
+    expect_controls(state, nodes, ["One row", "Two rows"])
+    start(popover={"open": False}, private=True)
+    nodes = audit("start page, private window")
+    expect_label("start page, private window", nodes, "Private Window")
+    post("/window-close", {})
+    time.sleep(0.5)
+    start(popover={"open": False}, clear=True, reset=True, noTabs=False)
 
 
 def trust():

@@ -72,6 +72,8 @@ extension Browser {
         var bookmarkKey: String?
         var group: TabGroup?
         var space: UUID
+        /// For the start page, which says how long ago it was closed.
+        var closedAt = Date()
     }
 
     /// `remember` false (an archived tab) leaves it out of the tabs ⌘⇧T brings back.

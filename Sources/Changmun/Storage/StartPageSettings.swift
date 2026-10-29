@@ -187,8 +187,8 @@ enum StartAddressCheck: Equatable, Sendable {
 
 /// Where the user's background picture lives: one copy, shrunk, in the app's own folder.
 enum StartPageFiles {
+    /// In the user's data folder (see `DataFolder`): a test copy or the test runner has a folder of its own, never the app's.
     static func folder() -> URL {
-        // The app's data folder, which the headless copies and tests have apart from the user's.
         Library.folder.appendingPathComponent("StartPage", isDirectory: true)
     }
 

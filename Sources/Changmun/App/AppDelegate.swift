@@ -166,6 +166,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// The popover on the start page of the window in front, or the Settings page when it shows none.
+    @objc func customizeStartPage(_ sender: Any?) { StartPageUI.customize(Browser.current) }
+
     @objc func showHistory(_ sender: Any?) {
         Panels.show("history", title: String(localized: "History"), size: NSSize(width: 640, height: 560)) { HistoryView() }
     }

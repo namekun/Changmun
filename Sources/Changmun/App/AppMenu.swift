@@ -71,6 +71,8 @@ enum AppMenu {
         // The one of ⇧⌘R and ⌥⌘R that Hard Reload leaves free.
         add(view, "Reader Mode", #selector(AppDelegate.toggleReader(_:)), "r", chrome ? [.command, .option] : [.command, .shift])
         view.addItem(.separator())
+        add(view, "Customize Start Page…", #selector(AppDelegate.customizeStartPage(_:)))
+        view.addItem(.separator())
         add(view, "Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control])
 
         let develop = submenu(main, "Develop")
