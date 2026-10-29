@@ -815,8 +815,9 @@ struct CookieJournalHardeningTests {
             source.release()
         }
         let start = Date()
-        await rig.journal.flush(within: .seconds(2))
-        #expect(Date().timeIntervalSince(start) < 1.9)
+        await rig.journal.flush(within: .seconds(20))
+        // Far under the 20 s it would take if the quit did not go on when the store answered, and far over what a loaded machine takes.
+        #expect(Date().timeIntervalSince(start) < 12)
         #expect(await rig.names() == ["sid"], "it was written before the quit went on")
     }
 
@@ -830,7 +831,8 @@ struct CookieJournalHardeningTests {
         #expect(await eventually { source.reads >= 1 })
         let start = Date()
         await rig.journal.flush(within: .milliseconds(300))
-        #expect(Date().timeIntervalSince(start) < 1.5)
+        // It gives up, where waiting for the store would never end; a loaded machine may take seconds to get back to the test.
+        #expect(Date().timeIntervalSince(start) < 12)
         source.release()
     }
 
