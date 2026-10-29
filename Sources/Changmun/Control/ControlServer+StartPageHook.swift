@@ -84,6 +84,12 @@ extension ControlServer {
             }
             if let name = body["newTab"] as? String, let opens = NewTabOpens(rawValue: name) { store.setNewTab(opens) }
             if let address = body["address"] as? String { store.setAddress(address) }
+            // "unseed" takes the same lists out again, for what an earlier run of the test copy left in its profile.
+            if let seed = body["unseed"] as? [String: Any] {
+                for page in seed["favorites"] as? [[String]] ?? [] where page.count >= 2 { Library.shared.removeBookmark(url: page[0], folder: browser.favoritesFolder) }
+                for page in seed["history"] as? [[Any]] ?? [] { if let url = page.first as? String { Library.shared.deleteHistory(url: url) } }
+                for page in seed["reading"] as? [[Any]] ?? [] { if let url = page.first as? String { Library.shared.removeFromReadingList(url: url) } }
+            }
             if let seed = body["seed"] as? [String: Any] {
                 let icons = seed["icons"] as? Bool ?? true
                 for page in seed["favorites"] as? [[String]] ?? [] where page.count >= 2 {

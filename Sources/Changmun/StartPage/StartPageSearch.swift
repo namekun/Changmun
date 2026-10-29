@@ -39,21 +39,24 @@ struct StartSearchBox: View {
 
     var body: some View {
         let items = items
-        VStack(spacing: 8) {
-            field(height: compact ? 38 : 46)
-            if !items.isEmpty {
-                VStack(spacing: 2) {
-                    ForEach(Array(zip(CommandBar.rowIDs(items), items).enumerated()), id: \.element.0) { index, row in
-                        SuggestionRow(item: row.1, selected: index == selection) { run($0) }
-                            .onContinuousHover(coordinateSpace: .global) { phase in
-                                if case .active(let point) = phase, pointer.moved(to: point) { selection = index }
-                            }
+        // The list floats over the sections under the field, which step back; it does not push them down.
+        field(height: compact ? 38 : 46)
+            .overlay(alignment: .top) {
+                if !items.isEmpty {
+                    VStack(spacing: 2) {
+                        ForEach(Array(zip(CommandBar.rowIDs(items), items).enumerated()), id: \.element.0) { index, row in
+                            SuggestionRow(item: row.1, selected: index == selection, fetchesIcons: false) { run($0) }
+                                .onContinuousHover(coordinateSpace: .global) { phase in
+                                    if case .active(let point) = phase, pointer.moved(to: point) { selection = index }
+                                }
+                        }
                     }
+                    .padding(6)
+                    .floatingPanel(radius: 12)
+                    .offset(y: (compact ? 38 : 46) + 8)
                 }
-                .padding(6)
-                .floatingPanel(radius: 12)
             }
-        }
+            .zIndex(10)
         .onKeyPress(.downArrow) {
             guard !items.isEmpty else { return .ignored }
             selection = max(0, min(selection + 1, items.count - 1))

@@ -348,6 +348,7 @@ struct StartPageContent: View {
                     .id(Self.scrollID(.init(part: .section(.aiSuggestions), item: 0)))
                 }
             }
+            .zIndex(10)
             let rows = StartPageArrangement.rows(list.filter { $0 != .aiSuggestions || style != .dashboard }, style: style)
             VStack(spacing: style == .dashboard ? 40 : 34) {
                 ForEach(Array(rows.enumerated()), id: \.offset) { _, row in

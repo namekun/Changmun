@@ -310,6 +310,8 @@ struct RowPress<Item: Equatable> {
 struct SuggestionRow: View {
     let item: CommandBar.Suggestion
     let selected: Bool
+    /// False on the start page: its list shows the icons that are kept and asks no site for one.
+    var fetchesIcons = true
     let run: (CommandBar.Suggestion) -> Void
     @State private var press = RowPress<CommandBar.Suggestion>()
     @State private var size = CGSize.zero
@@ -348,9 +350,9 @@ struct SuggestionRow: View {
         switch item {
         case .open: Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary)
         case .search, .suggested: Image(systemName: "magnifyingglass").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary)
-        case .tab(_, let url, _, _): SiteIcon(url: url, size: 16)
+        case .tab(_, let url, _, _): SiteIcon(url: url, size: 16, fetches: fetchesIcons)
         case .ask: Image(systemName: "sparkles").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.primary)
-        case .page(let url, _): SiteIcon(url: url, size: 16)
+        case .page(let url, _): SiteIcon(url: url, size: 16, fetches: fetchesIcons)
         }
     }
 

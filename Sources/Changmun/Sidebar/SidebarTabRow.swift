@@ -161,6 +161,8 @@ struct SiteIcon: View {
     let size: CGFloat
     /// False for a private window's page: the icon isn't saved to disk.
     var keep = true
+    /// False: only an icon that is kept already is shown, and no site is asked for one (the start page's list).
+    var fetches = true
     @State private var image: NSImage?
 
     var body: some View {
@@ -172,7 +174,7 @@ struct SiteIcon: View {
             }
         }
         .frame(width: size, height: size)
-        .task(id: url) { image = await Browser.icon(for: url, keep: keep) }
+        .task(id: url) { image = fetches ? await Browser.icon(for: url, keep: keep) : Browser.savedIcon(for: url) }
     }
 }
 
