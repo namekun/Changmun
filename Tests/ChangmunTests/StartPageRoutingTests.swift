@@ -2,6 +2,15 @@ import Foundation
 import Testing
 @testable import Changmun
 
+/// A store with "New tabs open: command bar", for the tests of what an empty window or space did before the start page.
+@MainActor
+func commandBarStore() -> StartPageStore {
+    let store = StartPageStore(defaults: UserDefaults(suiteName: "command-bar-\(UUID().uuidString)")!,
+                               folder: FileManager.default.temporaryDirectory.appendingPathComponent("command-bar-\(UUID().uuidString)"))
+    store.setNewTab(.commandBar)
+    return store
+}
+
 struct NewTabRouteTests {
     private static let checks: [StartAddressCheck] = [.empty, .invalid, .insecure(URL(string: "http://site.test/")!), .ok(URL(string: "https://site.test/")!)]
     private static let contexts: [NewTabContext] = [.shortcut, .windowOpen, .emptied]

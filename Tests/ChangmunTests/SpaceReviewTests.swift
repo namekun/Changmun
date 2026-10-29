@@ -329,6 +329,7 @@ extension SharedAgentState {
 
         @Test func aSwipeStopsAtTheEndsAndDoesNotOpenTheBarInAnEmptySpace() {
             let rig = Rig(), b = rig.browser
+            b.startPageStore = commandBarStore()
             defer { b.windowClosed() }
             _ = b.openTab(url: URL(string: "https://home.example/"))
             b.switchSpace(offset: -1, wraps: false, opensBar: false)
@@ -356,6 +357,7 @@ extension SharedAgentState {
             let rig = Rig()
             let json = #"{"tabs":[{"url":"https://a.example/","title":"A","space":"\#(Space.defaultID)"}],"active":0,"space":"\#(rig.work.id)"}"#
             let b = Browser(spaces: rig.store)
+            b.startPageStore = commandBarStore()
             b.restore(try #require(Browser.SavedWindows.decode(Data(json.utf8)).first))
             #expect(b.spaceID == rig.work.id && b.activeID == nil && b.commandBar == .newTab)
             b.windowClosed()

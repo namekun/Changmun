@@ -299,6 +299,7 @@ extension SharedAgentState {
 
         @Test func switchingKeepsEachSpacesSelectedTab() throws {
             let rig = Rig(), b = rig.browser
+            b.startPageStore = commandBarStore()
             defer { b.windowClosed() }
             let a1 = rig.open("a1", activate: true), a2 = rig.open("a2")
             let w1 = rig.open("w1", in: rig.work.id), w2 = rig.open("w2", in: rig.work.id)

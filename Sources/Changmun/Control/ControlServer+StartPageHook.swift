@@ -6,7 +6,9 @@ extension ControlServer {
     /// Settings: "newTab" (startPage, commandBar, blank, address), "address", "reset" (the defaults again). Actions, run in this order:
     /// "window" (new or private: a window opens as ⌘N and ⇧⌘N do), "newTab" ("action": "newTab" is ⌘T), "action" (newTab, openLocation, closeActive, closeAll),
     /// "type" (what the start page's search field does with typed text: it opens in the tab in front), "seed" ({"history": [[url, title]], "closed":
-    /// [[url, title]]}: what the start page's sections would show, so a test can look for it where it must never be). The answer says how things stand.
+    /// [[url, title]]}: what the start page's sections would show, so a test can look for it where it must never be; "unseed" ([url]) takes history
+    /// out again), "image" (a path: the picture is made the background as the settings page's button would, and the answer has "imageMs" and "imageOK").
+    /// The answer says how things stand.
     func handleStartPageTestRequest(_ request: HTTPRequest, on connection: NWConnection) -> Bool {
         guard Headless.isTestCopy, request.method == "POST", request.path == "/start-page",
               let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] else { return false }
@@ -21,6 +23,7 @@ extension ControlServer {
             default: break
             }
             guard let browser = Browser.current else { return self.respond(connection, status: "404 Not Found", body: ["error": "no window"]) }
+            for url in body["unseed"] as? [String] ?? [] { Library.shared.deleteHistory(url: url) }
             if let seed = body["seed"] as? [String: Any] {
                 for page in seed["history"] as? [[String]] ?? [] where page.count == 2 { Library.shared.recordVisit(url: page[0], title: page[1]) }
                 for page in seed["closed"] as? [[String]] ?? [] where page.count == 2 {
@@ -35,6 +38,13 @@ extension ControlServer {
             default: break
             }
             if let text = body["type"] as? String { browser.open(text, in: .editCurrent) }
+            var image: [String: Any] = [:]
+            if let path = body["image"] as? String {
+                let start = ContinuousClock.now
+                let ok = await store.chooseImage(from: URL(fileURLWithPath: path))
+                let took = ContinuousClock.now - start
+                image = ["imageOK": ok, "imageMs": Int(Double(took.components.seconds) * 1000 + Double(took.components.attoseconds) / 1e15), "imageFile": store.settings.background.imageFile ?? ""]
+            }
             try? await Task.sleep(for: .milliseconds(body["wait"] as? Int ?? 300))
             let active = browser.active
             self.respond(connection, status: "200 OK", body: [
@@ -43,7 +53,7 @@ extension ControlServer {
                 "private": browser.isPrivate, "mayShowHistory": browser.startPageMayShowHistory, "windows": Browser.all.count,
                 "newTab": store.settings.newTab.rawValue, "closedTabs": browser.closedTabs.count, "hasWebView": active?.webView != nil,
                 "tabs": browser.spaceTabs.map { ["id": $0.id, "isStart": $0.isStart, "url": $0.url?.absoluteString ?? "", "title": $0.displayTitle] as [String: Any] },
-            ])
+            ].merging(image) { $1 })
         }
         return true
     }
