@@ -6,6 +6,19 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.10.2</title>
+      <pubDate>Thu, 29 Oct 2026 14:21:40 +0000</pubDate>
+      <sparkle:version>41</sparkle:version>
+      <sparkle:shortVersionString>0.10.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.10.2</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Fixed: ↑/↓ in the start page's search field.** With something typed, the arrow keys (and ⇥) moved the focus among the sections behind the suggestion list instead of choosing a suggestion; they now choose one, and with nothing typed ↓ still goes down into the sections.
+- **Fixed: unpinning a folder from the sidebar no longer makes its open tabs vanish.** The tabs of a folder's bookmarks show only where the folder is, so unpinning it hid them everywhere. They now come back to the tab list as a group named for the folder (a lone one as a plain tab); the folder stays among your bookmarks.
+- **A place to drop at the end of a group or a folder.** Items could only be dropped just above a row, so a tab could never be put last in a group, nor a bookmark last in a folder. A thin strip below the last row of an open group or folder now takes the drop and puts it at the end. (Tried through the code only; the drag itself is not yet tried by hand, so tell me if it does not take. The tab strip on top still has no such place.)</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.10.2/Changmun-0.10.2.dmg" length="6737285" type="application/octet-stream" sparkle:edSignature="wuvpE99wnJgt79aKbhG1ROlGLjTrFo9DU2MTh+pTInOVomJ7rm+nusocKP/D2NHyQFQTbcn+bq6Mh4Q1/vbhAw==" />
+    </item>
+    <item>
       <title>0.10.1</title>
       <pubDate>Thu, 29 Oct 2026 08:32:24 +0000</pubDate>
       <sparkle:version>40</sparkle:version>
@@ -125,22 +138,9 @@
 - **A tab group's header answers a click anywhere along it;** a few narrow spots used to ignore single clicks, which also made double-click renaming unreliable.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.2/Changmun-0.8.2.dmg" length="5266698" type="application/octet-stream" sparkle:edSignature="csvRtQ2deeDbmQOjnb53ewZ92ibUlX8eTlX9E31FyZkuFr1quKi5X8rL1eNSmaw+BhOgVj6l5vaL3RTZ1t5/Bg==" />
     </item>
-    <item>
-      <title>0.8.1</title>
-      <pubDate>Mon, 26 Oct 2026 01:27:42 +0000</pubDate>
-      <sparkle:version>31</sparkle:version>
-      <sparkle:shortVersionString>0.8.1</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.8.1</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Rename bookmarks and favorites.** Double-click a bookmark in the sidebar (pinned folders included) or choose Rename… from its menu; a favorite tile renames from its menu. The name is kept, even if you import from that browser again, and Undo brings the old one back.
-- **Rename a group with a double-click** on its header in the sidebar or its chip in the tab strip.
-- **A group chip being renamed in the tab strip** no longer hides the first letter behind its dot.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.1/Changmun-0.8.1.dmg" length="5230743" type="application/octet-stream" sparkle:edSignature="n4xkiPEl3aRyoTGwKW7ADGYYkA5K6BfFYV5+Nu2P0Kg/P6DIXyK2grme0oY7e0PxcDuDjuPNfrjGK7jGJLDxCw==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: iDSHkxOIkMB+P4k3v3WQiz0THOt15TRfEDSfcohWTkeOULifYsvdyFszvhI9sgDt4C+eDexneyc4uzKDZaC9DA==
-length: 19346
+edSignature: FECzt+naeoTDkfzBTJDyOG7Z5k1wGpdLWuqe2/+b4lSibjEkmn6v7flc5OL3pM+yv5f6ie56dDhdYBv0YLZUAQ==
+length: 19917
 -->
