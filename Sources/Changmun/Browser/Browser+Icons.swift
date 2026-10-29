@@ -53,6 +53,15 @@ extension Browser {
         return image
     }
 
+    /// A site's icon if it is kept already, in memory or on disk: never asks the site for one, so showing it sends no request (the start page's tiles).
+    static func savedIcon(for address: String) -> NSImage? {
+        guard let host = URL(string: address)?.host(), URL(string: address)?.scheme?.hasPrefix("http") == true else { return nil }
+        if let cached = favicons[host] { return cached }
+        guard let image = NSImage(contentsOf: iconFolder.appendingPathComponent(host + ".png")) else { return nil }
+        favicons[host] = image
+        return image
+    }
+
     /// Deletes the cached icons of sites that no page, bookmark, tab or archived tab is left from: Clear History, and the history's
     /// year, leave none behind. Which hosts are still in use is `keeping` (lowercase).
     static func pruneIcons(keeping hosts: Set<String>, in folder: URL? = nil) {

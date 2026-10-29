@@ -66,7 +66,7 @@ struct WebCard: View {
                 TrustFailureOverlay(tab: tab)
             } else {
                 Theme.card
-                EmptyPage()
+                StartPageContent(browser: browser)
                 HeldPagesHost(browser: browser)
             }
         }

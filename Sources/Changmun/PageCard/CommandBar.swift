@@ -39,9 +39,14 @@ struct CommandBar: View {
     /// Typing an address or words: open or search it, ask the AI, switch to a matching open tab, the engine's
     /// suggestions, then bookmarks and history. The local and remote parts arrive from `source` as they're ready.
     private var suggestions: [Suggestion] {
+        Self.suggestions(shown: shown, pages: source.pages, searches: source.searches, browser: browser, mode: mode)
+    }
+
+    /// The list for what is typed, which the start page's search field shares: `pages` and `searches` are what the suggestion source has found.
+    static func suggestions(shown: String, pages: [Library.Entry], searches: [String], browser: Browser, mode: CommandBarMode) -> [Suggestion] {
         let query = shown.trimmingCharacters(in: .whitespaces)
         if query.isEmpty || (mode == .editCurrent && query == browser.active?.url?.absoluteString) {
-            return source.pages.map { .page(url: $0.url, title: $0.title) }
+            return pages.map { .page(url: $0.url, title: $0.title) }
         }
         var list: [Suggestion] = [AddressInput.isAddress(query) ? .open(query) : .search(query)]
         if !browser.isPrivate { list.append(.ask(query)) }
@@ -50,9 +55,9 @@ struct CommandBar: View {
         let tabs = Self.matchingTabs(browser.spaceTabs.filter { $0.id != browser.activeID }, query) + Self.matchingTabs(others, query)
         list += tabs.prefix(3).map { .tab(id: $0.id, url: $0.url?.absoluteString ?? "", title: $0.displayTitle,
                                           space: $0.spaceID == browser.spaceID ? nil : browser.spaces.space($0.spaceID).name) }
-        list += source.searches.prefix(4).map { .suggested($0) }
+        list += searches.prefix(4).map { .suggested($0) }
         let open = Set(tabs.compactMap { $0.url?.absoluteString })
-        list += source.pages.filter { !open.contains($0.url) }.prefix(6).map { .page(url: $0.url, title: $0.title) }
+        list += pages.filter { !open.contains($0.url) }.prefix(6).map { .page(url: $0.url, title: $0.title) }
         return list
     }
 
@@ -222,9 +227,11 @@ struct CommandBar: View {
     }
 
     /// Another profile's favorites aren't suggested here: they belong to a space with logins of its own.
-    private var hiddenFavorites: [String] {
+    static func hiddenFavorites(_ browser: Browser) -> [String] {
         browser.spaces.spaces.filter { $0.isProfile && $0.id != browser.spaceID }.map(\.favoritesFolder)
     }
+
+    private var hiddenFavorites: [String] { Self.hiddenFavorites(browser) }
 
     /// Bookmarks for an empty field (or the current address, untouched); otherwise a search as the user types.
     private func refresh() {
@@ -246,6 +253,11 @@ struct CommandBar: View {
     }
 
     private func run(_ item: Suggestion?) {
+        Self.run(item, browser: browser, chat: chat, mode: mode)
+    }
+
+    /// What Return or a click does with a row, which the start page's search field shares.
+    static func run(_ item: Suggestion?, browser: Browser, chat: ChatStore, mode: CommandBarMode) {
         switch item {
         case .open(let input), .search(let input), .suggested(let input):
             browser.open(input, in: mode)
