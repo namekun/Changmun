@@ -314,8 +314,10 @@ struct StartPageContent: View {
         HStack(spacing: 6) {
             Text("New Tab").font(.system(size: 11.5, weight: .semibold)).foregroundStyle(Theme.faint)
             Keycap("⌘T")
-            Text("AI").font(.system(size: 11.5, weight: .semibold)).foregroundStyle(Theme.faint).padding(.leading, 8)
-            Keycap("⌘E")
+            if !browser.isPrivate {
+                Text("AI").font(.system(size: 11.5, weight: .semibold)).foregroundStyle(Theme.faint).padding(.leading, 8)
+                Keycap("⌘E")
+            }
         }
         .padding(.bottom, 28)
         .accessibilityHidden(true)
