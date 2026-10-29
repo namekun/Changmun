@@ -27,7 +27,7 @@ struct SidebarToolbar: View {
                         AddressPill(tab: tab, compact: true, height: 32) { browser.commandBar = .editCurrent }
                     }
                 } else {
-                    AddressPlaceholder { browser.commandBar = .newTab }
+                    AddressPlaceholder { browser.openNewTab(.emptied) }
                 }
             }
             .padding(.horizontal, Metrics.inset)

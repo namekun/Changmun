@@ -5,8 +5,8 @@ extension Browser {
     // MARK: Tabs
 
     @discardableResult
-    func openTab(url: URL?, activate: Bool = true, after: Tab? = nil, space: UUID? = nil) -> Tab {
-        let tab = Tab(id: Self.takeID(), url: url, browser: self)
+    func openTab(url: URL?, activate: Bool = true, after: Tab? = nil, space: UUID? = nil, start: Bool = false) -> Tab {
+        let tab = Tab(id: Self.takeID(), url: url, browser: self, isStart: start)
         if let space, spaces.contains(space) { tab.spaceID = space }
         insert(tab, after: after)
         tab.sortsIntoGroup = tab.groupID == nil
@@ -51,7 +51,8 @@ extension Browser {
         spaceSelection[tab.spaceID] = id
         closePeek()
         tab.lastShown = Date()
-        tab.wake()
+        // A start tab has no page: the start page is drawn for it, and nothing is loaded.
+        if !tab.isStart { tab.wake() }
         if let split = shownSplit {
             for half in [split.left, split.right] { self.tab(half)?.wake() }
         }
@@ -80,7 +81,8 @@ extension Browser {
         if renamingTab == id { renamingTab = nil }
         for (space, shared) in splits where shared.contains(id) { setSplit(nil, in: space) }
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabClosed(closing) }
-        if remember {
+        // A start tab has nothing to bring back.
+        if remember && !closing.isStart {
             closedTabs.append(ClosedTab(url: closing.url, title: closing.title, customTitle: closing.customTitle, state: closing.sessionState, index: index, bookmarkKey: closing.bookmarkKey,
                                         group: groups.first { $0.id == closing.groupID }, space: closing.spaceID))
             if closedTabs.count > 100 { closedTabs.removeFirst() }
@@ -92,7 +94,7 @@ extension Browser {
             let here = spaceTabs
             if here.isEmpty {
                 activeID = nil
-                commandBar = .newTab
+                openNewTab(.emptied)
             } else if let back = previousActiveID, here.contains(where: { $0.id == back }) {
                 activate(back)
             } else {

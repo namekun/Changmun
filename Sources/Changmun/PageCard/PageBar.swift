@@ -27,7 +27,7 @@ struct PageBar: View {
                         AddressPill(tab: tab) { browser.commandBar = .editCurrent }
                     }
                 } else {
-                    AddressPlaceholder { browser.commandBar = .newTab }
+                    AddressPlaceholder { browser.openNewTab(.emptied) }
                 }
             }
             .padding(.horizontal, Metrics.inset)

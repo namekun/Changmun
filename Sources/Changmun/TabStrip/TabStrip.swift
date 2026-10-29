@@ -119,7 +119,7 @@ struct TabStrip: View {
 
     /// After the last tab: a tab dropped on it goes to the end of the list.
     private var newTab: some View {
-        BarButton(symbol: "plus", help: String(localized: "New Tab (⌘T)")) { browser.commandBar = .newTab }
+        BarButton(symbol: "plus", help: String(localized: "New Tab (⌘T)")) { browser.openNewTab() }
             .dropLine(dropTarget == "tabs:end" && SidebarDrag.carriesTab, edge: .leading)
             .dropDestination(for: SidebarDrop.self) { items, _ in
                 SidebarDrag.dropAtEnd(items.texts, browser: browser)

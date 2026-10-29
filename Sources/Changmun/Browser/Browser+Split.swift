@@ -24,7 +24,8 @@ extension Browser {
 
     /// Shows `id` to the right of the active tab.
     func split(with id: Int) {
-        guard let activeID, id != activeID, tab(id)?.spaceID == spaceID else { return }
+        // A start tab has no page to put beside another.
+        guard let activeID, id != activeID, tab(id)?.spaceID == spaceID, tab(id)?.isStart != true, active?.isStart != true else { return }
         setSplit(Split(left: activeID, right: id), in: spaceID)
         splitFraction = 0.5
         tab(id)?.wake()
@@ -37,7 +38,7 @@ extension Browser {
     /// The split for the menu command: the active tab and the one shown before it.
     func toggleSplit() {
         if shownSplit != nil { return unsplit() }
-        guard let back = previousActiveID, tab(back) != nil else { return NSSound.beep() }
+        guard let back = previousActiveID, tab(back) != nil, tab(back)?.isStart != true, active?.isStart != true else { return NSSound.beep() }
         split(with: back)
     }
 }

@@ -268,7 +268,7 @@ extension Browser {
     /// Takes a tab out into a window of its own, keeping its back and forward history.
     func moveToNewWindow(_ id: Int) {
         guard let tab = tab(id) else { return }
-        let saved = SavedSession(tabs: [SavedTab(url: tab.url?.absoluteString, title: tab.title, customTitle: tab.customTitle, state: tab.sessionState, space: tab.spaceID)], active: 0, space: tab.spaceID)
+        let saved = SavedSession(tabs: [SavedTab(url: tab.url?.absoluteString, title: tab.title, customTitle: tab.customTitle, state: tab.sessionState, space: tab.spaceID, start: tab.isStart ? true : nil)], active: 0, space: tab.spaceID)
         close(id, remember: false)
         BrowserWindow.open(private: isPrivate, restoring: saved)
     }

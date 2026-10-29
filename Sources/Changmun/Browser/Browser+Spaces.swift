@@ -31,7 +31,7 @@ extension Browser {
         hoveredLink = nil
         enter(id)
         activeID = nil
-        if opensBar { commandBar = .newTab }
+        if opensBar { openNewTab(.emptied) }
     }
 
     /// The next space (1) or the one before (-1), going round unless `wraps` is false (a swipe stops at the ends).

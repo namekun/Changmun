@@ -23,7 +23,14 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// A name the user gave the tab: shown wherever the title is, in place of the page's. The page's own title is still kept
     /// (see `pageTitle`) for the history and for the AI.
     @Published var customTitle: String?
-    @Published var url: URL?
+    @Published var url: URL? {
+        // The first address a start tab is given makes it a page tab for good.
+        didSet { if url != nil, isStart { isStart = false } }
+    }
+    /// A start tab: opened empty to show the start page. It has no address, no web view (nothing is loaded and no web process runs for it) and no
+    /// history, and the AI and extensions see it as a blank "New Tab". Set when it is made, cleared by the first address it gets (a load,
+    /// the search field of the start page); nothing makes a page tab a start tab again.
+    @Published private(set) var isStart = false
     @Published var isLoading = false
     /// How many navigations have committed in this tab: a count that did not change says no page came and went in between (A to B to A).
     var navigations = 0
@@ -127,12 +134,14 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var isAsleep: Bool { webView == nil }
     var isPrivate: Bool { browser?.isPrivate == true }
 
-    init(id: Int, url: URL?, title: String = "", state: Data? = nil, browser: Browser) {
+    init(id: Int, url: URL?, title: String = "", state: Data? = nil, browser: Browser, isStart: Bool = false) {
         self.id = id
         self.url = url
         self.title = title
         self.savedState = state
         self.browser = browser
+        // An address (or a saved page) wins: a start tab has neither.
+        self.isStart = isStart && url == nil && state == nil
         spaceID = browser.spaceID
         super.init()
     }

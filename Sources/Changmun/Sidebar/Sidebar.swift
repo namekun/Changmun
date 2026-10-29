@@ -33,7 +33,7 @@ struct Sidebar: View {
                     pinned
                     // Tidying is offered where the tabs start, when the pointer is there.
                     HStack(spacing: Metrics.rowGap) {
-                        NewTabRow { browser.commandBar = .newTab }
+                        NewTabRow { browser.openNewTab() }
                         if browser.tidying || (newTabHover && browser.looseTabs.count > 1) { TidyButton(browser: browser) }
                     }
                     .onHover { newTabHover = $0 }

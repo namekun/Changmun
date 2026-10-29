@@ -18,6 +18,8 @@ extension Browser {
         var space: UUID?
         /// The tab its space showed last.
         var selected: Bool?
+        /// A start tab (see Tab.isStart): written only when it is one, so sessions from before have none and read as page tabs.
+        var start: Bool?
     }
 
     struct SavedSession: Codable {
@@ -59,7 +61,7 @@ extension Browser {
         SavedSession(
             tabs: tabs.map { SavedTab(url: $0.url?.absoluteString, title: $0.title, customTitle: $0.customTitle, state: fresh ? $0.sessionState : $0.lastSessionState,
                                   bookmarkKey: $0.bookmarkKey, group: $0.groupID, shown: $0.lastShown, space: $0.spaceID,
-                                  selected: spaceSelection[$0.spaceID] == $0.id) },
+                                  selected: spaceSelection[$0.spaceID] == $0.id, start: $0.isStart ? true : nil) },
             active: tabs.firstIndex { $0.id == activeID },
             previous: tabs.firstIndex { $0.id == previousActiveID },
             groups: groups,
@@ -124,7 +126,7 @@ extension Browser {
         // A tab whose bookmark was deleted since (by a crash before the next save, or another window) is a plain tab.
         let known = saved.tabs.contains { $0.bookmarkKey != nil } ? Self.libraryKeys() : nil
         for item in saved.tabs {
-            let tab = Tab(id: Self.takeID(), url: item.url.flatMap(URL.init(string:)), title: item.title, state: item.state, browser: self)
+            let tab = Tab(id: Self.takeID(), url: item.url.flatMap(URL.init(string:)), title: item.title, state: item.state, browser: self, isStart: item.start == true)
             tab.spaceID = spaces.space(item.space).id
             tab.bookmarkKey = item.bookmarkKey.flatMap { Self.keeps($0, in: spaces.space(tab.spaceID)) && (known?.contains($0) ?? true) ? $0 : nil }
             tab.groupID = item.group
@@ -143,7 +145,7 @@ extension Browser {
             activate(start.id)
         } else {
             activeID = nil
-            if !isPrivate { commandBar = .newTab }
+            if !isPrivate { openNewTab(.emptied) }
         }
         if let previous = saved.previous, tabs.indices.contains(previous), tabs[previous].spaceID == spaceID { previousActiveID = tabs[previous].id }
     }

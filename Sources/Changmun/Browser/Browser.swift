@@ -167,6 +167,11 @@ final class Browser: ObservableObject {
     }
     /// Bumped to put the cursor in the full address field (⌘L).
     @Published var addressFocusRequest = 0
+    /// Bumped to put the cursor in the start page's search field (⌘T, ⌘L on a start tab, a window or space with no tab); the page, once it
+    /// is on screen, answers by focusing the field. Bumped before the page is there, it is answered when the page appears.
+    @Published var startPageFocusRequest = 0
+    /// Where ⌘T and a new tab go (the start page's settings); a test hands in a store of its own.
+    var startPageStore: StartPageStore = .shared
     /// Only the page, as in Dia: no sidebar, bar, AI panel or window buttons. Not kept across launches.
     /// In full screen the window buttons are gone, and so is the room kept for them.
     @Published var fullScreen = false

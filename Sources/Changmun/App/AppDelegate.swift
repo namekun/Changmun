@@ -88,7 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func openWindowsFromSession() {
         let saved = Browser.savedWindows()
         if saved.isEmpty {
-            BrowserWindow.open().commandBar = .newTab
+            BrowserWindow.open().openNewTab(.windowOpen)
         } else {
             for session in saved { BrowserWindow.open(restoring: session) }
         }
@@ -138,9 +138,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func newWindow(_ sender: Any?) {
         // With none open (the app stayed after its last window closed) the session comes back, as from the Dock.
-        if Browser.all.isEmpty { openWindowsFromSession() } else { BrowserWindow.open().commandBar = .newTab }
+        if Browser.all.isEmpty { openWindowsFromSession() } else { BrowserWindow.open().openNewTab(.windowOpen) }
     }
-    @objc func newPrivateWindow(_ sender: Any?) { BrowserWindow.open(private: true).commandBar = .newTab }
+    @objc func newPrivateWindow(_ sender: Any?) { BrowserWindow.open(private: true).openNewTab(.windowOpen) }
     @objc func closeWindow(_ sender: Any?) {
         if ChatPopOut.shared.closeFromMenu() { return }
         current?.window?.performClose(nil)
@@ -151,16 +151,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func selectNumberedSpace(_ sender: NSMenuItem) { current?.switchSpace(number: sender.tag) }
     @objc func newSpace(_ sender: Any?) { browser.spaceSheet = .new }
 
-    @objc func newTab(_ sender: Any?) { browser.commandBar = .newTab }
-    @objc func openLocation(_ sender: Any?) {
-        if browser.active == nil {
-            browser.commandBar = .newTab
-        } else if Preferences.shared.addressBarOnTop && !browser.focusMode {
-            browser.addressFocusRequest += 1
-        } else {
-            browser.commandBar = .editCurrent
-        }
-    }
+    @objc func newTab(_ sender: Any?) { browser.openNewTab() }
+    @objc func openLocation(_ sender: Any?) { browser.openLocation() }
 
     @objc func showSettings(_ sender: Any?) {
         Panels.show("settings", title: String(localized: "Settings"), size: NSSize(width: 720, height: 520), resizable: false) { SettingsView(prefs: Preferences.shared) }

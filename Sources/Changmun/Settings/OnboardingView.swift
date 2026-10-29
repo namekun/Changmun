@@ -202,7 +202,7 @@ struct OnboardingView: View {
     private func finish() {
         UserDefaults.standard.set(true, forKey: "onboarded")
         browser.showOnboarding = false
-        if browser.tabs.isEmpty { browser.commandBar = .newTab }
+        if browser.tabs.isEmpty { browser.openNewTab(.windowOpen) }
     }
 }
 

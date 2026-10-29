@@ -29,7 +29,7 @@ extension Browser {
     func sleepIdleTabs(olderThan age: TimeInterval) {
         let now = Date()
         let neverSleep = Preferences.shared.neverSleepHosts
-        for tab in tabs where !isShown(tab) && now.timeIntervalSince(tab.lastShown) >= age && !tab.isInPictureInPicture
+        for tab in tabs where !isShown(tab) && !tab.isStart && now.timeIntervalSince(tab.lastShown) >= age && !tab.isInPictureInPicture
             && Preferences.canSleep(host: tab.url?.host(), neverSleep: neverSleep) && !AgentActivity.shared.holds(tab) {
             guard let webView = tab.webView, webView.fullscreenState == .notInFullscreen,
                   webView.cameraCaptureState == .none, webView.microphoneCaptureState == .none else { continue }
