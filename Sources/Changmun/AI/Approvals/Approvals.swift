@@ -544,7 +544,8 @@ enum Approvals {
                 // A stand that holds its questions shows them as the app would (see `inPanel`), the sheet too.
                 guard standing == nil || standing?.holds == true, !once.done else { return }
                 guard let window = Browser.recent?.window else {
-                    finish(.deny, 0)
+                    // A stand that holds waits for a window; the app itself has nobody to ask.
+                    if standing == nil { finish(.deny, 0) }
                     return
                 }
                 // The first button is the one Return presses, and the one that says no.

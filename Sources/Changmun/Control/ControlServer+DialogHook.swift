@@ -10,7 +10,7 @@ enum DialogTestState {
 }
 
 extension ControlServer {
-    /// Tests only: shows one of the app's dialogs on the front window, as the code that asks it builds it. "show" is delete-folder, delete-source, delete-space, app-link,
+    /// Tests only: shows one of the app's dialogs on the front window, as the code that asks it builds it. "resize" sets the window's content size ([width, height], for looking at the page when it is narrow). "show" is delete-folder, delete-source, delete-space, app-link,
     /// camera, microphone, camera-microphone, sign-in, sign-in-failed, extension-turn-on, extension-update, extension-ask, chat-link, hostile (names a page chose, to see
     /// them cut), approval-card (the panel opens and the question is a card there), approval-sheet or approval-accounts (a sheet; questions are held until released
     /// through `/approvals`). "key" presses a key in the sheet ({"chars": "\r", "keyCode": 36}), "type" types into what has the keyboard, "end" ends the sheet as a
@@ -24,6 +24,7 @@ extension ControlServer {
                 return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
             }
             if body["clear"] as? Bool == true { DialogTestState.answers = [] }
+            if let size = body["resize"] as? [Double], size.count == 2 { window.setContentSize(NSSize(width: size[0], height: size[1])) }
             if let name = body["show"] as? String {
                 guard DialogTestHook.show(name, on: browser) else { return self.respond(connection, status: "400 Bad Request", body: ["error": "unknown dialog"]) }
                 try? await Task.sleep(for: .milliseconds(body["wait"] as? Int ?? 400))
