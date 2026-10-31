@@ -322,9 +322,9 @@ struct ApprovalCardView: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.card))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.waiting.opacity(0.6), lineWidth: 1))
-        .shadow(color: Theme.cardShadow, radius: 6, y: 2)
+        .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Theme.card))
+        .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Theme.waiting.opacity(0.6), lineWidth: 1))
+        .e2()
         .focusable()
         .focusEffectDisabled()
         .focused($focused)
@@ -353,7 +353,7 @@ struct ApprovalCardView: View {
             }
             .frame(maxHeight: 110)
             .fixedSize(horizontal: false, vertical: true)
-            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.field))
+            .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(Theme.field))
         }
     }
 
@@ -383,7 +383,7 @@ struct ApprovalCardView: View {
             .foregroundStyle(Theme.primary)
             .padding(.horizontal, 8)
             .frame(maxWidth: .infinity, minHeight: 26)
-            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(choice == .deny ? Theme.pill : Theme.hoverTab))
+            .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(choice == .deny ? Theme.pill : Theme.hoverTab))
             .opacity(live ? 1 : 0.5)
         }
         .buttonStyle(.plain)

@@ -270,7 +270,7 @@ private struct MarkdownBlockView: View {
                 }
             } else {
                 HStack(alignment: .top, spacing: 8) {
-                    RoundedRectangle(cornerRadius: 1, style: .continuous).fill(Theme.hairline).frame(width: 2)
+                    Capsule().fill(Theme.hairline).frame(width: 2)
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(Array(blocks.enumerated()), id: \.offset) { _, inner in MarkdownBlockView(block: inner, quoteDepth: quoteDepth + 1) }
                     }
@@ -289,7 +289,7 @@ private struct MarkdownBlockView: View {
                 }
                 .padding(8)
             }
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.selected))
+            .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(Theme.selected))
         case .rule:
             Rectangle().fill(Theme.hairline).frame(height: 1).padding(.vertical, 4)
         }
@@ -343,7 +343,7 @@ private struct CodeBlockView: View {
                     .padding(.horizontal, 8).padding(.top, 4).padding(.bottom, 8)
             }
         }
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.selected))
+        .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(Theme.selected))
     }
 }
 

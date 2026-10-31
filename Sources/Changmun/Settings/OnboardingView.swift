@@ -56,7 +56,7 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.45).contentShape(Rectangle())
+            Theme.scrimModal.contentShape(Rectangle())
             VStack(alignment: .leading, spacing: 0) {
                 switch model.step {
                 case .welcome: welcome
@@ -67,7 +67,7 @@ struct OnboardingView: View {
                 }
             }
             .frame(width: 540)
-            .floatingPanel(radius: 18)
+            .floatingPanel(radius: Metrics.panelRadius, modal: true)
             .animation(Motion.standard, value: model.step)
         }
     }
@@ -163,7 +163,7 @@ struct OnboardingView: View {
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.hoverTab))
+                .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Theme.hoverTab))
             }
             Text("Imported bookmarks are behind the bookmark button at the bottom of the sidebar; pin the folders you use to keep them above your tabs. On login forms, use the key button next to the address to fill in a password.")
                 .font(.secondary)
@@ -227,7 +227,7 @@ struct SourceRow: View {
         }
         .padding(.horizontal, 8)
         .frame(height: 46)
-        .background { if isOn { SelectedBackground(radius: 10) } }
+        .background { if isOn { SelectedBackground(radius: Metrics.cardRadius) } }
         .contentShape(Rectangle())
         .onTapGesture(perform: toggle)
         .accessibleButton(source.title, value: Accessibility.onOffValue(isOn), selected: isOn, activate: toggle)

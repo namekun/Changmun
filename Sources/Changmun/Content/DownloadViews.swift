@@ -20,7 +20,7 @@ struct DownloadButton: View {
                     Circle().trim(from: 0, to: max(0.04, progress))
                         .stroke(Theme.primary, style: StrokeStyle(lineWidth: 2, lineCap: .round))
                         .rotationEffect(.degrees(-90))
-                    Image(systemName: "arrow.down").font(.system(size: 8, weight: .bold))  // type-exempt: a mark inside the 15 pt progress ring
+                    Image(systemName: "arrow.down").font(.system(size: 8, weight: .bold))  // design-exempt: a mark inside the 15 pt progress ring
                 } else {
                     Image(systemName: "arrow.down.circle").font(.symbolToolbar)
                 }

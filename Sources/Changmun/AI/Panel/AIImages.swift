@@ -317,7 +317,7 @@ struct ImageChip: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(nsImage: image.thumbnail).resizable().scaledToFill().frame(width: 18, height: 18).clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+            Image(nsImage: image.thumbnail).resizable().scaledToFill().frame(width: 18, height: 18).clipShape(RoundedRectangle(cornerRadius: Metrics.keycapRadius, style: .continuous))
             Button(action: remove) { Image(systemName: "xmark").font(.symbolInline) }
                 .buttonStyle(.plain)
                 .help("Remove this image")
@@ -344,8 +344,8 @@ struct SentImages: ViewModifier {
                     Spacer(minLength: 40)
                     ForEach(images) { image in
                         Image(nsImage: image.thumbnail).resizable().scaledToFit().frame(maxWidth: 96, maxHeight: 56)
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Theme.hairline.opacity(0.5), lineWidth: 0.5))
+                            .clipShape(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).stroke(Theme.hairline.opacity(0.5), lineWidth: 0.5))
                             .accessibilityLabel(Text("Image"))
                     }
                 }
@@ -364,7 +364,7 @@ struct ImageDrop: ViewModifier {
         content
             .overlay {
                 if targeted {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Theme.hairline, style: StrokeStyle(lineWidth: 2, dash: [6, 4])).padding(4).allowsHitTesting(false)
+                    RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).stroke(Theme.hairline, style: StrokeStyle(lineWidth: 2, dash: [6, 4])).padding(4).allowsHitTesting(false)
                 }
             }
             .onDrop(of: [.fileURL, .image], isTargeted: $targeted) { providers in

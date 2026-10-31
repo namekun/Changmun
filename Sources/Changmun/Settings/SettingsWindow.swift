@@ -121,7 +121,7 @@ struct SettingsView: View {
             TextField("Search", text: $query).textFieldStyle(.plain)
         }
         .padding(.horizontal, 8).padding(.vertical, 4)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: Metrics.rowRadius))
         .padding(.horizontal, 10).padding(.bottom, 8)  // grid-exempt: lines up with the sidebar list's own inset
     }
 

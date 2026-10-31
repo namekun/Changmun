@@ -14,9 +14,9 @@ struct SpaceIcon: View {
     var body: some View {
         if space.isEmoji {
             // An emoji keeps its own colours, whatever the row around it is tinted.
-            Text(space.symbol).font(.system(size: size)).foregroundStyle(.primary)  // type-exempt: drawn to the size of the plate it sits on
+            Text(space.symbol).font(.system(size: size)).foregroundStyle(.primary)  // design-exempt: drawn to the size of the plate it sits on
         } else {
-            Image(systemName: space.symbol).font(.system(size: size, weight: .medium))  // type-exempt: drawn to the size of the plate it sits on
+            Image(systemName: space.symbol).font(.system(size: size, weight: .medium))  // design-exempt: drawn to the size of the plate it sits on
         }
     }
 }
@@ -111,7 +111,7 @@ struct SpaceSwitcher: View {
         .padding(.horizontal, 8)
         .frame(height: Metrics.control)
         .background(Capsule().fill(Theme.selectedFill).overlay(Capsule().strokeBorder(Theme.selectedEdge, lineWidth: 0.5))
-            .shadow(color: Theme.selectedShadow, radius: 1, y: 1))
+            .e1())
         .help(space.name)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(space.name)
@@ -140,7 +140,7 @@ struct SpaceSwitcher: View {
             .overlay(alignment: .bottomTrailing) {
                 if space.isProfile {
                     Image(systemName: "key.fill")
-                        .font(.system(size: 7, weight: .bold))  // type-exempt: a badge drawn on the space's icon
+                        .font(.system(size: 7, weight: .bold))  // design-exempt: a badge drawn on the space's icon
                         .foregroundStyle(Theme.secondary)
                         .padding(4)
                         .background(Circle().fill(Theme.selectedFill))
@@ -204,7 +204,7 @@ struct SpaceSheet: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.2)
+            Theme.scrim
                 .contentShape(Rectangle())
                 .onTapGesture { close() }
             VStack(alignment: .leading, spacing: 16) {
@@ -227,7 +227,7 @@ struct SpaceSheet: View {
             }
             .padding(24)
             .frame(width: 440)
-            .floatingPanel(radius: 16)
+            .floatingPanel(radius: Metrics.panelRadius, modal: true)
             .onKeyPress(.escape) { close(); return .handled }
         }
         .onAppear { DispatchQueue.main.async { focused = true } }
@@ -238,7 +238,7 @@ struct SpaceSheet: View {
             SpaceIcon(space: preview, size: 26)
                 .foregroundStyle(tint.color)
                 .frame(width: 64, height: 64)
-                .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(tint.color.opacity(0.18)))
+                .background(RoundedRectangle(cornerRadius: Metrics.panelRadius, style: .continuous).fill(tint.color.opacity(0.18)))
             VStack(alignment: .leading, spacing: 8) {
                 Text("Name").font(.caption).foregroundStyle(Theme.secondary)
                 TextField("", text: $name)
@@ -276,8 +276,8 @@ struct SpaceSheet: View {
                         SpaceIcon(space: Space(name: "", symbol: item, tint: tint), size: 14)
                             .foregroundStyle(symbol == item ? tint.color : Theme.secondary)
                             .frame(width: 34, height: 34)
-                            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(symbol == item ? tint.color.opacity(0.14) : Theme.field))
-                            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(symbol == item ? tint.color : .clear, lineWidth: 1.5))
+                            .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(symbol == item ? tint.color.opacity(0.14) : Theme.field))
+                            .overlay(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).strokeBorder(symbol == item ? tint.color : .clear, lineWidth: 1.5))
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(symbol == item ? .isSelected : [])
@@ -319,7 +319,7 @@ struct SpaceSheet: View {
                 .accessibilityLabel(String(localized: "Keep logins and cookies separate (profile)"))
         }
         .padding(16)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.field))
+        .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Theme.field))
         .help(editing ? String(localized: "Whether a space is a profile is fixed when it is made.") : "")
     }
 
@@ -345,8 +345,8 @@ struct SpaceSheet: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(on ? tint.color.opacity(0.14) : Theme.field))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(on ? tint.color.opacity(0.7) : .clear, lineWidth: 1.5))
+        .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(on ? tint.color.opacity(0.14) : Theme.field))
+        .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(on ? tint.color.opacity(0.7) : .clear, lineWidth: 1.5))
     }
 
     private func close() { browser.spaceSheet = nil }

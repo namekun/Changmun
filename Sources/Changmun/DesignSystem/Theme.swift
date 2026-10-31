@@ -44,7 +44,12 @@ enum Theme {
     static let selectedFill = dynamic(light: .white, dark: NSColor(white: 1, alpha: 0.14))
     static let selectedEdge = dynamic(light: NSColor(white: 0, alpha: 0.06), dark: NSColor(white: 1, alpha: 0.08))
     static let selectedShadow = dynamic(light: NSColor(white: 0, alpha: 0.08), dark: .clear)
-    static let cardShadow = dynamic(light: NSColor(red: 0.12, green: 0.16, blue: 0.24, alpha: 0.12), dark: NSColor(white: 0, alpha: 0.35))
+    /// Shadows of the two raised levels (see `e2` and `e3`): a blue-tinted ink on light, black on dark, where it has to be stronger to show.
+    static let chipShadow = dynamic(light: NSColor(red: 0.12, green: 0.16, blue: 0.24, alpha: 0.12), dark: NSColor(white: 0, alpha: 0.35))
+    static let modalShadow = dynamic(light: NSColor(red: 0.12, green: 0.16, blue: 0.24, alpha: 0.22), dark: NSColor(white: 0, alpha: 0.55))
+    /// What a bar, card or sheet dims the page by: a light one for a bar over the page, a heavier one for a window-sized modal.
+    static let scrim = Color.black.opacity(0.2)
+    static let scrimModal = Color.black.opacity(0.32)
     static let track = ink(0.15)
     static let meter = ink(0.75)
     static let waiting = Color(red: 1.0, green: 0.62, blue: 0.2)
@@ -92,13 +97,16 @@ enum Metrics {
     static let control: CGFloat = 28
     /// Small buttons inside a row.
     static let action: CGFloat = 20
+    /// Corner radii are 4, 8, 12 or 16, or a capsule: a keycap; a row or a small control; a field, card or button; a panel or modal.
+    static let keycapRadius: CGFloat = 4
     static let rowRadius: CGFloat = 8
     static let fieldRadius: CGFloat = 12
     static let cardRadius: CGFloat = 12
+    static let panelRadius: CGFloat = 16
 }
 
 /// Six sizes, three weights. A size has its regular or medium face and, where a line needs to stand out, a semibold one.
-/// Nothing the app writes is smaller than `caption`; sizes under 11 are only for a badge drawn inside an icon (marked `type-exempt`).
+/// Nothing the app writes is smaller than `caption`; sizes under 11 are only for a badge drawn inside an icon (marked `design-exempt`).
 extension Font {
     static let caption = Font.system(size: 11, weight: .medium)
     static let captionStrong = Font.system(size: 11, weight: .semibold)

@@ -450,7 +450,7 @@ struct UndoNotice: View {
             Button(action: undo) {
                 Text("Undo").font(.rowSelected).padding(.horizontal, Metrics.rowPadding).frame(height: Metrics.action).contentShape(Rectangle())
             }
-            .buttonStyle(FillStyle(resting: Theme.field, hoverFill: Theme.pill, radius: 6))
+            .buttonStyle(FillStyle(resting: Theme.field, hoverFill: Theme.pill, radius: Metrics.rowRadius))
             .foregroundStyle(Theme.primary)
         }
         .padding(.leading, Metrics.rowPadding)

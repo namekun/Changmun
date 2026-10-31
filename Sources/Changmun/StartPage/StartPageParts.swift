@@ -71,7 +71,7 @@ struct StartIcon: View {
                 }
             case .letter:
                 Text(verbatim: StartIconStyle.letter(for: url))
-                    .font(.system(size: size * 0.5, weight: .semibold, design: .rounded)).foregroundStyle(.white)  // type-exempt: a share of the tile's size
+                    .font(.system(size: size * 0.5, weight: .semibold, design: .rounded)).foregroundStyle(.white)  // design-exempt: a share of the tile's size
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Self.letterColors[StartIconStyle.colorIndex(for: url, count: Self.letterColors.count)])
             }
@@ -80,7 +80,7 @@ struct StartIcon: View {
         .background { if style != .letter { RoundedRectangle(cornerRadius: radius, style: .continuous).fill(plate || style == .plate ? Color.white : .clear) } }
         .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         .overlay { if plate { RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Color.black.opacity(scheme == .dark ? 0 : 0.08), lineWidth: 0.5) } }
-        .shadow(color: plate && scheme == .light ? Color.black.opacity(0.08) : .clear, radius: 3, y: 1)
+        .e1(plate && scheme == .light)
         .onAppear { image = Browser.savedIcon(for: url) }
         .onChange(of: url) { image = Browser.savedIcon(for: url) }
         .accessibilityHidden(true)
@@ -110,7 +110,7 @@ struct StartFavoriteTile: View {
         .frame(width: width)
         .padding(.vertical, 4)
         .onHover { hover = $0 }
-        .startItem(name, value: URL(string: entry.url)?.host().map(DisplayHost.trimmed), focused: focused, radius: 12, activate: open)
+        .startItem(name, value: URL(string: entry.url)?.host().map(DisplayHost.trimmed), focused: focused, radius: Metrics.cardRadius, activate: open)
     }
 }
 
@@ -121,7 +121,7 @@ struct StartEmptyFavorite: View {
     var body: some View {
         RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
             .strokeBorder(Theme.hairline, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-            .overlay { Image(systemName: "plus").font(.system(size: size * 0.32, weight: .regular)).foregroundStyle(Theme.tertiary) }  // type-exempt: a share of the tile's size
+            .overlay { Image(systemName: "plus").font(.system(size: size * 0.32, weight: .regular)).foregroundStyle(Theme.tertiary) }  // design-exempt: a share of the tile's size
             .frame(width: size, height: size)
             .accessibilityHidden(true)
     }
@@ -164,11 +164,11 @@ struct StartContinueCardView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, minHeight: 130, maxHeight: 130, alignment: .topLeading)
-        .startPlate(radius: 12, fill: hover ? Theme.ink(0.08) : Theme.ink(0.045))
+        .startPlate(radius: Metrics.cardRadius, fill: hover ? Theme.ink(0.08) : Theme.ink(0.045))
         .overlay(alignment: .topTrailing) { if hover { HideButton(action: hide).padding(8) } }
         .onHover { hover = $0 }
         .startItem(card.title, value: Accessibility.join([card.isClosedTab ? String(localized: "Closed Tab") : nil, host, when]),
-                   hint: card.isClosedTab ? String(localized: "Reopens the tab") : nil, focused: focused, radius: 12,
+                   hint: card.isClosedTab ? String(localized: "Reopens the tab") : nil, focused: focused, radius: Metrics.cardRadius,
                    actions: [AccessibleButton.Action(String(localized: "Hide from This Page"), hide)], activate: open)
     }
 }
@@ -209,10 +209,10 @@ struct StartContinueRowView: View {
         }
         .padding(.horizontal, 8)
         .frame(height: 42)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
+        .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
         .onHover { hover = $0 }
         .startItem(card.title, value: Accessibility.join([card.isClosedTab ? String(localized: "Closed Tab") : nil, host, when]),
-                   hint: card.isClosedTab ? String(localized: "Reopens the tab") : nil, focused: focused, radius: 8,
+                   hint: card.isClosedTab ? String(localized: "Reopens the tab") : nil, focused: focused, radius: Metrics.rowRadius,
                    actions: [AccessibleButton.Action(String(localized: "Hide from This Page"), hide)], activate: open)
     }
 }
@@ -259,9 +259,9 @@ struct StartReadingRow: View {
         }
         .padding(.horizontal, 8)
         .frame(height: 42)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
+        .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
         .onHover { hover = $0 }
-        .startItem(item.title, value: Accessibility.readingValue(read: item.read, site: site, added: added), focused: focused, radius: 8, activate: open)
+        .startItem(item.title, value: Accessibility.readingValue(read: item.read, site: site, added: added), focused: focused, radius: Metrics.rowRadius, activate: open)
     }
 }
 
@@ -292,9 +292,9 @@ struct StartFrequentRow: View {
         }
         .padding(.horizontal, 8)
         .frame(height: 42)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
+        .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
         .onHover { hover = $0 }
-        .startItem(site.title, value: Accessibility.join([site.host, visits]), focused: focused, radius: 8,
+        .startItem(site.title, value: Accessibility.join([site.host, visits]), focused: focused, radius: Metrics.rowRadius,
                    actions: [AccessibleButton.Action(String(localized: "Hide from This Page"), hide)], activate: open)
     }
 }
@@ -314,9 +314,9 @@ struct StartAIChip: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 28)
-        .startPlate(radius: 14, fill: hover ? Theme.ink(0.1) : Theme.ink(0.05))
+        .startPlate(radius: Metrics.cardRadius, fill: hover ? Theme.ink(0.1) : Theme.ink(0.05))
         .onHover { hover = $0 }
-        .startItem(String(localized: "Ask AI: \(suggestion.title)"), focused: focused, radius: 14) { _ in send() }
+        .startItem(String(localized: "Ask AI: \(suggestion.title)"), focused: focused, radius: Metrics.cardRadius) { _ in send() }
     }
 }
 
@@ -331,7 +331,7 @@ struct StartAICard: View {
         HStack(spacing: 8) {
             Image(systemName: suggestion.symbol).font(.symbolToolbar).foregroundStyle(tint.color)
                 .frame(width: 30, height: 30)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(tint.color.opacity(0.16)))
+                .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(tint.color.opacity(0.16)))
             VStack(alignment: .leading, spacing: 0) {
                 Text(verbatim: suggestion.title).font(.secondaryStrong).foregroundStyle(Theme.primary).lineLimit(1)
                 Text(verbatim: suggestion.detail).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
@@ -340,9 +340,9 @@ struct StartAICard: View {
         }
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, minHeight: 56, maxHeight: 56)
-        .startPlate(radius: 10, fill: hover ? Theme.ink(0.09) : Theme.ink(0.045))
+        .startPlate(radius: Metrics.cardRadius, fill: hover ? Theme.ink(0.09) : Theme.ink(0.045))
         .onHover { hover = $0 }
-        .startItem(String(localized: "Ask AI: \(suggestion.title)"), value: suggestion.detail, focused: focused, radius: 10) { _ in send() }
+        .startItem(String(localized: "Ask AI: \(suggestion.title)"), value: suggestion.detail, focused: focused, radius: Metrics.cardRadius) { _ in send() }
     }
 }
 

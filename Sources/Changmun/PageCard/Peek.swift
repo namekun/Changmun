@@ -9,7 +9,7 @@ struct PeekCard: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.2)
+            Theme.scrim
                 .contentShape(Rectangle())
                 .onTapGesture { browser.closePeek() }
             VStack(spacing: 8) {
@@ -35,13 +35,13 @@ struct PeekCard: View {
                     WebViewHost(tab: tab, browser: browser)
                     LoginOfferBar(tab: tab)
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
                 .overlay(alignment: .top) {
                     if tab.isLoading { Meter(fraction: tab.progress).padding(.horizontal, 16).padding(.top, 4).transition(.opacity) }
                 }
             }
             .padding(8)
-            .floatingPanel(radius: 16)
+            .floatingPanel(radius: Metrics.panelRadius, modal: true)
             .frame(maxWidth: 1180)
             // 64 pt from the page's sides, less where the page is narrow.
             .padding(.horizontal, min(64, max(16, (area.width - 480) / 2)))
@@ -91,7 +91,7 @@ struct TabSwitcherView: View {
         }
         .padding(8)
         .frame(width: 460)
-        .floatingPanel(radius: 16)
+        .floatingPanel(radius: Metrics.panelRadius)
         .opacity(shown ? 1 : 0)
         .scaleEffect(shown || Motion.reduced ? 1 : 0.97)
         .task {

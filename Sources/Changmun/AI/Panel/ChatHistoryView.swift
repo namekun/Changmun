@@ -75,7 +75,7 @@ private struct ChatHistoryList: View {
                 }
                 .padding(8)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.selected))
+                .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Theme.selected))
             }
             if history.chats.isEmpty {
                 Text("No saved chats yet").font(.secondary).foregroundStyle(Theme.secondary)
@@ -122,7 +122,7 @@ private struct SavedChatRow: View {
             .accessibilityLabel(Text("Delete this chat"))
         }
         .padding(.horizontal, 8).padding(.vertical, 4)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
+        .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(hover ? Theme.hoverTab : .clear))
         .onHover { hover = $0 }
     }
 }
@@ -161,7 +161,7 @@ private struct ChatHistoryDetail: View {
             .foregroundStyle(Theme.secondary)
             .padding(.horizontal, 8).padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.selected))
+            .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(Theme.selected))
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 16) {
                     ForEach(ChatLayout.rows(chat.items, running: false)) { row in

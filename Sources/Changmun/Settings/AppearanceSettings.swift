@@ -93,10 +93,10 @@ private struct ThemeTile: View {
             VStack(spacing: 8) {
                 picture
                     .frame(width: 104, height: 66)
-                    .clipShape(RoundedRectangle(cornerRadius: 7))
-                    .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(.separator))
+                    .clipShape(RoundedRectangle(cornerRadius: 7))  // design-exempt: the theme tile is a scaled-down drawing of the window
+                    .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(.separator))  // design-exempt: the theme tile is a scaled-down drawing of the window
                     .padding(4)
-                    .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.accentColor, lineWidth: selection == choice ? 3 : 0))
+                    .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.accentColor, lineWidth: selection == choice ? 3 : 0))  // design-exempt: the theme tile is a scaled-down drawing of the window
                 label
             }
         }
@@ -142,7 +142,7 @@ private struct ThemeTile: View {
             .background(sidebar)
             VStack(spacing: 5) {  // grid-exempt: scale-model drawing of a window
                 Spacer().frame(height: 3)
-                ForEach(0..<3, id: \.self) { _ in RoundedRectangle(cornerRadius: 2.5).fill(bar).frame(height: 10) }
+                ForEach(0..<3, id: \.self) { _ in RoundedRectangle(cornerRadius: 2.5).fill(bar).frame(height: 10) }  // design-exempt: the theme tile is a scaled-down drawing of the window
                 Spacer()
             }
             .padding(.horizontal, 8)

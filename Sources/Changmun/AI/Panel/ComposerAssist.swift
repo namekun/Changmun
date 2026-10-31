@@ -156,9 +156,9 @@ struct ComposerPopup<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) { content }
             .padding(4)
-            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.card))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 1))
-            .shadow(color: Theme.cardShadow, radius: 10, y: 3)
+            .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Theme.card))
+            .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 1))
+            .e2()
     }
 }
 
@@ -173,7 +173,7 @@ struct ComposerPopupRow<Content: View>: View {
             content
                 .padding(.horizontal, 8)
                 .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(selected || hover ? Theme.selected : .clear))
+                .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(selected || hover ? Theme.selected : .clear))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

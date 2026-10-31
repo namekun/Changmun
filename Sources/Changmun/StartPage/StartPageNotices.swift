@@ -87,7 +87,7 @@ struct StartFirstRunView: View {
         VStack(alignment: .leading, spacing: 0) {
             Image(systemName: symbol).font(.symbolToolbar).foregroundStyle(Theme.primary)
                 .frame(width: 34, height: 34)
-                .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.field))
+                .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(Theme.field))
                 .decorative()
             Text(verbatim: title).font(.bodyStrong).foregroundStyle(Theme.primary).padding(.top, 16)
                 .accessibilityAddTraits(.isHeader)
@@ -101,7 +101,7 @@ struct StartFirstRunView: View {
         }
         .padding(16)
         .frame(width: 285, height: 200, alignment: .topLeading)
-        .startPlate(radius: 12)
+        .startPlate(radius: Metrics.cardRadius)
     }
 }
 
@@ -113,7 +113,7 @@ struct StartPrivateView: View {
         VStack(spacing: 0) {
             Image(systemName: "eye.slash").font(.symbolEmpty).foregroundStyle(Theme.primary)
                 .frame(width: 62, height: 52)
-                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.field))
+                .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Theme.field))
                 .decorative()
             Text("Private Window").font(.display).foregroundStyle(Theme.primary).padding(.top, 16)
                 .accessibilityAddTraits(.isHeader)
@@ -138,7 +138,7 @@ struct StartPrivateView: View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: symbol).font(.symbolToolbar).foregroundStyle(Theme.primary)
                 .frame(width: 32, height: 32)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.field))
+                .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(Theme.field))
                 .decorative()
             VStack(alignment: .leading, spacing: 4) {
                 Text(verbatim: title).font(.bodyStrong).foregroundStyle(Theme.primary).accessibilityAddTraits(.isHeader)

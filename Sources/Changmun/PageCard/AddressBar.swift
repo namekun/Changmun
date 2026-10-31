@@ -40,7 +40,7 @@ struct AddressPill: View {
                     .font(.symbolInline)
                     .foregroundStyle(tab.isUnverified ? Theme.waiting : Theme.secondary)
                     .frame(width: 22, height: 22)
-                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(hasSite && (siteHover || showSite) ? Theme.pill : .clear))
+                    .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(hasSite && (siteHover || showSite) ? Theme.pill : .clear))
                     .contentShape(Rectangle())
                     .onHover { siteHover = $0 }
                     .onTapGesture { if hasSite { showSite = true } else { edit() } }

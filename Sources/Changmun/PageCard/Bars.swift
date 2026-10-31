@@ -43,7 +43,7 @@ struct LoginOfferBar: View {
             .padding(.trailing, 4)
             .frame(height: 40)
             .frame(maxWidth: 620)
-            .floatingPanel(radius: 12)
+            .floatingPanel(radius: Metrics.cardRadius)
             .padding(8)
             .transition(Motion.pop(.top))
         }
@@ -89,7 +89,7 @@ struct PopupBar: View {
             .padding(.trailing, 4)
             .frame(height: 40)
             .frame(maxWidth: 620)
-            .floatingPanel(radius: 12)
+            .floatingPanel(radius: Metrics.cardRadius)
             .padding(8)
             .transition(Motion.pop(.top))
         }
@@ -126,7 +126,7 @@ struct WebStoreBar: View {
             .padding(.trailing, 4)
             .frame(height: 40)
             .frame(maxWidth: 620)
-            .floatingPanel(radius: 12)
+            .floatingPanel(radius: Metrics.cardRadius)
             .padding(8)
         }
     }

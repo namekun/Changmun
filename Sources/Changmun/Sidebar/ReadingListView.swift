@@ -57,7 +57,7 @@ struct ReadingRow: View {
                     Button { browser.removeReadingItem(item) } label: {
                         Image(systemName: "xmark").font(.symbolInline)
                             .frame(width: Metrics.action, height: Metrics.action)
-                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.field))
+                            .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(Theme.field))
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)

@@ -590,11 +590,11 @@ struct ExtensionButton: View {
                 }
                 .frame(width: 16, height: 16)
                 .frame(width: 28, height: 28)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(hover ? Theme.field : .clear))
+                .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(hover ? Theme.field : .clear))
                 if let badge = action?.badgeText, !badge.isEmpty {
                     // Nunsseop's badge: a white disc with a black count.
                     Text(badge)
-                        .font(.system(size: 8, weight: .bold).monospacedDigit())  // type-exempt: the count badge drawn on an extension's icon
+                        .font(.system(size: 8, weight: .bold).monospacedDigit())  // design-exempt: the count badge drawn on an extension's icon
                         .foregroundStyle(Theme.background)
                         .padding(.horizontal, 4)
                         .frame(minWidth: 13, minHeight: 13)

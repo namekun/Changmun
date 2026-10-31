@@ -164,8 +164,8 @@ struct AttachedPageCard: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 8)
         .frame(maxWidth: 220, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.hoverTab))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.hairline.opacity(0.5), lineWidth: 0.5))
+        .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Theme.hoverTab))
+        .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Theme.hairline.opacity(0.5), lineWidth: 0.5))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: page.title + ", " + page.host))
     }

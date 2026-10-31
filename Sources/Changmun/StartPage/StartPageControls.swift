@@ -17,10 +17,10 @@ struct StartStyleTiles: View {
                 Button { model.setStyle(style) } label: {
                     VStack(spacing: 8) {
                         StartPageMiniature(settings: preview(style), tint: tint)
-                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                            .overlay { RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5) }
+                            .clipShape(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous))
+                            .overlay { RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5) }
                             .padding(4)
-                            .overlay { RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 2) }
+                            .overlay { RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 2) }
                         Text(verbatim: style.title).font(selected ? .captionStrong : .caption).foregroundStyle(selected ? Theme.primary : Theme.secondary)
                     }
                     .frame(maxWidth: .infinity)
@@ -93,7 +93,7 @@ struct StartComponentsList: View {
                 row(item, index: index)
             }
         }
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.ink(0.05)))
+        .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Theme.ink(0.05)))
         .animation(Motion.quick, value: model.items.map(\.section))
         .animation(Motion.quick, value: model.expanded)
     }
@@ -124,7 +124,7 @@ struct StartComponentsList: View {
                         Button { model.toggleOptions(section) } label: {
                             Image(systemName: "gearshape").font(.symbolToolbar).foregroundStyle(expanded ? Theme.primary : Theme.secondary)
                                 .frame(width: 24, height: 24)
-                                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(expanded ? Theme.field : .clear))
+                                .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(expanded ? Theme.field : .clear))
                         }
                         .buttonStyle(.plain)
                         .help("Options")
@@ -143,11 +143,11 @@ struct StartComponentsList: View {
                 options(section, choices)
             }
         }
-        .background { if dragging { RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.hairline, style: StrokeStyle(lineWidth: 1, dash: [4, 3])).padding(4) } }
+        .background { if dragging { RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).strokeBorder(Theme.hairline, style: StrokeStyle(lineWidth: 1, dash: [4, 3])).padding(4) } }
         // The lifted row: bigger, with a shadow, following the pointer; with Reduce Motion it just follows.
-        .background(dragging ? AnyShapeStyle(Theme.card) : AnyShapeStyle(.clear), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(dragging ? AnyShapeStyle(Theme.card) : AnyShapeStyle(.clear), in: RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous))
         .scaleEffect(dragging && !Motion.reduced ? 1.03 : 1)
-        .shadow(color: dragging ? Theme.cardShadow : .clear, radius: dragging ? 8 : 0, y: 3)
+        .e2(dragging)
         .offset(y: dragging ? lift : 0)
         .zIndex(dragging ? 1 : 0)
     }
@@ -234,7 +234,7 @@ struct StartSegmented: View {
                     Text(verbatim: name).font(on ? .captionStrong : .caption).foregroundStyle(on ? Theme.primary : Theme.secondary)
                         .lineLimit(1).minimumScaleFactor(0.8)
                         .frame(maxWidth: .infinity).frame(height: 24)
-                        .background { if on { RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.selectedFill).shadow(color: Theme.selectedShadow, radius: 1.5, y: 0.5) } }
+                        .background { if on { RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(Theme.selectedFill).e1() } }
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -243,7 +243,7 @@ struct StartSegmented: View {
             }
         }
         .padding(4)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.ink(0.07)))
+        .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(Theme.ink(0.07)))
     }
 }
 
@@ -290,10 +290,10 @@ struct StartBackgroundControls: View {
             VStack(spacing: 4) {
                 content()
                     .frame(maxWidth: .infinity).frame(height: 40)
-                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                    .overlay { RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5) }
+                    .clipShape(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous))
+                    .overlay { RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5) }
                     .padding(4)
-                    .overlay { RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 2) }
+                    .overlay { RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 2) }
                 Text(verbatim: name).font(selected ? .captionStrong : .caption).foregroundStyle(selected ? Theme.primary : Theme.secondary).lineLimit(1).minimumScaleFactor(0.8)
             }
             .frame(maxWidth: .infinity)
@@ -320,7 +320,7 @@ struct StartBackgroundControls: View {
             Image(decorative: loaded.image, scale: 1).resizable().scaledToFill()
         } else {
             ZStack {
-                RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Theme.hairline, style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
+                RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).strokeBorder(Theme.hairline, style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
                 Image(systemName: "photo").font(.symbolToolbar).foregroundStyle(Theme.secondary)
             }
         }
@@ -388,8 +388,8 @@ struct StartBackgroundControls: View {
                     if let loaded { Image(decorative: loaded.image, scale: 1).resizable().scaledToFill() } else { Theme.ink(0.08) }
                 }
                 .frame(width: 105, height: 64)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay { RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5) }
+                .clipShape(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous))
+                .overlay { RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5) }
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Background Image").font(.secondaryStrong).foregroundStyle(Theme.primary)
                     HStack(spacing: 4) {
@@ -442,7 +442,7 @@ struct StartBackgroundControls: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(color.opacity(0.1)))
+        .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(color.opacity(0.1)))
         .accessibilityElement(children: .combine)
     }
 
@@ -501,8 +501,8 @@ struct StartNewTabControls: View {
                 if case .ok = state { Image(systemName: "checkmark").font(.symbolInline).foregroundStyle(Theme.success).decorative() }
             }
             .padding(.horizontal, 8).frame(height: 32)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.field))
-            .overlay { RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(addressFocused && state == nil ? Color.accentColor : border, lineWidth: 1.5) }
+            .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(Theme.field))
+            .overlay { RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).strokeBorder(addressFocused && state == nil ? Color.accentColor : border, lineWidth: 1.5) }
             switch state {
             case .none where model.address.isEmpty, .empty:
                 line("info.circle", String(localized: "Leave it empty to open the start page."), Theme.secondary)

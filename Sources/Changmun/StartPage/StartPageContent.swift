@@ -499,7 +499,7 @@ struct StartPageContent: View {
             Image(systemName: "sparkle").font(.symbolEmpty).foregroundStyle(.white)
                 .frame(width: 52, height: 52)
                 .background(Circle().fill(LinearGradient(colors: [tint.color.opacity(0.95), tint.color.opacity(0.65)], startPoint: .top, endPoint: .bottom)))
-                .shadow(color: tint.color.opacity(0.35), radius: 12, y: 4)
+                .e2()
                 .decorative()
             Text("How can I help?").font(.display).foregroundStyle(Theme.primary).padding(.top, 16)
                 .accessibilityAddTraits(.isHeader)
@@ -707,8 +707,7 @@ struct StartAIPrompt: View {
             }
         }
         .padding(16)
-        .startPlate(radius: 14, fill: Theme.card, raised: true)
-        .shadow(color: tint.color.opacity(0.18), radius: 16, y: 6)
+        .startPlate(radius: Metrics.cardRadius, fill: Theme.card, raised: true)
         .onAppear { DispatchQueue.main.async { focused = true } }
     }
 

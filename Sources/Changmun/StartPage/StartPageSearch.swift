@@ -52,7 +52,7 @@ struct StartSearchBox: View {
                         }
                     }
                     .padding(8)
-                    .floatingPanel(radius: 12)
+                    .floatingPanel(radius: Metrics.cardRadius)
                     .offset(y: (compact ? 38 : 46) + 8)
                 }
             }
@@ -128,7 +128,7 @@ struct StartSearchBox: View {
         .padding(.leading, 16)
         .padding(.trailing, 8)
         .frame(height: height)
-        .startPlate(radius: 10, fill: Theme.field)
+        .startPlate(radius: Metrics.cardRadius, fill: Theme.field)
     }
 
     private var currentItems: [CommandBar.Suggestion] { items }

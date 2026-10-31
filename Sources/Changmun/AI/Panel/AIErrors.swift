@@ -152,7 +152,7 @@ struct ChatErrorRow: View {
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
-                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.selected))
+                    .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(Theme.selected))
             }
         }
         .foregroundStyle(Theme.waitingText)

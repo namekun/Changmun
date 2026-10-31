@@ -103,7 +103,7 @@ struct CommandBar: View {
     var body: some View {
         let items = suggestions
         ZStack(alignment: .top) {
-            Color.black.opacity(0.2)
+            Theme.scrim
                 .contentShape(Rectangle())
                 .onTapGesture { dismiss() }
             VStack(spacing: 8) {
@@ -140,7 +140,7 @@ struct CommandBar: View {
                 .padding(.leading, 16)
                 .padding(.trailing, 8)
                 .frame(height: 46)
-                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
+                .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Theme.field))
                 if !items.isEmpty {
                     VStack(spacing: 4) {
                         // A row is what it holds, not the place it is at: when the list changes under a press, the row pressed is the same
@@ -156,7 +156,7 @@ struct CommandBar: View {
             }
             .padding(8)
             .frame(width: min(620, max(320, area.width - 32)))
-            .floatingPanel(radius: 16)
+            .floatingPanel(radius: Metrics.panelRadius, modal: true)
             .padding(.top, 96)
             .padding(.leading, area.leading)
             .padding(.trailing, area.trailing)

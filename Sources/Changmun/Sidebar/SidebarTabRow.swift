@@ -170,7 +170,7 @@ struct SiteIcon: View {
             if let image {
                 IconImage(image: image, size: size)
             } else {
-                Image(systemName: "globe").font(.system(size: size * 0.7)).foregroundStyle(Theme.tertiary)  // type-exempt: a share of the icon plate's size
+                Image(systemName: "globe").font(.system(size: size * 0.7)).foregroundStyle(Theme.tertiary)  // design-exempt: a share of the icon plate's size
             }
         }
         .frame(width: size, height: size)

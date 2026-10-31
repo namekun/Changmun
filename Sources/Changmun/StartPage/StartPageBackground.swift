@@ -309,7 +309,7 @@ struct StartPlate: ViewModifier {
             }
         }
         .overlay { shape.strokeBorder(Theme.cardEdge, lineWidth: 0.5) }
-        .shadow(color: raised ? Theme.cardShadow : .clear, radius: raised ? 6 : 0, y: raised ? 2 : 0)
+        .e2(raised)
     }
 }
 
@@ -324,7 +324,7 @@ struct StartGroupPlate: ViewModifier {
     @Environment(\.startOnImage) private var onImage
 
     @ViewBuilder func body(content: Content) -> some View {
-        if onImage { content.padding(8).startPlate(radius: 12) } else { content }
+        if onImage { content.padding(8).startPlate(radius: Metrics.cardRadius) } else { content }
     }
 }
 
@@ -333,7 +333,7 @@ struct StartHalo: ViewModifier {
     @Environment(\.startOnImage) private var onImage
 
     func body(content: Content) -> some View {
-        content.shadow(color: onImage ? Theme.card.opacity(0.85) : .clear, radius: onImage ? 3 : 0)
+        content.shadow(color: onImage ? Theme.card.opacity(0.85) : .clear, radius: onImage ? 3 : 0)  // design-exempt: a halo behind text, not a raised surface
     }
 }
 

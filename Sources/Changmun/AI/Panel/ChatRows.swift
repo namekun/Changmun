@@ -44,7 +44,7 @@ struct ChatRow: View {
                         .foregroundStyle(Theme.primary)
                         .textSelection(.enabled)
                         .padding(.horizontal, 16).padding(.vertical, 8)
-                        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.field))
+                        .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Theme.field))
                         .accessibilityLabel(Accessibility.youSaid(item.text))
                 }
                 .modifier(SentImages(images: item.images))

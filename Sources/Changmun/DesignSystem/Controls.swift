@@ -99,6 +99,7 @@ struct MoreButton<Items: View>: View {
 /// with an edge and a soft shadow.
 struct FloatingPanel: ViewModifier {
     let radius: CGFloat
+    var modal = false
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     @ViewBuilder func body(content: Content) -> some View {
@@ -108,12 +109,20 @@ struct FloatingPanel: ViewModifier {
             if reduceTransparency { content.background(Theme.card, in: shape) } else { content.background(.regularMaterial, in: shape) }
         }
         .overlay(shape.strokeBorder(Theme.cardEdge, lineWidth: 0.5))
-        .shadow(color: Theme.cardShadow, radius: 16, y: 6)
+            .e2(!modal)
+            .e3(modal)
     }
 }
 
 extension View {
-    func floatingPanel(radius: CGFloat) -> some View { modifier(FloatingPanel(radius: radius)) }
+    func floatingPanel(radius: CGFloat, modal: Bool = false) -> some View { modifier(FloatingPanel(radius: radius, modal: modal)) }
+}
+
+/// The app's three shadows. e1 lifts a selected row off the glass, e2 a chip, a popover or a bar over the page, e3 a modal.
+extension View {
+    func e1(_ shown: Bool = true) -> some View { shadow(color: shown ? Theme.selectedShadow : .clear, radius: 1, y: 1) }
+    func e2(_ shown: Bool = true) -> some View { shadow(color: shown ? Theme.chipShadow : .clear, radius: 12, y: 4) }
+    func e3(_ shown: Bool = true) -> some View { shadow(color: shown ? Theme.modalShadow : .clear, radius: 32, y: 16) }
 }
 
 /// A selected row or tile, raised a little off the glass.
@@ -125,7 +134,7 @@ struct SelectedBackground: View {
         RoundedRectangle(cornerRadius: radius, style: .continuous)
             .fill(pressed ? Theme.pressed : Theme.selectedFill)
             .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Theme.selectedEdge, lineWidth: 0.5))
-            .shadow(color: pressed ? .clear : Theme.selectedShadow, radius: 1, y: 1)
+            .e1(!pressed)
     }
 }
 
@@ -150,7 +159,7 @@ struct Keycap: View {
     var body: some View {
         Text(verbatim: key).font(.caption).foregroundStyle(Theme.ink(0.7))
             .padding(.horizontal, 4).frame(minWidth: 20, minHeight: 17)
-            .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(Theme.field))
+            .background(RoundedRectangle(cornerRadius: Metrics.keycapRadius, style: .continuous).fill(Theme.field))
             .fixedSize()
             .accessibilityHidden(true)
     }
@@ -226,7 +235,7 @@ struct HoverAction: View {
                 .frame(width: Metrics.action, height: Metrics.action)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(FillStyle(resting: Theme.field, hoverFill: Theme.pill, radius: 6))
+        .buttonStyle(FillStyle(resting: Theme.field, hoverFill: Theme.pill, radius: Metrics.rowRadius))
         .foregroundStyle(Theme.secondary)
         .help(help)
         .accessibilityLabel(Accessibility.label(fromHelp: help))

@@ -134,7 +134,7 @@ struct ChatPanel: View {
             .padding(.leading, 8)
             .padding(.trailing, 8)
             .padding(.vertical, 8)
-            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
+            .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Theme.field))
             .padding(.bottom, chat.isRunning ? 4 : 4)
             if chat.isRunning {
                 Text("↵ queues it for when the AI is done · ⌘↵ steers it now")

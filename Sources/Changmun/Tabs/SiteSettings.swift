@@ -50,7 +50,7 @@ struct SiteSettings: View {
                         Text("\(Int((zoom * 100).rounded()))%").font(.rowSelected).monospacedDigit()
                             .frame(width: 48, height: Metrics.action).contentShape(Rectangle())
                     }
-                    .buttonStyle(FillStyle(resting: .clear, hoverFill: Theme.pill, radius: 6))
+                    .buttonStyle(FillStyle(resting: .clear, hoverFill: Theme.pill, radius: Metrics.rowRadius))
                     .foregroundStyle(Theme.body)
                     .help("Default Zoom")
                     HoverAction(symbol: "plus", help: String(localized: "Zoom In")) { setZoom(zoom + 0.1) }

@@ -95,8 +95,8 @@ struct StartPageSettingsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         StartPageMiniature(settings: model.settings, tint: tint)
                             .frame(width: 330)
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                            .overlay { RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5) }
+                            .clipShape(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous))
+                            .overlay { RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5) }
                         Text("Preview").font(.caption).foregroundStyle(.secondary)
                     }
                     StartStyleRadios(model: model).frame(maxWidth: .infinity, alignment: .leading)
