@@ -774,7 +774,6 @@
 "The model and effort for your next messages (also in Settings › AI)" = "后续消息使用的模型和推理强度（也可在设置 › AI 中更改）";
 "Working for %@" = "已处理 %@";
 "You chose to be asked before every action." = "你已设置为每次操作前都询问。";
-"Certificate Details" = "证书详细信息";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "Changmun 无法确认你连接的是 %@。网络上的某个人可能正在冒充该网站，并看到你发送的内容。";
 "Don’t enter passwords or payment details here unless you know and trust this site." = "除非你了解并信任该网站，否则请勿在此输入密码或付款信息。";
 "Expires" = "到期日";
@@ -987,3 +986,5 @@
 "The AI turns on with Claude Code" = "安装 Claude Code 后即可使用 AI";
 "It can read and change the content of the sites listed below." = "它可以读取并更改下方所列网站的内容。";
 "%lld more are not shown here, so this can't be allowed." = "另有 %lld 项无法在此显示，因此不能允许。";
+"Show Details" = "显示详细信息";
+"Hide Details" = "隐藏详细信息";

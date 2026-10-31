@@ -774,7 +774,6 @@
 "The model and effort for your next messages (also in Settings › AI)" = "El modelo y el esfuerzo para tus próximos mensajes (también en Ajustes › IA)";
 "Working for %@" = "Trabajando durante %@";
 "You chose to be asked before every action." = "Elegiste que se te pregunte antes de cada acción.";
-"Certificate Details" = "Detalles del certificado";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "Changmun no puede confirmar que estás conectado a %@. Alguien en la red podría estar haciéndose pasar por este sitio y ver lo que envías.";
 "Don’t enter passwords or payment details here unless you know and trust this site." = "No introduzcas contraseñas ni datos de pago aquí a menos que conozcas y confíes en este sitio.";
 "Expires" = "Caduca";
@@ -987,3 +986,5 @@
 "The AI turns on with Claude Code" = "La IA se activa con Claude Code";
 "It can read and change the content of the sites listed below." = "Puede leer y cambiar el contenido de los sitios que se indican abajo.";
 "%lld more are not shown here, so this can't be allowed." = "Otros %lld no caben aquí, así que no se puede permitir.";
+"Show Details" = "Mostrar detalles";
+"Hide Details" = "Ocultar detalles";

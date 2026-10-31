@@ -52,7 +52,7 @@
 "Add to Favorites" = "즐겨찾기에 추가";
 "Add to Favorites (⌘D)" = "즐겨찾기에 추가 (⌘D)";
 "Add to New Group" = "새 그룹으로 묶기";
-"Add/Remove Bookmark" = "즐겨찾기 추가/제거";
+"Add/Remove Bookmark" = "북마크 추가/제거";
 "Added %lld tab to a group" = "탭 %lld개를 그룹에 넣었어요";
 "Added %lld tabs to groups" = "탭 %lld개를 그룹에 넣었어요";
 "Added to “%@”" = "'%@' 그룹에 넣었어요";
@@ -88,7 +88,7 @@
 "Archive tabs you haven’t viewed in a while" = "오래 안 본 탭 보관";
 "Archived Tabs" = "보관한 탭";
 "Ask" = "묻기";
-"Ask about this page, or give it a task" = "이 페이지에 대해 묻거나, 할 일을 시켜 보세요";
+"Ask about this page, or give it a task" = "이 페이지에 대해 묻거나 일을 맡겨 보세요";
 "Ask AI" = "AI에게 묻기";
 "Ask AI: %@" = "AI에게 묻기: %@";
 "Ask where to save each download" = "다운로드할 때마다 저장 위치 묻기";
@@ -125,7 +125,7 @@
 "Check tab list" = "탭 목록 확인";
 "Checking…" = "확인하는 중…";
 "Choose" = "선택";
-"Choose an extension folder that contains manifest.json" = "manifest.json이 들어 있는 확장 폴더를 고르세요";
+"Choose an extension folder that contains manifest.json" = "manifest.json이 들어 있는 확장 폴더를 골라 주세요";
 "Choosing “%@”" = "“%@” 선택 중";
 "Chrome Web Store" = "Chrome 웹 스토어";
 "Chrome Web Store URL or extension ID" = "Chrome 웹 스토어 주소 또는 확장 ID";
@@ -168,8 +168,8 @@
 "Coral" = "코랄";
 "Couldn't build the %@ rules" = "%@ 규칙을 만들지 못했어요";
 "Couldn't download (HTTP %lld)" = "받지 못했어요 (HTTP %lld)";
-"Couldn't find the `claude` CLI. Install Claude Code and try again." = "`claude` CLI를 찾지 못했어요. Claude Code를 설치한 뒤 다시 시도해 주세요.";
-"Couldn't find the rules. In System Settings › Privacy & Security, check that Changmun is allowed to access data from other apps." = "규칙을 찾지 못했어요. 시스템 설정 › 개인정보 보호 및 보안에서 Changmun이 다른 앱의 데이터에 접근하도록 허용했는지 확인하세요.";
+"Couldn't find the `claude` CLI. Install Claude Code and try again." = "Claude Code를 찾지 못했어요. 설치한 뒤 다시 시도해 주세요.";
+"Couldn't find the rules. In System Settings › Privacy & Security, check that Changmun is allowed to access data from other apps." = "규칙을 찾지 못했어요. 시스템 설정 › 개인정보 보호 및 보안에서 Changmun이 다른 앱의 데이터에 접근하도록 허용했는지 확인해 주세요.";
 "Couldn't read '%@' from the Keychain, so passwords and cookies were skipped. Click 'Allow' in the permission dialog to import them." = "키체인의 '%@'를 읽지 못해서 비밀번호와 쿠키는 건너뛰었어요. 허용 창에서 '허용'을 눌러야 가져올 수 있어요.";
 "Couldn't run claude: %@" = "claude를 실행하지 못했어요: %@";
 "Couldn't save the page" = "페이지를 저장하지 못했어요";
@@ -190,7 +190,7 @@
 "Delete Folder…" = "폴더 삭제…";
 "Delete the password for %@?" = "%@의 비밀번호를 지울까요?";
 "Deny" = "거부";
-"Deny if the address carries content from another page or from the conversation." = "주소에 다른 페이지나 대화의 내용이 실려 있다면 거부하세요.";
+"Deny if the address carries content from another page or from the conversation." = "주소에 다른 페이지나 대화의 내용이 실려 있다면 거부해 주세요.";
 "Develop" = "개발자";
 "Developer Mode" = "개발자 모드";
 "Done" = "완료";
@@ -259,7 +259,7 @@
 "Teal" = "청록색";
 "That image is too large to attach." = "이미지가 너무 커서 붙일 수 없어요.";
 "That isn't an image Changmun can read." = "Changmun이 읽을 수 있는 이미지가 아니에요.";
-"The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "AI가 이 탭을 쓰고 있어요. 이 사이트에 본인을 알려도 될 때만 인증서를 고르세요.";
+"The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "AI가 이 탭을 쓰고 있어요. 이 사이트에 본인을 알려도 될 때만 인증서를 골라 주세요.";
 "The AI wants to do something that can’t be undone" = "AI가 되돌릴 수 없는 일을 하려고 해요";
 "The form sends what is typed in it to %@, another site than this page." = "이 양식은 입력한 내용을 이 페이지가 아닌 다른 사이트 %@(으)로 보내요.";
 "This choice will be remembered for this site. You can remove it in Keychain Access." = "이 선택은 이 사이트에 대해 기억돼요. 키체인 접근에서 지울 수 있어요.";
@@ -307,7 +307,7 @@
 "History %@" = "기록 %@";
 "History: %@" = "방문 기록: %@";
 "Hover" = "가리키기";
-"How can I help?" = "무엇을 도와드릴까요?";
+"How can I help?" = "뭐든 물어보세요";
 "I can read the page you're viewing, click, type and open tabs." = "보고 있는 페이지를 읽고, 클릭하고, 입력하고, 탭을 열 수 있어요.";
 "If you allow it, you won't be asked again while this tab stays on this site." = "허용하면 이 탭이 이 사이트에 있는 동안은 다시 묻지 않아요.";
 "Import" = "가져오기";
@@ -368,7 +368,7 @@
 "Not a Chrome Web Store address or extension ID" = "Chrome 웹 스토어 주소나 확장 ID가 아니에요";
 "Not an extension file" = "확장 파일 형식이 아니에요";
 "Not blocked" = "차단 안 함";
-"Not found. Install Claude Code or specify the path." = "찾지 못했어요. Claude Code를 설치하거나 경로를 지정하세요.";
+"Not found. Install Claude Code or specify the path." = "찾지 못했어요. Claude Code를 설치하거나 경로를 지정해 주세요.";
 "Off" = "끄기";
 "OK" = "확인";
 "On Startup" = "시작할 때";
@@ -458,7 +458,7 @@
 "Search Engine" = "검색 엔진";
 "Search History" = "방문 기록 검색";
 "Search or enter address" = "검색 또는 주소 입력";
-"Search or enter an address" = "검색하거나 주소를 입력하세요";
+"Search or enter an address" = "검색어나 주소 입력";
 "Search, enter an address or ask AI" = "검색하거나 주소를 입력하거나, AI에게 물어보세요";
 "Select All" = "전체 선택";
 "Settings" = "설정";
@@ -490,7 +490,7 @@
 "Sort out my open tabs and tell me about them" = "열린 탭들 정리해서 알려 줘";
 "Split View" = "분할 보기";
 "Start with a new tab" = "새 탭으로 시작";
-"Stop" = "정지";
+"Stop" = "중지";
 "Stop generating" = "멈추기";
 "Sum up only the key points of each attached tab" = "붙인 탭마다 핵심만 정리해 줘";
 "Summarize this page in three lines" = "이 페이지 세 줄로 요약해 줘";
@@ -774,7 +774,6 @@
 "The model and effort for your next messages (also in Settings › AI)" = "다음 메시지부터 쓸 모델과 추론 강도예요 (설정 › AI에서도 바꿀 수 있어요)";
 "Working for %@" = "%@ 동안 작업 중";
 "You chose to be asked before every action." = "모든 동작 전에 묻도록 설정했어요.";
-"Certificate Details" = "인증서 자세히 보기";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "%@에 연결된 것이 맞는지 Changmun이 확인할 수 없어요. 네트워크의 누군가가 이 사이트인 척하며 보내는 내용을 볼 수도 있어요.";
 "Don’t enter passwords or payment details here unless you know and trust this site." = "이 사이트를 잘 알고 신뢰하는 경우가 아니라면 비밀번호나 결제 정보를 입력하지 마세요.";
 "Expires" = "만료일";
@@ -877,7 +876,7 @@
 "Dashboard" = "대시보드";
 "Drag the sites you visit most to the favorites in the sidebar and they appear here as tiles." = "자주 가는 사이트를 사이드바의 즐겨찾기 칸으로 끌어다 놓으면 이곳에도 타일로 나타나요.";
 "Drag to reorder" = "끌어서 순서를 바꿔요";
-"Drag to reorder. Each style remembers its own sections. A section with nothing to show hides itself." = "끌어서 순서를 바꾸세요. 스타일마다 따로 기억해요. 데이터가 없는 구성 요소는 알아서 숨겨져요.";
+"Drag to reorder. Each style remembers its own sections. A section with nothing to show hides itself." = "끌어서 순서를 바꿔 주세요. 스타일마다 따로 기억해요. 데이터가 없는 구성 요소는 알아서 숨겨져요.";
 "Drag, or press Option with the up or down arrow, to move it" = "끌거나 ⌥와 위·아래 화살표를 눌러 옮길 수 있어요";
 "Explain something simply" = "쉽게 설명해 줘";
 "Find the best sites for a topic" = "주제에 맞는 좋은 사이트 찾아 줘";
@@ -987,3 +986,5 @@
 "The AI turns on with Claude Code" = "Claude Code를 설치하면 AI를 쓸 수 있어요";
 "It can read and change the content of the sites listed below." = "아래에 적힌 사이트의 내용을 읽고 바꿀 수 있어요.";
 "%lld more are not shown here, so this can't be allowed." = "%lld개는 여기에 다 보여 줄 수 없어서 허용할 수 없어요.";
+"Show Details" = "자세히 보기";
+"Hide Details" = "자세히 접기";

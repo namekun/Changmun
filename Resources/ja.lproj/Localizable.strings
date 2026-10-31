@@ -774,7 +774,6 @@
 "The model and effort for your next messages (also in Settings › AI)" = "次のメッセージから使うモデルと推論の強さです（設定 › AI でも変更できます）";
 "Working for %@" = "%@ 作業中";
 "You chose to be asked before every action." = "すべての操作の前に確認する設定になっています。";
-"Certificate Details" = "証明書の詳細";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "%@ に接続していることをChangmunは確認できません。ネットワーク上の誰かがこのサイトになりすまし、送信内容を見ている可能性があります。";
 "Don’t enter passwords or payment details here unless you know and trust this site." = "このサイトをよく知っていて信頼できる場合を除き、パスワードや支払い情報は入力しないでください。";
 "Expires" = "有効期限";
@@ -987,3 +986,5 @@
 "The AI turns on with Claude Code" = "AIはClaude Codeで使えるようになります";
 "It can read and change the content of the sites listed below." = "下に挙げたサイトの内容を読み取り、変更できます。";
 "%lld more are not shown here, so this can't be allowed." = "ほかの%lld件はここに表示できないため、許可できません。";
+"Show Details" = "詳細を表示";
+"Hide Details" = "詳細を隠す";
