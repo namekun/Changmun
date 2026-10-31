@@ -33,7 +33,7 @@ extension StartSection {
 
     var symbol: String {
         switch self {
-        case .aiSuggestions: "sparkle"
+        case .aiSuggestions: "sparkles"
         case .favorites: "star"
         case .continueViewing: "arrow.uturn.backward"
         case .readingList: "book"

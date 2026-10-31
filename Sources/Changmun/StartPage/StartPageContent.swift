@@ -496,7 +496,7 @@ struct StartPageContent: View {
     @ViewBuilder
     private func aiHero(_ page: PageData, showCards: Bool) -> some View {
         VStack(spacing: 0) {
-            Image(systemName: "sparkle").font(.symbolEmpty).foregroundStyle(.white)
+            Image(systemName: "sparkles").font(.symbolEmpty).foregroundStyle(.white)
                 .frame(width: 52, height: 52)
                 .background(Circle().fill(LinearGradient(colors: [tint.color.opacity(0.95), tint.color.opacity(0.65)], startPoint: .top, endPoint: .bottom)))
                 .e2()

@@ -299,7 +299,7 @@ struct ApprovalCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: "hand.raised.fill").font(.symbolInline).foregroundStyle(Theme.waitingText).decorative()
+                Image(systemName: "hand.raised").font(.symbolInline).foregroundStyle(Theme.waitingText).decorative()
                 Text(verbatim: card.prompt.message).font(.secondaryStrong).foregroundStyle(Theme.primary)
                     .fixedSize(horizontal: false, vertical: true)
             }

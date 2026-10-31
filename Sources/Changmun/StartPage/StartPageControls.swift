@@ -277,7 +277,7 @@ struct StartBackgroundControls: View {
                 }
             }
             if model.imageState == .failed {
-                notice("exclamationmark.circle.fill", String(localized: "Couldn’t use that image"), Theme.danger)
+                notice("exclamationmark.circle", String(localized: "Couldn’t use that image"), Theme.danger)
             }
             if background.kind == .image, background.imageFile != nil { imageControls }
         }
@@ -412,14 +412,14 @@ struct StartBackgroundControls: View {
             if let scrim {
                 notice("info.circle", String(localized: "To keep text readable, an automatic scrim of \(Int((scrim.opacity * 100).rounded()))% is laid over it. The image is only stored on this Mac."), Theme.secondary)
                 if !scrim.reachesTarget {
-                    notice("exclamationmark.triangle.fill", String(localized: "This picture is hard to put text on in this mode. It reads better in the other one."), Theme.waitingText)
+                    notice("exclamationmark.triangle", String(localized: "This picture is hard to put text on in this mode. It reads better in the other one."), Theme.waitingText)
                 }
             }
             if let loaded, loaded.isSmall {
-                notice("exclamationmark.triangle.fill", String(localized: "The image is small, so it may look soft on a big screen."), Theme.waitingText)
+                notice("exclamationmark.triangle", String(localized: "The image is small, so it may look soft on a big screen."), Theme.waitingText)
             }
             if let loaded, loaded.stats.isBusy {
-                notice("exclamationmark.triangle.fill", String(localized: "The pattern is busy. Raising the blur makes text easier to read."), Theme.waitingText)
+                notice("exclamationmark.triangle", String(localized: "The pattern is busy. Raising the blur makes text easier to read."), Theme.waitingText)
             }
         }
     }
@@ -507,10 +507,10 @@ struct StartNewTabControls: View {
             case .none where model.address.isEmpty, .empty:
                 line("info.circle", String(localized: "Leave it empty to open the start page."), Theme.secondary)
             case .invalid:
-                line("exclamationmark.circle.fill", String(localized: "That isn’t a valid address. For example: https://example.com"), Theme.danger)
+                line("exclamationmark.circle", String(localized: "That isn’t a valid address. For example: https://example.com"), Theme.danger)
             case .insecure:
                 VStack(alignment: .leading, spacing: 4) {
-                    line("exclamationmark.triangle.fill", String(localized: "This connection isn’t encrypted. We recommend https://"), Theme.waitingText)
+                    line("exclamationmark.triangle", String(localized: "This connection isn’t encrypted. We recommend https://"), Theme.waitingText)
                     Button { model.useHTTPS() } label: { Text("Use https://").font(.caption).foregroundStyle(Color.accentColor) }
                         .buttonStyle(.plain).padding(.leading, 24)
                 }

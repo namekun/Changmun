@@ -36,7 +36,7 @@ struct AddressPill: View {
         let hasSite = tab.url?.scheme?.hasPrefix("http") == true && host?.isEmpty == false
         HStack(spacing: 8) {
             HStack(spacing: 4) {
-                Image(systemName: tab.isUnverified ? "exclamationmark.triangle.fill" : tab.url?.scheme == "https" ? "lock.fill" : "globe")
+                Image(systemName: tab.isUnverified ? "exclamationmark.triangle" : tab.url?.scheme == "https" ? "lock" : "globe")
                     .font(.symbolInline)
                     .foregroundStyle(tab.isUnverified ? Theme.waiting : Theme.secondary)
                     .frame(width: 22, height: 22)
@@ -101,7 +101,7 @@ struct AddressField: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: tab.isUnverified ? "exclamationmark.triangle.fill" : tab.url?.scheme == "https" ? "lock.fill" : "globe")
+            Image(systemName: tab.isUnverified ? "exclamationmark.triangle" : tab.url?.scheme == "https" ? "lock" : "globe")
                 .font(.symbolInline)
                 .foregroundStyle(tab.isUnverified ? Theme.waiting : Theme.secondary)
                 .accessibilityLabel(Accessibility.connectionValue(scheme: tab.url?.scheme, unverified: tab.isUnverified, choseToGoOn: tab.usesTrustException) ?? "")
@@ -127,12 +127,13 @@ struct AddressField: View {
             PictureInPictureButton(tab: tab)
             AdBlockShield(tab: tab)
             BookmarkStar(tab: tab)
-            Keycap(focused ? "↵" : "⌘L")
+            if focused { Keycap("↵") }
         }
         .padding(.leading, 8)
         .padding(.trailing, 4)
         .frame(height: Metrics.control)
         .background(FieldBackground(focused: focused))
+        .help("Edit Address (⌘L)")
         .onAppear { text = current }
         .onChange(of: tab.url) { if !focused { text = current } }
         .onChange(of: browser.addressFocusRequest) { focused = true }
@@ -164,6 +165,7 @@ struct AddressPlaceholder: View {
         .contentShape(Rectangle())
         .onHover { hover = $0 }
         .onTapGesture(perform: open)
+        .help("Edit Address (⌘L)")
         .accessibleButton(String(localized: "Address"), hint: String(localized: "Search or enter address"), activate: open)
     }
 }

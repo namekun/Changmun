@@ -155,7 +155,7 @@ private struct ChatHistoryDetail: View {
             }
             .padding(.horizontal, 8).padding(.top, 8)
             HStack(spacing: 4) {
-                Image(systemName: "lock.fill").font(.symbolInline)
+                Image(systemName: "lock").font(.symbolInline)
                 Text("Read-only — start a new chat to continue").font(.captionStrong)
             }
             .foregroundStyle(Theme.secondary)

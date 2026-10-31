@@ -139,7 +139,7 @@ struct SpaceSwitcher: View {
         SpaceIcon(space: space)
             .overlay(alignment: .bottomTrailing) {
                 if space.isProfile {
-                    Image(systemName: "key.fill")
+                    Image(systemName: "key")
                         .font(.system(size: 7, weight: .bold))  // design-exempt: a badge drawn on the space's icon
                         .foregroundStyle(Theme.secondary)
                         .padding(4)

@@ -23,7 +23,7 @@ struct TrustFailureView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill").font(.symbolEmpty).foregroundStyle(Theme.waiting).decorative()
+                    Image(systemName: "exclamationmark.triangle").font(.symbolEmpty).foregroundStyle(Theme.waiting).decorative()
                     Text("This connection isn’t private").font(.heading).foregroundStyle(Theme.primary)
                         .accessibilityAddTraits(.isHeader)
                 }
@@ -39,7 +39,7 @@ struct TrustFailureView: View {
                 Text(Self.reason(failure.reason, host: ServerTrust.sanitized(failure.host)))
                     .font(.bodyStrong).foregroundStyle(Theme.primary).fixedSize(horizontal: false, vertical: true)
                 if failure.changed {
-                    Label("The certificate of this site has changed since you chose to go on. Don’t continue unless you know why.", systemImage: "exclamationmark.octagon.fill")
+                    Label("The certificate of this site has changed since you chose to go on. Don’t continue unless you know why.", systemImage: "exclamationmark.octagon")
                         .font(.bodyStrong).foregroundStyle(Theme.danger).fixedSize(horizontal: false, vertical: true)
                 }
                 HStack(spacing: 16) {
@@ -63,10 +63,10 @@ struct TrustFailureView: View {
                             .controlSize(.small)
                     }
                 case .refusedStrictTransport:
-                    Label("This site insists on a secure connection, so its certificate can’t be overridden.", systemImage: "lock.slash.fill")
+                    Label("This site insists on a secure connection, so its certificate can’t be overridden.", systemImage: "lock.slash")
                         .font(.secondaryStrong).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
                 case .refusedWentBad:
-                    Label("This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on.", systemImage: "exclamationmark.octagon.fill")
+                    Label("This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on.", systemImage: "exclamationmark.octagon")
                         .font(.secondaryStrong).foregroundStyle(Theme.danger).fixedSize(horizontal: false, vertical: true)
                 }
             }

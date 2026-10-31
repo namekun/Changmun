@@ -56,7 +56,7 @@ struct SidebarTabRow: View {
             Spacer(minLength: 0)
             CertificateWaitBadge(tab: tab)
             if tab.isPlayingAudio || tab.isMuted {
-                HoverAction(symbol: tab.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                HoverAction(symbol: tab.isMuted ? "speaker.slash.fill" : "speaker.wave.2",
                             help: tab.isMuted ? String(localized: "Unmute (⌃⌘M)") : String(localized: "Mute (⌃⌘M)")) { tab.toggleMute() }
             }
             // One slot, always the same width, so the title doesn't move when the pointer comes and goes.

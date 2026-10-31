@@ -60,7 +60,7 @@ struct StartFirstRunView: View {
                          button: String(localized: "Make Default Browser"), prominent: false) { StartPageActions.makeDefaultBrowser { isDefault = StartPageActions.isDefaultBrowser } }
                 }
                 if !aiReady {
-                    step(symbol: "sparkle", title: String(localized: "Connect the AI"),
+                    step(symbol: "sparkles", title: String(localized: "Connect the AI"),
                          text: String(localized: "With Claude Code on this Mac, the AI panel can read, click and type on pages. Without it, the browser works as it is."),
                          button: String(localized: "Open AI Settings"), prominent: false) { StartPageActions.openSettings(.ai) }
                 }
@@ -123,7 +123,7 @@ struct StartPrivateView: View {
             HStack(alignment: .top, spacing: 24) {
                 note("eye.slash", String(localized: "Nothing is kept"),
                      String(localized: "History, the session, cookies and site data are erased when you close the window. Search suggestions aren't sent either."))
-                note("sparkle", String(localized: "The AI rests"),
+                note("sparkles", String(localized: "The AI rests"),
                      String(localized: "A private window can't be shown to the AI, so the AI panel and its suggestions don't appear here."))
                 note("shield", String(localized: "It isn't anonymous"),
                      String(localized: "The sites you visit, and your company, school or internet provider, still see it. Ad and tracker blocking stays on."))

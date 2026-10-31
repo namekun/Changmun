@@ -126,7 +126,7 @@ struct StepChip: View {
             Image(systemName: item.symbol ?? "cursorarrow.rays").font(.symbolInline)
             Text(label).lineLimit(1).truncationMode(.middle)
             if item.outcome?.isProblem == true {
-                Image(systemName: item.outcome == .denied ? "hand.raised.fill" : "exclamationmark.triangle.fill").font(.symbolInline)
+                Image(systemName: item.outcome == .denied ? "hand.raised" : "exclamationmark.triangle").font(.symbolInline)
             }
         }
         .font(.captionStrong)

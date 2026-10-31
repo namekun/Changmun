@@ -100,7 +100,7 @@ struct ComposerField: NSViewRepresentable {
     var onChange: ((_ text: String, _ caret: Int) -> Void)?
     var onKey: ((ComposerKey) -> Bool)?
     var onReturn: (_ text: String, _ command: Bool) -> Void
-    static let font = NSFont.systemFont(ofSize: 13, weight: .medium)
+    static let font = NSFont.systemFont(ofSize: 13)
     static let maxLines: CGFloat = 6
 
     func makeNSView(context: Context) -> NSScrollView {

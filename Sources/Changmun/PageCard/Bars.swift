@@ -9,7 +9,7 @@ struct LoginOfferBar: View {
         if let offer = tab.loginOffer {
             let site = DisplayHost.trimmed(offer.host)
             HStack(spacing: 8) {
-                Image(systemName: "key.fill").font(.symbolInline).foregroundStyle(Theme.secondary)
+                Image(systemName: "key").font(.symbolInline).foregroundStyle(Theme.secondary)
                 Text(offer.updatesExisting && !offer.username.isEmpty ? String(localized: "Update password for \(offer.username)?") : String(localized: "Save login info for \(site)?"))
                     .font(.bodyStrong)
                     .foregroundStyle(Theme.primary)

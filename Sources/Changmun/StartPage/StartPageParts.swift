@@ -314,7 +314,7 @@ struct StartAIChip: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: "sparkle").font(.symbolInline).foregroundStyle(Theme.primary)
+            Image(systemName: "sparkles").font(.symbolInline).foregroundStyle(Theme.primary)
             Text(verbatim: suggestion.title).font(.secondaryStrong).foregroundStyle(Theme.primary).lineLimit(1)
         }
         .padding(.horizontal, 16)

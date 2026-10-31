@@ -107,7 +107,7 @@ struct ChatErrorRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: "exclamationmark.circle.fill").font(.symbolInline)
+                Image(systemName: "exclamationmark.circle").font(.symbolInline)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(failure.title).font(.secondaryStrong)
                     if !failure.explanation.isEmpty {
