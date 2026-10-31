@@ -24,6 +24,15 @@ extension SharedAgentState {
 
         // MARK: Routing
 
+        @Test func onlyReturnsKeycapIsAlwaysShownAndTheOthersWhileCommandIsHeld() {
+            #expect(ApprovalKeys.showsKeycap(.deny, commandHeld: false))
+            #expect(ApprovalKeys.showsKeycap(.deny, commandHeld: true))
+            #expect(!ApprovalKeys.showsKeycap(.once, commandHeld: false))
+            #expect(!ApprovalKeys.showsKeycap(.site, commandHeld: false))
+            #expect(ApprovalKeys.showsKeycap(.once, commandHeld: true))
+            #expect(ApprovalKeys.showsKeycap(.site, commandHeld: true))
+        }
+
         @Test func onlyThePanelsOwnReversibleQuestionsWithThePanelOpenGoToTheCard() {
             let panel = ChatStore.caller
             #expect(Approvals.route(caller: panel, irreversible: false, accounts: [], panelOpen: true) == .card)

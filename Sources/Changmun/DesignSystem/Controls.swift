@@ -154,12 +154,17 @@ struct WindowMaterial: NSViewRepresentable {
 /// A key as a keycap, quiet next to what it opens.
 struct Keycap: View {
     let key: String
-    init(_ key: String) { self.key = key }
+    /// On a button the ink fills (a PrimaryButton), the cap is drawn in the ground's colour.
+    let onFill: Bool
+    init(_ key: String, onFill: Bool = false) {
+        self.key = key
+        self.onFill = onFill
+    }
 
     var body: some View {
-        Text(verbatim: key).font(.caption).foregroundStyle(Theme.ink(0.7))
+        Text(verbatim: key).font(.caption).foregroundStyle(onFill ? Theme.background.opacity(0.8) : Theme.ink(0.7))
             .padding(.horizontal, 4).frame(minWidth: 20, minHeight: 17)
-            .background(RoundedRectangle(cornerRadius: Metrics.keycapRadius, style: .continuous).fill(Theme.field))
+            .background(RoundedRectangle(cornerRadius: Metrics.keycapRadius, style: .continuous).fill(onFill ? Theme.background.opacity(0.2) : Theme.field))
             .fixedSize()
             .accessibilityHidden(true)
     }

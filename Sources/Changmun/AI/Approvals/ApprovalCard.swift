@@ -198,6 +198,9 @@ enum ApprovalKeys {
     /// How long after a card came up the keys that say yes do nothing: a key pressed for something else a moment ago can't answer it.
     static let yesDelay: TimeInterval = 0.5
 
+    /// The key of Return, which answers no, is always written on its button; the keys of the answers that say yes only while ⌘ is held.
+    static func showsKeycap(_ choice: Approvals.Choice, commandHeld: Bool) -> Bool { choice == .deny || commandHeld }
+
     /// Whether a card shown this long has its buttons that say yes live: for the keys and for the mouse.
     static func yesArmed(shownFor: TimeInterval) -> Bool { shownFor >= yesDelay }
 
@@ -295,6 +298,8 @@ struct ApprovalCardView: View {
     @FocusState private var focusedButton: Approvals.Choice?
     /// The buttons that say yes wake up a moment after the card comes: a click meant for what was under it is not an answer.
     @State private var armed = false
+    /// While ⌘ is held the keycaps of the buttons ⌘Return and ⌥⌘Return answer show; the one of Return is always there.
+    @State private var commandHeld = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -320,7 +325,7 @@ struct ApprovalCardView: View {
             }
             buttons
         }
-        .padding(8)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Theme.card))
         .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Theme.waiting.opacity(0.6), lineWidth: 1))
@@ -344,7 +349,7 @@ struct ApprovalCardView: View {
     private func excerpt(label: String, text: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             if !label.isEmpty {
-                Text(verbatim: label).font(.captionStrong).foregroundStyle(Theme.secondary)
+                Text(verbatim: label).font(.caption).foregroundStyle(Theme.secondary)
             }
             ScrollView {
                 Text(verbatim: text).font(.secondary).foregroundStyle(Theme.body).textSelection(.enabled)
@@ -357,6 +362,8 @@ struct ApprovalCardView: View {
         }
     }
 
+    /// Three levels: Don't Allow, the safe answer Return gives, is the one strong button; Allow Once is the quieter one beside it; allowing the
+    /// site for the chat is a quiet link under them. Their keycaps follow: Return's always, the others' while ⌘ is held.
     private var buttons: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
@@ -368,28 +375,92 @@ struct ApprovalCardView: View {
                 button(choice, title)
             }
         }
+        .onAppear { commandHeld = NSEvent.modifierFlags.contains(.command) }
+        .background(CommandWatcher(held: $commandHeld))
     }
 
+    @ViewBuilder
     private func button(_ choice: Approvals.Choice, _ title: String) -> some View {
         let live = choice == .deny || armed
-        return Button {
+        let action = {
             guard choice == .deny || ApprovalCards.shared.mayPressYes(card, choice) else { return }
             card.answer(choice)
-        } label: {
-            HStack(spacing: 4) {
-                Text(verbatim: title).font(.captionStrong).fixedSize(horizontal: false, vertical: true)
-                Keycap(choice == .deny ? "↵" : choice == .once ? "⌘↵" : "⌥⌘↵")
-            }
-            .foregroundStyle(Theme.primary)
-            .padding(.horizontal, 8)
-            .frame(maxWidth: .infinity, minHeight: 26)
-            .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(choice == .deny ? Theme.pill : Theme.hoverTab))
-            .opacity(live ? 1 : 0.5)
         }
-        .buttonStyle(.plain)
-        .accessibilityHint(choice == .deny ? String(localized: "Shortcut: Return") : choice == .once ? String(localized: "Shortcut: Command Return") : String(localized: "Shortcut: Option Command Return"))
-        .disabled(!live)
-        .focused($focusedButton, equals: choice)
+        let keycap = choice == .deny ? "↵" : choice == .once ? "⌘↵" : "⌥⌘↵"
+        let hint = choice == .deny ? String(localized: "Shortcut: Return") : choice == .once ? String(localized: "Shortcut: Command Return") : String(localized: "Shortcut: Option Command Return")
+        let showsKey = ApprovalKeys.showsKeycap(choice, commandHeld: commandHeld)
+        let base = Button(action: action) { label(title, keycap, showsKey, onFill: choice == .deny) }
+            .disabled(!live)
+            .focused($focusedButton, equals: choice)
+            .accessibilityHint(hint)
+        Group {
+            switch choice {
+            case .deny: base.buttonStyle(PrimaryButton(size: .small))
+            case .once: base.buttonStyle(SecondaryButton(size: .small))
+            case .site: base.buttonStyle(QuietLinkStyle())
+            }
+        }
         .onChange(of: focusedButton == choice) { _, has in ApprovalCards.shared.noteButtonFocus(has, choice, of: card.id) }
+    }
+
+    private func label(_ title: String, _ keycap: String, _ showsKey: Bool, onFill: Bool) -> some View {
+        HStack(spacing: 4) {
+            Text(verbatim: title).fixedSize(horizontal: false, vertical: true)
+            if showsKey { Keycap(keycap, onFill: onFill) }
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+/// Tells the card whether ⌘ is held, for the keycaps that only show then.
+private struct CommandWatcher: NSViewRepresentable {
+    @Binding var held: Bool
+
+    func makeNSView(context: Context) -> WatcherView { WatcherView() }
+
+    func updateNSView(_ view: WatcherView, context: Context) {
+        view.onChange = { held = $0 }
+    }
+
+    final class WatcherView: NSView {
+        var onChange: (Bool) -> Void = { _ in }
+        private var monitor: Any?
+
+        override func viewDidMoveToWindow() {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+            monitor = nil
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+                self?.onChange(event.modifierFlags.contains(.command))
+                return event
+            }
+        }
+
+        deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
+    }
+}
+
+/// A button that is only words: grey, ink and underlined under the pointer.
+struct QuietLinkStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Words(label: configuration.label, pressed: configuration.isPressed)
+    }
+
+    private struct Words: View {
+        let label: ButtonStyleConfiguration.Label
+        let pressed: Bool
+        @State private var hover = false
+        @Environment(\.isEnabled) private var enabled
+
+        var body: some View {
+            label
+                .font(.caption)
+                .foregroundStyle(hover || pressed ? Theme.primary : Theme.secondary)
+                .underline(hover)
+                .frame(minHeight: Metrics.action)
+                .contentShape(Rectangle())
+                .opacity(enabled ? 1 : 0.4)
+                .onHover { hover = $0 }
+        }
     }
 }
