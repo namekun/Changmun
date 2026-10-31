@@ -6,6 +6,23 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.11.0</title>
+      <pubDate>Sat, 31 Oct 2026 01:34:08 +0000</pubDate>
+      <sparkle:version>42</sparkle:version>
+      <sparkle:shortVersionString>0.11.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.11.0</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **The AI reads pages better.** Two new tools sit next to `read_page`. `read_structured` gives the facts a page carries about itself (JSON-LD, OpenGraph and Twitter tags, description, language, canonical and alternate links) as compact JSON, with no page text and no request to the network, so a price, an author or a date costs almost nothing to find out. `read_markdown` gives the visible content as Markdown, keeping tables, nested lists, code blocks with their language, and links (paths on the same site, tracking parameters out). It isn't always shorter than `read_page`; it keeps the structure. `read_page` is still what numbers things to click. All three work from the AI panel, MCP and the `changmun` CLI (`changmun structured`, `changmun markdown`), under the same approvals.
+- **A site's own Markdown version.** When a page points to a Markdown version of itself on its own site (a `.md`, `.markdown` or `.txt` address in the same language), `read_markdown` reads that instead and says so, with a note that it may differ from what you see on screen.
+- **Secrets stay out of what the AI reads.** In both tools, parameters named like tokens, keys, signatures, sessions and passwords have their values hidden in addresses, sign-in fragments are dropped, and invisible characters are stripped.
+- **Dropping at the end of a group or folder is tidier.** The place to drop only appears while you drag, so groups have no extra gap at rest, and it is now in the tab strip too. Links dragged in from a page go on the group's header, which puts them at its end. (The drag itself still has not been tried by hand, so tell me if it doesn't take.)
+- **Unpinning a folder** keeps the tabs of an inner folder that is still pinned where they are.
+- **Start page:** the unread dot sits beside the title instead of floating in the middle of the page.
+- **README:** a comparison with Safari, Chrome, Arc and Dia, with what Changmun doesn't do yet, and the app's real size (21 MB, about 7 MB to download).</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.11.0/Changmun-0.11.0.dmg" length="6791357" type="application/octet-stream" sparkle:edSignature="osF8pEWVREIicT6zZwaecACzgSrKQGzuuyN2Wlq51F8yYUSBczzcyVcsApIIoGvTXLo1cV9mby8tZC+yiuhSCQ==" />
+    </item>
+    <item>
       <title>0.10.2</title>
       <pubDate>Thu, 29 Oct 2026 14:21:40 +0000</pubDate>
       <sparkle:version>41</sparkle:version>
@@ -123,24 +140,9 @@
       <description sparkle:format="markdown">- **Client certificates, as in Safari.** When a site asks for a certificate to identify you (a company intranet, a bank), Changmun offers the ones in your Keychain or on a smart card that the site accepts, in the system's own sheet. What you pick is saved as an identity preference for that site (remove it in Keychain Access), so the next visit doesn't ask. Private windows save nothing, and a page the AI is using always asks you: the AI never picks a certificate for you, not even one you chose before.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.3/Changmun-0.8.3.dmg" length="5316296" type="application/octet-stream" sparkle:edSignature="iJB3wzp8/9rnW4YHL/VUmCTqHCnSVbBEDsMr+drUVZDVoNQv9NjwwgdyIdpx0n6bcGQBkPApWP+swMYg5QeKBg==" />
     </item>
-    <item>
-      <title>0.8.2</title>
-      <pubDate>Tue, 27 Oct 2026 01:00:40 +0000</pubDate>
-      <sparkle:version>32</sparkle:version>
-      <sparkle:shortVersionString>0.8.2</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.8.2</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Rename bookmark folders.** Double-click a folder in the sidebar, pinned ones included, or choose Rename… from its menu. Only the name you see changes: the folder stays pinned or open, importing again from the same browser keeps your name, and clearing the name brings the original back.
-- **Typing Korean (or any input method) in the address bar.** Suggestions now follow what the field shows, the syllable still being composed included, so choosing the first row or pressing Return opens the whole of what you typed, not the part before the last syllable.
-- **Return opens the highlighted suggestion.** When results arrived after you started typing, Return could open a row from the earlier list instead.
-- **A click opens the suggestion it went down on,** even if the list changes under the pointer before the button comes up.
-- **A tab group's header answers a click anywhere along it;** a few narrow spots used to ignore single clicks, which also made double-click renaming unreliable.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.2/Changmun-0.8.2.dmg" length="5266698" type="application/octet-stream" sparkle:edSignature="csvRtQ2deeDbmQOjnb53ewZ92ibUlX8eTlX9E31FyZkuFr1quKi5X8rL1eNSmaw+BhOgVj6l5vaL3RTZ1t5/Bg==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: FECzt+naeoTDkfzBTJDyOG7Z5k1wGpdLWuqe2/+b4lSibjEkmn6v7flc5OL3pM+yv5f6ie56dDhdYBv0YLZUAQ==
-length: 19917
+edSignature: hs0FWEtsR6OY9n6OoXPg1osvC/qN8wgZqpnOfqtL6zadE9VWdwZUuLrjri983X2TVYCt/ApVlQlyyuC/9hN7Cg==
+length: 20923
 -->
