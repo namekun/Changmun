@@ -202,14 +202,15 @@ struct StartPageContent: View {
         var contents = StartPageContents()
     }
 
-    private func data(columns: Int) -> PageData {
+    private func data(columns: Int, width: CGFloat) -> PageData {
         let isPrivate = browser.isPrivate
         var data = PageData()
         guard !StartPageUI.showsAsEmpty else {
             data.contents = StartPageContents(isPrivate: isPrivate, aiReady: !isPrivate && chat.availability == .ready)
             return data
         }
-        data.favorites = isPrivate ? [] : library.favorites(in: browser.favoritesFolder)
+        let favorites = isPrivate ? [] : library.favorites(in: browser.favoritesFolder)
+        data.favorites = Array(favorites.prefix(StartPageArrangement.favoritesShown(count: favorites.count, twoRows: option(.favorites) == 1, style: style, pageWidth: width)))
         let closed = browser.closedTabs.map { StartClosedTab(id: $0.id, url: $0.url?.absoluteString, title: $0.title, closedAt: $0.closedAt, space: $0.space) }
         let cardCount = narrowStyle ? 3 : columns
         data.cards = StartPageData.continueCards(closed: closed, history: model.recent, open: browser.tabs.compactMap { $0.url?.absoluteString }, space: browser.spaceID,
@@ -232,7 +233,7 @@ struct StartPageContent: View {
     var body: some View {
         GeometryReader { geo in
             let columns = geo.size.width >= 900 ? 4 : 3
-            let page = data(columns: columns)
+            let page = data(columns: columns, width: geo.size.width)
             let pageMode = StartPageRules.mode(layout: layout, style: style, contents: page.contents)
             let shapes = cursorShapes(pageMode, page, columns: columns)
             let onImage = settings.background.kind == .image && StartPageFiles.imageURL(settings.background.imageFile).map { FileManager.default.fileExists(atPath: $0.path) } == true
@@ -329,7 +330,6 @@ struct StartPageContent: View {
 
     @ViewBuilder
     private func sections(_ list: [StartSection], _ page: PageData, columns: Int) -> some View {
-        let wideColumn: CGFloat = 984
         VStack(spacing: 0) {
             if style == .aiFirst, page.contents.aiReady { aiHero(page, showCards: list.contains(.aiSuggestions)) }
             if style == .quiet {
@@ -367,13 +367,13 @@ struct StartPageContent: View {
                     }
                 }
             }
-            .frame(maxWidth: style == .dashboard ? wideColumn : 620)
+            .frame(maxWidth: style == .dashboard ? StartPageArrangement.dashboardColumn : StartPageArrangement.narrowColumn)
             .padding(.top, style == .dashboard ? 40 : 32)
             .opacity(typing ? 0.22 : 1)
             .allowsHitTesting(!typing)
             .animation(Motion.quick, value: typing)
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, StartPageArrangement.pageMargin)
         .frame(maxWidth: .infinity)
     }
 
@@ -395,8 +395,7 @@ struct StartPageContent: View {
 
     private func favoritesView(_ page: PageData) -> some View {
         let two = option(.favorites) == 1
-        let size: CGFloat = style == .dashboard ? (two ? 74 : 58) : style == .quiet ? (two ? 74 : 66) : (two ? 52 : 46)
-        let pitch: CGFloat = style == .aiFirst ? 80 : size + (two ? 32 : 24)
+        let (size, pitch) = StartPageArrangement.favoriteTile(style: style, twoRows: two)
         let rows = StartPageArrangement.favoriteRows(count: page.favorites.count, twoRows: two)
         return VStack(alignment: .leading, spacing: 8) {
             if style == .dashboard {

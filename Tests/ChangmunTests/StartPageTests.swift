@@ -181,6 +181,33 @@ struct StartPageRulesTests {
         #expect(StartPageArrangement.favoriteRows(count: 0, twoRows: true).isEmpty)
     }
 
+    @Test func favoritesNeverRunWiderThanTheContentColumn() {
+        for style in StartStyle.allCases {
+            for twoRows in [false, true] {
+                for width in stride(from: CGFloat(320), through: 2000, by: 40) {
+                    let shown = StartPageArrangement.favoritesShown(count: 40, twoRows: twoRows, style: style, pageWidth: width)
+                    let first = StartPageArrangement.favoriteRows(count: shown, twoRows: twoRows).first?.count ?? 0
+                    let column = min(style == .dashboard ? StartPageArrangement.dashboardColumn : StartPageArrangement.narrowColumn, width - 2 * StartPageArrangement.pageMargin)
+                    let pitch = StartPageArrangement.favoriteTile(style: style, twoRows: twoRows).pitch
+                    #expect(first >= 1)
+                    #expect(first == 1 || CGFloat(first) * pitch <= column, "\(style) \(twoRows) \(width): \(first) tiles of \(pitch) in \(column)")
+                    #expect(shown <= (twoRows ? 2 : 1) * first)
+                }
+            }
+        }
+    }
+
+    @Test func fourteenFavoritesFitOneRowOrWrapToTwo() {
+        // The dashboard's 984 pt column holds 12 tiles of 82 in one row, and 14 become two balanced rows of 7.
+        #expect(StartPageArrangement.favoritesShown(count: 14, twoRows: false, style: .dashboard, pageWidth: 1440) == 12)
+        #expect(StartPageArrangement.favoritesShown(count: 14, twoRows: true, style: .dashboard, pageWidth: 1440) == 14)
+        #expect(StartPageArrangement.favoriteRows(count: 14, twoRows: true) == [0..<7, 7..<14])
+        // A narrow window holds fewer; and a few favorites are all shown.
+        #expect(StartPageArrangement.favoritesShown(count: 14, twoRows: false, style: .dashboard, pageWidth: 500) == 5)
+        #expect(StartPageArrangement.favoritesShown(count: 3, twoRows: false, style: .quiet, pageWidth: 1440) == 3)
+        #expect(StartPageArrangement.favoritesShown(count: 0, twoRows: true, style: .aiFirst, pageWidth: 300) == 0)
+    }
+
     @Test func theAISuggestionsFitWhatIsOpen() {
         #expect(StartPageAI.suggestions(tabs: 0, limit: 4).map(\.id) == ["research", "find", "explain"])
         #expect(StartPageAI.suggestions(tabs: 1, limit: 4).map(\.id) == ["summarize", "research", "find", "explain"])

@@ -237,6 +237,25 @@ enum StartPageArrangement {
         return rows
     }
 
+    /// The widest the page's column gets (the dashboard's, and the other styles'), and the room left at its sides.
+    static let dashboardColumn: CGFloat = 984
+    static let narrowColumn: CGFloat = 620
+    static let pageMargin: CGFloat = 24
+
+    /// A favorite's icon size and the room its tile takes along a row, by style and by one row or two.
+    static func favoriteTile(style: StartStyle, twoRows: Bool) -> (size: CGFloat, pitch: CGFloat) {
+        let size: CGFloat = style == .dashboard ? (twoRows ? 74 : 58) : style == .quiet ? (twoRows ? 74 : 66) : (twoRows ? 52 : 46)
+        return (size, style == .aiFirst ? 80 : size + (twoRows ? 32 : 24))
+    }
+
+    /// How many favorites the page shows: a row never runs wider than the content column, so what does not fit
+    /// (the second row's too, in two-row mode) is left to the sidebar.
+    static func favoritesShown(count: Int, twoRows: Bool, style: StartStyle, pageWidth: CGFloat) -> Int {
+        let column = min(style == .dashboard ? dashboardColumn : narrowColumn, pageWidth - 2 * pageMargin)
+        let perRow = max(1, Int(column / favoriteTile(style: style, twoRows: twoRows).pitch))
+        return min(count, twoRows ? 2 * perRow : perRow)
+    }
+
     /// The favorites in one row or two: two rows are balanced (4 and 4, not 7 and 1).
     static func favoriteRows(count: Int, twoRows: Bool) -> [Range<Int>] {
         guard count > 0 else { return [] }
