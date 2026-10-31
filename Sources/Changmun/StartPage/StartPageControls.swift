@@ -447,6 +447,7 @@ struct StartBackgroundControls: View {
     }
 
     private func pickImage() {
+        guard !Headless.isOn else { return }
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.image]
         panel.allowsMultipleSelection = false

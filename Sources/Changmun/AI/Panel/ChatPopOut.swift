@@ -143,7 +143,7 @@ final class ChatPopOut: NSObject, NSWindowDelegate {
         if plan.restore { window.deminiaturize(nil) }
         if let keyBefore, keyBefore !== window, keyBefore.isVisible { keyBefore.makeKey() }
         if plan.orderFront { window.orderFrontRegardless() }
-        if plan.askAttention { NSApp.requestUserAttention(.informationalRequest) }
+        if plan.askAttention, !Headless.isOn { NSApp.requestUserAttention(.informationalRequest) }
     }
 
     /// In front and key; from the Dock too, if it was put there (the AI button reads as on while the panel is out, and pressing it must show it).

@@ -14,7 +14,7 @@ struct AppLinks {
         confirm: { site, app, url, window, handle in
             await Dialog.present(in: window, spec(site: site, app: app, url: url), whenBusy: .refuse, handle: handle)?.button == 1
         },
-        open: { NSWorkspace.shared.open($0) })
+        open: { Outside.open($0) })
 
     /// The question: the app and the site that asks come from the system and the page's origin, cleaned and cut; Cancel is what Return does.
     @MainActor static func spec(site: String, app: String, url: URL) -> DialogSpec {

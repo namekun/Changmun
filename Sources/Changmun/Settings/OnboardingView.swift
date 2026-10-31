@@ -210,13 +210,13 @@ struct OnboardingView: View {
             HStack(spacing: 16) {
                 if model.reports.contains(where: { $0.problems.contains(ImportRunner.fullDiskAccessProblem) }) {
                     Button("Open Full Disk Access Settings") {
-                        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!)
+                        Outside.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!)
                     }
                     .buttonStyle(SecondaryButton())
                 }
                 Spacer()
                 if !ready {
-                    Button("How to install") { NSWorkspace.shared.open(AIAvailability.claudeURL) }.buttonStyle(QuietLinkStyle(font: .body))
+                    Button("How to install") { Outside.open(AIAvailability.claudeURL) }.buttonStyle(QuietLinkStyle(font: .body))
                 }
                 Button("Start") { finish() }.buttonStyle(PrimaryButton())
             }

@@ -83,7 +83,7 @@ struct AIGuidance: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             if availability != .ready {
-                Button("Get Claude Code") { NSWorkspace.shared.open(AIAvailability.claudeURL) }
+                Button("Get Claude Code") { Outside.open(AIAvailability.claudeURL) }
                     .buttonStyle(SecondaryButton())
                     .padding(.top, 4)
             }

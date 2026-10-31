@@ -29,6 +29,8 @@ enum StartPageActions {
 
     /// As Settings › General does it.
     static func makeDefaultBrowser(done: @escaping () -> Void) {
+        // The system asks the user to confirm: never from a headless app.
+        guard !Headless.isOn else { return }
         for scheme in ["http", "https"] {
             NSWorkspace.shared.setDefaultApplication(at: Bundle.main.bundleURL, toOpenURLsWithScheme: scheme) { _ in DispatchQueue.main.async { done() } }
         }

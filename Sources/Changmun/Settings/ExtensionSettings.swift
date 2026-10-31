@@ -65,7 +65,7 @@ struct ExtensionList: View {
             }
             Section("Install") {
                 HStack {
-                    Button("Find Safari Extensions on the App Store…") { NSWorkspace.shared.open(SafariExtensionGallery.url) }
+                    Button("Find Safari Extensions on the App Store…") { Outside.open(SafariExtensionGallery.url) }
                     Spacer()
                     Button("Load from Folder…", action: chooseFolder)
                 }
@@ -100,6 +100,7 @@ struct ExtensionList: View {
     }
 
     private func chooseFolder() {
+        guard !Headless.isOn else { return }
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false

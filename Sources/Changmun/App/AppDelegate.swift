@@ -313,6 +313,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func openFile(_ sender: Any?) {
+        guard !Headless.isOn else { return }
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.allowedContentTypes = [.html, .pdf, .image, .plainText, .svg, .webArchive, .xml]

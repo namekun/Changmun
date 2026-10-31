@@ -66,7 +66,7 @@ struct OpenInMenu: View {
             Menu("Open In") {
                 ForEach(apps, id: \.self) { app in
                     Button(FileManager.default.displayName(atPath: app.path).replacingOccurrences(of: ".app", with: "")) {
-                        NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
+                        Outside.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
                     }
                 }
             }

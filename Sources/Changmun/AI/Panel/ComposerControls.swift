@@ -285,6 +285,7 @@ struct ComposerStopButton: View {
 extension ChatStore {
     /// "Add Image…": the pictures the user picks go in as if they had dropped them.
     func chooseImages() {
+        guard !Headless.isOn else { return }
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.image]
         panel.allowsMultipleSelection = true

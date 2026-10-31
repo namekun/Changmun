@@ -25,6 +25,26 @@ enum Headless {
     static let windowSize = NSSize(width: 1440, height: 900)
 }
 
+/// What opens something outside the app: another program, a browser, Finder, System Settings. A headless app never does it: it would come up on the
+/// screen of whoever is working, which no off-screen window can stop.
+@MainActor
+enum Outside {
+    static func open(_ url: URL) {
+        guard !Headless.isOn else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    static func open(_ urls: [URL], withApplicationAt app: URL, configuration: NSWorkspace.OpenConfiguration) {
+        guard !Headless.isOn else { return }
+        NSWorkspace.shared.open(urls, withApplicationAt: app, configuration: configuration)
+    }
+
+    static func reveal(_ urls: [URL]) {
+        guard !Headless.isOn else { return }
+        NSWorkspace.shared.activateFileViewerSelecting(urls)
+    }
+}
+
 /// A picture of a whole window, sidebar included, drawn by the app itself: it works off screen and needs no
 /// screen recording permission. Pages draw in WebKit's own process, so each is laid in from a snapshot, under
 /// whatever floats over it (bars, the find field).

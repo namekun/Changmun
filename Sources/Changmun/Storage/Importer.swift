@@ -70,8 +70,22 @@ enum BrowserDiscovery {
         ("Whale", "Whale", "Whale Safe Storage"),
     ]
 
-    static func sources(applicationSupport: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0],
-                        safariFolder: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Safari")) -> [ImportSource] {
+    /// What the test copy is shown instead of the user's browsers: three of them, with folders that are nowhere. The test copy never looks into
+    /// another app's folders or at their Keychain items (macOS would ask for access on the user's own screen, which no off-screen window can stop).
+    static let rehearsal: [ImportSource] = [
+        ImportSource(browser: "Safari", profile: nil, directory: URL(fileURLWithPath: "/var/empty/changmun-test/Safari"), kind: .safari, suggested: true),
+        ImportSource(browser: "Google Chrome", profile: nil, directory: URL(fileURLWithPath: "/var/empty/changmun-test/Chrome"),
+                     kind: .chromium(safeStorage: "Changmun Test Safe Storage"), suggested: true),
+        ImportSource(browser: "Arc", profile: nil, directory: URL(fileURLWithPath: "/var/empty/changmun-test/Arc"),
+                     kind: .chromium(safeStorage: "Changmun Test Safe Storage"), suggested: false),
+    ]
+
+    /// With no folders given (the app's own look at this Mac) the test copy answers `rehearsal` and reads nothing; a test that names its own folders is
+    /// answered from them in any app.
+    static func sources(applicationSupport: URL? = nil, safariFolder: URL? = nil, testCopy: Bool = Headless.isTestCopy) -> [ImportSource] {
+        if testCopy, applicationSupport == nil || safariFolder == nil { return rehearsal }
+        let applicationSupport = applicationSupport ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let safariFolder = safariFolder ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Safari")
         var roots: [(name: String, url: URL, safeStorage: String, known: Bool)] = []
         var seen = Set<String>()
         for entry in known {
@@ -186,6 +200,8 @@ enum ChromiumCrypto {
 
     /// The browser's keychain password. macOS asks the user to allow this.
     static func secret(service: String) -> Data? {
+        // The headless apps never touch the Keychain: macOS would ask the user, on the screen they are at.
+        guard !Headless.isOn else { return nil }
         var query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecReturnData as String: true]
         var result: CFTypeRef?
         if SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let data = result as? Data { return data }
@@ -388,9 +404,23 @@ enum SafariImporter {
 // MARK: Running an import
 
 enum ImportRunner {
-    /// Imports one source. Secrets are read only when passwords or cookies are chosen; macOS asks before handing them over.
-    static func run(_ source: ImportSource, options: ImportOptions, library: Library = .shared, progress: @escaping @Sendable (String) -> Void) async -> ImportReport {
+    /// A made-up result for the test copy: the numbers of a mock-up.
+    static func rehearse(_ source: ImportSource, options: ImportOptions, progress: @Sendable (String) -> Void) -> ImportReport {
         var report = ImportReport(source: source.title)
+        progress(String(localized: "Preparing…"))
+        if options.bookmarks { report.bookmarks = 1_204 }
+        if options.history { report.history = 8_310 }
+        if options.passwords, source.supportsSecrets { report.passwords = 42 }
+        return report
+    }
+
+    /// Imports one source. Secrets are read only when passwords or cookies are chosen; macOS asks before handing them over.
+    static func run(_ source: ImportSource, options: ImportOptions, library: Library = .shared, testCopy: Bool = Headless.isTestCopy,
+                    progress: @escaping @Sendable (String) -> Void) async -> ImportReport {
+        var report = ImportReport(source: source.title)
+        // The test copy imports nothing from anywhere (no folder is opened, no Keychain item asked for, nothing is written to the library): it says
+        // what a run would have said, so the screens that follow it can be looked at.
+        if testCopy { return rehearse(source, options: options, progress: progress) }
         switch source.kind {
         case .safari:
             if options.bookmarks {

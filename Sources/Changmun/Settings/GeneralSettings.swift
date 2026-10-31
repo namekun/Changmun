@@ -54,6 +54,8 @@ struct GeneralSettings: View {
     }
 
     private func chooseFolder() {
+        // A headless app has no one to choose, and a panel would come up on the screen of whoever is working.
+        guard !Headless.isOn else { return }
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
@@ -68,6 +70,8 @@ struct GeneralSettings: View {
     }
 
     private func makeDefault() {
+        // Changing the default browser asks the user in a system dialog: never from a headless app.
+        guard !Headless.isOn else { return }
         for scheme in ["http", "https"] {
             NSWorkspace.shared.setDefaultApplication(at: Bundle.main.bundleURL, toOpenURLsWithScheme: scheme) { _ in
                 DispatchQueue.main.async { checkDefault() }

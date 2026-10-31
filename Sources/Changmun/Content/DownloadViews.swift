@@ -54,7 +54,7 @@ struct DownloadList: View {
             HStack {
                 Text("Downloads").font(.bodyStrong).foregroundStyle(Theme.primary)
                 Spacer()
-                BarButton(symbol: "folder", help: String(localized: "Open Downloads Folder")) { NSWorkspace.shared.open(Preferences.shared.downloadFolder) }
+                BarButton(symbol: "folder", help: String(localized: "Open Downloads Folder")) { Outside.open(Preferences.shared.downloadFolder) }
             }
             .padding(.leading, 16)
             .padding(.trailing, 8)
@@ -149,7 +149,7 @@ struct DownloadRow: View {
             } else if item.resumeData != nil {
                 HoverAction(symbol: "arrow.clockwise", help: String(localized: "Try Again")) { Downloads.shared.retry(item) }
             } else if hover, let file {
-                HoverAction(symbol: "magnifyingglass", help: String(localized: "Show in Finder")) { NSWorkspace.shared.activateFileViewerSelecting([file]) }
+                HoverAction(symbol: "magnifyingglass", help: String(localized: "Show in Finder")) { Outside.reveal([file]) }
             }
         }
         .padding(.leading, Metrics.rowPadding)
@@ -169,9 +169,9 @@ struct DownloadRow: View {
             if let file {
                 Button("Open") {
                     item.seen = true
-                    NSWorkspace.shared.open(file)
+                    Outside.open(file)
                 }
-                Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([file]) }
+                Button("Show in Finder") { Outside.reveal([file]) }
                 Button("Copy Path") {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(file.path, forType: .string)
@@ -200,7 +200,7 @@ struct DownloadRow: View {
         var actions: [AccessibleButton.Action] = []
         if item.state == .running { actions.append(.init(String(localized: "Cancel")) { item.cancel() }) }
         if item.resumeData != nil { actions.append(.init(String(localized: "Try Again")) { Downloads.shared.retry(item) }) }
-        if let file { actions.append(.init(String(localized: "Show in Finder")) { NSWorkspace.shared.activateFileViewerSelecting([file]) }) }
+        if let file { actions.append(.init(String(localized: "Show in Finder")) { Outside.reveal([file]) }) }
         return actions
     }
 
@@ -232,9 +232,9 @@ struct DownloadRow: View {
         item.seen = true
         Downloads.shared.dismiss(item)
         if Downloads.opensOnClick(file) {
-            NSWorkspace.shared.open(file)
+            Outside.open(file)
         } else {
-            NSWorkspace.shared.activateFileViewerSelecting([file])
+            Outside.reveal([file])
         }
     }
 }
