@@ -277,7 +277,7 @@ extension PageScripts {
       n = n.toLowerCase();
       return trackingNames.has(n) || trackingPrefixes.some(p => n.startsWith(p));
     };
-    // An address as the reader gets it: absolute, without tracking parameters, with its fragment. Only web, mail and phone links count.
+    // An address as the reader gets it: without tracking parameters, with its fragment. Only web, mail and phone links count.
     const linkUrl = el => {
       const raw = attr(el, 'href');
       if (!raw || !raw.trim()) return '';
@@ -288,7 +288,11 @@ extension PageScripts {
         const items = u.search.slice(1).split('&'), kept = items.filter(i => !isTracking(i.split('=')[0]));
         if (kept.length !== items.length) u.search = kept.length ? '?' + kept.join('&') : '';
       }
-      return u.href.replace(/\(/g, '%28').replace(/\)/g, '%29');
+      // Long pages are mostly links, so one on this site is written as its path (and one on this page as its fragment): the URL line says where they start.
+      const here = u.origin === location.origin && !u.pathname.startsWith('//');
+      const onPage = here && u.hash && u.pathname === location.pathname && u.search === location.search;
+      const shown = onPage ? u.hash : here ? u.pathname + u.search + u.hash : u.href;
+      return shown.replace(/\(/g, '%28').replace(/\)/g, '%29');
     };
     const link = (text, href) => {
       const parts = text.match(/^(\s*)([\s\S]*?)(\s*)$/);

@@ -163,26 +163,33 @@ extension SharedAgentState {
             #expect(out == "> First\n>\n> Second\n>\n> > Inner\n\nAfter", Comment(rawValue: out))
         }
 
-        @Test func linksAreAbsoluteWithoutTrackingAndKeepTheirFragmentsAndOtherParameters() async throws {
+        @Test func aLinkThatLooksLikeAnotherSiteKeepsItsWholeAddress() async throws {
+            let out = try await markdown("""
+                <body><p><a href="https://lab.test//other.example/x">Double</a> <a href="https://lab.test:8443/port">Port</a> <a href="http://lab.test/plain">Scheme</a></p></body>
+                """)
+            #expect(out == "[Double](https://lab.test//other.example/x) [Port](https://lab.test:8443/port) [Scheme](http://lab.test/plain)", Comment(rawValue: out))
+        }
+
+        @Test func linksLoseTrackingAndKeepTheirFragmentsAndOtherParametersAndThoseOnTheSiteArePaths() async throws {
             let out = try await markdown("""
                 <body><p><a href="/empty"><img src="x.png"></a><a href="/docs?utm_source=x&amp;page=2&amp;fbclid=abc#top">Docs</a>, <a href="https://other.example/a?gclid=1&amp;UTM_Medium=m">Other</a>,
                 <a href="mailto:me@example.com">Mail</a>, <a href="javascript:alert(1)">Script</a>, <a href="data:text/html,x">Data</a>,
                 <a href="/f_(1)">Paren</a>, <a href="#frag">Here</a>, <a href="/p?ref=home&amp;_ga=2.3">Ref</a>.</p></body>
                 """)
-            #expect(out == "[Docs](https://lab.test/docs?page=2#top), [Other](https://other.example/a), [Mail](mailto:me@example.com), Script, Data, "
-                    + "[Paren](https://lab.test/f_%281%29), [Here](https://lab.test/page#frag), [Ref](https://lab.test/p?ref=home).", Comment(rawValue: out))
+            #expect(out == "[Docs](/docs?page=2#top), [Other](https://other.example/a), [Mail](mailto:me@example.com), Script, Data, "
+                    + "[Paren](/f_%281%29), [Here](#frag), [Ref](/p?ref=home).", Comment(rawValue: out))
         }
 
         @Test func everyTrackingParameterTheAppKnowsIsLeftOutOfLinks() async throws {
             let known = TrackingParameters.names.sorted() + TrackingParameters.prefixes.map { $0 + "anything" }
             let query = known.map { "\($0)=1" }.joined(separator: "&amp;")
             let out = try await markdown("<body><p><a href=\"/x?keep=1&amp;\(query)&amp;last=2\">Go</a> <a href=\"/y?%75tm_source=a&amp;UTM_term=b\">Encoded</a></p></body>")
-            #expect(out == "[Go](https://lab.test/x?keep=1&last=2) [Encoded](https://lab.test/y)", Comment(rawValue: out))
+            #expect(out == "[Go](/x?keep=1&last=2) [Encoded](/y)", Comment(rawValue: out))
         }
 
         @Test func aHeadlineInsideALinkKeepsBeingAHeading() async throws {
             let out = try await markdown("<body><a href=\"/story?utm_campaign=z\"><h2>Big story</h2><p>Blurb of it</p></a></body>")
-            #expect(out == "## [Big story](https://lab.test/story)\n\n[Blurb of it](https://lab.test/story)", Comment(rawValue: out))
+            #expect(out == "## [Big story](/story)\n\n[Blurb of it](/story)", Comment(rawValue: out))
         }
 
         @Test func imagesAreTheirAltTextOnly() async throws {

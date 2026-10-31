@@ -115,7 +115,7 @@ post /load-html "$(python3 -I -c 'import json, sys; print(json.dumps({"html": sy
 sleep 1.5
 answer() { scripts/headless.sh call "$1" '{}' | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["content"][0]["text"])'; }
 MD="$(answer read_markdown)"
-expect "read_markdown gives a link without its tracking parameters, with the rest and the fragment" "$(grep -c -F '[the docs](https://lab.test/docs?keep=1#top)' <<<"$MD")" 1
+expect "read_markdown gives a link without its tracking parameters, with the rest and the fragment" "$(grep -c -F '[the docs](/docs?keep=1#top)' <<<"$MD")" 1
 expect "read_markdown leaves no tracking parameter in the answer" "$(grep -c -E 'utm_source|fbclid' <<<"$MD")" 0
 expect "read_markdown gives a table as a pipe table and a heading as a heading" "$(grep -c -E '^(# Heading|\| K \| V \|)$' <<<"$MD")" 2
 SD="$(answer read_structured)"
