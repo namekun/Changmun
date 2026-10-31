@@ -3,7 +3,7 @@
 <h1 align="center">Changmun</h1>
 
 <p align="center">
-  <b>Un navigateur Mac léger, avec une barre latérale et une IA capable de s’en servir.</b><br>
+  <b>Les onglets sur le côté, la page en grand. Un navigateur Mac léger, avec une IA qui clique pour vous.</b><br>
   Le moteur WebKit de Safari, des onglets verticaux, des favoris et des dossiers de signets à gauche, et un panneau Claude qui lit les pages, clique et saisit du texte à votre place.
 </p>
 

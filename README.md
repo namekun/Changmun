@@ -3,7 +3,7 @@
 <h1 align="center">Changmun</h1>
 
 <p align="center">
-  <b>A light Mac browser with a sidebar and an AI that can use it.</b><br>
+  <b>Tabs on the side, pages front and center. A light Mac browser with an AI that clicks for you.</b><br>
   Safari's WebKit engine, vertical tabs, favorites and bookmark folders on the left, and a Claude panel that reads pages, clicks and types for you.
 </p>
 

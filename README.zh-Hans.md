@@ -3,7 +3,7 @@
 <h1 align="center">Changmun</h1>
 
 <p align="center">
-  <b>一款轻巧的 Mac 浏览器：带边栏，还有能替你操作它的 AI。</b><br>
+  <b>标签页在旁，页面更大。AI 替你点击的轻量 Mac 浏览器。</b><br>
   采用 Safari 的 WebKit 引擎，左侧是垂直标签页、个人收藏和书签文件夹，Claude 面板可以读取页面、点按和输入。
 </p>
 

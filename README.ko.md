@@ -3,7 +3,7 @@
 <h1 align="center">Changmun</h1>
 
 <p align="center">
-  <b>사이드바가 달린 가벼운 Mac 브라우저. AI가 직접 쓰기도 해요.</b><br>
+  <b>탭은 옆에, 페이지는 크게. AI가 대신 눌러 주는 가벼운 Mac 브라우저.</b><br>
   Safari와 같은 WebKit 엔진 위에, 왼쪽에는 세로 탭·즐겨찾기·북마크 폴더를, 오른쪽에는 페이지를 읽고 클릭하고 입력까지 해 주는 Claude 패널을 얹었어요.
 </p>
 
