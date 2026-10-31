@@ -126,10 +126,12 @@ extension Browser {
     func unpinFolder(_ key: String, named name: String) {
         let space = spaceID
         let below = key + " / "
+        // A folder inside this one that is pinned in this space too keeps showing its tabs.
+        let stillPinned = spaces.space(space).pinnedFolders.filter { $0.hasPrefix(below) }
         let bound = tabs.filter { tab in
             guard tab.spaceID == space, let bookmark = tab.bookmarkKey else { return false }
             let folder = String(bookmark.prefix { $0 != "\n" })
-            return folder == key || folder.hasPrefix(below)
+            return (folder == key || folder.hasPrefix(below)) && !stillPinned.contains { folder == $0 || folder.hasPrefix($0 + " / ") }
         }
         spaces.unpinFolder(key, in: space)
         guard !bound.isEmpty else { return }

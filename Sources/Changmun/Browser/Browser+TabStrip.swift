@@ -21,8 +21,6 @@ enum TabStripItem: Identifiable {
 }
 
 extension Browser {
-    /// The strip's items: the favorites as pinned tiles, then each loose tab, and each group as its chip followed by its tabs, none of
-    /// them but the shown one while the group is folded (as in the sidebar's list).
     /// The last tab on show of each group that has one, by that tab: where the end of the group is.
     var lastShownTabOfGroups: [Int: UUID] {
         var ends: [Int: UUID] = [:]
@@ -32,6 +30,8 @@ extension Browser {
         return ends
     }
 
+    /// The strip's items: the favorites as pinned tiles, then each loose tab, and each group as its chip followed by its tabs, none of
+    /// them but the shown one while the group is folded (as in the sidebar's list).
     func stripItems(favorites: [Library.Entry]) -> [TabStripItem] {
         var items = favorites.map(TabStripItem.favorite)
         for item in listing {

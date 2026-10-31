@@ -249,7 +249,8 @@ enum SidebarDrag {
         return true
     }
 
-    /// A tab (or a link) dropped below the last tab of a group goes to the end of the group, from inside it too.
+    /// A tab dropped below the last tab of a group goes to the end of the group, from inside it too. The strip it is dropped on shows only while
+    /// something of the sidebar's is dragged: not for a link dragged from a page, which dropped on the group's header goes to the end of the group.
     static func drop(_ items: [String], onEndOf group: UUID, browser: Browser) -> Bool {
         guard groupID(items) == nil else { dragging = nil; return false }
         return drop(items, onGroup: group, browser: browser)

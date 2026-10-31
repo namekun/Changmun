@@ -161,6 +161,28 @@ extension SharedAgentState {
             }
         }
 
+        @Test func unpinningAFolderLeavesTheTabsOfAnInnerFolderThatIsPinnedToo() {
+            rig { browser, store in
+                let id = browser.spaceID
+                let inner = key + " / Inner", deeper = inner + " / Deeper"
+                defer { Library.shared.removeFolder(inner); Library.shared.removeFolder(deeper) }
+                var tabs: [Tab] = []
+                for (n, folder) in [(1, key), (2, inner), (3, deeper)] {
+                    Library.shared.addBookmark(url: "https://folder-rename.example/\(n)", title: "\(n)", folder: folder)
+                    let tab = browser.openTab(url: URL(string: "https://folder-rename.example/\(n)"), activate: false)
+                    browser.bind(tab, to: Browser.bookmarkKey(url: "https://folder-rename.example/\(n)", folder: folder))
+                    tabs.append(tab)
+                }
+                store.pinFolder(inner, in: id)
+                store.pinFolder(key, in: id)
+                #expect(store.space(id).pinnedFolders.contains(inner) && store.space(id).pinnedFolders.contains(key))
+                browser.unpinFolder(key, named: "Reading")
+                #expect(tabs[0].bookmarkKey == nil, "the folder's own tab comes back")
+                #expect(tabs[1].bookmarkKey != nil && tabs[2].bookmarkKey != nil, "the pinned inner folder and what is in it stay bound")
+                #expect(store.space(id).pinnedFolders.contains(inner))
+            }
+        }
+
         @Test func aDoubleClickLeavesTheFolderAsOpenAsItWasAndRenamesIt() {
             rig { browser, store in
                 let id = browser.spaceID

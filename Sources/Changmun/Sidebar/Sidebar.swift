@@ -403,9 +403,9 @@ struct Sidebar: View {
     }
 }
 
-/// The space between two parts of the sidebar.
-/// A strip below the last row of a group or a folder while something is being dragged, to drop on to put it at the end (the rows take
-/// what is dropped just above them).
+/// A strip below the last row of a group or a folder while something of the sidebar's is being dragged (see `SidebarDragWatcher`), to drop
+/// on to put it at the end (the rows take what is dropped just above them). A link dragged from a page doesn't make the watcher true, so
+/// the strip doesn't appear for it; dropped on a group's header it goes to the end of the group already.
 struct EndOfListDrop: View {
     let depth: Int
 
@@ -418,6 +418,7 @@ struct EndOfListDrop: View {
     }
 }
 
+/// The space between two parts of the sidebar.
 struct SectionGap: View {
     var body: some View {
         Color.clear
