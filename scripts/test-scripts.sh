@@ -235,5 +235,37 @@ grep -rnE "$VIEW_NAMES" "${MODEL_DIRS[@]}" >"$WORK/layer.txt"
 check "the model folders don't mention the view layer" test ! -s "$WORK/layer.txt"
 [[ -s "$WORK/layer.txt" ]] && cat "$WORK/layer.txt" >&2
 
+echo "spacing grid guard"
+# The homepage's spacing sits on an 8 grid with a 4 half-step: every px in a padding, margin or gap (the CSS and style="" attributes) is a multiple of 8, or 4.
+# Exempt: the -1px hairline overlap of .sr, and the middle (fluid) argument of clamp(), which may carry any px term; its bounds are checked.
+off_grid_spacing() {
+    { sed -n '/<style>/,/<\/style>/p' "$1"; grep -oE 'style="[^"]*"' "$1"; } \
+        | grep -oE '(^|[;{ "])((padding|margin)[a-z-]*|(row-|column-)?gap|--gap|--pad-sec):[^;}"]*' \
+        | sed -E 's/clamp\(([^,)]*),[^,)]*,/clamp(\1,/g; s/env\([^)]*\)//g' \
+        | grep -oE '(^|[^0-9.])-?[0-9.]+px' | grep -oE '\-?[0-9.]+px' | grep -vx -e '-1px' \
+        | awk '{ v = $0; sub(/px$/, "", v); if (v % 8 != 0 && v != 4) print $0 }'
+}
+cat >"$WORK/guard/grid-bad.html" <<'HTML'
+<style>
+.a { padding: 6px 16px; margin: clamp(10px, 2vw, 24px) auto 0; }
+.b { gap: 12px 8px; }
+</style>
+<p style="margin-top:20px">
+HTML
+cat >"$WORK/guard/grid-ok.html" <<'HTML'
+<style>
+.a { padding: 0 16px 4px; margin: -1px; gap: clamp(16px, .9vw + 11px, 24px); }
+.b { padding: 24px 0 max(32px, env(safe-area-inset-bottom)); --pad-sec: clamp(112px, 5.6vw + 88px, 168px); }
+.c { width: 22px; font-size: 13px; top: 6px; }
+</style>
+<p style="margin:clamp(16px,2vw,24px) auto 0;width:92%">
+HTML
+check "the guard sees values off the grid" test "$(off_grid_spacing "$WORK/guard/grid-bad.html" | tr '\n' ' ')" = "6px 10px 12px 20px "
+check "the guard lets the grid, hairlines, fluid middles and env() be" refuses test -n "$(off_grid_spacing "$WORK/guard/grid-ok.html")"
+check "the homepage exists" test -f docs/index.html
+off_grid_spacing docs/index.html >"$WORK/grid.txt"
+check "the homepage's spacing is on the 8 grid" test ! -s "$WORK/grid.txt"
+[[ -s "$WORK/grid.txt" ]] && { echo "off the grid:" >&2; cat "$WORK/grid.txt" >&2; }
+
 (( FAILED )) && { echo "✘ script tests failed" >&2; exit 1; }
 echo "✔ script tests passed"
