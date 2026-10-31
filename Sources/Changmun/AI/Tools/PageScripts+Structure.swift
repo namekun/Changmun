@@ -12,23 +12,21 @@ extension PageScripts {
     /// `cleanURL(address, base)` gives {origin, path, search, hash, href} for a web address (or a URL), else null.
     static let structureShared = #"""
     const fromDocument = name => Object.getOwnPropertyDescriptor(Document.prototype, name).get.call(document);
-    const SECRET_PARAM = /token|key|sig|secret|auth|session|code|credential|expires|x-amz|x-goog/i;
+    const SECRET_PARAM = /(^|[-_.])(token|key|sig|signature|secret|auth|session|sid|code|credentials?|expires|password|passwd|pwd|otp)($|[-_.])|^x-(amz|goog)-|apikey|accesstoken|authtoken|authcode|sessionid|sessiontoken|jwt/i;
     const cleanURL = (input, base) => {
       let u;
       try { u = typeof input === 'string' ? new URL(input.trim(), base) : input; } catch (e) { return null; }
       if (!/^https?:$/.test(u.protocol)) return null;
-      let search = '';
-      if (u.search.length > 1) {
-        search = '?' + u.search.slice(1).split('&').map(item => {
-          const at = item.indexOf('=');
-          if (at < 0 || at === item.length - 1) return item;
-          let name = item.slice(0, at);
-          try { name = decodeURIComponent(name); } catch (e) {}
-          return SECRET_PARAM.test(name) ? item.slice(0, at + 1) + '…' : item;
-        }).join('&');
-      }
-      let hash = u.hash;
-      try { if (/token=/i.test(decodeURIComponent(hash))) hash = ''; } catch (e) { if (/token=/i.test(hash)) hash = ''; }
+      const secret = item => {
+        const at = item.indexOf('=');
+        if (at < 1 || at === item.length - 1) return false;
+        let name = item.slice(0, at);
+        try { name = decodeURIComponent(name); } catch (e) {}
+        return SECRET_PARAM.test(name);
+      };
+      const search = u.search.length > 1 ? '?' + u.search.slice(1).replace(/[^&;]+/g, item => secret(item) ? item.slice(0, item.indexOf('=') + 1) + '…' : item) : '';
+      // A fragment holding a secret (a sign-in's #access_token=…) goes as a whole: it has no use of its own to the reader.
+      const hash = u.hash.slice(1).replace(/^[!/?]+/, '').split(/[&;?]/).some(secret) ? '' : u.hash;
       const origin = u.protocol + '//' + u.host;
       return {origin, path: u.pathname, search, hash, href: origin + u.pathname + search + hash};
     };

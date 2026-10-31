@@ -163,6 +163,21 @@ extension SharedAgentState {
             #expect(out == "> First\n>\n> Second\n>\n> > Inner\n\nAfter", Comment(rawValue: out))
         }
 
+        @Test func onlyParametersNamedForSecretsAreHiddenInLinks() async throws {
+            let out = try await markdown("""
+                <body><p><a href="/s?keyword=tea&amp;zipcode=123&amp;monkey=1&amp;sortKey=up">Plain</a> <a href="/s?password=a&amp;otp=b&amp;apiKey=c&amp;refresh_token=d&amp;sessionId=e&amp;client-secret=f">Secret</a></p></body>
+                """)
+            #expect(out == "[Plain](/s?keyword=tea&zipcode=123&monkey=1&sortKey=up) [Secret](/s?password=…&otp=…&apiKey=…&refresh_token=…&sessionId=…&client-secret=…)", Comment(rawValue: out))
+        }
+
+        @Test func aSecretAfterASemicolonOrInAFragmentIsHiddenToo() async throws {
+            let out = try await markdown("""
+                <body><p><a href="/a?x=1;token=SECRET">Semi</a> <a href="/b#code=SECRET&amp;state=1">Hash</a> <a href="/c#/route?sid=SECRET">Route</a> <a href="/d#section-2">Plain</a></p></body>
+                """)
+            #expect(!out.contains("SECRET"), Comment(rawValue: out))
+            #expect(out == "[Semi](/a?x=1;token=…) [Hash](/b) [Route](/c) [Plain](/d#section-2)", Comment(rawValue: out))
+        }
+
         @Test func aLinkThatLooksLikeAnotherSiteKeepsItsWholeAddress() async throws {
             let out = try await markdown("""
                 <body><p><a href="https://lab.test//other.example/x">Double</a> <a href="https://lab.test:8443/port">Port</a> <a href="http://lab.test/plain">Scheme</a></p></body>
