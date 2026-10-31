@@ -36,8 +36,8 @@ struct WebCard: View {
                     StatusLine(text: text).transition(.opacity)
                 }
             }
-            .animation(.easeOut(duration: 0.12), value: overlay.hoveredLink)
-            .animation(.easeOut(duration: 0.12), value: overlay.statusMessage)
+            .animation(Motion.quick, value: overlay.hoveredLink)
+            .animation(Motion.quick, value: overlay.statusMessage)
             .animation(Motion.quick, value: browser.findBarVisible)
     }
 

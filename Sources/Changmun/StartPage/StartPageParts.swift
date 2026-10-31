@@ -14,8 +14,11 @@ struct StartItemButton: ViewModifier {
     var hint: String?
     var focused = false
     var radius: CGFloat = 12
+    /// A tile sinks a little under the pointer; a row only changes its fill.
+    var tile = false
     var actions: [AccessibleButton.Action] = []
     let activate: (_ inNewTab: Bool) -> Void
+    @StateObject private var press = PressState()
 
     func body(content: Content) -> some View {
         content
@@ -23,6 +26,8 @@ struct StartItemButton: ViewModifier {
                 if focused { RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Color.accentColor, lineWidth: 2) }
             }
             .contentShape(Rectangle())
+            .pressArea(press)
+            .pressScale(tile && press.isPressed)
             .onTapGesture { activate(Browser.commandClick) }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(label)
@@ -35,9 +40,9 @@ struct StartItemButton: ViewModifier {
 }
 
 extension View {
-    func startItem(_ label: String, value: String? = nil, hint: String? = nil, focused: Bool = false, radius: CGFloat = 12,
+    func startItem(_ label: String, value: String? = nil, hint: String? = nil, focused: Bool = false, radius: CGFloat = 12, tile: Bool = false,
                    actions: [AccessibleButton.Action] = [], activate: @escaping (_ inNewTab: Bool) -> Void) -> some View {
-        modifier(StartItemButton(label: label, value: value, hint: hint, focused: focused, radius: radius, actions: actions, activate: activate))
+        modifier(StartItemButton(label: label, value: value, hint: hint, focused: focused, radius: radius, tile: tile, actions: actions, activate: activate))
     }
 }
 
@@ -110,7 +115,7 @@ struct StartFavoriteTile: View {
         .frame(width: width)
         .padding(.vertical, 4)
         .onHover { hover = $0 }
-        .startItem(name, value: URL(string: entry.url)?.host().map(DisplayHost.trimmed), focused: focused, radius: Metrics.cardRadius, activate: open)
+        .startItem(name, value: URL(string: entry.url)?.host().map(DisplayHost.trimmed), focused: focused, radius: Metrics.cardRadius, tile: true, activate: open)
     }
 }
 
@@ -168,7 +173,7 @@ struct StartContinueCardView: View {
         .overlay(alignment: .topTrailing) { if hover { HideButton(action: hide).padding(8) } }
         .onHover { hover = $0 }
         .startItem(card.title, value: Accessibility.join([card.isClosedTab ? String(localized: "Closed Tab") : nil, host, when]),
-                   hint: card.isClosedTab ? String(localized: "Reopens the tab") : nil, focused: focused, radius: Metrics.cardRadius,
+                   hint: card.isClosedTab ? String(localized: "Reopens the tab") : nil, focused: focused, radius: Metrics.cardRadius, tile: true,
                    actions: [AccessibleButton.Action(String(localized: "Hide from This Page"), hide)], activate: open)
     }
 }
@@ -316,7 +321,7 @@ struct StartAIChip: View {
         .frame(height: 28)
         .startPlate(radius: Metrics.cardRadius, fill: hover ? Theme.ink(0.1) : Theme.ink(0.05))
         .onHover { hover = $0 }
-        .startItem(String(localized: "Ask AI: \(suggestion.title)"), focused: focused, radius: Metrics.cardRadius) { _ in send() }
+        .startItem(String(localized: "Ask AI: \(suggestion.title)"), focused: focused, radius: Metrics.cardRadius, tile: true) { _ in send() }
     }
 }
 
@@ -342,7 +347,7 @@ struct StartAICard: View {
         .frame(maxWidth: .infinity, minHeight: 56, maxHeight: 56)
         .startPlate(radius: Metrics.cardRadius, fill: hover ? Theme.ink(0.09) : Theme.ink(0.045))
         .onHover { hover = $0 }
-        .startItem(String(localized: "Ask AI: \(suggestion.title)"), value: suggestion.detail, focused: focused, radius: Metrics.cardRadius) { _ in send() }
+        .startItem(String(localized: "Ask AI: \(suggestion.title)"), value: suggestion.detail, focused: focused, radius: Metrics.cardRadius, tile: true) { _ in send() }
     }
 }
 

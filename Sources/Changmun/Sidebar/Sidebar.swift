@@ -78,7 +78,7 @@ struct Sidebar: View {
                 .padding(.horizontal, Metrics.inset)
                 .padding(.top, toolbarHere ? Metrics.section : Metrics.inset)
                 .padding(.bottom, Metrics.inset)
-                .animation(Motion.standard, value: browser.tabs.map(\.id))
+                .animation(Motion.pointer, value: browser.tabs.map(\.id))
                 .animation(Motion.standard, value: browser.groups)
                 .animation(Motion.standard, value: browser.tabs.map(\.groupID))
                 .animation(Motion.standard, value: browser.lastTidy)
@@ -88,10 +88,10 @@ struct Sidebar: View {
                 .animation(Motion.quick, value: dropTarget)
                 .animation(Motion.quick, value: drag.isDragging)
             }
-            // A tab switched to from the keyboard or the command bar comes into view.
+            // A tab switched to from the keyboard or the command bar comes into view, without a scroll to watch: only the pointer animates.
             .onChange(of: browser.activeID) { _, id in
                 guard let id else { return }
-                withAnimation(Motion.standard) { scroller.scrollTo("tab:\(id)") }
+                withAnimation(Motion.pointer) { scroller.scrollTo("tab:\(id)") }
             }
             }
             .modifier(SpaceSlide(spaceID: browser.spaceID, direction: browser.spaceDirection))

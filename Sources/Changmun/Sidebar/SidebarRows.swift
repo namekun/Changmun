@@ -172,7 +172,7 @@ struct BookmarkRow<MenuItems: View>: View {
             if renaming {
                 TextField("Bookmark name", text: $name)
                     .textFieldStyle(.plain)
-                    .font(state == .shown ? .rowSelected : .row)
+                    .font(.row)
                     .foregroundStyle(Theme.primary)
                     // A title longer than the field scrolls inside it: it must not draw over the icon before it.
                     .clipped()
@@ -190,7 +190,7 @@ struct BookmarkRow<MenuItems: View>: View {
                     }
             } else {
                 Text(entry.title.isEmpty ? entry.url : entry.title)
-                    .font(state == .shown ? .rowSelected : .row)
+                    .font(.row)
                     .foregroundStyle(state == .closed ? Theme.secondary : Theme.primary)
                     .lineLimit(1)
             }

@@ -116,7 +116,7 @@ struct ChatTranscript<Empty: View>: View {
             .onChange(of: chat.items) {
                 if chat.items.last?.kind == .user { following = true }
                 guard following else { return }
-                withAnimation(.easeOut(duration: 0.15)) {
+                withAnimation(Motion.quick) {
                     if chat.isRunning { proxy.scrollTo("typing", anchor: .bottom) } else if let last = rows.last { proxy.scrollTo(last.id, anchor: .bottom) }
                 }
             }

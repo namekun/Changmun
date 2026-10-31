@@ -134,6 +134,14 @@ enum Motion {
     static var reduced: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
     static var standard: Animation { reduced ? .easeOut(duration: 0.15) : .spring(response: 0.3, dampingFraction: 1) }
     static var quick: Animation { reduced ? .easeOut(duration: 0.1) : .spring(response: 0.2, dampingFraction: 1) }
+    /// For a change only the pointer should animate: a tab chosen with ⌘1-9, ⌃Tab or the command bar just happens, and the sidebar does
+    /// not scroll or shuffle its rows to follow it.
+    static var pointer: Animation? {
+        switch NSApp.currentEvent?.type {
+        case .leftMouseDown, .leftMouseUp, .leftMouseDragged, .rightMouseDown, .rightMouseUp, .otherMouseDown, .otherMouseUp, .scrollWheel, .swipe: standard
+        default: nil
+        }
+    }
     /// A button sinking under the finger: quick, and without overshoot on the way back.
     static var press: Animation { .easeOut(duration: 0.1) }
 

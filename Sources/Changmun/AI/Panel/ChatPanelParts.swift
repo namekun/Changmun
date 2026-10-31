@@ -89,7 +89,7 @@ struct PromptChip: View {
             .frame(height: 28)
             .background(Capsule().fill(hover ? Theme.field : Theme.hoverTab))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressScaleStyle())
         .onHover { hover = $0 }
     }
 }

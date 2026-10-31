@@ -88,7 +88,7 @@ struct LoadingLine: View {
             if tab.isLoading {
                 Rectangle().fill(Theme.meter)
                     .frame(width: max(3, geo.size.width * min(1, max(0.05, tab.progress))), height: 2)
-                    .animation(.easeOut(duration: 0.2), value: tab.progress)
+                    .animation(Motion.standard, value: tab.progress)
                     .transition(.opacity)
             }
         }

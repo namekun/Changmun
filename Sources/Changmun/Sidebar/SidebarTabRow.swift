@@ -33,7 +33,7 @@ struct SidebarTabRow: View {
             if renaming {
                 TextField("Tab name", text: $name)
                     .textFieldStyle(.plain)
-                    .font(isActive ? .rowSelected : .row)
+                    .font(.row)
                     .foregroundStyle(Theme.primary)
                     .focused($editing)
                     .onAppear {
@@ -49,7 +49,7 @@ struct SidebarTabRow: View {
                     }
             } else {
                 Text(tab.displayTitle)
-                    .font(isActive ? .rowSelected : .row)
+                    .font(.row)
                     .lineLimit(1)
                     .foregroundStyle(isActive || !tab.isAsleep ? Theme.primary : Theme.secondary)
             }

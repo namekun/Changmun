@@ -177,7 +177,7 @@ struct Meter: View {
             }
         }
         .frame(height: 3)
-        .animation(.easeOut(duration: 0.2), value: fraction)
+        .animation(Motion.standard, value: fraction)
     }
 }
 
@@ -268,6 +268,13 @@ extension View {
     func pressScale(_ pressed: Bool) -> some View {
         scaleEffect(pressed && !Motion.reduced ? 0.97 : 1)
             .animation(Motion.reduced ? nil : Motion.press, value: pressed)
+    }
+}
+
+/// A plain button that settles to 97% while it is pressed: a chip, a tile.
+struct PressScaleStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.pressScale(configuration.isPressed)
     }
 }
 
