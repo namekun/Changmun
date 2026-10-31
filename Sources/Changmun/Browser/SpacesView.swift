@@ -348,7 +348,7 @@ struct SpaceSheet: View {
                 }
             }
         }
-        .padding(8)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(on ? tint.color.opacity(0.14) : Theme.field))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(on ? tint.color.opacity(0.7) : .clear, lineWidth: 1.5))
