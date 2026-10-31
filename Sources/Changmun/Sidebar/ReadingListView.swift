@@ -41,7 +41,7 @@ struct ReadingRow: View {
     var body: some View {
         HStack(spacing: Metrics.iconGap) {
             SiteIcon(url: item.url, size: Metrics.icon, keep: !browser.isPrivate)
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(item.title)
                     .font(item.read ? .row : .rowSelected)
                     .foregroundStyle(item.read ? Theme.dim : Theme.primary)

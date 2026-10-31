@@ -14,7 +14,7 @@ struct PageBar: View {
                 BarButton(symbol: "sidebar.left", help: browser.showSidebarOverlay ? String(localized: "Hide Sidebar") : String(localized: "Show Sidebar"),
                           label: String(localized: "Sidebar"), value: Accessibility.shownValue(browser.showSidebarOverlay)) { browser.showSidebarOverlay.toggle() }
             } else {
-                if !browser.showSidebar && !browser.fullScreen { Color.clear.frame(width: BrowserWindow.windowButtonsTrailing - Metrics.inset) }
+                if !browser.showSidebar && !browser.fullScreen { Color.clear.frame(width: BrowserWindow.windowButtonsTrailing - Metrics.inset - Metrics.rowGap) }
                 BarButton(symbol: "sidebar.left", help: browser.showSidebar ? String(localized: "Hide Sidebar") : String(localized: "Show Sidebar"),
                           label: String(localized: "Sidebar"), value: Accessibility.shownValue(browser.showSidebar)) { browser.showSidebar.toggle() }
             }
@@ -39,7 +39,7 @@ struct PageBar: View {
                 AIButton(isOn: browser.panelShown) { browser.showChat.toggle() }
             }
         }
-        .padding(.horizontal, 6)
+        .padding(.horizontal, 8)
         .frame(height: BrowserWindow.pageBarHeight)
         .padding(.top, BrowserWindow.cardInset)
         .background(WindowDragArea())
@@ -135,11 +135,11 @@ struct AIButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 Image(systemName: "sparkles").font(.system(size: 11, weight: .semibold))
                 Text("AI").font(.system(size: 12, weight: .semibold))
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 8)
             .frame(height: Metrics.control)
             .foregroundStyle(Theme.primary)
             .contentShape(Capsule())
@@ -154,11 +154,11 @@ struct AIButton: View {
 /// Where the AI button would be, in a private window.
 struct PrivateBadge: View {
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             Image(systemName: "eye.slash").font(.system(size: 11, weight: .semibold))
             Text("Private Window").font(.system(size: 12, weight: .semibold))
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 8)
         .frame(height: Metrics.control)
         .foregroundStyle(Theme.primary)
         .background(Capsule().strokeBorder(Theme.hairline, lineWidth: 0.5))

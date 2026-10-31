@@ -70,13 +70,13 @@ struct Hairline: View {
     }
 }
 
-/// Sizes on a 4 pt grid. Rows share one height, and a row inside another steps in by one icon column, so its icon
-/// lines up with the text above it.
+/// Sizes on a 4 pt grid, and spacing on an 8 pt grid with a 4 pt half step for tight gaps inside a component (scripts/test-scripts.sh checks it).
+/// Rows share one height, and a row inside another steps in by one icon column, so its icon lines up with the text above it.
 enum Metrics {
     /// From the window's edge to the sidebar's contents and to the AI panel's.
     static let inset: CGFloat = 8
     static let row: CGFloat = 28
-    static let rowGap: CGFloat = 2
+    static let rowGap: CGFloat = 4
     static let rowPadding: CGFloat = 8
     static let icon: CGFloat = 16
     static let iconGap: CGFloat = 8

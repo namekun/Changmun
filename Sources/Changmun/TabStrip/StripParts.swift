@@ -16,7 +16,7 @@ struct StripFavorite<MenuItems: View>: View {
         SiteIcon(url: entry.url, size: 16)
             .frame(width: TabStrip.favoriteWidth, height: StripTab.height)
             .overlay(alignment: .bottom) {
-                if state == .open { Circle().fill(Theme.dim).frame(width: 4, height: 4).padding(.bottom, 2) }
+                if state == .open { Circle().fill(Theme.dim).frame(width: 4, height: 4).padding(.bottom, 4) }
             }
             .rowChrome(hover: hover, selected: state == .shown)
             .onTapGesture(perform: open)
@@ -43,7 +43,7 @@ struct StripTab: View {
     @FocusState private var editing: Bool
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Favicon(tab: tab)
             if renaming {
                 TextField("Tab name", text: $name)
@@ -120,7 +120,7 @@ struct StripGroupChip: View {
     @FocusState private var editing: Bool
 
     private static let font = NSFont.systemFont(ofSize: 12, weight: .medium)
-    private static let padding: CGFloat = 10
+    private static let padding: CGFloat = 8
 
     /// A group keeps its colour: one of the space tints, picked by its id.
     static func tint(_ group: Browser.TabGroup) -> Color {

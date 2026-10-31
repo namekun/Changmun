@@ -138,7 +138,7 @@ struct Sidebar: View {
 
     private var favorites: some View {
         // As many tiles a row as the sidebar's width holds: four at the default width, up to seven when wide.
-        VStack(spacing: 0) {
+        VStack(spacing: Metrics.rowGap) {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 40), spacing: 4)], spacing: 4) {
                 ForEach(library.favorites(in: browser.favoritesFolder), id: \.url) { entry in
                     let key = Browser.bookmarkKey(url: entry.url, folder: browser.favoritesFolder)
@@ -161,7 +161,7 @@ struct Sidebar: View {
             }
             // Below the last tile, in the gap before the tabs, also when the last row is full.
             Color.clear
-                .frame(height: Metrics.section - Metrics.rowGap)
+                .frame(height: Metrics.section - 2 * Metrics.rowGap)
                 .contentShape(Rectangle())
                 .dropLine(dropTarget == "fav:end" && SidebarDrag.dragging != .folder)
                 .dropDestination(for: SidebarDrop.self) { items, _ in
@@ -212,7 +212,7 @@ struct Sidebar: View {
                         .textFieldStyle(.plain)
                         .font(.row)
                 }
-                .padding(.horizontal, 10)
+                .padding(.horizontal, 8)
                 .frame(height: Metrics.control)
                 .background(RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous).fill(Theme.field))
                 .padding([.horizontal, .top], Metrics.inset)
@@ -411,7 +411,7 @@ struct EndOfListDrop: View {
 
     var body: some View {
         Color.clear
-            .frame(height: 14)
+            .frame(height: 16)
             .contentShape(Rectangle())
             .padding(.leading, CGFloat(depth) * Metrics.indent)
             .accessibilityHidden(true)

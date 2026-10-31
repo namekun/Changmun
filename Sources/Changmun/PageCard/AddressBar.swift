@@ -35,7 +35,7 @@ struct AddressPill: View {
         // The lock opens the site's settings; the rest of the pill, the site's name included, edits the address.
         let hasSite = tab.url?.scheme?.hasPrefix("http") == true && host?.isEmpty == false
         HStack(spacing: 8) {
-            HStack(spacing: 2) {
+            HStack(spacing: 4) {
                 Image(systemName: tab.isUnverified ? "exclamationmark.triangle.fill" : tab.url?.scheme == "https" ? "lock.fill" : "globe")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(tab.isUnverified ? Theme.waiting : Theme.secondary)
@@ -129,7 +129,7 @@ struct AddressField: View {
             BookmarkStar(tab: tab)
             Keycap(focused ? "↵" : "⌘L")
         }
-        .padding(.leading, 10)
+        .padding(.leading, 8)
         .padding(.trailing, 4)
         .frame(height: Metrics.control)
         .background(FieldBackground(focused: focused))
@@ -157,7 +157,7 @@ struct AddressPlaceholder: View {
             Spacer()
         }
         .foregroundStyle(Theme.faint)
-        .padding(.leading, 10)
+        .padding(.leading, 8)
         .padding(.trailing, 4)
         .frame(height: Metrics.control)
         .background(RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous).fill(hover ? Theme.pill : Theme.field))

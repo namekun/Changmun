@@ -50,9 +50,9 @@ struct ChatHeader: View {
             }
             BarButton(symbol: "xmark", help: String(localized: "Close (⌘E)"), action: close)
         }
-        .padding(.horizontal, 6)
+        .padding(.horizontal, Metrics.inset)
         // In its own window the title starts past the window buttons, and the empty part of the row moves the window.
-        .padding(.leading, inWindow ? BrowserWindow.windowButtonsTrailing - Metrics.inset - 6 : 0)
+        .padding(.leading, inWindow ? BrowserWindow.windowButtonsTrailing - 2 * Metrics.inset : 0)
         // Level with the page card's bar beside it.
         .frame(height: BrowserWindow.pageBarHeight)
         .background { if inWindow { WindowDragArea() } }
@@ -88,7 +88,7 @@ struct ChatHeader: View {
                 Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold))
             }
             .foregroundStyle(Theme.primary)
-            .padding(.horizontal, 6)
+            .padding(.horizontal, 8)
             .frame(height: Metrics.control)
             .contentShape(Rectangle())
         }

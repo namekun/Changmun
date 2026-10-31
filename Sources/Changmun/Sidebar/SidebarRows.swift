@@ -27,7 +27,7 @@ struct FavoriteTile<MenuItems: View>: View {
             .frame(maxWidth: .infinity)
             .frame(height: Metrics.tile)
             .overlay(alignment: .bottom) {
-                if state == .open { Circle().fill(Theme.dim).frame(width: 4, height: 4).padding(.bottom, 2) }
+                if state == .open { Circle().fill(Theme.dim).frame(width: 4, height: 4).padding(.bottom, 4) }
             }
             .rowChrome(hover: hover, selected: state == .shown, radius: Metrics.fieldRadius)
             .onTapGesture(perform: open)

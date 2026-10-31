@@ -149,7 +149,7 @@ struct Keycap: View {
 
     var body: some View {
         Text(verbatim: key).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.ink(0.7))
-            .padding(.horizontal, 5).frame(minWidth: 20, minHeight: 17)
+            .padding(.horizontal, 4).frame(minWidth: 20, minHeight: 17)
             .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(Theme.field))
             .fixedSize()
             .accessibilityHidden(true)
