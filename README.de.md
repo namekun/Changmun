@@ -25,13 +25,13 @@
 
 ## Warum Changmun
 
-- **Leicht.** Chromium-Browser bringen jeweils ihr eigenes Chromium mit. Changmun leiht sich stattdessen die WebKit-Engine, die ohnehin auf deinem Mac liegt und die auch Safari verwendet. Die App belegt 21 MB auf der Festplatte, der Download ist etwa 7 MB groß ([wie das im Vergleich aussieht](#im-vergleich)). Das schont den Akku, und Sicherheitskorrekturen der Engine kommen mit den Updates von macOS und Safari.
+- **Leicht.** Chromium-Browser bringen jeweils ihr eigenes Chromium mit. Changmun leiht sich stattdessen die WebKit-Engine, die ohnehin auf deinem Mac liegt und die auch Safari verwendet. Die App belegt 21 MB auf der Festplatte, der Download ist etwa 7 MB groß ([wie das im Vergleich aussieht](#im-vergleich-zu-anderen-browsern)). Das schont den Akku, und Sicherheitskorrekturen der Engine kommen mit den Updates von macOS und Safari.
 - **Eine Seitenleiste wie bei Arc und Dia.** Vertikale Tabs, deren Titel genug Platz haben, dazu Favoriten als Kacheln, Lesezeichenordner, Tab-Gruppen und Spaces. Lieber eine Tab-Leiste oben? Das ist eine Einstellung.
 - **Eine KI, die den Browser bedient.** Das Claude-Panel liest Seiten und klickt und tippt für dich, über deine vorhandene `claude`-CLI. Es bekommt Hände, aber keinen Freifahrtschein: Bevor etwas riskant wird, fragt es nach.
 - **Standardmäßig privat.** Kein Konto, kein Server, keine Analyse, also nichts, wofür du dich anmelden müsstest. Werbe- und Tracker-Blocker sind eingebaut.
 - **Zieht mit Sack und Pack um.** Importiert Lesezeichen und Verlauf aus Safari und Chromium-Browsern, aus Chromium-Browsern auch Passwörter und Anmeldungen. Die Passwörter von Safari bleiben zurück: macOS gibt sie an keine andere App heraus.
 
-## Im Vergleich
+## Im Vergleich zu anderen Browsern
 
 Changmun versucht nicht, jeden Browser in allem zu schlagen. Hier steht, wo er anders ist und wo du mit einem anderen besser fährst. Die Größen wurden im Oktober 2026 auf einem Mac mit Apple Chip gemessen; der Rest stammt aus dem, was jedes Projekt über sich selbst sagt. Falls etwas veraltet ist, [eröffne bitte ein Issue](https://github.com/namekun/Changmun/issues).
 
