@@ -122,7 +122,7 @@ struct StepChip: View {
     }
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 4) {
             Image(systemName: item.symbol ?? "cursorarrow.rays").font(.system(size: 9.5, weight: .semibold))
             Text(label).lineLimit(1).truncationMode(.middle)
             if item.outcome?.isProblem == true {
@@ -131,7 +131,7 @@ struct StepChip: View {
         }
         .font(.system(size: 11, weight: .semibold))
         .foregroundStyle(item.outcome?.isProblem == true ? Theme.waitingText : Theme.secondary)
-        .padding(.horizontal, 9)
+        .padding(.horizontal, 8)
         .frame(height: 22)
         .background(Capsule().fill(Theme.selected))
         .help(label)
@@ -148,21 +148,21 @@ struct ChatStepsRow: View {
     var body: some View {
         switch row {
         case .live(_, let hidden, let steps):
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 if hidden > 0 {
                     Text("+\(hidden) earlier steps").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.faint)
                 }
                 ForEach(steps) { StepChip(item: $0) }
             }
         case .folded(_, let steps):
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Button { open.toggle() } label: {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 4) {
                         Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold)).rotationEffect(.degrees(open ? 90 : 0))
                         Text("\(steps.count) steps").font(.system(size: 11, weight: .semibold))
                     }
                     .foregroundStyle(Theme.secondary)
-                    .padding(.horizontal, 9)
+                    .padding(.horizontal, 8)
                     .frame(height: 22)
                     .background(Capsule().fill(Theme.selected))
                     .contentShape(Capsule())
@@ -185,7 +185,7 @@ struct TurnSummaryRow: View {
     @State private var reopened = false
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             Image(systemName: "square.on.square").font(.system(size: 10, weight: .semibold))
             Text(summary.text).lineLimit(2)
             if let chat, !reopened, chat.canReopen(turn: summary.turn) {

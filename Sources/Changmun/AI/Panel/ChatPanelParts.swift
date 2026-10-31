@@ -16,7 +16,7 @@ struct QueuedChip: View {
         }
         .font(.system(size: 11, weight: .semibold))
         .foregroundStyle(Theme.secondary)
-        .padding(.horizontal, 9)
+        .padding(.horizontal, 8)
         .frame(height: 22)
         .background(Capsule().fill(Theme.selected))
         .help(text)
@@ -37,7 +37,7 @@ struct AttachedTabChip: View {
         }
         .font(.system(size: 11, weight: .semibold))
         .foregroundStyle(Theme.secondary)
-        .padding(.horizontal, 9)
+        .padding(.horizontal, 8)
         .frame(height: 22)
         .background(Capsule().fill(Theme.selected))
         .help(tab.url?.absoluteString ?? "")
@@ -58,12 +58,12 @@ struct ChatWelcome: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("How can I help?").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.primary)
             Text("I can read the page you're viewing, click, type and open tabs.")
                 .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 ForEach(prompts, id: \.self) { prompt in
                     PromptChip(text: prompt) { send(prompt) }
                 }
@@ -81,11 +81,11 @@ struct PromptChip: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 Image(systemName: "text.cursor").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.faint)
                 Text(text).font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.primary)
             }
-            .padding(.horizontal, 11)
+            .padding(.horizontal, 8)
             .frame(height: 28)
             .background(Capsule().fill(hover ? Theme.field : Theme.hoverTab))
         }
@@ -106,12 +106,12 @@ struct Working: View {
     @State private var open = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Button { open.toggle() } label: {
                 TimelineView(.periodic(from: started ?? .now, by: 1)) { context in
                     let elapsed = started.map { ElapsedText.text(seconds: Int(context.date.timeIntervalSince($0))) }
                     let label = elapsed.map { String(localized: "Working for \($0)") } ?? String(localized: "Working")
-                    HStack(spacing: 6) {
+                    HStack(spacing: 4) {
                         Circle().fill(Theme.working).frame(width: 6, height: 6).opacity(on ? 1 : 0.35)
                         Text(verbatim: label)
                         if let step {
@@ -154,15 +154,15 @@ struct AttachedPageCard: View {
                     Image(systemName: "globe").font(.system(size: 12)).foregroundStyle(Theme.faint).frame(width: 16, height: 16)
                 }
             }
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(verbatim: page.title).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(Theme.primary)
                     .lineLimit(1).truncationMode(.tail)
                 Text(verbatim: page.host).font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.faint)
                     .lineLimit(1).truncationMode(.middle)
             }
         }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
         .frame(maxWidth: 220, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.hoverTab))
         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.hairline.opacity(0.5), lineWidth: 0.5))

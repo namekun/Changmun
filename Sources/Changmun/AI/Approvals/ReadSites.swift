@@ -17,7 +17,7 @@ struct ReadSitesRow: View {
                         Spacer(minLength: 0)
                     }
                     .foregroundStyle(Theme.secondary)
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, 8)
                     .frame(height: 20)
                     .contentShape(Rectangle())
                 }
@@ -50,7 +50,7 @@ private struct ReadSitesList: View {
     let allowed: [String]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             if !allowed.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Allowed for this chat").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
@@ -77,7 +77,7 @@ private struct ReadSitesList: View {
                 }
             }
         }
-        .padding(12)
+        .padding(16)
         .frame(width: 260, alignment: .leading)
     }
 }

@@ -65,7 +65,7 @@ struct AIGuidance: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: compact ? 10 : 12) {
+        VStack(alignment: .leading, spacing: compact ? 8 : 16) {
             Text(title).font(.system(size: compact ? 15 : 18, weight: .semibold)).foregroundStyle(compact ? Theme.primary : Color.primary)
             Text(message)
                 .font(.system(size: compact ? 12 : 13.5, weight: compact ? .medium : .regular))
@@ -87,7 +87,7 @@ struct AIGuidance: View {
             if availability != .ready {
                 Button("Get Claude Code") { NSWorkspace.shared.open(AIAvailability.claudeURL) }
                     .buttonStyle(SecondaryButton())
-                    .padding(.top, 2)
+                    .padding(.top, 4)
             }
         }
     }

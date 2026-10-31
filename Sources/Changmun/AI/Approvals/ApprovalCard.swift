@@ -279,7 +279,7 @@ struct ApprovalCardHost: View {
                 ApprovalCardView(card: card, waiting: cards.cards.filter { $0.browser === browser }.count - 1)
                     .id(card.id)
                     .padding(.horizontal, 4)
-                    .padding(.bottom, 6)
+                    .padding(.bottom, 8)
             }
         }
         .onDisappear { ApprovalCards.shared.moveToSheet(for: browser) }
@@ -298,7 +298,7 @@ struct ApprovalCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: "hand.raised.fill").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.waitingText).decorative()
                 Text(verbatim: card.prompt.message).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.primary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -320,7 +320,7 @@ struct ApprovalCardView: View {
             }
             buttons
         }
-        .padding(10)
+        .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.card))
         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.waiting.opacity(0.6), lineWidth: 1))
@@ -342,14 +342,14 @@ struct ApprovalCardView: View {
 
     /// The exact text, whole: scrollable when long, never cut here.
     private func excerpt(label: String, text: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             if !label.isEmpty {
                 Text(verbatim: label).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(Theme.faint)
             }
             ScrollView {
                 Text(verbatim: text).font(.system(size: 12)).foregroundStyle(Theme.body).textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(6)
+                    .padding(8)
             }
             .frame(maxHeight: 110)
             .fixedSize(horizontal: false, vertical: true)
@@ -358,8 +358,8 @@ struct ApprovalCardView: View {
     }
 
     private var buttons: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 6) {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
                 ForEach(card.buttons.filter { $0.0 != .site }, id: \.0) { choice, title in
                     button(choice, title)
                 }
@@ -376,7 +376,7 @@ struct ApprovalCardView: View {
             guard choice == .deny || ApprovalCards.shared.mayPressYes(card, choice) else { return }
             card.answer(choice)
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 Text(verbatim: title).font(.system(size: 11.5, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
                 Keycap(choice == .deny ? "↵" : choice == .once ? "⌘↵" : "⌥⌘↵")
             }

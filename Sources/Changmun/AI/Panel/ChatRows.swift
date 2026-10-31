@@ -28,7 +28,7 @@ struct ChatRow: View {
     var body: some View {
         switch item.kind {
         case .user:
-            VStack(alignment: .trailing, spacing: 6) {
+            VStack(alignment: .trailing, spacing: 8) {
                 // The pages the message went with, above its words.
                 if !item.pages.isEmpty {
                     VStack(alignment: .trailing, spacing: 4) {
@@ -43,7 +43,7 @@ struct ChatRow: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Theme.primary)
                         .textSelection(.enabled)
-                        .padding(.horizontal, 12).padding(.vertical, 7)
+                        .padding(.horizontal, 16).padding(.vertical, 8)
                         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.field))
                         .accessibilityLabel(Accessibility.youSaid(item.text))
                 }
@@ -54,7 +54,7 @@ struct ChatRow: View {
         case .tool:
             StepChip(item: item)
         case .note:
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Image(systemName: "info.circle").font(.system(size: 11))
                 Text(item.text).textSelection(.enabled)
             }
@@ -72,7 +72,7 @@ struct AnswerRow: View {
     @State private var hover = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 4) {
             MarkdownView(text: text)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Theme.body)
@@ -102,14 +102,14 @@ struct ChatTranscript<Empty: View>: View {
         let retrying = chat.isRunning ? nil : chat.items.last(where: { $0.kind == .error })?.id
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
+                LazyVStack(alignment: .leading, spacing: 16) {
                     if chat.items.isEmpty { empty() }
                     ForEach(rows) { row in
                         ChatRowView(row: row, chat: chat, retrying: retrying).id(row.id)
                     }
                     if chat.isRunning { Working(started: chat.runStarted, step: chat.step, steps: live).id("typing") }
                 }
-                .padding(.vertical, 12)
+                .padding(.vertical, 16)
                 .background(ScrollEndWatcher(atEnd: $following))
             }
             .scrollIndicators(.never)

@@ -45,7 +45,7 @@ struct ChatPanel: View {
             if !chat.queue.isEmpty { queued }
             if let notice = chat.notice {
                 Text(notice).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waitingText)
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6).padding(.bottom, 6)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8).padding(.bottom, 8)
             }
             // A run under way can always be stopped.
             composer.disabled(!ready && !chat.isRunning).opacity(ready || chat.isRunning ? 1 : 0.4)
@@ -68,7 +68,7 @@ struct ChatPanel: View {
     /// The tabs and images attached as context, each removable; the "+" in the box adds more.
     private var attachments: some View {
         ScrollView(.horizontal) {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 // The tab the AI takes as current is the one in front when the message goes out.
                 if !browser.isPrivate, let current = Browser.recent?.active { CurrentTabChip(tab: current) }
                 ForEach(chat.attachedTabs) { tab in
@@ -79,14 +79,14 @@ struct ChatPanel: View {
         }
         .scrollIndicators(.never)
         .padding(.horizontal, 4)
-        .padding(.bottom, 6)
+        .padding(.bottom, 8)
     }
 
     /// The messages waiting for the run under way to end, each removable.
     private var queued: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             ScrollView(.horizontal) {
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     ForEach(chat.queue) { message in
                         QueuedChip(text: message.text) { chat.removeQueued(message.id) }
                     }
@@ -104,13 +104,13 @@ struct ChatPanel: View {
             }
         }
         .padding(.horizontal, 4)
-        .padding(.bottom, 6)
+        .padding(.bottom, 8)
     }
 
     private var composer: some View {
         VStack(spacing: 0) {
             HStack(alignment: .bottom, spacing: 8) {
-                ComposerPlusMenu(chat: chat, browser: browser).padding(.bottom, 3)
+                ComposerPlusMenu(chat: chat, browser: browser).padding(.bottom, 4)
                 ZStack(alignment: .topLeading) {
                     if draft.isEmpty {
                         Text("Ask about this page, or give it a task")
@@ -123,19 +123,19 @@ struct ChatPanel: View {
                     }
                 }
                 .frame(height: draftHeight)
-                .padding(.vertical, 3)
-                if ComposerMicButton.available { ComposerMicButton().padding(.bottom, 3) }
+                .padding(.vertical, 4)
+                if ComposerMicButton.available { ComposerMicButton().padding(.bottom, 4) }
                 if chat.isRunning {
-                    ComposerStopButton { chat.stop() }.padding(.bottom, 3)
+                    ComposerStopButton { chat.stop() }.padding(.bottom, 4)
                 } else {
-                    Keycap("↵").opacity(draft.isEmpty ? 0.5 : 1).padding(.bottom, 5)
+                    Keycap("↵").opacity(draft.isEmpty ? 0.5 : 1).padding(.bottom, 4)
                 }
             }
             .padding(.leading, 8)
             .padding(.trailing, 8)
             .padding(.vertical, 8)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
-            .padding(.bottom, chat.isRunning ? 2 : 4)
+            .padding(.bottom, chat.isRunning ? 4 : 4)
             if chat.isRunning {
                 Text("↵ queues it for when the AI is done · ⌘↵ steers it now")
                     .font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.faint)

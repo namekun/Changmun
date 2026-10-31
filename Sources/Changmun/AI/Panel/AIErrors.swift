@@ -106,9 +106,9 @@ struct ChatErrorRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: "exclamationmark.circle.fill").font(.system(size: 11))
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(failure.title).font(.system(size: 12, weight: .semibold))
                     if !failure.explanation.isEmpty {
                         Text(failure.explanation).font(.system(size: 12, weight: .medium)).opacity(0.85)
@@ -117,7 +117,7 @@ struct ChatErrorRow: View {
                 }
                 .textSelection(.enabled)
             }
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 if let retry { actionButton(String(localized: "Try Again"), "arrow.clockwise", retry) }
                 if failure.offersLoginCommand {
                     actionButton(copied ? String(localized: "Copied") : String(localized: "Copy Command"), copied ? "checkmark" : "doc.on.doc") {
@@ -134,12 +134,12 @@ struct ChatErrorRow: View {
                 }
                 if !failure.details.isEmpty {
                     Button { showDetails.toggle() } label: {
-                        HStack(spacing: 3) {
+                        HStack(spacing: 4) {
                             Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold)).rotationEffect(.degrees(showDetails ? 90 : 0))
                             Text("Details").font(.system(size: 11, weight: .semibold))
                         }
                         .foregroundStyle(Theme.secondary)
-                        .padding(.horizontal, 6).frame(height: 22)
+                        .padding(.horizontal, 8).frame(height: 22)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -167,7 +167,7 @@ struct ChatErrorRow: View {
                 Text(title).font(.system(size: 11, weight: .semibold))
             }
             .foregroundStyle(Theme.primary)
-            .padding(.horizontal, 9).frame(height: 22)
+            .padding(.horizontal, 8).frame(height: 22)
             .background(Capsule().fill(Theme.pill))
         }
         .buttonStyle(.plain)

@@ -303,7 +303,7 @@ struct ChatImageChips: View {
     @ObservedObject var chat: ChatStore
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             ForEach(chat.images) { image in
                 ImageChip(image: image) { chat.removeImage(image.id) }
             }
@@ -323,7 +323,7 @@ struct ImageChip: View {
                 .help("Remove this image")
         }
         .foregroundStyle(Theme.secondary)
-        .padding(.leading, 3)
+        .padding(.leading, 4)
         .padding(.trailing, 8)
         .frame(height: 22)
         .background(Capsule().fill(Theme.selected))
@@ -339,8 +339,8 @@ struct SentImages: ViewModifier {
         if images.isEmpty {
             content
         } else {
-            VStack(alignment: .trailing, spacing: 6) {
-                HStack(spacing: 6) {
+            VStack(alignment: .trailing, spacing: 8) {
+                HStack(spacing: 8) {
                     Spacer(minLength: 40)
                     ForEach(images) { image in
                         Image(nsImage: image.thumbnail).resizable().scaledToFit().frame(maxWidth: 96, maxHeight: 56)
@@ -364,7 +364,7 @@ struct ImageDrop: ViewModifier {
         content
             .overlay {
                 if targeted {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Theme.hairline, style: StrokeStyle(lineWidth: 2, dash: [6, 4])).padding(2).allowsHitTesting(false)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Theme.hairline, style: StrokeStyle(lineWidth: 2, dash: [6, 4])).padding(4).allowsHitTesting(false)
                 }
             }
             .onDrop(of: [.fileURL, .image], isTargeted: $targeted) { providers in

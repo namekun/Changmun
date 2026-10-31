@@ -125,7 +125,7 @@ struct ComposerControlsRow: View {
     @ObservedObject var chat: ChatStore
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Menu {
                 Picker("Approvals", selection: $prefs.aiApprovalMode) {
                     ForEach(AIApprovalMode.allCases) { Text($0.title).tag($0) }
@@ -188,7 +188,7 @@ struct ContextRing: View {
                 .rotationEffect(.degrees(-90))
         }
         .frame(width: 13, height: 13)
-        .padding(.horizontal, 3)
+        .padding(.horizontal, 4)
         .help(usage.tooltip)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(usage.tooltip)

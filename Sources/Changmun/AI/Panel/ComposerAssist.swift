@@ -154,7 +154,7 @@ struct ComposerPopup<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 1) { content }
+        VStack(alignment: .leading, spacing: 0) { content }
             .padding(4)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.card))
             .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 1))
@@ -195,7 +195,7 @@ struct TabMentionList: View {
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 1) {
+                        VStack(alignment: .leading, spacing: 0) {
                             ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
                                 TabMentionRow(tab: tab, selected: index == selection) { pick(tab) }.id(tab.id)
                             }
@@ -236,14 +236,14 @@ struct CurrentTabChip: View {
     @ObservedObject var tab: Tab
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 4) {
             Favicon(tab: tab)
             Text(tab.displayTitle).lineLimit(1).truncationMode(.tail).frame(maxWidth: 110, alignment: .leading)
         }
         .font(.system(size: 11, weight: .semibold))
         .foregroundStyle(Theme.secondary)
-        .padding(.leading, 5)
-        .padding(.trailing, 9)
+        .padding(.leading, 4)
+        .padding(.trailing, 8)
         .frame(height: 22)
         .background(Capsule().strokeBorder(Theme.hairline, style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
         .help("The tab the AI treats as current: it follows the tab you are viewing")

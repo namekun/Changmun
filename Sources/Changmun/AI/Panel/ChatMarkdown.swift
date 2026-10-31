@@ -247,31 +247,31 @@ private struct MarkdownBlockView: View {
             linked(text)
                 .font(.system(size: level == 1 ? 16 : level == 2 ? 15 : 13.5, weight: .semibold))
                 .foregroundStyle(Theme.primary)
-                .padding(.top, 2)
+                .padding(.top, 4)
                 .accessibilityAddTraits(.isHeader)
         case .list(let entries):
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(entry.marker == "•" && entry.depth > 0 ? "◦" : entry.marker)
                             .foregroundStyle(Theme.secondary)
                             .frame(minWidth: 12, alignment: .trailing)
                         inline(entry.text)
                     }
-                    .padding(.leading, CGFloat(min(entry.depth, ChatMarkdown.maxListDepth)) * 14)
+                    .padding(.leading, CGFloat(min(entry.depth, ChatMarkdown.maxListDepth)) * 16)
                 }
             }
         case .code(let language, let text):
             CodeBlockView(language: language, code: text)
         case .quote(let blocks):
             if quoteDepth >= ChatMarkdown.maxQuoteDepth {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(blocks.enumerated()), id: \.offset) { _, inner in MarkdownBlockView(block: inner, quoteDepth: quoteDepth) }
                 }
             } else {
                 HStack(alignment: .top, spacing: 8) {
                     RoundedRectangle(cornerRadius: 1, style: .continuous).fill(Theme.hairline).frame(width: 2)
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 8) {
                         ForEach(Array(blocks.enumerated()), id: \.offset) { _, inner in MarkdownBlockView(block: inner, quoteDepth: quoteDepth + 1) }
                     }
                     .foregroundStyle(Theme.secondary)
@@ -324,7 +324,7 @@ private struct CodeBlockView: View {
                         copied = false
                     }
                 } label: {
-                    HStack(spacing: 3) {
+                    HStack(spacing: 4) {
                         Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.system(size: 9, weight: .semibold))
                         Text(copied ? String(localized: "Copied") : String(localized: "Copy")).font(.system(size: 10.5, weight: .semibold))
                     }
@@ -333,14 +333,14 @@ private struct CodeBlockView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text("Copy code"))
             }
-            .padding(.horizontal, 10).padding(.top, 6).padding(.bottom, 2)
+            .padding(.horizontal, 8).padding(.top, 8).padding(.bottom, 0)
             ScrollView(.horizontal) {
                 Text(code)
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundStyle(Theme.body)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: true, vertical: true)
-                    .padding(.horizontal, 10).padding(.top, 2).padding(.bottom, 10)
+                    .padding(.horizontal, 8).padding(.top, 4).padding(.bottom, 8)
             }
         }
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.selected))
@@ -362,12 +362,12 @@ struct CopyTextButton: View {
                 copied = false
             }
         } label: {
-            HStack(spacing: 3) {
+            HStack(spacing: 4) {
                 Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.system(size: 9, weight: .semibold))
                 Text(copied ? String(localized: "Copied") : String(localized: "Copy")).font(.system(size: 10.5, weight: .semibold))
             }
             .foregroundStyle(Theme.secondary)
-            .padding(.horizontal, 6).frame(height: 18)
+            .padding(.horizontal, 8).frame(height: 18)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
