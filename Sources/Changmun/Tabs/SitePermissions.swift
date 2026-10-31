@@ -78,7 +78,7 @@ final class SitePermissions: ObservableObject {
 
     /// The question: the site is named by its host, cleaned and cut. Block is what Return does.
     static func spec(host: String, type: WKMediaCaptureType, remember: Bool) -> DialogSpec {
-        let site = DialogSpec.name(host)
+        let site = DialogSpec.host(host)
         let (title, message) = switch type {
         case .camera: (String(localized: "\(site) wants to use the camera"), String(localized: "If you allow it, this site can turn on the camera."))
         case .microphone: (String(localized: "\(site) wants to use the microphone"), String(localized: "If you allow it, this site can turn on the microphone."))

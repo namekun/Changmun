@@ -67,7 +67,7 @@ struct DialogTests {
         let ask = AppLinks.spec(site: "claude.ai", app: "Claude", url: url)
         #expect(ask.title == String(localized: "Open Claude?"))
         #expect(ask.message == String(localized: "claude.ai wants to open the app."))
-        #expect(ask.detail == .address("claude://login/callback?code=1"))
+        #expect(ask.detail == .text("claude://login/callback?code=1"))
         #expect(ask.button(for: .return) == 0 && ask.buttons[0].role == .cancel)
         #expect(ask.style(of: 1) == .primary)
     }
@@ -101,6 +101,30 @@ struct DialogTests {
         let spec = AppLinks.spec(site: String(repeating: "s", count: 400), app: String(repeating: "x\u{202E}", count: 200), url: URL(string: "https://example.com/?" + String(repeating: "q", count: 900))!)
         #expect(spec.title.count < 120 && !spec.title.unicodeScalars.contains("\u{202E}"))
         #expect(spec.message.map { $0.count < 120 } == true)
-        if case .address(let address) = spec.detail { #expect(address.count <= 301) } else { Issue.record("the address is shown as an address") }
+    }
+
+    @Test func aLongAddressIsShownWholeOrSaysHowMuchIsLeftOut() {
+        let middle = "SECRET-IN-THE-MIDDLE"
+        let url = URL(string: "claude://x/?" + String(repeating: "a", count: 300) + middle + String(repeating: "b", count: 300))!
+        guard case .text(let shown)? = AppLinks.spec(site: "claude.ai", app: "Claude", url: url).detail else { Issue.record("the address is in the wrapped, scrollable box"); return }
+        #expect(shown.contains(middle), "the middle of the address is not cut out")
+        let huge = URL(string: "claude://x/?" + String(repeating: "a", count: 3000))!
+        guard case .text(let note)? = AppLinks.spec(site: "claude.ai", app: "Claude", url: huge).detail else { Issue.record("a text"); return }
+        #expect(note.count < 1100 && note.contains("2"), "what is left out is counted: \(note.suffix(60))")
+    }
+
+    @Test func aHostIsCutFromTheLeftSoTheRealDomainStaysInSight() {
+        #expect(DialogSpec.host("meet.example") == "meet.example")
+        let disguised = "accounts.bank.example." + String(repeating: "a", count: 120) + ".evil.example"
+        let shown = DialogSpec.host(disguised)
+        #expect(shown.hasPrefix("…") && shown.hasSuffix(".evil.example"), Comment(rawValue: shown))
+        #expect(!shown.contains("bank"))
+        #expect(shown.count <= 49)
+        #expect(!DialogSpec.host("evil\u{202E}moc.example").unicodeScalars.contains("\u{202E}"))
+        #expect(DialogSpec.host(String(repeating: "x.", count: 400) + "evil.example").hasSuffix("x.evil.example"))
+        // Every dialog that names a site names it this way.
+        #expect(SitePermissions.spec(host: disguised, type: .camera, remember: true).title.contains(".evil.example"))
+        #expect(Tab.signInSpec(host: disguised, failed: false, user: "").title.hasSuffix(".evil.example"))
+        #expect(AppLinks.spec(site: disguised, app: "Claude", url: URL(string: "claude://x")!).message?.contains(".evil.example wants") == true)
     }
 }

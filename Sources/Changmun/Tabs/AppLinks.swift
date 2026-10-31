@@ -18,9 +18,10 @@ struct AppLinks {
 
     /// The question: the app and the site that asks come from the system and the page's origin, cleaned and cut; Cancel is what Return does.
     @MainActor static func spec(site: String, app: String, url: URL) -> DialogSpec {
+        // The whole address, wrapped and scrollable; what does not fit is said, never left out unsaid.
         DialogSpec(title: String(localized: "Open \(DialogSpec.name(app))?"),
-                   message: String(localized: "\(DialogSpec.name(site)) wants to open the app."),
-                   detail: .address(DialogSpec.name(url.absoluteString, limit: 300)),
+                   message: String(localized: "\(DialogSpec.host(site)) wants to open the app."),
+                   detail: .text(Approvals.shownWithNote(url.absoluteString, limit: 1000).text),
                    buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel, isDefault: true), DialogButton(title: String(localized: "Open"))])
     }
 }

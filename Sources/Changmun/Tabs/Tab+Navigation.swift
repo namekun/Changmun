@@ -264,7 +264,7 @@ extension Tab: WKNavigationDelegate {
 
     /// The login question: the user name and a password field that shows nothing. Sign In is what Return does.
     static func signInSpec(host: String, failed: Bool, user: String) -> DialogSpec {
-        DialogSpec(title: String(localized: "Sign in to \(DialogSpec.name(host))"),
+        DialogSpec(title: String(localized: "Sign in to \(DialogSpec.host(host))"),
                    message: failed ? String(localized: "The user name or password is incorrect.") : String(localized: "This site asks for a user name and password."),
                    fields: [DialogField(placeholder: String(localized: "User Name"), text: user), DialogField(placeholder: String(localized: "Password"), isSecure: true)],
                    buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel), DialogButton(title: String(localized: "Sign In"), isDefault: true)])

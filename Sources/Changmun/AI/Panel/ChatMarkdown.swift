@@ -466,7 +466,7 @@ enum ChatLinks {
         guard isSafe(url) else { return .discarded }
         if needsConfirmation(url, read: Approvals.sitesRead(caller: ChatStore.caller)) {
             // The whole address, wrapped and scrollable, not one line with its middle cut out: what the page slipped in can be anywhere in it.
-            let spec = DialogSpec(title: String(localized: "Open a link to \(DialogSpec.name(host(of: url) ?? ""))?"),
+            let spec = DialogSpec(title: String(localized: "Open a link to \(DialogSpec.host(host(of: url) ?? ""))?"),
                                   message: String(localized: "This chat has read other sites, and a page could have slipped this link in to send what the AI read there."),
                                   detail: .text(Approvals.shown(url.absoluteString, limit: 1000).text),
                                   buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel, isDefault: true), DialogButton(title: String(localized: "Open"))])

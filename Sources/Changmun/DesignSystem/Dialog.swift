@@ -152,14 +152,6 @@ struct DialogView: View {
     private func detailBox(_ detail: DialogDetail) -> some View {
         let shape = RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous)
         switch detail {
-        case .address(let address):
-            Text(verbatim: address).font(.caption.monospaced()).foregroundStyle(Theme.secondary)
-                .lineLimit(1).truncationMode(.middle)
-                .padding(.horizontal, 16).frame(height: 32)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(shape.fill(Theme.field))
-                .textSelection(.enabled)
-                .help(address)
         case .text(let text):
             ScrollView {
                 Text(verbatim: text).font(.secondary).foregroundStyle(Theme.body).textSelection(.enabled)

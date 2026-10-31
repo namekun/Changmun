@@ -207,28 +207,10 @@ final class ExtensionHost: NSObject, ObservableObject {
 
     /// What the extension asks for (or, after an update, what it newly asks for), in words, before it gets it.
     private func confirmPermissions(for webExtension: WKWebExtension, only added: Set<String>? = nil) async -> Bool {
-        let hosts = webExtension.allRequestedMatchPatterns.map(\.string).filter { added?.contains($0) ?? true }.sorted()
-        let permissions = webExtension.requestedPermissions.map(\.rawValue).filter { added?.contains($0) ?? true }.sorted()
-        let spec = Self.permissionsSpec(name: webExtension.displayName ?? String(localized: "Extension"), hosts: hosts, permissions: permissions, updating: added != nil)
+        let hosts = webExtension.allRequestedMatchPatterns.map(\.string).filter { added?.contains($0) ?? true }
+        let permissions = webExtension.requestedPermissions.map(\.rawValue).filter { added?.contains($0) ?? true }
+        let spec = ExtensionPrompt.permissionsSpec(name: webExtension.displayName ?? String(localized: "Extension"), hosts: hosts, permissions: permissions, updating: added != nil)
         return await Dialog.present(in: NSApp.keyWindow ?? Browser.recent?.window, spec)?.button == 1
-    }
-
-    /// What the extension asks for (or, after an update, what it newly asks for), in words. The first button is the one to say no with, and is what Return does.
-    static func permissionsSpec(name: String, hosts: [String], permissions: [String], updating: Bool) -> DialogSpec {
-        let name = DialogSpec.name(name)
-        var message: String?
-        if hosts.contains(where: { $0 == "<all_urls>" || $0.hasPrefix("*://*/") }) {
-            message = String(localized: "It can read and change the content of all websites.")
-        } else if !hosts.isEmpty {
-            let list = DialogSpec.name(hosts.prefix(6).joined(separator: ", "), limit: 300)
-            message = hosts.count > 6 ? String(localized: "It can read and change the content of these sites: \(list) and \(hosts.count - 6) more")
-                : String(localized: "It can read and change the content of these sites: \(list)")
-        }
-        let detail = permissions.isEmpty ? nil : DialogDetail.text(String(localized: "Permissions: \(DialogSpec.name(permissions.joined(separator: ", "), limit: 500))"))
-        return DialogSpec(title: updating ? String(localized: "'\(name)' is updating and asks for more permissions") : String(localized: "Turn on '\(name)'?"),
-                          message: message, detail: detail,
-                          buttons: [DialogButton(title: updating ? String(localized: "Use Previous Permissions Only") : String(localized: "Cancel"), role: .cancel, isDefault: true),
-                                    DialogButton(title: updating ? String(localized: "Allow") : String(localized: "Turn On"))])
     }
 
     // MARK: Buttons
@@ -400,7 +382,7 @@ extension ExtensionHost: WKWebExtensionControllerDelegate {
         let name = DialogSpec.name(extensionContext.webExtension.displayName ?? String(localized: "Extension"))
         Task { @MainActor in
             let allowed = await ask(String(localized: "'\(name)' asks for more permissions"),
-                                    permissions.map(\.rawValue).sorted().joined(separator: ", "))
+                                    permissions.map(\.rawValue))
             completionHandler(allowed ? permissions : [], nil)
         }
     }
@@ -411,7 +393,7 @@ extension ExtensionHost: WKWebExtensionControllerDelegate {
         let name = DialogSpec.name(extensionContext.webExtension.displayName ?? String(localized: "Extension"))
         Task { @MainActor in
             let allowed = await ask(String(localized: "'\(name)' wants to access this site"),
-                                    matchPatterns.map(\.string).sorted().joined(separator: "\n"))
+                                    matchPatterns.map(\.string))
             completionHandler(allowed ? Self.withoutDeniedHosts(matchPatterns, denied: deniedHosts) : [], nil)
             // The grant lands after this returns (and a broad pattern covers a denied host): the denial is put back at once and again when the grant is announced.
             Self.reapplyDenials(in: extensionContext, hosts: deniedHosts)
@@ -425,7 +407,7 @@ extension ExtensionHost: WKWebExtensionControllerDelegate {
         let name = DialogSpec.name(extensionContext.webExtension.displayName ?? String(localized: "Extension"))
         Task { @MainActor in
             let allowed = await ask(String(localized: "'\(name)' wants to access this site"),
-                                    urls.compactMap { $0.host() }.sorted().joined(separator: "\n"))
+                                    urls.map(\.absoluteString))
             completionHandler(allowed ? Self.withoutDeniedHosts(urls: urls, denied: deniedHosts) : [], nil)
             Self.reapplyDenials(in: extensionContext, hosts: deniedHosts)
             DispatchQueue.main.async { [deniedHosts] in Self.reapplyDenials(in: extensionContext, hosts: deniedHosts) }
@@ -453,14 +435,9 @@ extension ExtensionHost: WKWebExtensionControllerDelegate {
         completionHandler(nil)
     }
 
-    /// Asks on the window in front; Deny is what Return does, and no window is a no.
-    private func ask(_ message: String, _ detail: String) async -> Bool {
-        await Dialog.present(in: NSApp.keyWindow ?? Browser.recent?.window, Self.askSpec(message, detail))?.button == 1
-    }
-
-    static func askSpec(_ message: String, _ detail: String) -> DialogSpec {
-        DialogSpec(title: message, detail: .text(DialogSpec.name(detail, limit: 500)),
-                   buttons: [DialogButton(title: String(localized: "Deny"), role: .cancel, isDefault: true), DialogButton(title: String(localized: "Allow"))])
+    /// Asks on the window in front; Deny is what Return does, no window is a no, and Allow is only there when all that it grants is shown.
+    private func ask(_ title: String, _ items: [String]) async -> Bool {
+        await Dialog.present(in: NSApp.keyWindow ?? Browser.recent?.window, ExtensionPrompt.askSpec(title, items: items))?.button == 1
     }
 }
 

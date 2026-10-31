@@ -97,16 +97,15 @@ enum DialogTestHook {
         case "hostile":
             spec = AppLinks.spec(site: hostile, app: hostile, url: URL(string: "https://example.com/?" + String(repeating: "a", count: 600))!); whenBusy = .refuse
         case "chat-link":
-            spec = DialogSpec(title: String(localized: "Open a link to \(DialogSpec.name("example.com"))?"),
+            spec = DialogSpec(title: String(localized: "Open a link to \(DialogSpec.host("example.com"))?"),
                               message: String(localized: "This chat has read other sites, and a page could have slipped this link in to send what the AI read there."),
                               detail: .text(url.absoluteString),
                               buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel, isDefault: true), DialogButton(title: String(localized: "Open"))])
         case "extension-turn-on", "extension-update", "extension-ask":
-            guard #available(macOS 15.4, *) else { return false }
             switch name {
-            case "extension-turn-on": spec = ExtensionHost.permissionsSpec(name: "Dark Reader", hosts: ["<all_urls>"], permissions: ["activeTab", "storage", "tabs"], updating: false)
-            case "extension-update": spec = ExtensionHost.permissionsSpec(name: "Dark Reader", hosts: ["https://example.com/*", "https://www.example.com/*"], permissions: ["cookies"], updating: true)
-            default: spec = ExtensionHost.askSpec(String(localized: "'\(DialogSpec.name("Dark Reader"))' wants to access this site"), "example.com\nwww.example.com")
+            case "extension-turn-on": spec = ExtensionPrompt.permissionsSpec(name: "Dark Reader", hosts: ["<all_urls>"], permissions: ["activeTab", "storage", "tabs"], updating: false)
+            case "extension-update": spec = ExtensionPrompt.permissionsSpec(name: "Dark Reader", hosts: ["https://example.com/*", "https://www.example.com/*"], permissions: ["cookies"], updating: true)
+            default: spec = ExtensionPrompt.askSpec(String(localized: "'\(DialogSpec.name("Dark Reader"))' wants to access this site"), items: ["https://example.com/*", "https://www.example.com/*", "*://*.com/*"])
             }
         case "approval-card", "approval-sheet", "approval-accounts":
             guard let tab = browser.active else { return false }

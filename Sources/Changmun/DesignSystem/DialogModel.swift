@@ -20,9 +20,7 @@ struct DialogButton: Equatable {
 
 /// What sits in the box under the message.
 enum DialogDetail: Equatable {
-    /// An address, in one line of monospaced type with its middle cut out when it is long.
-    case address(String)
-    /// Text, whole and scrollable, for what the user has to be able to read to the end.
+    /// Text, whole and scrollable, for what the user has to be able to read to the end (an address, a list of what is granted).
     case text(String)
 }
 
@@ -83,6 +81,20 @@ struct DialogSpec: Equatable {
     static func confirmDelete(_ title: String, _ message: String) -> DialogSpec {
         DialogSpec(title: title, message: message,
                    buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel, isDefault: true), DialogButton(title: String(localized: "Delete"), role: .destructive)])
+    }
+
+    /// A site's host as the page's origin says it, cleaned of what hides or reorders text. When it is long it is cut from the left, not from the end:
+    /// the end is the domain the site really belongs to, and a long subdomain must not push it out of sight ("…aaaa.evil.example").
+    static func host(_ text: String, limit: Int = 48) -> String {
+        let longest = 400
+        let scalars = Array(text.unicodeScalars)
+        var cleaned = Array(Approvals.shown(String(String.UnicodeScalarView(scalars.suffix(longest))), limit: longest).text.unicodeScalars)
+        var cut = scalars.count > longest
+        if cleaned.count > limit {
+            cleaned = Array(cleaned.suffix(limit))
+            cut = true
+        }
+        return (cut ? "…" : "") + String(String.UnicodeScalarView(cleaned))
     }
 
     /// A name that comes from outside the app (a site's host, a program's name) is cleaned of what hides or reorders text, cut to `limit`
