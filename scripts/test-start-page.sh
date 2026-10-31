@@ -5,7 +5,7 @@
 #   does not pile up another; typing in the field turns the tab into a page; the command bar setting keeps the old behaviour; blank opens about:blank; a
 #   custom address loads (an invalid one falls back to the start page); a private window shows the start page whatever address is set and reads no
 #   history; a window or a space with no tab shows the start page; closing the last tab leaves it; ⌘L on a start tab focuses the field;
-#   the AI's list_tabs, read_page, read_tabs and screenshot (and a click) on a start tab show nothing of the history the page would show; a start tab
+#   the AI's list_tabs, read_page, read_structured, read_markdown, read_tabs and screenshot (and a click) on a start tab show nothing of the history the page would show; a start tab
 #   (and the window of only one) comes back after a quit; a 12 MP photo is made the background off the main thread.
 # Cleans up the settings, the history it seeded, its space and its windows. The control.json is shared with other agents' tests: only run it when
 # no other Changmun Headless is in use.
@@ -119,7 +119,7 @@ post /window-key '{"chars": "\u001b", "keyCode": 53}' >/dev/null
 # --- the AI on a start tab sees a blank page (the history the page would show is seeded first) ---
 sp '{"seed": {"history": [["'"$SECRET_PAGE"'", "SECRET-RECENT-PAGE"]], "closed": [["'"$SECRET_CLOSED"'", "SECRET-CLOSED-TAB"]]}}' >/dev/null
 TAB="$(val "$R" 'd["activeID"]')"
-for tool in 'list_tabs {}' "read_page {\"tab_id\": $TAB}" "read_tabs {\"tab_ids\": [$TAB]}" "screenshot {\"tab_id\": $TAB}" "click {\"tab_id\": $TAB, \"element_id\": 1}"; do
+for tool in 'list_tabs {}' "read_page {\"tab_id\": $TAB}" "read_structured {\"tab_id\": $TAB}" "read_markdown {\"tab_id\": $TAB}" "read_tabs {\"tab_ids\": [$TAB]}" "screenshot {\"tab_id\": $TAB}" "click {\"tab_id\": $TAB, \"element_id\": 1}"; do
     OUT="$(scripts/headless.sh call ${tool%% *} "${tool#* }" 2>&1)"
     if [[ "$OUT" == *SECRET* || "$OUT" == *secret-frequent* ]]; then bad "${tool%% *} on a start tab showed the history"; else ok "${tool%% *} on a start tab shows none of the history"; fi
     case "${tool%% *}" in
