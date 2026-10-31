@@ -72,7 +72,6 @@
 "AI Panel (⌘E)" = "Panel de IA (⌘E)";
 "AI Panel Width" = "Ancho del panel de IA";
 "AI said" = "La IA dijo";
-"All done" = "Todo listo";
 "All Open Tabs" = "Todas las pestañas abiertas";
 "All Time" = "Todo";
 "Allow" = "Permitir";
@@ -104,8 +103,6 @@
 "Bookmarks %@" = "Marcadores %@";
 "Bookmarks Bar" = "Barra de marcadores";
 "Bookmarks Menu" = "Menú Marcadores";
-"Bookmarks · History (Full Disk Access required)" = "Marcadores · Historial (requiere Acceso total al disco)";
-"Bookmarks · History · Passwords · Cookies" = "Marcadores · Historial · Contraseñas · Cookies";
 "Bookmarks: %@" = "Marcadores: %@";
 "Browsing History" = "Historial de navegación";
 "browsing history" = "historial de navegación";
@@ -300,7 +297,6 @@
 "Full Screen" = "Pantalla completa";
 "General" = "General";
 "Get search suggestions as you type" = "Obtener sugerencias de búsqueda mientras escribes";
-"Get Started" = "Empezar";
 "Go to · %@" = "Ir a · %@";
 "Group name" = "Nombre del grupo";
 "Haiku (fastest)" = "Haiku (el más rápido)";
@@ -317,13 +313,9 @@
 "Import" = "Importar";
 "Import Bookmarks, History, and Passwords…" = "Importar marcadores, historial y contraseñas…";
 "Import from Another Browser…" = "Importar desde otro navegador…";
-"Imported bookmarks are behind the bookmark button at the bottom of the sidebar; pin the folders you use to keep them above your tabs. On login forms, use the key button next to the address to fill in a password." = "Los marcadores importados están en el botón de marcadores, abajo en la barra lateral; fija las carpetas que uses para tenerlas sobre tus pestañas. En los formularios de inicio de sesión, usa el botón de llave junto a la dirección para rellenar una contraseña.";
 "Install" = "Instalar";
 "Installation was cancelled" = "Se ha cancelado la instalación";
 "It can read and change the content of all websites." = "Puede leer y modificar el contenido de todos los sitios web.";
-"It can read and change the content of these sites: %@" = "Puede leer y modificar el contenido de estos sitios: %@";
-"It can read and change the content of these sites: %@ and %lld more" = "Puede leer y modificar el contenido de estos sitios: %@ y %lld más";
-"It runs on the same WebKit engine as Safari, so it's light, and when you talk to the AI panel (⌘E), the AI reads the page and clicks and types for you.\nWould you like to bring over the bookmarks, history, passwords and login state from the browser you used before?" = "Funciona con el mismo motor WebKit que Safari, así que es ligero, y cuando hablas con el panel de IA (⌘E), la IA lee la página y hace clic y escribe por ti.\n¿Quieres traer los marcadores, el historial, las contraseñas y los inicios de sesión del navegador que usabas antes?";
 "Last Tab" = "Última pestaña";
 "Last updated %@" = "Última actualización: %@";
 "Later" = "Más tarde";
@@ -497,7 +489,6 @@
 "Sonnet (fast and balanced)" = "Sonnet (rápido y equilibrado)";
 "Sort out my open tabs and tell me about them" = "Ordena mis pestañas abiertas y cuéntame qué hay en ellas";
 "Split View" = "Vista dividida";
-"Start Import" = "Iniciar importación";
 "Start with a new tab" = "Empezar con una pestaña nueva";
 "Stop" = "Detener";
 "Stop generating" = "Dejar de generar";
@@ -568,10 +559,8 @@
 "Web extensions are available on macOS 15.4 or later." = "Las extensiones web están disponibles en macOS 15.4 o posterior.";
 "Web Inspector (Network)" = "Inspector web (Red)";
 "WebKit didn't accept the rules: %@" = "WebKit no ha aceptado las reglas: %@";
-"Welcome to Changmun" = "Te damos la bienvenida a Changmun";
 "What you type in the command bar is sent to your search engine to get suggestions. Nothing is sent in private windows." = "Lo que escribes en la barra de comandos se envía a tu buscador para obtener sugerencias. No se envía nada en las ventanas privadas.";
 "When on, the address bar shows the full address by default. You can open the Web Inspector any time with F12 (Network tab) or ⌥⌘I." = "Si está activado, la barra de direcciones muestra la dirección completa de forma predeterminada. Puedes abrir el Inspector web en cualquier momento con F12 (pestaña Red) o ⌥⌘I.";
-"Where would you like to import from?" = "¿Desde dónde quieres importar?";
 "Window" = "Ventana";
 "Working" = "Trabajando";
 "You can attach up to %lld images to a message." = "Puedes adjuntar hasta %lld imágenes a un mensaje.";
@@ -673,7 +662,6 @@
 "The AI panel works with Claude Code for now" = "Por ahora, el panel de IA funciona con Claude Code";
 "Install Claude Code to turn it on." = "Instala Claude Code para activarlo.";
 "Support for %@ on this Mac is coming." = "Pronto habrá compatibilidad con %@ en este Mac.";
-"The AI panel needs Claude Code" = "El panel de IA necesita Claude Code";
 "Everything else in Changmun works without AI. To turn the AI panel on later, install Claude Code." = "Todo lo demás en Changmun funciona sin IA. Para activar el panel de IA más adelante, instala Claude Code.";
 "Get Claude Code" = "Obtener Claude Code";
 "Already installed? Enter where it is in Settings › AI." = "Si ya lo tienes instalado, indica dónde está en Ajustes › IA.";
@@ -985,3 +973,17 @@
 "Its %lld bookmarks go with it. This can't be undone." = "Sus %lld marcadores se eliminan con ella. No se puede deshacer.";
 "They all go, and this can't be undone." = "Se eliminan todos. No se puede deshacer.";
 "This site asks for a user name and password." = "Este sitio pide un nombre de usuario y una contraseña.";
+"Bring in what you use?" = "¿Traer lo que ya usas?";
+"Bring your bookmarks and history over. From Chrome and similar browsers, passwords and logins can come too." = "Trae tus marcadores y tu historial. Desde Chrome y navegadores similares también pueden venir las contraseñas y las sesiones.";
+"No other browser was found on this Mac." = "No se encontró otro navegador en este Mac.";
+"Choose what to bring" = "Elegir qué traer";
+"Cookies" = "Cookies";
+"You're all set" = "Todo listo";
+"You can browse right away" = "Ya puedes navegar";
+"Tabs on the left, the AI on the right. Press ⌘E and try “Summarize this page”." = "Las pestañas a la izquierda y la IA a la derecha. Pulsa ⌘E y prueba “Resume esta página”.";
+"The AI turns on once you install Claude Code. You don't have to now: press ⌘E any time and Changmun will show you how." = "La IA se activa cuando instalas Claude Code. No hace falta ahora: pulsa ⌘E cuando quieras y Changmun te mostrará cómo.";
+"How to install" = "Cómo instalarlo";
+"Start" = "Empezar";
+"The AI turns on with Claude Code" = "La IA se activa con Claude Code";
+"It can read and change the content of the sites listed below." = "Puede leer y cambiar el contenido de los sitios que se indican abajo.";
+"%lld more are not shown here, so this can't be allowed." = "Otros %lld no caben aquí, así que no se puede permitir.";

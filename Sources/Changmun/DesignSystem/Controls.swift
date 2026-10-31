@@ -334,6 +334,34 @@ struct DangerButton: ButtonStyle {
     }
 }
 
+/// A button that is only words: grey, ink and underlined under the pointer.
+struct QuietLinkStyle: ButtonStyle {
+    var font = Font.caption
+
+    func makeBody(configuration: Configuration) -> some View {
+        Words(label: configuration.label, pressed: configuration.isPressed, font: font)
+    }
+
+    private struct Words: View {
+        let label: ButtonStyleConfiguration.Label
+        let pressed: Bool
+        let font: Font
+        @State private var hover = false
+        @Environment(\.isEnabled) private var enabled
+
+        var body: some View {
+            label
+                .font(font)
+                .foregroundStyle(hover || pressed ? Theme.primary : Theme.secondary)
+                .underline(hover)
+                .frame(minHeight: Metrics.action)
+                .contentShape(Rectangle())
+                .opacity(enabled ? 1 : 0.4)
+                .onHover { hover = $0 }
+        }
+    }
+}
+
 /// A button's fill: resting, hovered, and darker the moment it is pressed. A nil radius makes a capsule.
 struct FillStyle: ButtonStyle {
     var resting: Color = .clear

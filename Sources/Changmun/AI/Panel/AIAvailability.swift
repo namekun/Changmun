@@ -38,16 +38,15 @@ enum AIAvailability: Equatable {
     }
 }
 
-/// What the AI needs from the user, in words; shown in onboarding and in the empty AI panel.
+/// What the AI needs from the user, in words, in the empty AI panel: calm, with where to get it and what to do if it is already there.
 struct AIGuidance: View {
     let availability: AIAvailability
-    var compact = false
 
     private var title: String {
         switch availability {
         case .ready: String(localized: "Claude Code is ready")
         case .supportComing: String(localized: "The AI panel works with Claude Code for now")
-        case .none: String(localized: "The AI panel needs Claude Code")
+        case .none: String(localized: "The AI turns on with Claude Code")
         }
     }
 
@@ -60,27 +59,26 @@ struct AIGuidance: View {
     }
 
     /// Korean puts commas between names, where the system's list adds "및".
-    private static func list(_ names: [String]) -> String {
+    static func list(_ names: [String]) -> String {
         Bundle.main.preferredLocalizations.first == "ko" ? names.joined(separator: ", ") : ListFormatter.localizedString(byJoining: names)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: compact ? 8 : 16) {
-            Text(title).font(compact ? .title : .heading).foregroundStyle(compact ? Theme.primary : Color.primary)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.title).foregroundStyle(Theme.primary)
             Text(message)
-                .font(compact ? .secondary : .body)
-                .lineSpacing(compact ? 0 : 3)
-                .foregroundStyle(compact ? Theme.secondary : Color.primary.opacity(0.7))
+                .font(.secondary)
+                .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if availability != .ready {
                 Text("Already installed? Enter where it is in Settings › AI.")
-                    .font(compact ? .caption : .secondary)
+                    .font(.caption)
                     .foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if case .supportComing(let found) = availability {
                 Text("Support for \(Self.list(found)) on this Mac is coming.")
-                    .font(compact ? .caption : .secondary)
+                    .font(.caption)
                     .foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -104,7 +102,7 @@ struct ChatEmptyState: View {
         if availability == .ready {
             ChatWelcome(several: several, kind: kind, send: send)
         } else {
-            AIGuidance(availability: availability, compact: true).padding(.top, 4)
+            AIGuidance(availability: availability).padding(.top, 4)
         }
     }
 }

@@ -72,7 +72,6 @@
 "AI Panel (⌘E)" = "AIパネル (⌘E)";
 "AI Panel Width" = "AIパネルの幅";
 "AI said" = "AIの回答";
-"All done" = "すべて読み込みました";
 "All Open Tabs" = "開いているタブすべて";
 "All Time" = "すべて";
 "Allow" = "許可";
@@ -104,8 +103,6 @@
 "Bookmarks %@" = "ブックマーク %@";
 "Bookmarks Bar" = "ブックマークバー";
 "Bookmarks Menu" = "ブックマークメニュー";
-"Bookmarks · History (Full Disk Access required)" = "ブックマーク · 履歴 (フルディスクアクセスが必要)";
-"Bookmarks · History · Passwords · Cookies" = "ブックマーク · 履歴 · パスワード · Cookie";
 "Bookmarks: %@" = "ブックマーク: %@";
 "Browsing History" = "閲覧履歴";
 "browsing history" = "閲覧履歴";
@@ -300,7 +297,6 @@
 "Full Screen" = "フルスクリーン";
 "General" = "一般";
 "Get search suggestions as you type" = "入力中に検索候補を表示";
-"Get Started" = "はじめる";
 "Go to · %@" = "移動 · %@";
 "Group name" = "グループ名";
 "Haiku (fastest)" = "Haiku (最速)";
@@ -317,13 +313,9 @@
 "Import" = "読み込む";
 "Import Bookmarks, History, and Passwords…" = "ブックマーク、履歴、パスワードを読み込む…";
 "Import from Another Browser…" = "ほかのブラウザから読み込む…";
-"Imported bookmarks are behind the bookmark button at the bottom of the sidebar; pin the folders you use to keep them above your tabs. On login forms, use the key button next to the address to fill in a password." = "読み込んだブックマークは、サイドバー下部のブックマークボタンから開けます。よく使うフォルダは固定するとタブの上に残ります。ログインフォームでは、アドレスの横にあるキーのボタンでパスワードを入力できます。";
 "Install" = "インストール";
 "Installation was cancelled" = "インストールをキャンセルしました";
 "It can read and change the content of all websites." = "すべてのWebサイトの内容を読み取り、変更できます。";
-"It can read and change the content of these sites: %@" = "次のサイトの内容を読み取り、変更できます: %@";
-"It can read and change the content of these sites: %@ and %lld more" = "次のサイトの内容を読み取り、変更できます: %@ ほか%lld件";
-"It runs on the same WebKit engine as Safari, so it's light, and when you talk to the AI panel (⌘E), the AI reads the page and clicks and types for you.\nWould you like to bring over the bookmarks, history, passwords and login state from the browser you used before?" = "Safariと同じWebKitエンジンで動作するため軽量で、AIパネル (⌘E) に話しかけると、AIがページを読み取り、代わりにクリックや入力を行います。\n以前使っていたブラウザのブックマーク、履歴、パスワード、ログイン状態を読み込みますか？";
 "Last Tab" = "最後のタブ";
 "Last updated %@" = "最終更新 %@";
 "Later" = "あとで";
@@ -497,7 +489,6 @@
 "Sonnet (fast and balanced)" = "Sonnet (高速でバランス型)";
 "Sort out my open tabs and tell me about them" = "開いているタブを整理して教えて";
 "Split View" = "スプリットビュー";
-"Start Import" = "読み込みを開始";
 "Start with a new tab" = "新規タブで開始";
 "Stop" = "停止";
 "Stop generating" = "生成を停止";
@@ -568,10 +559,8 @@
 "Web extensions are available on macOS 15.4 or later." = "Web機能拡張はmacOS 15.4以降で利用できます。";
 "Web Inspector (Network)" = "Webインスペクタ (ネットワーク)";
 "WebKit didn't accept the rules: %@" = "WebKitがルールを受け付けませんでした: %@";
-"Welcome to Changmun" = "Changmunへようこそ";
 "What you type in the command bar is sent to your search engine to get suggestions. Nothing is sent in private windows." = "コマンドバーに入力した文字は、候補を取得するために検索エンジンに送信されます。プライベートウインドウでは送信されません。";
 "When on, the address bar shows the full address by default. You can open the Web Inspector any time with F12 (Network tab) or ⌥⌘I." = "オンにすると、アドレスバーにデフォルトで完全なアドレスが表示されます。Webインスペクタは、F12 (ネットワークタブ) または ⌥⌘I でいつでも開けます。";
-"Where would you like to import from?" = "どこから読み込みますか？";
 "Window" = "ウインドウ";
 "Working" = "作業中";
 "You can attach up to %lld images to a message." = "1つのメッセージに添付できる画像は%lld枚までです。";
@@ -673,7 +662,6 @@
 "The AI panel works with Claude Code for now" = "AIパネルは今のところClaude Codeでのみ使えます";
 "Install Claude Code to turn it on." = "Claude Codeをインストールすると使えるようになります。";
 "Support for %@ on this Mac is coming." = "このMacにある%@にも、まもなく対応する予定です。";
-"The AI panel needs Claude Code" = "AIパネルにはClaude Codeが必要です";
 "Everything else in Changmun works without AI. To turn the AI panel on later, install Claude Code." = "AIがなくても、Changmunのそのほかの機能はすべて使えます。AIパネルは、あとからClaude Codeをインストールすれば使えるようになります。";
 "Get Claude Code" = "Claude Codeを入手";
 "Already installed? Enter where it is in Settings › AI." = "すでにインストール済みなら、設定 › AIでパスを指定してください。";
@@ -985,3 +973,17 @@
 "Its %lld bookmarks go with it. This can't be undone." = "中のブックマーク%lld件も一緒に削除されます。元に戻せません。";
 "They all go, and this can't be undone." = "すべて削除されます。元に戻せません。";
 "This site asks for a user name and password." = "このサイトはユーザ名とパスワードを求めています。";
+"Bring in what you use?" = "使っているものを読み込みますか？";
+"Bring your bookmarks and history over. From Chrome and similar browsers, passwords and logins can come too." = "ブックマークと履歴を読み込めます。Chrome系のブラウザからは、パスワードとログイン状態も読み込めます。";
+"No other browser was found on this Mac." = "このMacに他のブラウザは見つかりませんでした。";
+"Choose what to bring" = "読み込む項目を選ぶ";
+"Cookies" = "Cookie";
+"You're all set" = "準備ができました";
+"You can browse right away" = "すぐにブラウズできます";
+"Tabs on the left, the AI on the right. Press ⌘E and try “Summarize this page”." = "左にタブ、右にAIがあります。⌘Eを押して「このページを要約して」と入力してみてください。";
+"The AI turns on once you install Claude Code. You don't have to now: press ⌘E any time and Changmun will show you how." = "AIはClaude Codeをインストールするとオンになります。今でなくても大丈夫です。あとで⌘Eを押すと、いつでも手順をご案内します。";
+"How to install" = "インストール方法";
+"Start" = "はじめる";
+"The AI turns on with Claude Code" = "AIはClaude Codeで使えるようになります";
+"It can read and change the content of the sites listed below." = "下に挙げたサイトの内容を読み取り、変更できます。";
+"%lld more are not shown here, so this can't be allowed." = "ほかの%lld件はここに表示できないため、許可できません。";

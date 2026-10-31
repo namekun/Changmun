@@ -439,28 +439,3 @@ private struct CommandWatcher: NSViewRepresentable {
         deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
     }
 }
-
-/// A button that is only words: grey, ink and underlined under the pointer.
-struct QuietLinkStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        Words(label: configuration.label, pressed: configuration.isPressed)
-    }
-
-    private struct Words: View {
-        let label: ButtonStyleConfiguration.Label
-        let pressed: Bool
-        @State private var hover = false
-        @Environment(\.isEnabled) private var enabled
-
-        var body: some View {
-            label
-                .font(.caption)
-                .foregroundStyle(hover || pressed ? Theme.primary : Theme.secondary)
-                .underline(hover)
-                .frame(minHeight: Metrics.action)
-                .contentShape(Rectangle())
-                .opacity(enabled ? 1 : 0.4)
-                .onHover { hover = $0 }
-        }
-    }
-}

@@ -72,7 +72,6 @@
 "AI Panel (⌘E)" = "AI 面板 (⌘E)";
 "AI Panel Width" = "AI 面板宽度";
 "AI said" = "AI 的回答";
-"All done" = "全部导入完成";
 "All Open Tabs" = "所有已打开的标签页";
 "All Time" = "全部时间";
 "Allow" = "允许";
@@ -104,8 +103,6 @@
 "Bookmarks %@" = "书签 %@";
 "Bookmarks Bar" = "书签栏";
 "Bookmarks Menu" = "书签菜单";
-"Bookmarks · History (Full Disk Access required)" = "书签 · 历史记录（需要完全磁盘访问权限）";
-"Bookmarks · History · Passwords · Cookies" = "书签 · 历史记录 · 密码 · Cookie";
 "Bookmarks: %@" = "书签：%@";
 "Browsing History" = "浏览历史记录";
 "browsing history" = "浏览历史记录";
@@ -300,7 +297,6 @@
 "Full Screen" = "全屏幕";
 "General" = "通用";
 "Get search suggestions as you type" = "输入时获取搜索建议";
-"Get Started" = "开始使用";
 "Go to · %@" = "前往 · %@";
 "Group name" = "群组名称";
 "Haiku (fastest)" = "Haiku（最快）";
@@ -317,13 +313,9 @@
 "Import" = "导入";
 "Import Bookmarks, History, and Passwords…" = "导入书签、历史记录和密码…";
 "Import from Another Browser…" = "从其他浏览器导入…";
-"Imported bookmarks are behind the bookmark button at the bottom of the sidebar; pin the folders you use to keep them above your tabs. On login forms, use the key button next to the address to fill in a password." = "导入的书签在边栏底部的书签按钮中；常用的文件夹固定后会留在标签页上方。在登录表单中，可使用地址栏旁的钥匙按钮填入密码。";
 "Install" = "安装";
 "Installation was cancelled" = "安装已取消";
 "It can read and change the content of all websites." = "它可以读取并更改所有网站的内容。";
-"It can read and change the content of these sites: %@" = "它可以读取并更改以下网站的内容：%@";
-"It can read and change the content of these sites: %@ and %lld more" = "它可以读取并更改以下网站的内容：%@ 以及另外 %lld 个";
-"It runs on the same WebKit engine as Safari, so it's light, and when you talk to the AI panel (⌘E), the AI reads the page and clicks and types for you.\nWould you like to bring over the bookmarks, history, passwords and login state from the browser you used before?" = "它基于与 Safari 相同的 WebKit 引擎，因此很轻巧；在 AI 面板 (⌘E) 中对话时，AI 会读取页面，并替你点按和输入。\n要导入你之前使用的浏览器中的书签、历史记录、密码和登录状态吗？";
 "Last Tab" = "最后一个标签页";
 "Last updated %@" = "最后更新：%@";
 "Later" = "稍后";
@@ -497,7 +489,6 @@
 "Sonnet (fast and balanced)" = "Sonnet（快速且均衡）";
 "Sort out my open tabs and tell me about them" = "整理我打开的标签页并告诉我情况";
 "Split View" = "分屏浏览";
-"Start Import" = "开始导入";
 "Start with a new tab" = "以新标签页启动";
 "Stop" = "停止";
 "Stop generating" = "停止生成";
@@ -568,10 +559,8 @@
 "Web extensions are available on macOS 15.4 or later." = "网页扩展需要 macOS 15.4 或更高版本。";
 "Web Inspector (Network)" = "网页检查器（网络）";
 "WebKit didn't accept the rules: %@" = "WebKit 未接受这些规则：%@";
-"Welcome to Changmun" = "欢迎使用 Changmun";
 "What you type in the command bar is sent to your search engine to get suggestions. Nothing is sent in private windows." = "你在命令栏中输入的内容会发送给搜索引擎以获取建议。在私密浏览窗口中不会发送任何内容。";
 "When on, the address bar shows the full address by default. You can open the Web Inspector any time with F12 (Network tab) or ⌥⌘I." = "开启后，地址栏默认显示完整地址。你随时可以按 F12（“网络”标签页）或 ⌥⌘I 打开网页检查器。";
-"Where would you like to import from?" = "要从哪里导入？";
 "Window" = "窗口";
 "Working" = "处理中";
 "You can attach up to %lld images to a message." = "每条消息最多可附加 %lld 张图片。";
@@ -673,7 +662,6 @@
 "The AI panel works with Claude Code for now" = "目前 AI 面板只能搭配 Claude Code 使用";
 "Install Claude Code to turn it on." = "安装 Claude Code 后即可开启。";
 "Support for %@ on this Mac is coming." = "这台 Mac 上的 %@ 也即将支持。";
-"The AI panel needs Claude Code" = "AI 面板需要 Claude Code";
 "Everything else in Changmun works without AI. To turn the AI panel on later, install Claude Code." = "没有 AI，Changmun 的其他功能也都能正常使用。之后想开启 AI 面板，安装 Claude Code 即可。";
 "Get Claude Code" = "获取 Claude Code";
 "Already installed? Enter where it is in Settings › AI." = "如果已经安装，请在“设置 › AI”中指定路径。";
@@ -985,3 +973,17 @@
 "Its %lld bookmarks go with it. This can't be undone." = "其中的 %lld 个书签也会一并删除。此操作无法撤销。";
 "They all go, and this can't be undone." = "它们都会被删除，此操作无法撤销。";
 "This site asks for a user name and password." = "此网站需要用户名和密码。";
+"Bring in what you use?" = "要导入你正在使用的内容吗？";
+"Bring your bookmarks and history over. From Chrome and similar browsers, passwords and logins can come too." = "可以导入书签和历史记录。来自 Chrome 等浏览器时，密码和登录状态也能一并导入。";
+"No other browser was found on this Mac." = "在这台 Mac 上没有找到其他浏览器。";
+"Choose what to bring" = "选择要导入的内容";
+"Cookies" = "Cookie";
+"You're all set" = "一切就绪";
+"You can browse right away" = "现在就可以上网";
+"Tabs on the left, the AI on the right. Press ⌘E and try “Summarize this page”." = "左边是标签页，右边是 AI。按 ⌘E，试试输入“总结这个页面”。";
+"The AI turns on once you install Claude Code. You don't have to now: press ⌘E any time and Changmun will show you how." = "安装 Claude Code 后即可启用 AI。现在不装也没关系，之后按 ⌘E，随时都会告诉你怎么做。";
+"How to install" = "查看安装方法";
+"Start" = "开始";
+"The AI turns on with Claude Code" = "安装 Claude Code 后即可使用 AI";
+"It can read and change the content of the sites listed below." = "它可以读取并更改下方所列网站的内容。";
+"%lld more are not shown here, so this can't be allowed." = "另有 %lld 项无法在此显示，因此不能允许。";

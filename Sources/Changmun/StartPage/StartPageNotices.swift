@@ -45,10 +45,9 @@ struct StartFirstRunView: View {
     var body: some View {
         VStack(spacing: 0) {
             Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 58, height: 58).decorative()
-            Text("Welcome to Changmun").font(.display).foregroundStyle(Theme.primary).padding(.top, 16)
-                .accessibilityAddTraits(.isHeader)
             Text("Start light. Do these three things and this page fills up with what you use.")
-                .font(.title).foregroundStyle(Theme.secondary).multilineTextAlignment(.center).padding(.top, 8)
+                .font(.heading).foregroundStyle(Theme.primary).multilineTextAlignment(.center).padding(.top, 16)
+                .accessibilityAddTraits(.isHeader)
             search.frame(maxWidth: 620).padding(.top, 32)
             HStack(alignment: .top, spacing: 16) {
                 step(symbol: "square.and.arrow.down", title: String(localized: "Import bookmarks and history"),
