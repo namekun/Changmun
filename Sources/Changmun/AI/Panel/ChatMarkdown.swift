@@ -280,7 +280,7 @@ private struct MarkdownBlockView: View {
             }
         case .table(let header, let rows):
             ScrollView(.horizontal) {
-                Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 5) {
+                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 4) {
                     GridRow { ForEach(Array(header.enumerated()), id: \.offset) { _, cell in linked(cell).font(.system(size: 12, weight: .bold)) } }
                     Divider()
                     ForEach(Array(rows.enumerated()), id: \.offset) { _, row in

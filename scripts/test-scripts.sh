@@ -235,5 +235,33 @@ grep -rnE "$VIEW_NAMES" "${MODEL_DIRS[@]}" >"$WORK/layer.txt"
 check "the model folders don't mention the view layer" test ! -s "$WORK/layer.txt"
 [[ -s "$WORK/layer.txt" ]] && cat "$WORK/layer.txt" >&2
 
+echo "grid guard"
+# Spacing is 0, 4 and multiples of 8 (4 only for tight gaps inside a component); scripts/check-grid.py reads .padding(...), spacing: and Spacer(minLength:.
+grid() { python3 -I -B scripts/check-grid.py "$@"; }
+printf '.padding(.horizontal, 12)\n' >"$WORK/guard/grid-padding.swift"
+printf 'VStack(spacing: 6) {\n' >"$WORK/guard/grid-spacing.swift"
+printf 'Spacer(minLength: 90)\n' >"$WORK/guard/grid-spacer.swift"
+printf 'Grid(horizontalSpacing: 14, verticalSpacing: 8) {\n' >"$WORK/guard/grid-axis.swift"
+printf 'Text("a").padding(.leading, CGFloat(depth) * 14)\n' >"$WORK/guard/grid-nested.swift"
+printf '.padding(.leading, Metrics.inset + 3)\n' >"$WORK/guard/grid-mixed.swift"
+printf '.padding(.leading, 1) // grid-exempt: optical nudge\n' >"$WORK/guard/grid-marked.swift"
+printf '// .padding(12)\n.padding(8)\n.padding(.top, 0)\nVStack(spacing: 4)\nHStack(spacing: Metrics.rowGap)\n.padding(.top, Metrics.section - 2 * Metrics.rowGap)\n.padding(.leading, 2 * Metrics.inset)\n.padding(.horizontal, min(64, max(16, (w - 480) / 2)))\nSpacer(minLength: 40)\nGridItem(.adaptive(minimum: 40), spacing: 4)\n.frame(width: 12).font(.system(size: 13))\n' >"$WORK/guard/grid-fine.swift"
+mkdir -p "$WORK/guard/folder"
+printf '.padding(.top, 70)\n' >"$WORK/guard/folder/StartPageMiniature.swift"
+check "the guard fails a padding of 12" refuses grid "$WORK/guard/grid-padding.swift"
+check "the guard fails a spacing of 6" refuses grid "$WORK/guard/grid-spacing.swift"
+check "the guard fails a Spacer's minimum length of 90" refuses grid "$WORK/guard/grid-spacer.swift"
+check "the guard fails a grid's horizontalSpacing of 14" refuses grid "$WORK/guard/grid-axis.swift"
+check "the guard fails a value after a call inside the padding" refuses grid "$WORK/guard/grid-nested.swift"
+check "the guard fails a literal beside a Metrics token" refuses grid "$WORK/guard/grid-mixed.swift"
+check "the guard names the file, the line and the value" bash -c 'python3 -I -B scripts/check-grid.py "$1" 2>&1 | grep -q "grid-padding.swift:1: 12 is not on the 8-point grid"' _ "$WORK/guard/grid-padding.swift"
+check "the guard lets a line marked grid-exempt be" grid "$WORK/guard/grid-marked.swift"
+check "the guard lets 0, 4, multiples of 8, Metrics tokens, counts and divisors be" grid "$WORK/guard/grid-fine.swift"
+check "the guard leaves the miniature of the page alone" grid "$WORK/guard/folder"
+check "the guard reads a folder" refuses grid "$WORK/guard"
+grid >"$WORK/grid.txt" 2>&1
+check "the spacing in Sources/Changmun is on the grid" test $? -eq 0
+[[ -s "$WORK/grid.txt" ]] && cat "$WORK/grid.txt" >&2
+
 (( FAILED )) && { echo "✘ script tests failed" >&2; exit 1; }
 echo "✔ script tests passed"
