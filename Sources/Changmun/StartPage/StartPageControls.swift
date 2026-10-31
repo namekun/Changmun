@@ -53,7 +53,7 @@ struct StartStyleRadios: View {
                 let selected = model.settings.style == style
                 Button { model.setStyle(style) } label: {
                     HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: selected ? "largecircle.fill.circle" : "circle").font(.symbolRow).foregroundStyle(selected ? Color.accentColor : Theme.secondary)
+                        Image(systemName: selected ? "largecircle.fill.circle" : "circle").font(.symbolRow).foregroundStyle(selected ? Theme.primary : Theme.secondary)
                             .frame(width: 18).decorative()
                         VStack(alignment: .leading, spacing: 4) {
                             Text(verbatim: style.title).font(.bodyStrong).foregroundStyle(Theme.primary)
@@ -122,9 +122,9 @@ struct StartComponentsList: View {
                         .accessibilityLabel(String(localized: "\(section.title) options"))
                     } else {
                         Button { model.toggleOptions(section) } label: {
-                            Image(systemName: "gearshape").font(.symbolToolbar).foregroundStyle(expanded ? Color.accentColor : Theme.secondary)
+                            Image(systemName: "gearshape").font(.symbolToolbar).foregroundStyle(expanded ? Theme.primary : Theme.secondary)
                                 .frame(width: 24, height: 24)
-                                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(expanded ? Color.accentColor.opacity(0.14) : .clear))
+                                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(expanded ? Theme.field : .clear))
                         }
                         .buttonStyle(.plain)
                         .help("Options")
@@ -398,8 +398,8 @@ struct StartBackgroundControls: View {
                         Text("Only on this Mac").font(.caption).foregroundStyle(Theme.dim)
                     }
                     HStack(spacing: 8) {
-                        Button { pickImage() } label: { Text("Choose Another…").font(.caption).foregroundStyle(Theme.primary).padding(.horizontal, 8).frame(height: 22).background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.pressed)) }
-                            .buttonStyle(.plain)
+                        Button { pickImage() } label: { Text("Choose Another…") }
+                            .buttonStyle(SecondaryButton(size: .small))
                         Button { model.removeImage() } label: { Text("Remove").font(.caption).foregroundStyle(Color.accentColor) }
                             .buttonStyle(.plain)
                     }

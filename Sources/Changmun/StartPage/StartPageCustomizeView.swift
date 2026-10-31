@@ -23,13 +23,9 @@ struct StartPageCustomizeView: View {
             HStack {
                 Text("Customize").font(.bodyStrong).foregroundStyle(Theme.primary).accessibilityAddTraits(.isHeader)
                 Spacer()
-                Button { dismiss() } label: {
-                    Text("Done").font(.captionStrong).foregroundStyle(.white)
-                        .padding(.horizontal, 16).frame(height: 24)
-                        .background(Capsule().fill(Color.accentColor))
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.defaultAction)
+                Button { dismiss() } label: { Text("Done") }
+                    .buttonStyle(PrimaryButton(size: .small))
+                    .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 8)
             ScrollView {

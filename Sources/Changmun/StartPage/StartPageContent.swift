@@ -529,12 +529,9 @@ struct StartPageContent: View {
                 Image(systemName: "slider.horizontal.3").font(.symbolInline)
                 Text("Customize").font(.secondaryStrong)
             }
-            .foregroundStyle(Color.accentColor)
-            .padding(.horizontal, 16).frame(height: 30)
-            .background(Capsule().fill(Color.accentColor.opacity(0.14)))
-            .overlay { if cursor.stop?.part == .customize { Capsule().strokeBorder(Color.accentColor, lineWidth: 2) } }
+            .overlay { if cursor.stop?.part == .customize { RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous).strokeBorder(Color.accentColor, lineWidth: 2) } }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SecondaryButton(size: .large))
         .accessibilityLabel(String(localized: "Customize Start Page"))
         .accessibilityHint(String(localized: "Opens the style, sections and background of this page"))
         .accessibilityFocused($pillFocused)

@@ -60,7 +60,7 @@ extension AppearanceSettings {
         Button { prefs.addressBar = choice } label: {
             HStack(spacing: 8) {
                 Image(systemName: prefs.addressBar == choice ? "largecircle.fill.circle" : "circle")
-                    .foregroundStyle(prefs.addressBar == choice ? Color.accentColor : .secondary)
+                    .foregroundStyle(prefs.addressBar == choice ? Theme.primary : Theme.secondary)
                 label()
                 Spacer()
             }

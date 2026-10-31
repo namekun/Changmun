@@ -85,20 +85,19 @@ struct StartFirstRunView: View {
 
     private func step(symbol: String, title: String, text: String, button: String, prominent: Bool, action: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Image(systemName: symbol).font(.symbolToolbar).foregroundStyle(Color.accentColor)
+            Image(systemName: symbol).font(.symbolToolbar).foregroundStyle(Theme.primary)
                 .frame(width: 34, height: 34)
-                .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.accentColor.opacity(0.14)))
+                .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.field))
                 .decorative()
             Text(verbatim: title).font(.bodyStrong).foregroundStyle(Theme.primary).padding(.top, 16)
                 .accessibilityAddTraits(.isHeader)
             Text(verbatim: text).font(.secondary).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true).padding(.top, 8)
             Spacer(minLength: 16)
-            Button(action: action) {
-                Text(verbatim: button).font(.captionStrong).foregroundStyle(prominent ? Color.white : Theme.primary)
-                    .padding(.horizontal, 8).frame(height: 24)
-                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(prominent ? Color.accentColor : Theme.pressed))
+            if prominent {
+                Button(action: action) { Text(verbatim: button) }.buttonStyle(PrimaryButton(size: .small))
+            } else {
+                Button(action: action) { Text(verbatim: button) }.buttonStyle(SecondaryButton(size: .small))
             }
-            .buttonStyle(.plain)
         }
         .padding(16)
         .frame(width: 285, height: 200, alignment: .topLeading)

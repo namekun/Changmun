@@ -233,6 +233,69 @@ struct HoverAction: View {
     }
 }
 
+/// How tall a filled button is, from the grid: 32 where it is the page's one action, 28 in a bar or sheet, 24 inside a card.
+enum ButtonSize {
+    case large, regular, small
+
+    var height: CGFloat {
+        switch self {
+        case .large: 32
+        case .regular: Metrics.control
+        case .small: 24
+        }
+    }
+
+    var font: Font {
+        switch self {
+        case .large: .bodyStrong
+        case .regular: .secondaryStrong
+        case .small: .captionStrong
+        }
+    }
+}
+
+extension View {
+    /// Pressed, a button settles to 97% in 100 ms; with Reduce Motion on only its fill changes.
+    func pressScale(_ pressed: Bool) -> some View {
+        scaleEffect(pressed && !Motion.reduced ? 0.97 : 1)
+            .animation(Motion.reduced ? nil : Motion.press, value: pressed)
+    }
+}
+
+/// The one filled button: ink on the ground, radius 12.
+struct PrimaryButton: ButtonStyle {
+    var size = ButtonSize.large
+    @Environment(\.isEnabled) private var enabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(size.font)
+            .foregroundStyle(Theme.background)
+            .padding(.horizontal, 16)
+            .frame(height: size.height)
+            .background(RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous).fill(Theme.primary))
+            .opacity(enabled ? (configuration.isPressed ? 0.85 : 1) : 0.4)
+            .pressScale(configuration.isPressed)
+    }
+}
+
+/// The quieter button beside it: the field's fill with ink on it.
+struct SecondaryButton: ButtonStyle {
+    var size = ButtonSize.large
+    @Environment(\.isEnabled) private var enabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(size.font)
+            .foregroundStyle(Theme.primary)
+            .padding(.horizontal, 16)
+            .frame(height: size.height)
+            .background(RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous).fill(configuration.isPressed ? Theme.pressed : Theme.field))
+            .opacity(enabled ? 1 : 0.4)
+            .pressScale(configuration.isPressed)
+    }
+}
+
 /// A button's fill: resting, hovered, and darker the moment it is pressed. A nil radius makes a capsule.
 struct FillStyle: ButtonStyle {
     var resting: Color = .clear

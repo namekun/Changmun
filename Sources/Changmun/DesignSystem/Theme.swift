@@ -89,7 +89,7 @@ enum Metrics {
     /// Small buttons inside a row.
     static let action: CGFloat = 20
     static let rowRadius: CGFloat = 8
-    static let fieldRadius: CGFloat = 10
+    static let fieldRadius: CGFloat = 12
     static let cardRadius: CGFloat = 12
 }
 
@@ -122,6 +122,8 @@ enum Motion {
     static var reduced: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
     static var standard: Animation { reduced ? .easeOut(duration: 0.15) : .spring(response: 0.3, dampingFraction: 1) }
     static var quick: Animation { reduced ? .easeOut(duration: 0.1) : .spring(response: 0.2, dampingFraction: 1) }
+    /// A button sinking under the finger: quick, and without overshoot on the way back.
+    static var press: Animation { .easeOut(duration: 0.1) }
 
     /// In from an edge and back out the same way.
     static func slide(_ edge: Edge) -> AnyTransition {

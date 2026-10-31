@@ -218,16 +218,11 @@ struct SpaceSheet: View {
                 comparison
                 HStack(spacing: 8) {
                     Spacer()
-                    Button(action: close) { Text("Cancel").font(.secondaryStrong).padding(.horizontal, 16).frame(height: Metrics.control) }
-                        .buttonStyle(FillStyle(resting: Theme.field, hoverFill: Theme.pill))
-                        .foregroundStyle(Theme.primary)
-                    Button(action: save) {
-                        Text(editing ? "Save" : "Create").font(.secondaryStrong).padding(.horizontal, 16).frame(height: Metrics.control)
-                            .foregroundStyle(.white)
-                            .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(tint.color))
-                    }
-                    .buttonStyle(.plain)
-                    .keyboardShortcut(.defaultAction)
+                    Button(action: close) { Text("Cancel") }
+                        .buttonStyle(SecondaryButton(size: .regular))
+                    Button(action: save) { Text(editing ? "Save" : "Create") }
+                        .buttonStyle(PrimaryButton(size: .regular))
+                        .keyboardShortcut(.defaultAction)
                 }
             }
             .padding(24)

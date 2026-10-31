@@ -248,29 +248,3 @@ struct AppIcon: View {
         }
     }
 }
-
-struct PrimaryButton: ButtonStyle {
-    @Environment(\.isEnabled) private var enabled
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.bodyStrong)
-            .foregroundStyle(Theme.background)
-            .padding(.horizontal, 16)
-            .frame(height: 32)
-            .background(Capsule().fill(Theme.primary))
-            .opacity(enabled ? (configuration.isPressed ? 0.85 : 1) : 0.4)
-    }
-}
-
-struct SecondaryButton: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.bodyStrong)
-            .foregroundStyle(Theme.primary)
-            .padding(.horizontal, 16)
-            .frame(height: 32)
-            .background(Capsule().fill(Theme.field))
-            .opacity(configuration.isPressed ? 0.7 : 1)
-    }
-}
