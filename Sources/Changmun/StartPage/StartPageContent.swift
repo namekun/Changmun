@@ -396,7 +396,7 @@ struct StartPageContent: View {
     private func favoritesView(_ page: PageData) -> some View {
         let two = option(.favorites) == 1
         let size: CGFloat = style == .dashboard ? (two ? 74 : 58) : style == .quiet ? (two ? 74 : 66) : (two ? 52 : 46)
-        let pitch: CGFloat = size + (style == .aiFirst || two ? 32 : 24)
+        let pitch: CGFloat = style == .aiFirst ? 80 : size + (two ? 32 : 24)
         let rows = StartPageArrangement.favoriteRows(count: page.favorites.count, twoRows: two)
         return VStack(alignment: .leading, spacing: 8) {
             if style == .dashboard {
