@@ -16,7 +16,7 @@ struct ReaderButton: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(tab.isReading ? Theme.primary : Theme.dim)
+            .foregroundStyle(tab.isReading ? Theme.primary : Theme.secondary)
             .help(tab.isReading ? String(localized: "Exit Reader Mode (\(key))") : String(localized: "Reader Mode (\(key))"))
             .accessibilityLabel(String(localized: "Reader Mode"))
             .accessibilityValue(Accessibility.onOffValue(tab.isReading))
@@ -42,7 +42,7 @@ struct TranslateButton: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(tab.translation == .translated ? Theme.primary : Theme.dim)
+            .foregroundStyle(tab.translation == .translated ? Theme.primary : Theme.secondary)
             .help(tab.translation == .translated ? String(localized: "Show Original (⌥⌘T)") : String(localized: "Translate (⌥⌘T)"))
             .accessibilityLabel(String(localized: "Translate"))
             .accessibilityValue(tab.translation == .translating ? String(localized: "Translating") : Accessibility.onOffValue(tab.translation == .translated))
@@ -80,7 +80,7 @@ struct AdBlockShield: View {
             Button { AdBlocker.shared.toggleSite(host) } label: {
                 Image(systemName: off ? "shield.slash" : "shield.fill")
                     .font(.symbolInline)
-                    .foregroundStyle(off ? Theme.waitingText : Theme.dim)
+                    .foregroundStyle(off ? Theme.waitingText : Theme.tertiary)
                     .frame(width: 20, height: 22)
                     .contentShape(Rectangle())
             }
@@ -111,7 +111,7 @@ struct BookmarkStar: View {
         } label: {
             Image(systemName: marked ? "star.fill" : "star")
                 .font(.symbolInline)
-                .foregroundStyle(marked ? Theme.primary : Theme.dim)
+                .foregroundStyle(marked ? Theme.primary : Theme.tertiary)
                 .frame(width: 20, height: 22)
                 .contentShape(Rectangle())
         }

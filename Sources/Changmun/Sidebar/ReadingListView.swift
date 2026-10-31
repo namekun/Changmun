@@ -44,11 +44,11 @@ struct ReadingRow: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text(item.title)
                     .font(item.read ? .row : .rowSelected)
-                    .foregroundStyle(item.read ? Theme.dim : Theme.primary)
+                    .foregroundStyle(item.read ? Theme.secondary : Theme.primary)
                     .lineLimit(1)
                 Text("\(ReadingList.siteName(of: item.url)) · \(ReadingList.dateLabel(item.added))")
                     .font(.caption)
-                    .foregroundStyle(Theme.faint)
+                    .foregroundStyle(Theme.secondary)
                     .lineLimit(1)
             }
             Spacer(minLength: 0)

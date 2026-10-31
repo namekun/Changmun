@@ -362,19 +362,19 @@ struct SuggestionRow: View {
             Text(text).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
         case .search(let text):
             Text(text).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
-            Text("Search").font(.secondary).foregroundStyle(Theme.faint)
+            Text("Search").font(.secondary).foregroundStyle(Theme.secondary)
         case .suggested(let text):
             Text(text).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
         case .tab(_, let url, let title, let space):
             Text(title).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
-            Text(space.map { String(localized: "Switch to Tab in \($0)") } ?? String(localized: "Switch to Tab")).font(.secondary).foregroundStyle(Theme.faint)
-            Text(URL(string: url)?.host() ?? "").font(.secondary).foregroundStyle(Theme.faint).lineLimit(1)
+            Text(space.map { String(localized: "Switch to Tab in \($0)") } ?? String(localized: "Switch to Tab")).font(.secondary).foregroundStyle(Theme.secondary)
+            Text(URL(string: url)?.host() ?? "").font(.secondary).foregroundStyle(Theme.secondary).lineLimit(1)
         case .ask(let text):
             Text("Ask AI").font(.bodyStrong).foregroundStyle(Theme.secondary)
             Text(text).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
         case .page(let url, let title):
             Text(title.isEmpty ? url : title).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
-            Text(URL(string: url)?.host() ?? url).font(.secondary).foregroundStyle(Theme.faint).lineLimit(1)
+            Text(URL(string: url)?.host() ?? url).font(.secondary).foregroundStyle(Theme.secondary).lineLimit(1)
         }
     }
 }

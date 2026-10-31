@@ -224,9 +224,9 @@ struct EmptyPage: View {
         VStack(spacing: 8) {
             Image(systemName: "sparkles").font(.symbolEmpty).foregroundStyle(Theme.ink(0.3))
             HStack(spacing: 4) {
-                Text("New Tab").font(.secondaryStrong).foregroundStyle(Theme.faint)
+                Text("New Tab").font(.secondaryStrong).foregroundStyle(Theme.secondary)
                 Keycap("⌘T")
-                Text("AI").font(.secondaryStrong).foregroundStyle(Theme.faint).padding(.leading, 8)
+                Text("AI").font(.secondaryStrong).foregroundStyle(Theme.secondary).padding(.leading, 8)
                 Keycap("⌘E")
             }
         }

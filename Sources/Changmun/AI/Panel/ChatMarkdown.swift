@@ -313,7 +313,7 @@ private struct CodeBlockView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text(language ?? "").font(.captionStrong).foregroundStyle(Theme.faint)
+                Text(language ?? "").font(.captionStrong).foregroundStyle(Theme.secondary)
                 Spacer()
                 Button {
                     NSPasteboard.general.clearContents()

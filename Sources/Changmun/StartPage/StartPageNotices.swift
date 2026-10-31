@@ -71,13 +71,13 @@ struct StartFirstRunView: View {
                 HStack(spacing: 24) {
                     HStack(spacing: 24) { ForEach(0..<5, id: \.self) { _ in StartEmptyFavorite(size: 56) } }
                     Text("Drag the sites you visit most to the favorites in the sidebar and they appear here as tiles.")
-                        .font(.caption).foregroundStyle(Theme.dim).frame(maxWidth: 280, alignment: .leading)
+                        .font(.caption).foregroundStyle(Theme.secondary).frame(maxWidth: 280, alignment: .leading)
                 }
             }
             .frame(maxWidth: 880, alignment: .leading)
             .padding(.top, 32)
             Text("As you use it, this place fills with closed tabs, your reading list and the sites you visit most.")
-                .font(.caption).foregroundStyle(Theme.dim).padding(.top, 32)
+                .font(.caption).foregroundStyle(Theme.secondary).padding(.top, 32)
         }
         .padding(.horizontal, 24)
         .onAppear { isDefault = StartPageActions.isDefaultBrowser }

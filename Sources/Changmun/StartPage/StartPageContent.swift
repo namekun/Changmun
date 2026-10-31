@@ -316,10 +316,10 @@ struct StartPageContent: View {
 
     private var hints: some View {
         HStack(spacing: 4) {
-            Text("New Tab").font(.captionStrong).foregroundStyle(Theme.faint)
+            Text("New Tab").font(.captionStrong).foregroundStyle(Theme.secondary)
             Keycap("⌘T")
             if !browser.isPrivate {
-                Text("AI").font(.captionStrong).foregroundStyle(Theme.faint).padding(.leading, 8)
+                Text("AI").font(.captionStrong).foregroundStyle(Theme.secondary).padding(.leading, 8)
                 Keycap("⌘E")
             }
         }
@@ -406,7 +406,7 @@ struct StartPageContent: View {
                 if page.favorites.isEmpty {
                     HStack(spacing: 24) { ForEach(0..<5, id: \.self) { _ in StartEmptyFavorite(size: size) } }
                     Text("Drag the sites you visit most to the favorites in the sidebar and they appear here as tiles.")
-                        .font(.caption).foregroundStyle(Theme.dim)
+                        .font(.caption).foregroundStyle(Theme.secondary)
                 } else {
                     ForEach(Array(rows.enumerated()), id: \.offset) { _, range in
                         HStack(alignment: .top, spacing: 0) {
@@ -676,7 +676,7 @@ struct StartAIPrompt: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            TextField("", text: $draft, prompt: Text("Sum up a page, look into a site, or hand it a task").foregroundStyle(Theme.dim), axis: .vertical)
+            TextField("", text: $draft, prompt: Text("Sum up a page, look into a site, or hand it a task").foregroundStyle(Theme.secondary), axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.title)
                 .foregroundStyle(Theme.primary)

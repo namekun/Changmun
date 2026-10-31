@@ -16,7 +16,7 @@ struct StripFavorite<MenuItems: View>: View {
         SiteIcon(url: entry.url, size: 16)
             .frame(width: TabStrip.favoriteWidth, height: StripTab.height)
             .overlay(alignment: .bottom) {
-                if state == .open { Circle().fill(Theme.dim).frame(width: 4, height: 4).padding(.bottom, 4) }
+                if state == .open { Circle().fill(Theme.tertiary).frame(width: 4, height: 4).padding(.bottom, 4) }
             }
             .rowChrome(hover: hover, selected: state == .shown)
             .onTapGesture(perform: open)
@@ -66,7 +66,7 @@ struct StripTab: View {
                 Text(tab.displayTitle)
                     .font(isActive ? .rowSelected : .row)
                     .lineLimit(1)
-                    .foregroundStyle(isActive || !tab.isAsleep ? Theme.primary : Theme.dim)
+                    .foregroundStyle(isActive || !tab.isAsleep ? Theme.primary : Theme.secondary)
             }
             Spacer(minLength: 0)
             CertificateWaitBadge(tab: tab)
@@ -81,7 +81,7 @@ struct StripTab: View {
                 } else if browser.split?.contains(tab.id) == true {
                     Image(systemName: "rectangle.split.2x1")
                         .font(.symbolInline)
-                        .foregroundStyle(Theme.faint)
+                        .foregroundStyle(Theme.tertiary)
                         .help("Split View")
                         .decorative()
                 }

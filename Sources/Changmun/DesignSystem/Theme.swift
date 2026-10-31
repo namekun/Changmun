@@ -32,8 +32,8 @@ enum Theme {
     static let primary = ink(1)
     static let body = ink(0.9)
     static let secondary = inkText(0.6)
-    static let dim = inkText(0.55)
-    static let faint = inkText(0.5)
+    /// For icons and marks that carry no words: at 0.5 it is too light to read as text (use `secondary`).
+    static let tertiary = inkText(0.5)
     static let hairline = inkText(0.24)
     static let pill = ink(0.16)
     static let field = ink(0.1)
@@ -51,6 +51,10 @@ enum Theme {
     static let working = Color(red: 0.31, green: 0.82, blue: 0.47)
     /// The orange for text and small glyphs: `waiting` is too light to read on the light ground (about 2:1), so light mode gets a deeper one (4.5:1 or better on the ground and on a tinted chip).
     static let waitingText = dynamic(light: NSColor(red: 0.58, green: 0.30, blue: 0, alpha: 1), dark: NSColor(red: 1.0, green: 0.62, blue: 0.2, alpha: 1))
+
+    /// Errors and success, for text and small glyphs: the light ones are deep enough for 4.5:1 on white, the ground and a tinted chip.
+    static let danger = dynamic(light: NSColor(red: 0.74, green: 0.12, blue: 0.10, alpha: 1), dark: NSColor(red: 1.0, green: 0.45, blue: 0.42, alpha: 1))
+    static let success = dynamic(light: NSColor(red: 0.06, green: 0.42, blue: 0.20, alpha: 1), dark: NSColor(red: 0.36, green: 0.84, blue: 0.52, alpha: 1))
 
     private static func dynamic(light: NSColor, dark: NSColor) -> Color {
         Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light })

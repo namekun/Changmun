@@ -114,7 +114,7 @@ struct ChatPanel: View {
                 ZStack(alignment: .topLeading) {
                     if draft.isEmpty {
                         Text("Ask about this page, or give it a task")
-                            .font(.body).foregroundStyle(Theme.faint)
+                            .font(.body).foregroundStyle(Theme.secondary)
                             .allowsHitTesting(false)
                     }
                     // While the AI works, Return queues the message for when it is done and ⌘Return steers it now.
@@ -138,7 +138,7 @@ struct ChatPanel: View {
             .padding(.bottom, chat.isRunning ? 4 : 4)
             if chat.isRunning {
                 Text("↵ queues it for when the AI is done · ⌘↵ steers it now")
-                    .font(.caption).foregroundStyle(Theme.faint)
+                    .font(.caption).foregroundStyle(Theme.secondary)
                     .padding(.bottom, 4)
             }
             ComposerControlsRow(prefs: prefs, chat: chat)

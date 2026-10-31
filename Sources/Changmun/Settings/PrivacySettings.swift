@@ -66,7 +66,7 @@ struct PrivacySettings: View {
                 Toggle("Stay signed in after quitting", isOn: $prefs.keepSessionCookies)
                 Caption(text: "Keeps the sign-in cookies that sites meant to end when the browser closes, for up to 30 days, in a file on this Mac encrypted with a key from your login Keychain, until you turn it off or clear site data.")
                 if prefs.keepSessionCookies && journal.keyDenied {
-                    Caption(text: "Couldn’t use the Keychain, so sign-ins won’t survive quitting.", color: .red)
+                    Caption(text: "Couldn’t use the Keychain, so sign-ins won’t survive quitting.", color: Theme.danger)
                 }
             }
             AdBlockSection(prefs: prefs)

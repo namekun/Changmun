@@ -59,11 +59,11 @@ struct AddressPill: View {
             }
             .layoutPriority(1)
             if !compact, let title = Self.shownTitle(tab.title, host: host) {
-                Text(verbatim: "·").font(.body).foregroundStyle(Theme.faint).decorative()
+                Text(verbatim: "·").font(.body).foregroundStyle(Theme.secondary).decorative()
                 Text(verbatim: title)
                     .font(.body)
                     .lineLimit(1)
-                    .foregroundStyle(Theme.faint)
+                    .foregroundStyle(Theme.secondary)
             }
             Spacer(minLength: 0)
             ReaderButton(tab: tab)
@@ -156,7 +156,7 @@ struct AddressPlaceholder: View {
             Text("Search or enter address").font(.body)
             Spacer()
         }
-        .foregroundStyle(Theme.faint)
+        .foregroundStyle(Theme.secondary)
         .padding(.leading, 8)
         .padding(.trailing, 4)
         .frame(height: Metrics.control)

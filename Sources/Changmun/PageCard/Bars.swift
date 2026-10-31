@@ -17,7 +17,7 @@ struct LoginOfferBar: View {
                     .layoutPriority(1)
                 // The user name gives way first, so the site stays readable.
                 if !offer.username.isEmpty, !offer.updatesExisting {
-                    Text(offer.username).font(.secondary).foregroundStyle(Theme.faint).lineLimit(1)
+                    Text(offer.username).font(.secondary).foregroundStyle(Theme.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 8)
                 PeekAction(title: String(localized: "Save")) {
@@ -66,9 +66,9 @@ struct PopupBar: View {
             HStack(spacing: 8) {
                 Image(systemName: "macwindow.badge.plus").font(.symbolInline).foregroundStyle(Theme.secondary)
                 Text("Pop-up blocked").font(.bodyStrong).foregroundStyle(Theme.primary)
-                Text(description(of: popup)).font(.secondary).foregroundStyle(Theme.faint).lineLimit(1)
+                Text(description(of: popup)).font(.secondary).foregroundStyle(Theme.secondary).lineLimit(1)
                 if tab.blockedPopupCount > 1 {
-                    Text("and \(tab.blockedPopupCount - 1) more").font(.secondary).foregroundStyle(Theme.faint).lineLimit(1).fixedSize()
+                    Text("and \(tab.blockedPopupCount - 1) more").font(.secondary).foregroundStyle(Theme.secondary).lineLimit(1).fixedSize()
                 }
                 Spacer(minLength: 8)
                 // What is pressed is what the bar shows now: if it has changed by the time the press is handled, nothing happens.

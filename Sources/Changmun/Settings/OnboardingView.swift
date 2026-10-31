@@ -215,7 +215,7 @@ struct SourceRow: View {
         HStack(spacing: 8) {
             Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
                 .font(.symbolRow)
-                .foregroundStyle(isOn ? Theme.primary : Theme.faint)
+                .foregroundStyle(isOn ? Theme.primary : Theme.tertiary)
             AppIcon(browser: source.browser)
             VStack(alignment: .leading, spacing: 0) {
                 Text(source.title).font(.bodyStrong).foregroundStyle(Theme.primary)

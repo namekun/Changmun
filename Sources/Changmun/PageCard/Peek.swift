@@ -21,7 +21,7 @@ struct PeekCard: View {
                         .lineLimit(1)
                     Text(tab.title)
                         .font(.secondary)
-                        .foregroundStyle(Theme.faint)
+                        .foregroundStyle(Theme.secondary)
                         .lineLimit(1)
                         .truncationMode(.tail)
                     Spacer(minLength: 8)
@@ -79,7 +79,7 @@ struct TabSwitcherView: View {
                     Text(tab.displayTitle).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
                     Spacer(minLength: 8)
                     Text(tab.url?.host().map(DisplayHost.trimmed) ?? "")
-                        .font(.secondary).foregroundStyle(Theme.faint).lineLimit(1)
+                        .font(.secondary).foregroundStyle(Theme.secondary).lineLimit(1)
                 }
                 .padding(.horizontal, 8)
                 .frame(height: 34)

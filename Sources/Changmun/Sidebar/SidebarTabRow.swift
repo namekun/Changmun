@@ -51,7 +51,7 @@ struct SidebarTabRow: View {
                 Text(tab.displayTitle)
                     .font(isActive ? .rowSelected : .row)
                     .lineLimit(1)
-                    .foregroundStyle(isActive || !tab.isAsleep ? Theme.primary : Theme.dim)
+                    .foregroundStyle(isActive || !tab.isAsleep ? Theme.primary : Theme.secondary)
             }
             Spacer(minLength: 0)
             CertificateWaitBadge(tab: tab)
@@ -66,7 +66,7 @@ struct SidebarTabRow: View {
                 } else if browser.split?.contains(tab.id) == true {
                     Image(systemName: "rectangle.split.2x1")
                         .font(.symbolInline)
-                        .foregroundStyle(Theme.faint)
+                        .foregroundStyle(Theme.tertiary)
                         .help("Split View")
                         .decorative()
                 }
@@ -170,7 +170,7 @@ struct SiteIcon: View {
             if let image {
                 IconImage(image: image, size: size)
             } else {
-                Image(systemName: "globe").font(.system(size: size * 0.7)).foregroundStyle(Theme.faint)  // type-exempt: a share of the icon plate's size
+                Image(systemName: "globe").font(.system(size: size * 0.7)).foregroundStyle(Theme.tertiary)  // type-exempt: a share of the icon plate's size
             }
         }
         .frame(width: size, height: size)
@@ -191,7 +191,7 @@ struct Favicon: View {
                 // A sleeping tab has no page to ask; the site's saved icon stands in.
                 SiteIcon(url: url, size: 16, keep: !tab.isPrivate)
             } else {
-                Image(systemName: "globe").font(.symbolToolbar).foregroundStyle(Theme.faint)
+                Image(systemName: "globe").font(.symbolToolbar).foregroundStyle(Theme.tertiary)
             }
         }
         .frame(width: 16, height: 16)

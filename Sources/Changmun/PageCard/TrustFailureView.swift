@@ -40,7 +40,7 @@ struct TrustFailureView: View {
                     .font(.bodyStrong).foregroundStyle(Theme.primary).fixedSize(horizontal: false, vertical: true)
                 if failure.changed {
                     Label("The certificate of this site has changed since you chose to go on. Don’t continue unless you know why.", systemImage: "exclamationmark.octagon.fill")
-                        .font(.bodyStrong).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+                        .font(.bodyStrong).foregroundStyle(Theme.danger).fixedSize(horizontal: false, vertical: true)
                 }
                 HStack(spacing: 16) {
                     Button(action: goBack) { Text("Go Back").frame(minWidth: 90) }
@@ -67,7 +67,7 @@ struct TrustFailureView: View {
                         .font(.secondaryStrong).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
                 case .refusedWentBad:
                     Label("This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on.", systemImage: "exclamationmark.octagon.fill")
-                        .font(.secondaryStrong).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+                        .font(.secondaryStrong).foregroundStyle(Theme.danger).fixedSize(horizontal: false, vertical: true)
                 }
             }
             .frame(maxWidth: 560, alignment: .leading)

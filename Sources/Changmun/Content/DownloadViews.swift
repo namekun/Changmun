@@ -131,7 +131,7 @@ struct DownloadRow: View {
                 } else {
                     Image(systemName: item.state == .running ? "arrow.down.circle" : "exclamationmark.circle")
                         .font(.symbolEmpty)
-                        .foregroundStyle(Theme.faint)
+                        .foregroundStyle(Theme.tertiary)
                 }
             }
             .frame(width: 24, height: 24)
@@ -220,7 +220,7 @@ struct DownloadRow: View {
             Text(item.bytes.map { String(localized: "Done · \(ByteCountFormatter.string(fromByteCount: $0, countStyle: .file))") } ?? String(localized: "Done"))
                 .font(.caption).foregroundStyle(Theme.secondary)
         case .cancelled:
-            Text("Cancelled").font(.caption).foregroundStyle(Theme.faint)
+            Text("Cancelled").font(.caption).foregroundStyle(Theme.secondary)
         case .failed(let reason):
             Text("Failed: \(reason)").font(.caption).foregroundStyle(Theme.waitingText).lineLimit(1)
         }

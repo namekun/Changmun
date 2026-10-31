@@ -190,7 +190,7 @@ struct TabMentionList: View {
     var body: some View {
         ComposerPopup {
             if tabs.isEmpty {
-                Text("No matching tabs").font(.secondary).foregroundStyle(Theme.faint)
+                Text("No matching tabs").font(.secondary).foregroundStyle(Theme.secondary)
                     .padding(.horizontal, 8).frame(height: 28)
             } else {
                 ScrollViewReader { proxy in
@@ -222,7 +222,7 @@ private struct TabMentionRow: View {
                 Text(tab.displayTitle).font(.secondaryStrong).foregroundStyle(Theme.primary).lineLimit(1).truncationMode(.tail)
                 Spacer(minLength: 4)
                 if let host = tab.url?.host() {
-                    Text(verbatim: host).font(.caption).foregroundStyle(Theme.faint).lineLimit(1).truncationMode(.middle)
+                    Text(verbatim: host).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1).truncationMode(.middle)
                         .frame(maxWidth: 110, alignment: .trailing)
                 }
             }

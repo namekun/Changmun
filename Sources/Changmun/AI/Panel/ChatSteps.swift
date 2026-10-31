@@ -150,7 +150,7 @@ struct ChatStepsRow: View {
         case .live(_, let hidden, let steps):
             VStack(alignment: .leading, spacing: 8) {
                 if hidden > 0 {
-                    Text("+\(hidden) earlier steps").font(.captionStrong).foregroundStyle(Theme.faint)
+                    Text("+\(hidden) earlier steps").font(.captionStrong).foregroundStyle(Theme.secondary)
                 }
                 ForEach(steps) { StepChip(item: $0) }
             }
@@ -198,7 +198,7 @@ struct TurnSummaryRow: View {
             }
         }
         .font(.captionStrong)
-        .foregroundStyle(Theme.faint)
+        .foregroundStyle(Theme.secondary)
         .accessibilityElement(children: .combine)
     }
 }

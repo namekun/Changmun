@@ -27,7 +27,7 @@ struct FavoriteTile<MenuItems: View>: View {
             .frame(maxWidth: .infinity)
             .frame(height: Metrics.tile)
             .overlay(alignment: .bottom) {
-                if state == .open { Circle().fill(Theme.dim).frame(width: 4, height: 4).padding(.bottom, 4) }
+                if state == .open { Circle().fill(Theme.tertiary).frame(width: 4, height: 4).padding(.bottom, 4) }
             }
             .rowChrome(hover: hover, selected: state == .shown, radius: Metrics.fieldRadius)
             .onTapGesture(perform: open)
@@ -124,13 +124,13 @@ struct FolderRow<MenuItems: View>: View {
             }
             Spacer(minLength: 0)
             ZStack(alignment: .trailing) {
-                if showCount { Text("\(count)").font(.caption.monospacedDigit()).foregroundStyle(Theme.faint).opacity(hover ? 0 : 1) }
+                if showCount { Text("\(count)").font(.caption.monospacedDigit()).foregroundStyle(Theme.secondary).opacity(hover ? 0 : 1) }
                 if hover && !renaming { MoreButton(items: menu) }
             }
             .frame(minWidth: Metrics.action, alignment: .trailing)
             Image(systemName: "chevron.right")
                 .font(.symbolInline)
-                .foregroundStyle(Theme.faint)
+                .foregroundStyle(Theme.tertiary)
                 .rotationEffect(.degrees(isOpen ? 90 : 0))
                 .frame(width: Metrics.icon)
         }
@@ -191,7 +191,7 @@ struct BookmarkRow<MenuItems: View>: View {
             } else {
                 Text(entry.title.isEmpty ? entry.url : entry.title)
                     .font(state == .shown ? .rowSelected : .row)
-                    .foregroundStyle(state == .closed ? Theme.dim : Theme.primary)
+                    .foregroundStyle(state == .closed ? Theme.secondary : Theme.primary)
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
@@ -199,7 +199,7 @@ struct BookmarkRow<MenuItems: View>: View {
                 if hover && !renaming {
                     MoreButton(items: menu)
                 } else if state == .open {
-                    Circle().fill(Theme.dim).frame(width: 4, height: 4)
+                    Circle().fill(Theme.tertiary).frame(width: 4, height: 4)
                 }
             }
             .frame(width: Metrics.action)
@@ -352,13 +352,13 @@ struct TabGroupHeader: View {
             }
             Color.clear.frame(maxWidth: .infinity).contentShape(Rectangle())
             ZStack(alignment: .trailing) {
-                Text("\(count)").font(.caption.monospacedDigit()).foregroundStyle(Theme.faint).opacity(hover ? 0 : 1)
+                Text("\(count)").font(.caption.monospacedDigit()).foregroundStyle(Theme.secondary).opacity(hover ? 0 : 1)
                 if hover && browser.renamingGroup != group.id { MoreButton { GroupMenu(group: group, browser: browser) } }
             }
             .frame(minWidth: Metrics.action, alignment: .trailing)
             Image(systemName: "chevron.right")
                 .font(.symbolInline)
-                .foregroundStyle(Theme.faint)
+                .foregroundStyle(Theme.tertiary)
                 .rotationEffect(.degrees(group.isOpen ? 90 : 0))
                 .frame(width: Metrics.icon)
         }

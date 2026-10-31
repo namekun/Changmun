@@ -53,10 +53,8 @@ struct StartIcon: View {
     @State private var image: NSImage?
     @Environment(\.colorScheme) private var scheme
 
-    private static let letterColors: [Color] = [
-        Color(red: 0.36, green: 0.52, blue: 0.86), Color(red: 0.86, green: 0.46, blue: 0.36), Color(red: 0.33, green: 0.66, blue: 0.48), Color(red: 0.62, green: 0.46, blue: 0.88),
-        Color(red: 0.88, green: 0.66, blue: 0.28), Color(red: 0.26, green: 0.66, blue: 0.72), Color(red: 0.86, green: 0.42, blue: 0.60), Color(red: 0.46, green: 0.52, blue: 0.62),
-    ]
+    /// The same eight colours as a space's tint, so a site's letter and a space are drawn from one palette.
+    private static let letterColors = SpaceTint.allCases.map(\.color)
 
     var body: some View {
         let style = StartIconStyle.style(pixelWidth: image.map { Int($0.representations.map(\.pixelsWide).max() ?? Int($0.size.width)) })
@@ -123,7 +121,7 @@ struct StartEmptyFavorite: View {
     var body: some View {
         RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
             .strokeBorder(Theme.hairline, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-            .overlay { Image(systemName: "plus").font(.system(size: size * 0.32, weight: .regular)).foregroundStyle(Theme.faint) }  // type-exempt: a share of the tile's size
+            .overlay { Image(systemName: "plus").font(.system(size: size * 0.32, weight: .regular)).foregroundStyle(Theme.tertiary) }  // type-exempt: a share of the tile's size
             .frame(width: size, height: size)
             .accessibilityHidden(true)
     }
@@ -156,13 +154,13 @@ struct StartContinueCardView: View {
                     .padding(.horizontal, 8).padding(.vertical, 4)
                     .background(Capsule().fill(tint.color.opacity(0.16)))
                 } else {
-                    Text(verbatim: when).font(.caption).foregroundStyle(Theme.dim)
+                    Text(verbatim: when).font(.caption).foregroundStyle(Theme.secondary)
                 }
             }
             Text(verbatim: card.title).font(.bodyStrong).foregroundStyle(Theme.primary)
                 .lineLimit(2).multilineTextAlignment(.leading).padding(.top, 8)
             Spacer(minLength: 8)
-            Text(verbatim: card.isClosedTab ? "\(host) · \(when)" : host).font(.caption).foregroundStyle(Theme.dim).lineLimit(1)
+            Text(verbatim: card.isClosedTab ? "\(host) · \(when)" : host).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
         }
         .padding(16)
         .frame(maxWidth: .infinity, minHeight: 130, maxHeight: 130, alignment: .topLeading)
@@ -192,7 +190,7 @@ struct StartContinueRowView: View {
             StartIcon(url: card.url, size: 22, plate: false)
             VStack(alignment: .leading, spacing: 0) {
                 Text(verbatim: card.title).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
-                Text(verbatim: card.isClosedTab ? "\(host) · \(when)" : host).font(.caption).foregroundStyle(Theme.dim).lineLimit(1)
+                Text(verbatim: card.isClosedTab ? "\(host) · \(when)" : host).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             if hover {
@@ -206,7 +204,7 @@ struct StartContinueRowView: View {
                 .padding(.horizontal, 8).padding(.vertical, 4)
                 .background(Capsule().fill(tint.color.opacity(0.16)))
             } else {
-                Text(verbatim: when).font(.caption).foregroundStyle(Theme.dim)
+                Text(verbatim: when).font(.caption).foregroundStyle(Theme.secondary)
             }
         }
         .padding(.horizontal, 8)
@@ -255,7 +253,7 @@ struct StartReadingRow: View {
                         .foregroundStyle(item.read ? Theme.secondary : Theme.primary).lineLimit(1)
                     if !item.read { Circle().fill(Theme.primary).frame(width: 6, height: 6) }
                 }
-                Text(verbatim: "\(site) · \(added)").font(.caption).foregroundStyle(Theme.dim).lineLimit(1)
+                Text(verbatim: "\(site) · \(added)").font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
         }
@@ -281,7 +279,7 @@ struct StartFrequentRow: View {
             StartIcon(url: site.url, size: 22, plate: false)
             VStack(alignment: .leading, spacing: 0) {
                 Text(verbatim: site.title).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
-                Text(verbatim: site.host).font(.caption).foregroundStyle(Theme.dim).lineLimit(1)
+                Text(verbatim: site.host).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             if hover {
@@ -289,7 +287,7 @@ struct StartFrequentRow: View {
             } else {
                 Capsule().fill(Theme.track).frame(width: 60, height: 3)
                     .overlay(alignment: .leading) { Capsule().fill(Theme.meter).frame(width: 60 * CGFloat(site.visits) / CGFloat(max(most, 1)), height: 3) }
-                Text(verbatim: visits).font(.caption).foregroundStyle(Theme.dim).frame(minWidth: 44, alignment: .trailing)
+                Text(verbatim: visits).font(.caption).foregroundStyle(Theme.secondary).frame(minWidth: 44, alignment: .trailing)
             }
         }
         .padding(.horizontal, 8)
@@ -336,7 +334,7 @@ struct StartAICard: View {
                 .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(tint.color.opacity(0.16)))
             VStack(alignment: .leading, spacing: 0) {
                 Text(verbatim: suggestion.title).font(.secondaryStrong).foregroundStyle(Theme.primary).lineLimit(1)
-                Text(verbatim: suggestion.detail).font(.caption).foregroundStyle(Theme.dim).lineLimit(1)
+                Text(verbatim: suggestion.detail).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
             }
             Spacer(minLength: 0)
         }
@@ -360,7 +358,7 @@ struct StartHeading: View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(verbatim: title).font(.bodyStrong).foregroundStyle(Theme.primary).startHalo()
                 .accessibilityAddTraits(.isHeader)
-            if let detail { Text(verbatim: detail).font(.secondary).foregroundStyle(Theme.dim).startHalo() }
+            if let detail { Text(verbatim: detail).font(.secondary).foregroundStyle(Theme.secondary).startHalo() }
             Spacer(minLength: 8)
             if let linkTitle, let link {
                 Button(action: link) { Text(verbatim: linkTitle).font(.secondary).foregroundStyle(Theme.secondary).startHalo() }

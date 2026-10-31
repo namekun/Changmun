@@ -59,7 +59,7 @@ struct StartPageCustomizeView: View {
                 }
                 .buttonStyle(.plain)
                 Spacer()
-                Text("Changes apply right away").font(.caption).foregroundStyle(Theme.dim)
+                Text("Changes apply right away").font(.caption).foregroundStyle(Theme.secondary)
             }
             .padding(.horizontal, 16).padding(.vertical, 8)
         }
@@ -75,7 +75,7 @@ struct StartPageCustomizeView: View {
             HStack {
                 Text(verbatim: title).font(.caption).foregroundStyle(Theme.secondary).accessibilityAddTraits(.isHeader)
                 Spacer()
-                if let trailing { Text(verbatim: trailing).font(.caption).foregroundStyle(Theme.dim) }
+                if let trailing { Text(verbatim: trailing).font(.caption).foregroundStyle(Theme.secondary) }
             }
             content()
         }

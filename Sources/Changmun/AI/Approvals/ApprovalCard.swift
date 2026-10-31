@@ -316,7 +316,7 @@ struct ApprovalCardView: View {
                 excerpt(label: "", text: card.prompt.detail)
             }
             if waiting > 0 {
-                Text("\(waiting) more waiting").font(.caption).foregroundStyle(Theme.faint)
+                Text("\(waiting) more waiting").font(.caption).foregroundStyle(Theme.secondary)
             }
             buttons
         }
@@ -344,7 +344,7 @@ struct ApprovalCardView: View {
     private func excerpt(label: String, text: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             if !label.isEmpty {
-                Text(verbatim: label).font(.captionStrong).foregroundStyle(Theme.faint)
+                Text(verbatim: label).font(.captionStrong).foregroundStyle(Theme.secondary)
             }
             ScrollView {
                 Text(verbatim: text).font(.secondary).foregroundStyle(Theme.body).textSelection(.enabled)

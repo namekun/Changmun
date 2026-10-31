@@ -78,7 +78,7 @@ private struct ChatHistoryList: View {
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.selected))
             }
             if history.chats.isEmpty {
-                Text("No saved chats yet").font(.secondary).foregroundStyle(Theme.faint)
+                Text("No saved chats yet").font(.secondary).foregroundStyle(Theme.secondary)
                     .padding(.horizontal, 8).padding(.top, 4)
             }
             ScrollView {
@@ -106,7 +106,7 @@ private struct SavedChatRow: View {
                     Text(stored.title.isEmpty ? String(localized: "Untitled chat") : stored.title)
                         .font(.secondaryStrong).foregroundStyle(Theme.primary).lineLimit(1)
                     Text(stored.updated.formatted(date: .abbreviated, time: .shortened))
-                        .font(.caption).foregroundStyle(Theme.faint)
+                        .font(.caption).foregroundStyle(Theme.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())

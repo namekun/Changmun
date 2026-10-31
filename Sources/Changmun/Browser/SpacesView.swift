@@ -290,7 +290,7 @@ struct SpaceSheet: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 4) {
                 Text("Color").font(.caption).foregroundStyle(Theme.secondary)
-                Text("· tints the sidebar glass").font(.caption).foregroundStyle(Theme.faint)
+                Text("· tints the sidebar glass").font(.caption).foregroundStyle(Theme.secondary)
             }
             HStack(spacing: 8) {
                 ForEach(SpaceTint.allCases) { item in
@@ -338,7 +338,7 @@ struct SpaceSheet: View {
             Text(title).font(.secondaryStrong).foregroundStyle(on ? tint.color : Theme.secondary)
             ForEach(lines, id: \.self) { line in
                 HStack(alignment: .top, spacing: 4) {
-                    Image(systemName: "checkmark").font(.symbolInline).foregroundStyle(SpaceTint.green.color).padding(.top, 4)
+                    Image(systemName: "checkmark").font(.symbolInline).foregroundStyle(Theme.success).padding(.top, 4)
                     Text(line).font(.caption).foregroundStyle(Theme.body).fixedSize(horizontal: false, vertical: true)
                 }
             }

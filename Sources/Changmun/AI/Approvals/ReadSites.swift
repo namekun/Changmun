@@ -65,7 +65,7 @@ private struct ReadSitesList: View {
                             .buttonStyle(.plain)
                         }
                     }
-                    Text("After revoking, the AI asks again before it acts there.").font(.caption).foregroundStyle(Theme.faint)
+                    Text("After revoking, the AI asks again before it acts there.").font(.caption).foregroundStyle(Theme.secondary)
                 }
             }
             if !read.isEmpty {

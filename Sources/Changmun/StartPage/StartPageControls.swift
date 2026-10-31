@@ -109,7 +109,7 @@ struct StartComponentsList: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(verbatim: section.title).font(.body).foregroundStyle(item.enabled ? Theme.primary : Theme.secondary)
                     if item.enabled, let contents, StartPageRules.isEmpty(section, contents: contents) {
-                        Text("Nothing here yet").font(.caption).foregroundStyle(Theme.dim)
+                        Text("Nothing here yet").font(.caption).foregroundStyle(Theme.secondary)
                     }
                 }
                 Spacer(minLength: 4)
@@ -166,7 +166,7 @@ struct StartComponentsList: View {
     }
 
     private func handle(_ section: StartSection, index: Int) -> some View {
-        StartGrip(color: focusedHandle == section ? Color.accentColor : Theme.faint)
+        StartGrip(color: focusedHandle == section ? Color.accentColor : Theme.tertiary)
             .frame(width: 22, height: StartPageCustomizeModel.rowHeight)
             .contentShape(Rectangle())
             .onHover { inside in if inside { NSCursor.openHand.push() } else { NSCursor.pop() } }
@@ -277,7 +277,7 @@ struct StartBackgroundControls: View {
                 }
             }
             if model.imageState == .failed {
-                notice("exclamationmark.circle.fill", String(localized: "Couldn’t use that image"), .red)
+                notice("exclamationmark.circle.fill", String(localized: "Couldn’t use that image"), Theme.danger)
             }
             if background.kind == .image, background.imageFile != nil { imageControls }
         }
@@ -393,9 +393,9 @@ struct StartBackgroundControls: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Background Image").font(.secondaryStrong).foregroundStyle(Theme.primary)
                     HStack(spacing: 4) {
-                        if let loaded { Text(verbatim: "\(Int(loaded.pixelSize.width))×\(Int(loaded.pixelSize.height)) ·").font(.caption).foregroundStyle(Theme.dim) }
-                        Image(systemName: "lock").font(.symbolInline).foregroundStyle(Theme.dim).decorative()
-                        Text("Only on this Mac").font(.caption).foregroundStyle(Theme.dim)
+                        if let loaded { Text(verbatim: "\(Int(loaded.pixelSize.width))×\(Int(loaded.pixelSize.height)) ·").font(.caption).foregroundStyle(Theme.secondary) }
+                        Image(systemName: "lock").font(.symbolInline).foregroundStyle(Theme.tertiary).decorative()
+                        Text("Only on this Mac").font(.caption).foregroundStyle(Theme.secondary)
                     }
                     HStack(spacing: 8) {
                         Button { pickImage() } label: { Text("Choose Another…") }
@@ -431,7 +431,7 @@ struct StartBackgroundControls: View {
                 .controlSize(.small)
                 .accessibilityLabel(title)
                 .accessibilityValue(String(localized: "\(display), from \(Int(range.lowerBound)) to \(Int(range.upperBound))"))
-            Text(verbatim: "\(display)").font(.caption).foregroundStyle(Theme.dim).frame(width: 22, alignment: .trailing)
+            Text(verbatim: "\(display)").font(.caption).foregroundStyle(Theme.secondary).frame(width: 22, alignment: .trailing)
         }
     }
 
@@ -482,7 +482,7 @@ struct StartNewTabControls: View {
     private var addressField: some View {
         let state = model.addressState
         let border: Color = switch state {
-        case .invalid: .red
+        case .invalid: Theme.danger
         case .insecure: Theme.waitingText
         default: .clear
         }
@@ -498,7 +498,7 @@ struct StartNewTabControls: View {
                     .onChange(of: model.address) { model.addressEdited() }
                     .onChange(of: addressFocused) { _, focused in if !focused { model.commitAddress() } }
                     .accessibilityLabel(String(localized: "Address for new tabs"))
-                if case .ok = state { Image(systemName: "checkmark").font(.symbolInline).foregroundStyle(.green).decorative() }
+                if case .ok = state { Image(systemName: "checkmark").font(.symbolInline).foregroundStyle(Theme.success).decorative() }
             }
             .padding(.horizontal, 8).frame(height: 32)
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.field))
@@ -507,7 +507,7 @@ struct StartNewTabControls: View {
             case .none where model.address.isEmpty, .empty:
                 line("info.circle", String(localized: "Leave it empty to open the start page."), Theme.secondary)
             case .invalid:
-                line("exclamationmark.circle.fill", String(localized: "That isn’t a valid address. For example: https://example.com"), .red)
+                line("exclamationmark.circle.fill", String(localized: "That isn’t a valid address. For example: https://example.com"), Theme.danger)
             case .insecure:
                 VStack(alignment: .leading, spacing: 4) {
                     line("exclamationmark.triangle.fill", String(localized: "This connection isn’t encrypted. We recommend https://"), Theme.waitingText)
@@ -515,14 +515,14 @@ struct StartNewTabControls: View {
                         .buttonStyle(.plain).padding(.leading, 24)
                 }
             case .ok:
-                line("checkmark", String(localized: "This address works."), Color(red: 0.12, green: 0.55, blue: 0.3))
+                line("checkmark", String(localized: "This address works."), Theme.success)
             default:
                 EmptyView()
             }
             line("globe", String(localized: "This site is loaded every time you open a new tab."), Theme.secondary)
             if detailed {
                 Text("The site learns that you connected, and your IP address. A window with no tab always shows the start page, so no site is loaded when a window opens.")
-                    .font(.caption).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true).padding(.leading, 24)
+                    .font(.caption).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true).padding(.leading, 24)
             }
         }
     }

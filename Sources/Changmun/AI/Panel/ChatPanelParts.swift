@@ -82,7 +82,7 @@ struct PromptChip: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                Image(systemName: "text.cursor").font(.symbolInline).foregroundStyle(Theme.faint)
+                Image(systemName: "text.cursor").font(.symbolInline).foregroundStyle(Theme.tertiary)
                 Text(text).font(.secondaryStrong).foregroundStyle(Theme.primary)
             }
             .padding(.horizontal, 8)
@@ -115,7 +115,7 @@ struct Working: View {
                         Circle().fill(Theme.working).frame(width: 6, height: 6).opacity(on ? 1 : 0.35)
                         Text(verbatim: label)
                         if let step {
-                            Text(verbatim: "·").foregroundStyle(Theme.faint)
+                            Text(verbatim: "·").foregroundStyle(Theme.secondary)
                             Text(verbatim: step).lineLimit(1).truncationMode(.middle)
                         }
                         if steps != nil {
@@ -151,13 +151,13 @@ struct AttachedPageCard: View {
                 if let id = page.tabID, let tab = ToolCatalog.findTab(id) {
                     Favicon(tab: tab)
                 } else {
-                    Image(systemName: "globe").font(.symbolToolbar).foregroundStyle(Theme.faint).frame(width: 16, height: 16)
+                    Image(systemName: "globe").font(.symbolToolbar).foregroundStyle(Theme.tertiary).frame(width: 16, height: 16)
                 }
             }
             VStack(alignment: .leading, spacing: 0) {
                 Text(verbatim: page.title).font(.captionStrong).foregroundStyle(Theme.primary)
                     .lineLimit(1).truncationMode(.tail)
-                Text(verbatim: page.host).font(.caption).foregroundStyle(Theme.faint)
+                Text(verbatim: page.host).font(.caption).foregroundStyle(Theme.secondary)
                     .lineLimit(1).truncationMode(.middle)
             }
         }
