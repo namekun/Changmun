@@ -325,10 +325,10 @@ struct DangerButton: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(size.font)
-            .foregroundStyle(Theme.background)
+            .foregroundStyle(Theme.danger)
             .padding(.horizontal, 16)
             .frame(height: size.height)
-            .background(RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous).fill(Theme.danger))
+            .background(RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous).fill(Theme.danger.opacity(0.12)))
             .opacity(enabled ? (configuration.isPressed ? 0.85 : 1) : 0.4)
             .pressScale(configuration.isPressed)
     }

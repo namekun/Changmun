@@ -67,14 +67,12 @@ struct DialogSpec: Equatable {
         }
     }
 
-    /// Red for deleting, grey for a Cancel, and ink for the first of the others; a second one beside it is grey, so there is one strong button.
+    /// The filled ink button is always the one Return presses, so what stands out is what the key does. Deleting is red and never filled in ink;
+    /// everything else is grey.
     func style(of index: Int) -> Style {
         guard buttons.indices.contains(index) else { return .secondary }
-        switch buttons[index].role {
-        case .destructive: return .danger
-        case .cancel: return .secondary
-        case .normal: return buttons.firstIndex { $0.role == .normal } == index ? .primary : .secondary
-        }
+        if buttons[index].role == .destructive { return .danger }
+        return index == defaultIndex ? .primary : .secondary
     }
 
     /// Deleting what cannot be brought back: Cancel is what Return does, and Delete is red.

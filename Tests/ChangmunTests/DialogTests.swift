@@ -45,13 +45,13 @@ struct DialogTests {
         #expect(spec([normal, DialogButton(title: "Other")]).button(for: .escape) == nil, "two answers and no cancel: Esc does not choose one")
     }
 
-    @Test func deletingIsRedACancelIsGreyAndThereIsOneStrongButton() {
+    @Test func theFilledButtonIsAlwaysTheOneReturnPressesAndDeletingIsRed() {
         let delete = DialogSpec.confirmDelete("Delete?", "It goes.")
         #expect(delete.buttons.map(\.role) == [.cancel, .destructive])
-        #expect(delete.style(of: 0) == .secondary)
+        #expect(delete.style(of: 0) == .primary)
         #expect(delete.style(of: 1) == .danger)
         let three = spec([DialogButton(title: "Deny", role: .cancel, isDefault: true), normal, DialogButton(title: "Site")])
-        #expect((0..<3).map(three.style(of:)) == [.secondary, .primary, .secondary])
+        #expect((0..<3).map(three.style(of:)) == [.primary, .secondary, .secondary])
         #expect(three.style(of: 7) == .secondary)
     }
 
@@ -69,7 +69,7 @@ struct DialogTests {
         #expect(ask.message == String(localized: "claude.ai wants to open the app."))
         #expect(ask.detail == .text("claude://login/callback?code=1"))
         #expect(ask.button(for: .return) == 0 && ask.buttons[0].role == .cancel)
-        #expect(ask.style(of: 1) == .primary)
+        #expect(ask.style(of: 0) == .primary && ask.style(of: 1) == .secondary)
     }
 
     @Test func theCameraAsksBlockAsTheDefaultAndRemembersOnlyOutsidePrivateWindows() {
