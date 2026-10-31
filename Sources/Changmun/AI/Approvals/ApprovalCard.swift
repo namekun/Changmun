@@ -299,24 +299,24 @@ struct ApprovalCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: "hand.raised.fill").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.waitingText).decorative()
-                Text(verbatim: card.prompt.message).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.primary)
+                Image(systemName: "hand.raised.fill").font(.symbolInline).foregroundStyle(Theme.waitingText).decorative()
+                Text(verbatim: card.prompt.message).font(.secondaryStrong).foregroundStyle(Theme.primary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if let parts = card.prompt.parts {
-                Text(verbatim: parts.site).font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.secondary).lineLimit(2)
+                Text(verbatim: parts.site).font(.caption).foregroundStyle(Theme.secondary).lineLimit(2)
                 if !parts.readLine.isEmpty {
-                    Text(verbatim: parts.readLine).font(.system(size: 11)).foregroundStyle(Theme.secondary)
+                    Text(verbatim: parts.readLine).font(.caption).foregroundStyle(Theme.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 excerpt(label: parts.label, text: parts.text)
-                Text(verbatim: parts.why).font(.system(size: 11)).foregroundStyle(Theme.secondary)
+                Text(verbatim: parts.why).font(.caption).foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 excerpt(label: "", text: card.prompt.detail)
             }
             if waiting > 0 {
-                Text("\(waiting) more waiting").font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.faint)
+                Text("\(waiting) more waiting").font(.caption).foregroundStyle(Theme.faint)
             }
             buttons
         }
@@ -344,10 +344,10 @@ struct ApprovalCardView: View {
     private func excerpt(label: String, text: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             if !label.isEmpty {
-                Text(verbatim: label).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(Theme.faint)
+                Text(verbatim: label).font(.captionStrong).foregroundStyle(Theme.faint)
             }
             ScrollView {
-                Text(verbatim: text).font(.system(size: 12)).foregroundStyle(Theme.body).textSelection(.enabled)
+                Text(verbatim: text).font(.secondary).foregroundStyle(Theme.body).textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
             }
@@ -377,7 +377,7 @@ struct ApprovalCardView: View {
             card.answer(choice)
         } label: {
             HStack(spacing: 4) {
-                Text(verbatim: title).font(.system(size: 11.5, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
+                Text(verbatim: title).font(.captionStrong).fixedSize(horizontal: false, vertical: true)
                 Keycap(choice == .deny ? "↵" : choice == .once ? "⌘↵" : "⌥⌘↵")
             }
             .foregroundStyle(Theme.primary)

@@ -245,7 +245,7 @@ private struct MarkdownBlockView: View {
             inline(text)
         case .heading(let level, let text):
             linked(text)
-                .font(.system(size: level == 1 ? 16 : level == 2 ? 15 : 13.5, weight: .semibold))
+                .font(level == 1 ? .heading : level == 2 ? .title : .bodyStrong)
                 .foregroundStyle(Theme.primary)
                 .padding(.top, 4)
                 .accessibilityAddTraits(.isHeader)
@@ -281,10 +281,10 @@ private struct MarkdownBlockView: View {
         case .table(let header, let rows):
             ScrollView(.horizontal) {
                 Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 4) {
-                    GridRow { ForEach(Array(header.enumerated()), id: \.offset) { _, cell in linked(cell).font(.system(size: 12, weight: .bold)) } }
+                    GridRow { ForEach(Array(header.enumerated()), id: \.offset) { _, cell in linked(cell).font(.secondaryStrong) } }
                     Divider()
                     ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                        GridRow { ForEach(Array(row.enumerated()), id: \.offset) { _, cell in linked(cell).font(.system(size: 12, weight: .medium)) } }
+                        GridRow { ForEach(Array(row.enumerated()), id: \.offset) { _, cell in linked(cell).font(.secondary) } }
                     }
                 }
                 .padding(8)
@@ -313,7 +313,7 @@ private struct CodeBlockView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text(language ?? "").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(Theme.faint)
+                Text(language ?? "").font(.captionStrong).foregroundStyle(Theme.faint)
                 Spacer()
                 Button {
                     NSPasteboard.general.clearContents()
@@ -325,8 +325,8 @@ private struct CodeBlockView: View {
                     }
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.system(size: 9, weight: .semibold))
-                        Text(copied ? String(localized: "Copied") : String(localized: "Copy")).font(.system(size: 10.5, weight: .semibold))
+                        Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.symbolInline)
+                        Text(copied ? String(localized: "Copied") : String(localized: "Copy")).font(.captionStrong)
                     }
                     .foregroundStyle(Theme.secondary)
                 }
@@ -336,7 +336,7 @@ private struct CodeBlockView: View {
             .padding(.horizontal, 8).padding(.top, 8).padding(.bottom, 0)
             ScrollView(.horizontal) {
                 Text(code)
-                    .font(.system(size: 12, design: .monospaced))
+                    .font(.secondary.monospaced())
                     .foregroundStyle(Theme.body)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: true, vertical: true)
@@ -363,8 +363,8 @@ struct CopyTextButton: View {
             }
         } label: {
             HStack(spacing: 4) {
-                Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.system(size: 9, weight: .semibold))
-                Text(copied ? String(localized: "Copied") : String(localized: "Copy")).font(.system(size: 10.5, weight: .semibold))
+                Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.symbolInline)
+                Text(copied ? String(localized: "Copied") : String(localized: "Copy")).font(.captionStrong)
             }
             .foregroundStyle(Theme.secondary)
             .padding(.horizontal, 8).frame(height: 18)
@@ -427,7 +427,7 @@ enum ChatLinks {
                     output.append(piece)
                     if !textIs(String(piece.characters), host: host) {
                         var note = AttributedString(" (\(host))")
-                        note.font = .system(size: 10.5, weight: .medium)
+                        note.font = .caption
                         note.foregroundColor = Theme.secondary
                         output.append(note)
                     }

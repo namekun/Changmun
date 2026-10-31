@@ -16,11 +16,11 @@ struct PeekCard: View {
                 HStack(spacing: 8) {
                     Favicon(tab: tab)
                     Text(tab.url?.host().map(DisplayHost.trimmed) ?? "")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.bodyStrong)
                         .foregroundStyle(Theme.primary)
                         .lineLimit(1)
                     Text(tab.title)
-                        .font(.system(size: 12.5, weight: .medium))
+                        .font(.secondary)
                         .foregroundStyle(Theme.faint)
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -76,10 +76,10 @@ struct TabSwitcherView: View {
             ForEach(tabs.dropFirst(first).prefix(10)) { tab in
                 HStack(spacing: 8) {
                     Favicon(tab: tab)
-                    Text(tab.displayTitle).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
+                    Text(tab.displayTitle).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
                     Spacer(minLength: 8)
                     Text(tab.url?.host().map(DisplayHost.trimmed) ?? "")
-                        .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
+                        .font(.secondary).foregroundStyle(Theme.faint).lineLimit(1)
                 }
                 .padding(.horizontal, 8)
                 .frame(height: 34)
@@ -109,7 +109,7 @@ struct PeekAction: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                Text(title).font(.system(size: 12, weight: .semibold))
+                Text(title).font(.secondaryStrong)
                 if let key { Keycap(key) }
             }
             .padding(.leading, Metrics.rowPadding)
@@ -134,7 +134,7 @@ struct StatusLine: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 11, weight: .medium))
+            .font(.caption)
             .lineLimit(1)
             .truncationMode(.middle)
             .foregroundStyle(.white.opacity(0.92))

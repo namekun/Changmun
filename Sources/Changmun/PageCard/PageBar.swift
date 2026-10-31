@@ -116,7 +116,7 @@ struct BarButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.symbolToolbar)
                 .frame(width: Metrics.control, height: Metrics.control)
                 .contentShape(Rectangle())
         }
@@ -136,8 +136,8 @@ struct AIButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                Image(systemName: "sparkles").font(.system(size: 11, weight: .semibold))
-                Text("AI").font(.system(size: 12, weight: .semibold))
+                Image(systemName: "sparkles").font(.symbolInline)
+                Text("AI").font(.secondaryStrong)
             }
             .padding(.horizontal, 8)
             .frame(height: Metrics.control)
@@ -155,8 +155,8 @@ struct AIButton: View {
 struct PrivateBadge: View {
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: "eye.slash").font(.system(size: 11, weight: .semibold))
-            Text("Private Window").font(.system(size: 12, weight: .semibold))
+            Image(systemName: "eye.slash").font(.symbolInline)
+            Text("Private Window").font(.secondaryStrong)
         }
         .padding(.horizontal, 8)
         .frame(height: Metrics.control)

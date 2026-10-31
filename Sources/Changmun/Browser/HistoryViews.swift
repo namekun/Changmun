@@ -44,7 +44,7 @@ struct HistoryView: View {
             .overlay { if visits.isEmpty { Text(search.isEmpty ? String(localized: "No history") : String(localized: "No matching history")).foregroundStyle(.secondary) } }
             HStack {
                 Text("Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy.")
-                    .font(.system(size: 11.5)).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(.secondary)
                 Spacer()
             }
             .padding(8)
@@ -97,7 +97,7 @@ struct ArchiveView: View {
             }
             HStack {
                 Text("Double-click to reopen. Set how long until tabs are archived in Settings › Tabs.")
-                    .font(.system(size: 11.5)).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 Button("Clear All") { archive.removeAll() }.disabled(archive.entries.isEmpty)
             }
@@ -122,11 +122,11 @@ struct ArchiveRow: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text(entry.title.isEmpty ? entry.url : entry.title).lineLimit(1)
                 Text([URL(string: entry.url)?.host(), entry.group].compactMap { $0 }.joined(separator: " · "))
-                    .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 0)
             Text(entry.archived.formatted(.relative(presentation: .named)))
-                .font(.system(size: 11.5)).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(.secondary)
         }
         .contentShape(Rectangle())
         .help(entry.url)
@@ -139,13 +139,13 @@ struct HistoryRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Text(visit.lastVisit.formatted(date: .omitted, time: .shortened))
-                .font(.system(size: 11.5).monospacedDigit())
+                .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .frame(width: 62, alignment: .leading)
             SiteIcon(url: visit.url, size: 16)
             VStack(alignment: .leading, spacing: 0) {
                 Text(visit.title.isEmpty ? visit.url : visit.title).lineLimit(1)
-                Text(URL(string: visit.url)?.host() ?? visit.url).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                Text(URL(string: visit.url)?.host() ?? visit.url).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 0)
         }

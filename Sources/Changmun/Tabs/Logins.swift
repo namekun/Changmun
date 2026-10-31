@@ -289,7 +289,7 @@ struct LoginButton: View {
                     Button(name.isEmpty ? String(localized: "(No username)") : name) { tab.fillLogin(username: name) }
                 }
             } label: {
-                Image(systemName: "key.fill").font(.system(size: 10.5))
+                Image(systemName: "key.fill").font(.symbolInline)
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)

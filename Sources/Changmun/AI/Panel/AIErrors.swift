@@ -107,11 +107,11 @@ struct ChatErrorRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: "exclamationmark.circle.fill").font(.system(size: 11))
+                Image(systemName: "exclamationmark.circle.fill").font(.symbolInline)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(failure.title).font(.system(size: 12, weight: .semibold))
+                    Text(failure.title).font(.secondaryStrong)
                     if !failure.explanation.isEmpty {
-                        Text(failure.explanation).font(.system(size: 12, weight: .medium)).opacity(0.85)
+                        Text(failure.explanation).font(.secondary).opacity(0.85)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -135,8 +135,8 @@ struct ChatErrorRow: View {
                 if !failure.details.isEmpty {
                     Button { showDetails.toggle() } label: {
                         HStack(spacing: 4) {
-                            Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold)).rotationEffect(.degrees(showDetails ? 90 : 0))
-                            Text("Details").font(.system(size: 11, weight: .semibold))
+                            Image(systemName: "chevron.right").font(.symbolInline).rotationEffect(.degrees(showDetails ? 90 : 0))
+                            Text("Details").font(.captionStrong)
                         }
                         .foregroundStyle(Theme.secondary)
                         .padding(.horizontal, 8).frame(height: 22)
@@ -147,7 +147,7 @@ struct ChatErrorRow: View {
             }
             if showDetails {
                 Text(failure.details)
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(.caption.monospaced())
                     .foregroundStyle(Theme.secondary)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -163,8 +163,8 @@ struct ChatErrorRow: View {
     private func actionButton(_ title: String, _ symbol: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                Image(systemName: symbol).font(.system(size: 9, weight: .bold))
-                Text(title).font(.system(size: 11, weight: .semibold))
+                Image(systemName: symbol).font(.symbolInline)
+                Text(title).font(.captionStrong)
             }
             .foregroundStyle(Theme.primary)
             .padding(.horizontal, 8).frame(height: 22)

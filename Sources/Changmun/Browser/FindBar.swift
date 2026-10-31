@@ -11,10 +11,10 @@ struct FindBar: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary).decorative()
+            Image(systemName: "magnifyingglass").font(.symbolInline).foregroundStyle(Theme.secondary).decorative()
             TextField("Find on Page", text: $overlay.findText)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13, weight: .medium))
+                .font(.body)
                 .foregroundStyle(Theme.primary)
                 .frame(width: 180)
                 .focused($focused)
@@ -29,7 +29,7 @@ struct FindBar: View {
                 }
             if let matches = overlay.findMatches, !overlay.findText.isEmpty {
                 Text(matches == 0 ? String(localized: "None") : matches == 1 ? String(localized: "\(matches) match") : String(localized: "\(matches) matches"))
-                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                    .font(.captionStrong.monospacedDigit())
                     .foregroundStyle(matches == 0 ? Theme.waitingText : Theme.secondary)
             }
             BarButton(symbol: "chevron.up", help: String(localized: "Previous (⌘⇧G)")) { browser.find(backwards: true) }.disabled(overlay.findText.isEmpty)

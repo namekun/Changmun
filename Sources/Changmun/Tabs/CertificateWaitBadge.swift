@@ -8,7 +8,7 @@ struct CertificateWaitBadge: View {
     var body: some View {
         if tab.waitingForCertificate {
             Image(systemName: "key.fill")
-                .font(.system(size: 9, weight: .bold))
+                .font(.symbolInline)
                 .foregroundStyle(Theme.secondary)
                 .frame(width: Metrics.action, height: Metrics.action)
                 .help(String(localized: "Waiting for you to choose a certificate"))

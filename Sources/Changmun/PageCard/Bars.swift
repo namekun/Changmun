@@ -9,15 +9,15 @@ struct LoginOfferBar: View {
         if let offer = tab.loginOffer {
             let site = DisplayHost.trimmed(offer.host)
             HStack(spacing: 8) {
-                Image(systemName: "key.fill").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
+                Image(systemName: "key.fill").font(.symbolInline).foregroundStyle(Theme.secondary)
                 Text(offer.updatesExisting && !offer.username.isEmpty ? String(localized: "Update password for \(offer.username)?") : String(localized: "Save login info for \(site)?"))
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.bodyStrong)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
                     .layoutPriority(1)
                 // The user name gives way first, so the site stays readable.
                 if !offer.username.isEmpty, !offer.updatesExisting {
-                    Text(offer.username).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
+                    Text(offer.username).font(.secondary).foregroundStyle(Theme.faint).lineLimit(1)
                 }
                 Spacer(minLength: 8)
                 PeekAction(title: String(localized: "Save")) {
@@ -32,7 +32,7 @@ struct LoginOfferBar: View {
                     tab.loginOffer = nil
                 }
                 .buttonStyle(.plain)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.secondaryStrong)
                 .foregroundStyle(Theme.secondary)
                 .lineLimit(1)
                 .fixedSize()
@@ -64,11 +64,11 @@ struct PopupBar: View {
     var body: some View {
         if let popup = tab.blockedPopup {
             HStack(spacing: 8) {
-                Image(systemName: "macwindow.badge.plus").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
-                Text("Pop-up blocked").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary)
-                Text(description(of: popup)).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
+                Image(systemName: "macwindow.badge.plus").font(.symbolInline).foregroundStyle(Theme.secondary)
+                Text("Pop-up blocked").font(.bodyStrong).foregroundStyle(Theme.primary)
+                Text(description(of: popup)).font(.secondary).foregroundStyle(Theme.faint).lineLimit(1)
                 if tab.blockedPopupCount > 1 {
-                    Text("and \(tab.blockedPopupCount - 1) more").font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1).fixedSize()
+                    Text("and \(tab.blockedPopupCount - 1) more").font(.secondary).foregroundStyle(Theme.faint).lineLimit(1).fixedSize()
                 }
                 Spacer(minLength: 8)
                 // What is pressed is what the bar shows now: if it has changed by the time the press is handled, nothing happens.
@@ -79,7 +79,7 @@ struct PopupBar: View {
                         tab.openBlockedPopup(always: true, seen: (popup, site))
                     }
                     .buttonStyle(.plain)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.secondaryStrong)
                     .foregroundStyle(Theme.secondary)
                     .padding(.horizontal, 4)
                 }
@@ -105,13 +105,13 @@ struct WebStoreBar: View {
     var body: some View {
         if let url = tab.url, let id = ChromeWebStore.extensionID(from: url.absoluteString) {
             HStack(spacing: 8) {
-                Image(systemName: "puzzlepiece.extension").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
+                Image(systemName: "puzzlepiece.extension").font(.symbolInline).foregroundStyle(Theme.secondary)
                 Text(host.isInstalled(chromeWebStoreID: id) ? String(localized: "This extension is installed in Changmun") : String(localized: "You can use this extension in Changmun"))
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.bodyStrong)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
                 if let error = host.storeErrors[id] {
-                    Text(error).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.waitingText).lineLimit(1)
+                    Text(error).font(.secondaryStrong).foregroundStyle(Theme.waitingText).lineLimit(1)
                 }
                 Spacer(minLength: 8)
                 if host.installing.contains(id) {

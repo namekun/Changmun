@@ -55,7 +55,7 @@ struct ReadingRow: View {
             ZStack {
                 if hover {
                     Button { browser.removeReadingItem(item) } label: {
-                        Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                        Image(systemName: "xmark").font(.symbolInline)
                             .frame(width: Metrics.action, height: Metrics.action)
                             .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.field))
                             .contentShape(Rectangle())

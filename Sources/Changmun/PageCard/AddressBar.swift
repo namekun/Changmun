@@ -37,7 +37,7 @@ struct AddressPill: View {
         HStack(spacing: 8) {
             HStack(spacing: 4) {
                 Image(systemName: tab.isUnverified ? "exclamationmark.triangle.fill" : tab.url?.scheme == "https" ? "lock.fill" : "globe")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.symbolInline)
                     .foregroundStyle(tab.isUnverified ? Theme.waiting : Theme.secondary)
                     .frame(width: 22, height: 22)
                     .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(hasSite && (siteHover || showSite) ? Theme.pill : .clear))
@@ -52,16 +52,16 @@ struct AddressPill: View {
                     .onChange(of: tab.url?.host()) { _, _ in showSite = false }
                     .help(tab.usesTrustException ? String(localized: "The certificate wasn’t verified: you chose to go on") : hasSite ? String(localized: "Site Settings") : String(localized: "Edit Address (⌘L)"))
                 Text(host ?? String(localized: "Enter Address"))
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.bodyStrong)
                     .lineLimit(1)
                     .foregroundStyle(Theme.primary)
                     .accessibleButton(String(localized: "Address"), value: tab.url?.absoluteString ?? "", hint: String(localized: "Edit the address"), activate: edit)
             }
             .layoutPriority(1)
             if !compact, let title = Self.shownTitle(tab.title, host: host) {
-                Text(verbatim: "·").font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.faint).decorative()
+                Text(verbatim: "·").font(.body).foregroundStyle(Theme.faint).decorative()
                 Text(verbatim: title)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.body)
                     .lineLimit(1)
                     .foregroundStyle(Theme.faint)
             }
@@ -102,13 +102,13 @@ struct AddressField: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: tab.isUnverified ? "exclamationmark.triangle.fill" : tab.url?.scheme == "https" ? "lock.fill" : "globe")
-                .font(.system(size: 10, weight: .semibold))
+                .font(.symbolInline)
                 .foregroundStyle(tab.isUnverified ? Theme.waiting : Theme.secondary)
                 .accessibilityLabel(Accessibility.connectionValue(scheme: tab.url?.scheme, unverified: tab.isUnverified, choseToGoOn: tab.usesTrustException) ?? "")
                 .accessibilityHidden(Accessibility.connectionValue(scheme: tab.url?.scheme, unverified: tab.isUnverified, choseToGoOn: tab.usesTrustException) == nil)
             TextField("Search or enter address", text: $text)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13, weight: .medium))
+                .font(.body)
                 .foregroundStyle(Theme.primary)
                 .focused($focused)
                 .accessibilityLabel(String(localized: "Address"))
@@ -152,8 +152,8 @@ struct AddressPlaceholder: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .semibold))
-            Text("Search or enter address").font(.system(size: 13, weight: .medium))
+            Image(systemName: "magnifyingglass").font(.symbolInline)
+            Text("Search or enter address").font(.body)
             Spacer()
         }
         .foregroundStyle(Theme.faint)

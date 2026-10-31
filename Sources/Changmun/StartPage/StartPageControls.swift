@@ -21,7 +21,7 @@ struct StartStyleTiles: View {
                             .overlay { RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5) }
                             .padding(4)
                             .overlay { RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 2) }
-                        Text(verbatim: style.title).font(.system(size: 11, weight: selected ? .semibold : .regular)).foregroundStyle(selected ? Theme.primary : Theme.secondary)
+                        Text(verbatim: style.title).font(selected ? .captionStrong : .caption).foregroundStyle(selected ? Theme.primary : Theme.secondary)
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -53,11 +53,11 @@ struct StartStyleRadios: View {
                 let selected = model.settings.style == style
                 Button { model.setStyle(style) } label: {
                     HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: selected ? "largecircle.fill.circle" : "circle").font(.system(size: 15)).foregroundStyle(selected ? Color.accentColor : Theme.secondary)
+                        Image(systemName: selected ? "largecircle.fill.circle" : "circle").font(.symbolRow).foregroundStyle(selected ? Color.accentColor : Theme.secondary)
                             .frame(width: 18).decorative()
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(verbatim: style.title).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.primary)
-                            Text(verbatim: style.detail).font(.system(size: 11.5)).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
+                            Text(verbatim: style.title).font(.bodyStrong).foregroundStyle(Theme.primary)
+                            Text(verbatim: style.detail).font(.caption).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 0)
                     }
@@ -105,11 +105,11 @@ struct StartComponentsList: View {
         return VStack(spacing: 0) {
             HStack(spacing: 8) {
                 handle(section, index: index)
-                Image(systemName: section.symbol).font(.system(size: 12)).foregroundStyle(Theme.secondary).frame(width: 18).decorative()
+                Image(systemName: section.symbol).font(.symbolToolbar).foregroundStyle(Theme.secondary).frame(width: 18).decorative()
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(verbatim: section.title).font(.system(size: 13)).foregroundStyle(item.enabled ? Theme.primary : Theme.secondary)
+                    Text(verbatim: section.title).font(.body).foregroundStyle(item.enabled ? Theme.primary : Theme.secondary)
                     if item.enabled, let contents, StartPageRules.isEmpty(section, contents: contents) {
-                        Text("Nothing here yet").font(.system(size: 10.5)).foregroundStyle(Theme.dim)
+                        Text("Nothing here yet").font(.caption).foregroundStyle(Theme.dim)
                     }
                 }
                 Spacer(minLength: 4)
@@ -122,7 +122,7 @@ struct StartComponentsList: View {
                         .accessibilityLabel(String(localized: "\(section.title) options"))
                     } else {
                         Button { model.toggleOptions(section) } label: {
-                            Image(systemName: "gearshape").font(.system(size: 12)).foregroundStyle(expanded ? Color.accentColor : Theme.secondary)
+                            Image(systemName: "gearshape").font(.symbolToolbar).foregroundStyle(expanded ? Color.accentColor : Theme.secondary)
                                 .frame(width: 24, height: 24)
                                 .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(expanded ? Color.accentColor.opacity(0.14) : .clear))
                         }
@@ -155,7 +155,7 @@ struct StartComponentsList: View {
     private func options(_ section: StartSection, _ choices: (title: String, choices: [String])) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(verbatim: choices.title).font(.system(size: 12)).foregroundStyle(Theme.secondary)
+                Text(verbatim: choices.title).font(.secondary).foregroundStyle(Theme.secondary)
                 Spacer()
                 StartSegmented(options: choices.choices, selection: model.option(section)) { model.setOption(section, $0) }
                     .frame(maxWidth: 220)
@@ -231,7 +231,7 @@ struct StartSegmented: View {
             ForEach(Array(options.enumerated()), id: \.offset) { index, name in
                 let on = index == selection
                 Button { choose(index) } label: {
-                    Text(verbatim: name).font(.system(size: 11.5, weight: on ? .semibold : .regular)).foregroundStyle(on ? Theme.primary : Theme.secondary)
+                    Text(verbatim: name).font(on ? .captionStrong : .caption).foregroundStyle(on ? Theme.primary : Theme.secondary)
                         .lineLimit(1).minimumScaleFactor(0.8)
                         .frame(maxWidth: .infinity).frame(height: 24)
                         .background { if on { RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.selectedFill).shadow(color: Theme.selectedShadow, radius: 1.5, y: 0.5) } }
@@ -273,7 +273,7 @@ struct StartBackgroundControls: View {
             if model.imageState == .working {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text("Preparing the image…").font(.system(size: 12)).foregroundStyle(Theme.secondary)
+                    Text("Preparing the image…").font(.secondary).foregroundStyle(Theme.secondary)
                 }
             }
             if model.imageState == .failed {
@@ -294,7 +294,7 @@ struct StartBackgroundControls: View {
                     .overlay { RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5) }
                     .padding(4)
                     .overlay { RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 2) }
-                Text(verbatim: name).font(.system(size: 10.5, weight: selected ? .semibold : .regular)).foregroundStyle(selected ? Theme.primary : Theme.secondary).lineLimit(1).minimumScaleFactor(0.8)
+                Text(verbatim: name).font(selected ? .captionStrong : .caption).foregroundStyle(selected ? Theme.primary : Theme.secondary).lineLimit(1).minimumScaleFactor(0.8)
             }
             .frame(maxWidth: .infinity)
         }
@@ -321,7 +321,7 @@ struct StartBackgroundControls: View {
         } else {
             ZStack {
                 RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Theme.hairline, style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
-                Image(systemName: "photo").font(.system(size: 13)).foregroundStyle(Theme.secondary)
+                Image(systemName: "photo").font(.symbolToolbar).foregroundStyle(Theme.secondary)
             }
         }
     }
@@ -391,16 +391,16 @@ struct StartBackgroundControls: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay { RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5) }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Background Image").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.primary)
+                    Text("Background Image").font(.secondaryStrong).foregroundStyle(Theme.primary)
                     HStack(spacing: 4) {
-                        if let loaded { Text(verbatim: "\(Int(loaded.pixelSize.width))×\(Int(loaded.pixelSize.height)) ·").font(.system(size: 11)).foregroundStyle(Theme.dim) }
-                        Image(systemName: "lock").font(.system(size: 9)).foregroundStyle(Theme.dim).decorative()
-                        Text("Only on this Mac").font(.system(size: 11)).foregroundStyle(Theme.dim)
+                        if let loaded { Text(verbatim: "\(Int(loaded.pixelSize.width))×\(Int(loaded.pixelSize.height)) ·").font(.caption).foregroundStyle(Theme.dim) }
+                        Image(systemName: "lock").font(.symbolInline).foregroundStyle(Theme.dim).decorative()
+                        Text("Only on this Mac").font(.caption).foregroundStyle(Theme.dim)
                     }
                     HStack(spacing: 8) {
-                        Button { pickImage() } label: { Text("Choose Another…").font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.primary).padding(.horizontal, 8).frame(height: 22).background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.pressed)) }
+                        Button { pickImage() } label: { Text("Choose Another…").font(.caption).foregroundStyle(Theme.primary).padding(.horizontal, 8).frame(height: 22).background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.pressed)) }
                             .buttonStyle(.plain)
-                        Button { model.removeImage() } label: { Text("Remove").font(.system(size: 11.5)).foregroundStyle(Color.accentColor) }
+                        Button { model.removeImage() } label: { Text("Remove").font(.caption).foregroundStyle(Color.accentColor) }
                             .buttonStyle(.plain)
                     }
                     .padding(.top, 4)
@@ -426,19 +426,19 @@ struct StartBackgroundControls: View {
 
     private func slider(_ title: String, value: Double, display: Int, range: ClosedRange<Double>, set: @escaping (Double) -> Void) -> some View {
         HStack(spacing: 8) {
-            Text(verbatim: title).font(.system(size: 12)).foregroundStyle(Theme.secondary).frame(width: 52, alignment: .leading)
+            Text(verbatim: title).font(.secondary).foregroundStyle(Theme.secondary).frame(width: 52, alignment: .leading)
             Slider(value: Binding(get: { Double(display) }, set: { set($0) }), in: range)
                 .controlSize(.small)
                 .accessibilityLabel(title)
                 .accessibilityValue(String(localized: "\(display), from \(Int(range.lowerBound)) to \(Int(range.upperBound))"))
-            Text(verbatim: "\(display)").font(.system(size: 11)).foregroundStyle(Theme.dim).frame(width: 22, alignment: .trailing)
+            Text(verbatim: "\(display)").font(.caption).foregroundStyle(Theme.dim).frame(width: 22, alignment: .trailing)
         }
     }
 
     private func notice(_ symbol: String, _ text: String, _ color: Color) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(color).padding(.top, 1).decorative()  // grid-exempt: optical nudge of 1 pt
-            Text(verbatim: text).font(.system(size: 11.5)).foregroundStyle(color == Theme.secondary ? Theme.secondary : color).fixedSize(horizontal: false, vertical: true)
+            Image(systemName: symbol).font(.symbolInline).foregroundStyle(color).padding(.top, 1).decorative()  // grid-exempt: optical nudge of 1 pt
+            Text(verbatim: text).font(.caption).foregroundStyle(color == Theme.secondary ? Theme.secondary : color).fixedSize(horizontal: false, vertical: true)
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -471,7 +471,7 @@ struct StartNewTabControls: View {
                 model.setNewTab(NewTabOpens.allCases[$0])
             }
             if let detail = model.settings.newTab.detail {
-                Text(verbatim: detail).font(.system(size: 11.5)).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
+                Text(verbatim: detail).font(.caption).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
             } else {
                 addressField
             }
@@ -489,16 +489,16 @@ struct StartNewTabControls: View {
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 if case .ok(let url) = state { StartIcon(url: url.absoluteString, size: 18, plate: false) } else {
-                    Image(systemName: "globe").font(.system(size: 13)).foregroundStyle(Theme.secondary).decorative()
+                    Image(systemName: "globe").font(.symbolToolbar).foregroundStyle(Theme.secondary).decorative()
                 }
                 TextField("https://example.com", text: $model.address)
-                    .textFieldStyle(.plain).font(.system(size: 13))
+                    .textFieldStyle(.plain).font(.body)
                     .focused($addressFocused)
                     .onSubmit { model.commitAddress() }
                     .onChange(of: model.address) { model.addressEdited() }
                     .onChange(of: addressFocused) { _, focused in if !focused { model.commitAddress() } }
                     .accessibilityLabel(String(localized: "Address for new tabs"))
-                if case .ok = state { Image(systemName: "checkmark").font(.system(size: 11, weight: .semibold)).foregroundStyle(.green).decorative() }
+                if case .ok = state { Image(systemName: "checkmark").font(.symbolInline).foregroundStyle(.green).decorative() }
             }
             .padding(.horizontal, 8).frame(height: 32)
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.field))
@@ -511,7 +511,7 @@ struct StartNewTabControls: View {
             case .insecure:
                 VStack(alignment: .leading, spacing: 4) {
                     line("exclamationmark.triangle.fill", String(localized: "This connection isn’t encrypted. We recommend https://"), Theme.waitingText)
-                    Button { model.useHTTPS() } label: { Text("Use https://").font(.system(size: 11.5)).foregroundStyle(Color.accentColor) }
+                    Button { model.useHTTPS() } label: { Text("Use https://").font(.caption).foregroundStyle(Color.accentColor) }
                         .buttonStyle(.plain).padding(.leading, 24)
                 }
             case .ok:
@@ -522,15 +522,15 @@ struct StartNewTabControls: View {
             line("globe", String(localized: "This site is loaded every time you open a new tab."), Theme.secondary)
             if detailed {
                 Text("The site learns that you connected, and your IP address. A window with no tab always shows the start page, so no site is loaded when a window opens.")
-                    .font(.system(size: 11)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true).padding(.leading, 24)
+                    .font(.caption).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true).padding(.leading, 24)
             }
         }
     }
 
     private func line(_ symbol: String, _ text: String, _ color: Color) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(color).frame(width: 16).padding(.top, 1).decorative()  // grid-exempt: optical nudge of 1 pt
-            Text(verbatim: text).font(.system(size: 11.5)).foregroundStyle(color).fixedSize(horizontal: false, vertical: true)
+            Image(systemName: symbol).font(.symbolInline).foregroundStyle(color).frame(width: 16).padding(.top, 1).decorative()  // grid-exempt: optical nudge of 1 pt
+            Text(verbatim: text).font(.caption).foregroundStyle(color).fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
     }

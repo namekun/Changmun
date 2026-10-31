@@ -7,14 +7,14 @@ struct QueuedChip: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: "clock").font(.system(size: 8.5, weight: .bold))
+            Image(systemName: "clock").font(.symbolInline)
             Text(text).lineLimit(1).truncationMode(.tail).frame(maxWidth: 140)
-            Button(action: remove) { Image(systemName: "xmark").font(.system(size: 8, weight: .bold)) }
+            Button(action: remove) { Image(systemName: "xmark").font(.symbolInline) }
                 .buttonStyle(.plain)
                 .help("Remove from the queue")
                 .accessibilityLabel(String(localized: "Remove from the queue"))
         }
-        .font(.system(size: 11, weight: .semibold))
+        .font(.captionStrong)
         .foregroundStyle(Theme.secondary)
         .padding(.horizontal, 8)
         .frame(height: 22)
@@ -30,12 +30,12 @@ struct AttachedTabChip: View {
     var body: some View {
         HStack(spacing: 4) {
             Text(tab.displayTitle).lineLimit(1).truncationMode(.tail).frame(maxWidth: 110)
-            Button(action: remove) { Image(systemName: "xmark").font(.system(size: 8, weight: .bold)) }
+            Button(action: remove) { Image(systemName: "xmark").font(.symbolInline) }
                 .buttonStyle(.plain)
                 .help("Remove from the AI's tabs")
                 .accessibilityLabel(String(localized: "Remove from the AI's tabs"))
         }
-        .font(.system(size: 11, weight: .semibold))
+        .font(.captionStrong)
         .foregroundStyle(Theme.secondary)
         .padding(.horizontal, 8)
         .frame(height: 22)
@@ -59,9 +59,9 @@ struct ChatWelcome: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("How can I help?").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.primary)
+            Text("How can I help?").font(.title).foregroundStyle(Theme.primary)
             Text("I can read the page you're viewing, click, type and open tabs.")
-                .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.secondary)
+                .font(.secondary).foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(prompts, id: \.self) { prompt in
@@ -82,8 +82,8 @@ struct PromptChip: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                Image(systemName: "text.cursor").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.faint)
-                Text(text).font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.primary)
+                Image(systemName: "text.cursor").font(.symbolInline).foregroundStyle(Theme.faint)
+                Text(text).font(.secondaryStrong).foregroundStyle(Theme.primary)
             }
             .padding(.horizontal, 8)
             .frame(height: 28)
@@ -119,10 +119,10 @@ struct Working: View {
                             Text(verbatim: step).lineLimit(1).truncationMode(.middle)
                         }
                         if steps != nil {
-                            Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).rotationEffect(.degrees(open ? 180 : 0))
+                            Image(systemName: "chevron.down").font(.symbolInline).rotationEffect(.degrees(open ? 180 : 0))
                         }
                     }
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.captionStrong)
                     .foregroundStyle(Theme.secondary)
                     .contentShape(Rectangle())
                     // The time is a value that keeps changing, not a label to be read again every second.
@@ -151,13 +151,13 @@ struct AttachedPageCard: View {
                 if let id = page.tabID, let tab = ToolCatalog.findTab(id) {
                     Favicon(tab: tab)
                 } else {
-                    Image(systemName: "globe").font(.system(size: 12)).foregroundStyle(Theme.faint).frame(width: 16, height: 16)
+                    Image(systemName: "globe").font(.symbolToolbar).foregroundStyle(Theme.faint).frame(width: 16, height: 16)
                 }
             }
             VStack(alignment: .leading, spacing: 0) {
-                Text(verbatim: page.title).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(Theme.primary)
+                Text(verbatim: page.title).font(.captionStrong).foregroundStyle(Theme.primary)
                     .lineLimit(1).truncationMode(.tail)
-                Text(verbatim: page.host).font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.faint)
+                Text(verbatim: page.host).font(.caption).foregroundStyle(Theme.faint)
                     .lineLimit(1).truncationMode(.middle)
             }
         }

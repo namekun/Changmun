@@ -222,11 +222,11 @@ struct HeldPagesHost: NSViewRepresentable {
 struct EmptyPage: View {
     var body: some View {
         VStack(spacing: 8) {
-            Image(systemName: "sparkles").font(.system(size: 22, weight: .medium)).foregroundStyle(Theme.ink(0.3))
+            Image(systemName: "sparkles").font(.symbolEmpty).foregroundStyle(Theme.ink(0.3))
             HStack(spacing: 4) {
-                Text("New Tab").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.faint)
+                Text("New Tab").font(.secondaryStrong).foregroundStyle(Theme.faint)
                 Keycap("⌘T")
-                Text("AI").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.faint).padding(.leading, 8)
+                Text("AI").font(.secondaryStrong).foregroundStyle(Theme.faint).padding(.leading, 8)
                 Keycap("⌘E")
             }
         }

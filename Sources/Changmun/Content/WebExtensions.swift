@@ -594,7 +594,7 @@ struct ExtensionButton: View {
                 if let badge = action?.badgeText, !badge.isEmpty {
                     // Nunsseop's badge: a white disc with a black count.
                     Text(badge)
-                        .font(.system(size: 8, weight: .bold).monospacedDigit())
+                        .font(.system(size: 8, weight: .bold).monospacedDigit())  // type-exempt: the count badge drawn on an extension's icon
                         .foregroundStyle(Theme.background)
                         .padding(.horizontal, 4)
                         .frame(minWidth: 13, minHeight: 13)

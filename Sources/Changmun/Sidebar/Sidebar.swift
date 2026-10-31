@@ -207,7 +207,7 @@ struct Sidebar: View {
                 .frame(width: 320)
             } else {
                 HStack(spacing: Metrics.iconGap) {
-                    Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
+                    Image(systemName: "magnifyingglass").font(.symbolInline).foregroundStyle(Theme.secondary)
                     TextField("Search Bookmarks", text: $bookmarkQuery)
                         .textFieldStyle(.plain)
                         .font(.row)

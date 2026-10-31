@@ -109,12 +109,12 @@ struct CommandBar: View {
             VStack(spacing: 8) {
                 HStack(spacing: 8) {
                     Image(systemName: mode == .editCurrent ? "link" : "magnifyingglass")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.symbolToolbar)
                         .foregroundStyle(Theme.secondary)
                         .decorative()
                     TextField(placeholder, text: $text)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.heading)
                         .foregroundStyle(Theme.primary)
                         .focused($focused)
                         .accessibilityLabel(mode == .editCurrent ? String(localized: "Address") : placeholder)
@@ -348,10 +348,10 @@ struct SuggestionRow: View {
 
     @ViewBuilder private var icon: some View {
         switch item {
-        case .open: Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary)
-        case .search, .suggested: Image(systemName: "magnifyingglass").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary)
+        case .open: Image(systemName: "arrow.up.right").font(.symbolToolbar).foregroundStyle(Theme.secondary)
+        case .search, .suggested: Image(systemName: "magnifyingglass").font(.symbolToolbar).foregroundStyle(Theme.secondary)
         case .tab(_, let url, _, _): SiteIcon(url: url, size: 16, fetches: fetchesIcons)
-        case .ask: Image(systemName: "sparkles").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.primary)
+        case .ask: Image(systemName: "sparkles").font(.symbolToolbar).foregroundStyle(Theme.primary)
         case .page(let url, _): SiteIcon(url: url, size: 16, fetches: fetchesIcons)
         }
     }
@@ -359,22 +359,22 @@ struct SuggestionRow: View {
     @ViewBuilder private var label: some View {
         switch item {
         case .open(let text):
-            Text(text).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
+            Text(text).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
         case .search(let text):
-            Text(text).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
-            Text("Search").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint)
+            Text(text).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
+            Text("Search").font(.secondary).foregroundStyle(Theme.faint)
         case .suggested(let text):
-            Text(text).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
+            Text(text).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
         case .tab(_, let url, let title, let space):
-            Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
-            Text(space.map { String(localized: "Switch to Tab in \($0)") } ?? String(localized: "Switch to Tab")).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint)
-            Text(URL(string: url)?.host() ?? "").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
+            Text(title).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
+            Text(space.map { String(localized: "Switch to Tab in \($0)") } ?? String(localized: "Switch to Tab")).font(.secondary).foregroundStyle(Theme.faint)
+            Text(URL(string: url)?.host() ?? "").font(.secondary).foregroundStyle(Theme.faint).lineLimit(1)
         case .ask(let text):
-            Text("Ask AI").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.secondary)
-            Text(text).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
+            Text("Ask AI").font(.bodyStrong).foregroundStyle(Theme.secondary)
+            Text(text).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
         case .page(let url, let title):
-            Text(title.isEmpty ? url : title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
-            Text(URL(string: url)?.host() ?? url).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
+            Text(title.isEmpty ? url : title).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
+            Text(URL(string: url)?.host() ?? url).font(.secondary).foregroundStyle(Theme.faint).lineLimit(1)
         }
     }
 }

@@ -190,7 +190,7 @@ struct TabMentionList: View {
     var body: some View {
         ComposerPopup {
             if tabs.isEmpty {
-                Text("No matching tabs").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint)
+                Text("No matching tabs").font(.secondary).foregroundStyle(Theme.faint)
                     .padding(.horizontal, 8).frame(height: 28)
             } else {
                 ScrollViewReader { proxy in
@@ -219,10 +219,10 @@ private struct TabMentionRow: View {
         ComposerPopupRow(selected: selected, action: action) {
             HStack(spacing: 8) {
                 Favicon(tab: tab)
-                Text(tab.displayTitle).font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1).truncationMode(.tail)
+                Text(tab.displayTitle).font(.secondaryStrong).foregroundStyle(Theme.primary).lineLimit(1).truncationMode(.tail)
                 Spacer(minLength: 4)
                 if let host = tab.url?.host() {
-                    Text(verbatim: host).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1).truncationMode(.middle)
+                    Text(verbatim: host).font(.caption).foregroundStyle(Theme.faint).lineLimit(1).truncationMode(.middle)
                         .frame(maxWidth: 110, alignment: .trailing)
                 }
             }
@@ -240,7 +240,7 @@ struct CurrentTabChip: View {
             Favicon(tab: tab)
             Text(tab.displayTitle).lineLimit(1).truncationMode(.tail).frame(maxWidth: 110, alignment: .leading)
         }
-        .font(.system(size: 11, weight: .semibold))
+        .font(.captionStrong)
         .foregroundStyle(Theme.secondary)
         .padding(.leading, 4)
         .padding(.trailing, 8)

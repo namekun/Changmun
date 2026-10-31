@@ -11,7 +11,7 @@ struct ReaderButton: View {
             // Hard Reload takes one of the two, so Reader Mode has the other.
             let key = prefs.shortcuts == .chrome ? "⌥⌘R" : "⇧⌘R"
             Button { tab.toggleReader() } label: {
-                Image(systemName: "doc.plaintext").font(.system(size: 10.5, weight: .semibold))
+                Image(systemName: "doc.plaintext").font(.symbolInline)
                     .frame(width: 20, height: 22)
                     .contentShape(Rectangle())
             }
@@ -35,7 +35,7 @@ struct TranslateButton: View {
                     if tab.translation == .translating {
                         ProgressView().controlSize(.mini)
                     } else {
-                        Image(systemName: "translate").font(.system(size: 10.5, weight: .semibold))
+                        Image(systemName: "translate").font(.symbolInline)
                     }
                 }
                 .frame(width: 20, height: 22)
@@ -58,7 +58,7 @@ struct PictureInPictureButton: View {
     var body: some View {
         if tab.isPlayingAudio {
             Button { tab.pictureInPicture(.toggle) } label: {
-                Image(systemName: "pip.enter").font(.system(size: 10.5, weight: .semibold))
+                Image(systemName: "pip.enter").font(.symbolInline)
                     .frame(width: 20, height: 22)
                     .contentShape(Rectangle())
             }
@@ -79,7 +79,7 @@ struct AdBlockShield: View {
             let off = AdBlocker.shared.isAllowed(host)
             Button { AdBlocker.shared.toggleSite(host) } label: {
                 Image(systemName: off ? "shield.slash" : "shield.fill")
-                    .font(.system(size: 10.5, weight: .medium))
+                    .font(.symbolInline)
                     .foregroundStyle(off ? Theme.waitingText : Theme.dim)
                     .frame(width: 20, height: 22)
                     .contentShape(Rectangle())
@@ -110,7 +110,7 @@ struct BookmarkStar: View {
             }
         } label: {
             Image(systemName: marked ? "star.fill" : "star")
-                .font(.system(size: 10.5, weight: .medium))
+                .font(.symbolInline)
                 .foregroundStyle(marked ? Theme.primary : Theme.dim)
                 .frame(width: 20, height: 22)
                 .contentShape(Rectangle())

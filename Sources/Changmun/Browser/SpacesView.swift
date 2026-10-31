@@ -14,9 +14,9 @@ struct SpaceIcon: View {
     var body: some View {
         if space.isEmoji {
             // An emoji keeps its own colours, whatever the row around it is tinted.
-            Text(space.symbol).font(.system(size: size)).foregroundStyle(.primary)
+            Text(space.symbol).font(.system(size: size)).foregroundStyle(.primary)  // type-exempt: drawn to the size of the plate it sits on
         } else {
-            Image(systemName: space.symbol).font(.system(size: size, weight: .medium))
+            Image(systemName: space.symbol).font(.system(size: size, weight: .medium))  // type-exempt: drawn to the size of the plate it sits on
         }
     }
 }
@@ -105,7 +105,7 @@ struct SpaceSwitcher: View {
     private func chip(_ space: Space) -> some View {
         HStack(spacing: 4) {
             icon(space)
-            Text(space.name).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+            Text(space.name).font(.secondaryStrong).lineLimit(1)
         }
         .foregroundStyle(Theme.primary)
         .padding(.horizontal, 8)
@@ -140,7 +140,7 @@ struct SpaceSwitcher: View {
             .overlay(alignment: .bottomTrailing) {
                 if space.isProfile {
                     Image(systemName: "key.fill")
-                        .font(.system(size: 7, weight: .bold))
+                        .font(.system(size: 7, weight: .bold))  // type-exempt: a badge drawn on the space's icon
                         .foregroundStyle(Theme.secondary)
                         .padding(4)
                         .background(Circle().fill(Theme.selectedFill))
@@ -209,7 +209,7 @@ struct SpaceSheet: View {
                 .onTapGesture { close() }
             VStack(alignment: .leading, spacing: 16) {
                 Text(editing ? "Edit Space" : "New Space")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.title)
                     .frame(maxWidth: .infinity)
                 header
                 iconPicker
@@ -218,11 +218,11 @@ struct SpaceSheet: View {
                 comparison
                 HStack(spacing: 8) {
                     Spacer()
-                    Button(action: close) { Text("Cancel").font(.system(size: 12, weight: .semibold)).padding(.horizontal, 16).frame(height: Metrics.control) }
+                    Button(action: close) { Text("Cancel").font(.secondaryStrong).padding(.horizontal, 16).frame(height: Metrics.control) }
                         .buttonStyle(FillStyle(resting: Theme.field, hoverFill: Theme.pill))
                         .foregroundStyle(Theme.primary)
                     Button(action: save) {
-                        Text(editing ? "Save" : "Create").font(.system(size: 12, weight: .semibold)).padding(.horizontal, 16).frame(height: Metrics.control)
+                        Text(editing ? "Save" : "Create").font(.secondaryStrong).padding(.horizontal, 16).frame(height: Metrics.control)
                             .foregroundStyle(.white)
                             .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(tint.color))
                     }
@@ -248,7 +248,7 @@ struct SpaceSheet: View {
                 Text("Name").font(.caption).foregroundStyle(Theme.secondary)
                 TextField("", text: $name)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.title)
                     .focused($focused)
                     .accessibilityLabel(String(localized: "Name"))
                     .onSubmit(save)
@@ -316,7 +316,7 @@ struct SpaceSheet: View {
     private var profileToggle: some View {
         HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Keep logins and cookies separate (profile)").font(.system(size: 13, weight: .semibold))
+                Text("Keep logins and cookies separate (profile)").font(.bodyStrong)
                 Text("Cookies and site data are kept apart, so you log in again here.").font(.caption).foregroundStyle(Theme.secondary)
             }
             Spacer(minLength: 0)
@@ -340,11 +340,11 @@ struct SpaceSheet: View {
 
     private func card(_ title: String, on: Bool, _ lines: [String]) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(on ? tint.color : Theme.secondary)
+            Text(title).font(.secondaryStrong).foregroundStyle(on ? tint.color : Theme.secondary)
             ForEach(lines, id: \.self) { line in
                 HStack(alignment: .top, spacing: 4) {
-                    Image(systemName: "checkmark").font(.system(size: 8, weight: .bold)).foregroundStyle(SpaceTint.green.color).padding(.top, 4)
-                    Text(line).font(.system(size: 11)).foregroundStyle(Theme.body).fixedSize(horizontal: false, vertical: true)
+                    Image(systemName: "checkmark").font(.symbolInline).foregroundStyle(SpaceTint.green.color).padding(.top, 4)
+                    Text(line).font(.caption).foregroundStyle(Theme.body).fixedSize(horizontal: false, vertical: true)
                 }
             }
         }

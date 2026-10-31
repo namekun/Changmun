@@ -123,13 +123,13 @@ struct StepChip: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: item.symbol ?? "cursorarrow.rays").font(.system(size: 9.5, weight: .semibold))
+            Image(systemName: item.symbol ?? "cursorarrow.rays").font(.symbolInline)
             Text(label).lineLimit(1).truncationMode(.middle)
             if item.outcome?.isProblem == true {
-                Image(systemName: item.outcome == .denied ? "hand.raised.fill" : "exclamationmark.triangle.fill").font(.system(size: 9))
+                Image(systemName: item.outcome == .denied ? "hand.raised.fill" : "exclamationmark.triangle.fill").font(.symbolInline)
             }
         }
-        .font(.system(size: 11, weight: .semibold))
+        .font(.captionStrong)
         .foregroundStyle(item.outcome?.isProblem == true ? Theme.waitingText : Theme.secondary)
         .padding(.horizontal, 8)
         .frame(height: 22)
@@ -150,7 +150,7 @@ struct ChatStepsRow: View {
         case .live(_, let hidden, let steps):
             VStack(alignment: .leading, spacing: 8) {
                 if hidden > 0 {
-                    Text("+\(hidden) earlier steps").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.faint)
+                    Text("+\(hidden) earlier steps").font(.captionStrong).foregroundStyle(Theme.faint)
                 }
                 ForEach(steps) { StepChip(item: $0) }
             }
@@ -158,8 +158,8 @@ struct ChatStepsRow: View {
             VStack(alignment: .leading, spacing: 8) {
                 Button { open.toggle() } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold)).rotationEffect(.degrees(open ? 90 : 0))
-                        Text("\(steps.count) steps").font(.system(size: 11, weight: .semibold))
+                        Image(systemName: "chevron.right").font(.symbolInline).rotationEffect(.degrees(open ? 90 : 0))
+                        Text("\(steps.count) steps").font(.captionStrong)
                     }
                     .foregroundStyle(Theme.secondary)
                     .padding(.horizontal, 8)
@@ -186,7 +186,7 @@ struct TurnSummaryRow: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: "square.on.square").font(.system(size: 10, weight: .semibold))
+            Image(systemName: "square.on.square").font(.symbolInline)
             Text(summary.text).lineLimit(2)
             if let chat, !reopened, chat.canReopen(turn: summary.turn) {
                 Button("Reopen") {
@@ -197,7 +197,7 @@ struct TurnSummaryRow: View {
                 .foregroundStyle(Theme.primary)
             }
         }
-        .font(.system(size: 11, weight: .semibold))
+        .font(.captionStrong)
         .foregroundStyle(Theme.faint)
         .accessibilityElement(children: .combine)
     }

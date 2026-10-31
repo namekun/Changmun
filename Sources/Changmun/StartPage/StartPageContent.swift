@@ -316,10 +316,10 @@ struct StartPageContent: View {
 
     private var hints: some View {
         HStack(spacing: 4) {
-            Text("New Tab").font(.system(size: 11.5, weight: .semibold)).foregroundStyle(Theme.faint)
+            Text("New Tab").font(.captionStrong).foregroundStyle(Theme.faint)
             Keycap("⌘T")
             if !browser.isPrivate {
-                Text("AI").font(.system(size: 11.5, weight: .semibold)).foregroundStyle(Theme.faint).padding(.leading, 8)
+                Text("AI").font(.captionStrong).foregroundStyle(Theme.faint).padding(.leading, 8)
                 Keycap("⌘E")
             }
         }
@@ -335,7 +335,7 @@ struct StartPageContent: View {
             if style == .quiet {
                 HStack(spacing: 4) {
                     Circle().fill(tint.color).frame(width: 6, height: 6)
-                    Text(verbatim: browser.space.name).font(.system(size: 11.5)).foregroundStyle(Theme.secondary)
+                    Text(verbatim: browser.space.name).font(.caption).foregroundStyle(Theme.secondary)
                 }
                 .padding(.bottom, 16)
                 .opacity(browser.isPrivate ? 0 : 1)
@@ -406,7 +406,7 @@ struct StartPageContent: View {
                 if page.favorites.isEmpty {
                     HStack(spacing: 24) { ForEach(0..<5, id: \.self) { _ in StartEmptyFavorite(size: size) } }
                     Text("Drag the sites you visit most to the favorites in the sidebar and they appear here as tiles.")
-                        .font(.system(size: 11.5)).foregroundStyle(Theme.dim)
+                        .font(.caption).foregroundStyle(Theme.dim)
                 } else {
                     ForEach(Array(rows.enumerated()), id: \.offset) { _, range in
                         HStack(alignment: .top, spacing: 0) {
@@ -496,15 +496,15 @@ struct StartPageContent: View {
     @ViewBuilder
     private func aiHero(_ page: PageData, showCards: Bool) -> some View {
         VStack(spacing: 0) {
-            Image(systemName: "sparkle").font(.system(size: 20, weight: .medium)).foregroundStyle(.white)
+            Image(systemName: "sparkle").font(.symbolEmpty).foregroundStyle(.white)
                 .frame(width: 52, height: 52)
                 .background(Circle().fill(LinearGradient(colors: [tint.color.opacity(0.95), tint.color.opacity(0.65)], startPoint: .top, endPoint: .bottom)))
                 .shadow(color: tint.color.opacity(0.35), radius: 12, y: 4)
                 .decorative()
-            Text("How can I help?").font(.system(size: 30, weight: .semibold)).foregroundStyle(Theme.primary).padding(.top, 16)
+            Text("How can I help?").font(.display).foregroundStyle(Theme.primary).padding(.top, 16)
                 .accessibilityAddTraits(.isHeader)
             Text("I can read your open tabs, compare them, and click through to finish the job.")
-                .font(.system(size: 14)).foregroundStyle(Theme.secondary).padding(.top, 8)
+                .font(.title).foregroundStyle(Theme.secondary).padding(.top, 8)
             StartAIPrompt(browser: browser, chat: chat, tint: tint, ask: ask)
                 .frame(maxWidth: 680).padding(.top, 32)
             if showCards, !page.chips.isEmpty {
@@ -526,8 +526,8 @@ struct StartPageContent: View {
     private func pill(height: CGFloat, contents: StartPageContents, shown: Bool) -> some View {
         Button { expand = nil; customizing = true } label: {
             HStack(spacing: 4) {
-                Image(systemName: "slider.horizontal.3").font(.system(size: 11, weight: .semibold))
-                Text("Customize").font(.system(size: 12, weight: .semibold))
+                Image(systemName: "slider.horizontal.3").font(.symbolInline)
+                Text("Customize").font(.secondaryStrong)
             }
             .foregroundStyle(Color.accentColor)
             .padding(.horizontal, 16).frame(height: 30)
@@ -681,7 +681,7 @@ struct StartAIPrompt: View {
         VStack(alignment: .leading, spacing: 8) {
             TextField("", text: $draft, prompt: Text("Sum up a page, look into a site, or hand it a task").foregroundStyle(Theme.dim), axis: .vertical)
                 .textFieldStyle(.plain)
-                .font(.system(size: 14))
+                .font(.title)
                 .foregroundStyle(Theme.primary)
                 .lineLimit(1...5)
                 .focused($focused)
@@ -692,8 +692,8 @@ struct StartAIPrompt: View {
                 let tabs = browser.spaceTabs.count
                 if tabs > 0 {
                     HStack(spacing: 4) {
-                        Image(systemName: "square.on.square").font(.system(size: 10, weight: .medium))
-                        Text(tabs == 1 ? String(localized: "1 open tab") : String(localized: "\(tabs) open tabs")).font(.system(size: 11.5))
+                        Image(systemName: "square.on.square").font(.symbolInline)
+                        Text(tabs == 1 ? String(localized: "1 open tab") : String(localized: "\(tabs) open tabs")).font(.caption)
                     }
                     .foregroundStyle(Theme.secondary)
                     .padding(.horizontal, 8).frame(height: 24)
@@ -701,7 +701,7 @@ struct StartAIPrompt: View {
                 }
                 Spacer()
                 Button(action: send) {
-                    Image(systemName: "arrow.up").font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.card)
+                    Image(systemName: "arrow.up").font(.symbolToolbar).foregroundStyle(Theme.card)
                         .frame(width: 30, height: 30).background(Circle().fill(Theme.primary))
                 }
                 .buttonStyle(.plain)

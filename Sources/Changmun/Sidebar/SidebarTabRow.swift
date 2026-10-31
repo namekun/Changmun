@@ -65,7 +65,7 @@ struct SidebarTabRow: View {
                     HoverAction(symbol: "xmark", help: String(localized: "Close Tab (⌘W)"), action: close)
                 } else if browser.split?.contains(tab.id) == true {
                     Image(systemName: "rectangle.split.2x1")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.symbolInline)
                         .foregroundStyle(Theme.faint)
                         .help("Split View")
                         .decorative()
@@ -170,7 +170,7 @@ struct SiteIcon: View {
             if let image {
                 IconImage(image: image, size: size)
             } else {
-                Image(systemName: "globe").font(.system(size: size * 0.7)).foregroundStyle(Theme.faint)
+                Image(systemName: "globe").font(.system(size: size * 0.7)).foregroundStyle(Theme.faint)  // type-exempt: a share of the icon plate's size
             }
         }
         .frame(width: size, height: size)
@@ -191,7 +191,7 @@ struct Favicon: View {
                 // A sleeping tab has no page to ask; the site's saved icon stands in.
                 SiteIcon(url: url, size: 16, keep: !tab.isPrivate)
             } else {
-                Image(systemName: "globe").font(.system(size: 12)).foregroundStyle(Theme.faint)
+                Image(systemName: "globe").font(.symbolToolbar).foregroundStyle(Theme.faint)
             }
         }
         .frame(width: 16, height: 16)

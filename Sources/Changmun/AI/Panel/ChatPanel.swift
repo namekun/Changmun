@@ -44,7 +44,7 @@ struct ChatPanel: View {
             attachments
             if !chat.queue.isEmpty { queued }
             if let notice = chat.notice {
-                Text(notice).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waitingText)
+                Text(notice).font(.caption).foregroundStyle(Theme.waitingText)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8).padding(.bottom, 8)
             }
             // A run under way can always be stopped.
@@ -96,7 +96,7 @@ struct ChatPanel: View {
             // The run before them failed or was cut short: they go only when the user says so.
             if chat.queueHeld && !chat.isRunning {
                 Button { chat.sendQueued() } label: {
-                    Text("Send Queued").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.primary)
+                    Text("Send Queued").font(.captionStrong).foregroundStyle(Theme.primary)
                         .padding(.horizontal, 8).frame(height: 22).background(Capsule().fill(Theme.pill))
                 }
                 .buttonStyle(.plain)
@@ -114,7 +114,7 @@ struct ChatPanel: View {
                 ZStack(alignment: .topLeading) {
                     if draft.isEmpty {
                         Text("Ask about this page, or give it a task")
-                            .font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.faint)
+                            .font(.body).foregroundStyle(Theme.faint)
                             .allowsHitTesting(false)
                     }
                     // While the AI works, Return queues the message for when it is done and ⌘Return steers it now.
@@ -138,7 +138,7 @@ struct ChatPanel: View {
             .padding(.bottom, chat.isRunning ? 4 : 4)
             if chat.isRunning {
                 Text("↵ queues it for when the AI is done · ⌘↵ steers it now")
-                    .font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.faint)
+                    .font(.caption).foregroundStyle(Theme.faint)
                     .padding(.bottom, 4)
             }
             ComposerControlsRow(prefs: prefs, chat: chat)

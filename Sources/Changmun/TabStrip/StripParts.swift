@@ -80,7 +80,7 @@ struct StripTab: View {
                     HoverAction(symbol: "xmark", help: String(localized: "Close Tab (⌘W)")) { browser.close(tab.id) }
                 } else if browser.split?.contains(tab.id) == true {
                     Image(systemName: "rectangle.split.2x1")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.symbolInline)
                         .foregroundStyle(Theme.faint)
                         .help("Split View")
                         .decorative()
@@ -145,7 +145,7 @@ struct StripGroupChip: View {
             if renaming {
                 TextField("Group name", text: $name)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.secondary)
                     .foregroundStyle(Theme.primary)
                     // A name longer than the field scrolls inside it: it must not draw over the dot before it.
                     .clipped()
@@ -163,7 +163,7 @@ struct StripGroupChip: View {
                     }
             } else {
                 Text(Self.label(group, count: count))
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.secondary)
                     .lineLimit(1)
                     .foregroundStyle(Theme.primary)
             }

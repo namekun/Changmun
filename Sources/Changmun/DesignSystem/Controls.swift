@@ -82,7 +82,7 @@ struct MoreButton<Items: View>: View {
 
     var body: some View {
         Menu(content: items) {
-            Image(systemName: "ellipsis").font(.system(size: inBar ? 13 : 11, weight: .bold))
+            Image(systemName: "ellipsis").font(inBar ? .symbolToolbar : .symbolInline)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
@@ -148,7 +148,7 @@ struct Keycap: View {
     init(_ key: String) { self.key = key }
 
     var body: some View {
-        Text(verbatim: key).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.ink(0.7))
+        Text(verbatim: key).font(.caption).foregroundStyle(Theme.ink(0.7))
             .padding(.horizontal, 4).frame(minWidth: 20, minHeight: 17)
             .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(Theme.field))
             .fixedSize()
@@ -222,7 +222,7 @@ struct HoverAction: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 9, weight: .bold))
+            Image(systemName: symbol).font(.symbolInline)
                 .frame(width: Metrics.action, height: Metrics.action)
                 .contentShape(Rectangle())
         }

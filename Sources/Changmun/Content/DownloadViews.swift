@@ -20,9 +20,9 @@ struct DownloadButton: View {
                     Circle().trim(from: 0, to: max(0.04, progress))
                         .stroke(Theme.primary, style: StrokeStyle(lineWidth: 2, lineCap: .round))
                         .rotationEffect(.degrees(-90))
-                    Image(systemName: "arrow.down").font(.system(size: 8, weight: .bold))
+                    Image(systemName: "arrow.down").font(.system(size: 8, weight: .bold))  // type-exempt: a mark inside the 15 pt progress ring
                 } else {
-                    Image(systemName: "arrow.down.circle").font(.system(size: 13, weight: .semibold))
+                    Image(systemName: "arrow.down.circle").font(.symbolToolbar)
                 }
             }
             .frame(width: progress == nil ? nil : 15, height: progress == nil ? nil : 15)
@@ -52,7 +52,7 @@ struct DownloadList: View {
         let items = downloads.items(for: browser)
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Downloads").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary)
+                Text("Downloads").font(.bodyStrong).foregroundStyle(Theme.primary)
                 Spacer()
                 BarButton(symbol: "folder", help: String(localized: "Open Downloads Folder")) { NSWorkspace.shared.open(Preferences.shared.downloadFolder) }
             }
@@ -61,7 +61,7 @@ struct DownloadList: View {
             .frame(height: 40)
             if items.isEmpty {
                 Text("No downloads this session")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.secondary)
                     .foregroundStyle(Theme.secondary)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 16)
@@ -78,7 +78,7 @@ struct DownloadList: View {
                     Hairline()
                     Button("Clear Finished") { downloads.clearFinished(for: browser) }
                         .buttonStyle(.plain)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.secondary)
                         .foregroundStyle(Theme.secondary)
                         .padding(.horizontal, 16)
                         .frame(height: 34)
@@ -130,7 +130,7 @@ struct DownloadRow: View {
                     Image(nsImage: NSWorkspace.shared.icon(forFile: file.path)).resizable()
                 } else {
                     Image(systemName: item.state == .running ? "arrow.down.circle" : "exclamationmark.circle")
-                        .font(.system(size: 17, weight: .medium))
+                        .font(.symbolEmpty)
                         .foregroundStyle(Theme.faint)
                 }
             }
@@ -208,21 +208,21 @@ struct DownloadRow: View {
         switch item.state {
         case .running where !item.sizeKnown:
             Text(String(localized: "Downloading · \(ByteCountFormatter.string(fromByteCount: item.bytes ?? 0, countStyle: .file))"))
-                .font(.system(size: 11, weight: .medium).monospacedDigit()).foregroundStyle(Theme.secondary)
+                .font(.caption.monospacedDigit()).foregroundStyle(Theme.secondary)
         case .running:
             HStack(spacing: 8) {
                 Meter(fraction: item.progress)
                 Text("\(Int((item.progress * 100).rounded()))%")
-                    .font(.system(size: 10.5, weight: .semibold).monospacedDigit())
+                    .font(.captionStrong.monospacedDigit())
                     .foregroundStyle(Theme.secondary)
             }
         case .finished:
             Text(item.bytes.map { String(localized: "Done · \(ByteCountFormatter.string(fromByteCount: $0, countStyle: .file))") } ?? String(localized: "Done"))
-                .font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondary)
+                .font(.caption).foregroundStyle(Theme.secondary)
         case .cancelled:
-            Text("Cancelled").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.faint)
+            Text("Cancelled").font(.caption).foregroundStyle(Theme.faint)
         case .failed(let reason):
-            Text("Failed: \(reason)").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waitingText).lineLimit(1)
+            Text("Failed: \(reason)").font(.caption).foregroundStyle(Theme.waitingText).lineLimit(1)
         }
     }
 

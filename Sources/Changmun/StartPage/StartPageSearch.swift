@@ -102,10 +102,10 @@ struct StartSearchBox: View {
 
     private func field(height: CGFloat) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.secondary).decorative()
+            Image(systemName: "magnifyingglass").font(.symbolToolbar).foregroundStyle(Theme.secondary).decorative()
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
-                .font(.system(size: compact ? 14 : 16, weight: .semibold))
+                .font(.title)
                 .foregroundStyle(Theme.primary)
                 .focused($focused)
                 .accessibilityLabel(placeholder)

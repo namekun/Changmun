@@ -84,8 +84,8 @@ struct ChatHeader: View {
             }
         } label: {
             HStack(spacing: 4) {
-                Text(verbatim: title).font(.system(size: 13, weight: .semibold)).lineLimit(1).truncationMode(.tail)
-                Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold))
+                Text(verbatim: title).font(.bodyStrong).lineLimit(1).truncationMode(.tail)
+                Image(systemName: "chevron.down").font(.symbolInline)
             }
             .foregroundStyle(Theme.primary)
             .padding(.horizontal, 8)

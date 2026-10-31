@@ -23,24 +23,24 @@ struct TrustFailureView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 26)).foregroundStyle(Theme.waiting).decorative()
-                    Text("This connection isn’t private").font(.system(size: 22, weight: .semibold)).foregroundStyle(Theme.primary)
+                    Image(systemName: "exclamationmark.triangle.fill").font(.symbolEmpty).foregroundStyle(Theme.waiting).decorative()
+                    Text("This connection isn’t private").font(.heading).foregroundStyle(Theme.primary)
                         .accessibilityAddTraits(.isHeader)
                 }
                 // The host with its port (never trimmed of its www), an internationalized name in Unicode as well, and the whole address.
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(verbatim: failure.hostAndPort).font(.system(size: 15, weight: .semibold, design: .monospaced)).foregroundStyle(Theme.primary)
-                    if let unicode = failure.unicodeHost { Text(verbatim: unicode).font(.system(size: 13)).foregroundStyle(Theme.body) }
-                    Text(verbatim: failure.address).font(.system(size: 11, design: .monospaced)).foregroundStyle(Theme.secondary).lineLimit(3)
+                    Text(verbatim: failure.hostAndPort).font(.title.monospaced()).foregroundStyle(Theme.primary)
+                    if let unicode = failure.unicodeHost { Text(verbatim: unicode).font(.body).foregroundStyle(Theme.body) }
+                    Text(verbatim: failure.address).font(.caption.monospaced()).foregroundStyle(Theme.secondary).lineLimit(3)
                 }
                 .textSelection(.enabled)
                 Text("Changmun can’t confirm that you are connected to \(failure.hostAndPort). Someone on the network may be pretending to be this site and could see what you send.")
-                    .font(.system(size: 13)).foregroundStyle(Theme.body).fixedSize(horizontal: false, vertical: true)
+                    .font(.body).foregroundStyle(Theme.body).fixedSize(horizontal: false, vertical: true)
                 Text(Self.reason(failure.reason, host: ServerTrust.sanitized(failure.host)))
-                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).fixedSize(horizontal: false, vertical: true)
+                    .font(.bodyStrong).foregroundStyle(Theme.primary).fixedSize(horizontal: false, vertical: true)
                 if failure.changed {
                     Label("The certificate of this site has changed since you chose to go on. Don’t continue unless you know why.", systemImage: "exclamationmark.octagon.fill")
-                        .font(.system(size: 13, weight: .semibold)).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+                        .font(.bodyStrong).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
                 }
                 HStack(spacing: 16) {
                     Button(action: goBack) { Text("Go Back").frame(minWidth: 90) }
@@ -51,23 +51,23 @@ struct TrustFailureView: View {
                 DisclosureGroup(isExpanded: $showDetails) {
                     details.padding(.top, 8)
                 } label: {
-                    Text("Certificate Details").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary)
+                    Text("Certificate Details").font(.secondaryStrong).foregroundStyle(Theme.secondary)
                 }
                 switch failure.visit {
                 case .offered:
                     if showDetails {
                         Text("Don’t enter passwords or payment details here unless you know and trust this site.")
-                            .font(.system(size: 12)).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
-                        Button(action: visit) { Text("Visit This Website").font(.system(size: 12)) }
+                            .font(.secondary).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
+                        Button(action: visit) { Text("Visit This Website").font(.secondary) }
                             .buttonStyle(.link)
                             .controlSize(.small)
                     }
                 case .refusedStrictTransport:
                     Label("This site insists on a secure connection, so its certificate can’t be overridden.", systemImage: "lock.slash.fill")
-                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
+                        .font(.secondaryStrong).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
                 case .refusedWentBad:
                     Label("This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on.", systemImage: "exclamationmark.octagon.fill")
-                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+                        .font(.secondaryStrong).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
                 }
             }
             .frame(maxWidth: 560, alignment: .leading)
@@ -96,8 +96,8 @@ struct TrustFailureView: View {
 
     private func row(_ label: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label).font(.system(size: 12)).foregroundStyle(Theme.secondary).frame(width: 110, alignment: .trailing)
-            Text(verbatim: value).font(.system(size: 12)).foregroundStyle(Theme.body).fixedSize(horizontal: false, vertical: true)
+            Text(label).font(.secondary).foregroundStyle(Theme.secondary).frame(width: 110, alignment: .trailing)
+            Text(verbatim: value).font(.secondary).foregroundStyle(Theme.body).fixedSize(horizontal: false, vertical: true)
         }
     }
 

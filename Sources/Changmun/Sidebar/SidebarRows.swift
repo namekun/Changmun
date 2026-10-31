@@ -99,7 +99,7 @@ struct FolderRow<MenuItems: View>: View {
 
     var body: some View {
         HStack(spacing: Metrics.iconGap) {
-            Image(systemName: symbol).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.secondary).frame(width: Metrics.icon)
+            Image(systemName: symbol).font(.symbolRow).foregroundStyle(Theme.secondary).frame(width: Metrics.icon)
             if renaming {
                 TextField("Folder name", text: $typed)
                     .textFieldStyle(.plain)
@@ -129,7 +129,7 @@ struct FolderRow<MenuItems: View>: View {
             }
             .frame(minWidth: Metrics.action, alignment: .trailing)
             Image(systemName: "chevron.right")
-                .font(.system(size: 8, weight: .bold))
+                .font(.symbolInline)
                 .foregroundStyle(Theme.faint)
                 .rotationEffect(.degrees(isOpen ? 90 : 0))
                 .frame(width: Metrics.icon)
@@ -325,7 +325,7 @@ struct TabGroupHeader: View {
 
     var body: some View {
         HStack(spacing: Metrics.iconGap) {
-            Image(systemName: "square.on.square").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondary).frame(width: Metrics.icon)
+            Image(systemName: "square.on.square").font(.symbolRow).foregroundStyle(Theme.secondary).frame(width: Metrics.icon)
             if browser.renamingGroup == group.id {
                 TextField("Group name", text: $name)
                     .textFieldStyle(.plain)
@@ -357,7 +357,7 @@ struct TabGroupHeader: View {
             }
             .frame(minWidth: Metrics.action, alignment: .trailing)
             Image(systemName: "chevron.right")
-                .font(.system(size: 8, weight: .bold))
+                .font(.symbolInline)
                 .foregroundStyle(Theme.faint)
                 .rotationEffect(.degrees(group.isOpen ? 90 : 0))
                 .frame(width: Metrics.icon)
@@ -411,7 +411,7 @@ struct TidyButton: View {
                 if browser.tidying {
                     ProgressView().controlSize(.small).scaleEffect(0.7)
                 } else {
-                    Image(systemName: "wand.and.stars").font(.system(size: 12, weight: .medium))
+                    Image(systemName: "wand.and.stars").font(.symbolToolbar)
                 }
             }
             .frame(width: Metrics.row, height: Metrics.row)
@@ -465,7 +465,7 @@ struct NewTabRow: View {
 
     var body: some View {
         HStack(spacing: Metrics.iconGap) {
-            Image(systemName: "plus").font(.system(size: 12, weight: .medium)).frame(width: Metrics.icon)
+            Image(systemName: "plus").font(.symbolRow).frame(width: Metrics.icon)
             Text("New Tab").font(.row)
             Spacer()
         }

@@ -110,7 +110,7 @@ private struct MenuLabel<Content: View>: View {
 
     var body: some View {
         HStack(spacing: 4) { content }
-            .font(.system(size: 11, weight: .semibold))
+            .font(.captionStrong)
             .foregroundStyle(Theme.secondary)
             .padding(.horizontal, 8)
             .frame(height: 22)
@@ -134,8 +134,8 @@ struct ComposerControlsRow: View {
                 .labelsHidden()
             } label: {
                 MenuLabel {
-                    Image(systemName: "hand.raised").font(.system(size: 10, weight: .semibold))
-                    Image(systemName: "chevron.down").font(.system(size: 7, weight: .bold))
+                    Image(systemName: "hand.raised").font(.symbolInline)
+                    Image(systemName: "chevron.down").font(.symbolInline)
                 }
             }
             .plainMenu()
@@ -166,7 +166,7 @@ struct ComposerControlsRow: View {
             } label: {
                 MenuLabel {
                     Text(verbatim: AIEffort.label(model: prefs.aiModel, effort: prefs.aiEffort))
-                    Image(systemName: "chevron.down").font(.system(size: 7, weight: .bold))
+                    Image(systemName: "chevron.down").font(.symbolInline)
                 }
             }
             .plainMenu()
@@ -223,7 +223,7 @@ struct ComposerPlusMenu: View {
             Button("Add Image…", systemImage: "photo") { chat.chooseImages() }
         } label: {
             Image(systemName: "plus")
-                .font(.system(size: 11, weight: .bold))
+                .font(.symbolInline)
                 .foregroundStyle(Theme.secondary)
                 .frame(width: 22, height: 22)
                 .background(Circle().fill(Theme.pill))
@@ -240,7 +240,7 @@ struct ComposerMicButton: View {
     var body: some View {
         Button(action: Self.startDictation) {
             Image(systemName: "mic")
-                .font(.system(size: 12, weight: .medium))
+                .font(.symbolToolbar)
                 .foregroundStyle(Theme.secondary)
                 .frame(width: 22, height: 22)
                 .contentShape(Rectangle())
@@ -270,7 +270,7 @@ struct ComposerStopButton: View {
     var body: some View {
         Button(action: stop) {
             Image(systemName: "stop.fill")
-                .font(.system(size: 8, weight: .bold))
+                .font(.symbolInline)
                 .foregroundStyle(Theme.primary)
                 .frame(width: 22, height: 22)
                 .background(Circle().fill(Theme.pill))

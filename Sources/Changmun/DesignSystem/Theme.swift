@@ -93,11 +93,26 @@ enum Metrics {
     static let cardRadius: CGFloat = 12
 }
 
+/// Six sizes, three weights. A size has its regular or medium face and, where a line needs to stand out, a semibold one.
+/// Nothing the app writes is smaller than `caption`; sizes under 11 are only for a badge drawn inside an icon (marked `type-exempt`).
 extension Font {
-    static let row = Font.system(size: 13)
-    static let rowSelected = Font.system(size: 13, weight: .semibold)
     static let caption = Font.system(size: 11, weight: .medium)
     static let captionStrong = Font.system(size: 11, weight: .semibold)
+    static let secondary = Font.system(size: 12)
+    static let secondaryStrong = Font.system(size: 12, weight: .semibold)
+    static let body = Font.system(size: 13)
+    static let bodyStrong = Font.system(size: 13, weight: .semibold)
+    static let title = Font.system(size: 15, weight: .semibold)
+    static let heading = Font.system(size: 20, weight: .semibold)
+    static let display = Font.system(size: 28, weight: .semibold)
+    static let row = body
+    static let rowSelected = bodyStrong
+
+    /// SF Symbols: 11 beside text, 13 in a bar, 16 leading a row, 20 in an empty state; always medium.
+    static let symbolInline = Font.system(size: 11, weight: .medium)
+    static let symbolToolbar = Font.system(size: 13, weight: .medium)
+    static let symbolRow = Font.system(size: 16, weight: .medium)
+    static let symbolEmpty = Font.system(size: 20, weight: .medium)
 }
 
 /// Springs without overshoot: they settle smoothly and, when interrupted, turn around from where they are. With

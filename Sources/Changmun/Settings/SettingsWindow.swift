@@ -154,6 +154,6 @@ struct Caption: View {
     }
 
     var body: some View {
-        text.font(.system(size: 11.5)).foregroundStyle(color).fixedSize(horizontal: false, vertical: true)
+        text.font(.caption).foregroundStyle(color).fixedSize(horizontal: false, vertical: true)
     }
 }

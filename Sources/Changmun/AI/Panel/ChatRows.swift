@@ -40,7 +40,7 @@ struct ChatRow: View {
                 HStack {
                     Spacer(minLength: 40)
                     Text(item.text)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.bodyStrong)
                         .foregroundStyle(Theme.primary)
                         .textSelection(.enabled)
                         .padding(.horizontal, 16).padding(.vertical, 8)
@@ -55,10 +55,10 @@ struct ChatRow: View {
             StepChip(item: item)
         case .note:
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Image(systemName: "info.circle").font(.system(size: 11))
+                Image(systemName: "info.circle").font(.symbolInline)
                 Text(item.text).textSelection(.enabled)
             }
-            .font(.system(size: 12, weight: .medium))
+            .font(.secondary)
             .foregroundStyle(Theme.secondary)
         case .error:
             ChatErrorRow(item: item, retry: retry)
@@ -74,7 +74,7 @@ struct AnswerRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             MarkdownView(text: text)
-                .font(.system(size: 13, weight: .medium))
+                .font(.body)
                 .foregroundStyle(Theme.body)
                 .textSelection(.enabled)
             CopyTextButton(text: text).opacity(hover ? 1 : 0)

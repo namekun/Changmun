@@ -32,7 +32,7 @@ struct ContentBlockerSection: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(blocker.name).lineLimit(1)
                         if let status = host.status[blocker.bundleID] {
-                            Text(status).font(.system(size: 11)).foregroundStyle(status.hasPrefix("[ERROR]") ? .red : .secondary).lineLimit(3)
+                            Text(status).font(.caption).foregroundStyle(status.hasPrefix("[ERROR]") ? .red : .secondary).lineLimit(3)
                         }
                     }
                     Spacer()
@@ -80,7 +80,7 @@ struct ExtensionList: View {
                     }
                 }
                 if let error = host.storeErrors[ChromeWebStore.extensionID(from: storeAddress) ?? storeAddress] {
-                    Text(error).font(.system(size: 11)).foregroundStyle(.red)
+                    Text(error).font(.caption).foregroundStyle(.red)
                 }
                 Caption(text: "Safari extensions you get from the App Store show up here automatically. When you open a Chrome Web Store page, an “Add to Changmun” button appears over the page. Some features, such as talking to native apps, may not work.")
             }
@@ -124,12 +124,12 @@ struct ExtensionRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(item?.name ?? Self.name(source)).lineLimit(1)
                 if let failure = host.failures[source.path] {
-                    Text(failure).font(.system(size: 11)).foregroundStyle(.red).lineLimit(2)
+                    Text(failure).font(.caption).foregroundStyle(.red).lineLimit(2)
                 } else {
                     Text(source.kind == .safari ? String(localized: "Safari Extension")
                          : ExtensionHost.isFromChromeWebStore(source) ? String(localized: "Chrome Web Store")
                          : source.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
-                        .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                 }
             }
             Spacer()

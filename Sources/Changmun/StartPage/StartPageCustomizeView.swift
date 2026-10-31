@@ -21,10 +21,10 @@ struct StartPageCustomizeView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Customize").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).accessibilityAddTraits(.isHeader)
+                Text("Customize").font(.bodyStrong).foregroundStyle(Theme.primary).accessibilityAddTraits(.isHeader)
                 Spacer()
                 Button { dismiss() } label: {
-                    Text("Done").font(.system(size: 11.5, weight: .semibold)).foregroundStyle(.white)
+                    Text("Done").font(.captionStrong).foregroundStyle(.white)
                         .padding(.horizontal, 16).frame(height: 24)
                         .background(Capsule().fill(Color.accentColor))
                 }
@@ -40,7 +40,7 @@ struct StartPageCustomizeView: View {
                         if hidden.count > 0 {
                             Button { hidden.showAll() } label: {
                                 Text(hidden.count == 1 ? String(localized: "Show 1 hidden item again") : String(localized: "Show \(hidden.count) hidden items again"))
-                                    .font(.system(size: 11.5)).foregroundStyle(Color.accentColor)
+                                    .font(.caption).foregroundStyle(Color.accentColor)
                             }
                             .buttonStyle(.plain)
                         }
@@ -56,14 +56,14 @@ struct StartPageCustomizeView: View {
             HStack {
                 Button { model.reset() } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: "arrow.counterclockwise").font(.system(size: 11))
-                        Text("Reset to Defaults").font(.system(size: 12))
+                        Image(systemName: "arrow.counterclockwise").font(.symbolInline)
+                        Text("Reset to Defaults").font(.secondary)
                     }
                     .foregroundStyle(Theme.primary)
                 }
                 .buttonStyle(.plain)
                 Spacer()
-                Text("Changes apply right away").font(.system(size: 11)).foregroundStyle(Theme.dim)
+                Text("Changes apply right away").font(.caption).foregroundStyle(Theme.dim)
             }
             .padding(.horizontal, 16).padding(.vertical, 8)
         }
@@ -77,9 +77,9 @@ struct StartPageCustomizeView: View {
     private func group<Content: View>(_ title: String, trailing: String? = nil, @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(verbatim: title).font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.secondary).accessibilityAddTraits(.isHeader)
+                Text(verbatim: title).font(.caption).foregroundStyle(Theme.secondary).accessibilityAddTraits(.isHeader)
                 Spacer()
-                if let trailing { Text(verbatim: trailing).font(.system(size: 10.5)).foregroundStyle(Theme.dim) }
+                if let trailing { Text(verbatim: trailing).font(.caption).foregroundStyle(Theme.dim) }
             }
             content()
         }
@@ -101,7 +101,7 @@ struct StartPageSettingsView: View {
                             .frame(width: 330)
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                             .overlay { RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5) }
-                        Text("Preview").font(.system(size: 11)).foregroundStyle(.secondary)
+                        Text("Preview").font(.caption).foregroundStyle(.secondary)
                     }
                     StartStyleRadios(model: model).frame(maxWidth: .infinity, alignment: .leading)
                 }

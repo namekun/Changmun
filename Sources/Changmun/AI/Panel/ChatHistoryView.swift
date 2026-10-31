@@ -11,7 +11,7 @@ struct ChatHistoryView: View {
     var body: some View {
         VStack(spacing: 0) {
             if history.saveFailed {
-                Text("Couldn’t save chat history").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.waitingText)
+                Text("Couldn’t save chat history").font(.caption).foregroundStyle(Theme.waitingText)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8).padding(.top, 8)
             }
             if let id = chat.openedHistory, let stored = history.chats.first(where: { $0.id == id }) {
@@ -35,8 +35,8 @@ private struct HistoryAction: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                Image(systemName: symbol).font(.system(size: 9, weight: .bold))
-                Text(title).font(.system(size: 11, weight: .semibold))
+                Image(systemName: symbol).font(.symbolInline)
+                Text(title).font(.captionStrong)
             }
             .foregroundStyle(prominent ? Theme.waitingText : Theme.primary)
             .padding(.horizontal, 8).frame(height: 22)
@@ -54,7 +54,7 @@ private struct ChatHistoryList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Chat History").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary)
+                Text("Chat History").font(.bodyStrong).foregroundStyle(Theme.primary)
                 Spacer()
                 if !history.chats.isEmpty && !confirmClear {
                     HistoryAction(title: String(localized: "Clear All"), symbol: "trash") { confirmClear = true }
@@ -63,7 +63,7 @@ private struct ChatHistoryList: View {
             .padding(.horizontal, 8).padding(.top, 8)
             if confirmClear {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Delete all saved chats? This can't be undone.").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.secondary)
+                    Text("Delete all saved chats? This can't be undone.").font(.secondary).foregroundStyle(Theme.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 8) {
                         HistoryAction(title: String(localized: "Cancel"), symbol: "xmark") { confirmClear = false }
@@ -78,7 +78,7 @@ private struct ChatHistoryList: View {
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.selected))
             }
             if history.chats.isEmpty {
-                Text("No saved chats yet").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint)
+                Text("No saved chats yet").font(.secondary).foregroundStyle(Theme.faint)
                     .padding(.horizontal, 8).padding(.top, 4)
             }
             ScrollView {
@@ -104,16 +104,16 @@ private struct SavedChatRow: View {
             Button(action: open) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(stored.title.isEmpty ? String(localized: "Untitled chat") : stored.title)
-                        .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
+                        .font(.secondaryStrong).foregroundStyle(Theme.primary).lineLimit(1)
                     Text(stored.updated.formatted(date: .abbreviated, time: .shortened))
-                        .font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.faint)
+                        .font(.caption).foregroundStyle(Theme.faint)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             Button(action: delete) {
-                Image(systemName: "trash").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
+                Image(systemName: "trash").font(.symbolInline).foregroundStyle(Theme.secondary)
                     .frame(width: 24, height: 24).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -138,8 +138,8 @@ private struct ChatHistoryDetail: View {
             HStack(spacing: 8) {
                 Button(action: back) {
                     HStack(spacing: 4) {
-                        Image(systemName: "chevron.left").font(.system(size: 10, weight: .bold))
-                        Text("Chat History").font(.system(size: 12, weight: .semibold))
+                        Image(systemName: "chevron.left").font(.symbolInline)
+                        Text("Chat History").font(.secondaryStrong)
                     }
                     .foregroundStyle(Theme.secondary)
                     .frame(height: 22).contentShape(Rectangle())
@@ -155,8 +155,8 @@ private struct ChatHistoryDetail: View {
             }
             .padding(.horizontal, 8).padding(.top, 8)
             HStack(spacing: 4) {
-                Image(systemName: "lock.fill").font(.system(size: 10))
-                Text("Read-only — start a new chat to continue").font(.system(size: 11.5, weight: .semibold))
+                Image(systemName: "lock.fill").font(.symbolInline)
+                Text("Read-only — start a new chat to continue").font(.captionStrong)
             }
             .foregroundStyle(Theme.secondary)
             .padding(.horizontal, 8).padding(.vertical, 8)

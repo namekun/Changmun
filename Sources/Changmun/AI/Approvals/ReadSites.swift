@@ -12,8 +12,8 @@ struct ReadSitesRow: View {
             if !read.isEmpty || !allowed.isEmpty {
                 Button { listed.toggle() } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: "eye").font(.system(size: 9.5, weight: .semibold))
-                        Text(verbatim: summary).font(.system(size: 10.5, weight: .medium))
+                        Image(systemName: "eye").font(.symbolInline)
+                        Text(verbatim: summary).font(.caption)
                         Spacer(minLength: 0)
                     }
                     .foregroundStyle(Theme.secondary)
@@ -53,26 +53,26 @@ private struct ReadSitesList: View {
         VStack(alignment: .leading, spacing: 8) {
             if !allowed.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Allowed for this chat").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
+                    Text("Allowed for this chat").font(.captionStrong).foregroundStyle(Theme.secondary)
                     ForEach(allowed, id: \.self) { site in
                         HStack(spacing: 8) {
-                            Text(verbatim: Approvals.display(site)).font(.system(size: 12)).lineLimit(1).truncationMode(.middle)
+                            Text(verbatim: Approvals.display(site)).font(.secondary).lineLimit(1).truncationMode(.middle)
                             Spacer(minLength: 8)
                             Button { Approvals.revoke(site: site, caller: ChatStore.caller) } label: {
-                                Text("Revoke").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.primary)
+                                Text("Revoke").font(.captionStrong).foregroundStyle(Theme.primary)
                                     .padding(.horizontal, 8).frame(height: 20).background(Capsule().fill(Theme.pill))
                             }
                             .buttonStyle(.plain)
                         }
                     }
-                    Text("After revoking, the AI asks again before it acts there.").font(.system(size: 10.5)).foregroundStyle(Theme.faint)
+                    Text("After revoking, the AI asks again before it acts there.").font(.caption).foregroundStyle(Theme.faint)
                 }
             }
             if !read.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Read in this chat").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary)
+                    Text("Read in this chat").font(.captionStrong).foregroundStyle(Theme.secondary)
                     ForEach(read, id: \.self) { site in
-                        Text(verbatim: Approvals.display(site)).font(.system(size: 12)).lineLimit(1).truncationMode(.middle)
+                        Text(verbatim: Approvals.display(site)).font(.secondary).lineLimit(1).truncationMode(.middle)
                     }
                 }
             }

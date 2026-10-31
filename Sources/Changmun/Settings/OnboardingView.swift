@@ -75,12 +75,12 @@ struct OnboardingView: View {
     private var welcome: some View {
         VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "sparkles")
-                .font(.system(size: 26, weight: .medium))
+                .font(.symbolEmpty)
                 .foregroundStyle(Theme.primary)
             Text("Welcome to Changmun")
-                .font(.system(size: 22, weight: .semibold))
+                .font(.heading)
             Text("It runs on the same WebKit engine as Safari, so it's light, and when you talk to the AI panel (⌘E), the AI reads the page and clicks and types for you.\nWould you like to bring over the bookmarks, history, passwords and login state from the browser you used before?")
-                .font(.system(size: 13.5))
+                .font(.body)
                 .lineSpacing(3)
                 .foregroundStyle(Color.primary.opacity(0.7))
                 .fixedSize(horizontal: false, vertical: true)
@@ -96,7 +96,7 @@ struct OnboardingView: View {
 
     private var choose: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Where would you like to import from?").font(.system(size: 18, weight: .semibold))
+            Text("Where would you like to import from?").font(.heading)
             ScrollView {
                 VStack(spacing: 4) {
                     ForEach(model.sources) { source in
@@ -117,10 +117,10 @@ struct OnboardingView: View {
                 Toggle("Login state (cookies)", isOn: $model.options.cookies)
             }
             .toggleStyle(.checkbox)
-            .font(.system(size: 12.5))
+            .font(.secondary)
             if model.needsSecrets {
                 Label("Each browser locks passwords and login state in the Keychain, so macOS will ask for permission. Enter your login password and click 'Allow'. Imported passwords are stored only in this Mac's Keychain.", systemImage: "key")
-                    .font(.system(size: 11.5))
+                    .font(.caption)
                     .foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -140,7 +140,7 @@ struct OnboardingView: View {
         VStack(spacing: 16) {
             ProgressView().controlSize(.large)
             Text(model.status.isEmpty ? String(localized: "Preparing…") : model.status)
-                .font(.system(size: 13))
+                .font(.body)
                 .foregroundStyle(Theme.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -149,14 +149,14 @@ struct OnboardingView: View {
 
     private var done: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("All done").font(.system(size: 18, weight: .semibold))
+            Text("All done").font(.heading)
             ForEach(Array(model.reports.enumerated()), id: \.offset) { _, report in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(report.source).font(.system(size: 13, weight: .medium))
-                    Text(report.summary).font(.system(size: 12.5)).foregroundStyle(Theme.secondary)
+                    Text(report.source).font(.body)
+                    Text(report.summary).font(.secondary).foregroundStyle(Theme.secondary)
                     ForEach(report.problems, id: \.self) { problem in
                         Label(problem, systemImage: "exclamationmark.triangle")
-                            .font(.system(size: 11.5))
+                            .font(.caption)
                             .foregroundStyle(Theme.waitingText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -166,7 +166,7 @@ struct OnboardingView: View {
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.hoverTab))
             }
             Text("Imported bookmarks are behind the bookmark button at the bottom of the sidebar; pin the folders you use to keep them above your tabs. On login forms, use the key button next to the address to fill in a password.")
-                .font(.system(size: 12))
+                .font(.secondary)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
@@ -187,7 +187,7 @@ struct OnboardingView: View {
     private var ai: some View {
         VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "sparkles")
-                .font(.system(size: 26, weight: .medium))
+                .font(.symbolEmpty)
                 .foregroundStyle(Theme.primary)
             AIGuidance(availability: model.ai)
             HStack {
@@ -214,13 +214,13 @@ struct SourceRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 16))
+                .font(.symbolRow)
                 .foregroundStyle(isOn ? Theme.primary : Theme.faint)
             AppIcon(browser: source.browser)
             VStack(alignment: .leading, spacing: 0) {
-                Text(source.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary)
+                Text(source.title).font(.bodyStrong).foregroundStyle(Theme.primary)
                 Text(source.supportsSecrets ? String(localized: "Bookmarks · History · Passwords · Cookies") : String(localized: "Bookmarks · History (Full Disk Access required)"))
-                    .font(.system(size: 11))
+                    .font(.caption)
                     .foregroundStyle(Theme.secondary)
             }
             Spacer()
@@ -244,7 +244,7 @@ struct AppIcon: View {
         if FileManager.default.fileExists(atPath: path) {
             Image(nsImage: NSWorkspace.shared.icon(forFile: path)).resizable().frame(width: 26, height: 26)
         } else {
-            Image(systemName: "globe").font(.system(size: 18)).frame(width: 26, height: 26).foregroundStyle(Theme.secondary)
+            Image(systemName: "globe").font(.symbolEmpty).frame(width: 26, height: 26).foregroundStyle(Theme.secondary)
         }
     }
 }
@@ -254,7 +254,7 @@ struct PrimaryButton: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .semibold))
+            .font(.bodyStrong)
             .foregroundStyle(Theme.background)
             .padding(.horizontal, 16)
             .frame(height: 32)
@@ -266,7 +266,7 @@ struct PrimaryButton: ButtonStyle {
 struct SecondaryButton: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .semibold))
+            .font(.bodyStrong)
             .foregroundStyle(Theme.primary)
             .padding(.horizontal, 16)
             .frame(height: 32)

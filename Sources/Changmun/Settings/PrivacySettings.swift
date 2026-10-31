@@ -191,10 +191,10 @@ struct PasswordsSheet: View {
                         SiteIcon(url: "https://\(login.host)/", size: 16)
                         VStack(alignment: .leading, spacing: 0) {
                             Text(login.host)
-                            Text(login.username.isEmpty ? String(localized: "(No username)") : login.username).font(.system(size: 11.5)).foregroundStyle(.secondary)
+                            Text(login.username.isEmpty ? String(localized: "(No username)") : login.username).font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
-                        if copied == login.id { Text("Copied").font(.system(size: 11)).foregroundStyle(.secondary) }
+                        if copied == login.id { Text("Copied").font(.caption).foregroundStyle(.secondary) }
                         Button("Copy Password") { Task { await copy(login) } }.buttonStyle(.borderless)
                         Button(role: .destructive) { deleting = login } label: { Image(systemName: "trash") }.buttonStyle(.borderless)
                     }

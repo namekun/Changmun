@@ -318,7 +318,7 @@ struct ImageChip: View {
     var body: some View {
         HStack(spacing: 4) {
             Image(nsImage: image.thumbnail).resizable().scaledToFill().frame(width: 18, height: 18).clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-            Button(action: remove) { Image(systemName: "xmark").font(.system(size: 8, weight: .bold)) }
+            Button(action: remove) { Image(systemName: "xmark").font(.symbolInline) }
                 .buttonStyle(.plain)
                 .help("Remove this image")
         }
