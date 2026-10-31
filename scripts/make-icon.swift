@@ -23,25 +23,30 @@ func render(size: CGFloat) -> NSBitmapImageRep {
     edge.lineWidth = 6 * s
     edge.stroke()
 
-    // An arched window, and the light it lets in falling to the lower right, with the shadow of its bars.
+    // An arched window, and the light it lets in falling to the lower right, in its shape and with the shadow of its bars.
     let w = 380 * s, h = 518 * s, bar = 30 * s
     let frame = NSRect(x: 251 * s, y: 305 * s, width: w, height: h)
-    let floor = 150 * s, drop = 200 * s
+    // The light is the window laid on the floor: its sill stays at the wall, and its arch lands farthest away.
+    let floor = 126 * s, drop = 150 * s
     let depth = frame.minY - floor
+    let shoulder = (h - w / 2) / h
+    let top = { (u: CGFloat) in shoulder + (1 - shoulder) * (1 - (2 * u - 1) * (2 * u - 1)).squareRoot() }
+    let at = { (u: CGFloat, v: CGFloat) in NSPoint(x: frame.minX + u * w + v * drop, y: frame.minY - v * depth) }
     let light = NSBezierPath()
-    func pane(_ u0: CGFloat, _ u1: CGFloat, _ t0: CGFloat, _ t1: CGFloat) {
-        let at = { (u: CGFloat, t: CGFloat) in NSPoint(x: frame.minX + u * w + t * drop, y: frame.minY - t * depth) }
-        light.move(to: at(u0, t0))
-        light.line(to: at(u1, t0))
-        light.line(to: at(u1, t1))
-        light.line(to: at(u0, t1))
+    func pane(_ u0: CGFloat, _ u1: CGFloat, _ v0: CGFloat, _ v1: (CGFloat) -> CGFloat) {
+        light.move(to: at(u0, v0))
+        light.line(to: at(u1, v0))
+        for step in 0...32 {
+            let u = u1 + (u0 - u1) * CGFloat(step) / 32
+            light.line(to: at(u, v1(u)))
+        }
         light.close()
     }
-    let across = bar / (2 * w), along = bar * 0.8 / (2 * depth), cross: CGFloat = 0.46
-    pane(0, 0.5 - across, 0, cross - along)
-    pane(0.5 + across, 1, 0, cross - along)
-    pane(0, 0.5 - across, cross + along, 1)
-    pane(0.5 + across, 1, cross + along, 1)
+    let across = bar / (2 * w), along = bar * 0.8 / (2 * depth), cross = (207 * s + bar / 2) / h
+    pane(0, 0.5 - across, 0) { _ in cross - along }
+    pane(0.5 + across, 1, 0) { _ in cross - along }
+    pane(0, 0.5 - across, cross + along, top)
+    pane(0.5 + across, 1, cross + along, top)
     NSGradient(starting: ink.withAlphaComponent(0.62), ending: ink.withAlphaComponent(0.14))!.draw(in: light, angle: -62)
     let arch = NSBezierPath()
     arch.move(to: NSPoint(x: frame.minX, y: frame.minY))
