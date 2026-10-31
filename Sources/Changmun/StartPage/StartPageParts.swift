@@ -65,7 +65,7 @@ struct StartIcon: View {
             switch style {
             case .full:
                 if let image {
-                    Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit).padding(plate ? size * 0.2 : 0)
+                    Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit).padding(plate ? size * 0.2 : 0)  // grid-exempt: a share of the icon size, not a gap
                 }
             case .plate:
                 if let image {

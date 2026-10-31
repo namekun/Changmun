@@ -39,12 +39,12 @@ struct LoginOfferBar: View {
                 .padding(.horizontal, 4)
                 BarButton(symbol: "xmark", help: String(localized: "Close")) { tab.loginOffer = nil }
             }
-            .padding(.leading, 12)
+            .padding(.leading, 16)
             .padding(.trailing, 4)
             .frame(height: 40)
             .frame(maxWidth: 620)
             .floatingPanel(radius: 12)
-            .padding(10)
+            .padding(8)
             .transition(Motion.pop(.top))
         }
     }
@@ -85,12 +85,12 @@ struct PopupBar: View {
                 }
                 BarButton(symbol: "xmark", help: String(localized: "Close")) { tab.blockedPopup = nil }
             }
-            .padding(.leading, 12)
+            .padding(.leading, 16)
             .padding(.trailing, 4)
             .frame(height: 40)
             .frame(maxWidth: 620)
             .floatingPanel(radius: 12)
-            .padding(10)
+            .padding(8)
             .transition(Motion.pop(.top))
         }
     }
@@ -122,12 +122,12 @@ struct WebStoreBar: View {
                     }
                 }
             }
-            .padding(.leading, 12)
+            .padding(.leading, 16)
             .padding(.trailing, 4)
             .frame(height: 40)
             .frame(maxWidth: 620)
             .floatingPanel(radius: 12)
-            .padding(10)
+            .padding(8)
         }
     }
 }

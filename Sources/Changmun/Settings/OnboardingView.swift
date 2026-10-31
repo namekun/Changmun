@@ -73,7 +73,7 @@ struct OnboardingView: View {
     }
 
     private var welcome: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "sparkles")
                 .font(.system(size: 26, weight: .medium))
                 .foregroundStyle(Theme.primary)
@@ -89,13 +89,13 @@ struct OnboardingView: View {
                 Spacer()
                 Button("Import") { model.step = .choose }.buttonStyle(PrimaryButton())
             }
-            .padding(.top, 10)
+            .padding(.top, 8)
         }
-        .padding(28)
+        .padding(32)
     }
 
     private var choose: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("Where would you like to import from?").font(.system(size: 18, weight: .semibold))
             ScrollView {
                 VStack(spacing: 4) {
@@ -148,7 +148,7 @@ struct OnboardingView: View {
     }
 
     private var done: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("All done").font(.system(size: 18, weight: .semibold))
             ForEach(Array(model.reports.enumerated()), id: \.offset) { _, report in
                 VStack(alignment: .leading, spacing: 4) {
@@ -161,7 +161,7 @@ struct OnboardingView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                .padding(12)
+                .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.hoverTab))
             }
@@ -179,13 +179,13 @@ struct OnboardingView: View {
                 Spacer()
                 Button("Get Started") { model.showAI() }.buttonStyle(PrimaryButton())
             }
-            .padding(.top, 6)
+            .padding(.top, 8)
         }
         .padding(24)
     }
 
     private var ai: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "sparkles")
                 .font(.system(size: 26, weight: .medium))
                 .foregroundStyle(Theme.primary)
@@ -194,9 +194,9 @@ struct OnboardingView: View {
                 Spacer()
                 Button("Done") { finish() }.buttonStyle(PrimaryButton())
             }
-            .padding(.top, 10)
+            .padding(.top, 8)
         }
-        .padding(28)
+        .padding(32)
     }
 
     private func finish() {
@@ -212,12 +212,12 @@ struct SourceRow: View {
     let toggle: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
                 .font(.system(size: 16))
                 .foregroundStyle(isOn ? Theme.primary : Theme.faint)
             AppIcon(browser: source.browser)
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(source.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary)
                 Text(source.supportsSecrets ? String(localized: "Bookmarks · History · Passwords · Cookies") : String(localized: "Bookmarks · History (Full Disk Access required)"))
                     .font(.system(size: 11))
@@ -225,7 +225,7 @@ struct SourceRow: View {
             }
             Spacer()
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 8)
         .frame(height: 46)
         .background { if isOn { SelectedBackground(radius: 10) } }
         .contentShape(Rectangle())
@@ -256,7 +256,7 @@ struct PrimaryButton: ButtonStyle {
         configuration.label
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(Theme.background)
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 16)
             .frame(height: 32)
             .background(Capsule().fill(Theme.primary))
             .opacity(enabled ? (configuration.isPressed ? 0.85 : 1) : 0.4)

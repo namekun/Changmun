@@ -107,7 +107,7 @@ struct CommandBar: View {
                 .contentShape(Rectangle())
                 .onTapGesture { dismiss() }
             VStack(spacing: 8) {
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
                     Image(systemName: mode == .editCurrent ? "link" : "magnifyingglass")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Theme.secondary)
@@ -137,12 +137,12 @@ struct CommandBar: View {
                         }
                     Keycap("esc")
                 }
-                .padding(.leading, 14)
-                .padding(.trailing, 10)
+                .padding(.leading, 16)
+                .padding(.trailing, 8)
                 .frame(height: 46)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
                 if !items.isEmpty {
-                    VStack(spacing: 2) {
+                    VStack(spacing: 4) {
                         // A row is what it holds, not the place it is at: when the list changes under a press, the row pressed is the same
                         // view still (or gone), never another item's.
                         ForEach(Array(zip(Self.rowIDs(items), items).enumerated()), id: \.element.0) { index, row in
@@ -154,7 +154,7 @@ struct CommandBar: View {
                     }
                 }
             }
-            .padding(10)
+            .padding(8)
             .frame(width: min(620, max(320, area.width - 32)))
             .floatingPanel(radius: 16)
             .padding(.top, 96)
@@ -317,13 +317,13 @@ struct SuggestionRow: View {
     @State private var size = CGSize.zero
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             icon.frame(width: 20)
             label
             Spacer(minLength: 0)
             if selected { Keycap("↵") }
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 8)
         .frame(height: 34)
         .background { if selected { SelectedBackground() } }
         .contentShape(Rectangle())

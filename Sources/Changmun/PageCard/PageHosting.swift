@@ -221,9 +221,9 @@ struct HeldPagesHost: NSViewRepresentable {
 
 struct EmptyPage: View {
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             Image(systemName: "sparkles").font(.system(size: 22, weight: .medium)).foregroundStyle(Theme.ink(0.3))
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 Text("New Tab").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.faint)
                 Keycap("⌘T")
                 Text("AI").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.faint).padding(.leading, 8)

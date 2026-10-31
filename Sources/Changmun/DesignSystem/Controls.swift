@@ -26,7 +26,7 @@ struct RowChrome: ViewModifier {
             .pressArea(press)
             // With Differentiate Without Color on, a selected row is told from the others by a mark and not by its fill alone.
             .overlay(alignment: .leading) {
-                if selected && withoutColor { Capsule().fill(Theme.primary).frame(width: 3, height: 14).padding(.leading, 1) }
+                if selected && withoutColor { Capsule().fill(Theme.primary).frame(width: 3, height: 14).padding(.leading, 1) }  // grid-exempt: optical nudge of 1 pt
             }
     }
 }
@@ -181,7 +181,7 @@ struct IconImage: View {
     var body: some View {
         let plate = scheme == .dark && image.isMostlyDark
         Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
-            .padding(plate ? size * 0.1 : 0)
+            .padding(plate ? size * 0.1 : 0)  // grid-exempt: a share of the icon size, not a gap
             .background { if plate { RoundedRectangle(cornerRadius: size * 0.22, style: .continuous).fill(.white) } }
             .frame(width: size, height: size)
     }

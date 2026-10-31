@@ -104,7 +104,7 @@ struct SettingsView: View {
             .toolbar(removing: .sidebarToggle)
         } detail: {
             VStack(alignment: .leading, spacing: 0) {
-                Text(page.name).font(.title2.bold()).padding(.horizontal, 20).padding(.top, 6)
+                Text(page.name).font(.title2.bold()).padding(.horizontal, 20).padding(.top, 8)  // grid-exempt: lines up with the grouped Form's own inset
                 detail
             }
             .navigationTitle("")
@@ -116,13 +116,13 @@ struct SettingsView: View {
     }
 
     private var searchField: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary).decorative()
             TextField("Search", text: $query).textFieldStyle(.plain)
         }
-        .padding(.horizontal, 8).padding(.vertical, 5)
+        .padding(.horizontal, 8).padding(.vertical, 4)
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
-        .padding(.horizontal, 10).padding(.bottom, 6)
+        .padding(.horizontal, 10).padding(.bottom, 8)  // grid-exempt: lines up with the sidebar list's own inset
     }
 
     @ViewBuilder private var detail: some View {

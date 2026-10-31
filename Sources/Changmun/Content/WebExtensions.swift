@@ -561,7 +561,7 @@ struct ExtensionButtons: View {
     @ObservedObject var browser: Browser
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 4) {
             ForEach(host.loaded) { item in
                 ExtensionButton(item: item, browser: browser, action: host.action(for: item, in: browser), changes: host.actionsChanged)
             }
@@ -596,7 +596,7 @@ struct ExtensionButton: View {
                     Text(badge)
                         .font(.system(size: 8, weight: .bold).monospacedDigit())
                         .foregroundStyle(Theme.background)
-                        .padding(.horizontal, 3.5)
+                        .padding(.horizontal, 4)
                         .frame(minWidth: 13, minHeight: 13)
                         .background(Capsule().fill(Theme.primary))
                         .offset(x: 3, y: -2)

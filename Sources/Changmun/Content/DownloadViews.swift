@@ -28,7 +28,7 @@ struct DownloadButton: View {
             .frame(width: progress == nil ? nil : 15, height: progress == nil ? nil : 15)
             .frame(width: Metrics.control, height: Metrics.control)
             .overlay(alignment: .topTrailing) {
-                if unseen { Circle().fill(Theme.working).frame(width: 6, height: 6).padding(5) }
+                if unseen { Circle().fill(Theme.working).frame(width: 6, height: 6).padding(4) }
             }
             .contentShape(Rectangle())
         }
@@ -56,7 +56,7 @@ struct DownloadList: View {
                 Spacer()
                 BarButton(symbol: "folder", help: String(localized: "Open Downloads Folder")) { NSWorkspace.shared.open(Preferences.shared.downloadFolder) }
             }
-            .padding(.leading, 14)
+            .padding(.leading, 16)
             .padding(.trailing, 8)
             .frame(height: 40)
             if items.isEmpty {
@@ -64,8 +64,8 @@ struct DownloadList: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(Theme.secondary)
                     .frame(maxWidth: .infinity)
-                    .padding(.top, 18)
-                    .padding(.bottom, 28)
+                    .padding(.top, 16)
+                    .padding(.bottom, 24)
             } else {
                 Group {
                     if items.count > 6 {
@@ -80,7 +80,7 @@ struct DownloadList: View {
                         .buttonStyle(.plain)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Theme.secondary)
-                        .padding(.horizontal, 14)
+                        .padding(.horizontal, 16)
                         .frame(height: 34)
                 }
             }
@@ -94,8 +94,8 @@ struct DownloadList: View {
         VStack(spacing: 0) {
             ForEach(items) { DownloadRow(item: $0) }
         }
-        .padding(.horizontal, 6)
-        .padding(.bottom, 6)
+        .padding(.horizontal, 8)
+        .padding(.bottom, 8)
     }
 }
 
@@ -135,7 +135,7 @@ struct DownloadRow: View {
                 }
             }
             .frame(width: 24, height: 24)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(item.filename)
                     .font(.row)
                     .foregroundStyle(Theme.primary)
@@ -210,7 +210,7 @@ struct DownloadRow: View {
             Text(String(localized: "Downloading · \(ByteCountFormatter.string(fromByteCount: item.bytes ?? 0, countStyle: .file))"))
                 .font(.system(size: 11, weight: .medium).monospacedDigit()).foregroundStyle(Theme.secondary)
         case .running:
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 Meter(fraction: item.progress)
                 Text("\(Int((item.progress * 100).rounded()))%")
                     .font(.system(size: 10.5, weight: .semibold).monospacedDigit())

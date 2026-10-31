@@ -10,7 +10,7 @@ struct FindBar: View {
     @State private var announceTask: Task<Void, Never>?
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondary).decorative()
             TextField("Find on Page", text: $overlay.findText)
                 .textFieldStyle(.plain)
@@ -36,11 +36,11 @@ struct FindBar: View {
             BarButton(symbol: "chevron.down", help: String(localized: "Next (⌘G)")) { browser.find() }.disabled(overlay.findText.isEmpty)
             BarButton(symbol: "xmark", help: String(localized: "Close (esc)")) { browser.hideFindBar() }
         }
-        .padding(.leading, 10)
+        .padding(.leading, 8)
         .padding(.trailing, 4)
         .frame(height: 36)
         .floatingPanel(radius: Metrics.cardRadius)
-        .padding(10)
+        .padding(8)
         .onAppear { focused = true }
         .onChange(of: overlay.findFocusRequest) { focused = true }
         .onChange(of: overlay.findText) { browser.find() }

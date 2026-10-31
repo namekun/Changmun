@@ -79,7 +79,7 @@ struct SiteSettings: View {
                 }
             }
         }
-        .padding(Metrics.inset + 4)
+        .padding(16)
         .frame(width: 280)
         .onAppear { zoom = Double(tab.webView?.pageZoom ?? 1) }
     }

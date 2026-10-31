@@ -28,7 +28,7 @@ struct PeekCard: View {
                     PeekAction(title: String(localized: "Open as Tab"), key: "⌘↩") { browser.keepPeek() }
                     PeekAction(title: String(localized: "Close"), key: "esc") { browser.closePeek() }
                 }
-                .padding(.leading, 6)
+                .padding(.leading, 8)
                 .frame(height: 30)
                 ZStack(alignment: .top) {
                     Theme.page
@@ -37,10 +37,10 @@ struct PeekCard: View {
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(alignment: .top) {
-                    if tab.isLoading { Meter(fraction: tab.progress).padding(.horizontal, 12).padding(.top, 4).transition(.opacity) }
+                    if tab.isLoading { Meter(fraction: tab.progress).padding(.horizontal, 16).padding(.top, 4).transition(.opacity) }
                 }
             }
-            .padding(10)
+            .padding(8)
             .floatingPanel(radius: 16)
             .frame(maxWidth: 1180)
             // 64 pt from the page's sides, less where the page is narrow.
@@ -72,16 +72,16 @@ struct TabSwitcherView: View {
         let index = tabs.firstIndex { $0.id == picked } ?? 0
         // Ten rows at most, scrolled to keep the pick in view.
         let first = max(0, min(index - 4, tabs.count - 10))
-        VStack(spacing: 2) {
+        VStack(spacing: 4) {
             ForEach(tabs.dropFirst(first).prefix(10)) { tab in
-                HStack(spacing: 9) {
+                HStack(spacing: 8) {
                     Favicon(tab: tab)
                     Text(tab.displayTitle).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
                     Spacer(minLength: 8)
                     Text(tab.url?.host().map(DisplayHost.trimmed) ?? "")
                         .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.faint).lineLimit(1)
                 }
-                .padding(.horizontal, 10)
+                .padding(.horizontal, 8)
                 .frame(height: 34)
                 .background { if tab.id == picked { SelectedBackground() } }
                 .contentShape(Rectangle())
@@ -108,7 +108,7 @@ struct PeekAction: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 Text(title).font(.system(size: 12, weight: .semibold))
                 if let key { Keycap(key) }
             }
@@ -138,7 +138,7 @@ struct StatusLine: View {
             .lineLimit(1)
             .truncationMode(.middle)
             .foregroundStyle(.white.opacity(0.92))
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 8)
             .frame(height: 22)
             .background(Capsule().fill(.black.opacity(0.8)))
             .frame(maxWidth: 520, alignment: .leading)

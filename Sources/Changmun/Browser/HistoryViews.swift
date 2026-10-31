@@ -17,7 +17,7 @@ struct HistoryView: View {
         VStack(spacing: 0) {
             TextField("Search History", text: $search)
                 .textFieldStyle(.roundedBorder)
-                .padding(12)
+                .padding(16)
             List {
                 ForEach(days, id: \.day) { day in
                     Section(day.day.formatted(.dateTime.year().month().day().weekday(.wide))) {
@@ -47,7 +47,7 @@ struct HistoryView: View {
                     .font(.system(size: 11.5)).foregroundStyle(.secondary)
                 Spacer()
             }
-            .padding(10)
+            .padding(8)
         }
         .frame(minWidth: 520, minHeight: 360)
         .onAppear(perform: reload)
@@ -77,7 +77,7 @@ struct ArchiveView: View {
         VStack(spacing: 0) {
             TextField("Search Archived Tabs", text: $search)
                 .textFieldStyle(.roundedBorder)
-                .padding(12)
+                .padding(16)
             List(entries) { entry in
                 ArchiveRow(entry: entry)
                     .contextMenu {
@@ -101,7 +101,7 @@ struct ArchiveView: View {
                 Spacer()
                 Button("Clear All") { archive.removeAll() }.disabled(archive.entries.isEmpty)
             }
-            .padding(10)
+            .padding(8)
         }
         .frame(minWidth: 460, minHeight: 320)
     }
@@ -117,9 +117,9 @@ struct ArchiveRow: View {
     let entry: TabArchive.Entry
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             SiteIcon(url: entry.url, size: 16)
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(entry.title.isEmpty ? entry.url : entry.title).lineLimit(1)
                 Text([URL(string: entry.url)?.host(), entry.group].compactMap { $0 }.joined(separator: " · "))
                     .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
@@ -137,13 +137,13 @@ struct HistoryRow: View {
     let visit: Library.Visit
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Text(visit.lastVisit.formatted(date: .omitted, time: .shortened))
                 .font(.system(size: 11.5).monospacedDigit())
                 .foregroundStyle(.secondary)
                 .frame(width: 62, alignment: .leading)
             SiteIcon(url: visit.url, size: 16)
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(visit.title.isEmpty ? visit.url : visit.title).lineLimit(1)
                 Text(URL(string: visit.url)?.host() ?? visit.url).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
             }

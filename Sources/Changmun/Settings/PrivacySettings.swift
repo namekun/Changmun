@@ -184,12 +184,12 @@ struct PasswordsSheet: View {
                 Spacer()
                 TextField("Search", text: $search).textFieldStyle(.roundedBorder).frame(width: 200)
             }
-            .padding(14)
+            .padding(16)
             List {
                 ForEach(shown) { login in
                     HStack {
                         SiteIcon(url: "https://\(login.host)/", size: 16)
-                        VStack(alignment: .leading, spacing: 1) {
+                        VStack(alignment: .leading, spacing: 0) {
                             Text(login.host)
                             Text(login.username.isEmpty ? String(localized: "(No username)") : login.username).font(.system(size: 11.5)).foregroundStyle(.secondary)
                         }
@@ -206,7 +206,7 @@ struct PasswordsSheet: View {
                 Spacer()
                 Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
             }
-            .padding(14)
+            .padding(16)
         }
         .frame(width: 540, height: 440)
         .confirmationDialog("Delete the password for \(deleting?.host ?? "")?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {

@@ -21,14 +21,14 @@ struct TrustFailureView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 26)).foregroundStyle(Theme.waiting).decorative()
                     Text("This connection isn’t private").font(.system(size: 22, weight: .semibold)).foregroundStyle(Theme.primary)
                         .accessibilityAddTraits(.isHeader)
                 }
                 // The host with its port (never trimmed of its www), an internationalized name in Unicode as well, and the whole address.
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(verbatim: failure.hostAndPort).font(.system(size: 15, weight: .semibold, design: .monospaced)).foregroundStyle(Theme.primary)
                     if let unicode = failure.unicodeHost { Text(verbatim: unicode).font(.system(size: 13)).foregroundStyle(Theme.body) }
                     Text(verbatim: failure.address).font(.system(size: 11, design: .monospaced)).foregroundStyle(Theme.secondary).lineLimit(3)
@@ -42,7 +42,7 @@ struct TrustFailureView: View {
                     Label("The certificate of this site has changed since you chose to go on. Don’t continue unless you know why.", systemImage: "exclamationmark.octagon.fill")
                         .font(.system(size: 13, weight: .semibold)).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
                 }
-                HStack(spacing: 12) {
+                HStack(spacing: 16) {
                     Button(action: goBack) { Text("Go Back").frame(minWidth: 90) }
                         .keyboardShortcut(.defaultAction)
                         .controlSize(.large)
@@ -83,7 +83,7 @@ struct TrustFailureView: View {
 
     private var details: some View {
         let c = failure.certificate
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: 8) {
             row(String(localized: "Name"), c.subject)
             row(String(localized: "Issued by"), c.issuer)
             row(String(localized: "Valid from"), c.notBefore.formatted(date: .long, time: .omitted))
@@ -95,7 +95,7 @@ struct TrustFailureView: View {
     }
 
     private func row(_ label: String, _ value: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(label).font(.system(size: 12)).foregroundStyle(Theme.secondary).frame(width: 110, alignment: .trailing)
             Text(verbatim: value).font(.system(size: 12)).foregroundStyle(Theme.body).fixedSize(horizontal: false, vertical: true)
         }

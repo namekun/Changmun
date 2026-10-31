@@ -437,7 +437,7 @@ struct StartBackgroundControls: View {
 
     private func notice(_ symbol: String, _ text: String, _ color: Color) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(color).padding(.top, 1).decorative()
+            Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(color).padding(.top, 1).decorative()  // grid-exempt: optical nudge of 1 pt
             Text(verbatim: text).font(.system(size: 11.5)).foregroundStyle(color == Theme.secondary ? Theme.secondary : color).fixedSize(horizontal: false, vertical: true)
         }
         .padding(8)
@@ -529,7 +529,7 @@ struct StartNewTabControls: View {
 
     private func line(_ symbol: String, _ text: String, _ color: Color) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(color).frame(width: 16).padding(.top, 1).decorative()
+            Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(color).frame(width: 16).padding(.top, 1).decorative()  // grid-exempt: optical nudge of 1 pt
             Text(verbatim: text).font(.system(size: 11.5)).foregroundStyle(color).fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)

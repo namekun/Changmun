@@ -9,11 +9,11 @@ struct AppearanceSettings: View {
     var body: some View {
         Form {
             Section("Theme") {
-                HStack(spacing: 28) {
+                HStack(spacing: 24) {
                     ForEach(AppAppearance.allCases) { ThemeTile(choice: $0, selection: $prefs.appearance) }
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
+                .padding(.vertical, 8)
             }
             Section("Tab Layout") {
                 Picker("Tabs", selection: $prefs.tabLayout) {
@@ -90,12 +90,12 @@ private struct ThemeTile: View {
 
     var body: some View {
         Button { selection = choice } label: {
-            VStack(spacing: 6) {
+            VStack(spacing: 8) {
                 picture
                     .frame(width: 104, height: 66)
                     .clipShape(RoundedRectangle(cornerRadius: 7))
                     .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(.separator))
-                    .padding(3)
+                    .padding(4)
                     .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.accentColor, lineWidth: selection == choice ? 3 : 0))
                 label
             }
@@ -130,17 +130,17 @@ private struct ThemeTile: View {
         let bar = dark ? Color(white: 0.27) : Color.white
         return HStack(spacing: 0) {
             VStack(alignment: .leading) {
-                HStack(spacing: 3) {
+                HStack(spacing: 3) {  // grid-exempt: scale-model drawing of a window
                     Circle().fill(.red); Circle().fill(.yellow); Circle().fill(.green)
                 }
                 .frame(height: 4.5)
-                .padding(.top, 6)
+                .padding(.top, 6)  // grid-exempt: scale-model drawing of a window
                 Spacer()
             }
-            .padding(.horizontal, 6)
+            .padding(.horizontal, 6)  // grid-exempt: scale-model drawing of a window
             .frame(width: 30)
             .background(sidebar)
-            VStack(spacing: 5) {
+            VStack(spacing: 5) {  // grid-exempt: scale-model drawing of a window
                 Spacer().frame(height: 3)
                 ForEach(0..<3, id: \.self) { _ in RoundedRectangle(cornerRadius: 2.5).fill(bar).frame(height: 10) }
                 Spacer()

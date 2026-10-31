@@ -27,9 +27,9 @@ struct ContentBlockerSection: View {
                 Caption(text: "No content blockers installed.")
             }
             ForEach(host.blockers) { blocker in
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
                     Image(systemName: "shield.lefthalf.filled").frame(width: 24, height: 24).foregroundStyle(.secondary).decorative()
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(blocker.name).lineLimit(1)
                         if let status = host.status[blocker.bundleID] {
                             Text(status).font(.system(size: 11)).foregroundStyle(status.hasPrefix("[ERROR]") ? .red : .secondary).lineLimit(3)
@@ -115,13 +115,13 @@ struct ExtensionRow: View {
 
     var body: some View {
         let item = host.loaded.first { $0.id == source.id }
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             if let icon = item?.context.webExtension.icon(for: CGSize(width: 24, height: 24)) {
                 Image(nsImage: icon).resizable().frame(width: 24, height: 24)
             } else {
                 Image(systemName: "puzzlepiece.extension").frame(width: 24, height: 24).foregroundStyle(.secondary).decorative()
             }
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(item?.name ?? Self.name(source)).lineLimit(1)
                 if let failure = host.failures[source.path] {
                     Text(failure).font(.system(size: 11)).foregroundStyle(.red).lineLimit(2)

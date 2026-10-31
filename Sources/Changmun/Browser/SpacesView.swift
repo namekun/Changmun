@@ -80,7 +80,7 @@ struct SpaceSwitcher: View {
 
     private var row: some View {
         let spaces = browser.spaces.spaces
-        return HStack(spacing: 2) {
+        return HStack(spacing: 4) {
             ForEach(Array(spaces.enumerated()), id: \.element.id) { index, space in
                 Group {
                     if space.id == browser.spaceID {
@@ -103,12 +103,12 @@ struct SpaceSwitcher: View {
     }
 
     private func chip(_ space: Space) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             icon(space)
             Text(space.name).font(.system(size: 12, weight: .semibold)).lineLimit(1)
         }
         .foregroundStyle(Theme.primary)
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 8)
         .frame(height: Metrics.control)
         .background(Capsule().fill(Theme.selectedFill).overlay(Capsule().strokeBorder(Theme.selectedEdge, lineWidth: 0.5))
             .shadow(color: Theme.selectedShadow, radius: 1, y: 1))
@@ -142,7 +142,7 @@ struct SpaceSwitcher: View {
                     Image(systemName: "key.fill")
                         .font(.system(size: 7, weight: .bold))
                         .foregroundStyle(Theme.secondary)
-                        .padding(2)
+                        .padding(4)
                         .background(Circle().fill(Theme.selectedFill))
                         .offset(x: 5, y: 5)
                 }
@@ -218,11 +218,11 @@ struct SpaceSheet: View {
                 comparison
                 HStack(spacing: 8) {
                     Spacer()
-                    Button(action: close) { Text("Cancel").font(.system(size: 12, weight: .semibold)).padding(.horizontal, 14).frame(height: Metrics.control) }
+                    Button(action: close) { Text("Cancel").font(.system(size: 12, weight: .semibold)).padding(.horizontal, 16).frame(height: Metrics.control) }
                         .buttonStyle(FillStyle(resting: Theme.field, hoverFill: Theme.pill))
                         .foregroundStyle(Theme.primary)
                     Button(action: save) {
-                        Text(editing ? "Save" : "Create").font(.system(size: 12, weight: .semibold)).padding(.horizontal, 14).frame(height: Metrics.control)
+                        Text(editing ? "Save" : "Create").font(.system(size: 12, weight: .semibold)).padding(.horizontal, 16).frame(height: Metrics.control)
                             .foregroundStyle(.white)
                             .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(tint.color))
                     }
@@ -230,7 +230,7 @@ struct SpaceSheet: View {
                     .keyboardShortcut(.defaultAction)
                 }
             }
-            .padding(20)
+            .padding(24)
             .frame(width: 440)
             .floatingPanel(radius: 16)
             .onKeyPress(.escape) { close(); return .handled }
@@ -239,12 +239,12 @@ struct SpaceSheet: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 16) {
             SpaceIcon(space: preview, size: 26)
                 .foregroundStyle(tint.color)
                 .frame(width: 64, height: 64)
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(tint.color.opacity(0.18)))
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Name").font(.caption).foregroundStyle(Theme.secondary)
                 TextField("", text: $name)
                     .textFieldStyle(.plain)
@@ -252,7 +252,7 @@ struct SpaceSheet: View {
                     .focused($focused)
                     .accessibilityLabel(String(localized: "Name"))
                     .onSubmit(save)
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, 8)
                     .frame(height: 36)
                     .background(RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous).fill(Theme.selectedFill))
                     .overlay(RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous).strokeBorder(focused ? tint.color : Theme.selectedEdge, lineWidth: focused ? 1.5 : 0.5))
@@ -297,7 +297,7 @@ struct SpaceSheet: View {
                 Text("Color").font(.caption).foregroundStyle(Theme.secondary)
                 Text("· tints the sidebar glass").font(.caption).foregroundStyle(Theme.faint)
             }
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 ForEach(SpaceTint.allCases) { item in
                     Button { tint = item } label: {
                         Circle().fill(item.color)
@@ -314,8 +314,8 @@ struct SpaceSheet: View {
     }
 
     private var profileToggle: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("Keep logins and cookies separate (profile)").font(.system(size: 13, weight: .semibold))
                 Text("Cookies and site data are kept apart, so you log in again here.").font(.caption).foregroundStyle(Theme.secondary)
             }
@@ -323,7 +323,7 @@ struct SpaceSheet: View {
             Toggle("", isOn: $isProfile).toggleStyle(.switch).labelsHidden().disabled(editing)
                 .accessibilityLabel(String(localized: "Keep logins and cookies separate (profile)"))
         }
-        .padding(12)
+        .padding(16)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.field))
         .help(editing ? String(localized: "Whether a space is a profile is fixed when it is made.") : "")
     }
@@ -339,16 +339,16 @@ struct SpaceSheet: View {
     }
 
     private func card(_ title: String, on: Bool, _ lines: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(on ? tint.color : Theme.secondary)
             ForEach(lines, id: \.self) { line in
-                HStack(alignment: .top, spacing: 5) {
-                    Image(systemName: "checkmark").font(.system(size: 8, weight: .bold)).foregroundStyle(SpaceTint.green.color).padding(.top, 3)
+                HStack(alignment: .top, spacing: 4) {
+                    Image(systemName: "checkmark").font(.system(size: 8, weight: .bold)).foregroundStyle(SpaceTint.green.color).padding(.top, 4)
                     Text(line).font(.system(size: 11)).foregroundStyle(Theme.body).fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
-        .padding(10)
+        .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(on ? tint.color.opacity(0.14) : Theme.field))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(on ? tint.color.opacity(0.7) : .clear, lineWidth: 1.5))
