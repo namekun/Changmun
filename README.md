@@ -25,11 +25,44 @@
 
 ## Why Changmun
 
-- **Light.** Chromium browsers each bundle their own copy of Chromium. Changmun borrows the WebKit engine already on your Mac, the one Safari uses, so the download is about 3 MB (the 0.4.1 DMG is 2.6 MB). It's easy on the battery, and engine security fixes arrive with macOS and Safari updates.
+- **Light.** Chromium browsers each bundle their own copy of Chromium. Changmun borrows the WebKit engine already on your Mac, the one Safari uses, so the app is 21 MB on disk and the download is about 7 MB (see [how that compares](#how-it-compares)). It's easy on the battery, and engine security fixes arrive with macOS and Safari updates.
 - **A sidebar like Arc and Dia.** Vertical tabs, which give titles room to breathe, plus favorites as tiles, bookmark folders, tab groups and spaces. Prefer a tab strip across the top? That's a setting.
 - **An AI that uses the browser.** The Claude panel reads pages and clicks and types for you through your existing `claude` CLI. It gets hands, not a free pass: it asks before anything risky.
 - **Private by default.** No account, server or analytics, so there's nothing to sign up for. Ad and tracker blocking is built in.
 - **Comes with your stuff.** Imports bookmarks and history from Safari and Chromium browsers, plus passwords and sign-ins from the Chromium ones. Moving in, furniture included, except Safari's passwords, which macOS won't hand over.
+
+## How it compares
+
+Changmun doesn't try to beat every browser at everything. Here is where it is different, and where you are better off elsewhere. The sizes were measured on one Apple silicon Mac in October 2026; the rest comes from what each project says about itself, so if something is out of date, please [open an issue](https://github.com/namekun/Changmun/issues).
+
+| | App on disk | Engine |
+| :-- | --: | :-- |
+| **Changmun 0.10.2** | **21 MB** | WebKit, the one in macOS |
+| Safari 27 | 35 MB | WebKit, the one in macOS |
+| Google Chrome 156 | 731 MB | Chromium, its own copy |
+| Arc 1.168 | 862 MB | Chromium, its own copy |
+| Dia 1.53 | 1.3 GB | Chromium, its own copy |
+
+<sub>`du -sh` of each installed app. A Chromium browser carries its engine and updates it itself; Changmun and Safari get engine fixes with macOS.</sub>
+
+**Safari.** Same engine, so the same web compatibility and the same care for your battery. Changmun adds a sidebar that holds vertical tabs, favorites as tiles and your bookmark folders in one column, an AI that can work a page for you (and asks before anything risky), and Chrome Web Store extensions next to Safari's. Stay with Safari if you live on iCloud sync for tabs, passwords and passkeys across your Apple devices.
+
+**Chrome.** No Google account, no sync server and no analytics; the few requests the app makes by itself are listed under [Privacy](#privacy). It uses the WebKit that macOS already has, so the whole app is about 3% of Chrome's size. Stay with Chrome if you need the widest compatibility with sites built only for Chromium, its sync, or Windows, Linux or a phone.
+
+**Arc.** The sidebar-and-spaces idea, in a browser that is still gaining features. Arc has been in maintenance mode since May 2025: security fixes, no new features. Stay with Arc if you can't live without Boosts or Easels.
+
+**Dia.** The same family of ideas (a sidebar, an AI in the browser). Changmun has no AI service of its own: its AI is the `claude` CLI you already have, on your own subscription, and there is no Changmun account or server at all. Stay with Dia if you want its hosted AI features and workplace integrations.
+
+### Not there yet
+
+Being honest about the gaps is the point of this section.
+
+- **No sync.** There's no account, so bookmarks, history and passwords stay on the Mac they were made on.
+- **Mac only.** macOS 14 or later on Apple silicon. No iPhone, Windows or Linux.
+- **No passkeys yet.** Browsers need an entitlement from Apple for them; Changmun has asked and is waiting.
+- **Extensions are WebKit's.** They need macOS 15.4 or later, and some Chrome extensions rely on things WebKit doesn't have.
+- **Chromium-only sites.** A site written only for Chromium can misbehave here, as it can in Safari.
+- **Young and small.** One maintainer and a young codebase: fewer eyes than the big browsers have, and rough edges to match. Bug reports are welcome.
 
 ## Install
 
