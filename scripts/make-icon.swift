@@ -2,7 +2,9 @@
 import AppKit
 
 let ink = NSColor(srgbRed: 0.957, green: 0.957, blue: 0.945, alpha: 1)
-let tile = NSColor(srgbRed: 0.067, green: 0.067, blue: 0.067, alpha: 1)
+let tileTop = NSColor(srgbRed: 44.0 / 255, green: 44.0 / 255, blue: 48.0 / 255, alpha: 1)
+let tileBottom = NSColor(srgbRed: 22.0 / 255, green: 22.0 / 255, blue: 25.0 / 255, alpha: 1)
+let bars = NSColor(srgbRed: 0.067, green: 0.067, blue: 0.067, alpha: 1)
 
 func render(size: CGFloat) -> NSBitmapImageRep {
     let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size), pixelsHigh: Int(size),
@@ -13,19 +15,34 @@ func render(size: CGFloat) -> NSBitmapImageRep {
     let s = size / 1024
     // macOS icon grid: 824pt rounded square centered in 1024.
     let body = NSRect(x: 100 * s, y: 100 * s, width: 824 * s, height: 824 * s)
-    tile.setFill()
-    NSBezierPath(roundedRect: body, xRadius: 185 * s, yRadius: 185 * s).fill()
+    let tile = NSBezierPath(roundedRect: body, xRadius: 185 * s, yRadius: 185 * s)
+    NSGradient(starting: tileTop, ending: tileBottom)!.draw(in: tile, angle: -90)
+    // A faint edge, so that the tile holds its shape on a dark Dock.
+    NSColor(white: 1, alpha: 0.14).setStroke()
+    let edge = NSBezierPath(roundedRect: body.insetBy(dx: 3 * s, dy: 3 * s), xRadius: 182 * s, yRadius: 182 * s)
+    edge.lineWidth = 6 * s
+    edge.stroke()
 
-    // An arched window, and the light it lets in falling to the lower right.
-    let w = 330 * s, h = 450 * s
-    let frame = NSRect(x: 290 * s, y: 330 * s, width: w, height: h)
+    // An arched window, and the light it lets in falling to the lower right, with the shadow of its bars.
+    let w = 380 * s, h = 518 * s, bar = 30 * s
+    let frame = NSRect(x: 251 * s, y: 305 * s, width: w, height: h)
+    let floor = 150 * s, drop = 200 * s
+    let depth = frame.minY - floor
     let light = NSBezierPath()
-    light.move(to: NSPoint(x: frame.minX, y: frame.minY))
-    light.line(to: NSPoint(x: frame.maxX, y: frame.minY))
-    light.line(to: NSPoint(x: frame.maxX + 200 * s, y: 190 * s))
-    light.line(to: NSPoint(x: frame.minX + 200 * s, y: 190 * s))
-    light.close()
-    NSGradient(starting: ink.withAlphaComponent(0.30), ending: ink.withAlphaComponent(0.02))!.draw(in: light, angle: -50)
+    func pane(_ u0: CGFloat, _ u1: CGFloat, _ t0: CGFloat, _ t1: CGFloat) {
+        let at = { (u: CGFloat, t: CGFloat) in NSPoint(x: frame.minX + u * w + t * drop, y: frame.minY - t * depth) }
+        light.move(to: at(u0, t0))
+        light.line(to: at(u1, t0))
+        light.line(to: at(u1, t1))
+        light.line(to: at(u0, t1))
+        light.close()
+    }
+    let across = bar / (2 * w), along = bar * 0.8 / (2 * depth), cross: CGFloat = 0.46
+    pane(0, 0.5 - across, 0, cross - along)
+    pane(0.5 + across, 1, 0, cross - along)
+    pane(0, 0.5 - across, cross + along, 1)
+    pane(0.5 + across, 1, cross + along, 1)
+    NSGradient(starting: ink.withAlphaComponent(0.62), ending: ink.withAlphaComponent(0.14))!.draw(in: light, angle: -62)
     let arch = NSBezierPath()
     arch.move(to: NSPoint(x: frame.minX, y: frame.minY))
     arch.line(to: NSPoint(x: frame.minX, y: frame.maxY - w / 2))
@@ -34,9 +51,9 @@ func render(size: CGFloat) -> NSBitmapImageRep {
     arch.close()
     ink.setFill()
     arch.fill()
-    tile.setFill()
-    NSBezierPath(rect: NSRect(x: frame.midX - 13 * s, y: frame.minY, width: 26 * s, height: h - 36 * s)).fill()
-    NSBezierPath(rect: NSRect(x: frame.minX, y: frame.minY + 180 * s, width: w, height: 26 * s)).fill()
+    bars.setFill()
+    NSBezierPath(rect: NSRect(x: frame.midX - bar / 2, y: frame.minY, width: bar, height: h - 41 * s)).fill()
+    NSBezierPath(rect: NSRect(x: frame.minX, y: frame.minY + 207 * s, width: w, height: bar)).fill()
 
     NSGraphicsContext.restoreGraphicsState()
     return rep
