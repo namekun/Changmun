@@ -11,15 +11,15 @@ struct StartStyleTiles: View {
     let tint: SpaceTint
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: 8) {
             ForEach(StartStyle.allCases, id: \.self) { style in
                 let selected = model.settings.style == style
                 Button { model.setStyle(style) } label: {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 8) {
                         StartPageMiniature(settings: preview(style), tint: tint)
                             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                             .overlay { RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5) }
-                            .padding(3)
+                            .padding(4)
                             .overlay { RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 2) }
                         Text(verbatim: style.title).font(.system(size: 11, weight: selected ? .semibold : .regular)).foregroundStyle(selected ? Theme.primary : Theme.secondary)
                     }
@@ -48,14 +48,14 @@ struct StartStyleRadios: View {
     @ObservedObject var model: StartPageCustomizeModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             ForEach(StartStyle.allCases, id: \.self) { style in
                 let selected = model.settings.style == style
                 Button { model.setStyle(style) } label: {
-                    HStack(alignment: .top, spacing: 10) {
+                    HStack(alignment: .top, spacing: 8) {
                         Image(systemName: selected ? "largecircle.fill.circle" : "circle").font(.system(size: 15)).foregroundStyle(selected ? Color.accentColor : Theme.secondary)
                             .frame(width: 18).decorative()
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(verbatim: style.title).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.primary)
                             Text(verbatim: style.detail).font(.system(size: 11.5)).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
                         }
@@ -137,13 +137,13 @@ struct StartComponentsList: View {
                     .labelsHidden().toggleStyle(.switch).controlSize(.small)
                     .accessibilityLabel(String(localized: "Show \(section.title)"))
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 8)
             .frame(height: StartPageCustomizeModel.rowHeight)
             if expanded, let choices = section.optionChoices {
                 options(section, choices)
             }
         }
-        .background { if dragging { RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.hairline, style: StrokeStyle(lineWidth: 1, dash: [4, 3])).padding(2) } }
+        .background { if dragging { RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.hairline, style: StrokeStyle(lineWidth: 1, dash: [4, 3])).padding(4) } }
         // The lifted row: bigger, with a shadow, following the pointer; with Reduce Motion it just follows.
         .background(dragging ? AnyShapeStyle(Theme.card) : AnyShapeStyle(.clear), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .scaleEffect(dragging && !Motion.reduced ? 1.03 : 1)
@@ -161,7 +161,7 @@ struct StartComponentsList: View {
                     .frame(maxWidth: 220)
             }
         }
-        .padding(.leading, 56).padding(.trailing, 12).padding(.bottom, 10)
+        .padding(.leading, 56).padding(.trailing, 8).padding(.bottom, 8)
         .transition(.opacity)
     }
 
@@ -212,9 +212,9 @@ struct StartGrip: View {
     let color: Color
 
     var body: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 4) {
             ForEach(0..<2, id: \.self) { _ in
-                VStack(spacing: 3) { ForEach(0..<3, id: \.self) { _ in Circle().fill(color).frame(width: 2.6, height: 2.6) } }
+                VStack(spacing: 4) { ForEach(0..<3, id: \.self) { _ in Circle().fill(color).frame(width: 2.6, height: 2.6) } }
             }
         }
     }
@@ -227,7 +227,7 @@ struct StartSegmented: View {
     let choose: (Int) -> Void
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 4) {
             ForEach(Array(options.enumerated()), id: \.offset) { index, name in
                 let on = index == selection
                 Button { choose(index) } label: {
@@ -242,7 +242,7 @@ struct StartSegmented: View {
                 .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
             }
         }
-        .padding(2)
+        .padding(4)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.ink(0.07)))
     }
 }
@@ -261,7 +261,7 @@ struct StartBackgroundControls: View {
     private var background: StartBackground { model.settings.background }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 8) {
                 tile(.spaceGlow, String(localized: "Space Color")) { StartBackgroundView(background: StartBackground(kind: .spaceGlow), tint: tint) }
                 tile(.plain, String(localized: "Plain")) { Theme.card }
@@ -287,12 +287,12 @@ struct StartBackgroundControls: View {
     private func tile<Content: View>(_ kind: StartBackgroundKind, _ name: String, @ViewBuilder _ content: () -> Content) -> some View {
         let selected = background.kind == kind
         return Button { select(kind) } label: {
-            VStack(spacing: 5) {
+            VStack(spacing: 4) {
                 content()
                     .frame(maxWidth: .infinity).frame(height: 40)
                     .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                     .overlay { RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Theme.cardEdge, lineWidth: 0.5) }
-                    .padding(2.5)
+                    .padding(4)
                     .overlay { RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 2) }
                 Text(verbatim: name).font(.system(size: 10.5, weight: selected ? .semibold : .regular)).foregroundStyle(selected ? Theme.primary : Theme.secondary).lineLimit(1).minimumScaleFactor(0.8)
             }
@@ -344,7 +344,7 @@ struct StartBackgroundControls: View {
                     Circle().fill(LinearGradient(stops: [.init(color: light.color, location: 0.5), .init(color: dark.color, location: 0.5)], startPoint: .topLeading, endPoint: .bottomTrailing))
                         .frame(width: 22, height: 22)
                         .overlay { Circle().strokeBorder(Theme.cardEdge, lineWidth: 0.5) }
-                        .padding(2.5)
+                        .padding(4)
                         .overlay { Circle().strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 2) }
                 }
                 .buttonStyle(.plain)
@@ -382,8 +382,8 @@ struct StartBackgroundControls: View {
         let url = StartPageFiles.imageURL(background.imageFile)
         let dark = scheme == .dark
         let scrim = loaded.map { StartScrim.scrim(stats: $0.stats, dark: dark, dim: background.dim, highContrast: contrast == .increased, reduceTransparency: reduceTransparency) }
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 12) {
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 16) {
                 Group {
                     if let loaded { Image(decorative: loaded.image, scale: 1).resizable().scaledToFill() } else { Theme.ink(0.08) }
                 }
@@ -397,13 +397,13 @@ struct StartBackgroundControls: View {
                         Image(systemName: "lock").font(.system(size: 9)).foregroundStyle(Theme.dim).decorative()
                         Text("Only on this Mac").font(.system(size: 11)).foregroundStyle(Theme.dim)
                     }
-                    HStack(spacing: 10) {
-                        Button { pickImage() } label: { Text("Choose Another…").font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.primary).padding(.horizontal, 9).frame(height: 22).background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.pressed)) }
+                    HStack(spacing: 8) {
+                        Button { pickImage() } label: { Text("Choose Another…").font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.primary).padding(.horizontal, 8).frame(height: 22).background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.pressed)) }
                             .buttonStyle(.plain)
                         Button { model.removeImage() } label: { Text("Remove").font(.system(size: 11.5)).foregroundStyle(Color.accentColor) }
                             .buttonStyle(.plain)
                     }
-                    .padding(.top, 2)
+                    .padding(.top, 4)
                 }
             }
             .opacity(url == nil ? 0.5 : 1)
@@ -425,7 +425,7 @@ struct StartBackgroundControls: View {
     }
 
     private func slider(_ title: String, value: Double, display: Int, range: ClosedRange<Double>, set: @escaping (Double) -> Void) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Text(verbatim: title).font(.system(size: 12)).foregroundStyle(Theme.secondary).frame(width: 52, alignment: .leading)
             Slider(value: Binding(get: { Double(display) }, set: { set($0) }), in: range)
                 .controlSize(.small)
@@ -436,11 +436,11 @@ struct StartBackgroundControls: View {
     }
 
     private func notice(_ symbol: String, _ text: String, _ color: Color) -> some View {
-        HStack(alignment: .top, spacing: 7) {
+        HStack(alignment: .top, spacing: 8) {
             Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(color).padding(.top, 1).decorative()
             Text(verbatim: text).font(.system(size: 11.5)).foregroundStyle(color == Theme.secondary ? Theme.secondary : color).fixedSize(horizontal: false, vertical: true)
         }
-        .padding(9)
+        .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(color.opacity(0.1)))
         .accessibilityElement(children: .combine)
@@ -466,7 +466,7 @@ struct StartNewTabControls: View {
     @FocusState private var addressFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             StartSegmented(options: NewTabOpens.allCases.map(\.title), selection: NewTabOpens.allCases.firstIndex(of: model.settings.newTab) ?? 0) {
                 model.setNewTab(NewTabOpens.allCases[$0])
             }
@@ -500,7 +500,7 @@ struct StartNewTabControls: View {
                     .accessibilityLabel(String(localized: "Address for new tabs"))
                 if case .ok = state { Image(systemName: "checkmark").font(.system(size: 11, weight: .semibold)).foregroundStyle(.green).decorative() }
             }
-            .padding(.horizontal, 10).frame(height: 32)
+            .padding(.horizontal, 8).frame(height: 32)
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.field))
             .overlay { RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(addressFocused && state == nil ? Color.accentColor : border, lineWidth: 1.5) }
             switch state {
@@ -509,10 +509,10 @@ struct StartNewTabControls: View {
             case .invalid:
                 line("exclamationmark.circle.fill", String(localized: "That isn’t a valid address. For example: https://example.com"), .red)
             case .insecure:
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     line("exclamationmark.triangle.fill", String(localized: "This connection isn’t encrypted. We recommend https://"), Theme.waitingText)
                     Button { model.useHTTPS() } label: { Text("Use https://").font(.system(size: 11.5)).foregroundStyle(Color.accentColor) }
-                        .buttonStyle(.plain).padding(.leading, 20)
+                        .buttonStyle(.plain).padding(.leading, 24)
                 }
             case .ok:
                 line("checkmark", String(localized: "This address works."), Color(red: 0.12, green: 0.55, blue: 0.3))
@@ -522,14 +522,14 @@ struct StartNewTabControls: View {
             line("globe", String(localized: "This site is loaded every time you open a new tab."), Theme.secondary)
             if detailed {
                 Text("The site learns that you connected, and your IP address. A window with no tab always shows the start page, so no site is loaded when a window opens.")
-                    .font(.system(size: 11)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true).padding(.leading, 20)
+                    .font(.system(size: 11)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true).padding(.leading, 24)
             }
         }
     }
 
     private func line(_ symbol: String, _ text: String, _ color: Color) -> some View {
-        HStack(alignment: .top, spacing: 7) {
-            Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(color).frame(width: 13).padding(.top, 1).decorative()
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(color).frame(width: 16).padding(.top, 1).decorative()
             Text(verbatim: text).font(.system(size: 11.5)).foregroundStyle(color).fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)

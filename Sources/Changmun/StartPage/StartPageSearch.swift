@@ -43,7 +43,7 @@ struct StartSearchBox: View {
         field(height: compact ? 38 : 46)
             .overlay(alignment: .top) {
                 if !items.isEmpty {
-                    VStack(spacing: 2) {
+                    VStack(spacing: 4) {
                         ForEach(Array(zip(CommandBar.rowIDs(items), items).enumerated()), id: \.element.0) { index, row in
                             SuggestionRow(item: row.1, selected: index == selection, fetchesIcons: false) { run($0) }
                                 .onContinuousHover(coordinateSpace: .global) { phase in
@@ -51,7 +51,7 @@ struct StartSearchBox: View {
                                 }
                         }
                     }
-                    .padding(6)
+                    .padding(8)
                     .floatingPanel(radius: 12)
                     .offset(y: (compact ? 38 : 46) + 8)
                 }
@@ -101,7 +101,7 @@ struct StartSearchBox: View {
     }
 
     private func field(height: CGFloat) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.secondary).decorative()
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
@@ -125,8 +125,8 @@ struct StartSearchBox: View {
                 }
             Keycap(text.isEmpty ? "⌘L" : "esc")
         }
-        .padding(.leading, 14)
-        .padding(.trailing, 10)
+        .padding(.leading, 16)
+        .padding(.trailing, 8)
         .frame(height: height)
         .startPlate(radius: 10, fill: Theme.field)
     }

@@ -299,7 +299,7 @@ struct StartPageContent: View {
             case .sections(let list):
                 sections(list, page, columns: columns)
             }
-            Spacer(minLength: 90)
+            Spacer(minLength: 88)
             if centered, style == .quiet || pageMode == .privateNotice || pageMode == .firstRun { hints }
         }
         .opacity(1)
@@ -315,7 +315,7 @@ struct StartPageContent: View {
     @State private var lastShapes: [StartPageCursor.Shape] = []
 
     private var hints: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             Text("New Tab").font(.system(size: 11.5, weight: .semibold)).foregroundStyle(Theme.faint)
             Keycap("⌘T")
             if !browser.isPrivate {
@@ -323,7 +323,7 @@ struct StartPageContent: View {
                 Keycap("⌘E")
             }
         }
-        .padding(.bottom, 28)
+        .padding(.bottom, 24)
         .accessibilityHidden(true)
     }
 
@@ -333,11 +333,11 @@ struct StartPageContent: View {
         VStack(spacing: 0) {
             if style == .aiFirst, page.contents.aiReady { aiHero(page, showCards: list.contains(.aiSuggestions)) }
             if style == .quiet {
-                HStack(spacing: 6) {
+                HStack(spacing: 4) {
                     Circle().fill(tint.color).frame(width: 6, height: 6)
                     Text(verbatim: browser.space.name).font(.system(size: 11.5)).foregroundStyle(Theme.secondary)
                 }
-                .padding(.bottom, 14)
+                .padding(.bottom, 16)
                 .opacity(browser.isPrivate ? 0 : 1)
             }
             VStack(spacing: 0) {
@@ -348,13 +348,13 @@ struct StartPageContent: View {
                             StartAIChip(suggestion: chip, focused: isFocused(.aiSuggestions, index)) { ask(chip.prompt) }
                         }
                     }
-                    .padding(.top, 14)
+                    .padding(.top, 16)
                     .id(Self.scrollID(.init(part: .section(.aiSuggestions), item: 0)))
                 }
             }
             .zIndex(10)
             let rows = StartPageArrangement.rows(list.filter { $0 != .aiSuggestions || style != .dashboard }, style: style)
-            VStack(spacing: style == .dashboard ? 40 : 34) {
+            VStack(spacing: style == .dashboard ? 40 : 32) {
                 ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                     switch row {
                     case .full(let section): sectionView(section, page, columns: columns, flow: .full)
@@ -368,7 +368,7 @@ struct StartPageContent: View {
                 }
             }
             .frame(maxWidth: style == .dashboard ? wideColumn : 620)
-            .padding(.top, style == .dashboard ? 40 : 30)
+            .padding(.top, style == .dashboard ? 40 : 32)
             .opacity(typing ? 0.22 : 1)
             .allowsHitTesting(!typing)
             .animation(Motion.quick, value: typing)
@@ -396,15 +396,15 @@ struct StartPageContent: View {
     private func favoritesView(_ page: PageData) -> some View {
         let two = option(.favorites) == 1
         let size: CGFloat = style == .dashboard ? (two ? 74 : 58) : style == .quiet ? (two ? 74 : 66) : (two ? 52 : 46)
-        let pitch: CGFloat = style == .aiFirst ? 80 : size + (two ? 31 : 26)
+        let pitch: CGFloat = size + (style == .aiFirst || two ? 32 : 24)
         let rows = StartPageArrangement.favoriteRows(count: page.favorites.count, twoRows: two)
-        return VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: 8) {
             if style == .dashboard {
                 StartHeading(title: String(localized: "Favorites"), linkTitle: String(localized: "Edit")) { expand = .favorites; customizing = true }
             }
-            VStack(alignment: style == .dashboard ? .leading : .center, spacing: 10) {
+            VStack(alignment: style == .dashboard ? .leading : .center, spacing: 8) {
                 if page.favorites.isEmpty {
-                    HStack(spacing: 20) { ForEach(0..<5, id: \.self) { _ in StartEmptyFavorite(size: size) } }
+                    HStack(spacing: 24) { ForEach(0..<5, id: \.self) { _ in StartEmptyFavorite(size: size) } }
                     Text("Drag the sites you visit most to the favorites in the sidebar and they appear here as tiles.")
                         .font(.system(size: 11.5)).foregroundStyle(Theme.dim)
                 } else {
@@ -424,10 +424,10 @@ struct StartPageContent: View {
 
     @ViewBuilder
     private func continueView(_ page: PageData, columns: Int) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             StartHeading(title: String(localized: "Continue Viewing"), linkTitle: String(localized: "Show History")) { StartPageActions.showHistory() }
             if style == .dashboard {
-                HStack(alignment: .top, spacing: 12) {
+                HStack(alignment: .top, spacing: 16) {
                     ForEach(Array(page.cards.enumerated()), id: \.element.id) { index, card in
                         StartContinueCardView(card: card, tint: tint, focused: isFocused(.continueViewing, index), now: now,
                                               open: { newTab in openCard(card, inNewTab: newTab) }, hide: { if !browser.isPrivate { hidden.hide(page: card.url) } })
@@ -504,18 +504,18 @@ struct StartPageContent: View {
             Text("How can I help?").font(.system(size: 30, weight: .semibold)).foregroundStyle(Theme.primary).padding(.top, 16)
                 .accessibilityAddTraits(.isHeader)
             Text("I can read your open tabs, compare them, and click through to finish the job.")
-                .font(.system(size: 14)).foregroundStyle(Theme.secondary).padding(.top, 6)
+                .font(.system(size: 14)).foregroundStyle(Theme.secondary).padding(.top, 8)
             StartAIPrompt(browser: browser, chat: chat, tint: tint, ask: ask)
-                .frame(maxWidth: 680).padding(.top, 28)
+                .frame(maxWidth: 680).padding(.top, 32)
             if showCards, !page.chips.isEmpty {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible())], spacing: 10) {
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible())], spacing: 8) {
                     ForEach(Array(page.chips.enumerated()), id: \.element.id) { index, chip in
                         StartAICard(suggestion: chip, tint: tint, focused: isFocused(.aiSuggestions, index)) { ask(chip.prompt) }
                     }
                 }
-                .frame(maxWidth: 680).padding(.top, 14)
+                .frame(maxWidth: 680).padding(.top, 16)
             }
-            Spacer().frame(height: 30)
+            Spacer().frame(height: 32)
         }
         .opacity(typing ? 0.22 : 1)
         .allowsHitTesting(!typing)
@@ -525,12 +525,12 @@ struct StartPageContent: View {
 
     private func pill(height: CGFloat, contents: StartPageContents, shown: Bool) -> some View {
         Button { expand = nil; customizing = true } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 Image(systemName: "slider.horizontal.3").font(.system(size: 11, weight: .semibold))
                 Text("Customize").font(.system(size: 12, weight: .semibold))
             }
             .foregroundStyle(Color.accentColor)
-            .padding(.horizontal, 13).frame(height: 30)
+            .padding(.horizontal, 16).frame(height: 30)
             .background(Capsule().fill(Color.accentColor.opacity(0.14)))
             .overlay { if cursor.stop?.part == .customize { Capsule().strokeBorder(Color.accentColor, lineWidth: 2) } }
         }
@@ -678,7 +678,7 @@ struct StartAIPrompt: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             TextField("", text: $draft, prompt: Text("Sum up a page, look into a site, or hand it a task").foregroundStyle(Theme.dim), axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
@@ -691,12 +691,12 @@ struct StartAIPrompt: View {
             HStack(spacing: 8) {
                 let tabs = browser.spaceTabs.count
                 if tabs > 0 {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 4) {
                         Image(systemName: "square.on.square").font(.system(size: 10, weight: .medium))
                         Text(tabs == 1 ? String(localized: "1 open tab") : String(localized: "\(tabs) open tabs")).font(.system(size: 11.5))
                     }
                     .foregroundStyle(Theme.secondary)
-                    .padding(.horizontal, 9).frame(height: 24)
+                    .padding(.horizontal, 8).frame(height: 24)
                     .background(Capsule().fill(Theme.field))
                 }
                 Spacer()
@@ -709,7 +709,7 @@ struct StartAIPrompt: View {
                 .accessibilityLabel(String(localized: "Send"))
             }
         }
-        .padding(14)
+        .padding(16)
         .startPlate(radius: 14, fill: Theme.card, raised: true)
         .shadow(color: tint.color.opacity(0.18), radius: 16, y: 6)
         .onAppear { DispatchQueue.main.async { focused = true } }

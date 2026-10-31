@@ -45,11 +45,11 @@ struct StartFirstRunView: View {
     var body: some View {
         VStack(spacing: 0) {
             Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 58, height: 58).decorative()
-            Text("Welcome to Changmun").font(.system(size: 28, weight: .semibold)).foregroundStyle(Theme.primary).padding(.top, 18)
+            Text("Welcome to Changmun").font(.system(size: 28, weight: .semibold)).foregroundStyle(Theme.primary).padding(.top, 16)
                 .accessibilityAddTraits(.isHeader)
             Text("Start light. Do these three things and this page fills up with what you use.")
-                .font(.system(size: 14)).foregroundStyle(Theme.secondary).multilineTextAlignment(.center).padding(.top, 6)
-            search.frame(maxWidth: 620).padding(.top, 28)
+                .font(.system(size: 14)).foregroundStyle(Theme.secondary).multilineTextAlignment(.center).padding(.top, 8)
+            search.frame(maxWidth: 620).padding(.top, 32)
             HStack(alignment: .top, spacing: 16) {
                 step(symbol: "square.and.arrow.down", title: String(localized: "Import bookmarks and history"),
                      text: String(localized: "Bring them from the browser you use now, like Safari, Chrome or Arc. From Chromium-based browsers, passwords and logins can come along."),
@@ -65,11 +65,11 @@ struct StartFirstRunView: View {
                          button: String(localized: "Open AI Settings"), prominent: false) { StartPageActions.openSettings(.ai) }
                 }
             }
-            .padding(.top, 28)
-            VStack(alignment: .leading, spacing: 12) {
+            .padding(.top, 32)
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Favorites").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).accessibilityAddTraits(.isHeader)
-                HStack(spacing: 20) {
-                    HStack(spacing: 20) { ForEach(0..<5, id: \.self) { _ in StartEmptyFavorite(size: 56) } }
+                HStack(spacing: 24) {
+                    HStack(spacing: 24) { ForEach(0..<5, id: \.self) { _ in StartEmptyFavorite(size: 56) } }
                     Text("Drag the sites you visit most to the favorites in the sidebar and they appear here as tiles.")
                         .font(.system(size: 11.5)).foregroundStyle(Theme.dim).frame(maxWidth: 280, alignment: .leading)
                 }
@@ -77,7 +77,7 @@ struct StartFirstRunView: View {
             .frame(maxWidth: 880, alignment: .leading)
             .padding(.top, 32)
             Text("As you use it, this place fills with closed tabs, your reading list and the sites you visit most.")
-                .font(.system(size: 11.5)).foregroundStyle(Theme.dim).padding(.top, 36)
+                .font(.system(size: 11.5)).foregroundStyle(Theme.dim).padding(.top, 32)
         }
         .padding(.horizontal, 24)
         .onAppear { isDefault = StartPageActions.isDefaultBrowser }
@@ -89,13 +89,13 @@ struct StartFirstRunView: View {
                 .frame(width: 34, height: 34)
                 .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.accentColor.opacity(0.14)))
                 .decorative()
-            Text(verbatim: title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).padding(.top, 14)
+            Text(verbatim: title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).padding(.top, 16)
                 .accessibilityAddTraits(.isHeader)
-            Text(verbatim: text).font(.system(size: 12)).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true).padding(.top, 6)
-            Spacer(minLength: 14)
+            Text(verbatim: text).font(.system(size: 12)).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true).padding(.top, 8)
+            Spacer(minLength: 16)
             Button(action: action) {
                 Text(verbatim: button).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(prominent ? Color.white : Theme.primary)
-                    .padding(.horizontal, 11).frame(height: 24)
+                    .padding(.horizontal, 8).frame(height: 24)
                     .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(prominent ? Color.accentColor : Theme.pressed))
             }
             .buttonStyle(.plain)
@@ -116,12 +116,12 @@ struct StartPrivateView: View {
                 .frame(width: 62, height: 52)
                 .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.field))
                 .decorative()
-            Text("Private Window").font(.system(size: 28, weight: .semibold)).foregroundStyle(Theme.primary).padding(.top, 18)
+            Text("Private Window").font(.system(size: 28, weight: .semibold)).foregroundStyle(Theme.primary).padding(.top, 16)
                 .accessibilityAddTraits(.isHeader)
             Text("What you browse in this window isn't kept in history or the session. When you close it, cookies and site data go with it.")
-                .font(.system(size: 14)).foregroundStyle(Theme.secondary).multilineTextAlignment(.center).frame(maxWidth: 460).padding(.top, 6)
-            search.frame(maxWidth: 620).padding(.top, 28)
-            HStack(alignment: .top, spacing: 28) {
+                .font(.system(size: 14)).foregroundStyle(Theme.secondary).multilineTextAlignment(.center).frame(maxWidth: 460).padding(.top, 8)
+            search.frame(maxWidth: 620).padding(.top, 32)
+            HStack(alignment: .top, spacing: 24) {
                 note("eye.slash", String(localized: "Nothing is kept"),
                      String(localized: "History, the session, cookies and site data are erased when you close the window. Search suggestions aren't sent either."))
                 note("sparkle", String(localized: "The AI rests"),
@@ -136,7 +136,7 @@ struct StartPrivateView: View {
     }
 
     private func note(_ symbol: String, _ title: String, _ text: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 8) {
             Image(systemName: symbol).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.primary)
                 .frame(width: 32, height: 32)
                 .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.field))

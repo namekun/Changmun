@@ -324,7 +324,7 @@ struct StartGroupPlate: ViewModifier {
     @Environment(\.startOnImage) private var onImage
 
     @ViewBuilder func body(content: Content) -> some View {
-        if onImage { content.padding(6).startPlate(radius: 12) } else { content }
+        if onImage { content.padding(8).startPlate(radius: 12) } else { content }
     }
 }
 

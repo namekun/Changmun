@@ -110,7 +110,7 @@ struct StartFavoriteTile: View {
                 .frame(width: width - 4)
         }
         .frame(width: width)
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
         .onHover { hover = $0 }
         .startItem(name, value: URL(string: entry.url)?.host().map(DisplayHost.trimmed), focused: focused, radius: 12, activate: open)
     }
@@ -148,26 +148,26 @@ struct StartContinueCardView: View {
                 StartIcon(url: card.url, size: 32)
                 Spacer(minLength: 8)
                 if card.isClosedTab {
-                    HStack(spacing: 3) {
+                    HStack(spacing: 4) {
                         Image(systemName: "arrow.uturn.backward").font(.system(size: 9, weight: .bold))
                         Text("Closed Tab").font(.system(size: 11, weight: .semibold))
                     }
                     .foregroundStyle(tint.color)
-                    .padding(.horizontal, 7).padding(.vertical, 3)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
                     .background(Capsule().fill(tint.color.opacity(0.16)))
                 } else {
                     Text(verbatim: when).font(.system(size: 11)).foregroundStyle(Theme.dim)
                 }
             }
             Text(verbatim: card.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary)
-                .lineLimit(2).multilineTextAlignment(.leading).padding(.top, 10)
-            Spacer(minLength: 6)
+                .lineLimit(2).multilineTextAlignment(.leading).padding(.top, 8)
+            Spacer(minLength: 8)
             Text(verbatim: card.isClosedTab ? "\(host) · \(when)" : host).font(.system(size: 11.5)).foregroundStyle(Theme.dim).lineLimit(1)
         }
-        .padding(14)
+        .padding(16)
         .frame(maxWidth: .infinity, minHeight: 130, maxHeight: 130, alignment: .topLeading)
         .startPlate(radius: 12, fill: hover ? Theme.ink(0.08) : Theme.ink(0.045))
-        .overlay(alignment: .topTrailing) { if hover { HideButton(action: hide).padding(6) } }
+        .overlay(alignment: .topTrailing) { if hover { HideButton(action: hide).padding(8) } }
         .onHover { hover = $0 }
         .startItem(card.title, value: Accessibility.join([card.isClosedTab ? String(localized: "Closed Tab") : nil, host, when]),
                    hint: card.isClosedTab ? String(localized: "Reopens the tab") : nil, focused: focused, radius: 12,
@@ -188,9 +188,9 @@ struct StartContinueRowView: View {
     var body: some View {
         let host = URL(string: card.url)?.host().map(DisplayHost.trimmed) ?? card.url
         let when = StartPageTime.label(card.date, now: now)
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             StartIcon(url: card.url, size: 22, plate: false)
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(verbatim: card.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
                 Text(verbatim: card.isClosedTab ? "\(host) · \(when)" : host).font(.system(size: 11)).foregroundStyle(Theme.dim).lineLimit(1)
             }
@@ -198,12 +198,12 @@ struct StartContinueRowView: View {
             if hover {
                 HideButton(action: hide)
             } else if card.isClosedTab {
-                HStack(spacing: 3) {
+                HStack(spacing: 4) {
                     Image(systemName: "arrow.uturn.backward").font(.system(size: 9, weight: .bold))
                     Text("Closed Tab").font(.system(size: 11, weight: .semibold))
                 }
                 .foregroundStyle(tint.color)
-                .padding(.horizontal, 7).padding(.vertical, 3)
+                .padding(.horizontal, 8).padding(.vertical, 4)
                 .background(Capsule().fill(tint.color.opacity(0.16)))
             } else {
                 Text(verbatim: when).font(.system(size: 11)).foregroundStyle(Theme.dim)
@@ -247,10 +247,10 @@ struct StartReadingRow: View {
     var body: some View {
         let site = ReadingList.siteName(of: item.url)
         let added = ReadingList.dateLabel(item.added, now: now)
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             StartIcon(url: item.url, size: 22, plate: false)
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 4) {
                     Text(verbatim: item.title).font(.system(size: 13, weight: item.read ? .regular : .semibold))
                         .foregroundStyle(item.read ? Theme.secondary : Theme.primary).lineLimit(1)
                     if !item.read { Circle().fill(Theme.primary).frame(width: 6, height: 6) }
@@ -277,9 +277,9 @@ struct StartFrequentRow: View {
 
     var body: some View {
         let visits = site.visits == 1 ? String(localized: "1 visit") : String(localized: "\(site.visits) visits")
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             StartIcon(url: site.url, size: 22, plate: false)
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(verbatim: site.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
                 Text(verbatim: site.host).font(.system(size: 11)).foregroundStyle(Theme.dim).lineLimit(1)
             }
@@ -310,11 +310,11 @@ struct StartAIChip: View {
     @State private var hover = false
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             Image(systemName: "sparkle").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.primary)
             Text(verbatim: suggestion.title).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.primary).lineLimit(1)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 16)
         .frame(height: 28)
         .startPlate(radius: 14, fill: hover ? Theme.ink(0.1) : Theme.ink(0.05))
         .onHover { hover = $0 }
@@ -330,17 +330,17 @@ struct StartAICard: View {
     @State private var hover = false
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             Image(systemName: suggestion.symbol).font(.system(size: 13, weight: .medium)).foregroundStyle(tint.color)
                 .frame(width: 30, height: 30)
                 .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(tint.color.opacity(0.16)))
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(verbatim: suggestion.title).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.primary).lineLimit(1)
                 Text(verbatim: suggestion.detail).font(.system(size: 11)).foregroundStyle(Theme.dim).lineLimit(1)
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, minHeight: 56, maxHeight: 56)
         .startPlate(radius: 10, fill: hover ? Theme.ink(0.09) : Theme.ink(0.045))
         .onHover { hover = $0 }
@@ -357,7 +357,7 @@ struct StartHeading: View {
     var link: (() -> Void)?
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(verbatim: title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.primary).startHalo()
                 .accessibilityAddTraits(.isHeader)
             if let detail { Text(verbatim: detail).font(.system(size: 12)).foregroundStyle(Theme.dim).startHalo() }

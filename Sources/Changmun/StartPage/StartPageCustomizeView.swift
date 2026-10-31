@@ -25,15 +25,15 @@ struct StartPageCustomizeView: View {
                 Spacer()
                 Button { dismiss() } label: {
                     Text("Done").font(.system(size: 11.5, weight: .semibold)).foregroundStyle(.white)
-                        .padding(.horizontal, 12).frame(height: 24)
+                        .padding(.horizontal, 16).frame(height: 24)
                         .background(Capsule().fill(Color.accentColor))
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 8)
+            .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 8)
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 24) {
                     group(String(localized: "Style")) { StartStyleTiles(model: model, tint: browser.space.tint) }
                     group(String(localized: "Sections"), trailing: String(localized: "Drag to reorder")) {
                         StartComponentsList(model: model, contents: contents)
@@ -48,14 +48,14 @@ struct StartPageCustomizeView: View {
                     group(String(localized: "Background")) { StartBackgroundControls(model: model, tint: browser.space.tint) }
                     group(String(localized: "New Tabs Open")) { StartNewTabControls(model: model) }
                 }
-                .padding(.horizontal, 16).padding(.bottom, 14)
+                .padding(.horizontal, 16).padding(.bottom, 16)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
             }
             .frame(height: min(contentHeight, max(260, pageHeight - 190)))
             Divider()
             HStack {
                 Button { model.reset() } label: {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 4) {
                         Image(systemName: "arrow.counterclockwise").font(.system(size: 11))
                         Text("Reset to Defaults").font(.system(size: 12))
                     }
@@ -65,7 +65,7 @@ struct StartPageCustomizeView: View {
                 Spacer()
                 Text("Changes apply right away").font(.system(size: 11)).foregroundStyle(Theme.dim)
             }
-            .padding(.horizontal, 16).padding(.vertical, 11)
+            .padding(.horizontal, 16).padding(.vertical, 8)
         }
         .frame(width: 360)
         .accessibilityElement(children: .contain)
@@ -95,8 +95,8 @@ struct StartPageSettingsView: View {
     var body: some View {
         Form {
             Section("Style") {
-                HStack(alignment: .top, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .top, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 8) {
                         StartPageMiniature(settings: model.settings, tint: tint)
                             .frame(width: 330)
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
