@@ -21,48 +21,7 @@
   <img src="docs/images/window.png" width="760" alt="Changmun-Fenster mit vertikalen Tabs in der Seitenleiste und einer Seitenkarte">
 </p>
 
-*Changmun* (창문) ist Koreanisch für *Fenster*. Ehrlicher kann man einen Browser kaum nennen. Er ist kostenlos und Open Source, braucht kein Konto und trackt nichts. Die App spricht Englisch, Koreanisch, Japanisch, vereinfachtes Chinesisch, Spanisch, Deutsch und Französisch.
-
-## Warum Changmun
-
-- **Leicht.** Chromium-Browser bringen jeweils ihr eigenes Chromium mit. Changmun leiht sich stattdessen die WebKit-Engine, die ohnehin auf deinem Mac liegt und die auch Safari verwendet. Die App belegt 21 MB auf der Festplatte, der Download ist etwa 7 MB groß ([wie das im Vergleich aussieht](#im-vergleich-zu-anderen-browsern)). Das schont den Akku, und Sicherheitskorrekturen der Engine kommen mit den Updates von macOS und Safari.
-- **Eine Seitenleiste wie bei Arc und Dia.** Vertikale Tabs, deren Titel genug Platz haben, dazu Favoriten als Kacheln, Lesezeichenordner, Tab-Gruppen und Spaces. Lieber eine Tab-Leiste oben? Das ist eine Einstellung.
-- **Eine KI, die den Browser bedient.** Das Claude-Panel liest Seiten und klickt und tippt für dich, über deine vorhandene `claude`-CLI. Es bekommt Hände, aber keinen Freifahrtschein: Bevor etwas riskant wird, fragt es nach.
-- **Standardmäßig privat.** Kein Konto, kein Server, keine Analyse, also nichts, wofür du dich anmelden müsstest. Werbe- und Tracker-Blocker sind eingebaut.
-- **Zieht mit Sack und Pack um.** Importiert Lesezeichen und Verlauf aus Safari und Chromium-Browsern, aus Chromium-Browsern auch Passwörter und Anmeldungen. Die Passwörter von Safari bleiben zurück: macOS gibt sie an keine andere App heraus.
-
-## Im Vergleich zu anderen Browsern
-
-Changmun versucht nicht, jeden Browser in allem zu schlagen. Hier steht, wo er anders ist und wo du mit einem anderen besser fährst. Die Größen wurden im Oktober 2026 auf einem Mac mit Apple Chip gemessen; der Rest stammt aus dem, was jedes Projekt über sich selbst sagt. Falls etwas veraltet ist, [eröffne bitte ein Issue](https://github.com/namekun/Changmun/issues).
-
-| | App auf der Festplatte | Engine |
-| :-- | --: | :-- |
-| **Changmun 0.10.2** | **21 MB** | WebKit, das von macOS |
-| Safari 27 | 35 MB | WebKit, das von macOS |
-| Google Chrome 156 | 731 MB | Chromium, eigene Kopie |
-| Arc 1.168 | 862 MB | Chromium, eigene Kopie |
-| Dia 1.53 | 1,3 GB | Chromium, eigene Kopie |
-
-<sub>`du -sh` der jeweils installierten App. Ein Chromium-Browser bringt seine Engine mit und aktualisiert sie selbst; Changmun und Safari bekommen Engine-Korrekturen mit macOS.</sub>
-
-**Safari.** Dieselbe Engine, also dieselbe Web-Kompatibilität und dieselbe Rücksicht auf den Akku. Changmun ergänzt eine Seitenleiste, die vertikale Tabs, Favoriten als Kacheln und deine Lesezeichenordner in einer Spalte vereint, eine KI, die eine Seite für dich bedienen kann (und vor Riskantem nachfragt), und Erweiterungen aus dem Chrome Web Store neben denen von Safari. Bleib bei Safari, wenn du auf die iCloud-Synchronisierung von Tabs, Passwörtern und Passkeys zwischen deinen Apple-Geräten angewiesen bist.
-
-**Chrome.** Kein Google-Konto, kein Sync-Server und keine Analyse; die wenigen Anfragen, die die App von sich aus stellt, stehen unter [Datenschutz](#datenschutz). Sie nutzt das WebKit, das macOS ohnehin hat, deshalb ist die ganze App nur etwa 3 % so groß wie Chrome. Bleib bei Chrome, wenn du die breiteste Kompatibilität mit Seiten brauchst, die nur für Chromium gebaut sind, seine Synchronisierung oder Windows, Linux oder ein Handy.
-
-**Arc.** Die Idee aus Seitenleiste und Spaces, in einem Browser, der noch neue Funktionen bekommt. Arc befindet sich seit Mai 2025 im Wartungsmodus: Sicherheitskorrekturen, keine neuen Funktionen. Bleib bei Arc, wenn du auf Boosts oder Easels nicht verzichten kannst.
-
-**Dia.** Dieselbe Ideenfamilie (eine Seitenleiste, eine KI im Browser). Changmun hat keinen eigenen KI-Dienst: Seine KI ist die `claude`-CLI, die du schon hast, mit deinem eigenen Abo, und es gibt gar kein Changmun-Konto und keinen Server. Bleib bei Dia, wenn du seine gehosteten KI-Funktionen und die Integrationen für die Arbeit willst.
-
-### Was noch fehlt
-
-Ehrlich über die Lücken zu sein, ist der Sinn dieses Abschnitts.
-
-- **Keine Synchronisierung.** Es gibt kein Konto, daher bleiben Lesezeichen, Verlauf und Passwörter auf dem Mac, auf dem sie entstanden sind.
-- **Nur Mac.** macOS 14 oder neuer auf Apple Chip. Kein iPhone, kein Windows, kein Linux.
-- **Noch keine Passkeys.** Dafür brauchen Browser eine Berechtigung (Entitlement) von Apple; Changmun hat sie beantragt und wartet.
-- **Erweiterungen sind die von WebKit.** Sie brauchen macOS 15.4 oder neuer, und manche Chrome-Erweiterungen verlassen sich auf Dinge, die WebKit nicht hat.
-- **Nur-Chromium-Seiten.** Eine Seite, die nur für Chromium geschrieben wurde, kann hier Probleme machen, wie in Safari auch.
-- **Jung und klein.** Ein Maintainer und eine junge Codebasis: weniger Augen als bei den großen Browsern und entsprechend Ecken und Kanten. Fehlerberichte sind willkommen.
+*Changmun* (창문) ist Koreanisch für *Fenster*. Er ist kostenlos und Open Source und braucht kein Konto. Die App spricht Englisch, Koreanisch, Japanisch, vereinfachtes Chinesisch, Spanisch, Deutsch und Französisch.
 
 ## Installieren
 
@@ -70,258 +29,101 @@ Ehrlich über die Lücken zu sein, ist der Sinn dieses Abschnitts.
 brew install --cask namekun/tap/changmun
 ```
 
-Du brauchst [Homebrew](https://brew.sh), macOS 14 Sonoma oder neuer und einen Mac mit Apple Chip. Die App ist mit einer Developer ID signiert und von Apple notarisiert, sodass sie sich sofort öffnet. Updates kommen direkt in der App an (Changmun › Nach Updates suchen…, standardmäßig automatisch); Homebrew brauchst du nur zum Installieren.
+Oder [lade die App direkt herunter](https://github.com/namekun/Changmun/releases/latest/download/Changmun.dmg).
 
-Beim ersten Start bietet Changmun an, Lesezeichen und Verlauf aus deinem bisherigen Browser zu übernehmen, aus Chromium-Browsern auch Passwörter und Anmeldungen.
+- Braucht macOS 14 oder neuer auf einem Mac mit Apple Chip.
+- Von Apple signiert und notarisiert, also öffnet sie sich sofort.
+- Aktualisiert sich selbst.
+- Beim ersten Start bietet sie an, deine Lesezeichen und deinen Verlauf zu übernehmen.
 
-### Aus dem Quellcode bauen
+## Warum Changmun
 
-Du brauchst macOS 14 oder neuer sowie Xcode oder die Command Line Tools.
+- **Leicht.** Die App ist 21 MB groß, der Download etwa 7 MB. Sie nutzt die WebKit-Engine, die dein Mac schon hat.
+- **Eine Seitenleiste.** Vertikale Tabs, Favoriten, Lesezeichenordner, Tab-Gruppen und Spaces in einer Spalte. Lieber Tabs oben? Das ist eine Einstellung.
+- **Eine KI, die den Browser bedient.** Claude liest Seiten, klickt und tippt für dich und fragt nach, bevor etwas riskant wird.
+- **Privat.** Kein Konto, kein Server, keine Analyse. Werbung und Tracker werden von Anfang an blockiert.
+- **Deine Sachen kommen mit.** Er übernimmt Lesezeichen und Verlauf aus Safari und Chromium-Browsern, Passwörter aus den Chromium-Browsern.
+- **Eine eigene Startseite.** Drei Stile, Bereiche, die du frei anordnen kannst, und ein eigener Hintergrund.
 
-```sh
-git clone https://github.com/namekun/Changmun.git
-cd Changmun
-scripts/bundle.sh release   # makes build/Changmun.app
-open build/Changmun.app
-```
+## Die KI
 
-Sind nur die Command Line Tools installiert, bauen die Skripte gegen das macOS-26-SDK (das SwiftUI-Makro-Plug-in des macOS-27-SDK gibt es nur mit Xcode). Die Build-Produkte landen in `~/Library/Caches/Changmun/build`, außerhalb der Reichweite der iCloud-Synchronisierung des Schreibtischs.
+Drücke ⌘E und frag in ganz normalen Worten:
 
-## Was er kann
+- „Fass diese Seite zusammen.“
+- „Vergleiche die Preise in diesen drei Tabs.“
+- „Melde mich auf dieser Website an.“
 
-### Seitenleiste und Tabs
+Sie läuft über das `claude`-CLI, das du schon hast, und nutzt damit dein eigenes Claude-Code-Abo. Nutzt du Claude nicht, kannst du die Seitenleiste einfach ignorieren: Der Rest des Browsers funktioniert auch ohne sie.
 
-- **Seitenleiste.** Hält Favoriten, Lesezeichen und offene Tabs in einer Spalte links beisammen: Favoriten als Kacheln, Lesezeichenordner, vertikale Tabs. Zieh Tabs, um sie umzusortieren, oder auf die Favoriten, um sie anzuheften. Favoriten und Lesezeichen behalten wie bei Dia und Arc jeweils ihren eigenen Tab: Ein Klick springt zu diesem Tab, statt den Tab zu ersetzen, den du gerade liest (⌘-Klick öffnet einen neuen Tab). Zieh einen Link von einer Seite in die Seitenleiste, um ihn als Tab zu öffnen, als Favorit zu behalten oder in einem Ordner abzulegen. Im Menü eines Tabs kannst du ihn außerdem neu laden, duplizieren, in ein neues Fenster bewegen, teilen oder in einem anderen Browser öffnen. Einem Tab gibst du einen eigenen Namen per Doppelklick auf den Titel oder mit Tab umbenennen… im Menü; der Name bleibt über neue Seiten und Neustarts hinweg, und die KI sieht trotzdem den echten Seitentitel. Lesezeichen und Lesezeichenordner benennst du genauso um (Doppelklick oder Umbenennen… im Menü), Favoriten über ihr Menü; der Name bleibt, auch wenn du aus dem Browser erneut importierst. Das Schließen aller Tabs einer Gruppe oder das Löschen eines Lesezeichens lässt sich ein paar Sekunden lang widerrufen, erfahrungsgemäß genau die Zeitspanne, in der die Reue kommt.
-- **Adressleiste, wo du willst.** Du setzt sie dorthin, wo deine Hand sie sucht: oben in der Seitenleiste unter Zurück und Vor wie bei Arc oder über der Seite wie bei Dia (Einstellungen › Darstellung › Position der Adressleiste). Sie zeigt nur die Website; Schild und Stern erscheinen, wenn der Zeiger darüber ist. Bei einem Favoriten bleibt der Stern stehen: Klick darauf nimmt die Seite aus den Favoriten.
-- **Tabs oben.** Lieber eine Leiste als eine Spalte? Wähle Oben unter Einstellungen › Darstellung › Tab-Anordnung. Eine waagerechte Tab-Leiste sitzt über der Adressleiste: zuerst die Favoriten als Kacheln nur mit Symbol, dann die Tabs des Space mit Favicon, Titel, Schließen-× und Tonanzeige. Eine Tab-Gruppe ist ein farbiger Chip, der die Gruppe einklappt (der Tab, den du ansiehst, bleibt sichtbar). Die +-Taste bleibt sichtbar, auch wenn die Tabs überlaufen, und die Leiste scrollt seitwärts. Mittelklick schließt einen Tab, Ziehen ordnet um, Doppelklick benennt um, und die Kontextmenüs sind die der Seitenleiste. Die Seitenleiste (Lesezeichen, Spaces, Downloads, Menü) öffnet sich über der Seite mit der Taste links neben der Adressleiste. Standard bleibt die Seitenleiste.
-- **Lesezeichenordner.** Deine Lesezeichen behalten die Ordnung, die du ihnen gegeben hast, und bleiben griffbereit. Importierte Ordner bleiben verschachtelt wie im Browser, aus dem sie kommen. Fixier die, die du brauchst, in der Seitenleiste (Rechtsklick oder … › In der Seitenleiste fixieren, oder den Ordner unter die Favoriten ziehen) und öffne sie direkt dort. Zieh ein Lesezeichen auf einen anderen Ordner oder auf die Favoriten, oder nimm Bewegen nach in seinem Menü. Alle übrigen Lesezeichen liegen hinter der Lesezeichen-Taste unten in der Seitenleiste, mit Suchfeld; das … daneben öffnet Verlauf, archivierte Tabs, Fokusmodus und Einstellungen.
-- **Leseliste.** Speichert eine Seite zum späteren Lesen, wie in Safari: Verlauf › Zur Leseliste hinzufügen (⇧⌘D), das Menü eines Tabs oder Rechtsklick auf einen Link › Link zur Leseliste hinzufügen. Die Liste steht ganz oben im Fenster des Lesezeichen-Knopfs unten in der Seitenleiste: Ungelesene Seiten haben einen fetten Titel und einen Punkt, jede zeigt ihre Website und wann du sie gesichert hast, und Öffnen markiert sie als gelesen. Per Rechtsklick lässt sie sich als gelesen oder ungelesen markieren, der Link kopieren oder die Seite entfernen; gelesene Einträge löschst du auf einmal. Hinzufügen, Entfernen und Löschen lassen sich einige Sekunden lang rückgängig machen. In privaten Fenstern wird nichts gesichert, und die KI sieht die Liste nie. Beim Import aus Safari kommt dessen Leseliste samt Lesestatus mit.
-- **Tab-Gruppen.** Hält zusammengehörige Tabs beisammen und aus dem Weg. Rechtsklick auf einen Tab › Zu neuer Gruppe hinzufügen, benennen, einklappen; ein Doppelklick auf die Kopfzeile einer Gruppe (oder ihren Chip in der Tableiste) benennt sie um. Tabs, die du aus dem Tab einer Gruppe öffnest, gehören zur Gruppe; ein erneut geöffneter Tab (⌘⇧T) kehrt in seine Gruppe zurück. Zieh eine Gruppe an ihrer Kopfzeile, um sie zu verschieben, oder nach oben auf die Favoriten oder die angehefteten Ordner, um sie samt Tabs als einen Lesezeichen-Ordner zu behalten.
-- **Tabs aufräumen.** Macht aus einem Haufen loser Tabs mit einem Klick Gruppen. Ein Schwung mit dem Zauberstab neben „Neuer Tab“ (Fenster › Tabs aufräumen), und die losen Tabs sind gruppiert. Mit aktivierter Apple Intelligence (macOS 26) gruppiert das Modell auf deinem Mac die Tabs nach Thema und benennt die Gruppen; nichts über deine Tabs verlässt den Mac. Ohne Apple Intelligence kommen Tabs, die auseinander geöffnet wurden, und Tabs derselben Website zusammen. „Widerrufen“ stellt den alten Zustand ein paar Sekunden lang wieder her. Neue Tabs, die du über die Adressleiste öffnest, landen von selbst in einer passenden Gruppe (ausschalten unter Einstellungen › Tabs).
-- **Alte Tabs archivieren** (standardmäßig aus). Räumt Tabs weg, die du nicht mehr ansiehst, statt sie wegzuwerfen. Tabs, die du eine bestimmte Zeit nicht angesehen hast (12 Stunden bis 30 Tage, nur gezählt, solange Changmun läuft), werden geschlossen und landen unter Verlauf › Archivierte Tabs, bereit zum erneuten Öffnen in ihrer Gruppe. Sichtbare Tabs, Tabs mit Wiedergabe, Bild-in-Bild, Kamera/Mikrofon sowie Favoriten und private Tabs werden nie archiviert.
-- **Tabs im Ruhezustand.** Lässt Hintergrund-Tabs ein Nickerchen machen und gibt dafür Speicher frei. Hintergrund-Tabs, die du 20 Minuten nicht gesehen hast, und bei knappem Speicher alle Hintergrund-Tabs geben ihren Webprozess frei und kommen samt Verlauf zurück, sobald du zu ihnen wechselst.
-- **Befehlsleiste** (⌘T). Ein Feld für alles: Suche, Adressen, den Wechsel zu offenen Tabs, Lesezeichen und Verlauf sowie Fragen an die KI.
-- **Startseite.** Ein neuer Tab kann sich auf einer Seite nach deinem Geschmack öffnen: ein Suchfeld, das wie die Befehlsleiste funktioniert, deine Favoriten, gerade geschlossene Tabs, ungelesene Seiten deiner Leseliste und die Websites, die du am häufigsten besuchst. Wähle einen Stil (Übersicht, Ruhig oder KI zuerst), schalte Bereiche ein und aus, ziehe sie in deine Reihenfolge und nimm als Hintergrund eine Farbe, den Schimmer deines Space oder ein eigenes Bild; Text bleibt auf jedem lesbar. Bereiche ohne Inhalt blenden sich selbst aus, und ein privates Fenster zeigt gar keinen Verlauf. Alles bleibt auf deinem Mac (Anpassen unten rechts oder Darstellung › Startseite anpassen …).
-- **VoiceOver und Tastatur.** Seitenleiste, Tab-Leiste, Adressleiste, Befehlsleiste, Suchen, KI-Seitenleiste und Einstellungen funktionieren mit VoiceOver und dem vollständigen Tastaturzugriff: Jede Taste, jedes Feld, jeder Tab und jede Zeile hat einen Namen (und, wo es ihn gibt, einen Zustand), und Zeilen und Tasten lassen sich per Tastatur betätigen. Statusmeldungen werden beim Erscheinen angesagt.
+**Was sie im Zaum hält**
 
-### Spaces und Profile
+- Sie fragt nach, bevor sie bezahlt, sendet, postet oder löscht.
+- Sie fragt nach, bevor sie einen Tab nutzt, den du gerade nicht ansiehst, oder eine unbekannte Website öffnet.
+- Sie kann keine Passwörter sehen und sieht private Fenster nie.
 
-- **Spaces.** Trennt Tabs, Tab-Gruppen und Favoriten nach Art des Surfens, damit die Arbeit am Wochenende draußen bleibt. Die Zeile ganz unten in der Seitenleiste wechselt zwischen Spaces: auf einen Punkt klicken, ⌃1–⌃9 drücken oder mit zwei Fingern seitlich über die Seitenleiste wischen (Fenster › Nächster Space, Vorheriger Space, Neuer Space …). Jeder Space hat eigene Tabs, Tab-Gruppen, Favoriten und angeheftete Ordner und färbt die Seitenleiste leicht in seiner Farbe ein. Die Lesezeichen-Bibliothek, der Verlauf und gesicherte Passwörter werden geteilt. Schalte beim Erstellen „Anmeldungen und Cookies trennen (Profil)“ ein, damit ein Space auch eigene Cookies und Websitedaten bekommt – so kannst du bei einer Website mit zwei Konten gleichzeitig angemeldet sein. Das lässt sich danach nicht mehr ändern, und beim Löschen eines Profils werden seine Cookies und Websitedaten gelöscht. Dein erster Space entsteht aus dem, was du schon hattest. Private Fenster haben keine Spaces. Die KI sieht die Tabs normaler Spaces (mit dem Namen des Spaces), die eines Profil-Spaces aber nur, solange du darin bist.
+Deine Nachrichten, angehängte Bilder und die Seiten, die sie liest, gehen über das `claude`-CLI an Anthropic. Auch andere Tools können Changmun steuern, per MCP oder mit dem Befehl `changmun`.
 
-### Lesen und Ansehen
+## Im Vergleich zu anderen Browsern
 
-- **Lesemodus.** Lies einen Artikel als aufgeräumten, gut lesbaren Text. ⇧⌘R (mit Chrome-Tastenkürzeln ⌥⌘R) zeigt ihn über der Seite. Wirkt die Seite wie ein Artikel, erscheint in der Adressleiste ein Knopf. Esc, das × oder dasselbe Kürzel bringt die Seite unverändert zurück. Das erledigt ein kleines Skript auf der Seite: Die Bilder des Artikels werden von denselben Stellen geladen wie auf der Seite selbst, sonst wird nichts geladen oder gesendet.
-- **Seiten übersetzen.** Lies eine Seite in einer anderen Sprache, ohne sie zu verlassen. Die Übersetzung geschieht direkt an Ort und Stelle mit der Übersetzung von macOS auf dem Gerät (⌥⌘T, ab macOS 26). Links und Layout bleiben erhalten; der Text verlässt den Mac nie.
-- **Split View** (⌥⌘\\). Für die Fälle, in denen eine Seite nicht reicht: zwei Tabs nebeneinander.
-- **Fokusmodus** (⌘⇧F). Blendet alles außer der Seite aus. Konzentrieren musst du dich selbst.
-- **Link-Vorschau.** Wirf einen Blick auf einen Link, ohne die aktuelle Seite zu verlassen. ⇧-Klick auf einen Link öffnet ihn in einer schwebenden Karte, ⌘↩ behält ihn als Tab.
-- **Bild-in-Bild** (⌃⌘P). Hält ein Video im Blick, auch wenn du seinen Tab verlässt. Es startet von selbst, wenn du einen Tab mit laufendem Video verlässt. ⌃⌘← / ⌃⌘→ springen 5 Sekunden, sogar während du in einer anderen App bist, und „Zurück zum Tab“ holt den Tab wieder nach vorn.
+Changmun will nicht jeden Browser in jeder Hinsicht schlagen. Hier steht, wo er sich unterscheidet und wann du woanders besser aufgehoben bist.
 
-### Datenschutz und Sicherheit
+| | App-Größe | Engine |
+| :-- | --: | :-- |
+| **Changmun 0.10.2** | **21 MB** | WebKit, das von macOS |
+| Safari 27 | 35 MB | WebKit, das von macOS |
+| Google Chrome 156 | 731 MB | Chromium, eigene Kopie |
+| Arc 1.168 | 862 MB | Chromium, eigene Kopie |
+| Dia 1.53 | 1,3 GB | Chromium, eigene Kopie |
 
-- **Private Fenster.** Surfen, ohne Spuren zu hinterlassen. Private Fenster halten Cookies und Websitedaten nur im Arbeitsspeicher und vergessen sie beim Schließen; nichts landet im Verlauf, in der Sitzung oder bei der KI.
-- **Website-Einstellungen.** Zeigt und ändert an einer Stelle, was Changmun sich für eine Website merkt. Ein Klick auf das Schloss links in der Adressleiste öffnet ein kleines Fenster mit allem, was Changmun für diese Website merkt: Werbeblocker, Zoom, Pop-ups, Kamera und Mikrofon und ob ihre Tabs in den Ruhezustand dürfen. Ein Klick auf eine andere Stelle der Adressleiste, auch auf den Namen der Website, bearbeitet wie bisher die Adresse.
-- **Passwörter.** Das Merken übernimmt der Schlüsselbund. Passwörter werden nach der Anmeldung im Schlüsselbund gesichert (nur https) und über die Schlüssel-Taste in der Adressleiste eingesetzt. Zum Kopieren oder Einsetzen eines Passworts brauchst du Touch ID oder dein Mac-Passwort (beim Einsetzen lässt sich das unter Einstellungen › Datenschutz abschalten).
-- **Client-Zertifikate.** Verlangt eine Website ein Zertifikat, um dich zu identifizieren (ein Firmen-Intranet, eine Bank), zeigt Changmun wie Safari im Systemblatt die Zertifikate aus deinem Schlüsselbund oder von einer Smartcard, die die Website akzeptiert. Deine Wahl wird als Identitätspräferenz für diese Website gesichert (entfernbar in der Schlüsselbundverwaltung), sodass der nächste Besuch nicht erneut fragt; private Fenster und Seiten, die die KI gerade nutzt, sichern nichts. Brichst du ab, erhält die Website kein Zertifikat. Die KI wählt nie eines für dich aus: Auch eine Seite, die sie gerade nutzt, fragt dich.
-- **Zertifikate, die sich nicht überprüfen lassen.** Eine Website mit selbst signiertem Zertifikat, einem Zertifikat einer privaten Zertifizierungsstelle, der dein Mac nicht vertraut, einem abgelaufenen oder einem für einen anderen Namen zeigt eine Warnung, die die App selbst zeichnet (nie die Seite), mit Grund und Zertifikatdetails. „Diese Website besuchen“ ist klein, verlangt Touch ID oder dein Passwort und lässt genau dieses Zertifikat für diesen Host und Port durch, bis du die App beendest; ändert sich das Zertifikat der Website, kommt die Warnung zurück. Währenddessen zeigt die Adressleiste ein Warnzeichen, und in den Website-Einstellungen gibt es „Diesem Zertifikat nicht mehr vertrauen“. Seiten, die die KI benutzt, bekommen den Weg weiter nie angeboten. Websites auf Domains, von denen Browser wissen, dass sie HTTPS verlangen, und Zertifikate, die früher in dieser Sitzung in Ordnung waren, lassen sich nicht umgehen.
-- **Pop-ups.** Seiten dürfen nicht ungefragt Fenster aufreißen. Pop-ups, die ohne Klick aufgehen, werden blockiert; „Öffnen“ und „Für diese Website immer erlauben“ erscheinen direkt oberhalb der Seite.
-- **Tracking aus Links entfernen.** Bekannte Tracking-Parameter (`utm_*`, `fbclid`, `gclid` und ähnliche) werden aus einer Adresse entfernt, bevor die Seite lädt: bei dem, was du eintippst, bei Lesezeichen, bei einem Link in einem neuen Tab oder in der Vorschau und bei dem, was die KI öffnet. Der Rest der Adresse bleibt unverändert. Links, die du in einer Seite anklickst, Weiterleitungen und Formulare bleiben, wie die Website sie geschrieben hat: WebKit gibt einer App keine Möglichkeit, sie zu ändern, ohne zu verändern, was die Website über die Herkunft des Klicks sieht (SameSite-Cookies, `Referer`). In Einstellungen › Datenschutz abschaltbar; eine Website, auf der dadurch etwas kaputtgeht, hat in den Website-Einstellungen einen eigenen Schalter.
-- **Sichere Verbindungen zuerst.** Eine http-Adresse, die du eintippst, aus einem Lesezeichen, in einem neuen Tab oder in der Vorschau öffnest oder die die KI öffnet, wird zuerst über https versucht und nur dann über http geladen, wenn über https niemand antwortet (Verbindung abgelehnt, bei dem, was du selbst öffnest, auch Zeitüberschreitung). Ein Zertifikat, das sich nicht überprüfen lässt, zeigt die Warnung von oben und wird nie mit http beantwortet. Namen, die es nur in einem lokalen Netz gibt (ein `router` ohne Punkt, `.local`, `.test`, `localhost`), IP-Adressen und andere Ports als 80 bleiben, wie sie sind, die http-Seite eines Routers oder NAS öffnet sich also wie bisher; auf einer http-Seite steht in den Website-Einstellungen „Diese Verbindung ist nicht sicher“. In einer Seite angeklickte Links, Weiterleitungen und Formulare bleiben, wie die Website sie gemacht hat. In Einstellungen › Datenschutz abschaltbar.
+<sub>Gemessen mit `du -sh` auf einem Mac mit Apple Chip im Oktober 2026.</sub>
 
-Werbe- und Tracker-Blocker werden unter [Werbeblocker](#werbeblocker) beschrieben, was auf deinem Mac bleibt und was gesendet wird, unter [Datenschutz](#datenschutz).
+| Verglichen mit | Was Changmun dir bietet | Bleib dort, wenn du brauchst |
+| :-- | :-- | :-- |
+| **Safari** | Dieselbe Engine, dazu eine Seitenleiste mit vertikalen Tabs, eine KI, die eine Seite bedienen kann, und Erweiterungen aus dem Chrome Web Store | iCloud-Synchronisierung von Tabs, Passwörtern und Passkeys |
+| **Chrome** | Kein Google-Konto und kein Sync-Server, und eine App mit etwa 3 % der Größe | Seiten, die nur für Chromium gebaut sind, die Chrome-Synchronisierung oder Windows, Linux und Handys |
+| **Arc** | Dieselbe Idee aus Seitenleiste und Spaces, und es bekommt weiter neue Funktionen (Arc ist seit Mai 2025 im Wartungsmodus) | Boosts oder Easels |
+| **Dia** | Dieselbe Ideenfamilie, ohne eigenen KI-Dienst und ohne Konto: Es nutzt dein `claude`-CLI | Seine gehosteten KI-Funktionen und die Integrationen für die Arbeit |
 
-### Sichern und Downloads
+Das stammt aus dem, was jedes Projekt über sich selbst sagt. Ist etwas veraltet, [eröffne bitte ein Issue](https://github.com/namekun/Changmun/issues).
 
-- **Seite sichern.** Heb eine Seite als PDF oder als Bild auf. Du kannst sie als ein langes PDF sichern (Ablage › Als PDF sichern …) oder als Bild der ganzen Seite, nicht nur des sichtbaren Ausschnitts (Ablage › Ganze Seite aufnehmen …). Beides gibt es auch im Menü eines Tabs; es landet im Downloads-Ordner, sofern du keinen anderen wählst, und funktioniert auch in privaten Fenstern. Seiten, die in einem inneren Bereich scrollen, und Bilder, die erst beim Scrollen laden, werden womöglich nicht vollständig erfasst.
-- **Downloads.** Du siehst, wie ein Download vorankommt, und er wird beim ersten Öffnen geprüft. Der Fortschritt steht unten in der Seitenleiste, und Downloads erhalten das Quarantäne-Flag von Safari, sodass Gatekeeper sie beim ersten Öffnen prüft. Apps, Skripte und Installer werden im Finder angezeigt statt ausgeführt. Ein abgebrochener Download macht mit „Erneut versuchen“ in seiner Zeile dort weiter, wo er aufgehört hat.
-- **Seitenzoom.** Stell eine Website einmal ein, und der Zoom bleibt. Der Seitenzoom wird pro Website gemerkt, du musst also nur einmal die Augen zusammenkneifen.
-- **Sitzung sichern.** Auch Browser stürzen ab. Offene Tabs werden alle 15 Sekunden gesichert, ein Absturz kostet also fast nichts.
+### Was noch fehlt
 
-### Updates
+- **Keine Synchronisierung.** Lesezeichen, Verlauf und Passwörter bleiben auf dem Mac, auf dem sie entstanden sind.
+- **Nur Mac.** Kein iPhone, kein Windows, kein Linux.
+- **Noch keine Passkeys.** Browser brauchen dafür eine Berechtigung (Entitlement) von Apple; Changmun hat sie beantragt und wartet.
+- **Erweiterungen brauchen macOS 15.4 oder neuer,** und manche Chrome-Erweiterungen verlassen sich auf Dinge, die WebKit nicht hat.
+- **Seiten, die nur für Chromium gebaut sind,** können hier Probleme machen, genau wie in Safari.
+- **Ein Maintainer.** Weniger Augen als bei den großen Browsern und entsprechend Ecken und Kanten. Fehlerberichte sind willkommen.
 
-- **Automatische Updates.** Changmun aktualisiert sich selbst mit Sparkle. Es prüft einmal am Tag im Hintergrund und bietet die Installation an, sobald eine neue Version erscheint; Changmun › Nach Updates suchen… prüft sofort. Updates sind signiert, und Changmun installiert eines nur, wenn die Signatur zum Schlüssel in der App passt. Unter Einstellungen › Erweitert kannst du die automatische Prüfung abschalten oder Updates von selbst laden und installieren lassen.
+## Tastenkürzel, die du kennen solltest
 
-## KI
-
-Die Seitenleiste rechts (⌘E) nutzt das `claude`-CLI, das du schon hast, und läuft damit über dein Claude-Code-Abo. Das Standardmodell ist Sonnet. Das Menü unter dem Nachrichtenfeld (es liest sich etwa „Sonnet · Hoch“) stellt Modell und Aufwand ein (Automatisch, Niedrig, Mittel, Hoch, Sehr hoch oder Maximal, weitergegeben an `--effort` von Claude Code; Automatisch gibt nichts weiter). Das Modell lässt sich auch unter Einstellungen › KI wechseln.
-
-Der Kopf des Panels zeigt den Titel des Chats, also seine erste Nachricht. Sein Menü listet die letzten Chats und „Alle Chats anzeigen“; daneben sitzen eine Taste für einen neuen Chat und eine Taste, die das Panel in ein eigenes Fenster auslagert. Schließt du dieses Fenster, kehrt das Panel ins Browserfenster zurück. Fragen und Freigabe-Karten funktionieren auch dort, und das Fenster kommt nach vorn, wenn die KI fragt. Während sie arbeitet, zeigt das Panel „Seit 12 s in Arbeit“ mit den aktuellen Schritten darunter (aufklappbar). Deine Nachricht zeigt Karten der Seiten, die mitgegangen sind, mit Titel und Website. Ein kleiner Ring zeigt, wie viel vom Kontext des Modells der Chat belegt (Zeiger darüber für den Prozentwert).
-
-Die KI bedient den Browser mit diesen Werkzeugen: `list_tabs`, `open_tab`, `switch_tab`, `close_tab`, `navigate`, `go_back`, `go_forward`, `reload`, `read_page`, `read_tabs`, `read_structured`, `read_markdown`, `click`, `click_at`, `type_text`, `press_key`, `select_option`, `hover`, `drag`, `wait_for`, `scroll`, `screenshot`, `sign_in`. Passwörter, Einmalcodes und Kartenfelder kann sie weder lesen noch ausfüllen noch Tasten darin drücken; Screenshots verdecken sie. Dateien hochladen kann sie auch nicht.
-
-- `read_page` hängt jedem Element seine Zustände in Klammern an: `[checked]`/`[unchecked]`, `[selected]`, `[expanded]`/`[collapsed]`, `[disabled]`, `[focused]`, `[pressed]`, `[required]`, `[invalid]`. Auch der aktuelle Wert von Feldern und Listen steht in einer Zeile, bei Passwort-, Code- und Kartenfeldern aber nie.
-- `read_structured` ist der günstige Weg, eine Seite zu lesen; `read_markdown` behält ihre Struktur (Tabellen, Code, Listen, Links), um sie zu verstehen oder zu zitieren, und `read_page` nummeriert die Elemente zum Klicken. `read_structured` liefert die Daten, die die Seite über sich selbst trägt, als kompaktes JSON, ohne Seitentext und ohne Netzwerkanfrage: JSON-LD-Blöcke, OpenGraph- und Twitter-Card-Tags, Beschreibung, Autor, Schlüsselwörter, Robots und Theme-Color, die Sprache sowie kanonische und alternative Links (Feeds, Übersetzungen, Markdown-Versionen) als absolute Adressen. `read_markdown` liefert den sichtbaren Inhalt als Markdown: Überschriften, verschachtelte Listen, Tabellen, Zitate, Codeblöcke mit ihrer Sprache, Hervorhebungen und Links ohne Tracking-Parameter (als Pfade, wenn sie auf der Website bleiben); Navigation, Fußzeilen, verborgene Elemente und Feldwerte (nie von Passwort-, Code- oder Kartenfeldern) bleiben weg, Bilder erscheinen als Alternativtext, Frames sind nicht dabei. Verweist die Seite auf eine Markdown-Version ihrer selbst auf derselben Website (`<link rel="alternate" type="text/markdown">`), holt `read_markdown` diese von innen aus der Seite (fünf Sekunden, etwa 1 MB, nur ein 200 als `text/markdown` oder `text/plain`) und sagt das dazu (nur für eine Adresse, die auf `.md`, `.markdown` oder `.txt` endet; dieser Text ist, was die Website für Agenten bereitstellt, und kann vom Bildschirm abweichen); eine Version auf einer anderen Website wird nie abgerufen. Beide zählen für die Freigaben wie `read_page` als Lesen und nummerieren keine Elemente; vor einem Klick liest die KI die Seite also weiterhin mit `read_page`. Auf der Kommandozeile heißen sie `changmun markdown` und `changmun structured`.
-- Nach `click`, `click_at`, `type_text`, `press_key`, `select_option`, `hover` und `drag` meldet die Antwort, sobald die Seite zur Ruhe gekommen ist (höchstens etwa 1,5 Sekunden), was sich seit dem letzten Blick der KI geändert hat: Adresse und Titel, neue Elemente (`+`, mit fortlaufender Nummer sofort nutzbar), geänderte (`~`) und verschwundene (`-`). Höchstens 40 Zeilen; nach einer Navigation steht nur das und der Rat zu `read_page`. Es wird wie ein Lesen verbucht. Eine reine Fokusänderung steht zuletzt und zählt nicht zu den 40 Zeilen; eine Frame-Anfrage, die nicht antwortet, wird übergangen und gemeldet; ein Element, das wiederkommt (ein erneut geöffnetes Menü), ist wieder neu.
-- `screenshot` mit `labels` liest die Seite neu und zeichnet die `read_page`-Nummer jedes sichtbaren Elements als Kasten ins Bild. Der Seite wird nichts hinzugefügt, gezeichnet wird nur im Bild. Wo die Kästen sitzen, folgt dem Layout der Seite; für Elemente gilt, was `read_page` sagt. Auch `changmun screenshot --labels` geht.
-- Jedes Werkzeug nimmt einen optionalen `title` an („Preise vergleichen“), der in der Fortschrittszeile des Bereichs erscheint; sonst steht dort Changmuns eigener Text. Er ist Modelltext und wird auf eine Zeile mit höchstens 60 Zeichen gebracht; in Fragen und Entscheidungen spielt er keine Rolle. Der Titel steht hinter Changmuns eigenem Text („Klicke „Kaufen“ · Preise vergleichen“) und ersetzt ihn nie; bei `sign_in` und allem, was jedes Mal fragt, steht nur Changmuns Text.
-- Während die KI arbeitet, nimmt das Feld weiter Nachrichten an. Return reiht eine als Chip ein, und sie geht der Reihe nach hinaus, wenn der Lauf davor gut endet (mit den Tabs von dem Moment, als du sie geschrieben hast). Scheitert ein Lauf oder wird er abgebrochen, wartet ein Knopf „Wartende senden“ auf dich. ⌘Return hält den Lauf an wie Stopp und macht im selben Gespräch sofort mit der neuen Nachricht weiter. Stopp und neuer Chat leeren die Warteschlange. Höchstens 8 Nachrichten warten (eine Zeile sagt es, wenn es mehr sind); ein zweites ⌘Return beim Warten wird dem ersten hinzugefügt; lässt sich die Unterhaltung nach der Unterbrechung nicht fortsetzen, geht die Nachricht als neue Unterhaltung noch einmal und das Panel sagt es. Bei Eingabemethoden (Koreanisch, Japanisch, Chinesisch) gehört Return der Eingabemethode, solange Text komponiert wird.
-- `sign_in` trägt deine gespeicherte Anmeldung in das Formular ein, ohne dass die KI sie sieht. Der genaue Host der Seite muss der der gespeicherten Anmeldung sein (nur https), in privaten Fenstern geht es nicht. Jedes Mal fragt ein Fenster „Die KI bei … als … anmelden lassen?“, und Touch ID oder dein Mac-Passwort bestätigt es (bei mehreren Konten wählst du eines im Fenster). Ist keine Anmeldung gespeichert, lehnst du ab, antwortest nicht oder bestätigst nicht, hört die KI immer nur „Die Anmeldung wurde nicht durchgeführt“ und kann so nicht herausfinden, welche Konten du hast. Die KI erfährt weder Passwort noch Kontonamen. Es drückt nichts: Den Klick danach macht die KI, und er wird wie jeder andere geprüft. Auch ohne gespeicherte Anmeldung erscheint ein Fenster (nur zum Schließen), auf das die KI genauso lange wartet; nach einer Ablehnung gibt es für diese Website im selben Chat kein Fenster mehr, aber eine feste Wartezeit von vier Sekunden und eine Zeile im Panel. Formulare, deren Aktion oder deren Absende-Schaltfläche (egal wo) zu einer anderen Website führt, werden abgelehnt.
-
-Für Aufgaben über mehrere Tabs fügst du sie über das +-Menü im Nachrichtenfeld mit „Tab hinzufügen…“ hinzu (einzeln, als Tab-Gruppe oder alle geöffneten): Sie erscheinen als Chips, die sich entfernen lassen, die KI liest sie gemeinsam mit `read_tabs`, und vor dem Lesen wird nicht nachgefragt. Sind zwei oder mehr angehängt, schlägt das Panel vor, sie zu vergleichen oder das Wichtigste jedes Tabs zusammenzufassen.
-
-Der Tab, den die KI sieht, erscheint als Chip in der Zeile unter dem Chat, und mit @ im Feld hängst du einen weiteren an. ⌘E setzt den Cursor ins Feld (aus dem Feld heraus schließt es das Panel), Esc stoppt einen Lauf (die Stopp-Taste im Nachrichtenfeld auch), ↑ holt deine letzte Nachricht zurück, und am linken Rand lässt sich das Panel in der Breite ziehen. Die Vorschläge passen zur Seite, auf der du bist, und „KI zur Auswahl fragen“ im Kontextmenü einer Seite zitiert den markierten Text im Feld.
-
-Antworten zeigen Codeblöcke, Listen und Tabellen, am Code mit Kopieren-Knopf. Ein Link nennt auch die Website, zu der er wirklich führt, und hat der Chat andere Websites gelesen, fragt das Öffnen eines Links aus einer Antwort vorher nach. Ein langer Lauf klappt zu „12 Schritte“ zusammen, mit einer Zeile, wie viele Tabs er geöffnet und geschlossen hat; „Erneut öffnen“ holt die geschlossenen zurück. Ist Claude Code nicht angemeldet, das Nutzungslimit aufgebraucht oder fallen Netz oder die Server von Anthropic aus, sagt das Panel es in klaren Worten und bietet „Erneut versuchen“ an.
-
-Im +-Menü hängt „Screenshot anhängen“ ein Bild der aktuellen Seite an (Geheimes auf der Seite bleibt draußen), und „Bild hinzufügen…“ fügt eines von deinem Mac hinzu. Bilder lassen sich auch ins Panel ziehen oder einfügen: bis zu 4 pro Nachricht, auf 1568 Pixel an der langen Seite verkleinert und ohne Aufnahmeort und -zeit der Datei neu gespeichert. Ein Bild zählt als von der KI gelesen (ein Screenshot als seine Seite, jedes andere als von dir hinzugefügtes Bild), also wird danach gefragt wie nach dem Lesen einer anderen Website. Die Mikrofon-Taste startet die Diktierfunktion von macOS.
-
-Beendete Chats bleiben nur auf diesem Mac und lassen sich über das Chat-Menü im Kopf des Panels („Alle Chats anzeigen“) nachlesen. Sie sind schreibgeschützt (ein Chat wird nie fortgesetzt: Die KI würde sich noch an die gelesenen Seiten erinnern, Changmun wüsste aber nicht mehr, von welchen Websites sie stammen, und die Rückfrage nach dem Lesen anderer Websites entfiele), und private Fenster werden nie aufgezeichnet. Getippter oder gewählter Text wird nur als Länge gespeichert, Adressen verlieren alles ab ? oder #. Ausschalten unter Einstellungen › KI › Chatverlauf speichern; einzelne Chats oder alle löschst du im Panel.
-
-Damit in einer Seite versteckte Anweisungen sie nicht dazu bringen, Gelesenes anderswohin zu schicken, fragt Changmun dich zuerst. Wie oft, wählst du aus drei Möglichkeiten im Freigaben-Menü unter dem Nachrichtenfeld oder unter Einstellungen › KI (sie ersetzen den alten Schalter, deine bisherige Einstellung bleibt erhalten):
-
-- **Nachfragen, nachdem andere Websites gelesen wurden** (Standard). Die Fragen der folgenden Liste.
-- **Vor jeder Aktion nachfragen.** Fragt auch vor Eingaben, Auswahlen und Klicks auf einer Seite, wenn der Chat keine andere Website gelesen hat. Du kannst eine Website erlauben, bis der Chat endet.
-- **Nur bei nicht rückgängig zu machenden Aktionen nachfragen.** Lässt die ersten drei Fragen der folgenden Liste aus; die letzten beiden bleiben.
-
-Keine Antwort nach 90 Sekunden gilt als Nein. Die ersten drei Fragen der Liste gehören zum Standardmodus, die letzten beiden gelten in jedem Modus. Changmun fragt:
-
-- bevor sie einen Tab verwendet, den du gerade nicht ansiehst, einmal pro Tab und Website;
-- bevor sie eine Adresse öffnet, außer es ist eine Suche, eine bereits geöffnete, besuchte oder als Lesezeichen gesicherte Adresse oder die Startseite einer bekannten Website;
-- vor jedem Klick, Tastendruck, Darüberfahren, Ziehen, eingegebenen Text und jeder gewählten Option, sobald der Chat eine andere Website gelesen hat, mit Anzeige dessen, was sie tun will. Du kannst es einmal erlauben oder für diese Website, bis der Chat endet. Nicht gefragt wird beim Scrollen, beim Ansehen der vorderen Seite (Lesen, Screenshot, Warten, Tab-Liste) und bei Zurück, Vor und Neu laden. Ein neuer Chat (⌘⇧E) beginnt von vorn.
-- vor allem, was nach Bezahlen, Bestellen, Senden, Veröffentlichen, Kommentieren, Teilen, Hochladen, Zugriff gewähren (Erlauben, Verbinden, Autorisieren), Löschen, Stornieren oder Kündigen aussieht, jedes Mal, was auch immer du erlaubt hast (nur „Einmal erlauben“ oder „Nicht erlauben“). Ebenso Eingabe in einem Nachrichtenfeld, ein Formular, das an eine andere Website sendet, und Entf oder Rücktaste außerhalb eines Textfelds.
-- vor allem, was nach Akzeptieren oder Erlauben in einem Cookie-Banner oder nach einer Einstellung (Speichern, Löschen, Zurücksetzen, Blockieren) aussieht, einmal pro Website. Im KI-Bereich kannst du es für diese Website bis zum Ende des Chats erlauben, einem MCP-Agenten für die Dauer seiner Verbindung (bis diese Claude-Code-Sitzung, also ihr MCP-Server, endet); die Kommandozeile wird jedes Mal gefragt.
-
-Im Panel erscheinen die Fragen der KI als Karte über dem Nachrichtenfeld statt als Fenster über der Seite. Return oder Esc ist „Nicht erlauben“, ⌘Return „Einmal erlauben“, ⌥⌘Return erlaubt die Website für diesen Chat. Die Tasten für Ja wirken nur, wenn der Cursor im Panel steht und die Karte eine halbe Sekunde da ist, damit ein Tastendruck für etwas anderes nicht antwortet. Fragen zu Bezahlen, Löschen und Anmelden sowie zu einem Knopf, den nur das Markup der Seite Cookie-Banner nennt, kommen weiter als Fenster, in dem keine Taste Ja sagt. Der Kopf des Panels zeigt, was der Chat gelesen hat („3 Websites gelesen · Erlaubt auf 1“), und listet die erlaubten Websites, jede mit „Widerrufen“.
-
-Andere Agenten wie Claude Code können dieselben Werkzeuge über MCP nutzen, mit denselben Rückfragen:
-
-```sh
-claude mcp add changmun -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp
-```
-
-`--mcp` startet Changmun, falls es nicht läuft. Der Steuerungsserver lauscht nur auf 127.0.0.1 und braucht ein Token, das sich bei jedem Start ändert.
-
-Oder aus einer Shell, für jeden Agenten, der Befehle ausführen kann (Homebrew legt `changmun` in den PATH):
-
-```sh
-changmun tabs
-changmun open example.com
-changmun read
-changmun read-tabs 3 5
-changmun click 12
-changmun type 3 "hello" --submit
-```
-
-`changmun help` zeigt den Rest. Jeder Befehl ist eines derselben Werkzeuge, mit denselben Rückfragen, und startet Changmun bei Bedarf.
-
-### Changmun ohne Oberfläche, für Agenten
-
-Wenn ein Agent im Browser, den du gerade benutzt, immer wieder dieselben Fragen stellt, nervt das schnell. Für Agenten gibt es ein zweites Changmun ohne Fenster: unsichtbar, ohne Fokus und ohne Ton, mit eigenem Profil, also ohne deine Cookies, deinen Verlauf, deine Passwörter und den Schlüsselbund.
-
-```sh
-changmun headless start     # kopiert die App, aus der du es startest, nach ~/Library/Application Support/Changmun Agent und startet sie
-changmun headless status    # läuft oder nicht, pid, Version, Profilordner
-changmun --headless open example.com
-changmun --headless read
-changmun headless stop
-claude mcp add changmun-headless -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp --headless
-```
-
-Mit `--headless` bei einem beliebigen Befehl geht er dorthin statt an deinen Browser; `--mcp --headless` ist die MCP-Form. Beide starten es, falls es nicht läuft. Darin wird die KI nicht gefragt, bevor sie andere Tabs nutzt, neue Adressen öffnet oder nach dem Lesen anderer Seiten handelt: Diese Rückfragen, die vor in Seiten versteckten Anweisungen schützen, sind aus. Darum ist es eine eigene Kopie mit leerem Profil, und darum lehnt es ab, was sich nicht rückgängig machen lässt: Was nach Bezahlen, Bestellen, Senden, Posten, Löschen oder Zugriff-Gewähren aussieht, und alles in einem Bereich, den eine Seite nur Cookie-Banner nennt, bekommt den Fehler „braucht einen Menschen“, denn niemand schaut zu, und eine Seite, bei der du dich darin anmeldest, stünde der KI offen. Alles andere ist erlaubt. Website-Berechtigungen (Kamera, Standort …) werden verweigert. Die Kopie entsteht aus der App, die den Befehl ausführt, und wird neu gemacht, wenn diese eine andere Version ist (`changmun headless status` sagt es dir); sie aktualisiert sich nie selbst. Die Agenten-Kopie behält keine Anmeldungen: ihr Schalter ist aus, und sie legt keinen Schlüssel in deinem Schlüsselbund ab.
-
-## Tastenkurzbefehle
-
-Wähle in den Einstellungen (⌘,) „Wie in Safari“ oder „Wie in Chrome“. Es ändern sich nur die Tasten, bei denen sich die beiden Browser unterscheiden.
-
-| Tasten | Aktion |
-| --- | --- |
-| ⌘T / ⌘L | Befehlsleiste / aktuelle Adresse bearbeiten |
-| ⌘E / ⌘⇧E | KI-Seitenleiste / neuer KI-Chat |
+| Tasten | Was sie tun |
+| :-- | :-- |
+| ⌘T | Neuer Tab |
+| ⌘L | Adresse bearbeiten |
+| ⌘E | KI-Seitenleiste |
 | ⌘D | Favorit hinzufügen oder entfernen |
-| ⇧⌘D | Seite zur Leseliste hinzufügen |
-| ⌘N / ⌘⇧N / ⌘⇧W | Neues Fenster / neues privates Fenster / Fenster schließen |
-| ⌘W, ⌘1–9, ⌘⇧[ ⌘⇧] | Tab schließen, zu einem Tab in der Reihenfolge der Seitenleiste wechseln |
-| ⌃Tab / ⌃⇧Tab | Tabs in der Reihenfolge wechseln, in der du sie zuletzt gesehen hast (⌃ halten, Tab drücken, loslassen; esc bricht ab) |
-| ⌃1–9 | Zu einem Space wechseln (9 ist der letzte); weicht dem macOS-Kurzbefehl „Zu Schreibtisch N wechseln“, falls aktiviert |
-| ⌃⌥← / ⌃⌥→ | Vorheriger / nächster Space |
-| ⌃⌘N | Neuer Space |
-| ⌥⌘\\ | Split View ein- oder ausschalten |
-| ⇧-Klick | Link-Vorschau: esc schließt, ⌘↩ öffnet sie als Tab |
-| ⌘⇧T | Geschlossenen Tab erneut öffnen (oder das geschlossene Fenster, wenn kein Tab mehr übrig ist) |
-| ⌃⌘M | Tab stummschalten oder Stummschaltung aufheben |
-| ⌃⌘P | Bild-in-Bild ein- oder ausschalten |
-| ⌃⌘← / ⌃⌘→ | Video 5 Sekunden zurück oder vor |
-| ⌥⌘T | Seite übersetzen / Original anzeigen |
-| ⌘F, ⌘G, ⌘⇧G | Auf Seite suchen, weitersuchen, vorheriges suchen |
-| ⌘Y | Verlauf |
-| ⌘O, ⌘P, ⌘⇧C | Datei öffnen, drucken, Adresse kopieren |
-| F12 oder ⌥⌘I | Web-Inspektor |
-| ⌘⇧F | Fokusmodus |
+| ⌃1–9 | Zu einem Space wechseln |
+| ⌥⌘\\ | Split View |
+| ⇧-Klick auf einen Link | Vorschau, ohne die Seite zu verlassen |
+| ⌘⇧T | Geschlossenen Tab erneut öffnen |
 
-| Aktion | Wie in Safari | Wie in Chrome |
-| --- | --- | --- |
-| Seitenleiste | ⌘⇧L | ⌘S |
-| Vollständig neu laden | ⌥⌘R | ⌘⇧R |
-| Lesemodus | ⇧⌘R | ⌥⌘R |
-| Konsole | ⌥⌘C | ⌥⌘J |
-| Downloads | ⌥⌘L | ⌘⇧J |
-| Vorheriger Tab / Nächster Tab | | ⌥⌘← ⌥⌘→ |
-
-## Werbeblocker
-
-Changmun macht aus EasyList (Werbung) und EasyPrivacy (Tracker) Inhaltsblockierregeln für WebKit und aktualisiert sie alle 4 Tage. Unter Einstellungen › Datenschutz kannst du Listen ausschalten oder weitere per Adresse hinzufügen (eine koreanische Werbeliste ist nur einen Klick entfernt). Wenn eine Website nicht richtig funktioniert, schaltet die Schild-Taste in der Adressleiste das Blockieren für diese Website aus. Regeln, die WebKit nicht ausdrücken kann (reguläre Ausdrücke, `$redirect`, Scriptlets, `:has-text` und andere erweiterte Selektoren), werden übersprungen, statt sie zu raten: Eine übersehene Anzeige ist besser als eine kaputte Seite.
-
-## Erweiterungen
-
-Verwaltung unter Einstellungen › Erweiterungen (Web-Erweiterungen brauchen macOS 15.4 oder neuer).
-
-In den Tabs eines Profil-Spaces laufen Erweiterungen, aber ihre Cookie-APIs sehen nur den Standard-Datenspeicher, nicht den des Profils.
-
-- **Safari-Erweiterungen aus dem App Store** erscheinen nach der Installation und fragen beim Einschalten nach ihren Berechtigungen.
-- **Erweiterungen aus dem Chrome Web Store**: Öffne die Store-Seite einer Erweiterung, dann erscheint oberhalb davon „Zu Changmun hinzufügen“ (oder füge ihre Adresse oder ID in den Einstellungen ein). Changmun entpackt sie nach `~/Library/Application Support/Changmun/Extensions` und lädt sie als WebKit-Erweiterung; erneutes Hinzufügen aktualisiert sie.
-- **Safari-Inhaltsblocker** (Unicorn, AdGuard und andere): macOS lässt nur Safari einen Blocker nach seinen Regeln fragen, daher liest Changmun die Regeldatei, die der Blocker gesichert hat. macOS fragt einmal, ob Changmun die Daten einer anderen App lesen darf.
-- Ein entpackter Erweiterungsordner (mit `manifest.json`) lässt sich ebenfalls laden. Einige Funktionen, etwa die Kommunikation mit einer nativen App, funktionieren möglicherweise nicht.
-
-## Import aus anderen Browsern
-
-Beim ersten Start oder über das Menü importiert Changmun Lesezeichen und Verlauf aus Safari und aus Chromium-Browsern: Chrome, Arc (mit seiner Seitenleiste), Dia, Aside, Whale, Brave, Edge, Vivaldi. Aus Chromium-Browsern übernimmt es auch Passwörter und Cookies, damit du angemeldet bleibst.
-
-- Passwörter und Cookies werden mit dem Schlüsselbund-Eintrag des jeweiligen Browsers (`<Name> Safe Storage`) entschlüsselt, daher fragt macOS nach deiner Erlaubnis. Importierte Passwörter landen mit der Bezeichnung `Changmun` in deinem Anmelde-Schlüsselbund.
-- Zum Lesen von Safari ist der Festplattenvollzugriff nötig. Die Passwörter von Safari gibt macOS nicht an andere Apps weiter.
+Tasten wie in Safari oder wie in Chrome? Wähle in den Einstellungen (⌘,). [Alle Tastenkurzbefehle](GUIDE.de.md#tastenkurzbefehle).
 
 ## Datenschutz
 
-- Dein Surfverhalten bleibt auf deinem Mac. Changmun hat kein Konto, keinen Server und keine Analyse.
-- Die Update-Prüfung lädt eine kleine Liste der Versionen (`appcast.xml`) von GitHub Pages. GitHub sieht die Anfrage wie jeder Webserver, mit Name und Version von Changmun; das Systemprofil von Sparkle, das Angaben zu deinem Mac hinzufügen würde, ist aus und bleibt aus (die Prüfung selbst lässt sich unter Einstellungen › Erweitert abschalten).
-- Suchvorschläge senden, was du in die Befehlsleiste eingibst, an deine Suchmaschine (in den Einstellungen ausschaltbar; aus privaten Fenstern wird nie etwas gesendet).
-- „Nach dem Beenden angemeldet bleiben“ (Einstellungen › Datenschutz, standardmäßig an) behält bis zu 30 Tage die Anmelde-Cookies, die Websites beim Schließen des Browsers verfallen lassen wollten (nur Sitzungs-Cookies; die übrigen bewahrt WebKit selbst auf). Sie liegen in einer Datei auf diesem Mac, verschlüsselt mit einem Schlüssel aus deinem Anmeldeschlüsselbund, den ohne Rückfrage nur die Codesignatur von Changmun lesen kann, bis du die Option ausschaltest oder die Websitedaten löschst; private Fenster schreiben nie etwas. Die Agenten-Kopie weiter oben behält keine Anmeldungen.
-- Die KI-Seitenleiste sendet deine Nachrichten, angehängte Bilder und die Seiteninhalte, die die KI liest, über das `claude`-CLI an Anthropic. „Tabs aufräumen“ und die Seitenübersetzung laufen auf deinem Mac.
+Was du im Web tust, bleibt auf deinem Mac. Die App stellt von sich aus nur wenige Anfragen, etwa die Update-Prüfung und das Aktualisieren der Werbefilterlisten. Suchvorschläge senden, was du tippst, an deine Suchmaschine; du kannst sie ausschalten, und private Fenster senden sie nie. [Alles, was gesendet wird, und wann](GUIDE.de.md#datenschutz).
 
-## Passwörter und Sicherheit
+## Mehr erfahren
 
-Browsern, die Passwörter synchronisieren, wird eine berechtigte Frage gestellt: Liegt eine verschlüsselte Kopie meiner Passwörter auf eurem Server, und könntet ihr sie entschlüsseln, euch als mich anmelden oder sie verkaufen, wenn die Firma pleitegeht? Bei Changmun sind die Antworten kurz, und jede wurde am Code überprüft.
+Das [Handbuch](GUIDE.de.md) erklärt alles im Detail:
 
-- **Wo sie liegen.** Im Anmelde-Schlüsselbund deines Mac, als Internetpasswörter mit der Bezeichnung `Changmun` (such in der Schlüsselbundverwaltung danach). Changmun markiert sie nicht als synchronisierbar, deshalb trägt auch der iCloud-Schlüsselbund sie nirgendwohin. Löschst du eines unter Einstellungen › Datenschutz › Gesicherte Passwörter › Verwalten …, ist es auch aus dem Schlüsselbund weg.
-- **Nirgends sonst eine Kopie.** Changmun hat kein Konto und keinen Server, also gibt es keine verschlüsselte Kopie, die man entschlüsseln, verkaufen, leaken oder erben könnte. Außer den Anfragen unter Datenschutz holt die App von sich aus nur die Werbefilterlisten, eine von dir gewünschte Erweiterung aus dem Chrome Web Store und das Symbol jeder Website direkt von dieser Website. Keine davon enthält ein Passwort.
-- **Wer sie entschlüsseln kann.** Nur dieser Mac, nachdem du ihn entsperrt hast. Touch ID oder dein Mac-Passwort wird verlangt, bevor Changmun ein Passwort kopiert, bevor es eines in eine Seite einsetzt (Einstellungen › Datenschutz › Touch ID zum Ausfüllen von Passwörtern verlangen, standardmäßig an; nach der Bestätigung fragt das Einsetzen in der nächsten Minute nicht erneut) und bevor die KI sich für dich anmeldet. Bei Abbruch wird nichts eingesetzt.
-- **Die KI bekommt sie nie.** Bei `sign_in` füllt Changmun das Formular selbst aus und sagt der KI nur, dass es das getan hat, ohne Passwort und Kontonamen. Die KI kann Passwortfelder weder lesen noch darin tippen oder Tasten drücken, und Screenshots verdecken sie. Liest sie danach die angemeldete Seite, ist deren Text Seiteninhalt wie jeder andere.
-- **Was an Anthropic geht.** Deine Nachrichten, angehängte Bilder und die Seiten, die die KI liest, über dein eigenes `claude`-CLI, und sonst nichts. Changmun besitzt keinen Anthropic-Schlüssel und stellt selbst keine Anfragen an Anthropic.
-- **Chatverlauf.** Beendete Chats liegen nur in einer Datei auf diesem Mac (abschaltbar unter Einstellungen › KI), ohne getippten Text und ohne den Teil einer Adresse ab ? oder #, und aus privaten Fenstern nie.
-- **Importierte Passwörter.** Werden auf deinem Mac mit dem `Safe Storage`-Schlüsselbundschlüssel des jeweiligen Browsers entschlüsselt (macOS fragt vorher) und in deinem Anmelde-Schlüsselbund gesichert. Unterwegs wird nichts hochgeladen.
-- **Wenn das Projekt stehen bleibt.** Es gibt nichts zu verkaufen und nichts abzuschalten: kein Server, kein Konto, keine Datenbank von irgendjemandem. Deine Passwörter bleiben in deinem Schlüsselbund, und die App läuft, solange macOS läuft. Sie ist Open Source unter MIT, also kann das jeder überprüfen, am besten ab `Sources/Changmun/Tabs/Logins.swift`.
-
-## Für Entwickler
-
-```sh
-scripts/test.sh            # unit tests (Swift Testing)
-scripts/check-strings.sh   # every string the code uses is translated in every language
-swift scripts/make-icon.swift
-scripts/release.sh 0.2.0 notes.md   # checks, DMG, GitHub release, Homebrew tap
-```
-
-Releases werden für Sparkle mit einem EdDSA-Schlüssel signiert. Trage den Pfad der privaten Schlüsseldatei in `~/.config/changmun/sparkle.env` als `SPARKLE_KEY_FILE=...` ein; `release.sh` läuft ohne sie oder mit einem Schlüssel, der nicht zum `SUPublicEDKey` in `Resources/Info.plist` passt, nicht. Bewahre eine Sicherung dieser Datei offline auf. Geht sie verloren, lassen sich installierte Kopien nie wieder aktualisieren; gelangt sie in fremde Hände, kann jeder ein Update signieren, das sie annehmen.
-
-Der Text der Oberfläche steht im Code auf Englisch und wird in `Resources/<Sprache>.lproj/Localizable.strings` übersetzt; trage jeden neuen String in alle sechs Tabellen ein.
-
-`scripts/headless.sh` startet die Testkopie `Changmun Headless.app` (sie teilt nie ein Profil mit dem `changmun headless` aus dem KI-Abschnitt, das für Agenten da ist), ein Changmun ohne Oberfläche für Tests und Agenten: außerhalb des Bildschirms, ohne je den Fokus zu nehmen oder Ton abzuspielen, mit eigenem Profil in `~/Library/Application Support/Changmun Headless`. Es berührt den Schlüsselbund nicht und beantwortet KI-Rückfragen, Website-Berechtigungen und JavaScript-Dialoge selbst (Berechtigungen werden abgelehnt).
-
-```sh
-scripts/headless.sh start                                   # copy build/Changmun.app as the headless app and start it
-scripts/headless.sh call open_tab '{"url": "example.com"}'  # the AI's tools: list_tabs, navigate, read_page, click…
-scripts/headless.sh shot window.png                         # the whole window, sidebar included
-scripts/headless.sh stop
-```
+- [Funktionen](GUIDE.de.md#was-er-kann): Tabs, Spaces, Lesemodus, private Fenster, Downloads
+- [KI](GUIDE.de.md#ki): Modelle, Freigaben, Werkzeuge, MCP und die Befehlszeile
+- [Werbeblocker](GUIDE.de.md#werbeblocker), [Erweiterungen](GUIDE.de.md#erweiterungen) und [Import aus anderen Browsern](GUIDE.de.md#import-aus-anderen-browsern)
+- [Passwörter und Sicherheit](GUIDE.de.md#passwörter-und-sicherheit)
+- [Für Entwickler](GUIDE.de.md#für-entwickler) und [aus dem Quellcode bauen](GUIDE.de.md#aus-dem-quellcode-bauen)
 
 ## Lizenz
 
-[MIT](LICENSE)
+MIT. Siehe [LICENSE](LICENSE).
