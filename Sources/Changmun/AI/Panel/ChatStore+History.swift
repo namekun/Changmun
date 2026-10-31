@@ -48,6 +48,8 @@ extension ChatStore {
         switch tool {
         case "read_page": "doc.text"
         case "read_tabs": "doc.on.doc"
+        case "read_structured": "curlybraces"
+        case "read_markdown": "doc.richtext"
         case "list_tabs", "switch_tab": "square.on.square"
         case "open_tab", "navigate": "arrow.up.right"
         case "close_tab": "xmark"
@@ -74,6 +76,8 @@ extension ChatStore {
         switch tool {
         case "read_page": return String(localized: "Read page")
         case "read_tabs": return String(localized: "Read tabs")
+        case "read_structured": return String(localized: "Read page data")
+        case "read_markdown": return String(localized: "Read page as Markdown")
         case "list_tabs": return String(localized: "Check tab list")
         case "open_tab": return String(localized: "Open new tab · \(input["url"] as? String ?? "")")
         case "navigate": return String(localized: "Go to · \(input["url"] as? String ?? "")")

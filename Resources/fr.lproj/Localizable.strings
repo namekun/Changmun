@@ -428,6 +428,8 @@
 "Reader Mode" = "Mode lecture";
 "Reader Mode (%@)" = "Mode lecture (%@)";
 "Read tabs" = "Lire les onglets";
+"Read page data" = "Lire les données de la page";
+"Read page as Markdown" = "Lire la page en Markdown";
 "Reading %@" = "Lecture de %@";
 "Reading rules…" = "Lecture des règles…";
 "Reading the page" = "Lecture de la page";

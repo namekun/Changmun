@@ -33,6 +33,8 @@ final class TinyServer: @unchecked Sendable {
     private let lock = NSLock()
     private var seen: [String] = []
     private(set) var port: UInt16 = 0
+    /// The status line and content type of the answer for a path, for the tests of what depends on them (set before the first request).
+    nonisolated(unsafe) var replyHead: @Sendable (String) -> (status: String, type: String) = { _ in ("200 OK", "text/html; charset=utf-8") }
 
     init(_ respond: @escaping @Sendable (String, String) -> String) async throws {
         self.respond = respond
@@ -47,7 +49,8 @@ final class TinyServer: @unchecked Sendable {
                 let method = parts.first ?? "", path = parts.count > 1 ? String(parts[1].split(separator: "?").first ?? "") : ""
                 lock.lock(); seen.append(method); lock.unlock()
                 let body = self.respond(method, path)
-                let reply = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \(body.utf8.count)\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n" + body
+                let status = self.replyHead(path)
+                let reply = "HTTP/1.1 \(status.status)\r\nContent-Type: \(status.type)\r\nContent-Length: \(body.utf8.count)\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n" + body
                 connection.send(content: Data(reply.utf8), completion: .contentProcessed { _ in connection.cancel() })
             }
         }

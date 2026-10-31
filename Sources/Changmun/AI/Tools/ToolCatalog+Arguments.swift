@@ -45,6 +45,8 @@ extension ToolCatalog {
             if args["gone"] != nil && args["gone"] as? Bool == nil { return "gone must be true or false." }
             if args["gone"] as? Bool == true && args["text"] == nil { return "gone needs the text to wait for to disappear." }
             if args["timeout"] != nil && number(args["timeout"]).map({ $0 > 0 }) != true { return "timeout must be a number of seconds." }
+        case "read_markdown":
+            if args["max_chars"] != nil && int(args["max_chars"]) == nil { return "max_chars must be a number." }
         case "sign_in":
             if args["element_id"] != nil && !hasElement("element_id") { return "element_id must be a number." }
         case "screenshot":

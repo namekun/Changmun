@@ -7,7 +7,8 @@
 #   Sec-Fetch-Site: cross-site, rel=noreferrer and target=_blank working); the setting and a site's switch turn it off;
 #   an http address of a loopback host stays http; a host standing in for a public one (the test copy's override) is tried over https first,
 #   falls back to http when nothing answers there (and is not tried again), and when the secure server's certificate can't be verified shows
-#   the certificate warning and NEVER loads the page over http; a secure address that redirects to http is the site's own redirect and loads.
+#   the certificate warning and NEVER loads the page over http; a secure address that redirects to http is the site's own redirect and loads;
+#   the AI's read_markdown hands over a page's links without tracking parameters, and read_structured its meta data.
 # Nothing outside a temporary folder and the headless app is touched. Starts the headless app if it isn't running (and stops it again then).
 #
 #   scripts/test-privacy-navigation.sh
@@ -107,6 +108,18 @@ expect "a link opened in a new tab is cleaned" "$(jget "$R" webViewURL)" "$L/ech
 scripts/headless.sh call navigate "{\"url\": \"$L/echo?ttclid=1&ai=1\"}" >/dev/null
 sleep 1.5
 expect "an address the AI opens is cleaned" "$(jget "$(state)" webViewURL)" "$L/echo?ai=1"
+
+# The AI's reading tools hand the page's links over without tracking parameters (the app's own list), and its facts as JSON.
+HTML="<title>Reads</title><head><meta name='description' content='E2E description'><script type='application/ld+json'>{\"@type\":\"Product\",\"name\":\"E2E teapot\"}</script></head><body><main><h1>Heading</h1><p>See <a href='/docs?utm_source=a&amp;keep=1&amp;fbclid=z#top'>the docs</a> and this table.</p><table><tr><th>K</th><th>V</th></tr><tr><td>a</td><td>1</td></tr></table></main></body>"
+post /load-html "$(python3 -I -c 'import json, sys; print(json.dumps({"html": sys.argv[1], "base": "https://lab.test/"}))' "$HTML")" >/dev/null
+sleep 1.5
+answer() { scripts/headless.sh call "$1" '{}' | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["content"][0]["text"])'; }
+MD="$(answer read_markdown)"
+expect "read_markdown gives a link without its tracking parameters, with the rest and the fragment" "$(grep -c -F '[the docs](https://lab.test/docs?keep=1#top)' <<<"$MD")" 1
+expect "read_markdown leaves no tracking parameter in the answer" "$(grep -c -E 'utm_source|fbclid' <<<"$MD")" 0
+expect "read_markdown gives a table as a pipe table and a heading as a heading" "$(grep -c -E '^(# Heading|\| K \| V \|)$' <<<"$MD")" 2
+SD="$(answer read_structured)"
+expect "read_structured gives the page's meta data and JSON-LD as JSON" "$(grep -c -F -e '"description":"E2E description"' -e 'E2E teapot' <<<"$SD")" 1
 
 # What the page does itself is the page's: a redirect and a script's navigation are loaded as they are.
 R="$(open_tab "$L/redir?to=$(python3 -I -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$L/echo?msclkid=9&k=2")" 3500)"

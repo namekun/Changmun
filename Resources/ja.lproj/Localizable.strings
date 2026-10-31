@@ -428,6 +428,8 @@
 "Reader Mode" = "リーダーモード";
 "Reader Mode (%@)" = "リーダーモード (%@)";
 "Read tabs" = "タブを読み取る";
+"Read page data" = "ページのデータを読み取る";
+"Read page as Markdown" = "ページをMarkdownで読み取る";
 "Reading %@" = "%@を読み取り中";
 "Reading rules…" = "ルールを読み込み中…";
 "Reading the page" = "ページを読み取り中";

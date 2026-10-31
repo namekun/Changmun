@@ -15,6 +15,8 @@ enum CLI {
       changmun back | forward | reload [--tab N]
       changmun read [--tab N] [--max N]      the page's text and its numbered elements
       changmun read-tabs <tab>… [--max N]    several tabs' text in one call
+      changmun markdown [--tab N] [--max N]  the page's content as Markdown (tables, lists and code kept)
+      changmun structured [--tab N]          the page's JSON-LD, OpenGraph and meta data, as JSON
       changmun click <element> [--tab N]     click an element numbered by `read`
       changmun click-at <x> <y> [--tab N]    click a point of the visible page (CSS pixels, as in `screenshot`)
       changmun type <element> <text> [--submit] [--tab N]
@@ -130,8 +132,8 @@ enum CLI {
 
     /// The commands each flag is for.
     private static let appliesTo: [String: Set<String>] = {
-        let onATab: Set<String> = ["show", "close", "go", "back", "forward", "reload", "read", "click", "click-at", "type", "press", "select", "hover", "drag", "wait", "scroll", "screenshot", "call"]
-        var table: [String: Set<String>] = ["--tab": onATab, "--max": ["read", "read-tabs"], "-o": ["screenshot", "call"], "--output": ["screenshot", "call"],
+        let onATab: Set<String> = ["show", "close", "go", "back", "forward", "reload", "read", "markdown", "structured", "click", "click-at", "type", "press", "select", "hover", "drag", "wait", "scroll", "screenshot", "call"]
+        var table: [String: Set<String>] = ["--tab": onATab, "--max": ["read", "read-tabs", "markdown"], "-o": ["screenshot", "call"], "--output": ["screenshot", "call"],
                                             "--submit": ["type"], "--labels": ["screenshot"], "--gone": ["wait"], "--timeout": ["wait"], "--element": ["press"]]
         for modifier in AgentKey.modifierNames { table["--" + modifier] = ["press"] }
         return table
@@ -145,6 +147,7 @@ enum CLI {
             "tabs": (0, "it lists every tab"), "tools": (0, "it lists every tool"),
             "back": (0, tab), "forward": (0, tab), "reload": (0, tab),
             "read": (0, "\(tab); --max N limits the text"),
+            "markdown": (0, "\(tab); --max N limits the text"), "structured": (0, tab),
             "screenshot": (0, "\(tab); -o file.jpg names the file"),
             "show": (1, "it takes one tab number"), "close": (1, "it takes one tab number"),
             "click": (1, "it takes one element number from `changmun read`; to click a point use `changmun click-at <x> <y>`"),
@@ -258,6 +261,10 @@ enum CLI {
         case "read":
             if let max { args["max_chars"] = max }
             return .call("read_page", args, output: nil)
+        case "markdown":
+            if let max { args["max_chars"] = max }
+            return .call("read_markdown", args, output: nil)
+        case "structured": return .call("read_structured", args, output: nil)
         case "read-tabs":
             if operands.isEmpty { throw UsageError(message: "read-tabs needs tab numbers") }
             args["tab_ids"] = try operands.indices.map { try number($0, "tab numbers") }
