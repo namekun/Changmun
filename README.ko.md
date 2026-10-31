@@ -63,6 +63,29 @@ brew install --cask namekun/tap/changmun
 
 메시지, 첨부한 이미지, AI가 읽은 페이지는 `claude` CLI를 거쳐 Anthropic으로 전달돼요. 다른 도구도 MCP나 `changmun` 명령으로 Changmun을 조작할 수 있어요.
 
+## 헤드리스 모드
+
+AI 에이전트와 스크립트를 위한, 창이 없는 두 번째 Changmun이에요. 화면에 나타나지 않고, 포커스를 가져가지 않고, 소리도 내지 않아요.
+
+```sh
+changmun headless start
+changmun --headless open example.com
+changmun --headless read
+changmun headless stop
+```
+
+Claude Code에 연결하려면:
+
+```sh
+claude mcp add changmun-headless -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp --headless
+```
+
+- **내 브라우저와 분리돼요.** 빈 프로필을 따로 쓰기 때문에 쿠키, 방문 기록, 비밀번호, 키체인이 들어 있지 않아요.
+- **묻지 않아요.** 평소의 승인 질문이 꺼져 있어서 에이전트가 멈추지 않고 일할 수 있어요.
+- **되돌릴 수 없는 일은 멈춰요.** 결제, 주문, 전송, 게시, 삭제, 접근 허용처럼 보이는 동작은 "사람이 필요하다"는 오류가 나요.
+
+[헤드리스 모드 자세히 보기](GUIDE.ko.md#에이전트용-화면-없는-changmun)
+
 ## 다른 브라우저와 비교
 
 Changmun이 모든 면에서 모든 브라우저를 이기려는 건 아니에요. 어디가 다르고, 어떤 경우에 다른 브라우저가 더 나은지 정리했어요.

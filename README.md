@@ -63,6 +63,29 @@ It runs on the `claude` CLI you already have, so it uses your own Claude Code su
 
 Your messages, the images you attach and the pages it reads go to Anthropic through the `claude` CLI. Other tools can drive Changmun too, over MCP or the `changmun` command.
 
+## Headless mode
+
+A second Changmun with no window, for AI agents and scripts. It stays invisible, takes no focus and makes no sound.
+
+```sh
+changmun headless start
+changmun --headless open example.com
+changmun --headless read
+changmun headless stop
+```
+
+To give it to Claude Code:
+
+```sh
+claude mcp add changmun-headless -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp --headless
+```
+
+- **Kept apart from you.** It has its own empty profile, so none of your cookies, history, passwords or Keychain are in it.
+- **No questions.** The usual approvals are off, so an agent can work without stopping to ask.
+- **It stops at what can't be undone.** Anything that looks like paying, ordering, sending, posting, deleting or granting access gets a "needs a person" error.
+
+[More on headless mode](GUIDE.md#headless-for-agents)
+
 ## How it compares
 
 Changmun doesn't try to beat every browser at everything. Here is where it differs, and when you are better off elsewhere.

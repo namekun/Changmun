@@ -63,6 +63,29 @@ brew install --cask namekun/tap/changmun
 
 你的消息、附上的图片和它读取的页面，会通过 `claude` CLI 发送给 Anthropic。其他工具也可以通过 MCP 或 `changmun` 命令来操控 Changmun。
 
+## 无界面模式
+
+这是给 AI 智能体和脚本用的第二个 Changmun，没有窗口。它不显示、不抢焦点，也不发出声音。
+
+```sh
+changmun headless start
+changmun --headless open example.com
+changmun --headless read
+changmun headless stop
+```
+
+接入 Claude Code：
+
+```sh
+claude mcp add changmun-headless -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp --headless
+```
+
+- **与你的浏览器分开。** 它用自己的空配置，里面没有你的 Cookie、历史记录、密码和钥匙串。
+- **不会询问。** 平时的批准询问是关闭的，智能体可以不停顿地工作。
+- **无法撤销的事会停下。** 看起来像付款、下单、发送、发布、删除或授予访问权限的操作，都会返回“需要人来做”的错误。
+
+[了解无界面模式](GUIDE.zh-Hans.md#给智能体用的无界面-changmun)
+
 ## 与其他浏览器对比
 
 Changmun 并不想在所有方面胜过所有浏览器。下面列出它的不同之处，以及什么时候用别的浏览器更合适。

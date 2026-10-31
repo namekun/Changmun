@@ -63,6 +63,29 @@ brew install --cask namekun/tap/changmun
 
 メッセージ、添付した画像、AIが読んだページは、`claude` CLIを通じてAnthropicに送られます。ほかのツールも、MCPや`changmun`コマンドでChangmunを操作できます。
 
+## ヘッドレスモード
+
+AIエージェントやスクリプトのための、ウインドウのないもう一つのChangmunです。画面に現れず、フォーカスを奪わず、音も出しません。
+
+```sh
+changmun headless start
+changmun --headless open example.com
+changmun --headless read
+changmun headless stop
+```
+
+Claude Codeにつなぐには:
+
+```sh
+claude mcp add changmun-headless -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp --headless
+```
+
+- **あなたのブラウザとは別物です。** 空のプロファイルを別に使うので、Cookie、履歴、パスワード、キーチェーンは入っていません。
+- **確認しません。** 普段の承認の質問がオフなので、エージェントは止まらずに作業できます。
+- **取り消せないことは止めます。** 支払い、注文、送信、投稿、削除、アクセス許可に見える操作は「人が必要」というエラーになります。
+
+[ヘッドレスモードの詳細](GUIDE.ja.md#エージェント向けのヘッドレスchangmun)
+
 ## ほかのブラウザとの比較
 
 Changmunは、すべての点ですべてのブラウザに勝とうとはしていません。ここでは、違いと、ほかのブラウザのほうが向いている場面をまとめます。

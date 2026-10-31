@@ -63,6 +63,29 @@ Elle s’appuie sur la CLI `claude` que vous avez déjà, donc sur votre propre 
 
 Vos messages, les images que vous joignez et les pages qu’elle lit sont envoyés à Anthropic via la CLI `claude`. D’autres outils peuvent aussi piloter Changmun, via MCP ou la commande `changmun`.
 
+## Mode sans interface
+
+Un second Changmun sans fenêtre, pour les agents IA et les scripts. Il reste invisible, ne prend pas le focus et ne fait aucun bruit.
+
+```sh
+changmun headless start
+changmun --headless open example.com
+changmun --headless read
+changmun headless stop
+```
+
+Pour le confier à Claude Code :
+
+```sh
+claude mcp add changmun-headless -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp --headless
+```
+
+- **Séparé de vous.** Il a son propre profil vide : vos cookies, votre historique, vos mots de passe et votre trousseau n’y sont pas.
+- **Pas de questions.** Les approbations habituelles sont coupées, pour qu’un agent travaille sans s’arrêter.
+- **Il s’arrête devant ce qu’on ne peut pas annuler.** Ce qui ressemble à payer, commander, envoyer, publier, supprimer ou accorder un accès renvoie une erreur « il faut une personne ».
+
+[En savoir plus sur le mode sans interface](GUIDE.fr.md#changmun-sans-interface-pour-les-agents)
+
 ## Comparaison avec les autres navigateurs
 
 Changmun ne cherche pas à battre tous les navigateurs sur tous les points. Voici en quoi il diffère, et quand vous serez mieux servi ailleurs.

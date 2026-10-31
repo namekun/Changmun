@@ -63,6 +63,29 @@ Sie läuft über das `claude`-CLI, das du schon hast, und nutzt damit dein eigen
 
 Deine Nachrichten, angehängte Bilder und die Seiten, die sie liest, gehen über das `claude`-CLI an Anthropic. Auch andere Tools können Changmun steuern, per MCP oder mit dem Befehl `changmun`.
 
+## Modus ohne Oberfläche
+
+Ein zweites Changmun ohne Fenster, für KI-Agenten und Skripte. Es bleibt unsichtbar, nimmt keinen Fokus und macht keine Geräusche.
+
+```sh
+changmun headless start
+changmun --headless open example.com
+changmun --headless read
+changmun headless stop
+```
+
+So bekommt Claude Code Zugriff:
+
+```sh
+claude mcp add changmun-headless -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp --headless
+```
+
+- **Von dir getrennt.** Es hat ein eigenes, leeres Profil: Deine Cookies, dein Verlauf, deine Passwörter und dein Schlüsselbund sind nicht darin.
+- **Keine Rückfragen.** Die üblichen Freigaben sind aus, damit ein Agent ohne Unterbrechung arbeiten kann.
+- **Es stoppt bei allem, was sich nicht rückgängig machen lässt.** Was nach Bezahlen, Bestellen, Senden, Posten, Löschen oder Zugriff erteilen aussieht, endet mit dem Fehler „braucht einen Menschen“.
+
+[Mehr zum Modus ohne Oberfläche](GUIDE.de.md#changmun-ohne-oberfläche-für-agenten)
+
 ## Im Vergleich zu anderen Browsern
 
 Changmun will nicht jeden Browser in jeder Hinsicht schlagen. Hier steht, wo er sich unterscheidet und wann du woanders besser aufgehoben bist.
