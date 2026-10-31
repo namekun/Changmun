@@ -262,6 +262,36 @@ check "the guard reads a folder" refuses grid "$WORK/guard"
 grid >"$WORK/grid.txt" 2>&1
 check "the spacing in Sources/Changmun is on the grid" test $? -eq 0
 [[ -s "$WORK/grid.txt" ]] && cat "$WORK/grid.txt" >&2
+echo "design guard"
+# Type comes from the Font tokens, corners are 4, 8, 12 or 16, shadows are e1, e2 or e3; scripts/check-design.py reads .system(size:, cornerRadius:, radius: and .shadow(.
+design() { python3 -I -B scripts/check-design.py "$@"; }
+mkdir -p "$WORK/design/folder" "$WORK/design/DesignSystem"
+printf 'Text("a").font(.system(size: 13, weight: .semibold))\n' >"$WORK/design/design-font.swift"
+printf 'Image(systemName: "xmark").font(.system(size: 8, weight: .bold))\n' >"$WORK/design/design-glyph.swift"
+printf 'RoundedRectangle(cornerRadius: 10, style: .continuous)\n' >"$WORK/design/design-corner.swift"
+printf 'RoundedRectangle(cornerRadius: 2.5)\n' >"$WORK/design/design-fraction.swift"
+printf '.startPlate(radius: 14, fill: Theme.field)\n' >"$WORK/design/design-plate.swift"
+printf 'content.shadow(color: .black, radius: 3)\n' >"$WORK/design/design-shadow.swift"
+printf 'Text("a").font(.system(size: 8)) // design-exempt: a badge inside an icon\nRoundedRectangle(cornerRadius: 7) // design-exempt: a scaled-down tile\n' >"$WORK/design/design-marked.swift"
+printf '// .system(size: 13)\n/// cornerRadius: 10\n.font(.body)\n.font(.symbolInline)\nRoundedRectangle(cornerRadius: 4)\nRoundedRectangle(cornerRadius: 8, style: .continuous)\nRoundedRectangle(cornerRadius: Metrics.cardRadius)\nRoundedRectangle(cornerRadius: size * 0.24)\n.floatingPanel(radius: 16)\n.startPlate(radius: Metrics.cardRadius)\n.e2()\n.blur(radius: 24)\nstyle="border-radius: 6px"\nhost.attachShadow(mode)\n' >"$WORK/design/design-fine.swift"
+printf 'func e2() -> some View { shadow(color: .clear, radius: 12, y: 4) }\n.font(.system(size: 28, weight: .semibold))\n' >"$WORK/design/DesignSystem/Theme.swift"
+printf 'func e2() -> some View { shadow(color: .clear, radius: 12, y: 4) }\n' >"$WORK/design/DesignSystem/Controls.swift"
+printf 'Text("a").font(.system(size: 9)).padding(.top, 70)\nRoundedRectangle(cornerRadius: 11)\n' >"$WORK/design/folder/StartPageMiniature.swift"
+check "the design guard fails a font size literal" refuses design "$WORK/design/design-font.swift"
+check "the design guard fails a symbol size literal" refuses design "$WORK/design/design-glyph.swift"
+check "the design guard fails a corner radius of 10" refuses design "$WORK/design/design-corner.swift"
+check "the design guard fails a fractional corner radius" refuses design "$WORK/design/design-fraction.swift"
+check "the design guard fails a plate's radius of 14" refuses design "$WORK/design/design-plate.swift"
+check "the design guard fails a shadow outside the design system" refuses design "$WORK/design/design-shadow.swift"
+check "the design guard names the file, the line and the value" bash -c 'python3 -I -B scripts/check-design.py "$1" 2>&1 | grep -q "design-corner.swift:1: a corner radius of 10"' _ "$WORK/design/design-corner.swift"
+check "the design guard lets a line marked design-exempt be" design "$WORK/design/design-marked.swift"
+check "the design guard lets tokens, 4, 8, 12, 16, shares of a plate, comments and web text be" design "$WORK/design/design-fine.swift"
+check "the design guard lets the design system define the tokens and the shadows" design "$WORK/design/DesignSystem"
+check "the design guard leaves the miniature of the page alone" design "$WORK/design/folder"
+check "the design guard reads a folder" refuses design "$WORK/design"
+design >"$WORK/design.txt" 2>&1
+check "the type, corners and shadows in Sources/Changmun come from the tokens" test $? -eq 0
+[[ -s "$WORK/design.txt" ]] && cat "$WORK/design.txt" >&2
 echo "spacing grid guard"
 # The homepage's spacing sits on an 8 grid with a 4 half-step: every px in a padding, margin or gap (the CSS and style="" attributes) is a multiple of 8, or 4.
 # Exempt: the -1px hairline overlap of .sr, and the middle (fluid) argument of clamp(), which may carry any px term; its bounds are checked.
