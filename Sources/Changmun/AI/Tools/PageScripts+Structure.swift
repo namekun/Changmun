@@ -12,7 +12,9 @@ extension PageScripts {
     /// `cleanURL(address, base)` gives {origin, path, search, hash, href} for a web address (or a URL), else null.
     static let structureShared = #"""
     const fromDocument = name => Object.getOwnPropertyDescriptor(Document.prototype, name).get.call(document);
-    const SECRET_PARAM = /(^|[-_.])(token|key|sig|signature|secret|auth|session|sid|code|credentials?|expires|password|passwd|pwd|otp)($|[-_.])|^x-(amz|goog)-|apikey|accesstoken|authtoken|authcode|sessionid|sessiontoken|jwt/i;
+    const SECRET_WORD = /token|secret|passw|passcode|credential|signature|session|verifier|bearer|apikey|authcode|jwt|x-(amz|goog)-/i;
+    const SECRET_PARTS = new Set(['key', 'sig', 'code', 'sid', 'auth', 'authorization', 'otp', 'pwd', 'expires']);
+    const secretName = name => SECRET_WORD.test(name) || name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/).some(w => SECRET_PARTS.has(w));
     const cleanURL = (input, base) => {
       let u;
       try { u = typeof input === 'string' ? new URL(input.trim(), base) : input; } catch (e) { return null; }
@@ -22,11 +24,13 @@ extension PageScripts {
         if (at < 1 || at === item.length - 1) return false;
         let name = item.slice(0, at);
         try { name = decodeURIComponent(name); } catch (e) {}
-        return SECRET_PARAM.test(name);
+        return secretName(name);
       };
       const search = u.search.length > 1 ? '?' + u.search.slice(1).replace(/[^&;]+/g, item => secret(item) ? item.slice(0, item.indexOf('=') + 1) + '…' : item) : '';
       // A fragment holding a secret (a sign-in's #access_token=…) goes as a whole: it has no use of its own to the reader.
-      const hash = u.hash.slice(1).replace(/^[!/?]+/, '').split(/[&;?]/).some(secret) ? '' : u.hash;
+      let decoded = u.hash;
+      try { decoded = decodeURIComponent(u.hash); } catch (e) {}
+      const hash = [u.hash, decoded].some(text => text.slice(1).split(/[&;?/#,]/).some(secret)) ? '' : u.hash;
       const origin = u.protocol + '//' + u.host;
       return {origin, path: u.pathname, search, hash, href: origin + u.pathname + search + hash};
     };

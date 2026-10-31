@@ -165,9 +165,23 @@ extension SharedAgentState {
 
         @Test func onlyParametersNamedForSecretsAreHiddenInLinks() async throws {
             let out = try await markdown("""
-                <body><p><a href="/s?keyword=tea&amp;zipcode=123&amp;monkey=1&amp;sortKey=up">Plain</a> <a href="/s?password=a&amp;otp=b&amp;apiKey=c&amp;refresh_token=d&amp;sessionId=e&amp;client-secret=f">Secret</a></p></body>
+                <body><p><a href="/s?keyword=tea&amp;zipcode=123&amp;monkey=1&amp;author=bo">Plain</a> <a href="/s?password=a&amp;otp=b&amp;apiKey=c&amp;refresh_token=d&amp;sessionId=e&amp;client-secret=f">Secret</a></p></body>
                 """)
-            #expect(out == "[Plain](/s?keyword=tea&zipcode=123&monkey=1&sortKey=up) [Secret](/s?password=…&otp=…&apiKey=…&refresh_token=…&sessionId=…&client-secret=…)", Comment(rawValue: out))
+            #expect(out == "[Plain](/s?keyword=tea&zipcode=123&monkey=1&author=bo) [Secret](/s?password=…&otp=…&apiKey=…&refresh_token=…&sessionId=…&client-secret=…)", Comment(rawValue: out))
+        }
+
+        @Test func secretsAreFoundHoweverTheirNamesAreWritten() async throws {
+            let names = ["refreshToken", "clientSecret", "secretKey", "user%5Btoken%5D", "oauth_verifier", "AWSAccessKeyId", "X-Goog-Credential", "passcode", "Authorization", "authCode"]
+            let links = names.map { "<a href=\"/p?\($0)=SECRET\">\($0)</a>" }.joined(separator: " ")
+            let out = try await markdown("<body><p>\(links)</p></body>")
+            #expect(!out.contains("SECRET"), Comment(rawValue: out))
+        }
+
+        @Test func aFragmentIsReadBothAsWrittenAndDecoded() async throws {
+            let out = try await markdown("""
+                <body><p><a href="/a#state%3D1%26access_token%3DSECRET">Encoded</a> <a href="/b#/cb/code=SECRET">Path</a> <a href="/c#a=1,id_token=SECRET">Comma</a></p></body>
+                """)
+            #expect(out == "[Encoded](/a) [Path](/b) [Comma](/c)", Comment(rawValue: out))
         }
 
         @Test func aSecretAfterASemicolonOrInAFragmentIsHiddenToo() async throws {
