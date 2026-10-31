@@ -428,6 +428,8 @@
 "Reader Mode" = "阅读模式";
 "Reader Mode (%@)" = "阅读模式 (%@)";
 "Read tabs" = "读取标签页";
+"Read page data" = "读取页面数据";
+"Read page as Markdown" = "以 Markdown 读取页面";
 "Reading %@" = "正在读取 %@";
 "Reading rules…" = "正在读取规则…";
 "Reading the page" = "正在读取页面";
