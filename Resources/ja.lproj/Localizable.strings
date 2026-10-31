@@ -4,7 +4,6 @@
 "%@ passwords" = "%@のパスワード";
 "%@ rules active" = "%@件のルールが有効";
 "%@ wants a certificate to identify you." = "%@が本人確認のための証明書を求めています。";
-"%@ wants to open %@" = "%1$@が%2$@を開こうとしています";
 "%@ wants to use the camera" = "%@がカメラを使用しようとしています";
 "%@ wants to use the camera and microphone" = "%@がカメラとマイクを使用しようとしています";
 "%@ wants to use the microphone" = "%@がマイクを使用しようとしています";
@@ -192,8 +191,6 @@
 "Delete all bookmarks imported from %@?" = "%@から読み込んだブックマークをすべて削除しますか？";
 "Delete Bookmark" = "ブックマークを削除";
 "Delete Folder…" = "フォルダを削除…";
-"Delete the folder “%@” and its %lld bookmark?" = "フォルダ「%@」とその中の%lld件のブックマークを削除しますか？";
-"Delete the folder “%@” and its %lld bookmarks?" = "フォルダ「%@」とその中の%lld件のブックマークを削除しますか？";
 "Delete the password for %@?" = "%@のパスワードを削除しますか？";
 "Deny" = "拒否";
 "Deny if the address carries content from another page or from the conversation." = "アドレスにほかのページや会話の内容が含まれている場合は拒否してください。";
@@ -977,3 +974,14 @@
 "⌘T opens a new tab with the start page. The search field is ready to type in." = "⌘Tで新規タブを開くと、スタートページが表示されます。すぐに検索欄へ入力できます。";
 "⌘T opens an empty page." = "⌘Tで新規タブを開くと、空白のページが表示されます。";
 "⌘T opens the command bar over a blank page, as before." = "⌘Tを押すと、これまでどおり空白のページの上にコマンドバーが表示されます。";
+"Open %@?" = "%@を開きますか？";
+"%@ wants to open the app." = "%@がアプリを開こうとしています。";
+"Account" = "アカウント";
+"Delete the folder “%@”?" = "フォルダ「%@」を削除しますか？";
+"If you allow it, this site can turn on the camera." = "許可すると、このサイトがカメラをオンにできます。";
+"If you allow it, this site can turn on the microphone." = "許可すると、このサイトがマイクをオンにできます。";
+"If you allow it, this site can turn on the camera and microphone." = "許可すると、このサイトがカメラとマイクをオンにできます。";
+"Its bookmark goes with it. This can't be undone." = "中のブックマーク1件も一緒に削除されます。元に戻せません。";
+"Its %lld bookmarks go with it. This can't be undone." = "中のブックマーク%lld件も一緒に削除されます。元に戻せません。";
+"They all go, and this can't be undone." = "すべて削除されます。元に戻せません。";
+"This site asks for a user name and password." = "このサイトはユーザ名とパスワードを求めています。";

@@ -8,6 +8,7 @@ extension ControlServer {
     func handleTestRequest(_ request: HTTPRequest, on connection: NWConnection) -> Bool {
         if handlePrivacyTestRequest(request, on: connection) { return true }
         if handleStartPageTestRequest(request, on: connection) { return true }
+        if handleDialogTestRequest(request, on: connection) { return true }
         if handleAccessibilityRequest(request, on: connection) { return true }
         // Tests only: a picture of the front window, sidebar and all, with a popover over it ("popoverAt": [x, y] says where its top left corner goes).
         if Headless.isTestCopy, request.method == "POST", request.path == "/window-image" {

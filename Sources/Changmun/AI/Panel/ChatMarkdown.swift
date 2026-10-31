@@ -465,14 +465,17 @@ enum ChatLinks {
     static func open(_ url: URL) -> OpenURLAction.Result {
         guard isSafe(url) else { return .discarded }
         if needsConfirmation(url, read: Approvals.sitesRead(caller: ChatStore.caller)) {
-            let alert = NSAlert()
-            let host = host(of: url) ?? ""
-            alert.messageText = String(localized: "Open a link to \(host)?")
-            alert.informativeText = String(localized: "This chat has read other sites, and a page could have slipped this link in to send what the AI read there.")
-                + "\n\n" + Approvals.shown(url.absoluteString, limit: 1000).text
-            alert.addButton(withTitle: String(localized: "Cancel"))
-            alert.addButton(withTitle: String(localized: "Open"))
-            guard alert.runModal() == .alertSecondButtonReturn else { return .handled }
+            // The whole address, wrapped and scrollable, not one line with its middle cut out: what the page slipped in can be anywhere in it.
+            let spec = DialogSpec(title: String(localized: "Open a link to \(DialogSpec.name(host(of: url) ?? ""))?"),
+                                  message: String(localized: "This chat has read other sites, and a page could have slipped this link in to send what the AI read there."),
+                                  detail: .text(Approvals.shown(url.absoluteString, limit: 1000).text),
+                                  buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel, isDefault: true), DialogButton(title: String(localized: "Open"))])
+            Task { @MainActor in
+                guard await Dialog.present(in: NSApp.keyWindow ?? Browser.recent?.window, spec)?.button == 1 else { return }
+                let target = Browser.recent ?? BrowserWindow.open()
+                target.openTab(url: url, after: target.active)
+            }
+            return .handled
         }
         let target = Browser.recent ?? BrowserWindow.open()
         target.openTab(url: url, after: target.active)

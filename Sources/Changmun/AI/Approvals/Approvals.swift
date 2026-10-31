@@ -527,12 +527,11 @@ enum Approvals {
         // A stand that holds its questions shows them as the app would, so that what a person would see can be looked at.
         let inPanel = (standing == nil || standing?.holds == true) && route(caller: caller, irreversible: irreversible, accounts: accounts, panelOpen: panel != nil, signIn: signIn) == .card
         guard standing != nil || inPanel || Browser.recent?.window != nil else { return (.deny, 0) }
-        let list = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 280, height: 26), pullsDown: false)
         if standing == nil { NSApp?.requestUserAttention(.informationalRequest) }
         return await withCheckedContinuation { continuation in
             let once = Once()
             let id = UUID()
-            var end: () -> Void = {}
+            let sheet = Dialog.Handle()
             let finish = { (choice: Choice, account: Int) in
                 guard !once.done else { return }
                 once.done = true
@@ -542,28 +541,24 @@ enum Approvals {
                 continuation.resume(returning: (choice, account))
             }
             let showSheet = {
-                guard standing == nil else { return }
+                // A stand that holds its questions shows them as the app would (see `inPanel`), the sheet too.
+                guard standing == nil || standing?.holds == true, !once.done else { return }
                 guard let window = Browser.recent?.window else {
                     finish(.deny, 0)
                     return
                 }
-                let alert = NSAlert()
-                alert.messageText = message
-                alert.informativeText = detail
-                for (_, title) in buttons { alert.addButton(withTitle: title) }
-                if accounts.count > 1 {
-                    list.addItems(withTitles: accounts.map(accountTitle))
-                    alert.accessoryView = list
+                // The first button is the one Return presses, and the one that says no.
+                let spec = DialogSpec(title: message, detail: .text(detail), choices: accounts.count > 1 ? accounts.map(accountTitle) : [],
+                                      choicesLabel: String(localized: "Account"),
+                                      buttons: buttons.enumerated().map { DialogButton(title: $1.1, role: $1.0 == .deny ? .cancel : .normal, isDefault: $0 == 0) })
+                Task { @MainActor in
+                    let answer = await Dialog.present(in: window, spec, handle: sheet)
+                    finish(answer.map { buttons[$0.button].0 } ?? .deny, answer?.picked ?? 0)
                 }
-                alert.beginSheetModal(for: window) { response in
-                    let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
-                    finish(buttons.indices.contains(index) ? buttons[index].0 : .deny, max(list.indexOfSelectedItem, 0))
-                }
-                end = { window.endSheet(alert.window) }
             }
             pending.append(Pending(id: id, caller: caller) { choice in
                 finish(choice, 0)
-                end()
+                sheet.end()
             })
             if inPanel, let panel {
                 // The panel closing with the question open moves it to the window, where it can't be missed.
@@ -581,7 +576,7 @@ enum Approvals {
             DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
                 guard !once.done else { return }
                 finish(.deny, 0)
-                end()
+                sheet.end()
             }
         }
     }

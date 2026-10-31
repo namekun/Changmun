@@ -4,7 +4,6 @@
 "%@ passwords" = "Contraseñas de %@";
 "%@ rules active" = "%@ reglas activas";
 "%@ wants a certificate to identify you." = "%@ quiere un certificado para identificarte.";
-"%@ wants to open %@" = "%1$@ quiere abrir %2$@";
 "%@ wants to use the camera" = "%@ quiere usar la cámara";
 "%@ wants to use the camera and microphone" = "%@ quiere usar la cámara y el micrófono";
 "%@ wants to use the microphone" = "%@ quiere usar el micrófono";
@@ -192,8 +191,6 @@
 "Delete all bookmarks imported from %@?" = "¿Eliminar todos los marcadores importados de %@?";
 "Delete Bookmark" = "Eliminar marcador";
 "Delete Folder…" = "Eliminar carpeta…";
-"Delete the folder “%@” and its %lld bookmark?" = "¿Eliminar la carpeta “%@” y el marcador que contiene (%lld)?";
-"Delete the folder “%@” and its %lld bookmarks?" = "¿Eliminar la carpeta “%@” y los %lld marcadores que contiene?";
 "Delete the password for %@?" = "¿Eliminar la contraseña de %@?";
 "Deny" = "Denegar";
 "Deny if the address carries content from another page or from the conversation." = "Deniega si la dirección contiene contenido de otra página o de la conversación.";
@@ -977,3 +974,14 @@
 "⌘T opens a new tab with the start page. The search field is ready to type in." = "⌘T abre una pestaña nueva con la página de inicio. El campo de búsqueda está listo para escribir.";
 "⌘T opens an empty page." = "⌘T abre una página en blanco.";
 "⌘T opens the command bar over a blank page, as before." = "⌘T abre la barra de comandos sobre una página en blanco, como antes.";
+"Open %@?" = "¿Abrir %@?";
+"%@ wants to open the app." = "%@ quiere abrir la app.";
+"Account" = "Cuenta";
+"Delete the folder “%@”?" = "¿Eliminar la carpeta “%@”?";
+"If you allow it, this site can turn on the camera." = "Si lo permites, este sitio podrá activar la cámara.";
+"If you allow it, this site can turn on the microphone." = "Si lo permites, este sitio podrá activar el micrófono.";
+"If you allow it, this site can turn on the camera and microphone." = "Si lo permites, este sitio podrá activar la cámara y el micrófono.";
+"Its bookmark goes with it. This can't be undone." = "Su marcador se elimina con ella. No se puede deshacer.";
+"Its %lld bookmarks go with it. This can't be undone." = "Sus %lld marcadores se eliminan con ella. No se puede deshacer.";
+"They all go, and this can't be undone." = "Se eliminan todos. No se puede deshacer.";
+"This site asks for a user name and password." = "Este sitio pide un nombre de usuario y una contraseña.";

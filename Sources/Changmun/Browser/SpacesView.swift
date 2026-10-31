@@ -151,20 +151,16 @@ struct SpaceSwitcher: View {
 
     /// Asks over this window before a space goes; a profile's cookies and site data go with it.
     static func confirmDelete(_ space: Space, in browser: Browser) {
-        let alert = NSAlert()
-        alert.messageText = String(localized: "Delete the space “\(space.name)”?")
         // Its favorites go to the first space left.
-        let heir = browser.spaces.spaces.first { $0.id != space.id }?.name ?? ""
-        alert.informativeText = space.isProfile
+        let heir = DialogSpec.name(browser.spaces.spaces.first { $0.id != space.id }?.name ?? "")
+        let message = space.isProfile
             ? String(localized: "Its tabs are closed, and the cookies, logins and site data it kept are erased. Its favorites move to “\(heir)”. Bookmarks stay in the library.")
             : String(localized: "Its tabs are closed. Its favorites move to “\(heir)”. Bookmarks stay in the library.")
-        alert.addButton(withTitle: String(localized: "Cancel"))
-        alert.addButton(withTitle: String(localized: "Delete")).hasDestructiveAction = true
-        let delete = { Browser.deleteSpace(space.id, from: browser.spaces) }
-        if let window = browser.window {
-            alert.beginSheetModal(for: window) { if $0 == .alertSecondButtonReturn { delete() } }
-        } else if alert.runModal() == .alertSecondButtonReturn {
-            delete()
+        let window = browser.window
+        Task { @MainActor in
+            if await Dialog.present(in: window, .confirmDelete(String(localized: "Delete the space “\(DialogSpec.name(space.name))”?"), message))?.button == 1 {
+                Browser.deleteSpace(space.id, from: browser.spaces)
+            }
         }
     }
 }

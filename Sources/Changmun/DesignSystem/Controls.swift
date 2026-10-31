@@ -312,6 +312,23 @@ struct SecondaryButton: ButtonStyle {
     }
 }
 
+/// The filled button for deleting: the one place red is for, with the ground's colour on it.
+struct DangerButton: ButtonStyle {
+    var size = ButtonSize.large
+    @Environment(\.isEnabled) private var enabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(size.font)
+            .foregroundStyle(Theme.background)
+            .padding(.horizontal, 16)
+            .frame(height: size.height)
+            .background(RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous).fill(Theme.danger))
+            .opacity(enabled ? (configuration.isPressed ? 0.85 : 1) : 0.4)
+            .pressScale(configuration.isPressed)
+    }
+}
+
 /// A button's fill: resting, hovered, and darker the moment it is pressed. A nil radius makes a capsule.
 struct FillStyle: ButtonStyle {
     var resting: Color = .clear

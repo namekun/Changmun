@@ -12,13 +12,15 @@ struct AppLinks {
     @MainActor static let system = AppLinks(
         appName: { url in NSWorkspace.shared.urlForApplication(toOpen: url).map { FileManager.default.displayName(atPath: $0.path) } },
         confirm: { site, app, url, window in
-            guard let window, window.attachedSheet == nil else { return false }
-            let alert = NSAlert()
-            alert.messageText = String(localized: "\(site) wants to open \(app)")
-            alert.informativeText = String(url.absoluteString.prefix(200))
-            alert.addButton(withTitle: String(localized: "Cancel"))
-            alert.addButton(withTitle: String(localized: "Open"))
-            return await alert.beginSheetModal(for: window) == .alertSecondButtonReturn
+            await Dialog.present(in: window, spec(site: site, app: app, url: url), whenBusy: .refuse)?.button == 1
         },
         open: { NSWorkspace.shared.open($0) })
+
+    /// The question: the app and the site that asks come from the system and the page's origin, cleaned and cut; Cancel is what Return does.
+    @MainActor static func spec(site: String, app: String, url: URL) -> DialogSpec {
+        DialogSpec(title: String(localized: "Open \(DialogSpec.name(app))?"),
+                   message: String(localized: "\(DialogSpec.name(site)) wants to open the app."),
+                   detail: .address(DialogSpec.name(url.absoluteString, limit: 300)),
+                   buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel, isDefault: true), DialogButton(title: String(localized: "Open"))])
+    }
 }

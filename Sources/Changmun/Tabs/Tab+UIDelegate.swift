@@ -64,8 +64,9 @@ extension Tab: WKUIDelegate {
 
     func webView(_ webView: WKWebView, decideMediaCapturePermissionsFor origin: WKSecurityOrigin, initiatedBy frame: WKFrameInfo,
                  type: WKMediaCaptureType) async -> WKPermissionDecision {
-        SitePermissions.shared.decide(host: origin.host, type: type, remember: !isPrivate,
-                                      unverified: ServerTrustStore.isUnverified(host: origin.host, port: origin.port == 0 ? 443 : origin.port))
+        await SitePermissions.shared.decide(host: origin.host, type: type, remember: !isPrivate,
+                                            unverified: ServerTrustStore.isUnverified(host: origin.host, port: origin.port == 0 ? 443 : origin.port),
+                                            window: webView.window ?? browser?.window)
     }
 
     /// "Back to tab" on the floating video, the only thing WebKit asks this for: its tab and window come to the front, as

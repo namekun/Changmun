@@ -4,7 +4,6 @@
 "%@ passwords" = "%@ Passwörter";
 "%@ rules active" = "%@ Regeln aktiv";
 "%@ wants a certificate to identify you." = "%@ möchte ein Zertifikat, um dich zu identifizieren.";
-"%@ wants to open %@" = "%1$@ möchte %2$@ öffnen";
 "%@ wants to use the camera" = "%@ möchte die Kamera verwenden";
 "%@ wants to use the camera and microphone" = "%@ möchte die Kamera und das Mikrofon verwenden";
 "%@ wants to use the microphone" = "%@ möchte das Mikrofon verwenden";
@@ -192,8 +191,6 @@
 "Delete all bookmarks imported from %@?" = "Alle aus %@ importierten Lesezeichen löschen?";
 "Delete Bookmark" = "Lesezeichen löschen";
 "Delete Folder…" = "Ordner löschen …";
-"Delete the folder “%@” and its %lld bookmark?" = "Ordner „%@“ mit %lld Lesezeichen löschen?";
-"Delete the folder “%@” and its %lld bookmarks?" = "Ordner „%@“ mit %lld Lesezeichen löschen?";
 "Delete the password for %@?" = "Passwort für %@ löschen?";
 "Deny" = "Ablehnen";
 "Deny if the address carries content from another page or from the conversation." = "Lehne ab, wenn die Adresse Inhalte einer anderen Seite oder aus der Unterhaltung enthält.";
@@ -977,3 +974,14 @@
 "⌘T opens a new tab with the start page. The search field is ready to type in." = "⌘T öffnet einen neuen Tab mit der Startseite. Das Suchfeld ist sofort bereit.";
 "⌘T opens an empty page." = "⌘T öffnet eine leere Seite.";
 "⌘T opens the command bar over a blank page, as before." = "⌘T öffnet wie bisher die Befehlsleiste über einer leeren Seite.";
+"Open %@?" = "%@ öffnen?";
+"%@ wants to open the app." = "%@ möchte die App öffnen.";
+"Account" = "Account";
+"Delete the folder “%@”?" = "Ordner „%@“ löschen?";
+"If you allow it, this site can turn on the camera." = "Wenn du es erlaubst, kann diese Website die Kamera einschalten.";
+"If you allow it, this site can turn on the microphone." = "Wenn du es erlaubst, kann diese Website das Mikrofon einschalten.";
+"If you allow it, this site can turn on the camera and microphone." = "Wenn du es erlaubst, kann diese Website Kamera und Mikrofon einschalten.";
+"Its bookmark goes with it. This can't be undone." = "Das Lesezeichen darin wird mitgelöscht. Das lässt sich nicht rückgängig machen.";
+"Its %lld bookmarks go with it. This can't be undone." = "Die %lld Lesezeichen darin werden mitgelöscht. Das lässt sich nicht rückgängig machen.";
+"They all go, and this can't be undone." = "Alle werden gelöscht. Das lässt sich nicht rückgängig machen.";
+"This site asks for a user name and password." = "Diese Website fragt nach Benutzername und Passwort.";

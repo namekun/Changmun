@@ -239,7 +239,7 @@ struct Sidebar: View {
             FolderRow(name: group.source, symbol: "books.vertical", count: group.folders.reduce(0) { $0 + $1.count },
                       isOpen: browser.space.openFolders.contains(key), click: { _ in browser.spaces.toggleOpen(key, in: browser.spaceID) }) {
                 Button("Delete All \(group.source) Bookmarks…") {
-                    confirmDelete(String(localized: "Delete all bookmarks imported from \(group.source)?")) { Library.shared.removeSource(group.source) }
+                    confirmDelete(String(localized: "Delete all bookmarks imported from \(DialogSpec.name(group.source))?"), String(localized: "They all go, and this can't be undone.")) { Library.shared.removeSource(group.source) }
                 }
             }
             if browser.space.openFolders.contains(key) {
@@ -342,9 +342,9 @@ struct Sidebar: View {
             Divider()
             Button("Delete Folder…") {
                 let count = folder.count
-                let question = count == 1 ? String(localized: "Delete the folder “\(folder.label)” and its \(count) bookmark?")
-                                          : String(localized: "Delete the folder “\(folder.label)” and its \(count) bookmarks?")
-                confirmDelete(question) {
+                let message = count == 1 ? String(localized: "Its bookmark goes with it. This can't be undone.")
+                                         : String(localized: "Its \(count) bookmarks go with it. This can't be undone.")
+                confirmDelete(String(localized: "Delete the folder “\(DialogSpec.name(folder.label))”?"), message) {
                     for inner in folder.flattened() { browser.spaces.unpinFolder(inner.folder.key) }
                     Library.shared.removeFolder(folder.key)
                 }
@@ -378,17 +378,13 @@ struct Sidebar: View {
     // MARK: Menus
 
     /// Asks over this window (not the whole app) before deleting what can't be brought back.
-    private func confirmDelete(_ message: String, then delete: @escaping () -> Void) {
-        let alert = NSAlert()
-        alert.messageText = message
-        alert.addButton(withTitle: String(localized: "Cancel"))
-        alert.addButton(withTitle: String(localized: "Delete")).hasDestructiveAction = true
-        if let window = browser.window {
-            alert.beginSheetModal(for: window) { if $0 == .alertSecondButtonReturn { delete() } }
-        } else if alert.runModal() == .alertSecondButtonReturn {
-            delete()
+    private func confirmDelete(_ title: String, _ message: String, then delete: @escaping () -> Void) {
+        let window = browser.window
+        Task { @MainActor in
+            if await Dialog.present(in: window, .confirmDelete(title, message))?.button == 1 { delete() }
         }
     }
+
 
     /// A dragged group lands just above another group when it is dropped on that group's header or on one of its tabs.
     private func groupLands(above group: UUID) -> Bool {

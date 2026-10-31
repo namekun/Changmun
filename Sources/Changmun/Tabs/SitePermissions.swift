@@ -55,7 +55,8 @@ final class SitePermissions: ObservableObject {
     }
 
     /// `remember` false (a private window) never offers to keep the answer, which would record the site. `unverified`: the page's certificate was not verified.
-    func decide(host: String, type: WKMediaCaptureType, remember: Bool = true, unverified: Bool = false) -> WKPermissionDecision {
+    /// Asked in a sheet on `window`: with one already up, or none, the answer is no, so a page cannot pile questions up.
+    func decide(host: String, type: WKMediaCaptureType, remember: Bool = true, unverified: Bool = false, window: NSWindow?) async -> WKPermissionDecision {
         let remember = remember && !unverified
         let devices: [Device] = switch type {
         case .camera: [.camera]
@@ -67,20 +68,23 @@ final class SitePermissions: ObservableObject {
         if decisions.allSatisfy({ $0 == .allow }) { return .grant }
         if Headless.isOn { return .deny }
 
-        let alert = NSAlert()
-        alert.messageText = switch type {
-        case .camera: String(localized: "\(host) wants to use the camera")
-        case .microphone: String(localized: "\(host) wants to use the microphone")
-        default: String(localized: "\(host) wants to use the camera and microphone")
-        }
-        alert.addButton(withTitle: String(localized: "Block"))
-        alert.addButton(withTitle: String(localized: "Allow"))
-        alert.showsSuppressionButton = remember
-        alert.suppressionButton?.title = String(localized: "Remember for this site")
-        let allowed = alert.runModal() == .alertSecondButtonReturn
-        if alert.suppressionButton?.state == .on {
+        guard let answer = await Dialog.present(in: window, Self.spec(host: host, type: type, remember: remember), whenBusy: .refuse) else { return .deny }
+        let allowed = answer.button == 1
+        if answer.remembered {
             for device in devices { set(allowed ? .allow : .deny, host: host, device: device) }
         }
         return allowed ? .grant : .deny
+    }
+
+    /// The question: the site is named by its host, cleaned and cut. Block is what Return does.
+    static func spec(host: String, type: WKMediaCaptureType, remember: Bool) -> DialogSpec {
+        let site = DialogSpec.name(host)
+        let (title, message) = switch type {
+        case .camera: (String(localized: "\(site) wants to use the camera"), String(localized: "If you allow it, this site can turn on the camera."))
+        case .microphone: (String(localized: "\(site) wants to use the microphone"), String(localized: "If you allow it, this site can turn on the microphone."))
+        default: (String(localized: "\(site) wants to use the camera and microphone"), String(localized: "If you allow it, this site can turn on the camera and microphone."))
+        }
+        return DialogSpec(title: title, message: message, remember: remember ? String(localized: "Remember for this site") : nil,
+                          buttons: [DialogButton(title: String(localized: "Block"), role: .cancel, isDefault: true), DialogButton(title: String(localized: "Allow"))])
     }
 }

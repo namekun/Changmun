@@ -4,7 +4,6 @@
 "%@ passwords" = "Mots de passe de %@";
 "%@ rules active" = "%@ règles actives";
 "%@ wants a certificate to identify you." = "%@ souhaite un certificat pour vous identifier.";
-"%@ wants to open %@" = "%1$@ souhaite ouvrir %2$@";
 "%@ wants to use the camera" = "%@ souhaite utiliser la caméra";
 "%@ wants to use the camera and microphone" = "%@ souhaite utiliser la caméra et le micro";
 "%@ wants to use the microphone" = "%@ souhaite utiliser le micro";
@@ -192,8 +191,6 @@
 "Delete all bookmarks imported from %@?" = "Supprimer tous les signets importés depuis %@ ?";
 "Delete Bookmark" = "Supprimer le signet";
 "Delete Folder…" = "Supprimer le dossier…";
-"Delete the folder “%@” and its %lld bookmark?" = "Supprimer le dossier « %@ » et son contenu (%lld signet) ?";
-"Delete the folder “%@” and its %lld bookmarks?" = "Supprimer le dossier « %@ » et son contenu (%lld signets) ?";
 "Delete the password for %@?" = "Supprimer le mot de passe pour %@ ?";
 "Deny" = "Refuser";
 "Deny if the address carries content from another page or from the conversation." = "Refusez si l’adresse contient du contenu provenant d’une autre page ou de la conversation.";
@@ -977,3 +974,14 @@
 "⌘T opens a new tab with the start page. The search field is ready to type in." = "⌘T ouvre un nouvel onglet avec la page d’accueil. Le champ de recherche est prêt à la saisie.";
 "⌘T opens an empty page." = "⌘T ouvre une page vierge.";
 "⌘T opens the command bar over a blank page, as before." = "⌘T ouvre la barre de commandes sur une page vierge, comme avant.";
+"Open %@?" = "Ouvrir %@ ?";
+"%@ wants to open the app." = "%@ souhaite ouvrir l’app.";
+"Account" = "Compte";
+"Delete the folder “%@”?" = "Supprimer le dossier « %@ » ?";
+"If you allow it, this site can turn on the camera." = "Si vous l’autorisez, ce site pourra activer la caméra.";
+"If you allow it, this site can turn on the microphone." = "Si vous l’autorisez, ce site pourra activer le micro.";
+"If you allow it, this site can turn on the camera and microphone." = "Si vous l’autorisez, ce site pourra activer la caméra et le micro.";
+"Its bookmark goes with it. This can't be undone." = "Son signet sera supprimé avec lui. Cette action est irréversible.";
+"Its %lld bookmarks go with it. This can't be undone." = "Ses %lld signets seront supprimés avec lui. Cette action est irréversible.";
+"They all go, and this can't be undone." = "Ils seront tous supprimés. Cette action est irréversible.";
+"This site asks for a user name and password." = "Ce site demande un nom d’utilisateur et un mot de passe.";

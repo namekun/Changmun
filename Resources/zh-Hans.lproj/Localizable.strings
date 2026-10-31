@@ -4,7 +4,6 @@
 "%@ passwords" = "%@ 密码";
 "%@ rules active" = "%@ 条规则已启用";
 "%@ wants a certificate to identify you." = "%@ 需要一份证书来确认你的身份。";
-"%@ wants to open %@" = "%1$@ 想要打开 %2$@";
 "%@ wants to use the camera" = "%@ 想要使用摄像头";
 "%@ wants to use the camera and microphone" = "%@ 想要使用摄像头和麦克风";
 "%@ wants to use the microphone" = "%@ 想要使用麦克风";
@@ -192,8 +191,6 @@
 "Delete all bookmarks imported from %@?" = "要删除从 %@ 导入的所有书签吗？";
 "Delete Bookmark" = "删除书签";
 "Delete Folder…" = "删除文件夹…";
-"Delete the folder “%@” and its %lld bookmark?" = "要删除文件夹“%@”及其中的 %lld 个书签吗？";
-"Delete the folder “%@” and its %lld bookmarks?" = "要删除文件夹“%@”及其中的 %lld 个书签吗？";
 "Delete the password for %@?" = "要删除 %@ 的密码吗？";
 "Deny" = "拒绝";
 "Deny if the address carries content from another page or from the conversation." = "如果地址中带有其他页面或对话中的内容，请拒绝。";
@@ -977,3 +974,14 @@
 "⌘T opens a new tab with the start page. The search field is ready to type in." = "按 ⌘T 会打开显示起始页的新标签页，搜索栏可直接输入。";
 "⌘T opens an empty page." = "按 ⌘T 会打开一个空白页。";
 "⌘T opens the command bar over a blank page, as before." = "按 ⌘T 会像以前一样，在空白页上方显示命令栏。";
+"Open %@?" = "要打开%@吗？";
+"%@ wants to open the app." = "%@想要打开该应用。";
+"Account" = "账户";
+"Delete the folder “%@”?" = "要删除文件夹“%@”吗？";
+"If you allow it, this site can turn on the camera." = "允许后，此网站可以打开摄像头。";
+"If you allow it, this site can turn on the microphone." = "允许后，此网站可以打开麦克风。";
+"If you allow it, this site can turn on the camera and microphone." = "允许后，此网站可以打开摄像头和麦克风。";
+"Its bookmark goes with it. This can't be undone." = "其中的 1 个书签也会一并删除。此操作无法撤销。";
+"Its %lld bookmarks go with it. This can't be undone." = "其中的 %lld 个书签也会一并删除。此操作无法撤销。";
+"They all go, and this can't be undone." = "它们都会被删除，此操作无法撤销。";
+"This site asks for a user name and password." = "此网站需要用户名和密码。";

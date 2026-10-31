@@ -253,23 +253,21 @@ extension Tab: WKNavigationDelegate {
         }
         guard method == NSURLAuthenticationMethodHTTPBasic || method == NSURLAuthenticationMethodHTTPDigest else { return (.performDefaultHandling, nil) }
         guard challenge.previousFailureCount < 3, !Headless.isOn else { return (.cancelAuthenticationChallenge, nil) }
-        let alert = NSAlert()
-        alert.messageText = String(localized: "Sign in to \(challenge.protectionSpace.host)")
-        alert.informativeText = challenge.previousFailureCount > 0 ? String(localized: "The user name or password is incorrect.") : (challenge.protectionSpace.realm ?? "")
-        let user = NSTextField(frame: NSRect(x: 0, y: 30, width: 260, height: 24))
-        user.placeholderString = String(localized: "User Name")
-        user.stringValue = challenge.proposedCredential?.user ?? ""
-        let password = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
-        password.placeholderString = String(localized: "Password")
-        let fields = NSView(frame: NSRect(x: 0, y: 0, width: 260, height: 54))
-        fields.addSubview(user)
-        fields.addSubview(password)
-        alert.accessoryView = fields
-        alert.window.initialFirstResponder = user
-        alert.addButton(withTitle: String(localized: "Sign In"))
-        alert.addButton(withTitle: String(localized: "Cancel"))
-        guard alert.runModal() == .alertFirstButtonReturn else { return (.cancelAuthenticationChallenge, nil) }
-        return (.useCredential, URLCredential(user: user.stringValue, password: password.stringValue, persistence: .forSession))
+        let spec = Self.signInSpec(host: challenge.protectionSpace.host, failed: challenge.previousFailureCount > 0, user: challenge.proposedCredential?.user ?? "")
+        // A sheet on the window, one at a time: a page that makes many requests that ask for a login cannot pile questions up. What is typed is
+        // handed to the credential and kept nowhere else, and never logged.
+        guard let answer = await Dialog.present(in: webView.window ?? browser?.window, spec, whenBusy: .refuse), answer.button == 1, answer.fields.count == 2 else {
+            return (.cancelAuthenticationChallenge, nil)
+        }
+        return (.useCredential, URLCredential(user: answer.fields[0], password: answer.fields[1], persistence: .forSession))
+    }
+
+    /// The login question: the user name and a password field that shows nothing. Sign In is what Return does.
+    static func signInSpec(host: String, failed: Bool, user: String) -> DialogSpec {
+        DialogSpec(title: String(localized: "Sign in to \(DialogSpec.name(host))"),
+                   message: failed ? String(localized: "The user name or password is incorrect.") : String(localized: "This site asks for a user name and password."),
+                   fields: [DialogField(placeholder: String(localized: "User Name"), text: user), DialogField(placeholder: String(localized: "Password"), isSecure: true)],
+                   buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel), DialogButton(title: String(localized: "Sign In"), isDefault: true)])
     }
 
     /// A site that wants a certificate to identify the user (see ClientCertificates). Cancel, no certificate, and a headless Changmun all go on

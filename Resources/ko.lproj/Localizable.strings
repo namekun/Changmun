@@ -4,7 +4,6 @@
 "%@ passwords" = "%@ 비밀번호";
 "%@ rules active" = "규칙 %@개 적용 중";
 "%@ wants a certificate to identify you." = "%@에서 본인 확인용 인증서를 요청해요.";
-"%@ wants to open %@" = "%1$@에서 %2$@을(를) 열려고 해요";
 "%@ wants to use the camera" = "%@에서 카메라를 쓰려고 해요";
 "%@ wants to use the camera and microphone" = "%@에서 카메라와 마이크를 쓰려고 해요";
 "%@ wants to use the microphone" = "%@에서 마이크를 쓰려고 해요";
@@ -187,13 +186,11 @@
 "Dark" = "다크";
 "Default Browser" = "기본 브라우저";
 "Default Zoom" = "기본 확대";
-"Delete" = "삭제";
+"Delete" = "지우기";
 "Delete All %@ Bookmarks…" = "%@ 북마크 모두 삭제…";
 "Delete all bookmarks imported from %@?" = "%@에서 가져온 북마크를 모두 지울까요?";
 "Delete Bookmark" = "북마크 삭제";
 "Delete Folder…" = "폴더 삭제…";
-"Delete the folder “%@” and its %lld bookmark?" = "'%@' 폴더와 안의 북마크 %lld개를 지울까요?";
-"Delete the folder “%@” and its %lld bookmarks?" = "'%@' 폴더와 안의 북마크 %lld개를 지울까요?";
 "Delete the password for %@?" = "%@의 비밀번호를 지울까요?";
 "Deny" = "거부";
 "Deny if the address carries content from another page or from the conversation." = "주소에 다른 페이지나 대화의 내용이 실려 있다면 거부하세요.";
@@ -438,7 +435,7 @@
 "Redo" = "실행 복귀";
 "Reload" = "새로고침";
 "Reload (⌘R)" = "새로고침 (⌘R)";
-"Remember for this site" = "이 사이트에서는 기억하기";
+"Remember for this site" = "이 사이트는 다음에도 똑같이";
 "Remove from Archive" = "보관함에서 지우기";
 "Remove from Favorites" = "즐겨찾기에서 빼기";
 "Remove from Favorites (⌘D)" = "즐겨찾기에서 빼기 (⌘D)";
@@ -977,3 +974,14 @@
 "⌘T opens a new tab with the start page. The search field is ready to type in." = "⌘T로 새 탭을 열면 시작 페이지가 떠요. 검색창에 바로 입력할 수 있어요.";
 "⌘T opens an empty page." = "⌘T로 새 탭을 열면 빈 페이지가 떠요.";
 "⌘T opens the command bar over a blank page, as before." = "⌘T를 누르면 예전처럼 빈 페이지 위에 명령 막대가 떠요.";
+"Open %@?" = "%@ 앱을 열까요?";
+"%@ wants to open the app." = "%@에서 앱을 열려고 해요.";
+"Account" = "계정";
+"Delete the folder “%@”?" = "“%@” 폴더를 지울까요?";
+"If you allow it, this site can turn on the camera." = "허용하면 이 사이트에서 카메라가 켜져요.";
+"If you allow it, this site can turn on the microphone." = "허용하면 이 사이트에서 마이크가 켜져요.";
+"If you allow it, this site can turn on the camera and microphone." = "허용하면 이 사이트에서 카메라와 마이크가 켜져요.";
+"Its bookmark goes with it. This can't be undone." = "북마크 1개도 함께 지워져요. 되돌릴 수 없어요.";
+"Its %lld bookmarks go with it. This can't be undone." = "북마크 %lld개가 함께 지워져요. 되돌릴 수 없어요.";
+"They all go, and this can't be undone." = "모두 지워지고, 되돌릴 수 없어요.";
+"This site asks for a user name and password." = "이 사이트는 아이디와 비밀번호를 물어봐요.";
