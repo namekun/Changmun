@@ -25,11 +25,44 @@
 
 ## Pourquoi Changmun
 
-- **Léger.** Chaque navigateur Chromium embarque sa propre copie de Chromium. Changmun emprunte plutôt le moteur WebKit livré avec macOS, celui de Safari : le téléchargement fait environ 3 Mo (le DMG de la 0.4.1 pèse 2,6 Mo). Il ménage la batterie, et les correctifs de sécurité du moteur arrivent avec les mises à jour de macOS et de Safari.
+- **Léger.** Chaque navigateur Chromium embarque sa propre copie de Chromium. Changmun emprunte plutôt le moteur WebKit livré avec macOS, celui de Safari : l’app occupe 21 Mo sur le disque et le téléchargement fait environ 7 Mo (voir [la comparaison](#comparaison-avec-les-autres-navigateurs)). Il ménage la batterie, et les correctifs de sécurité du moteur arrivent avec les mises à jour de macOS et de Safari.
 - **Une barre latérale comme Arc et Dia.** Des onglets verticaux dont les titres ont la place de respirer, des favoris en vignettes, des dossiers de signets, des groupes d’onglets et des espaces. Vous préférez une barre d’onglets en haut ? C’est un réglage.
 - **Une IA qui utilise le navigateur.** Le panneau Claude lit les pages, clique et saisit à votre place via la CLI `claude` que vous avez déjà. Elle prête ses mains, mais n’a pas carte blanche : elle demande avant toute action risquée.
 - **Privé par défaut.** Ni compte, ni serveur, ni analyse : rien à créer pour commencer. Le blocage des publicités et des traqueurs est intégré.
 - **Déménagement, meubles compris.** Importe signets et historique depuis Safari et les navigateurs Chromium, et depuis ces derniers aussi les mots de passe et les connexions. Les mots de passe de Safari restent sur place : macOS ne les confie à aucune autre app.
+
+## Comparaison avec les autres navigateurs
+
+Changmun ne cherche pas à battre tous les navigateurs sur tous les points. Voici en quoi il est différent, et dans quels cas vous êtes mieux servi ailleurs. Les tailles ont été mesurées sur un Mac à puce Apple en octobre 2026 ; le reste vient de ce que chaque projet dit de lui-même. Si quelque chose n’est plus à jour, [ouvrez une issue](https://github.com/namekun/Changmun/issues).
+
+| | App sur le disque | Moteur |
+| :-- | --: | :-- |
+| **Changmun 0.10.2** | **21 Mo** | WebKit, celui de macOS |
+| Safari 27 | 35 Mo | WebKit, celui de macOS |
+| Google Chrome 156 | 731 Mo | Chromium, sa propre copie |
+| Arc 1.168 | 862 Mo | Chromium, sa propre copie |
+| Dia 1.53 | 1,3 Go | Chromium, sa propre copie |
+
+<sub>`du -sh` de chaque app installée. Un navigateur Chromium embarque son moteur et le met à jour lui-même ; Changmun et Safari reçoivent les correctifs du moteur avec macOS.</sub>
+
+**Safari.** Même moteur, donc la même compatibilité web et le même soin pour la batterie. Changmun ajoute une barre latérale qui réunit dans une seule colonne les onglets verticaux, les favoris en vignettes et vos dossiers de signets, une IA capable de manœuvrer une page à votre place (et qui demande avant toute action risquée), et les extensions du Chrome Web Store à côté de celles de Safari. Restez sur Safari si vous vivez de la synchronisation iCloud des onglets, des mots de passe et des clés d’accès entre vos appareils Apple.
+
+**Chrome.** Pas de compte Google, pas de serveur de synchronisation, pas d’analyse ; les quelques requêtes que l’app fait d’elle-même sont listées sous [Confidentialité](#confidentialité). Elle utilise le WebKit que macOS possède déjà, si bien que l’app entière pèse environ 3 % de Chrome. Restez sur Chrome si vous avez besoin de la compatibilité la plus large avec les sites conçus uniquement pour Chromium, de sa synchronisation, ou de Windows, Linux ou d’un téléphone.
+
+**Arc.** L’idée de la barre latérale et des espaces, dans un navigateur qui continue d’acquérir des fonctions. Arc est en mode maintenance depuis mai 2025 : des correctifs de sécurité, pas de nouveautés. Restez sur Arc si vous ne pouvez pas vivre sans Boosts ou Easels.
+
+**Dia.** La même famille d’idées (une barre latérale, une IA dans le navigateur). Changmun n’a pas de service d’IA à lui : son IA est la CLI `claude` que vous avez déjà, avec votre propre abonnement, et il n’existe ni compte ni serveur Changmun. Restez sur Dia si vous voulez ses fonctions d’IA hébergées et ses intégrations professionnelles.
+
+### Ce qui manque encore
+
+Être franc sur les lacunes est le but de cette section.
+
+- **Pas de synchronisation.** Il n’y a pas de compte : signets, historique et mots de passe restent sur le Mac où ils ont été créés.
+- **Mac uniquement.** macOS 14 ou ultérieur sur puce Apple. Ni iPhone, ni Windows, ni Linux.
+- **Pas encore de clés d’accès.** Les navigateurs ont besoin d’une autorisation (entitlement) d’Apple pour les gérer ; Changmun l’a demandée et attend.
+- **Des extensions version WebKit.** Elles exigent macOS 15.4 ou ultérieur, et certaines extensions Chrome s’appuient sur des choses que WebKit n’a pas.
+- **Sites pour Chromium seulement.** Un site écrit uniquement pour Chromium peut mal se comporter ici, comme dans Safari.
+- **Jeune et petit.** Un seul mainteneur et une base de code jeune : moins d’yeux que chez les grands navigateurs, et des aspérités en proportion. Les rapports de bogues sont les bienvenus.
 
 ## Installer
 

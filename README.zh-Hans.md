@@ -25,11 +25,44 @@
 
 ## 为什么选择 Changmun
 
-- **轻巧。** Chromium 内核的浏览器各自带着一整份 Chromium，Changmun 则借用 macOS 自带的 WebKit 引擎（Safari 用的就是它）。下载只有约 3 MB（0.4.1 的 DMG 为 2.6 MB），更省电，引擎的安全修复会随 macOS 和 Safari 的更新送达。
+- **轻巧。** Chromium 内核的浏览器各自带着一整份 Chromium，Changmun 则借用 macOS 自带的 WebKit 引擎（Safari 用的就是它）。App 在磁盘上占 21 MB，下载约 7 MB（[对比见这里](#与其他浏览器对比)），更省电，引擎的安全修复会随 macOS 和 Safari 的更新送达。
 - **像 Arc 和 Dia 的边栏。** 垂直标签页给标题留足了地方，另有磁贴式个人收藏、书签文件夹、标签页群组和空间。也可以在设置里把标签页改成顶部的横条。
 - **会使用浏览器的 AI。** Claude 面板通过你已有的 `claude` CLI 阅读页面，并替你点按、输入。它肯出手，但不会擅自做主：遇到有风险的操作会先询问。
 - **默认私密。** 没有账户、服务器或分析，也就没有什么需要注册的。广告和追踪器拦截已内置。
 - **搬家，家当一起带。** 从 Safari 和 Chromium 内核浏览器导入书签和历史记录，Chromium 内核浏览器的密码和登录状态也能一并带来。Safari 的密码 macOS 不肯交给其他 App，只能留在原处。
+
+## 与其他浏览器对比
+
+Changmun 并不想在所有方面都胜过每一款浏览器。下面说明它在哪些地方不同，又在哪些地方你更适合用别的浏览器。体积是 2026 年 10 月在一台 Apple 芯片 Mac 上测得的；其余内容来自各个项目对自己的介绍，如有过时之处，欢迎[提交 issue](https://github.com/namekun/Changmun/issues)。
+
+| | 磁盘上的 App | 引擎 |
+| :-- | --: | :-- |
+| **Changmun 0.10.2** | **21 MB** | WebKit，macOS 自带的那一个 |
+| Safari 27 | 35 MB | WebKit，macOS 自带的那一个 |
+| Google Chrome 156 | 731 MB | Chromium，自带一份 |
+| Arc 1.168 | 862 MB | Chromium，自带一份 |
+| Dia 1.53 | 1.3 GB | Chromium，自带一份 |
+
+<sub>各个 App 安装后用 `du -sh` 测得的大小。Chromium 内核的浏览器自带引擎，并自己更新；Changmun 和 Safari 的引擎修复则随 macOS 送达。</sub>
+
+**Safari。** 引擎相同，所以网页兼容性和对电池的爱护也相同。Changmun 多出来的是：把垂直标签页、磁贴式个人收藏和书签文件夹收在同一列的边栏，能替你操作页面的 AI（遇到有风险的操作会先询问），以及可与 Safari 扩展并用的 Chrome 网上应用店扩展。如果你离不开通过 iCloud 在 Apple 设备间同步标签页、密码和通行密钥，就留在 Safari。
+
+**Chrome。** 没有 Google 账号、同步服务器，也没有分析统计；App 自己发出的少数请求都列在[隐私](#隐私)里。它用的是 macOS 已有的 WebKit，所以整个 App 只有 Chrome 体积的约 3%。如果你需要对仅为 Chromium 开发的网站有最广的兼容性、需要 Chrome 的同步，或者要在 Windows、Linux 或手机上使用，就留在 Chrome。
+
+**Arc。** 边栏加空间的思路，放在一款仍在增加功能的浏览器里。Arc 自 2025 年 5 月起处于维护模式：只有安全修复，没有新功能。如果你离不开 Boosts 或 Easels，就留在 Arc。
+
+**Dia。** 同一路思路（边栏、浏览器里的 AI）。Changmun 没有自己的 AI 服务：它的 AI 就是你已有的 `claude` CLI，用的是你自己的订阅，也根本没有 Changmun 账号或服务器。如果你想要 Dia 的托管 AI 功能和面向工作的集成，就留在 Dia。
+
+### 还没有的
+
+坦率地写出不足，正是本节的用意。
+
+- **没有同步。** 没有账号，所以书签、历史记录和密码只留在创建它们的那台 Mac 上。
+- **仅限 Mac。** 需要搭载 Apple 芯片的 Mac 和 macOS 14 或更高版本。没有 iPhone、Windows 或 Linux 版本。
+- **暂无通行密钥。** 浏览器需要 Apple 授予一项权限（entitlement）才能支持，Changmun 已经申请，正在等待。
+- **扩展是 WebKit 的。** 需要 macOS 15.4 或更高版本，而且有些 Chrome 扩展依赖 WebKit 没有的功能。
+- **仅限 Chromium 的网站。** 只为 Chromium 编写的网站在这里可能表现异常，在 Safari 里也一样。
+- **年轻而小。** 只有一位维护者，代码库也还年轻：比大型浏览器少了许多双眼睛，粗糙之处自然也多。欢迎提交 bug 报告。
 
 ## 安装
 

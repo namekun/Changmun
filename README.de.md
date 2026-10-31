@@ -25,11 +25,44 @@
 
 ## Warum Changmun
 
-- **Leicht.** Chromium-Browser bringen jeweils ihr eigenes Chromium mit. Changmun leiht sich stattdessen die WebKit-Engine, die ohnehin auf deinem Mac liegt und die auch Safari verwendet. Der Download ist etwa 3 MB groß (das DMG von 0.4.1 hat 2,6 MB). Das schont den Akku, und Sicherheitskorrekturen der Engine kommen mit den Updates von macOS und Safari.
+- **Leicht.** Chromium-Browser bringen jeweils ihr eigenes Chromium mit. Changmun leiht sich stattdessen die WebKit-Engine, die ohnehin auf deinem Mac liegt und die auch Safari verwendet. Die App belegt 21 MB auf der Festplatte, der Download ist etwa 7 MB groß ([wie das im Vergleich aussieht](#im-vergleich)). Das schont den Akku, und Sicherheitskorrekturen der Engine kommen mit den Updates von macOS und Safari.
 - **Eine Seitenleiste wie bei Arc und Dia.** Vertikale Tabs, deren Titel genug Platz haben, dazu Favoriten als Kacheln, Lesezeichenordner, Tab-Gruppen und Spaces. Lieber eine Tab-Leiste oben? Das ist eine Einstellung.
 - **Eine KI, die den Browser bedient.** Das Claude-Panel liest Seiten und klickt und tippt für dich, über deine vorhandene `claude`-CLI. Es bekommt Hände, aber keinen Freifahrtschein: Bevor etwas riskant wird, fragt es nach.
 - **Standardmäßig privat.** Kein Konto, kein Server, keine Analyse, also nichts, wofür du dich anmelden müsstest. Werbe- und Tracker-Blocker sind eingebaut.
 - **Zieht mit Sack und Pack um.** Importiert Lesezeichen und Verlauf aus Safari und Chromium-Browsern, aus Chromium-Browsern auch Passwörter und Anmeldungen. Die Passwörter von Safari bleiben zurück: macOS gibt sie an keine andere App heraus.
+
+## Im Vergleich
+
+Changmun versucht nicht, jeden Browser in allem zu schlagen. Hier steht, wo er anders ist und wo du mit einem anderen besser fährst. Die Größen wurden im Oktober 2026 auf einem Mac mit Apple Chip gemessen; der Rest stammt aus dem, was jedes Projekt über sich selbst sagt. Falls etwas veraltet ist, [eröffne bitte ein Issue](https://github.com/namekun/Changmun/issues).
+
+| | App auf der Festplatte | Engine |
+| :-- | --: | :-- |
+| **Changmun 0.10.2** | **21 MB** | WebKit, das von macOS |
+| Safari 27 | 35 MB | WebKit, das von macOS |
+| Google Chrome 156 | 731 MB | Chromium, eigene Kopie |
+| Arc 1.168 | 862 MB | Chromium, eigene Kopie |
+| Dia 1.53 | 1,3 GB | Chromium, eigene Kopie |
+
+<sub>`du -sh` der jeweils installierten App. Ein Chromium-Browser bringt seine Engine mit und aktualisiert sie selbst; Changmun und Safari bekommen Engine-Korrekturen mit macOS.</sub>
+
+**Safari.** Dieselbe Engine, also dieselbe Web-Kompatibilität und dieselbe Rücksicht auf den Akku. Changmun ergänzt eine Seitenleiste, die vertikale Tabs, Favoriten als Kacheln und deine Lesezeichenordner in einer Spalte vereint, eine KI, die eine Seite für dich bedienen kann (und vor Riskantem nachfragt), und Erweiterungen aus dem Chrome Web Store neben denen von Safari. Bleib bei Safari, wenn du auf die iCloud-Synchronisierung von Tabs, Passwörtern und Passkeys zwischen deinen Apple-Geräten angewiesen bist.
+
+**Chrome.** Kein Google-Konto, kein Sync-Server und keine Analyse; die wenigen Anfragen, die die App von sich aus stellt, stehen unter [Datenschutz](#datenschutz). Sie nutzt das WebKit, das macOS ohnehin hat, deshalb ist die ganze App nur etwa 3 % so groß wie Chrome. Bleib bei Chrome, wenn du die breiteste Kompatibilität mit Seiten brauchst, die nur für Chromium gebaut sind, seine Synchronisierung oder Windows, Linux oder ein Handy.
+
+**Arc.** Die Idee aus Seitenleiste und Spaces, in einem Browser, der noch neue Funktionen bekommt. Arc befindet sich seit Mai 2025 im Wartungsmodus: Sicherheitskorrekturen, keine neuen Funktionen. Bleib bei Arc, wenn du auf Boosts oder Easels nicht verzichten kannst.
+
+**Dia.** Dieselbe Ideenfamilie (eine Seitenleiste, eine KI im Browser). Changmun hat keinen eigenen KI-Dienst: Seine KI ist die `claude`-CLI, die du schon hast, mit deinem eigenen Abo, und es gibt gar kein Changmun-Konto und keinen Server. Bleib bei Dia, wenn du seine gehosteten KI-Funktionen und die Integrationen für die Arbeit willst.
+
+### Was noch fehlt
+
+Ehrlich über die Lücken zu sein, ist der Sinn dieses Abschnitts.
+
+- **Keine Synchronisierung.** Es gibt kein Konto, daher bleiben Lesezeichen, Verlauf und Passwörter auf dem Mac, auf dem sie entstanden sind.
+- **Nur Mac.** macOS 14 oder neuer auf Apple Chip. Kein iPhone, kein Windows, kein Linux.
+- **Noch keine Passkeys.** Dafür brauchen Browser eine Berechtigung (Entitlement) von Apple; Changmun hat sie beantragt und wartet.
+- **Erweiterungen sind die von WebKit.** Sie brauchen macOS 15.4 oder neuer, und manche Chrome-Erweiterungen verlassen sich auf Dinge, die WebKit nicht hat.
+- **Nur-Chromium-Seiten.** Eine Seite, die nur für Chromium geschrieben wurde, kann hier Probleme machen, wie in Safari auch.
+- **Jung und klein.** Ein Maintainer und eine junge Codebasis: weniger Augen als bei den großen Browsern und entsprechend Ecken und Kanten. Fehlerberichte sind willkommen.
 
 ## Installieren
 
