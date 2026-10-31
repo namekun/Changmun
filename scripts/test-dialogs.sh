@@ -88,10 +88,65 @@ dlg '{"key": {"chars": "\t", "keyCode": 48}}' >/dev/null
 R="$(dlg '{"type": "secret"}')"
 expect "sign-in: the sheet is still up while typing" "true" "$(val "$R" 'd["sheet"]')"
 R="$(dlg "$RETURN")"
-expect "sign-in: Return signs in with both fields" "sign-in: button 1 fields 2" "$(val "$R" 'd["answers"][-1]')"
+expect "sign-in: Return signs in with both fields" "sign-in: button 1 fields 2 lengths 3,6" "$(val "$R" 'd["answers"][-1]')"
 dlg '{"show": "sign-in-failed"}' >/dev/null
 R="$(dlg "$ESCAPE")"
-expect "sign-in: Esc cancels" "sign-in-failed: button 0 fields 2" "$(val "$R" 'd["answers"][-1]')"
+expect "sign-in: Esc cancels" "sign-in-failed: button 0 fields 2 lengths 6,0" "$(val "$R" 'd["answers"][-1]')"
+
+# --- Return in the user name moves on to the password; it does not sign in with an empty one ---
+dlg '{"show": "sign-in"}' >/dev/null
+dlg '{"type": "bob"}' >/dev/null
+R="$(dlg "$RETURN")"
+expect "sign-in: Return in the user name does not submit" "true" "$(val "$R" 'd["sheet"]')"
+dlg '{"type": "pw"}' >/dev/null
+R="$(dlg "$RETURN")"
+expect "sign-in: …it moved to the password, and Return there signs in with both" "sign-in: button 1 fields 2 lengths 3,2" "$(val "$R" 'd["answers"][-1]')"
+
+# --- what others start waits a moment before its buttons that say yes work ---
+R="$(dlg '{"show": "extension-ask", "wait": 50}')"
+expect "guarded: not armed straight away" "false" "$(val "$R" 'd["armed"]')"
+sleep 0.8
+R="$(dlg '{}')"
+expect "guarded: armed after the delay" "true" "$(val "$R" 'd["armed"]')"
+dlg "$ESCAPE" >/dev/null
+R="$(dlg '{"show": "delete-folder", "wait": 50}')"
+expect "a delete the user asked for is not guarded" "true" "$(val "$R" 'd["armed"]')"
+dlg "$ESCAPE" >/dev/null
+
+# --- a sheet never goes on another sheet ---
+dlg '{"show": "camera"}' >/dev/null
+R="$(dlg '{"show": "chat-link"}')"
+expect "stacking: the chat's link waits, there is still one sheet" "1" "$(val "$R" 'd["sheetCount"]')"
+CAMERA_TITLE="$(val "$R" 'd["sheetTitle"]')"
+R="$(dlg "$ESCAPE")"
+expect "stacking: when the first is answered the second goes up" "true" "$(val "$R" 'd["sheet"] and d["sheetTitle"] != "'"$CAMERA_TITLE"'"')"
+dlg "$ESCAPE" >/dev/null
+
+# --- the same question is asked once; another device of the site follows; another site is refused ---
+dlg '{"clear": true, "show": "camera"}' >/dev/null
+R="$(dlg '{"show": "camera"}')"
+expect "the same question twice: one sheet" "1" "$(val "$R" 'd["sheetCount"]')"
+R="$(dlg "$ESCAPE")"
+expect "…and both are answered by one answer" "camera: button 0|camera: button 0" "$(val "$R" '"|".join(d["answers"][-2:])')"
+dlg '{"clear": true, "show": "camera"}' >/dev/null
+dlg '{"show": "microphone"}' >/dev/null
+R="$(dlg '{"show": "camera-other-site"}')"
+expect "another site is refused while the camera is up" "camera-other-site: none" "$(val "$R" 'd["answers"][-1]')"
+R="$(dlg "$ESCAPE")"
+expect "the microphone is asked after the camera, not refused" "true" "$(val "$R" 'd["sheet"] and d["answers"][-1] == "camera: button 0"')"
+R="$(dlg "$ESCAPE")"
+expect "…and gets its answer" "microphone: button 0" "$(val "$R" 'd["answers"][-1]')"
+
+# --- where it comes from ---
+R="$(dlg '{"show": "camera-background"}')"
+expect "a tab in the background says so" "true" "$(val "$R" 'd["note"] != ""')"
+dlg "$ESCAPE" >/dev/null
+R="$(dlg '{"show": "camera-empty"}')"
+expect "no host: the title does not start with a blank" "true" "$(val "$R" 'len(d["title"]) > 5 and not d["title"].startswith(" ")')"
+dlg "$ESCAPE" >/dev/null
+R="$(dlg '{"show": "sign-in-empty"}')"
+expect "no host: the login title does not start with a blank" "true" "$(val "$R" 'len(d["title"]) > 5 and not d["title"].startswith(" ")')"
+dlg "$ESCAPE" >/dev/null
 
 # --- a window with a sheet up refuses what a page can start ---
 R="$(dlg '{"show": "camera"}')"

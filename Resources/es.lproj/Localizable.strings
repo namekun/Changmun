@@ -988,3 +988,11 @@
 "%lld more are not shown here, so this can't be allowed." = "Otros %lld no caben aquí, así que no se puede permitir.";
 "Show Details" = "Mostrar detalles";
 "Hide Details" = "Ocultar detalles";
+"From a tab in the background" = "De una pestaña en segundo plano";
+"Sign in to this page" = "Iniciar sesión en esta página";
+"bookmarks" = "marcadores";
+"history" = "historial";
+"passwords" = "contraseñas";
+"sign-ins" = "sesiones iniciadas";
+"Will come over: %@" = "Se traerá: %@";
+"Nothing will come over" = "No se traerá nada";

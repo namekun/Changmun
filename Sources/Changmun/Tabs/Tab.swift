@@ -112,6 +112,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var askedForAppSinceUserNavigation = false
     /// The question about an app is on screen.
     var appLinkQuestionShowing = false
+    /// The questions this tab's page started (a device, a login, an app) that are up or waiting, and what the user refused in this page load: a page
+    /// that was told no does not get to ask again.
+    var pageQuestions: [Dialog.Handle] = []
+    var blockedThisLoad: Set<String> = []
     /// What finds, asks about and opens the app for an address like claude://: the system's, except in tests.
     var appLinks = AppLinks.system
     /// The AI is going back, forward or reloading: a page that would send a form again is not loaded.
@@ -202,7 +206,25 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         return view
     }
 
+    /// The page's questions go with the page: the tab closed, slept, or moved on, so there is nobody to answer for and the answer is no.
+    func endPageQuestions() {
+        for handle in pageQuestions { handle.end() }
+        pageQuestions = []
+    }
+
+    /// Asks on the window of this tab; what is asked for the page ends with the page (`endPageQuestions`).
+    func askPage(_ spec: DialogSpec, in window: NSWindow?, whenBusy: Dialog.WhenBusy = .refuse, key: DialogKey? = nil) async -> DialogResult? {
+        let handle = Dialog.Handle()
+        pageQuestions.append(handle)
+        defer { pageQuestions.removeAll { $0 === handle } }
+        return await Dialog.present(in: window, spec, whenBusy: whenBusy, key: key, handle: handle)
+    }
+
+    /// Whether the user is looking at this tab: a question from any other is said to come from the background.
+    var isInBackground: Bool { !(browser.map { $0.isShown(self) || $0.peek === self } ?? true) }
+
     func sleep() {
+        endPageQuestions()
         browser?.certificatePrompter.forget(self)
         guard let webView else { return }
         savedState = webView.interactionState as? Data

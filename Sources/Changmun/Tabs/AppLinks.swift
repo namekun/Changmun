@@ -6,13 +6,13 @@ struct AppLinks {
     var appName: (URL) -> String?
     /// Asks the user, in a sheet on the window, whether the site may open the app; true for Open. No window, or one already
     /// showing a sheet, is a no.
-    var confirm: @MainActor (_ site: String, _ app: String, _ url: URL, _ window: NSWindow?) async -> Bool
+    var confirm: @MainActor (_ site: String, _ app: String, _ url: URL, _ window: NSWindow?, _ handle: Dialog.Handle) async -> Bool
     var open: (URL) -> Void
 
     @MainActor static let system = AppLinks(
         appName: { url in NSWorkspace.shared.urlForApplication(toOpen: url).map { FileManager.default.displayName(atPath: $0.path) } },
-        confirm: { site, app, url, window in
-            await Dialog.present(in: window, spec(site: site, app: app, url: url), whenBusy: .refuse)?.button == 1
+        confirm: { site, app, url, window, handle in
+            await Dialog.present(in: window, spec(site: site, app: app, url: url), whenBusy: .refuse, handle: handle)?.button == 1
         },
         open: { NSWorkspace.shared.open($0) })
 
@@ -22,6 +22,7 @@ struct AppLinks {
         DialogSpec(title: String(localized: "Open \(DialogSpec.name(app))?"),
                    message: String(localized: "\(DialogSpec.host(site)) wants to open the app."),
                    detail: .text(Approvals.shownWithNote(url.absoluteString, limit: 1000).text),
-                   buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel, isDefault: true), DialogButton(title: String(localized: "Open"))])
+                   buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel, isDefault: true), DialogButton(title: String(localized: "Open"))],
+                   guarded: true)
     }
 }

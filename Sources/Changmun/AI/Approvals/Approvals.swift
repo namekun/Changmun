@@ -295,7 +295,7 @@ enum Approvals {
         let forChat = hasChat(caller) && allowable
         let answer = await choose(message, detail,
                                   [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))]
-                                  + (forChat ? [(.site, String(localized: "Allow on \(display(host)) for This Chat"))] : []),
+                                  + (forChat ? [(.site, String(localized: "Allow on \(DialogSpec.host(display(host))) for This Chat"))] : []),
                                   parts: Prompt.Parts(site: target, readLine: readLine, label: label, text: text.text, why: why), mark: mark, caller: caller)
         if answer == .site, forChat {
             allowances[caller, default: [:]][host] = read
@@ -354,7 +354,7 @@ enum Approvals {
         let answer = await choose(String(localized: "The AI wants to accept cookies or change a setting"),
                                   "\(place)\n\n“\(words)”\n\n" + why,
                                   [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow Once"))]
-                                  + (forChat ? [(.site, String(localized: "Allow on \(display(host)) for This Chat"))] : []),
+                                  + (forChat ? [(.site, String(localized: "Allow on \(DialogSpec.host(display(host))) for This Chat"))] : []),
                                   parts: Prompt.Parts(site: place, text: "“\(words)”", why: why), mark: mark, caller: caller)
         if answer == .site, forChat {
             lowAllowed[caller, default: []].insert(host)
@@ -551,7 +551,9 @@ enum Approvals {
                 // The first button is the one Return presses, and the one that says no.
                 let spec = DialogSpec(title: message, detail: .text(detail), choices: accounts.count > 1 ? accounts.map(accountTitle) : [],
                                       choicesLabel: String(localized: "Account"),
-                                      buttons: buttons.enumerated().map { DialogButton(title: $1.1, role: $1.0 == .deny ? .cancel : .normal, isDefault: $0 == 0) })
+                                      buttons: buttons.enumerated().map { DialogButton(title: $1.1, role: $1.0 == .deny ? .cancel : .normal, isDefault: $0 == 0) },
+                                      // Asked by the AI, so its buttons that say yes wake up a moment after the sheet is on screen, here too.
+                                      guarded: true)
                 Task { @MainActor in
                     let answer = await Dialog.present(in: window, spec, handle: sheet)
                     finish(answer.map { buttons[$0.button].0 } ?? .deny, answer?.picked ?? 0)

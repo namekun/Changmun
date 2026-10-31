@@ -64,9 +64,15 @@ extension Tab: WKUIDelegate {
 
     func webView(_ webView: WKWebView, decideMediaCapturePermissionsFor origin: WKSecurityOrigin, initiatedBy frame: WKFrameInfo,
                  type: WKMediaCaptureType) async -> WKPermissionDecision {
-        await SitePermissions.shared.decide(host: origin.host, type: type, remember: !isPrivate,
-                                            unverified: ServerTrustStore.isUnverified(host: origin.host, port: origin.port == 0 ? 443 : origin.port),
-                                            window: webView.window ?? browser?.window)
+        // Told no once, a page is told no again, quietly, until it loads another page.
+        let blocked = "\(origin.host)|\(type.rawValue)"
+        if blockedThisLoad.contains(blocked) { return .deny }
+        let window = webView.window ?? browser?.window
+        let answer = await SitePermissions.shared.decide(host: origin.host, type: type, remember: !isPrivate,
+                                                         unverified: ServerTrustStore.isUnverified(host: origin.host, port: origin.port == 0 ? 443 : origin.port),
+                                                         background: isInBackground) { spec, key in await self.askPage(spec, in: window, key: key) }
+        if answer.blockedByUser { blockedThisLoad.insert(blocked) }
+        return answer.decision
     }
 
     /// "Back to tab" on the floating video, the only thing WebKit asks this for: its tab and window come to the front, as

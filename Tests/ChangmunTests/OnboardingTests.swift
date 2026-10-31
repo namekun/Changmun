@@ -23,4 +23,21 @@ struct OnboardingTests {
         model.showAI()
         #expect(model.step == .ai && model.ai == .none && model.reports.isEmpty)
     }
+
+    @Test func theLineBesideImportFollowsWhatIsTicked() {
+        let model = ImportModel()
+        let chrome = ImportSource(browser: "Chrome", directory: URL(fileURLWithPath: "/tmp/chrome"), kind: .chromium(safeStorage: "Chrome Safe Storage"))
+        let safari = ImportSource(browser: "Safari", directory: URL(fileURLWithPath: "/tmp/safari"), kind: .safari)
+        model.sources = [chrome, safari]
+        model.selected = [chrome.id, safari.id]
+        model.options = ImportOptions()
+        #expect(model.willCome == String(localized: "Will come over: \(AIGuidance.list([String(localized: "bookmarks"), String(localized: "history"), String(localized: "passwords"), String(localized: "sign-ins")]))"))
+        model.selected = [safari.id]
+        #expect(!model.willCome.contains(String(localized: "passwords")) && !model.willCome.contains(String(localized: "sign-ins")), "Safari has none to give")
+        model.selected = [chrome.id]
+        model.options.passwords = false
+        #expect(!model.willCome.contains(String(localized: "passwords")) && model.willCome.contains(String(localized: "sign-ins")))
+        model.options = ImportOptions(bookmarks: false, history: false, passwords: false, cookies: false)
+        #expect(model.willCome == String(localized: "Nothing will come over"))
+    }
 }

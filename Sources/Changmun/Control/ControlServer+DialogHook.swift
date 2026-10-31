@@ -55,10 +55,12 @@ extension ControlServer {
                 window.endSheet(sheet)
                 try? await Task.sleep(for: .milliseconds(300))
             }
-            var answer: [String: Any] = ["sheet": window.attachedSheet != nil, "sheetTitle": window.attachedSheet?.title ?? "", "answers": DialogTestState.answers]
+            var answer: [String: Any] = ["sheet": window.attachedSheet != nil, "sheetCount": window.sheets.count, "sheetTitle": window.attachedSheet?.title ?? "", "answers": DialogTestState.answers]
+            answer["armed"] = Dialog.lastState?.armed ?? true
             if let spec = DialogTestHook.current {
                 answer["title"] = spec.title
                 answer["message"] = spec.message ?? ""
+                answer["note"] = spec.note ?? ""
                 answer["buttons"] = spec.buttons.map(\.title)
                 answer["default"] = spec.defaultIndex ?? -1
                 answer["cancel"] = spec.cancelIndex ?? -1
@@ -85,30 +87,41 @@ enum DialogTestHook {
         let hostile = "evil\u{202E}moc.example" + String(repeating: ".very-long-label", count: 12)
         var spec: DialogSpec
         var whenBusy = Dialog.WhenBusy.wait
+        var key: DialogKey?
+        var target = window
         switch name {
         case "delete-folder": spec = .confirmDelete(String(localized: "Delete the folder “\(DialogSpec.name("Work"))”?"), String(localized: "Its \(12) bookmarks go with it. This can't be undone."))
         case "delete-source": spec = .confirmDelete(String(localized: "Delete all bookmarks imported from \(DialogSpec.name("Chrome"))?"), String(localized: "They all go, and this can't be undone."))
         case "delete-space": spec = .confirmDelete(String(localized: "Delete the space “\(DialogSpec.name("Study"))”?"), String(localized: "Its tabs are closed. Its favorites move to “\(DialogSpec.name("Personal"))”. Bookmarks stay in the library."))
         case "app-link": spec = AppLinks.spec(site: "claude.ai", app: "Claude", url: url); whenBusy = .refuse
-        case "camera": spec = SitePermissions.spec(host: "meet.example", type: .camera, remember: true); whenBusy = .refuse
-        case "microphone": spec = SitePermissions.spec(host: "meet.example", type: .microphone, remember: true); whenBusy = .refuse
+        case "camera", "camera-background", "camera-empty", "camera-other-site":
+            let host = name == "camera-empty" ? "" : name == "camera-other-site" ? "other.example" : "meet.example"
+            spec = SitePermissions.spec(host: host, type: .camera, remember: true, background: name == "camera-background")
+            key = SitePermissions.key(host: host, type: .camera)
+            whenBusy = .refuse
+        case "microphone":
+            spec = SitePermissions.spec(host: "meet.example", type: .microphone, remember: true)
+            key = SitePermissions.key(host: "meet.example", type: .microphone)
+            whenBusy = .refuse
         case "camera-microphone": spec = SitePermissions.spec(host: "meet.example", type: .cameraAndMicrophone, remember: true); whenBusy = .refuse
-        case "sign-in": spec = Tab.signInSpec(host: "intranet.example", failed: false, user: ""); whenBusy = .refuse
+        case "sign-in", "sign-in-background", "sign-in-empty":
+            spec = Tab.signInSpec(host: name == "sign-in-empty" ? "" : "intranet.example", failed: false, user: "", background: name == "sign-in-background")
+            key = DialogKey(group: "intranet.example:443::basic", kind: "sign-in")
+            whenBusy = .refuse
         case "sign-in-failed": spec = Tab.signInSpec(host: "intranet.example", failed: true, user: "namkun"); whenBusy = .refuse
         case "hostile":
             spec = AppLinks.spec(site: hostile, app: hostile, url: URL(string: "https://example.com/?" + String(repeating: "a", count: 600))!); whenBusy = .refuse
         case "chat-link":
-            spec = DialogSpec(title: String(localized: "Open a link to \(DialogSpec.host("example.com"))?"),
-                              message: String(localized: "This chat has read other sites, and a page could have slipped this link in to send what the AI read there."),
-                              detail: .text(url.absoluteString),
-                              buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel, isDefault: true), DialogButton(title: String(localized: "Open"))])
+            spec = ChatLinks.confirmSpec(url)
+            // What the chat's links use: the key window, which may be a sheet.
+            target = window.attachedSheet ?? window
         case "extension-turn-on", "extension-update", "extension-ask":
             switch name {
             case "extension-turn-on": spec = ExtensionPrompt.permissionsSpec(name: "Dark Reader", hosts: ["<all_urls>"], permissions: ["activeTab", "storage", "tabs"], updating: false)
             case "extension-update": spec = ExtensionPrompt.permissionsSpec(name: "Dark Reader", hosts: ["https://example.com/*", "https://www.example.com/*"], permissions: ["cookies"], updating: true)
             default: spec = ExtensionPrompt.askSpec(String(localized: "'\(DialogSpec.name("Dark Reader"))' wants to access this site"), items: ["https://example.com/*", "https://www.example.com/*", "*://*.com/*"])
             }
-        case "approval-card", "approval-sheet", "approval-accounts":
+        case "approval-card", "approval-sheet", "approval-accounts", "approval-sheet-site":
             guard let tab = browser.active else { return false }
             Approvals.headless.holds = true
             if name == "approval-card" { browser.showChat = true } else { browser.showChat = false }
@@ -116,6 +129,7 @@ enum DialogTestHook {
                 switch name {
                 case "approval-card": _ = await Approvals.allowAction(.low, "Accept all cookies", on: tab, caller: ChatStore.caller)
                 case "approval-sheet": _ = await Approvals.allowAction(.high, "Pay now", on: tab, caller: ChatStore.caller)
+                case "approval-sheet-site": _ = await Approvals.allowAction(.low, "Accept all cookies", on: tab, caller: ChatStore.caller, site: hostile)
                 default: _ = await Approvals.allowSignIn(host: "github.com", accounts: ["namkun@example.com", "work@example.com", ""], page: nil, caller: ChatStore.caller)
                 }
             }
@@ -125,8 +139,8 @@ enum DialogTestHook {
         }
         current = spec
         Task {
-            let answer = await Dialog.present(in: window, spec, whenBusy: whenBusy)
-            DialogTestState.answers.append("\(name): " + (answer.map { "button \($0.button)" + ($0.remembered ? " remembered" : "") + ($0.fields.isEmpty ? "" : " fields \($0.fields.count)") } ?? "none"))
+            let answer = await Dialog.present(in: target, spec, whenBusy: whenBusy, key: key)
+            DialogTestState.answers.append("\(name): " + (answer.map { "button \($0.button)" + ($0.remembered ? " remembered" : "") + ($0.fields.isEmpty ? "" : " fields \($0.fields.count) lengths \($0.fields.map { String($0.count) }.joined(separator: ","))") } ?? "none"))
         }
         return true
     }

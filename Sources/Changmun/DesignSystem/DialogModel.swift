@@ -43,6 +43,11 @@ struct DialogSpec: Equatable {
     var remember: String?
     /// From left to right.
     var buttons: [DialogButton]
+    /// One line about where the question comes from, when that is not the page in front ("From a tab in the background").
+    var note: String?
+    /// Asked by a page, a server, an extension or the AI, not by the user's own action: its buttons that say yes wake up a moment after the sheet
+    /// is on screen, and a click on one counts only if it began after that (a click meant for what was under the sheet is not an answer).
+    var guarded = false
 
     enum Style: Equatable { case primary, secondary, danger }
     enum Key: Equatable { case `return`, escape }
@@ -59,6 +64,9 @@ struct DialogSpec: Equatable {
     var cancelIndex: Int? {
         buttons.firstIndex { $0.role == .cancel } ?? (buttons.count == 1 ? 0 : nil)
     }
+
+    /// The button that says no and leaves everything as it was: always live.
+    func isSafe(_ index: Int) -> Bool { buttons.indices.contains(index) && index == cancelIndex }
 
     func button(for key: Key) -> Int? {
         switch key {
@@ -84,6 +92,7 @@ struct DialogSpec: Equatable {
     /// A site's host as the page's origin says it, cleaned of what hides or reorders text. When it is long it is cut from the left, not from the end:
     /// the end is the domain the site really belongs to, and a long subdomain must not push it out of sight ("…aaaa.evil.example").
     static func host(_ text: String, limit: Int = 48) -> String {
+        guard !text.isEmpty else { return String(localized: "This page") }
         let longest = 400
         let scalars = Array(text.unicodeScalars)
         var cleaned = Array(Approvals.shown(String(String.UnicodeScalarView(scalars.suffix(longest))), limit: longest).text.unicodeScalars)
@@ -110,4 +119,25 @@ struct DialogResult: Equatable {
     var remembered: Bool
     /// The entry picked from `choices`.
     var picked: Int
+}
+
+/// What a question is about, for questions that arrive in a crowd: the same `group` and `kind` is one question (a page's many requests that
+/// need the same login share one answer), the same group with another kind is asked after it, and another group is refused while one is up.
+struct DialogKey: Hashable {
+    var group: String
+    var kind: String
+}
+
+/// Whether a press of a button counts. A question that is guarded keeps its buttons that say yes shut until it has been on screen for a moment;
+/// then a click counts only if it began after that, and a key (Return, Space) or an assistive technology's press counts. The safe button always does.
+enum DialogGate {
+    static func mayPress(guarded: Bool, safe: Bool, shownAt: Date?, mouseDownAt: Date?, mouseUpAt: Date?, keyDown: (at: Date, isRepeat: Bool)?, now: Date) -> Bool {
+        guard guarded, !safe else { return true }
+        guard let shownAt else { return false }
+        switch ApprovalKeys.activation(mouseUpAt: mouseUpAt, keyDown: keyDown, now: now) {
+        case .mouse: return ApprovalKeys.mayClickYes(shownAt: shownAt, mouseDownAt: mouseDownAt, now: now)
+        case .repeatedKey: return false
+        case .keyboard, .noEvent: return ApprovalKeys.yesArmed(shownFor: now.timeIntervalSince(shownAt))
+        }
+    }
 }

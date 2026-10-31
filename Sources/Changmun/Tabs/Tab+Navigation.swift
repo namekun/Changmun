@@ -86,8 +86,11 @@ extension Tab: WKNavigationDelegate {
             appLinkQuestionShowing = true
             let site = site ?? String(localized: "This page")
             let window = webView.window ?? browser?.window
+            let handle = Dialog.Handle()
+            pageQuestions.append(handle)
             Task { @MainActor in
-                let open = await appLinks.confirm(site, app, url, window)
+                let open = await appLinks.confirm(site, app, url, window, handle)
+                pageQuestions.removeAll { $0 === handle }
                 appLinkQuestionShowing = false
                 if open { appLinks.open(url) }
             }
@@ -158,6 +161,9 @@ extension Tab: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         navigations += 1
+        // What the old page asked is not for the page that replaces it, and the new page starts without having been told no.
+        endPageQuestions()
+        blockedThisLoad = []
         navigatingTo = nil
         pendingUpgrade = nil
         hasUnverifiedFrame = false
@@ -253,21 +259,24 @@ extension Tab: WKNavigationDelegate {
         }
         guard method == NSURLAuthenticationMethodHTTPBasic || method == NSURLAuthenticationMethodHTTPDigest else { return (.performDefaultHandling, nil) }
         guard challenge.previousFailureCount < 3, !Headless.isOn else { return (.cancelAuthenticationChallenge, nil) }
-        let spec = Self.signInSpec(host: challenge.protectionSpace.host, failed: challenge.previousFailureCount > 0, user: challenge.proposedCredential?.user ?? "")
-        // A sheet on the window, one at a time: a page that makes many requests that ask for a login cannot pile questions up. What is typed is
-        // handed to the credential and kept nowhere else, and never logged.
-        guard let answer = await Dialog.present(in: webView.window ?? browser?.window, spec, whenBusy: .refuse), answer.button == 1, answer.fields.count == 2 else {
+        let space = challenge.protectionSpace
+        let spec = Self.signInSpec(host: space.host, failed: challenge.previousFailureCount > 0, user: challenge.proposedCredential?.user ?? "", background: isInBackground)
+        // A sheet on the window, one at a time: a page that makes many requests that need the same login shares one question, and another
+        // site's cannot pile on top of it. What is typed is handed to the credential and kept nowhere else, and never logged.
+        let key = DialogKey(group: "\(space.host):\(space.port):\(space.realm ?? ""):\(space.authenticationMethod)", kind: "sign-in")
+        guard let answer = await askPage(spec, in: webView.window ?? browser?.window, key: key), answer.button == 1, answer.fields.count == 2 else {
             return (.cancelAuthenticationChallenge, nil)
         }
         return (.useCredential, URLCredential(user: answer.fields[0], password: answer.fields[1], persistence: .forSession))
     }
 
     /// The login question: the user name and a password field that shows nothing. Sign In is what Return does.
-    static func signInSpec(host: String, failed: Bool, user: String) -> DialogSpec {
-        DialogSpec(title: String(localized: "Sign in to \(DialogSpec.host(host))"),
+    static func signInSpec(host: String, failed: Bool, user: String, background: Bool = false) -> DialogSpec {
+        DialogSpec(title: host.isEmpty ? String(localized: "Sign in to this page") : String(localized: "Sign in to \(DialogSpec.host(host))"),
                    message: failed ? String(localized: "The user name or password is incorrect.") : String(localized: "This site asks for a user name and password."),
                    fields: [DialogField(placeholder: String(localized: "User Name"), text: user), DialogField(placeholder: String(localized: "Password"), isSecure: true)],
-                   buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel), DialogButton(title: String(localized: "Sign In"), isDefault: true)])
+                   buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel), DialogButton(title: String(localized: "Sign In"), isDefault: true)],
+                   note: background ? String(localized: "From a tab in the background") : nil, guarded: true)
     }
 
     /// A site that wants a certificate to identify the user (see ClientCertificates). Cancel, no certificate, and a headless Changmun all go on

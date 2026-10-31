@@ -988,3 +988,11 @@
 "%lld more are not shown here, so this can't be allowed." = "ほかの%lld件はここに表示できないため、許可できません。";
 "Show Details" = "詳細を表示";
 "Hide Details" = "詳細を隠す";
+"From a tab in the background" = "バックグラウンドのタブから";
+"Sign in to this page" = "このページにサインイン";
+"bookmarks" = "ブックマーク";
+"history" = "履歴";
+"passwords" = "パスワード";
+"sign-ins" = "ログイン状態";
+"Will come over: %@" = "読み込む項目：%@";
+"Nothing will come over" = "読み込む項目はありません";

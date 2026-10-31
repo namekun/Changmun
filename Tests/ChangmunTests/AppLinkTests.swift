@@ -100,7 +100,7 @@ extension SharedAgentState {
         private func tab(_ log: Log, in b: Browser, url: URL? = nil) -> Tab {
             let tab = b.openTab(url: url)
             tab.appLinks = AppLinks(appName: { _ in log.app },
-                                    confirm: { site, app, url, _ in
+                                    confirm: { site, app, url, _, _ in
                                         log.asked.append((site, app, url.absoluteString))
                                         if log.holds { return await withCheckedContinuation { log.waiting.append($0) } }
                                         return log.answer

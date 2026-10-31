@@ -60,20 +60,23 @@ enum ExtensionPrompt {
             lines.append(String(localized: "It can read and change the content of the sites listed below."))
         }
         if hidden > 0 { lines.append(notShown(hidden)) }
+        // The permissions come first: a long list of sites cannot push them below the fold of the box.
         var detail: [String] = []
-        if !sites.text.isEmpty { detail.append(sites.text) }
         if !granted.text.isEmpty { detail.append(String(localized: "Permissions: \(granted.text)")) }
+        if !sites.text.isEmpty { detail.append(sites.text) }
         return DialogSpec(title: updating ? String(localized: "'\(name)' is updating and asks for more permissions") : String(localized: "Turn on '\(name)'?"),
                           message: lines.isEmpty ? nil : lines.joined(separator: " "),
                           detail: detail.isEmpty ? nil : .text(detail.joined(separator: "\n\n")),
                           buttons: buttons(safe: updating ? String(localized: "Use Previous Permissions Only") : String(localized: "Cancel"),
-                                           allow: updating ? String(localized: "Allow") : String(localized: "Turn On"), hidden: hidden))
+                                           allow: updating ? String(localized: "Allow") : String(localized: "Turn On"), hidden: hidden),
+                          // Turning an extension on is the user's own doing; what an update asks for on its own is not.
+                          guarded: updating)
     }
 
     /// What an extension asks for while it runs: the sites, or the permissions, that Allow would give it, one to a line.
     static func askSpec(_ title: String, items: [String]) -> DialogSpec {
         let listed = listing(items)
         return DialogSpec(title: title, message: listed.hidden > 0 ? notShown(listed.hidden) : nil, detail: listed.text.isEmpty ? nil : .text(listed.text),
-                          buttons: buttons(safe: String(localized: "Deny"), allow: String(localized: "Allow"), hidden: listed.hidden))
+                          buttons: buttons(safe: String(localized: "Deny"), allow: String(localized: "Allow"), hidden: listed.hidden), guarded: true)
     }
 }

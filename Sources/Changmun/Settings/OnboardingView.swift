@@ -3,7 +3,7 @@ import SwiftUI
 
 @MainActor
 final class ImportModel: ObservableObject {
-    enum Step { case welcome, choose, importing, done, ai }
+    enum Step { case welcome, importing, done, ai }
 
     @Published var step: Step = .welcome
     @Published var sources: [ImportSource] = []
@@ -26,6 +26,17 @@ final class ImportModel: ObservableObject {
     func showAI() {
         ai = AIAvailability.detector()
         step = .ai
+    }
+
+    /// What will come over with what is ticked, in words: passwords and sign-ins only from a browser that has them to give.
+    var willCome: String {
+        var items: [String] = []
+        let secrets = sources.contains { selected.contains($0.id) && $0.supportsSecrets }
+        if options.bookmarks { items.append(String(localized: "bookmarks")) }
+        if options.history { items.append(String(localized: "history")) }
+        if options.passwords, secrets { items.append(String(localized: "passwords")) }
+        if options.cookies, secrets { items.append(String(localized: "sign-ins")) }
+        return items.isEmpty ? String(localized: "Nothing will come over") : String(localized: "Will come over: \(AIGuidance.list(items))")
     }
 
     /// What came over from all the browsers together.
@@ -82,7 +93,7 @@ struct OnboardingView: View {
             Theme.scrimModal.contentShape(Rectangle())
             VStack(alignment: .leading, spacing: 0) {
                 switch model.step {
-                case .welcome, .choose: welcome
+                case .welcome: welcome
                 case .importing: importing
                 case .done, .ai: finished
                 }
@@ -150,6 +161,8 @@ struct OnboardingView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            Text(verbatim: model.willCome).font(.secondary).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 8)
             HStack {
                 Button("Later") { model.showAI() }.buttonStyle(QuietLinkStyle(font: .body))
                 Spacer()
@@ -157,7 +170,6 @@ struct OnboardingView: View {
                     .buttonStyle(PrimaryButton())
                     .disabled(model.selected.isEmpty || model.options == ImportOptions(bookmarks: false, history: false, passwords: false, cookies: false))
             }
-            .padding(.top, 8)
         }
         .padding(32)
     }

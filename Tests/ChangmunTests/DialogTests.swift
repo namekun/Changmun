@@ -127,4 +127,90 @@ struct DialogTests {
         #expect(Tab.signInSpec(host: disguised, failed: false, user: "").title.hasSuffix(".evil.example"))
         #expect(AppLinks.spec(site: disguised, app: "Claude", url: URL(string: "claude://x")!).message?.contains(".evil.example wants") == true)
     }
+
+    // MARK: Questions that others start
+
+    @Test func aQuestionAPageOrTheAIStartsIsGuardedAndOneTheUserStartedIsNot() {
+        #expect(SitePermissions.spec(host: "a.example", type: .camera, remember: true).guarded)
+        #expect(AppLinks.spec(site: "a.example", app: "App", url: URL(string: "app://x")!).guarded)
+        #expect(Tab.signInSpec(host: "a.example", failed: false, user: "").guarded)
+        #expect(ExtensionPrompt.askSpec("t", items: ["https://a.example/*"]).guarded)
+        #expect(ExtensionPrompt.permissionsSpec(name: "X", hosts: [], permissions: ["tabs"], updating: true).guarded)
+        #expect(ChatLinks.confirmSpec(URL(string: "https://a.example/x")!).guarded)
+        #expect(!DialogSpec.confirmDelete("Delete?", "It goes.").guarded, "the user's own deleting waits for nothing")
+        #expect(!ExtensionPrompt.permissionsSpec(name: "X", hosts: [], permissions: ["tabs"], updating: false).guarded, "turning an extension on is the user's own doing")
+    }
+
+    @Test func theSafeButtonIsAlwaysLiveAndTheOthersWaitForTheDelay() {
+        let shown = Date(timeIntervalSince1970: 1000)
+        func may(_ safe: Bool, guarded: Bool = true, down: Double? = nil, up: Double? = nil, key: (Double, Bool)? = nil, now: Double) -> Bool {
+            DialogGate.mayPress(guarded: guarded, safe: safe, shownAt: shown, mouseDownAt: down.map { shown + $0 }, mouseUpAt: up.map { shown + $0 },
+                                keyDown: key.map { (shown + $0.0, $0.1) }, now: shown + now)
+        }
+        #expect(may(true, now: 0.01), "the safe choice is live at once")
+        #expect(may(false, guarded: false, now: 0.01), "nothing guarded, nothing to wait for")
+        #expect(!may(false, down: 0.1, up: 0.15, now: 0.2), "a click before the delay is not an answer")
+        #expect(!may(false, down: 0.3, up: 0.6, now: 0.62), "a press that began before the delay ended, though it came up after it, is not one either")
+        #expect(may(false, down: 0.7, up: 0.78, now: 0.8), "a click that began after the delay is")
+        #expect(!may(false, key: (0.2, false), now: 0.2), "Return or Space within the delay is not")
+        #expect(may(false, key: (0.9, false), now: 0.9))
+        #expect(!may(false, key: (0.9, true), now: 0.9), "a key held down does not answer again and again")
+        #expect(!DialogGate.mayPress(guarded: true, safe: false, shownAt: nil, mouseDownAt: nil, mouseUpAt: nil, keyDown: nil, now: Date()), "not on screen yet")
+    }
+
+    @Test func theCancelIsTheSafeButtonAndNothingElseIs() {
+        let camera = SitePermissions.spec(host: "a.example", type: .camera, remember: true)
+        #expect(camera.isSafe(0) && !camera.isSafe(1) && !camera.isSafe(5))
+        let login = Tab.signInSpec(host: "a.example", failed: false, user: "")
+        #expect(login.isSafe(0) && !login.isSafe(1), "Sign In is not safe though Return presses it")
+    }
+
+    @Test func aPageWithNoHostIsCalledThisPage() {
+        #expect(DialogSpec.host("") == String(localized: "This page"))
+        #expect(SitePermissions.spec(host: "", type: .camera, remember: true).title.hasPrefix(String(localized: "This page")))
+        #expect(Tab.signInSpec(host: "", failed: false, user: "").title == String(localized: "Sign in to this page"))
+        #expect(!Tab.signInSpec(host: "", failed: false, user: "").title.hasPrefix(" "))
+    }
+
+    @Test func aQuestionFromATabInTheBackgroundSaysSo() {
+        #expect(SitePermissions.spec(host: "a.example", type: .camera, remember: true, background: true).note == String(localized: "From a tab in the background"))
+        #expect(SitePermissions.spec(host: "a.example", type: .camera, remember: true).note == nil)
+        #expect(Tab.signInSpec(host: "a.example", failed: false, user: "", background: true).note == String(localized: "From a tab in the background"))
+        #expect(Tab.signInSpec(host: "a.example", failed: false, user: "").note == nil)
+    }
+
+    @Test func aLinkOfTheChatThatIsTooLongSaysItWasCut() {
+        let long = URL(string: "https://a.example/?" + String(repeating: "q", count: 3000))!
+        guard case .text(let shown)? = ChatLinks.confirmSpec(long).detail else { Issue.record("the address is in the box"); return }
+        #expect(shown.count < 1100 && shown != String(shown.prefix(1000)), "a note says how much was left out")
+    }
+
+    @Test func permissionsComeBeforeALongListOfSites() {
+        let hosts = (0..<200).map { "https://site\($0).example/*" }
+        let spec = ExtensionPrompt.permissionsSpec(name: "X", hosts: hosts, permissions: ["tabs", "cookies"], updating: false)
+        guard case .text(let text)? = spec.detail else { Issue.record("a box"); return }
+        #expect(text.hasPrefix(String(localized: "Permissions: cookies, tabs")), "first in the box, above the fold")
+        #expect(text.contains("https://site199.example/*"))
+    }
+
+    @Test func theSiteButtonOfAnApprovalCarriesTheEndOfALongHost() {
+        let long = "accounts.bank.example." + String(repeating: "a", count: 200) + ".evil.example"
+        let title = String(localized: "Allow on \(DialogSpec.host(long)) for This Chat")
+        #expect(title.hasSuffix("for This Chat") && title.contains(".evil.example") && title.count < 120)
+    }
+
+
+    @Test func onlyTheUsersOwnNoIsRememberedForTheRestOfThePageLoad() async {
+        func answer(_ result: DialogResult?) async -> SitePermissions.Answer {
+            await SitePermissions.shared.decide(host: "never-seen.example", type: .camera, remember: false) { _, _ in result }
+        }
+        let block = await answer(DialogResult(button: 0, fields: [], remembered: false, picked: 0))
+        #expect(block.decision == .deny && block.blockedByUser)
+        let allow = await answer(DialogResult(button: 1, fields: [], remembered: false, picked: 0))
+        #expect(allow.decision == .grant && !allow.blockedByUser)
+        let refused = await answer(nil)
+        #expect(refused.decision == .deny && !refused.blockedByUser, "a question that was refused or taken back is no reason to stop asking")
+        #expect(SitePermissions.key(host: "a.example", type: .camera) != SitePermissions.key(host: "a.example", type: .microphone))
+        #expect(SitePermissions.key(host: "a.example", type: .camera).group == SitePermissions.key(host: "a.example", type: .microphone).group)
+    }
 }

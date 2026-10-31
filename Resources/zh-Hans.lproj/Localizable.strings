@@ -988,3 +988,11 @@
 "%lld more are not shown here, so this can't be allowed." = "另有 %lld 项无法在此显示，因此不能允许。";
 "Show Details" = "显示详细信息";
 "Hide Details" = "隐藏详细信息";
+"From a tab in the background" = "来自后台标签页";
+"Sign in to this page" = "登录此页面";
+"bookmarks" = "书签";
+"history" = "历史记录";
+"passwords" = "密码";
+"sign-ins" = "登录状态";
+"Will come over: %@" = "将导入：%@";
+"Nothing will come over" = "不会导入任何内容";

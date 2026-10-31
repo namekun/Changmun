@@ -460,16 +460,21 @@ enum ChatLinks {
         return !Set(read).subtracting([site]).isEmpty
     }
 
+    /// The question. The whole address, wrapped and scrollable, not one line with its middle cut out: what the page slipped in can be anywhere in it.
+    static func confirmSpec(_ url: URL) -> DialogSpec {
+        DialogSpec(title: String(localized: "Open a link to \(DialogSpec.host(host(of: url) ?? ""))?"),
+                   message: String(localized: "This chat has read other sites, and a page could have slipped this link in to send what the AI read there."),
+                   detail: .text(Approvals.shownWithNote(url.absoluteString, limit: 1000).text),
+                   buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel, isDefault: true), DialogButton(title: String(localized: "Open"))],
+                   guarded: true)
+    }
+
     /// Opens a link of an answer in a new tab, after the question when it needs one.
     @MainActor
     static func open(_ url: URL) -> OpenURLAction.Result {
         guard isSafe(url) else { return .discarded }
         if needsConfirmation(url, read: Approvals.sitesRead(caller: ChatStore.caller)) {
-            // The whole address, wrapped and scrollable, not one line with its middle cut out: what the page slipped in can be anywhere in it.
-            let spec = DialogSpec(title: String(localized: "Open a link to \(DialogSpec.host(host(of: url) ?? ""))?"),
-                                  message: String(localized: "This chat has read other sites, and a page could have slipped this link in to send what the AI read there."),
-                                  detail: .text(Approvals.shown(url.absoluteString, limit: 1000).text),
-                                  buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel, isDefault: true), DialogButton(title: String(localized: "Open"))])
+            let spec = confirmSpec(url)
             Task { @MainActor in
                 guard await Dialog.present(in: NSApp.keyWindow ?? Browser.recent?.window, spec)?.button == 1 else { return }
                 let target = Browser.recent ?? BrowserWindow.open()
