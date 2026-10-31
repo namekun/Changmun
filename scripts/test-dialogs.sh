@@ -94,9 +94,10 @@ R="$(dlg "$ESCAPE")"
 expect "sign-in: Esc cancels" "sign-in-failed: button 0 fields 2" "$(val "$R" 'd["answers"][-1]')"
 
 # --- a window with a sheet up refuses what a page can start ---
-dlg '{"show": "camera"}' >/dev/null
+R="$(dlg '{"show": "camera"}')"
+CAMERA_TITLE="$(val "$R" 'd["sheetTitle"]')"
 R="$(dlg '{"show": "app-link"}')"
-expect "busy: the app link is not stacked on the camera question" "true|camera" "$(val "$R" 'str(d["sheet"]).lower() + "|" + ("camera" if "camera" in d["sheetTitle"] else d["sheetTitle"])')"
+expect "busy: the app link is not stacked on the camera question" "true|$CAMERA_TITLE" "$(val "$R" 'str(d["sheet"]).lower() + "|" + d["sheetTitle"]')"
 expect "busy: …and was answered no" "app-link: none" "$(val "$R" 'd["answers"][-1]')"
 R="$(dlg '{"show": "sign-in"}')"
 expect "busy: nor the login" "sign-in: none" "$(val "$R" 'd["answers"][-1]')"
