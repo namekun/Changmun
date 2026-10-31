@@ -3,7 +3,7 @@
 <h1 align="center">Changmun</h1>
 
 <p align="center">
-  <b>Ein schlanker Mac-Browser mit Seitenleiste und einer KI, die ihn bedienen kann.</b><br>
+  <b>Tabs an der Seite, die Seite ganz groß. Ein leichter Mac-Browser mit einer KI, die für dich klickt.</b><br>
   Die WebKit-Engine von Safari, vertikale Tabs, Favoriten und Lesezeichenordner links und eine Claude-Seitenleiste, die Seiten liest, klickt und für dich tippt.
 </p>
 

@@ -3,7 +3,7 @@
 <h1 align="center">Changmun</h1>
 
 <p align="center">
-  <b>Un navegador ligero para Mac con barra lateral y una IA que sabe usarlo.</b><br>
+  <b>Pestañas al lado, la página en grande. Un navegador ligero para Mac con una IA que hace clic por ti.</b><br>
   El motor WebKit de Safari, pestañas verticales, favoritos y carpetas de marcadores a la izquierda, y un panel de Claude que lee páginas, hace clic y escribe por ti.
 </p>
 
