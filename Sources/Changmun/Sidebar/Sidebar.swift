@@ -10,6 +10,7 @@ struct Sidebar: View {
     var overlay = false
     @ObservedObject private var prefs = Preferences.shared
     @ObservedObject private var library = LibraryWatcher.shared
+    @ObservedObject private var drag = SidebarDragWatcher.shared
     @State private var dropTarget: String?
     @State private var showLibrary = false
     @State private var bookmarkQuery = ""
@@ -58,7 +59,7 @@ struct Sidebar: View {
                                 tabRow(tab, depth: 1)
                             }
                             // Below the group's last tab: a tab dropped here goes to the end of the group.
-                            if !rows.isEmpty {
+                            if drag.isDragging, !rows.isEmpty {
                                 EndOfListDrop(depth: 1)
                                     .dropLine(dropTarget == "group-end:\(group.id)" && SidebarDrag.carriesTab)
                                     .dropDestination(for: SidebarDrop.self) { items, _ in
@@ -85,6 +86,7 @@ struct Sidebar: View {
                 .animation(Motion.standard, value: browser.space.pinnedFolders)
                 .animation(Motion.standard, value: browser.space.openFolders)
                 .animation(Motion.quick, value: dropTarget)
+                .animation(Motion.quick, value: drag.isDragging)
             }
             // A tab switched to from the keyboard or the command bar comes into view.
             .onChange(of: browser.activeID) { _, id in
@@ -284,7 +286,7 @@ struct Sidebar: View {
         guard browser.space.openFolders.contains(scope + folder.key) else { return rows }
         for child in folder.children { rows += treeRows(child, depth: depth + 1, scope: scope, pinned: pinned) }
         rows += folder.entries.map { .bookmark($0, folder: folder.key, depth: depth + 1, scope: scope) }
-        if !folder.entries.isEmpty { rows.append(.end(folder: folder.key, depth: depth + 1, scope: scope)) }
+        if drag.isDragging, !folder.entries.isEmpty { rows.append(.end(folder: folder.key, depth: depth + 1, scope: scope)) }
         return rows
     }
 
@@ -402,14 +404,14 @@ struct Sidebar: View {
 }
 
 /// The space between two parts of the sidebar.
-/// A thin strip below the last row of a group or a folder, to drop on to put something at the end of it (the rows take what is
-/// dropped just above them).
+/// A strip below the last row of a group or a folder while something is being dragged, to drop on to put it at the end (the rows take
+/// what is dropped just above them).
 struct EndOfListDrop: View {
     let depth: Int
 
     var body: some View {
         Color.clear
-            .frame(height: 6)
+            .frame(height: 14)
             .contentShape(Rectangle())
             .padding(.leading, CGFloat(depth) * Metrics.indent)
             .accessibilityHidden(true)

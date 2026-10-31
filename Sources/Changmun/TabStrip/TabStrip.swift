@@ -6,12 +6,14 @@ import SwiftUI
 struct TabStrip: View {
     @ObservedObject var browser: Browser
     @ObservedObject private var library = LibraryWatcher.shared
+    @ObservedObject private var drag = SidebarDragWatcher.shared
     @State private var dropTarget: String?
     @State private var stripWidth = 10_000.0
 
     private static let gap: CGFloat = 4
     private static let tabWidths: ClosedRange<CGFloat> = 120...220
     private static let plusWidth = Metrics.control
+    private static let groupEndWidth: CGFloat = 16
     /// A favorite's tile.
     static let favoriteWidth: CGFloat = 34
     private static let separatorWidth = 1 + 2 * Metrics.inset
@@ -63,7 +65,9 @@ struct TabStrip: View {
         let chips = items.reduce(CGFloat(0)) { total, item in
             if case .group(let group, let members) = item { total + StripGroupChip.width(group, count: members, renaming: browser.stripRenaming(group: group.id)) + Self.gap } else { total }
         }
-        let rest = chips + Self.plusWidth + Self.gap * CGFloat(count)
+        // While something is carried, the last tab of each group is followed by a place to drop at the end of the group.
+        let ends = drag.isDragging ? browser.lastShownTabOfGroups : [:]
+        let rest = chips + Self.plusWidth + Self.gap * CGFloat(count) + (Self.groupEndWidth + Self.gap) * CGFloat(ends.count)
         let width = count == 0 ? Self.tabWidths.upperBound : min(Self.tabWidths.upperBound, max(Self.tabWidths.lowerBound, ((available - rest) / CGFloat(count)).rounded(.down)))
         let content = rest + width * CGFloat(count)
         return HStack(spacing: 0) {
@@ -72,7 +76,9 @@ struct TabStrip: View {
                     HStack(spacing: Self.gap) {
                         ForEach(items) { item in
                             switch item {
-                            case .tab(let tab): stripTab(tab, width: width)
+                            case .tab(let tab):
+                                stripTab(tab, width: width)
+                                if let group = ends[tab.id] { groupEnd(group) }
                             case .group(let group, let members): chip(group, count: members)
                             case .favorite: EmptyView()
                             }
@@ -108,6 +114,18 @@ struct TabStrip: View {
             .dropDestination(for: SidebarDrop.self) { items, _ in
                 SidebarDrag.drop(items.texts, onTab: tab.id, browser: browser)
             } isTargeted: { target("tab:\(tab.id)", $0) }
+    }
+
+    /// After a group's last tab while something is carried: dropped here, it goes to the end of the group.
+    private func groupEnd(_ group: UUID) -> some View {
+        Color.clear
+            .frame(width: Self.groupEndWidth, height: BrowserWindow.tabStripHeight)
+            .contentShape(Rectangle())
+            .dropLine(dropTarget == "group-end:\(group)" && SidebarDrag.carriesTab, edge: .leading)
+            .dropDestination(for: SidebarDrop.self) { items, _ in
+                SidebarDrag.drop(items.texts, onEndOf: group, browser: browser)
+            } isTargeted: { target("group-end:\(group)", $0) }
+            .accessibilityHidden(true)
     }
 
     private func chip(_ group: Browser.TabGroup, count: Int) -> some View {

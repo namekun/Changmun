@@ -250,12 +250,14 @@ struct StartReadingRow: View {
         HStack(spacing: 10) {
             StartIcon(url: item.url, size: 22, plate: false)
             VStack(alignment: .leading, spacing: 1) {
-                Text(verbatim: item.title).font(.system(size: 13, weight: item.read ? .regular : .semibold))
-                    .foregroundStyle(item.read ? Theme.secondary : Theme.primary).lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(verbatim: item.title).font(.system(size: 13, weight: item.read ? .regular : .semibold))
+                        .foregroundStyle(item.read ? Theme.secondary : Theme.primary).lineLimit(1)
+                    if !item.read { Circle().fill(Theme.primary).frame(width: 6, height: 6) }
+                }
                 Text(verbatim: "\(site) · \(added)").font(.system(size: 11)).foregroundStyle(Theme.dim).lineLimit(1)
             }
             Spacer(minLength: 8)
-            if !item.read { Circle().fill(Theme.primary).frame(width: 6, height: 6).padding(.trailing, 6) }
         }
         .padding(.horizontal, 8)
         .frame(height: 42)

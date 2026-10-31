@@ -27,6 +27,21 @@ extension SharedAgentState {
 
         // MARK: The end of a group
 
+        @Test func aPlaceToDropAtTheEndShowsOnlyWhileSomethingIsCarried() throws {
+            let b = browser(3)
+            let t = ids(b)
+            let group = try #require(b.group([t[0], t[1]], name: "G"))
+            #expect(b.lastShownTabOfGroups == [t[1]: group])
+            _ = SidebarDrag.dropAtEnd([], browser: b)
+            #expect(!SidebarDragWatcher.shared.isDragging)
+            _ = SidebarDrag.tab(t[2])
+            #expect(SidebarDragWatcher.shared.isDragging)
+            #expect(SidebarDrag.drop([SidebarDrag.tab(t[2])], onEndOf: group, browser: b))
+            #expect(!SidebarDragWatcher.shared.isDragging, "dropped, the room goes away again")
+            b.toggleGroup(group)
+            #expect(b.lastShownTabOfGroups.isEmpty, "a folded group shows no tab, and has no end to drop at")
+        }
+
         @Test func aTabDroppedBelowAGroupsLastTabGoesToTheEndOfItFromInsideOrOutside() throws {
             let b = browser(5)
             let t = ids(b)

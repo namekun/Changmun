@@ -54,12 +54,25 @@ extension Array where Element == SidebarDrop {
     var texts: [String] { map(\.text) }
 }
 
+/// Whether something of the sidebar's is being carried, for the views that make room to drop it only then.
+@MainActor
+final class SidebarDragWatcher: ObservableObject {
+    static let shared = SidebarDragWatcher()
+    @Published fileprivate(set) var isDragging = false
+}
+
 /// Dragging tabs, groups and favorites around the sidebar: the payload names what is dragged.
 @MainActor
 enum SidebarDrag {
     enum Kind { case tab, bookmark, folder, group }
     /// What the latest drag from the sidebar carries: set when the drag starts, so drop targets can show where it lands.
-    private(set) static var dragging: Kind? { didSet { if dragging != .group { draggingGroup = nil }; watchForRelease() } }
+    private(set) static var dragging: Kind? {
+        didSet {
+            if dragging != .group { draggingGroup = nil }
+            if SidebarDragWatcher.shared.isDragging != (dragging != nil) { SidebarDragWatcher.shared.isDragging = dragging != nil }
+            watchForRelease()
+        }
+    }
     /// The group being dragged, so its own header and tabs show no line.
     private(set) static var draggingGroup: UUID?
 
