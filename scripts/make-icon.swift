@@ -47,7 +47,7 @@ func render(size: CGFloat) -> NSBitmapImageRep {
     pane(0.5 + across, 1, 0) { _ in cross - along }
     pane(0, 0.5 - across, cross + along, top)
     pane(0.5 + across, 1, cross + along, top)
-    NSGradient(starting: ink.withAlphaComponent(0.62), ending: ink.withAlphaComponent(0.14))!.draw(in: light, angle: -62)
+    NSGradient(starting: ink.withAlphaComponent(0.66), ending: ink.withAlphaComponent(0.40))!.draw(in: light, angle: -62)
     let arch = NSBezierPath()
     arch.move(to: NSPoint(x: frame.minX, y: frame.minY))
     arch.line(to: NSPoint(x: frame.minX, y: frame.maxY - w / 2))
@@ -56,8 +56,10 @@ func render(size: CGFloat) -> NSBitmapImageRep {
     arch.close()
     ink.setFill()
     arch.fill()
+    // The bars run the whole height of the window, into the arch.
+    arch.addClip()
     bars.setFill()
-    NSBezierPath(rect: NSRect(x: frame.midX - bar / 2, y: frame.minY, width: bar, height: h - 41 * s)).fill()
+    NSBezierPath(rect: NSRect(x: frame.midX - bar / 2, y: frame.minY, width: bar, height: h)).fill()
     NSBezierPath(rect: NSRect(x: frame.minX, y: frame.minY + 207 * s, width: w, height: bar)).fill()
 
     NSGraphicsContext.restoreGraphicsState()
