@@ -24,7 +24,7 @@ struct ReaderButton: View {
     }
 }
 
-/// On a page in another language: translates it on this Mac, and brings the original back.
+/// On a page in another language: translates it (on this Mac, or with Claude if Settings says so), and brings the original back.
 struct TranslateButton: View {
     @ObservedObject var tab: Tab
 
