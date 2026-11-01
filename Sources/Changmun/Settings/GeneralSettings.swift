@@ -7,6 +7,9 @@ struct GeneralSettings: View {
     @ObservedObject var prefs: Preferences
     @State private var isDefaultBrowser = false
 
+    /// Whether Claude Code is there to translate with (looked at again whenever a preference, such as its path, changes).
+    private var claudeReady: Bool { AIAvailability.detector() == .ready }
+
     var body: some View {
         Form {
             Section("Search") {
@@ -29,6 +32,25 @@ struct GeneralSettings: View {
                     }
                 }
                 Toggle("Ask where to save each download", isOn: $prefs.askWhereToSave)
+            }
+            Section("Translation") {
+                Picker("Translate pages with", selection: $prefs.translationEngine) {
+                    Text("On this Mac").tag(TranslationEngine.onDevice)
+                    Text("Claude").tag(TranslationEngine.claude).disabled(!claudeReady)
+                }
+                if prefs.translationEngine == .claude {
+                    Picker("Model", selection: $prefs.translationModel) {
+                        Text("Haiku (fastest)").tag("haiku")
+                        Text("Sonnet (fast and balanced)").tag("sonnet")
+                        Text("Opus (smartest, slower)").tag("opus")
+                    }
+                    Caption(text: "The text of each page you translate is sent to Anthropic and counts against your Claude subscription. Pages in private windows, and in profiles other than the one in front, are never sent.")
+                } else {
+                    Caption(text: "The text of a page stays on this Mac. It is translated with the models of macOS, which needs macOS 26 or later.")
+                }
+                if !claudeReady {
+                    Caption(text: "Claude needs Claude Code on this Mac. Install it, or enter where it is in Settings › AI.")
+                }
             }
             Section("Browser") {
                 Toggle("Quit when the last window is closed", isOn: $prefs.quitWhenLastWindowCloses)

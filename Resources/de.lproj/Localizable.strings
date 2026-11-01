@@ -996,3 +996,14 @@
 "sign-ins" = "Anmeldungen";
 "Will come over: %@" = "Wird übernommen: %@";
 "Nothing will come over" = "Es wird nichts übernommen";
+"Translation" = "Übersetzung";
+"Translate pages with" = "Seiten übersetzen mit";
+"On this Mac" = "Auf diesem Mac";
+"Claude" = "Claude";
+"The text of each page you translate is sent to Anthropic and counts against your Claude subscription. Pages in private windows, and in profiles other than the one in front, are never sent." = "Der Text jeder Seite, die du übersetzt, wird an Anthropic gesendet und zählt auf dein Claude-Abo. Seiten in privaten Fenstern und in anderen Profilen als dem vorderen werden nie gesendet.";
+"The text of a page stays on this Mac. It is translated with the models of macOS, which needs macOS 26 or later." = "Der Text einer Seite bleibt auf diesem Mac. Er wird mit den Modellen von macOS übersetzt, wofür macOS 26 oder neuer nötig ist.";
+"Claude needs Claude Code on this Mac. Install it, or enter where it is in Settings › AI." = "Claude braucht Claude Code auf diesem Mac. Installiere es oder gib unter Einstellungen › KI an, wo es liegt.";
+"Claude Code isn’t available, so the page wasn’t translated. Install it, or choose On this Mac in Settings › General." = "Claude Code ist nicht verfügbar, deshalb wurde die Seite nicht übersetzt. Installiere es oder wähle unter Einstellungen › Allgemein „Auf diesem Mac“.";
+"Pages in this window are only translated on this Mac, which needs macOS 26 or later." = "Seiten in diesem Fenster werden nur auf diesem Mac übersetzt, wofür macOS 26 oder neuer nötig ist.";
+"Claude couldn’t translate this page. It was left as it was." = "Claude konnte diese Seite nicht übersetzen. Sie blieb unverändert.";
+"Claude couldn’t translate all of this page. The rest was left as it was." = "Claude konnte diese Seite nicht ganz übersetzen. Der Rest blieb unverändert.";

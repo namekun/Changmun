@@ -216,6 +216,13 @@ final class Preferences: ObservableObject {
     @Published var aiKeepHistory: Bool { didSet { defaults.set(aiKeepHistory, forKey: "aiKeepHistory") } }
     @Published var claudePath: String { didSet { defaults.set(claudePath.isEmpty ? nil : claudePath, forKey: "claudePath") } }
 
+    // MARK: Translation
+
+    /// Who translates pages: this Mac (the default), or Claude, which is sent the page's text.
+    @Published var translationEngine: TranslationEngine { didSet { defaults.set(translationEngine.rawValue, forKey: "translationEngine") } }
+    /// The model Claude translates with (`--model`).
+    @Published var translationModel: String { didSet { defaults.set(translationModel, forKey: "translationModel") } }
+
     // MARK: Advanced
 
     @Published var developerMode: Bool { didSet { defaults.set(developerMode, forKey: "developerMode") } }
@@ -269,6 +276,8 @@ final class Preferences: ObservableObject {
         aiEffort = d.string(forKey: "aiEffort") ?? ""
         aiKeepHistory = d.object(forKey: "aiKeepHistory") as? Bool ?? true
         claudePath = d.string(forKey: "claudePath") ?? ""
+        translationEngine = TranslationEngine.initial(stored: d.string(forKey: "translationEngine"))
+        translationModel = TranslationEngine.model(stored: d.string(forKey: "translationModel"))
         developerMode = d.bool(forKey: "developerMode")
         addressBar = AddressBarChoice(rawValue: d.string(forKey: "addressBar") ?? "") ?? .automatic
         shortcuts = ShortcutScheme(rawValue: d.string(forKey: "shortcuts") ?? "") ?? .safari

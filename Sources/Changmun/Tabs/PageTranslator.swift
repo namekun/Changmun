@@ -3,8 +3,9 @@ import os
 import Translation
 import WebKit
 
-/// Translates a page into the user's language on this Mac, with the system's translation models: the text never
-/// leaves the machine. Text is replaced node by node, so links and layout stay; the original comes back on request.
+/// Translates a page into the user's language, by default on this Mac with the system's translation models, where the text never
+/// leaves the machine; or, when the user has chosen it, with Claude (see ClaudeTranslation), which is sent the text. Text is replaced
+/// node by node, so links and layout stay; the original comes back on request.
 @MainActor
 enum PageTranslator {
     /// What went wrong when a page wouldn't translate, in Console (subsystem io.github.namekun.Changmun, category translation).
@@ -39,6 +40,36 @@ enum PageTranslator {
         case translated, needsDownload, unsupported, nothingToTranslate, failed
         /// The page's text was read, but the system's translation refused all of it with every kind of model it has.
         case engineFailed
+        /// Claude was asked and none of the page was translated: it stays as it was.
+        case claudeFailed
+        /// Claude translated some of the page and could not do the rest, which stays as it was.
+        case translatedPartly
+    }
+
+    /// How a page is to be translated, or why it can't be.
+    enum Route: Equatable {
+        case onDevice
+        case claude(model: String)
+        case refused(Refusal)
+    }
+
+    enum Refusal: Equatable {
+        /// Claude is chosen and Claude Code is not there; the page is not translated some other way.
+        case claudeUnavailable
+        /// The tab may not go to Claude, and this Mac's own translation needs macOS 26.
+        case onDeviceUnavailable
+    }
+
+    /// Whether the system's translation can be used on this Mac.
+    nonisolated static var onDeviceAvailable: Bool { if #available(macOS 26.0, *) { true } else { false } }
+
+    /// Which way a page goes. Claude only gets pages the AI may see (`seenByAI`: not a private window's, not another profile's):
+    /// those of other tabs are translated on this Mac, or not at all. Claude chosen and missing is a refusal, never a quiet turn to
+    /// the system's translation, and the system's translation is never a reason to ask Claude.
+    nonisolated static func route(engine: TranslationEngine, model: String, claude: AIAvailability, seenByAI: Bool, onDeviceAvailable: Bool = onDeviceAvailable) -> Route {
+        guard engine == .claude else { return .onDevice }
+        guard seenByAI else { return onDeviceAvailable ? .onDevice : .refused(.onDeviceUnavailable) }
+        return claude == .ready ? .claude(model: TranslationEngine.model(stored: model)) : .refused(.claudeUnavailable)
     }
 
     /// The kinds of models a session can be asked for: the two strategies of macOS 26.4 and later, then the system's default.
@@ -93,6 +124,46 @@ enum PageTranslator {
             if outcome != .engineFailed { return (outcome, engine) }
         }
         return (outcome, nil)
+    }
+
+    /// Translates the page into `target` with Claude, batch by batch, showing each batch as it comes back, for as long as `current` holds
+    /// (when it turns false the `claude` processes are ended). What Claude doesn't translate is left as it was.
+    static func translateWithClaude(_ webView: WKWebView, model: String, to target: Locale.Language = target, while current: @escaping () -> Bool) async -> Outcome {
+        let run: ClaudeTranslation.Run
+        do { run = try ClaudeTranslation.makeRun(model) } catch {
+            log.error("translate: Claude can't be run: \(String(describing: error), privacy: .public)")
+            return .claudeFailed
+        }
+        let texts: [String]
+        do {
+            guard let count = try await webView.callAsyncJavaScript(claudeCollectScript, contentWorld: .defaultClient) as? Int else { return .failed }
+            guard count > 0 else { return .nothingToTranslate }
+            guard let all = try await webView.callAsyncJavaScript("return globalThis.changmunTranslation.texts", contentWorld: .defaultClient) as? [String] else { return .failed }
+            texts = all
+        } catch {
+            log.error("translate: reading the page failed: \(describe(error), privacy: .public); outcome failed")
+            return .failed
+        }
+        log.notice("translate: \(texts.count, privacy: .public) pieces of text, with Claude")
+        let language = ClaudeTranslation.languageName(target)
+        let work = Task {
+            await ClaudeTranslation.translate(texts.enumerated().map { (id: $0, text: $1) }, language: language, run: run) { translated in
+                guard current() else { return }
+                _ = try? await webView.appScript(applyScript, arguments: ["texts": Dictionary(uniqueKeysWithValues: translated.map { (String($0.key), $0.value) })])
+            }
+        }
+        // The page going away, or the user asking for the original, ends the processes: the task is cancelled, and each `claude` with it.
+        let watcher = Task {
+            while !Task.isCancelled {
+                if !current() { return work.cancel() }
+                try? await Task.sleep(for: .milliseconds(150))
+            }
+        }
+        let report = await withTaskCancellationHandler { await work.value } onCancel: { work.cancel() }
+        watcher.cancel()
+        log.notice("translate: Claude translated \(report.translated, privacy: .public) pieces, \(report.failedBatches, privacy: .public) batches failed, \(report.skippedBatches, privacy: .public) not asked")
+        if report.translated == 0 { return .claudeFailed }
+        return report.failedBatches > 0 || report.skippedBatches > 0 ? .translatedPartly : .translated
     }
 
     /// The page's `count` pieces of text (already collected) translated with `session`, batch by batch.
@@ -211,20 +282,31 @@ enum PageTranslator {
     return sample;
     """
 
-    /// Finds the page's words: text nodes outside code, form fields and anything marked not to translate.
-    static let collectScript = """
-    const skip = 'script, style, noscript, textarea, input, select, code, pre, kbd, samp, svg, math, [translate=no], .notranslate, [contenteditable=""], [contenteditable=true]';
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
-      acceptNode: n => /\\p{L}/u.test(n.nodeValue) && n.nodeValue.trim().length > 1 && !(n.parentElement && n.parentElement.closest(skip))
-        ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
-    });
-    const nodes = [];
-    while (walker.nextNode() && nodes.length < 4000) nodes.push(walker.currentNode);
-    const previous = globalThis.changmunTranslation;
-    if (previous) previous.nodes.forEach((n, i) => { n.nodeValue = previous.originals[i]; });
-    globalThis.changmunTranslation = { nodes, originals: nodes.map(n => n.nodeValue), texts: nodes.map(n => n.nodeValue.trim()) };
-    return nodes.length;
-    """
+    /// Finds the page's words: text nodes outside code, form fields and anything marked not to translate. A form field's value is
+    /// never a text node (an `input`, a password, a code or a card number has no children, a `textarea` and a `select` are skipped), so
+    /// none of it is read.
+    static let collectScript = makeCollectScript(skipping: "")
+
+    /// What goes to Claude is collected with more care than what stays on this Mac: also not what a page lets the user type into
+    /// without an input (`contenteditable` of any kind, `role=textbox`, `searchbox` and `combobox`), not the suggestions of a `datalist`
+    /// and not a form's options.
+    static let claudeCollectScript = makeCollectScript(skipping: ", option, datalist, [contenteditable]:not([contenteditable=false i]), [role=textbox], [role=searchbox], [role=combobox]")
+
+    private static func makeCollectScript(skipping more: String) -> String {
+        """
+        const skip = 'script, style, noscript, textarea, input, select, code, pre, kbd, samp, svg, math, [translate=no], .notranslate, [contenteditable=""], [contenteditable=true]\(more)';
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+          acceptNode: n => /\\p{L}/u.test(n.nodeValue) && n.nodeValue.trim().length > 1 && !(n.parentElement && n.parentElement.closest(skip))
+            ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
+        });
+        const nodes = [];
+        while (walker.nextNode() && nodes.length < 4000) nodes.push(walker.currentNode);
+        const previous = globalThis.changmunTranslation;
+        if (previous) previous.nodes.forEach((n, i) => { n.nodeValue = previous.originals[i]; });
+        globalThis.changmunTranslation = { nodes, originals: nodes.map(n => n.nodeValue), texts: nodes.map(n => n.nodeValue.trim()) };
+        return nodes.length;
+        """
+    }
 
     /// Puts translations in place, keeping the spaces around each piece of text.
     static let applyScript = """

@@ -99,6 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         Browser.saveSession()
         ChatStore.shared.stopForQuit()
+        ClaudeProcess.stopAll()
         ChatStore.removeOldConfigs()
         ControlServer.shared.stop()
     }

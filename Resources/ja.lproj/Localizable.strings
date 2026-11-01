@@ -996,3 +996,14 @@
 "sign-ins" = "ログイン状態";
 "Will come over: %@" = "読み込む項目：%@";
 "Nothing will come over" = "読み込む項目はありません";
+"Translation" = "翻訳";
+"Translate pages with" = "ページの翻訳に使うもの";
+"On this Mac" = "このMac";
+"Claude" = "Claude";
+"The text of each page you translate is sent to Anthropic and counts against your Claude subscription. Pages in private windows, and in profiles other than the one in front, are never sent." = "翻訳するページのテキストはAnthropicに送信され、Claudeのサブスクリプションの利用枠を消費します。プライベートウインドウのページと、手前にあるプロファイル以外のプロファイルのページは送信されません。";
+"The text of a page stays on this Mac. It is translated with the models of macOS, which needs macOS 26 or later." = "ページのテキストはこのMacの外に出ません。macOSの翻訳モデルで翻訳します（macOS 26以降が必要です）。";
+"Claude needs Claude Code on this Mac. Install it, or enter where it is in Settings › AI." = "ClaudeにはこのMacにClaude Codeが必要です。インストールするか、設定 › AIで場所を指定してください。";
+"Claude Code isn’t available, so the page wasn’t translated. Install it, or choose On this Mac in Settings › General." = "Claude Codeを利用できないため、ページは翻訳されませんでした。インストールするか、設定 › 一般で「このMac」を選んでください。";
+"Pages in this window are only translated on this Mac, which needs macOS 26 or later." = "このウインドウのページはこのMacでのみ翻訳されます（macOS 26以降が必要です）。";
+"Claude couldn’t translate this page. It was left as it was." = "Claudeでこのページを翻訳できませんでした。ページはそのままです。";
+"Claude couldn’t translate all of this page. The rest was left as it was." = "Claudeでこのページをすべては翻訳できませんでした。残りはそのままです。";
