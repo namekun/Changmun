@@ -72,6 +72,10 @@ struct SiteSettings: View {
                         .fixedSize()
                     }
                 }
+                row(String(localized: "Keep translating this site")) {
+                    switchFor(Binding(get: { prefs.keepsTranslating(host) }, set: { tab.setKeepsTranslating($0, host: host) }))
+                }
+                .help(String(localized: "Translates this site’s pages as they open, and the text they add later. With Claude, the text of each page is sent to Anthropic automatically, without asking again."))
                 row(String(localized: "Never put to sleep")) {
                     switchFor(Binding(get: { !Preferences.canSleep(host: host, neverSleep: prefs.neverSleepHosts) }, set: {
                         prefs.neverSleepHosts = $0 ? Preferences.adding(host, to: prefs.neverSleepHosts) : Preferences.removing(host, from: prefs.neverSleepHosts)

@@ -48,6 +48,16 @@ struct GeneralSettings: View {
                 } else {
                     Caption(text: "The text of a page stays on this Mac. It is translated with the models of macOS, which needs macOS 26 or later.")
                 }
+                Caption(text: "Sites you turned “Keep translating this site” on for stay here. Their pages are translated as they open. With Claude, the text of each of those pages is sent to Anthropic automatically.")
+                ForEach(prefs.translatedHosts, id: \.self) { host in
+                    HStack {
+                        Text(host).lineLimit(1)
+                        Spacer()
+                        Caption(text: "Kept translating")
+                        Button { prefs.translatedHosts.removeAll { $0 == host } } label: { Image(systemName: "minus.circle") }
+                            .buttonStyle(.borderless)
+                    }
+                }
                 if !claudeReady {
                     Caption(text: "Claude needs Claude Code on this Mac. Install it, or enter where it is in Settings › AI.")
                 }

@@ -222,6 +222,30 @@ final class Preferences: ObservableObject {
     @Published var translationEngine: TranslationEngine { didSet { defaults.set(translationEngine.rawValue, forKey: "translationEngine") } }
     /// The model Claude translates with (`--model`).
     @Published var translationModel: String { didSet { defaults.set(translationModel, forKey: "translationModel") } }
+    /// Sites whose pages are translated as they open, and whose new text is translated too (the site settings' switch). Each is one
+    /// host: `mail.example.com` is not `example.com`, and only "www." counts as the same host.
+    @Published var translatedHosts: [String] { didSet { defaults.set(translatedHosts, forKey: "translatedHosts") } }
+
+    func keepsTranslating(_ host: String?) -> Bool { Self.matchesExactly(host, translatedHosts) }
+
+    /// The host in lower case without "www.": what a site is called in the lists that go by one host.
+    nonisolated static func siteKey(_ host: String) -> String {
+        let host = host.lowercased()
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+    }
+
+    /// The host is one of the sites, with or without "www.", and no other host under them or above them.
+    nonisolated static func matchesExactly(_ host: String?, _ sites: [String]) -> Bool {
+        guard let host, !host.isEmpty else { return false }
+        let key = siteKey(host)
+        return sites.contains { siteKey($0) == key }
+    }
+
+    /// The list without that host (and its "www." form), and without any other.
+    nonisolated static func removingExactly(_ host: String, from sites: [String]) -> [String] {
+        let key = siteKey(host)
+        return sites.filter { siteKey($0) != key }
+    }
 
     // MARK: Advanced
 
@@ -278,6 +302,7 @@ final class Preferences: ObservableObject {
         claudePath = d.string(forKey: "claudePath") ?? ""
         translationEngine = TranslationEngine.initial(stored: d.string(forKey: "translationEngine"))
         translationModel = TranslationEngine.model(stored: d.string(forKey: "translationModel"))
+        translatedHosts = d.stringArray(forKey: "translatedHosts") ?? []
         developerMode = d.bool(forKey: "developerMode")
         addressBar = AddressBarChoice(rawValue: d.string(forKey: "addressBar") ?? "") ?? .automatic
         shortcuts = ShortcutScheme(rawValue: d.string(forKey: "shortcuts") ?? "") ?? .safari

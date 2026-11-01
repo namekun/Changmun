@@ -474,12 +474,14 @@ extension ControlServer {
         // Tests only: how pages are translated. "engine" ("onDevice" or "claude") and "model" set the preferences, "ready" whether Claude Code
         // counts as there, and "fake" what answers in place of `claude`, which the test copy never starts: "upper" translates every piece
         // by making it capital letters, "fail" cannot answer, "slow" answers after ten seconds (and is cancelled if the page goes away).
-        // The answer says what is set, and how many times the fake was asked.
+        // "kept" sets the sites that are kept translating. The answer says what is set, how many times the fake was asked, and where the
+        // page in front stands ("original", "translating" or "translated").
         if Headless.isTestCopy, request.method == "POST", request.path == "/translation",
            let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
             Task { @MainActor in
                 if let engine = (body["engine"] as? String).flatMap(TranslationEngine.init(rawValue:)) { Preferences.shared.translationEngine = engine }
                 if let model = body["model"] as? String { Preferences.shared.translationModel = model }
+                if let kept = body["kept"] as? [String] { Preferences.shared.translatedHosts = kept }
                 if let ready = body["ready"] as? Bool { AIAvailability.detector = { ready ? .ready : .none } }
                 if let fake = body["fake"] as? String {
                     TranslationFake.reset()
@@ -494,7 +496,8 @@ extension ControlServer {
                     }
                 }
                 self.respond(connection, status: "200 OK", body: ["engine": Preferences.shared.translationEngine.rawValue, "model": Preferences.shared.translationModel,
-                                                                  "claudeReady": AIAvailability.detector() == .ready, "asked": TranslationFake.asked])
+                                                                  "claudeReady": AIAvailability.detector() == .ready, "asked": TranslationFake.asked,
+                                                                  "kept": Preferences.shared.translatedHosts, "state": Browser.recent?.active.map { "\($0.translation)" } ?? ""])
             }
             return true
         }

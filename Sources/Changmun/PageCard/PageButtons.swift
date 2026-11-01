@@ -27,6 +27,7 @@ struct ReaderButton: View {
 /// On a page in another language: translates it (on this Mac, or with Claude if Settings says so), and brings the original back.
 struct TranslateButton: View {
     @ObservedObject var tab: Tab
+    @ObservedObject private var prefs = Preferences.shared
 
     var body: some View {
         if tab.foreignLanguage != nil || tab.translation != .original {
@@ -43,8 +44,14 @@ struct TranslateButton: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(tab.translation == .translated ? Theme.primary : Theme.secondary)
-            .help(tab.translation == .translated ? String(localized: "Show Original (⌥⌘T)")
-                  : tab.translatesWithClaude ? String(localized: "Translating with Claude: the page’s text is being sent to Anthropic. Click to stop (⌥⌘T).") : String(localized: "Translate (⌥⌘T)"))
+            .help(tab.translatesWithClaude ? String(localized: "Translating with Claude: the page’s text is being sent to Anthropic. Click to stop (⌥⌘T).")
+                  : tab.translation == .translated ? String(localized: "Show Original (⌥⌘T)") : String(localized: "Translate (⌥⌘T)"))
+            .contextMenu {
+                if !tab.isPrivate, tab.url?.scheme?.hasPrefix("http") == true, let host = tab.url?.host()?.lowercased(), !host.isEmpty {
+                    Toggle("Keep translating this site", isOn: Binding(get: { prefs.keepsTranslating(host) }, set: { tab.setKeepsTranslating($0, host: host) }))
+                        .help("Translates this site’s pages as they open, and the text they add later. With Claude, the text of each page is sent to Anthropic automatically, without asking again.")
+                }
+            }
             .accessibilityLabel(String(localized: "Translate"))
             .accessibilityValue(tab.translation == .translating ? String(localized: "Translating") : Accessibility.onOffValue(tab.translation == .translated))
         }
