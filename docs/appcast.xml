@@ -6,6 +6,20 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.13.0</title>
+      <pubDate>Sun, 01 Nov 2026 11:07:03 +0000</pubDate>
+      <sparkle:version>44</sparkle:version>
+      <sparkle:shortVersionString>0.13.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.13.0</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Translate pages with Claude.** If Claude Code is set up on your Mac, you can pick Claude and a model for page translation in Settings › General, next to translation on this Mac. It is off by default. The page's text goes to Anthropic, and the translate button says so while it works. Private windows and other profiles' pages stay on this Mac. Pages with a password, one-time code or card field are never sent, and neither is text you can't see. Claude runs with no tools, and a translation that brings an address, a link or a long number the page didn't have is thrown away. If only part of a page was translated, the status line says so.
+- **Favorites show which ones are open by their color.** A favorite with no tab is faded, so the open ones stand out, in the sidebar and in tabs on top. The dot under the tile is gone.
+
+Tried with automated tests, and with one call to the real claude outside the app. A real translation through the app, the new tooltip and messages on screen, and macOS 14 and 15 haven't been tried by hand, so tell me what looks or feels off.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.13.0/Changmun-0.13.0.dmg" length="7164465" type="application/octet-stream" sparkle:edSignature="ReAwlu1VoXbUQGmNHl2AqZTvSVuiugSDdbLbIEP7IzqGFGLm8S85dwA5IJnYR9CumpOYbQfGDWpjyOYP1rPkCg==" />
+    </item>
+    <item>
       <title>0.12.0</title>
       <pubDate>Sun, 01 Nov 2026 04:20:12 +0000</pubDate>
       <sparkle:version>43</sparkle:version>
@@ -132,27 +146,9 @@ Tried with automated tests and the headless copy. The dialogs' real look on scre
 - **Client certificates work in more cases.** If none of your certificates match the issuers a site names, you now get the list of all valid ones (with a note) instead of nothing; certificates issued through an intermediate CA are sent with their chain; ones not meant for client use are left out; the chooser no longer cancels itself on the first load or lingers after its tab closes.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.5/Changmun-0.8.5.dmg" length="5523617" type="application/octet-stream" sparkle:edSignature="PzqpzQnkvecYY2Wa0Ql44uRCMEH5FxBZwaT81KE7Prk6wUWxPXETQ+MXo1iVw+fYWWUzdCbU2yrvMJGgJUNwDg==" />
     </item>
-    <item>
-      <title>0.8.4</title>
-      <pubDate>Tue, 27 Oct 2026 06:47:29 +0000</pubDate>
-      <sparkle:version>34</sparkle:version>
-      <sparkle:shortVersionString>0.8.4</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.8.4</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Signing in to apps through Changmun works.** A sign-in that ends by opening an app (Claude's `claude://`, and others) now asks "… wants to open …" as a sheet, as Safari does, instead of being dropped silently. A page asks at most once until you navigate yourself, a frame inside a page can't ask in the page's name, background tabs and pages the AI drives never ask, and schemes that run automation (Shortcuts and the like) stay blocked.
-- **AI panel in its own window.** ⌘W and ⌘⇧W close the pop-out (docking the panel back) instead of a browser tab or window, ⌘E closes it from anywhere, other shortcuts go to its browser, questions appear in it rather than in another window's panel, it comes back from the Dock when asked for, and it can show over a full-screen browser.
-- **Tabs on top.** Renaming with the sidebar overlay open shows one field, not two that cancel each other; closing the overlay ends a rename; Esc closes the overlay; many favorites scroll instead of pushing the tabs out; the mouse wheel scrolls an overflowing strip.
-- **Renaming.** Folder and bookmark rows don't start dragging while you edit their name; a long folder name isn't cut by just opening the field; Undo restores a bookmark's exact old title; group names have the same length limit as the rest.
-- **Command bar.** Its suggestions no longer follow the find bar's text, a background tab's title change no longer moves the highlight, and the pointer resting on the list doesn't steal the selection.
-- **Client certificates.** A request that arrives while the window is minimized is shown when it comes back; tabs waiting for a certificate show a key badge (and the AI panel says so); profile spaces keep their certificate choices to themselves and don't use the Mac-wide preference; a removed smart card's certificate isn't reused; stopping a load drops its request; the sheet waits for you to stop typing.
-- **Safer approvals.** "Allow" by keyboard or VoiceOver counts only with Full Keyboard Access or an assistive technology on and the button focused long enough; a tab the AI opens is the AI's from its first load.
-- **Window bar.** A double-click with a tiny tremor still zooms (drags start after 3 points).</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.4/Changmun-0.8.4.dmg" length="5355063" type="application/octet-stream" sparkle:edSignature="6+2sgEswfsfcTdmRG7+IFW++hFB9f5SCtNpXUNFDQGq/IPTnJyL5xVDf0r4++jYSApncrxou+1690DKICyNmCg==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: o806xdqTcJ1/T3NslpaEI3FMTiFiwz/blg0Ose01APRhRYzKNAtNpqJu3eOIjjCuPuz/GvwXcZMZxVfyrGl8DA==
-length: 22696
+edSignature: q2THy4jXzhrRVk7y3OWRj8v5p4TfRXPtQvUk8L1EfHMwPv92UR6ZOQ+XMQX+OOQZgztvUG/LGVQ6SjjAWmoIAw==
+length: 21561
 -->
