@@ -40,4 +40,29 @@ struct OffScreenWindowsTests {
         window.orderFront(nil)
         #expect(!isOnAScreen(window))
     }
+
+    @Test func aPopUpChildWindowAtTheScreensCornerIsParkedToo() async {
+        let parent = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
+        let child = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+        parent.isReleasedWhenClosed = false
+        child.isReleasedWhenClosed = false
+        defer { child.orderOut(nil); parent.orderOut(nil) }
+        parent.orderFront(nil)
+        parent.addChildWindow(child, ordered: .above)
+        child.setFrame(NSRect(x: 0, y: 0, width: 800, height: 600), display: false)
+        child.orderFront(nil)
+        #expect(!isOnAScreen(child))
+    }
+
+    @Test func aWindowThatGotOntoAScreenByAnyPathIsPutBackWithinAMoment() async throws {
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 200), styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        defer { window.orderOut(nil) }
+        window.orderFront(nil)
+        // Straight to the window server's idea of its place, past every setter the hooks cover.
+        window.setValue(NSValue(rect: NSRect(x: 50, y: 50, width: 300, height: 200)), forKey: "frame")
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(!isOnAScreen(window))
+        #expect(window.collectionBehavior.contains(.transient), "and kept out of Mission Control")
+    }
 }
