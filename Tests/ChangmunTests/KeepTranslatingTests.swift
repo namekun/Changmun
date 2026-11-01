@@ -8,26 +8,33 @@ import WebKit
 // MARK: Pure parts
 
 struct KeepTranslatingPureTests {
-    @Test func aSiteIsMatchedAsPopupSitesAre() {
-        let sites = ["comic.test"]
-        for host in ["comic.test", "COMIC.test", "www.comic.test", "m.comic.test", "a.b.comic.test"] {
-            #expect(Preferences.matches(host, sites), "\(host)")
+    @Test func aKeptSiteIsOneHostWithOrWithoutWWWAndNothingUnderOrAboveIt() {
+        for (kept, host, matches) in [
+            ("example.com", "example.com", true), ("example.com", "www.example.com", true), ("example.com", "WWW.Example.com", true),
+            ("www.example.com", "example.com", true),
+            ("example.com", "mail.example.com", false), ("example.com", "a.b.example.com", false),
+            ("mail.example.com", "example.com", false), ("mail.example.com", "www.example.com", false), ("mail.example.com", "mail.example.com", true),
+            ("example.com", "notexample.com", false), ("example.com", "example.com.evil.test", false), ("example.com", "", false),
+        ] {
+            #expect(Preferences.matchesExactly(host, [kept]) == matches, "\(kept) and \(host)")
         }
-        for host in ["notcomic.test", "comic.test.evil", "test", "", nil] as [String?] {
-            #expect(!Preferences.matches(host, sites), "\(host ?? "nil")")
-        }
-        // Saved the way pop-up sites are: lower case, without "www.", once; a site above takes its subdomains with it.
-        #expect(Preferences.adding("www.Comic.test", to: []) == ["comic.test"])
-        #expect(Preferences.adding("comic.test", to: ["comic.test"]) == ["comic.test"])
-        #expect(Preferences.removing("m.comic.test", from: ["comic.test", "other.test"]) == ["other.test"])
+        #expect(!Preferences.matchesExactly(nil, ["example.com"]))
+        // Saved lower case, without "www.", once; taken off by that host alone.
+        #expect(Preferences.adding("www.Naver.com", to: []) == ["naver.com"])
+        #expect(Preferences.removingExactly("mail.naver.com", from: ["naver.com", "mail.naver.com"]) == ["naver.com"])
+        #expect(Preferences.removingExactly("www.naver.com", from: ["naver.com", "mail.naver.com"]) == ["mail.naver.com"])
+        #expect(Preferences.removingExactly("naver.com", from: ["mail.naver.com"]) == ["mail.naver.com"], "a site above is not what is taken off")
+        // The pop-up sites are as they were.
+        #expect(Preferences.matches("mail.example.com", ["example.com"]))
     }
 
-    @MainActor @Test func theSettingIsStoredLikeThePopupSites() {
+    @MainActor @Test func theSettingIsStoredAsAListOfHostsAndMatchedExactly() {
         let prefs = Preferences.shared
         let saved = prefs.translatedHosts
         defer { prefs.translatedHosts = saved }
         prefs.translatedHosts = ["comic.test"]
-        #expect(prefs.keepsTranslating("www.comic.test") && prefs.keepsTranslating("m.comic.test") && !prefs.keepsTranslating("comic.example") && !prefs.keepsTranslating(nil))
+        #expect(prefs.keepsTranslating("www.comic.test") && prefs.keepsTranslating("comic.test"))
+        #expect(!prefs.keepsTranslating("m.comic.test") && !prefs.keepsTranslating("comic.example") && !prefs.keepsTranslating(nil))
         #expect(UserDefaults.standard.stringArray(forKey: "translatedHosts") == ["comic.test"])
     }
 
@@ -37,6 +44,7 @@ struct KeepTranslatingPureTests {
         }
         #expect(decides())
         #expect(decides("www.comic.test"))
+        #expect(!decides("m.comic.test"), "another host of the site")
         #expect(!decides(kept: []), "a site that is not kept")
         #expect(!decides("other.test"))
         #expect(!decides(nil))
@@ -78,11 +86,60 @@ struct KeepTranslatingPureTests {
         #expect(state.say(nil) == nil)
     }
 
-    @MainActor @Test func theFollowingIsPolledEveryTwoSecondsAndWaitsForOneSecondOfQuiet() {
-        #expect(PageTranslator.pollInterval == .seconds(2))
-        #expect(PageTranslator.quietMilliseconds == 1000)
-        #expect(Tab.languageRetryDelay == .milliseconds(1500))
-        #expect(PageTranslator.maxTrackedNodes == 20_000)
+    @Test func aSiteMaySendThreeHundredThousandCharactersAndOneTwentyBatchesInAnyTenMinutes() {
+        let start = Date(timeIntervalSince1970: 1_000_000)
+        var window = ClaudeWindow()
+        #expect(window.remaining(for: "comic.test", at: start) == (300_000, 120))
+        window.record(characters: 100_000, batches: 30, for: "comic.test", at: start)
+        window.record(characters: 150_000, batches: 80, for: "comic.test", at: start.addingTimeInterval(300))
+        #expect(window.remaining(for: "comic.test", at: start.addingTimeInterval(301)) == (50_000, 10))
+        #expect(!window.isUsedUp("comic.test", at: start.addingTimeInterval(301)))
+        // The first goes out of the window as the clock goes on: it slides, it does not start over.
+        #expect(window.remaining(for: "comic.test", at: start.addingTimeInterval(601)) == (150_000, 40))
+        #expect(window.remaining(for: "comic.test", at: start.addingTimeInterval(901)) == (300_000, 120))
+        // Either one used up is used up.
+        window.record(characters: 0, batches: 120, for: "batches.test", at: start)
+        window.record(characters: 300_000, batches: 1, for: "characters.test", at: start)
+        #expect(window.isUsedUp("batches.test", at: start) && window.isUsedUp("characters.test", at: start))
+        // One site's is not another's.
+        #expect(window.remaining(for: "other.test", at: start) == (300_000, 120))
+        // Nothing negative, whatever was spent (the user's own presses are not held to it).
+        window.record(characters: 500_000, batches: 500, for: "press.test", at: start)
+        #expect(window.remaining(for: "press.test", at: start) == (0, 0))
+    }
+
+    @Test func theUserIsToldOnceForASiteInEachWindow() {
+        let start = Date(timeIntervalSince1970: 1_000_000)
+        var window = ClaudeWindow()
+        let told = [window.tellsPaused("comic.test", at: start), window.tellsPaused("comic.test", at: start.addingTimeInterval(1)),
+                    window.tellsPaused("comic.test", at: start.addingTimeInterval(599)), window.tellsPaused("other.test", at: start.addingTimeInterval(1)),
+                    window.tellsPaused("comic.test", at: start.addingTimeInterval(601))]
+        #expect(told == [true, false, false, true, true], "told once, not again in the window, another site, the next window")
+    }
+
+    @MainActor @Test func theSitesAreKeyedByHostWithoutWWW() {
+        #expect(AutomaticClaude.site(of: "WWW.Comic.test") == "comic.test" && AutomaticClaude.site(of: "mail.comic.test") == "mail.comic.test")
+        #expect(AutomaticClaude.site(of: nil) == nil && AutomaticClaude.site(of: "") == nil)
+    }
+
+    @Test func aRunIsHeldToTheSmallerOfThePageAndTheWindow() {
+        let page = ClaudeTranslation.Budget(characters: 100_000, batches: 10)
+        // The page has 50,000 characters left and the window 20,000: the window is what is nearer.
+        let byWindow = page.narrowed(toCharacters: 20_000, batches: 100)
+        #expect(byWindow.byWindow)
+        let pieces = (0..<40).map { (id: $0, text: String(repeating: "w", count: 1000)) }
+        let sent = ClaudeTranslation.limited(pieces, after: byWindow.budget)
+        #expect(sent.batches.flatMap { $0 }.count == 20 && sent.spent.spent(since: byWindow.budget).characters == 20_000 && sent.spent.exhausted)
+        // The page has less left than the window: the page's.
+        let byPage = page.narrowed(toCharacters: 200_000, batches: 100)
+        #expect(!byPage.byWindow && byPage.budget == page)
+        // A run that is the user's is given the page's alone: the caller does not narrow it.
+        #expect(ClaudeTranslation.limited(pieces, after: page).batches.flatMap { $0 }.count == 40)
+    }
+
+    @MainActor @Test func theFollowUpsStopWhereTheLanguageCannotBeTranslatedHere() {
+        for outcome in [PageTranslator.Outcome.needsDownload, .unsupported, .sensitivePage] { #expect(!PageTranslator.followsOn(after: outcome)) }
+        for outcome in [PageTranslator.Outcome.translated, .nothingToTranslate, .failed, .claudeFailed, .translatedPartly, .engineFailed] { #expect(PageTranslator.followsOn(after: outcome)) }
     }
 }
 
@@ -193,7 +250,7 @@ extension SharedAgentState {
             _ = await follow(view, fake, budget: ClaudeTranslation.Budget())
             #expect(try await poll(view) == -1, "looked at, so clean")
             // Our own writing, as the apply script does it, is not a change.
-            _ = try await view.callAsyncJavaScript(PageTranslator.applyScript, arguments: ["texts": ["0": "OWN WRITING"]], contentWorld: .defaultClient)
+            _ = try await view.callAsyncJavaScript(PageTranslator.applyScript, arguments: ["texts": ["0": "OWN WRITING"], "remember": false], contentWorld: .defaultClient)
             try await Task.sleep(for: .milliseconds(150))
             #expect(try await text(view, "a") == "OWN WRITING")
             #expect(try await poll(view) == -1, "our own writes make no work")
@@ -223,6 +280,84 @@ extension SharedAgentState {
             let result = await follow(view, fake, budget: ClaudeTranslation.Budget())
             #expect(result.outcome == .translated)
             #expect(Array(fake.textsAsked.suffix(1)) == ["Visible new words."] && fake.calls == 2)
+        }
+
+        @Test func showOriginalAndANewCollectionLeaveWhatTheSiteWroteSinceAlone() async throws {
+            for restoreBy in ["show", "collect"] {
+                let (view, window) = try await load("<p id=a>The first sentence is here.</p><p id=b>The other sentence is here.</p>")
+                defer { window.close() }
+                let fake = FakeClaude.uppercasing()
+                _ = await firstPass(view, fake)
+                try await page(view, "document.getElementById('a').firstChild.nodeValue = 'The site wrote something else.'")
+                if restoreBy == "show" {
+                    await PageTranslator.showOriginal(view)
+                } else {
+                    _ = try await view.callAsyncJavaScript(PageTranslator.claudeCollectScript, contentWorld: .defaultClient)
+                }
+                #expect(try await text(view, "a") == "The site wrote something else.", "\(restoreBy): the site's text stays")
+                #expect(try await text(view, "b") == "The other sentence is here.", "\(restoreBy): what we wrote is put back")
+            }
+        }
+
+        @Test func aNodeReadAgainIsPutBackAsTheLatestReadHadIt() async throws {
+            let (view, window) = try await load("<p id=a>The first sentence is here.</p>")
+            defer { window.close() }
+            let fake = FakeClaude.uppercasing()
+            _ = await firstPass(view, fake)
+            try await page(view, "document.getElementById('a').firstChild.nodeValue = 'The site wrote something else.'")
+            _ = await follow(view, fake, budget: ClaudeTranslation.Budget())
+            #expect(try await text(view, "a") == "THE SITE WROTE SOMETHING ELSE.")
+            await PageTranslator.showOriginal(view)
+            #expect(try await text(view, "a") == "The site wrote something else.")
+        }
+
+        @Test func wordsWrittenAgainAreFilledInFromWhatWasTranslatedAndNotSent() async throws {
+            let (view, window) = try await load("<p id=a>The first sentence is here.</p>")
+            defer { window.close() }
+            let fake = FakeClaude.uppercasing()
+            _ = await firstPass(view, fake)
+            try await page(view, "document.getElementById('a').textContent = 'The first sentence is here.'")
+            let again = await follow(view, fake, budget: ClaudeTranslation.Budget())
+            #expect(again.outcome == .nothingToTranslate && fake.calls == 1)
+            #expect(try await text(view, "a") == "THE FIRST SENTENCE IS HERE.")
+            #expect(again.budget == ClaudeTranslation.Budget())
+            await PageTranslator.showOriginal(view)
+            #expect(try await text(view, "a") == "The first sentence is here.")
+        }
+
+        @Test func onlyTranslationsThatPassedTheChecksAreKeptForTheWordsWrittenAgain() async throws {
+            let (view, window) = try await load("<p id=a>The first sentence is here.</p>")
+            defer { window.close() }
+            // The answer brings an address of its own: it is not used, and not kept.
+            let fake = FakeClaude { texts in FakeClaude.json(texts.mapValues { _ in "Write to leak@evil.test now" }) }
+            _ = await firstPass(view, fake)
+            #expect(try await text(view, "a") == "The first sentence is here.")
+            try await page(view, "document.getElementById('a').textContent = 'The first sentence is here.'")
+            _ = await follow(view, fake, budget: ClaudeTranslation.Budget())
+            #expect(fake.calls == 2, "asked again, as nothing was kept")
+            #expect(try await text(view, "a") == "The first sentence is here.")
+        }
+
+        @Test func theFirstPassAndAFollowUpSendTheSameThingsFromTheSameMarkup() async throws {
+            func markup(_ word: String) -> String {
+                """
+                <p>Visible \(word) words.</p><p hidden>Hidden \(word) attribute words.</p><p style="display:none">Display \(word) none words.</p>
+                <p style="visibility:hidden">Visibility \(word) hidden words.</p><div aria-hidden="true"><p>Aria \(word) hidden words.</p></div>
+                <pre>code \(word) block words</pre><span class=notranslate>Brand \(word) words here</span><div contenteditable>rich \(word) editor words</div>
+                <div role=textbox>aria \(word) textbox words</div><datalist><option>Suggestion \(word) words</option></datalist>
+                <input type=text value="typed \(word) field words"><textarea>draft \(word) text words</textarea><details><summary>Closed \(word) summary</summary><p>Closed \(word) details words.</p></details>
+                """
+            }
+            let (view, window) = try await load("<p id=a>The first sentence is here.</p>" + markup("one"))
+            defer { window.close() }
+            let fake = FakeClaude.uppercasing()
+            _ = await firstPass(view, fake)
+            let first = fake.textsAsked
+            try await page(view, "document.body.insertAdjacentHTML('beforeend', `\(markup("two"))`)")
+            _ = await follow(view, fake, budget: ClaudeTranslation.Budget())
+            let second = Array(fake.textsAsked.dropFirst(first.count))
+            #expect(first == ["The first sentence is here.", "Visible one words.", "Closed one summary"], "\(first)")
+            #expect(second == first.dropFirst().map { $0.replacingOccurrences(of: "one", with: "two") }, "\(second)")
         }
 
         @Test func aPasswordFieldThatAppearsLaterSendsNothingMore() async throws {
@@ -267,7 +402,11 @@ extension SharedAgentState {
             let interval = PageTranslator.pollInterval
             let quiet = PageTranslator.quietMilliseconds
             let retry = Tab.languageRetryDelay
+            let window = AutomaticClaude.shared.window
+            let clock = AutomaticClaude.shared.now
             func restore() {
+                AutomaticClaude.shared.window = window
+                AutomaticClaude.shared.now = clock
                 Preferences.shared.translationEngine = engine
                 Preferences.shared.translatedHosts = hosts
                 AIAvailability.detector = detector
@@ -289,7 +428,8 @@ extension SharedAgentState {
             var messages: [String] = []
             private var watch: AnyCancellable?
 
-            init(kept: [String], fake: FakeClaude, isPrivate: Bool = false) {
+            init(kept: [String], fake: FakeClaude, isPrivate: Bool = false, freshWindow: Bool = true) {
+                if freshWindow { AutomaticClaude.shared.window = ClaudeWindow() }
                 Preferences.shared.translationEngine = .claude
                 Preferences.shared.translatedHosts = kept
                 AIAvailability.detector = { .ready }
@@ -299,7 +439,7 @@ extension SharedAgentState {
                 Tab.languageRetryDelay = .milliseconds(300)
                 browser = Browser(isPrivate: isPrivate)
                 browser.focused()
-                tab = browser.openTab(url: nil, activate: false)
+                tab = browser.openTab(url: nil, activate: true)
                 view = tab.wake()
                 window = OffscreenWindow(view)
                 watch = browser.overlay.$statusMessage.sink { [weak self] in if let message = $0 { self?.messages.append(message) } }
@@ -400,6 +540,18 @@ extension SharedAgentState {
             #expect(await waitUntil(30) { site.tab.foreignLanguage != nil })
             await site.settle()
             #expect(site.tab.translation == .original && fake.calls == 1)
+        }
+
+        @Test func anotherHostOfAKeptSiteIsNotTranslatedByItself() async {
+            let fake = tagging()
+            let site = Site(kept: ["comic.test"], fake: fake)
+            defer { site.close() }
+            await site.load("<p id=a>\(foreignText)</p>", host: "mail.comic.test")
+            #expect(await waitUntil(30) { site.tab.foreignLanguage != nil })
+            await site.settle()
+            #expect(site.tab.translation == .original && fake.calls == 0)
+            await site.load("<p id=a>\(foreignText)</p>", host: "www.comic.test")
+            #expect(await site.becomes("a", tagged(foreignText)), "with www it is the same host")
         }
 
         @Test func aPrivateWindowNeverTranslatesByItselfAndNeverSavesASite() async {
@@ -585,12 +737,12 @@ extension SharedAgentState {
             let site = Site(kept: ["comic.test"], fake: fake)
             defer { site.close() }
             let word = PageTranslator.target.languageCode == "en" ? "가나다라마바사아자차 " : "bicycle story "
-            func paragraph(_ number: Int) -> String { "<p>\(String((String(repeating: word, count: 200) + "\(number)").prefix(1000)))</p>" }
-            await site.load("<p id=a>\(foreignText)</p>" + (0..<139).map(paragraph).joined())
+            func paragraph(_ tag: String) -> (Int) -> String { { number in "<p>\(String(("\(tag)\(number) " + String(repeating: word, count: 200)).prefix(1000)))</p>" } }
+            await site.load("<p id=a>\(foreignText)</p>" + (0..<139).map(paragraph("first")).joined())
             #expect(await site.translated())
             #expect(!site.tab.translationBudget.exhausted && site.tab.translationBudget.characters > 130_000, "\(site.tab.translationBudget)")
             site.messages = []
-            await site.append((0..<20).map(paragraph).joined())
+            await site.append((0..<20).map(paragraph("later")).joined())
             let partly = PageTranslator.statusMessage(for: .translatedPartly) ?? ""
             #expect(await waitUntil(30) { site.messages.contains(partly) })
             #expect(site.tab.translationBudget.exhausted)
@@ -727,10 +879,254 @@ extension SharedAgentState {
             await site.load("<p id=a>\(foreignText)</p>")
             #expect(await site.translated())
             Preferences.shared.translationEngine = .onDevice
+            #expect(site.tab.translationRoute() == .onDevice)
+            site.messages = []
             await site.append("<p id=b>\(foreign("one"))</p>")
+            // The follow-up went on this Mac: it either translated the text there, or said why it could not (no model, an older macOS).
+            let answered = await waitUntil(30) { !site.messages.isEmpty }
+            let text = await site.text("b")
+            #expect(answered || text != foreign("one"), "the follow-up ran: it said something or the text changed")
+            #expect(fake.calls == 1 && text != tagged(foreign("one")), "this Mac was chosen: Claude is not asked")
+        }
+
+        // The site's window
+
+        /// A page of many paragraphs of about a thousand characters each, the first of them in a language that is not the user's.
+        private func bigPage(_ paragraphs: Int = 100, name: String = "") -> String {
+            let word = PageTranslator.target.languageCode == "en" ? "가나다라마바사아자차 " : "bicycle story "
+            let filler = { (number: Int) in "<p>" + String(("\(name)\(number) " + String(repeating: word, count: 200)).prefix(998)).trimmingCharacters(in: .whitespaces) + "</p>" }
+            return "<p id=a>\(foreignText)</p>" + (1..<paragraphs).map(filler).joined()
+        }
+
+        private func sent(_ fake: FakeClaude) -> Int { fake.textsAsked.reduce(0) { $0 + $1.count } }
+
+        /// Waits until the stand-in has not been asked for a good while.
+        private func quiet(_ fake: FakeClaude) async {
+            var last = -1
+            var still = 0
+            while still < 12 {
+                try? await Task.sleep(for: .milliseconds(100))
+                if fake.calls == last { still += 1 } else { last = fake.calls; still = 0 }
+            }
+        }
+
+        private var paused: String { PageTranslator.pausedMessage }
+
+        @Test func aPageThatLoadsItselfAgainAndAgainStaysWithinTheWindowAndStops() async {
+            let fake = tagging()
+            let site = Site(kept: ["comic.test"], fake: fake)
+            defer { site.close() }
+            // What a page that reloads itself does: each time a page of its own, with the page's whole allowance, and nobody pressed anything.
+            for number in 1...7 {
+                await site.load(bigPage(name: "\(number)-"), path: "\(number)")
+                await quiet(fake)
+            }
+            #expect(sent(fake) <= ClaudeWindow.maxCharacters, "\(sent(fake)) characters in all")
+            #expect(sent(fake) > 250_000, "it did send, up to the window: \(sent(fake))")
+            #expect(fake.calls <= ClaudeWindow.maxBatches)
+            #expect(site.messages.filter { $0 == paused }.count == 1, "said once: \(site.messages)")
+            let before = sent(fake)
+            await site.load(bigPage(name: "more-"), path: "8")
+            await quiet(fake)
+            #expect(sent(fake) <= ClaudeWindow.maxCharacters && sent(fake) - before < 1000, "what was left of the window, no more")
+            #expect(site.messages.filter { $0 == paused }.count == 1)
+        }
+
+        @Test func twoTabsOnOneSiteShareTheWindow() async {
+            let fake = tagging()
+            let first = Site(kept: ["comic.test"], fake: fake)
+            let second = Site(kept: ["comic.test"], fake: fake, freshWindow: false)
+            defer { first.close() }
+            defer { second.close() }
+            await first.load(bigPage(name: "a1-"), path: "1")
+            await quiet(fake)
+            await second.load(bigPage(name: "b1-"), path: "2")
+            await quiet(fake)
+            await first.load(bigPage(name: "a2-"), path: "3")
+            await quiet(fake)
+            await second.load(bigPage(name: "b2-"), path: "4")
+            await quiet(fake)
+            await first.load(bigPage(name: "a3-"), path: "5")
+            await quiet(fake)
+            #expect(sent(fake) <= ClaudeWindow.maxCharacters, "\(sent(fake)) characters in all, from two tabs")
+            #expect(sent(fake) > 250_000)
+            #expect((first.messages + second.messages).filter { $0 == paused }.count == 1)
+        }
+
+        @Test func aPressOfTranslateIsNotHeldToTheWindowAndStillCountsInIt() async {
+            let fake = tagging()
+            let site = Site(kept: ["comic.test"], fake: fake)
+            defer { site.close() }
+            let shared = AutomaticClaude.shared
+            shared.window.record(characters: 0, batches: ClaudeWindow.maxBatches, for: "comic.test", at: shared.now())
+            await site.load(bigPage(name: "x-"))
+            await quiet(fake)
+            #expect(fake.calls == 0 && site.tab.translation == .original, "nothing nobody asked for goes while the window is used up")
+            #expect(site.messages.contains(paused))
+            site.tab.toggleTranslation()
+            #expect(await site.translated())
+            #expect(sent(fake) > 90_000, "the whole page, as the user asked: \(sent(fake))")
+            #expect(shared.window.remaining(for: "comic.test", at: shared.now()).characters <= ClaudeWindow.maxCharacters - 90_000, "and it counted")
+        }
+
+        @Test func aWindowThatHasPassedLetsAutomaticWorkGoOn() async {
+            let fake = tagging()
+            let site = Site(kept: ["comic.test"], fake: fake)
+            defer { site.close() }
+            let shared = AutomaticClaude.shared
+            let start = Date()
+            shared.now = { start }
+            shared.window.record(characters: ClaudeWindow.maxCharacters, batches: ClaudeWindow.maxBatches, for: "comic.test", at: start)
+            await site.load("<p id=a>\(foreignText)</p>", path: "1")
+            await site.settle()
+            #expect(fake.calls == 0)
+            shared.now = { start.addingTimeInterval(ClaudeWindow.span + 1) }
+            await site.load("<p id=a>\(foreignText) Two.</p>", path: "2")
+            #expect(await site.becomes("a", tagged(foreignText + " Two.")))
+        }
+
+        // The page's allowance
+
+        @Test func theButtonStartsThePageOverAndAnAutomaticRunDoesNot() async {
+            let fake = tagging()
+            let site = Site(kept: [], fake: fake)
+            defer { site.close() }
+            await site.load(bigPage(120, name: "p-"))
+            #expect(await waitUntil(30) { site.tab.foreignLanguage != nil })
+            site.tab.toggleTranslation()
+            #expect(await site.translated())
+            let once = sent(fake)
+            #expect(once > 100_000)
+            site.tab.toggleTranslation()
+            #expect(site.tab.translation == .original)
+            #expect(await site.becomes("a", foreignText))
+            site.tab.toggleTranslation()
+            #expect(await site.translated())
+            #expect(sent(fake) - once > 100_000, "as in 0.13.0, the whole page again: \(sent(fake) - once)")
+        }
+
+        @Test func whatWasSentBeforeShowOriginalCountsAgainstThePage() async {
+            let fake = tagging(delay: .milliseconds(300))
+            let site = Site(kept: [], fake: fake)
+            defer { site.close() }
+            await site.load(bigPage(60, name: "c-"))
+            #expect(await waitUntil(30) { site.tab.foreignLanguage != nil })
+            site.tab.toggleTranslation()
+            #expect(await waitUntil(30) { fake.calls >= 2 })
+            site.tab.toggleTranslation()
+            #expect(site.tab.translation == .original)
+            #expect(await waitUntil(30) { site.tab.translationBudget.characters > 0 }, "\(site.tab.translationBudget)")
+            #expect(site.tab.translationBudget.batches > 0)
+        }
+
+        @Test func aFollowUpThatWasStoppedDoesNotTouchWhatALaterTranslationSays() async {
+            let fake = tagging(delay: .milliseconds(1500))
+            let site = Site(kept: ["comic.test"], fake: fake)
+            defer { site.close() }
+            await site.load("<p id=a>\(foreignText)</p>")
+            #expect(await site.translated())
+            await site.append("<p id=b>\(foreign("one"))</p>")
+            #expect(await waitUntil(30) { site.tab.translatesWithClaude })
+            let old = site.tab.following
+            site.tab.toggleTranslation()
+            site.tab.toggleTranslation()
+            #expect(site.tab.translation == .translating && site.tab.translatesWithClaude, "the later translation is under way")
+            let budget = site.tab.translationBudget
+            #expect(await ended(old))
+            #expect(site.tab.translatesWithClaude, "the button still says the text is going to Anthropic")
+            #expect(site.tab.translationBudget.characters >= budget.characters)
+            #expect(await site.translated())
+        }
+
+        // A password field seen once
+
+        @Test func aPasswordFieldSeenOnTheFirstPassKeepsLaterTextFromClaudeWhenItIsGone() async {
+            let fake = tagging()
+            let site = Site(kept: ["comic.test"], fake: fake)
+            defer { site.close() }
+            await site.load("<p id=a>\(foreignText)</p><input type=password>")
+            #expect(await waitUntil(30) { site.tab.sensitiveSeen })
+            #expect(await waitUntil(30) { site.tab.translation != .translating })
+            #expect(fake.calls == 0)
+            // The field goes. Whether this Mac translated the page or could not, the page is followed from here.
+            _ = try? await site.view.callAsyncJavaScript("document.querySelector('input').remove()", contentWorld: .page)
+            _ = try? await site.view.callAsyncJavaScript(PageTranslator.collectScript, contentWorld: .defaultClient)
+            site.tab.translation = .translated
+            site.tab.followTranslation(from: site.tab.foreignLanguage ?? Locale.Language(identifier: "und"))
+            await site.append("<p id=b>\(foreign("later"))</p>")
             await site.settle(1500)
-            #expect(fake.calls == 1, "this Mac was chosen: Claude is not asked")
-            #expect(await site.text("b") != tagged(foreign("one")))
+            #expect(fake.calls == 0, "not a word of it went to Claude")
+            site.tab.following?.cancel()
+        }
+
+        @Test func aPasswordFieldSeenOnAFollowUpKeepsLaterTextFromClaudeToo() async {
+            let fake = tagging()
+            let site = Site(kept: ["comic.test"], fake: fake)
+            defer { site.close() }
+            await site.load("<p id=a>\(foreignText)</p>")
+            #expect(await site.translated())
+            await site.append("<p id=b>\(foreign("secret"))</p><input type=password>")
+            #expect(await waitUntil(30) { site.tab.sensitiveSeen })
+            _ = try? await site.view.callAsyncJavaScript("document.querySelector('input').remove()", contentWorld: .page)
+            await site.append("<p id=c>\(foreign("later"))</p>")
+            await site.settle(1500)
+            #expect(fake.calls == 1)
+        }
+
+        // A tab nobody looks at, refusals, a site that rewrites itself
+
+        @Test func aTabThatIsNotShownIsNotLookedAtUntilItIs() async {
+            let fake = tagging()
+            let site = Site(kept: ["comic.test"], fake: fake)
+            defer { site.close() }
+            await site.load("<p id=a>\(foreignText)</p>")
+            #expect(await site.translated())
+            let other = site.browser.openTab(url: nil, activate: true)
+            #expect(!site.browser.isShown(site.tab))
+            await site.append("<p id=b>\(foreign("one"))</p>")
+            await site.settle(1200)
+            #expect(fake.calls == 1 && site.tab.translatesWithClaude == false, "nothing is sent from a tab in the background")
+            #expect(await site.text("b") == foreign("one"))
+            site.browser.activate(site.tab.id)
+            #expect(await site.becomes("b", tagged(foreign("one"))))
+            _ = other
+        }
+
+        @Test func aRefusalOfAnAutomaticTranslationIsSaidOncePerTab() async {
+            let fake = tagging()
+            let site = Site(kept: ["comic.test"], fake: fake)
+            defer { site.close() }
+            AIAvailability.detector = { .none }
+            let refusal = PageTranslator.statusMessage(for: .claudeUnavailable)
+            for number in 1...3 {
+                await site.load("<p id=a>\(foreignText) \(number)</p>", path: "\(number)")
+                await site.settle(600)
+            }
+            #expect(site.messages.filter { $0 == refusal }.count == 1, "\(site.messages)")
+            #expect(fake.calls == 0)
+            site.tab.toggleTranslation()
+            #expect(site.messages.filter { $0 == refusal }.count == 2, "the button says it each time")
+        }
+
+        @Test func aSiteThatWritesTheSameWordsAgainIsNotSentThemAgain() async {
+            let fake = tagging()
+            let site = Site(kept: ["comic.test"], fake: fake)
+            defer { site.close() }
+            await site.load("<p id=a>\(foreignText)</p><div id=live>\(foreign("live"))</div>")
+            #expect(await site.translated())
+            for _ in 0..<3 {
+                // A new text node each time, as `textContent` makes them.
+                _ = try? await site.view.callAsyncJavaScript("document.getElementById('live').textContent = text", arguments: ["text": foreign("live")], contentWorld: .page)
+                #expect(await site.becomes("live", tagged(foreign("live"))))
+                await site.settle(400)
+            }
+            #expect(fake.textsAsked == [foreignText, foreign("live")], "sent once: \(fake.textsAsked)")
+            // New words are sent.
+            _ = try? await site.view.callAsyncJavaScript("document.getElementById('live').textContent = text", arguments: ["text": foreign("other")], contentWorld: .page)
+            #expect(await site.becomes("live", tagged(foreign("other"))))
+            // And Show Original puts the site's words back.
+            site.tab.toggleTranslation()
+            #expect(await site.becomes("live", foreign("other")))
         }
 
         @Test func aTabThatGoesToSleepEndsTheWatch() async {

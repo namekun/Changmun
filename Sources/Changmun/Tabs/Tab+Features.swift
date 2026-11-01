@@ -94,6 +94,7 @@ extension Tab {
             translating = nil
             following?.cancel()
             following = nil
+            claudeRuns += 1
             translatesWithClaude = false
             translation = .original
             Announcer.announce(String(localized: "Showing the original page"))
@@ -105,17 +106,28 @@ extension Tab {
 
     /// Translates the page, as the button does. `known` is the page's language where it has just been found; `automatically` is a
     /// translation nobody pressed the button for (a kept site's next page, the switch turned on), which has nothing to say when there is
-    /// nothing to translate.
+    /// nothing to translate, says it is refused once, draws on the site's window for Claude, and goes on with what is left of the page's
+    /// allowance: the button is the user's own act, and starts the page's allowance over.
     func startTranslation(from known: Locale.Language? = nil, automatically: Bool = false) {
         guard let webView, translation == .original else { return }
         // Which way the page goes is decided before anything starts: a refusal says why and changes nothing on the page.
         let route = translationRoute()
         if case .refused(let refusal) = route {
-            browser?.flashStatus(PageTranslator.statusMessage(for: refusal))
+            if !automatically || !refusalSaid { browser?.flashStatus(PageTranslator.statusMessage(for: refusal)) }
+            if automatically { refusalSaid = true }
             return
         }
+        let usesClaude: Bool = { if case .claude = route { return !sensitiveSeen }; return false }()
+        if automatically, usesClaude, claudeWindowIsUsedUp() {
+            sayPaused()
+            return
+        }
+        if !automatically {
+            translationBudget = ClaudeTranslation.Budget()
+            budgetEpoch += 1
+        }
         translation = .translating
-        if case .claude = route { translatesWithClaude = true }
+        let claudeRun = usesClaude ? beginClaudeRun(automatically: automatically) : nil
         let page = page
         let current = { [weak self] in self?.page == page && self?.webView === webView && !Task.isCancelled }
         translating = Task {
@@ -131,16 +143,20 @@ extension Tab {
             }
             foreignLanguage = source
             let outcome: PageTranslator.Outcome
-            if case .claude(let model) = route {
+            var paused = false
+            if case .claude(let model) = route, let run = claudeRun {
                 // Asked again before every batch: the tab may stop being one that may go to Claude, or the setting may change, while it works.
-                let claude = await PageTranslator.translateWithClaude(webView, model: model, within: translationBudget, collecting: PageTranslator.claudeCollectScript,
+                let claude = await PageTranslator.translateWithClaude(webView, model: model, within: run.allowance, collecting: PageTranslator.claudeCollectScript,
                                                                       while: current, permitted: {
                     if case .claude = self.translationRoute() { return true }
                     return false
                 })
+                // What was sent counts, whether or not the work was stopped.
+                endClaudeRun(run, spent: claude.budget)
+                paused = run.byWindow && claude.budget.exhausted
                 var result = claude.outcome
-                if current() { translationBudget = claude.budget }
                 if result == .sensitivePage, current() {
+                    sensitiveSeen = true
                     translatesWithClaude = false
                     if PageTranslator.onDeviceAvailable {
                         browser?.flashStatus(String(localized: "This page has a password or payment field, so it is translated on this Mac and not sent to Claude."))
@@ -148,6 +164,9 @@ extension Tab {
                     }
                 }
                 outcome = result
+            } else if case .claude = route {
+                // A password or payment field was on this page before: it is not sent, field or no field now.
+                outcome = PageTranslator.onDeviceAvailable ? await PageTranslator.translate(webView, from: source, while: current) : .sensitivePage
             } else {
                 outcome = await PageTranslator.translate(webView, from: source, while: current)
             }
@@ -155,7 +174,11 @@ extension Tab {
             translating = nil
             translatesWithClaude = false
             translation = outcome == .translated || outcome == .translatedPartly ? .translated : .original
-            if let message = PageTranslator.statusMessage(for: outcome), !(automatically && outcome == .nothingToTranslate) { browser?.flashStatus(message) }
+            if paused {
+                sayPaused()
+            } else if let message = PageTranslator.statusMessage(for: outcome), !(automatically && outcome == .nothingToTranslate) {
+                browser?.flashStatus(message)
+            }
             if outcome == .translated { Announcer.announce(String(localized: "Page translated")) }
             if translation == .translated { followTranslation(from: source) }
         }

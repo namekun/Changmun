@@ -1014,3 +1014,4 @@
 "Translates this site’s pages as they open, and the text they add later. With Claude, the text of each page is sent to Anthropic automatically, without asking again." = "打开此网站的页面时自动翻译，之后新增的文字也会翻译。使用 Claude 时，每个页面的文字会自动发送给 Anthropic，不再询问。";
 "Sites you turned “Keep translating this site” on for stay here. Their pages are translated as they open. With Claude, the text of each of those pages is sent to Anthropic automatically." = "已开启“持续翻译此网站”的网站会保留在这里。它们的页面在打开时自动翻译。使用 Claude 时，这些页面的文字会自动发送给 Anthropic。";
 "Kept translating" = "持续翻译";
+"Automatic translation with Claude is paused on this site for a few minutes. Press Translate to go on." = "此网站上用 Claude 的自动翻译已暂停几分钟。点按“翻译”即可继续。";

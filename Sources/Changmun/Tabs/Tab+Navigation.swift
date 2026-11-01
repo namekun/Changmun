@@ -206,6 +206,8 @@ extension Tab: WKNavigationDelegate {
         following?.cancel()
         following = nil
         translationBudget = ClaudeTranslation.Budget()
+        budgetEpoch += 1
+        sensitiveSeen = false
         translatesWithClaude = false
         blockedPopup = nil
         isInPictureInPicture = false

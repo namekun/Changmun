@@ -74,6 +74,14 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var following: Task<Void, Never>?
     /// What of this page's allowance for Claude the translation and its follow-ups have used; a new page starts with all of it.
     var translationBudget = ClaudeTranslation.Budget()
+    /// Counts the page's allowances given out (a new page, the button pressed), so that work for an older one doesn't count against a newer.
+    var budgetEpoch = 0
+    /// Counts the runs with Claude begun (or ended by Show Original): only the latest one says whether Claude is being sent text.
+    var claudeRuns = 0
+    /// The page has shown a password or payment field: nothing of it goes to Claude any more, whether the field is still there or not.
+    var sensitiveSeen = false
+    /// A refusal of a translation nobody asked for has been said in this tab: it is not said at every page.
+    var refusalSaid = false
     /// Counts the pages shown, so work begun for one page doesn't land on the next.
     var page = 0
 

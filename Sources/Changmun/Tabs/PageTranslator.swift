@@ -174,7 +174,7 @@ enum PageTranslator {
         let work = Task {
             await ClaudeTranslation.translate(pieces, language: language, after: budget, run: run, allowed: { current() && permitted() }) { translated in
                 guard current() else { return }
-                _ = try? await webView.appScript(applyScript, arguments: ["texts": Dictionary(uniqueKeysWithValues: translated.map { (String($0.key), $0.value) })])
+                _ = try? await webView.appScript(applyScript, arguments: ["texts": Dictionary(uniqueKeysWithValues: translated.map { (String($0.key), $0.value) }), "remember": true])
             }
         }
         // The page going away, or the user asking for the original, ends the processes: the task is cancelled, and each `claude` with it.
@@ -217,7 +217,7 @@ enum PageTranslator {
             guard current() else { return translatedAny ? .translated : .failed }
             if !translated.isEmpty {
                 translatedAny = true
-                _ = try? await webView.appScript(applyScript, arguments: ["texts": Dictionary(uniqueKeysWithValues: translated.map { (String($0.key), $0.value) })])
+                _ = try? await webView.appScript(applyScript, arguments: ["texts": Dictionary(uniqueKeysWithValues: translated.map { (String($0.key), $0.value) }), "remember": false])
             }
             // Pieces refused one by one, all of them: the session is broken, and the rest of the page would be as many calls.
             if gaveUp {
@@ -292,7 +292,13 @@ enum PageTranslator {
 
     static func showOriginal(_ webView: WKWebView) async {
         _ = try? await webView.appScript(
-            "const t = globalThis.changmunTranslation; if (t) { if (t.observer) t.observer.disconnect(); t.nodes.forEach((n, i) => { n.nodeValue = t.originals[i]; }); } delete globalThis.changmunTranslation;")
+            "const t = globalThis.changmunTranslation; if (t) { if (t.observer) t.observer.disconnect(); \(restoring("t")) } delete globalThis.changmunTranslation;")
+    }
+
+    /// Puts the originals back in the nodes of `state`, the last read first (a node read again has its latest original last), and only in a
+    /// node that still holds what we left in it: what the site has written since is the site's.
+    private static func restoring(_ state: String) -> String {
+        "for (let i = \(state).nodes.length - 1; i >= 0; i--) { const n = \(state).nodes[i]; if (\(state).written.get(n) === n.nodeValue) n.nodeValue = \(state).originals[i]; }"
     }
 
     /// The first 4000 or so characters of the page's text, without laying the whole page out for `innerText`.
@@ -380,8 +386,21 @@ enum PageTranslator {
 
         """ : "const settled = () => false;\nconst limit = 4000;\n"
         let finish = following ? """
-        const first = t.nodes.length;
-        for (const n of nodes) { t.nodes.push(n); t.originals.push(n.nodeValue); t.texts.push(n.nodeValue.trim()); t.written.set(n, n.nodeValue); }
+        // Text this page has had translated before (a site that writes the same words again makes new nodes) is filled in, not sent again.
+        const first = (() => {
+          const fresh = [];
+          for (const n of nodes) {
+            const known = t.known.get(n.nodeValue.trim());
+            if (known === undefined) { fresh.push(n); continue; }
+            const original = n.nodeValue;
+            t.nodes.push(n); t.originals.push(original); t.texts.push(original.trim());
+            n.nodeValue = original.match(/^\\s*/)[0] + known + original.match(/\\s*$/)[0];
+            t.written.set(n, n.nodeValue);
+          }
+          const first = t.nodes.length;
+          for (const n of fresh) { t.nodes.push(n); t.originals.push(n.nodeValue); t.texts.push(n.nodeValue.trim()); t.written.set(n, n.nodeValue); }
+          return first;
+        })();
         // More may be waiting where this stopped short: still, as if it had been long ago.
         t.changedAt = nodes.length >= limit ? performance.now() - 1e9 : null;
         return { sensitive: false, first, texts: t.texts.slice(first) };
@@ -389,9 +408,9 @@ enum PageTranslator {
         const previous = globalThis.changmunTranslation;
         if (previous) {
           if (previous.observer) previous.observer.disconnect();
-          previous.nodes.forEach((n, i) => { n.nodeValue = previous.originals[i]; });
+          \(restoring("previous"))
         }
-        globalThis.changmunTranslation = { nodes, originals: nodes.map(n => n.nodeValue), texts: nodes.map(n => n.nodeValue.trim()), written: new WeakMap(nodes.map(n => [n, n.nodeValue])) };
+        globalThis.changmunTranslation = { nodes, originals: nodes.map(n => n.nodeValue), texts: nodes.map(n => n.nodeValue.trim()), written: new WeakMap(nodes.map(n => [n, n.nodeValue])), known: new Map() };
         \(forClaude ? "return { sensitive: false, first: 0, texts: globalThis.changmunTranslation.texts };" : "return nodes.length;")
         """
         return """
@@ -407,7 +426,8 @@ enum PageTranslator {
     }
 
     /// Puts translations in place, keeping the spaces around each piece of text. A node the site has written to since it was read keeps the
-    /// site's text, which is read again as new.
+    /// site's text, which is read again as new. With `remember` the page keeps each translation for its text, to put it in where the same
+    /// text is written again: only what Claude's answer passed the checks for is given that.
     static let applyScript = """
     const t = globalThis.changmunTranslation;
     if (!t) return;
@@ -418,6 +438,7 @@ enum PageTranslator {
       const lead = original.match(/^\\s*/)[0], trail = original.match(/\\s*$/)[0];
       node.nodeValue = lead + text + trail;
       t.written.set(node, node.nodeValue);
+      if (remember) t.known.set(t.texts[i], text);
     }
     """
 
@@ -466,6 +487,14 @@ enum PageTranslator {
         }
     }
 
+    /// Whether the follow-ups of a page go on after one that ended so: not where the language can't be translated here, or not at all.
+    nonisolated static func followsOn(after outcome: Outcome) -> Bool {
+        outcome != .sensitivePage && outcome != .needsDownload && outcome != .unsupported
+    }
+
+    /// Said once in each window to a user whose site has used up what may go to Claude without their asking.
+    static var pausedMessage: String { String(localized: "Automatic translation with Claude is paused on this site for a few minutes. Press Translate to go on.") }
+
     /// Why a page wasn't started.
     static func statusMessage(for refusal: Refusal) -> String {
         switch refusal {
@@ -478,8 +507,6 @@ enum PageTranslator {
     /// said last they don't say again.
     @MainActor struct FollowUpState: Equatable {
         private(set) var last: String?
-        /// The page showed a password or payment field: what it adds goes no more to Claude, whether the field is still there or not.
-        var claudeStopped = false
 
         mutating func message(for outcome: Outcome) -> String? {
             guard outcome != .translated, outcome != .nothingToTranslate else { return nil }
