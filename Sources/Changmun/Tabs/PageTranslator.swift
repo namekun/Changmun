@@ -145,9 +145,12 @@ enum PageTranslator {
     }
 
     /// The same for the text that `script` collects (`claudeCollectScript`, or `claudeFollowScript` for what a page has added since), sent
-    /// within what is left of `budget` and counted against it: with the outcome, what of the page's allowance is used now.
+    /// within what is left of `budget` and counted against it: with the outcome, what of the page's allowance is used now. `plan`, if there
+    /// is one, is given the pieces once they are collected and before any is sent, with no pause between: it says what of the allowance they
+    /// may use (and can set it aside, so that a run in another tab sees it gone).
     static func translateWithClaude(_ webView: WKWebView, model: String, to target: Locale.Language = target, within budget: ClaudeTranslation.Budget,
-                                    collecting script: String, while current: @escaping () -> Bool,
+                                    collecting script: String, plan: (@MainActor ([ClaudeTranslation.Piece]) -> ClaudeTranslation.Budget)? = nil,
+                                    while current: @escaping () -> Bool,
                                     permitted: @escaping @MainActor () -> Bool) async -> (outcome: Outcome, budget: ClaudeTranslation.Budget) {
         let run: ClaudeTranslation.Run
         do { run = try ClaudeTranslation.makeRun(model) } catch {
@@ -170,6 +173,7 @@ enum PageTranslator {
         log.notice("translate: \(texts.count, privacy: .public) pieces of text, with Claude")
         let language = ClaudeTranslation.languageName(target)
         let pieces = texts.enumerated().map { (id: first + $0, text: $1) }
+        let budget = plan?(pieces) ?? budget
         let spent = ClaudeTranslation.limited(pieces, after: budget).spent
         let work = Task {
             await ClaudeTranslation.translate(pieces, language: language, after: budget, run: run, allowed: { current() && permitted() }) { translated in
@@ -493,7 +497,7 @@ enum PageTranslator {
     }
 
     /// Said once in each window to a user whose site has used up what may go to Claude without their asking.
-    static var pausedMessage: String { String(localized: "Automatic translation with Claude is paused on this site for a few minutes. Press Translate to go on.") }
+    static var pausedMessage: String { String(localized: "Automatic translation with Claude is paused on this site for a few minutes.") }
 
     /// Why a page wasn't started.
     static func statusMessage(for refusal: Refusal) -> String {

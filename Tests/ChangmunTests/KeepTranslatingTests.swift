@@ -953,6 +953,28 @@ extension SharedAgentState {
             #expect((first.messages + second.messages).filter { $0 == paused }.count == 1)
         }
 
+        @Test func tabsOfOneSiteStartingTogetherSendNoMoreThanTheWindowInAll() async {
+            // The stand-in holds its answers, so that the runs overlap: each would otherwise find the whole window there.
+            let fake = tagging(delay: .milliseconds(400))
+            let first = Site(kept: ["comic.test"], fake: fake)
+            let second = Site(kept: ["comic.test"], fake: fake, freshWindow: false)
+            let third = Site(kept: ["comic.test"], fake: fake, freshWindow: false)
+            let fourth = Site(kept: ["comic.test"], fake: fake, freshWindow: false)
+            defer { first.close() }
+            defer { second.close() }
+            defer { third.close() }
+            defer { fourth.close() }
+            for (number, site) in [first, second, third, fourth].enumerated() {
+                site.view.loadHTMLString(bigPage(name: "t\(number)-"), baseURL: URL(string: "https://comic.test/\(number)"))
+            }
+            await quiet(fake)
+            #expect(sent(fake) <= ClaudeWindow.maxCharacters, "\(sent(fake)) characters in all, from four tabs at once")
+            #expect(sent(fake) > 250_000, "up to the window: \(sent(fake))")
+            let shared = AutomaticClaude.shared
+            #expect(shared.window.remaining(for: "comic.test", at: shared.now()).characters < 1000)
+            #expect((first.messages + second.messages + third.messages + fourth.messages).filter { $0 == paused }.count == 1)
+        }
+
         @Test func aPressOfTranslateIsNotHeldToTheWindowAndStillCountsInIt() async {
             let fake = tagging()
             let site = Site(kept: ["comic.test"], fake: fake)

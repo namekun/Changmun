@@ -147,7 +147,7 @@ extension Tab {
             if case .claude(let model) = route, let run = claudeRun {
                 // Asked again before every batch: the tab may stop being one that may go to Claude, or the setting may change, while it works.
                 let claude = await PageTranslator.translateWithClaude(webView, model: model, within: run.allowance, collecting: PageTranslator.claudeCollectScript,
-                                                                      while: current, permitted: {
+                                                                      plan: { self.planClaudeRun(run, for: $0) }, while: current, permitted: {
                     if case .claude = self.translationRoute() { return true }
                     return false
                 })

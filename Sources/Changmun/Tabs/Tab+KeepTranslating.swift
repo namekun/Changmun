@@ -71,40 +71,58 @@ extension Tab {
     }
 
     /// A run with Claude: what it may send, and what it counts against.
-    struct ClaudeRun {
+    @MainActor final class ClaudeRun {
         let site: String?
-        let allowance: ClaudeTranslation.Budget
-        /// The site's window, not the page's allowance, is what is nearer to running out.
-        let byWindow: Bool
+        let automatically: Bool
         let epoch: Int
         let token: Int
+        /// What the page has used when the run is planned: the page's own, or for one nobody asked for no more than the site has left in
+        /// its window.
+        var allowance: ClaudeTranslation.Budget
+        /// The site's window, not the page's allowance, is what is nearer to running out.
+        var byWindow = false
+
+        init(site: String?, automatically: Bool, epoch: Int, token: Int, allowance: ClaudeTranslation.Budget) {
+            self.site = site
+            self.automatically = automatically
+            self.epoch = epoch
+            self.token = token
+            self.allowance = allowance
+        }
     }
 
-    /// Starts a run with Claude: the button's text says it is sending, and the run has the page's allowance, which for one nobody asked
-    /// for is no more than the site has left in its window.
+    /// Starts a run with Claude: the button's text says it is sending.
     func beginClaudeRun(automatically: Bool) -> ClaudeRun {
         claudeRuns += 1
         translatesWithClaude = true
-        let site = AutomaticClaude.site(of: webView?.url?.host())
+        return ClaudeRun(site: AutomaticClaude.site(of: webView?.url?.host()), automatically: automatically, epoch: budgetEpoch, token: claudeRuns,
+                         allowance: translationBudget)
+    }
+
+    /// Plans the run once its text is collected, before any of it is sent: the run has the page's allowance, which for one nobody asked for
+    /// is no more than the site has left in its window, and what the text will use of the window is set aside at once (also for the user's
+    /// own press, which is not held to it but counts), so that runs in other tabs, which start at the same time, can't count on it.
+    func planClaudeRun(_ run: ClaudeRun, for pieces: [ClaudeTranslation.Piece]) -> ClaudeTranslation.Budget {
         var allowance = translationBudget
         var byWindow = false
-        if automatically, let site {
-            let shared = AutomaticClaude.shared
+        let shared = AutomaticClaude.shared
+        if run.automatically, let site = run.site {
             let left = shared.window.remaining(for: site, at: shared.now())
             (allowance, byWindow) = translationBudget.narrowed(toCharacters: left.characters, batches: left.batches)
         }
-        return ClaudeRun(site: site, allowance: allowance, byWindow: byWindow, epoch: budgetEpoch, token: claudeRuns)
+        run.allowance = allowance
+        run.byWindow = byWindow
+        if let site = run.site {
+            let planned = ClaudeTranslation.limited(pieces, after: allowance).spent.spent(since: allowance)
+            shared.window.record(characters: planned.characters, batches: planned.batches, for: site, at: shared.now())
+        }
+        return allowance
     }
 
-    /// Ends a run with Claude, however it ended: what it sent counts against the site's window (also when the user pressed the button),
-    /// and against the page's allowance if that is still the one it began with. It says Claude is no longer sent text only if it is the
-    /// latest run.
+    /// Ends a run with Claude, however it ended: what it sent counts against the page's allowance if that is still the one it began with
+    /// (the window had it set aside when the run was planned). It says Claude is no longer sent text only if it is the latest run.
     func endClaudeRun(_ run: ClaudeRun, spent budget: ClaudeTranslation.Budget) {
         let used = budget.spent(since: run.allowance)
-        if let site = run.site {
-            let shared = AutomaticClaude.shared
-            shared.window.record(characters: used.characters, batches: used.batches, for: site, at: shared.now())
-        }
         if budgetEpoch == run.epoch {
             translationBudget.characters += used.characters
             translationBudget.batches += used.batches
@@ -152,7 +170,7 @@ extension Tab {
             }
             let run = beginClaudeRun(automatically: true)
             let claude = await PageTranslator.translateWithClaude(webView, model: model, within: run.allowance, collecting: PageTranslator.claudeFollowScript,
-                                                                  while: current, permitted: {
+                                                                  plan: { self.planClaudeRun(run, for: $0) }, while: current, permitted: {
                 if case .claude = self.translationRoute() { return true }
                 return false
             })
