@@ -471,6 +471,33 @@ extension ControlServer {
             }
             return true
         }
+        // Tests only: how pages are translated. "engine" ("onDevice" or "claude") and "model" set the preferences, "ready" whether Claude Code
+        // counts as there, and "fake" what answers in place of `claude`, which the test copy never starts: "upper" translates every piece
+        // by making it capital letters, "fail" cannot answer, "slow" answers after ten seconds (and is cancelled if the page goes away).
+        // The answer says what is set, and how many times the fake was asked.
+        if Headless.isTestCopy, request.method == "POST", request.path == "/translation",
+           let body = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] {
+            Task { @MainActor in
+                if let engine = (body["engine"] as? String).flatMap(TranslationEngine.init(rawValue:)) { Preferences.shared.translationEngine = engine }
+                if let model = body["model"] as? String { Preferences.shared.translationModel = model }
+                if let ready = body["ready"] as? Bool { AIAvailability.detector = { ready ? .ready : .none } }
+                if let fake = body["fake"] as? String {
+                    TranslationFake.reset()
+                    ClaudeTranslation.makeRun = { _ in
+                        { request in
+                            TranslationFake.note()
+                            if fake == "fail" { throw ClaudeTranslation.Failure.exited(1) }
+                            if fake == "slow" { try await Task.sleep(for: .seconds(10)) }
+                            let texts = (try? JSONSerialization.jsonObject(with: request) as? [String: Any])?["texts"] as? [String: String] ?? [:]
+                            return String(decoding: (try? JSONSerialization.data(withJSONObject: texts.mapValues { $0.uppercased() })) ?? Data(), as: UTF8.self)
+                        }
+                    }
+                }
+                self.respond(connection, status: "200 OK", body: ["engine": Preferences.shared.translationEngine.rawValue, "model": Preferences.shared.translationModel,
+                                                                  "claudeReady": AIAvailability.detector() == .ready, "asked": TranslationFake.asked])
+            }
+            return true
+        }
         // Tests only: how the AI's approvals are answered ("answer": allow, site or deny; any other value goes back to
         // allowing), whether questions wait for an answer instead ("hold"), the answer given to those waiting ("release":
         // allow, site or deny), a caller's stop button ("stop": the caller's name), the chat started over ("newChat", as
@@ -651,4 +678,14 @@ extension ControlServer {
     static var delay = 0
     /// The server certificates WebKit asked the tab about (host:port), since the test copy started.
     static var challenges: [String] = []
+}
+
+/// How many times the fake that answers for `claude` in the test copy has been asked (see the "/translation" hook).
+enum TranslationFake {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var count = 0
+
+    static var asked: Int { lock.withLock { count } }
+    static func note() { lock.withLock { count += 1 } }
+    static func reset() { lock.withLock { count = 0 } }
 }
