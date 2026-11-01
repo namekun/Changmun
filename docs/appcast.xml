@@ -6,6 +6,21 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.14.0</title>
+      <pubDate>Sun, 01 Nov 2026 15:41:56 +0000</pubDate>
+      <sparkle:version>45</sparkle:version>
+      <sparkle:shortVersionString>0.14.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.14.0</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Keep translating a site.** Turn on "Keep translating this site" in the site settings over the address, or by right-clicking the translate button, and its foreign pages translate by themselves as you go from one to the next. Text a page adds later, as you scroll, is translated too. Show Original counts for that page only. It works on the exact address you turned it on for, with or without www, and never in a private window. Pages in your own language are left alone.
+- **With Claude, this sends each page's text to Anthropic without a click,** so it has limits. A page and what it adds later share one allowance, a site can send at most 300,000 characters in ten minutes on its own, and a page that keeps reloading itself is stopped there. Pages with a password, one-time code or card field are never sent, and a tab you aren't looking at sends no added text.
+- **Translating no longer writes over text a site has changed in the meantime,** and Show Original leaves such text as it is.
+
+Tried with automated tests and the headless copy. The new switch and menu on screen, keeping going with translation on this Mac, and pages restored with Back haven't been tried by hand, so tell me what looks or feels off.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.0/Changmun-0.14.0.dmg" length="7205034" type="application/octet-stream" sparkle:edSignature="JyWUVB7GnZLwyOkqd15ak4FevNDAfnQcFRcSjGOI2oht7sO4tn6FOJXJ1U1IpXJv89QpaNeSeyxMmDFQfj+CCg==" />
+    </item>
+    <item>
       <title>0.13.0</title>
       <pubDate>Sun, 01 Nov 2026 11:07:03 +0000</pubDate>
       <sparkle:version>44</sparkle:version>
@@ -134,21 +149,9 @@ Tried with automated tests and the headless copy. The dialogs' real look on scre
       <description sparkle:format="markdown">- **Sidebar hidden: the sidebar button no longer crowds the window buttons.** With the sidebar collapsed, its button sat only 8 points from the green window button; it now has the same room as the first tab tile has with the tabs on top.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.6/Changmun-0.8.6.dmg" length="5523198" type="application/octet-stream" sparkle:edSignature="0myrY56WiGiG029cVsC6FEImHAnFzm3Cn70yBFdAPM/Zy27XB3rKXSfc5VWCmINhgHqm3WCAG/wUiPcPqL41Bg==" />
     </item>
-    <item>
-      <title>0.8.5</title>
-      <pubDate>Wed, 28 Oct 2026 02:52:54 +0000</pubDate>
-      <sparkle:version>35</sparkle:version>
-      <sparkle:shortVersionString>0.8.5</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.8.5</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Go on to a site whose certificate can't be verified, as in Safari.** A site with a self-signed certificate, one from a private CA your Mac doesn't trust, an expired one or one for another name now gets a warning drawn by the app itself, with the reason and the certificate's details; "Go Back" is the default, and "Visit This Website" sits under the details and asks for Touch ID or your password. The exception is for that one certificate on that site, lives only until you quit, shows a warning triangle in the address bar and can be taken away in the site's settings. A changed certificate is blocked again. Pages the AI drives never get one, sites that insist on HTTPS (such as .dev and .app) and certificates that went bad since you last visited can't be overridden, and a page you went on to is treated as unverified: no saved-password fill or sign-in, remembered camera, microphone and location permissions ask again, and the AI asks before reading it.
-- **Client certificates work in more cases.** If none of your certificates match the issuers a site names, you now get the list of all valid ones (with a note) instead of nothing; certificates issued through an intermediate CA are sent with their chain; ones not meant for client use are left out; the chooser no longer cancels itself on the first load or lingers after its tab closes.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.5/Changmun-0.8.5.dmg" length="5523617" type="application/octet-stream" sparkle:edSignature="PzqpzQnkvecYY2Wa0Ql44uRCMEH5FxBZwaT81KE7Prk6wUWxPXETQ+MXo1iVw+fYWWUzdCbU2yrvMJGgJUNwDg==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: q2THy4jXzhrRVk7y3OWRj8v5p4TfRXPtQvUk8L1EfHMwPv92UR6ZOQ+XMQX+OOQZgztvUG/LGVQ6SjjAWmoIAw==
-length: 21561
+edSignature: kV5gnj1HI8diUGFIko+C7d0/AHrj788F89LY4ZeZqPnlaY/zNga4yKkxfLEVHniZhuI/Tc4hwIHnYxVR4KNoCQ==
+length: 21432
 -->
