@@ -207,6 +207,7 @@ extension Tab: WKNavigationDelegate {
         page += 1
         translating?.cancel()
         translating = nil
+        translatesWithClaude = false
         blockedPopup = nil
         isInPictureInPicture = false
         foreignLanguage = nil

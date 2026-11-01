@@ -80,20 +80,26 @@ extension Tab {
 
     // MARK: Translation
 
+    /// Where this tab's page would be translated now (see `PageTranslator.route`); a tab the AI may not see never goes to Claude.
+    func translationRoute() -> PageTranslator.Route {
+        PageTranslator.route(engine: Preferences.shared.translationEngine, model: Preferences.shared.translationModel, claude: AIAvailability.detector(),
+                             seenByAI: !isPrivate && browser?.isVisibleToAI(self) == true)
+    }
+
     /// Translates the page into the user's language, or puts the original back (also stopping a translation under way).
     func toggleTranslation() {
         guard let webView else { return }
         if translation != .original {
             translating?.cancel()
             translating = nil
+            translatesWithClaude = false
             translation = .original
             Announcer.announce(String(localized: "Showing the original page"))
             Task { await PageTranslator.showOriginal(webView) }
             return
         }
         // Which way the page goes is decided before anything starts: a refusal says why and changes nothing on the page.
-        let route = PageTranslator.route(engine: Preferences.shared.translationEngine, model: Preferences.shared.translationModel, claude: AIAvailability.detector(),
-                                         seenByAI: !isPrivate && browser?.isVisibleToAI(self) == true)
+        let route = translationRoute()
         if case .refused(let refusal) = route {
             switch refusal {
             case .claudeUnavailable: browser?.flashStatus(String(localized: "Claude Code isn’t available, so the page wasn’t translated. Install it, or choose On this Mac in Settings › General."))
@@ -102,12 +108,14 @@ extension Tab {
             return
         }
         translation = .translating
+        if case .claude = route { translatesWithClaude = true }
         let page = page
         let current = { [weak self] in self?.page == page && self?.webView === webView && !Task.isCancelled }
         translating = Task {
             guard let source = await PageTranslator.foreignLanguage(of: webView) else {
                 guard current() else { return }
                 translating = nil
+                translatesWithClaude = false
                 translation = .original
                 browser?.flashStatus(String(localized: "No text in another language to translate"))
                 return
@@ -115,12 +123,25 @@ extension Tab {
             foreignLanguage = source
             let outcome: PageTranslator.Outcome
             if case .claude(let model) = route {
-                outcome = await PageTranslator.translateWithClaude(webView, model: model, while: current)
+                // Asked again before every batch: the tab may stop being one that may go to Claude, or the setting may change, while it works.
+                var result = await PageTranslator.translateWithClaude(webView, model: model, while: current, permitted: {
+                    if case .claude = self.translationRoute() { return true }
+                    return false
+                })
+                if result == .sensitivePage, current() {
+                    translatesWithClaude = false
+                    if PageTranslator.onDeviceAvailable {
+                        browser?.flashStatus(String(localized: "This page has a password or payment field, so it is translated on this Mac and not sent to Claude."))
+                        result = await PageTranslator.translate(webView, from: source, while: current)
+                    }
+                }
+                outcome = result
             } else {
                 outcome = await PageTranslator.translate(webView, from: source, while: current)
             }
             guard current() else { return }
             translating = nil
+            translatesWithClaude = false
             translation = outcome == .translated || outcome == .translatedPartly ? .translated : .original
             switch outcome {
             case .needsDownload: browser?.flashStatus(String(localized: "Download this language in System Settings › General › Language & Region › Translation Languages"))
@@ -130,6 +151,7 @@ extension Tab {
             case .engineFailed: browser?.flashStatus(String(localized: "Couldn't translate this page. macOS’s translation didn’t respond — try again, or check System Settings › General › Language & Region › Translation Languages."))
             case .claudeFailed: browser?.flashStatus(String(localized: "Claude couldn’t translate this page. It was left as it was."))
             case .translatedPartly: browser?.flashStatus(String(localized: "Claude couldn’t translate all of this page. The rest was left as it was."))
+            case .sensitivePage: browser?.flashStatus(String(localized: "This page has a password or payment field, so it isn’t sent to Claude, and this Mac can’t translate it: that needs macOS 26 or later."))
             case .translated: Announcer.announce(String(localized: "Page translated"))
             }
         }

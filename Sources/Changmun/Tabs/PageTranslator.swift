@@ -44,6 +44,8 @@ enum PageTranslator {
         case claudeFailed
         /// Claude translated some of the page and could not do the rest, which stays as it was.
         case translatedPartly
+        /// The page has a password or payment field: it is not sent to Claude.
+        case sensitivePage
     }
 
     /// How a page is to be translated, or why it can't be.
@@ -127,8 +129,11 @@ enum PageTranslator {
     }
 
     /// Translates the page into `target` with Claude, batch by batch, showing each batch as it comes back, for as long as `current` holds
-    /// (when it turns false the `claude` processes are ended). What Claude doesn't translate is left as it was.
-    static func translateWithClaude(_ webView: WKWebView, model: String, to target: Locale.Language = target, while current: @escaping () -> Bool) async -> Outcome {
+    /// (when it turns false the `claude` processes are ended). `permitted` is asked before every batch is started and again before its
+    /// answer is used: the tab may stop being one that may go to Claude (a profile that is no longer the one shown, the setting changed),
+    /// and then the work stops. What Claude doesn't translate is left as it was. A page with a password or a payment field is not sent at all.
+    static func translateWithClaude(_ webView: WKWebView, model: String, to target: Locale.Language = target, while current: @escaping () -> Bool,
+                                    permitted: @escaping @MainActor () -> Bool = { true }) async -> Outcome {
         let run: ClaudeTranslation.Run
         do { run = try ClaudeTranslation.makeRun(model) } catch {
             log.error("translate: Claude can't be run: \(String(describing: error), privacy: .public)")
@@ -136,6 +141,7 @@ enum PageTranslator {
         }
         let texts: [String]
         do {
+            if try await webView.callAsyncJavaScript(claudeSensitiveScript, contentWorld: .defaultClient) as? Bool != false { return .sensitivePage }
             guard let count = try await webView.callAsyncJavaScript(claudeCollectScript, contentWorld: .defaultClient) as? Int else { return .failed }
             guard count > 0 else { return .nothingToTranslate }
             guard let all = try await webView.callAsyncJavaScript("return globalThis.changmunTranslation.texts", contentWorld: .defaultClient) as? [String] else { return .failed }
@@ -147,7 +153,7 @@ enum PageTranslator {
         log.notice("translate: \(texts.count, privacy: .public) pieces of text, with Claude")
         let language = ClaudeTranslation.languageName(target)
         let work = Task {
-            await ClaudeTranslation.translate(texts.enumerated().map { (id: $0, text: $1) }, language: language, run: run) { translated in
+            await ClaudeTranslation.translate(texts.enumerated().map { (id: $0, text: $1) }, language: language, run: run, allowed: { current() && permitted() }) { translated in
                 guard current() else { return }
                 _ = try? await webView.appScript(applyScript, arguments: ["texts": Dictionary(uniqueKeysWithValues: translated.map { (String($0.key), $0.value) })])
             }
@@ -161,9 +167,9 @@ enum PageTranslator {
         }
         let report = await withTaskCancellationHandler { await work.value } onCancel: { work.cancel() }
         watcher.cancel()
-        log.notice("translate: Claude translated \(report.translated, privacy: .public) pieces, \(report.failedBatches, privacy: .public) batches failed, \(report.skippedBatches, privacy: .public) not asked")
+        log.notice("translate: Claude translated \(report.translated, privacy: .public) pieces, \(report.failedBatches, privacy: .public) batches failed, \(report.skippedBatches, privacy: .public) not asked, \(report.leftOut, privacy: .public) left out, denied \(report.denied, privacy: .public)")
         if report.translated == 0 { return .claudeFailed }
-        return report.failedBatches > 0 || report.skippedBatches > 0 ? .translatedPartly : .translated
+        return report.failedBatches > 0 || report.skippedBatches > 0 || report.leftOut > 0 || report.denied ? .translatedPartly : .translated
     }
 
     /// The page's `count` pieces of text (already collected) translated with `session`, batch by batch.
@@ -289,14 +295,32 @@ enum PageTranslator {
 
     /// What goes to Claude is collected with more care than what stays on this Mac: also not what a page lets the user type into
     /// without an input (`contenteditable` of any kind, `role=textbox`, `searchbox` and `combobox`), not the suggestions of a `datalist`
-    /// and not a form's options.
-    static let claudeCollectScript = makeCollectScript(skipping: ", option, datalist, [contenteditable]:not([contenteditable=false i]), [role=textbox], [role=searchbox], [role=combobox]")
+    /// and not a form's options, and only what is to be seen: not what is `hidden` or `aria-hidden`, nor what `checkVisibility` says
+    /// can't be seen (`display: none`, `visibility: hidden`, no opacity), nor the inside of a closed `details`.
+    static let claudeCollectScript = makeCollectScript(skipping: ", option, datalist, [contenteditable]:not([contenteditable=false i]), [role=textbox], [role=searchbox], [role=combobox]", visibleOnly: true)
 
-    private static func makeCollectScript(skipping more: String) -> String {
-        """
+    /// Whether the page has a password field, or a field for a one-time code or a card (by `type` or `autocomplete`): such a page isn't sent.
+    static let claudeSensitiveScript = """
+    return !!document.querySelector('input[type=password i], input[autocomplete~="one-time-code" i], input[autocomplete*="cc-" i]');
+    """
+
+    private static func makeCollectScript(skipping more: String, visibleOnly: Bool = false) -> String {
+        let hidden = visibleOnly ? """
+        const hidden = el => {
+          if (el.closest('[hidden], [aria-hidden="true"]')) return true;
+          if (el.checkVisibility && !el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return true;
+          const summary = el.closest('summary');
+          for (let d = el.closest('details'); d; d = d.parentElement ? d.parentElement.closest('details') : null) {
+            if (!d.open && !(summary && summary.parentElement === d)) return true;
+          }
+          return false;
+        };
+
+        """ : "const hidden = () => false;\n"
+        return """
         const skip = 'script, style, noscript, textarea, input, select, code, pre, kbd, samp, svg, math, [translate=no], .notranslate, [contenteditable=""], [contenteditable=true]\(more)';
-        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
-          acceptNode: n => /\\p{L}/u.test(n.nodeValue) && n.nodeValue.trim().length > 1 && !(n.parentElement && n.parentElement.closest(skip))
+        \(hidden)const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+          acceptNode: n => /\\p{L}/u.test(n.nodeValue) && n.nodeValue.trim().length > 1 && !(n.parentElement && (n.parentElement.closest(skip) || hidden(n.parentElement)))
             ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
         });
         const nodes = [];

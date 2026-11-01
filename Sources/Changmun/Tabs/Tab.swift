@@ -64,6 +64,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// The page's language when it isn't the user's: the address bar offers to translate it.
     @Published var foreignLanguage: Locale.Language?
     @Published var translation = Translation.original
+    /// The translation under way sends the page's text to Claude, and so to Anthropic.
+    @Published var translatesWithClaude = false
     /// The page looks like an article, which Reader Mode can show; and it is showing.
     @Published var isReadable = false
     @Published var isReading = false
