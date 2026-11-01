@@ -996,3 +996,17 @@
 "sign-ins" = "connexions";
 "Will come over: %@" = "Sera repris : %@";
 "Nothing will come over" = "Rien ne sera repris";
+"Translation" = "Traduction";
+"Translate pages with" = "Traduire les pages avec";
+"On this Mac" = "Sur ce Mac";
+"Claude" = "Claude";
+"The text of each page you translate is sent to Anthropic and counts against your Claude subscription, or your API key if one is set. Pages in private windows, in profiles other than the one in front, and with a password or payment field are never sent." = "Le texte de chaque page que vous traduisez est envoyé à Anthropic et compte dans votre abonnement Claude, ou sur votre clé d’API si vous en avez défini une. Les pages des fenêtres privées, des profils autres que celui au premier plan et avec un champ de mot de passe ou de paiement ne sont jamais envoyées.";
+"The text of a page stays on this Mac. It is translated with the models of macOS, which needs macOS 26 or later." = "Le texte d’une page reste sur ce Mac. Il est traduit avec les modèles de macOS, qui demande macOS 26 ou version ultérieure.";
+"Claude needs Claude Code on this Mac. Install it, or enter where it is in Settings › AI." = "Claude a besoin de Claude Code sur ce Mac. Installez-le, ou indiquez où il se trouve dans Réglages › IA.";
+"Claude Code isn’t available, so the page wasn’t translated. Install it, or choose On this Mac in Settings › General." = "Claude Code n’est pas disponible, la page n’a donc pas été traduite. Installez-le, ou choisissez « Sur ce Mac » dans Réglages › Général.";
+"Pages in this window are only translated on this Mac, which needs macOS 26 or later." = "Les pages de cette fenêtre ne sont traduites que sur ce Mac, ce qui demande macOS 26 ou version ultérieure.";
+"Claude couldn’t translate this page. It was left as it was." = "Claude n’a pas pu traduire cette page. Elle a été laissée telle quelle.";
+"Claude couldn’t translate all of this page. The rest was left as it was." = "Claude n’a pas pu traduire toute cette page. Le reste a été laissé tel quel.";
+"Translating with Claude: the page’s text is being sent to Anthropic. Click to stop (⌥⌘T)." = "Traduction avec Claude : le texte de la page est envoyé à Anthropic. Cliquez pour arrêter (⌥⌘T).";
+"This page has a password or payment field, so it is translated on this Mac and not sent to Claude." = "Cette page a un champ de mot de passe ou de paiement : elle est traduite sur ce Mac et n’est pas envoyée à Claude.";
+"This page has a password or payment field, so it isn’t sent to Claude, and this Mac can’t translate it: that needs macOS 26 or later." = "Cette page a un champ de mot de passe ou de paiement, elle n’a donc pas été envoyée à Claude, et ce Mac ne peut pas la traduire : cela demande macOS 26 ou version ultérieure.";

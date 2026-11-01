@@ -135,7 +135,7 @@ Esto sale de lo que cada proyecto dice de sí mismo. Si algo está desactualizad
 
 ## Privacidad
 
-Lo que haces en la web se queda en tu Mac. La app solo hace unas pocas peticiones por su cuenta, como buscar actualizaciones y renovar las listas de filtros de anuncios. Las sugerencias de búsqueda envían lo que escribes a tu buscador; puedes desactivarlas, y las ventanas privadas nunca las envían. [Todo lo que se envía, y cuándo](GUIDE.es.md#privacidad).
+Lo que haces en la web se queda en tu Mac. La app solo hace unas pocas peticiones por su cuenta, como buscar actualizaciones y renovar las listas de filtros de anuncios. Las sugerencias de búsqueda envían lo que escribes a tu buscador; puedes desactivarlas, y las ventanas privadas nunca las envían. La traducción de páginas se queda en tu Mac salvo que elijas Claude para ella en Ajustes; entonces el texto de cada página que traduces va a Anthropic a través de la CLI `claude`, y nunca desde ventanas privadas. [Todo lo que se envía, y cuándo](GUIDE.es.md#privacidad).
 
 ## Saber más
 

@@ -996,3 +996,17 @@
 "sign-ins" = "로그인 상태";
 "Will come over: %@" = "가져올 항목: %@";
 "Nothing will come over" = "가져올 항목이 없어요";
+"Translation" = "번역";
+"Translate pages with" = "페이지 번역에 쓸 것";
+"On this Mac" = "이 Mac";
+"Claude" = "Claude";
+"The text of each page you translate is sent to Anthropic and counts against your Claude subscription, or your API key if one is set. Pages in private windows, in profiles other than the one in front, and with a password or payment field are never sent." = "번역하는 페이지의 글은 Anthropic에 보내지고, Claude 구독 사용량으로(API 키를 설정했다면 그 키로) 계산돼요. 개인 창의 페이지, 앞에 있는 프로필이 아닌 프로필의 페이지, 비밀번호나 결제 칸이 있는 페이지는 절대 보내지 않아요.";
+"The text of a page stays on this Mac. It is translated with the models of macOS, which needs macOS 26 or later." = "페이지의 글은 이 Mac을 떠나지 않아요. macOS의 번역 모델로 번역하며, macOS 26 이상이 필요해요.";
+"Claude needs Claude Code on this Mac. Install it, or enter where it is in Settings › AI." = "Claude를 쓰려면 이 Mac에 Claude Code가 있어야 해요. 설치하거나, 설정 › AI에서 위치를 직접 지정해 주세요.";
+"Claude Code isn’t available, so the page wasn’t translated. Install it, or choose On this Mac in Settings › General." = "Claude Code를 쓸 수 없어서 페이지를 번역하지 않았어요. 설치하거나, 설정 › 일반에서 ‘이 Mac’을 선택해 주세요.";
+"Pages in this window are only translated on this Mac, which needs macOS 26 or later." = "이 창의 페이지는 이 Mac에서만 번역되며, macOS 26 이상이 필요해요.";
+"Claude couldn’t translate this page. It was left as it was." = "Claude가 이 페이지를 번역하지 못했어요. 페이지는 그대로 두었어요.";
+"Claude couldn’t translate all of this page. The rest was left as it was." = "Claude가 이 페이지를 전부 번역하지는 못했어요. 나머지는 그대로 두었어요.";
+"Translating with Claude: the page’s text is being sent to Anthropic. Click to stop (⌥⌘T)." = "Claude로 번역하는 중: 페이지의 글이 Anthropic에 보내지고 있어요. 클릭하면 멈춰요 (⌥⌘T).";
+"This page has a password or payment field, so it is translated on this Mac and not sent to Claude." = "이 페이지에는 비밀번호나 결제 칸이 있어서 Claude에 보내지 않고 이 Mac에서 번역해요.";
+"This page has a password or payment field, so it isn’t sent to Claude, and this Mac can’t translate it: that needs macOS 26 or later." = "이 페이지에는 비밀번호나 결제 칸이 있어서 Claude에 보내지 않았고, 이 Mac에서도 번역할 수 없어요(macOS 26 이상 필요).";

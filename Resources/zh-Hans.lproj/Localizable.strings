@@ -996,3 +996,17 @@
 "sign-ins" = "登录状态";
 "Will come over: %@" = "将导入：%@";
 "Nothing will come over" = "不会导入任何内容";
+"Translation" = "翻译";
+"Translate pages with" = "翻译网页使用";
+"On this Mac" = "本机";
+"Claude" = "Claude";
+"The text of each page you translate is sent to Anthropic and counts against your Claude subscription, or your API key if one is set. Pages in private windows, in profiles other than the one in front, and with a password or payment field are never sent." = "你翻译的每个网页的文本都会发送给 Anthropic，并计入你的 Claude 订阅用量（如果设置了 API 密钥，则计入该密钥）。私密浏览窗口中的网页、当前所在配置文件之外的其他配置文件中的网页，以及含有密码栏或支付栏的网页，绝不会被发送。";
+"The text of a page stays on this Mac. It is translated with the models of macOS, which needs macOS 26 or later." = "网页文本不会离开这台 Mac。翻译使用 macOS 的翻译模型，需要 macOS 26 或更高版本。";
+"Claude needs Claude Code on this Mac. Install it, or enter where it is in Settings › AI." = "Claude 需要这台 Mac 上有 Claude Code。请安装它，或在“设置 › AI”中指定它的位置。";
+"Claude Code isn’t available, so the page wasn’t translated. Install it, or choose On this Mac in Settings › General." = "Claude Code 不可用，所以没有翻译此页面。请安装它，或在“设置 › 通用”中选择“本机”。";
+"Pages in this window are only translated on this Mac, which needs macOS 26 or later." = "此窗口中的网页只会在这台 Mac 上翻译，需要 macOS 26 或更高版本。";
+"Claude couldn’t translate this page. It was left as it was." = "Claude 无法翻译此页面，页面保持原样。";
+"Claude couldn’t translate all of this page. The rest was left as it was." = "Claude 无法翻译此页面的全部内容，其余部分保持原样。";
+"Translating with Claude: the page’s text is being sent to Anthropic. Click to stop (⌥⌘T)." = "正在用 Claude 翻译：页面文本正在发送给 Anthropic。点按可停止 (⌥⌘T)。";
+"This page has a password or payment field, so it is translated on this Mac and not sent to Claude." = "此页面含有密码栏或支付栏，所以在这台 Mac 上翻译，不发送给 Claude。";
+"This page has a password or payment field, so it isn’t sent to Claude, and this Mac can’t translate it: that needs macOS 26 or later." = "此页面含有密码栏或支付栏，所以没有发送给 Claude，这台 Mac 也无法翻译它：需要 macOS 26 或更高版本。";

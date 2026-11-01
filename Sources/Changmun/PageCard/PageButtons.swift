@@ -24,7 +24,7 @@ struct ReaderButton: View {
     }
 }
 
-/// On a page in another language: translates it on this Mac, and brings the original back.
+/// On a page in another language: translates it (on this Mac, or with Claude if Settings says so), and brings the original back.
 struct TranslateButton: View {
     @ObservedObject var tab: Tab
 
@@ -43,7 +43,8 @@ struct TranslateButton: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(tab.translation == .translated ? Theme.primary : Theme.secondary)
-            .help(tab.translation == .translated ? String(localized: "Show Original (⌥⌘T)") : String(localized: "Translate (⌥⌘T)"))
+            .help(tab.translation == .translated ? String(localized: "Show Original (⌥⌘T)")
+                  : tab.translatesWithClaude ? String(localized: "Translating with Claude: the page’s text is being sent to Anthropic. Click to stop (⌥⌘T).") : String(localized: "Translate (⌥⌘T)"))
             .accessibilityLabel(String(localized: "Translate"))
             .accessibilityValue(tab.translation == .translating ? String(localized: "Translating") : Accessibility.onOffValue(tab.translation == .translated))
         }
