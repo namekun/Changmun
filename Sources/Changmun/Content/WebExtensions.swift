@@ -308,7 +308,7 @@ final class ExtensionHost: NSObject, ObservableObject {
         }
         let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 720, height: 560), configuration: configuration)
         webView.load(URLRequest(url: url))
-        let window = NSWindow(contentRect: webView.frame, styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        let window = AppWindow(contentRect: webView.frame, styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = item.name
         window.contentView = webView
         window.isReleasedWhenClosed = false
