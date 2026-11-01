@@ -45,7 +45,7 @@ quit_app() {
     local pid
     pid="$(running_pid)"
     [[ -n "$pid" ]] || { rm -f "$ENDPOINT"; return 0; }
-    osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1
+    post /quit '{}' >/dev/null
     wait_gone "$pid" 8 || { kill -9 "$pid" 2>/dev/null; wait_gone "$pid" 20; }
     rm -f "$ENDPOINT"
 }

@@ -106,6 +106,15 @@ extension ControlServer {
             }
             return true
         }
+        // Tests only: the app quits as Quit in its menu does. A script asking through AppleScript would need the Mac's automation permission, whose prompt lands on the user's screen.
+        if Headless.isTestCopy, request.method == "POST", request.path == "/quit" {
+            respond(connection, status: "200 OK", body: [:])
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(100))
+                NSApp.terminate(nil)
+            }
+            return true
+        }
         // Tests only: the front window closed as its close button does, answering first (the last window may end the app). "windows" is how many ordinary and private windows are open before.
         if Headless.isTestCopy, request.method == "POST", request.path == "/window-close" {
             Task { @MainActor in

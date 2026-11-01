@@ -44,7 +44,7 @@ stop_app() {
     local pid
     pid="$(running_pid)"
     [[ -n "$pid" ]] || { rm -f "$ENDPOINT"; return 0; }
-    osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1
+    post /quit '{}' >/dev/null
     wait_gone "$pid" 8 || { kill -9 "$pid" 2>/dev/null; wait_gone "$pid" 20; }
     rm -f "$ENDPOINT"
 }
@@ -145,7 +145,7 @@ case_in() { # how seconds store expected
     sleep "$wait"
     pid="$(field pid)"
     case "$how" in
-        quit) osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1 ;;
+        quit) post /quit '{}' >/dev/null ;;
         term) kill -TERM "$pid" ;;
         kill) kill -9 "$pid" ;;
         close) post /window-close '{}' >/dev/null ;;
@@ -192,7 +192,7 @@ off_case() { # what
     sleep 3
     local pid
     pid="$(field pid)"
-    osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1
+    post /quit '{}' >/dev/null
     wait_gone "$pid" 15 || { kill -9 "$pid"; wait_gone "$pid" 10; }
     rm -f "$ENDPOINT"
     start_app

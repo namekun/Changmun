@@ -325,4 +325,11 @@ check "the homepage's spacing is on the 8 grid" test ! -s "$WORK/grid.txt"
 [[ -s "$WORK/grid.txt" ]] && { echo "off the grid:" >&2; cat "$WORK/grid.txt" >&2; }
 
 (( FAILED )) && { echo "✘ script tests failed" >&2; exit 1; }
+# The test scripts leave the user's screen alone: AppleScript needs the Mac's automation permission, whose prompt would land on it.
+if grep -l 'osascript' scripts/*.sh scripts/*.py 2>/dev/null | grep -v '^scripts/test-scripts.sh$' | grep -q .; then
+    echo "scripts must not use osascript" >&2
+    exit 1
+fi
+echo "  ok: no script uses AppleScript"
+
 echo "✔ script tests passed"
