@@ -4,7 +4,7 @@ import SwiftUI
 import WebKit
 
 /// A window without a visible title bar: the traffic lights sit at the top of the sidebar, level with the page card's bar.
-final class BrowserWindow: AppWindow, NSWindowDelegate {
+final class BrowserWindow: NSWindow, NSWindowDelegate {
     /// The space above the page bar's controls (the card itself runs to the window's top), and the bar: the traffic lights sit level with the bar.
     static let cardInset: CGFloat = 0
     static let pageBarHeight: CGFloat = 44
@@ -82,6 +82,10 @@ final class BrowserWindow: AppWindow, NSWindowDelegate {
                 MainActor.assumeIsolated { self?.browser.fullScreen = entering }
             })
         }
+    }
+
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        Headless.isOn ? frameRect : super.constrainFrameRect(frameRect, to: screen)
     }
 
     /// One step down and right of the window before; a window that fills the screen leaves room for the step,

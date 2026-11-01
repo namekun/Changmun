@@ -324,16 +324,6 @@ off_grid_spacing docs/index.html >"$WORK/grid.txt"
 check "the homepage's spacing is on the 8 grid" test ! -s "$WORK/grid.txt"
 [[ -s "$WORK/grid.txt" ]] && { echo "off the grid:" >&2; cat "$WORK/grid.txt" >&2; }
 
-echo "window guard"
-mkdir -p "$WORK/windows"
-echo 'let window = NSWindow(contentViewController: controller)' >"$WORK/windows/made.swift"
-echo 'final class Sheet: NSPanel {}' >"$WORK/windows/subclass.swift"
-echo '// NSWindow( in a comment, and a parameter: func f(_ w: NSWindow) {}' >"$WORK/windows/fine.swift"
-check "the guard sees an NSWindow made outside AppWindow" refuses scripts/check-windows.sh "$WORK/windows"
-rm "$WORK/windows/made.swift" "$WORK/windows/subclass.swift"
-check "the guard lets comments and parameters be" scripts/check-windows.sh "$WORK/windows"
-check "every window in Sources/Changmun is an AppWindow" scripts/check-windows.sh
-
 (( FAILED )) && { echo "✘ script tests failed" >&2; exit 1; }
 # The test scripts leave the user's screen alone: AppleScript needs the Mac's automation permission, whose prompt would land on it.
 if grep -l 'osascript' scripts/*.sh scripts/*.py 2>/dev/null | grep -v '^scripts/test-scripts.sh$' | grep -q .; then

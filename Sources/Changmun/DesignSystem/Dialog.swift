@@ -209,7 +209,7 @@ private final class SheetQueue {
 }
 
 /// A sheet's window: Esc presses the Cancel button even when the keyboard focus is in a field.
-private final class DialogWindow: AppWindow {
+private final class DialogWindow: NSWindow {
     var onEscape: () -> Void = {}
 
     override func cancelOperation(_ sender: Any?) { onEscape() }

@@ -43,7 +43,7 @@ final class ChatPopOut: NSObject, NSWindowDelegate {
             ChatPanel(chat: ChatStore.shared, browser: browser, inWindow: true).padding([.leading, .trailing, .bottom], Metrics.inset)
         }
         .ignoresSafeArea()
-        let window = AppWindow(contentViewController: NSHostingController(rootView: content))
+        let window = NSWindow(contentViewController: NSHostingController(rootView: content))
         // Like the browser window: no title bar of its own (the title is kept for Mission Control and the Window menu).
         window.title = "Changmun AI"
         window.styleMask = [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView]

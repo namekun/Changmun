@@ -13,7 +13,7 @@ enum Panels {
             window.makeKeyAndOrderFront(nil)
             return
         }
-        let window = AppWindow(contentViewController: NSHostingController(rootView: content()))
+        let window = NSWindow(contentViewController: NSHostingController(rootView: content()))
         window.title = title
         window.styleMask = resizable ? [.titled, .closable, .resizable, .miniaturizable] : [.titled, .closable]
         window.setContentSize(size)
