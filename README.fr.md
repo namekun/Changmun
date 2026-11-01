@@ -135,7 +135,7 @@ Touches style Safari ou style Chrome ? Choisissez dans les Réglages (⌘,). [To
 
 ## Confidentialité
 
-Ce que vous faites sur le web reste sur votre Mac. L’app n’envoie d’elle-même que quelques requêtes, comme la recherche de mises à jour et l’actualisation des listes de filtres de publicités. Les suggestions de recherche envoient ce que vous saisissez à votre moteur de recherche ; vous pouvez les désactiver, et les fenêtres privées ne les envoient jamais. [Tout ce qui est envoyé, et quand](GUIDE.fr.md#confidentialité).
+Ce que vous faites sur le web reste sur votre Mac. L’app n’envoie d’elle-même que quelques requêtes, comme la recherche de mises à jour et l’actualisation des listes de filtres de publicités. Les suggestions de recherche envoient ce que vous saisissez à votre moteur de recherche ; vous pouvez les désactiver, et les fenêtres privées ne les envoient jamais. La traduction des pages reste sur votre Mac, sauf si vous choisissez Claude pour elle dans les Réglages ; le texte de chaque page que vous traduisez part alors chez Anthropic via la CLI `claude`, jamais depuis une fenêtre privée. [Tout ce qui est envoyé, et quand](GUIDE.fr.md#confidentialité).
 
 ## En savoir plus
 

@@ -135,7 +135,7 @@ Tasten wie in Safari oder wie in Chrome? Wähle in den Einstellungen (⌘,). [Al
 
 ## Datenschutz
 
-Was du im Web tust, bleibt auf deinem Mac. Die App stellt von sich aus nur wenige Anfragen, etwa die Update-Prüfung und das Aktualisieren der Werbefilterlisten. Suchvorschläge senden, was du tippst, an deine Suchmaschine; du kannst sie ausschalten, und private Fenster senden sie nie. [Alles, was gesendet wird, und wann](GUIDE.de.md#datenschutz).
+Was du im Web tust, bleibt auf deinem Mac. Die App stellt von sich aus nur wenige Anfragen, etwa die Update-Prüfung und das Aktualisieren der Werbefilterlisten. Suchvorschläge senden, was du tippst, an deine Suchmaschine; du kannst sie ausschalten, und private Fenster senden sie nie. Die Seitenübersetzung bleibt auf deinem Mac, es sei denn, du wählst in den Einstellungen Claude dafür; dann geht der Text jeder Seite, die du übersetzt, über das `claude`-CLI an Anthropic, nie aus privaten Fenstern. [Alles, was gesendet wird, und wann](GUIDE.de.md#datenschutz).
 
 ## Mehr erfahren
 

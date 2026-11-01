@@ -135,7 +135,7 @@ Safari-style or Chrome-style keys? Pick in Settings (⌘,). [All shortcuts](GUID
 
 ## Privacy
 
-Your browsing stays on your Mac. The app makes only a few requests of its own, such as checking for updates and refreshing the ad filter lists. Search suggestions send what you type to your search engine; you can turn them off, and private windows never send them. [Everything that is sent, and when](GUIDE.md#privacy).
+Your browsing stays on your Mac. The app makes only a few requests of its own, such as checking for updates and refreshing the ad filter lists. Search suggestions send what you type to your search engine; you can turn them off, and private windows never send them. Page translation stays on your Mac unless you choose Claude for it in Settings; then the text of each page you translate goes to Anthropic through the `claude` CLI, never from private windows. [Everything that is sent, and when](GUIDE.md#privacy).
 
 ## Learn more
 
