@@ -259,6 +259,8 @@ enum ClaudeProcess {
                 process.standardInput = stdin
                 process.standardOutput = stdout
                 process.standardError = FileHandle.nullDevice
+                let exited = DispatchSemaphore(value: 0)
+                process.terminationHandler = { _ in exited.signal() }
                 do {
                     try job.start { try process.run() }
                 } catch is CancellationError {
@@ -295,7 +297,7 @@ enum ClaudeProcess {
                             break
                         }
                     }
-                    process.waitUntilExit()
+                    exited.wait()
                     live.remove(job)
                     if job.cancelled {
                         continuation.resume(throwing: CancellationError())
