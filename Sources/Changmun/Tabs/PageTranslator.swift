@@ -141,10 +141,11 @@ enum PageTranslator {
         }
         let texts: [String]
         do {
-            if try await webView.callAsyncJavaScript(claudeSensitiveScript, contentWorld: .defaultClient) as? Bool != false { return .sensitivePage }
-            guard let count = try await webView.callAsyncJavaScript(claudeCollectScript, contentWorld: .defaultClient) as? Int else { return .failed }
-            guard count > 0 else { return .nothingToTranslate }
-            guard let all = try await webView.callAsyncJavaScript("return globalThis.changmunTranslation.texts", contentWorld: .defaultClient) as? [String] else { return .failed }
+            // One run of one script decides whether the page may be sent and collects it: the page can't change between the two.
+            guard let found = try await webView.callAsyncJavaScript(claudeCollectScript, contentWorld: .defaultClient) as? [String: Any] else { return .failed }
+            if found["sensitive"] as? Bool != false { return .sensitivePage }
+            guard let all = found["texts"] as? [String] else { return .failed }
+            guard !all.isEmpty else { return .nothingToTranslate }
             texts = all
         } catch {
             log.error("translate: reading the page failed: \(describe(error), privacy: .public); outcome failed")
@@ -167,9 +168,9 @@ enum PageTranslator {
         }
         let report = await withTaskCancellationHandler { await work.value } onCancel: { work.cancel() }
         watcher.cancel()
-        log.notice("translate: Claude translated \(report.translated, privacy: .public) pieces, \(report.failedBatches, privacy: .public) batches failed, \(report.skippedBatches, privacy: .public) not asked, \(report.leftOut, privacy: .public) left out, denied \(report.denied, privacy: .public)")
+        log.notice("translate: Claude translated \(report.translated, privacy: .public) pieces, \(report.failedBatches, privacy: .public) batches failed, \(report.skippedBatches, privacy: .public) not asked, \(report.leftOut, privacy: .public) left out, \(report.dropped, privacy: .public) dropped, denied \(report.denied, privacy: .public)")
         if report.translated == 0 { return .claudeFailed }
-        return report.failedBatches > 0 || report.skippedBatches > 0 || report.leftOut > 0 || report.denied ? .translatedPartly : .translated
+        return report.failedBatches > 0 || report.skippedBatches > 0 || report.leftOut > 0 || report.dropped > 0 || report.denied ? .translatedPartly : .translated
     }
 
     /// The page's `count` pieces of text (already collected) translated with `session`, batch by batch.
@@ -293,33 +294,55 @@ enum PageTranslator {
     /// none of it is read.
     static let collectScript = makeCollectScript(skipping: "")
 
-    /// What goes to Claude is collected with more care than what stays on this Mac: also not what a page lets the user type into
-    /// without an input (`contenteditable` of any kind, `role=textbox`, `searchbox` and `combobox`), not the suggestions of a `datalist`
-    /// and not a form's options, and only what is to be seen: not what is `hidden` or `aria-hidden`, nor what `checkVisibility` says
-    /// can't be seen (`display: none`, `visibility: hidden`, no opacity), nor the inside of a closed `details`.
-    static let claudeCollectScript = makeCollectScript(skipping: ", option, datalist, [contenteditable]:not([contenteditable=false i]), [role=textbox], [role=searchbox], [role=combobox]", visibleOnly: true)
+    /// What goes to Claude is collected with more care than what stays on this Mac, in one run that also decides whether the page may go at
+    /// all: it answers `{sensitive: true}` for a page with a field for a password (by `type`, or `autocomplete` as `current-password` or
+    /// `new-password`, which a button that shows the password doesn't change), a one-time code or a card (`autocomplete`), looking into open
+    /// shadow roots too, and otherwise `{sensitive: false, texts}`. Not what a page lets the user type into without an input
+    /// (`contenteditable` of any kind, `role=textbox`, `searchbox` and `combobox`), not the suggestions of a `datalist` and not a form's
+    /// options, and only what is to be seen: not what is `hidden` or `aria-hidden`, nor what can't be seen (`checkVisibility`, or the
+    /// computed style where a page has no such function: `display: none`, `visibility: hidden`, no opacity), nor what has no width or
+    /// height, nor the inside of a closed `details`. It doesn't look into frames of other sites.
+    static let claudeCollectScript = makeCollectScript(skipping: ", option, datalist, [contenteditable]:not([contenteditable=false i]), [role=textbox], [role=searchbox], [role=combobox]", forClaude: true)
 
-    /// Whether the page has a password field, or a field for a one-time code or a card (by `type` or `autocomplete`): such a page isn't sent.
-    static let claudeSensitiveScript = """
-    return !!document.querySelector('input[type=password i], input[autocomplete~="one-time-code" i], input[autocomplete*="cc-" i]');
-    """
-
-    private static func makeCollectScript(skipping more: String, visibleOnly: Bool = false) -> String {
-        let hidden = visibleOnly ? """
-        const hidden = el => {
+    private static func makeCollectScript(skipping more: String, forClaude: Bool = false) -> String {
+        let before = forClaude ? """
+        const sensitive = root => {
+          if (root.querySelector('input[type=password i], input[autocomplete~="one-time-code" i], input[autocomplete*="cc-" i], input[autocomplete~="current-password" i], input[autocomplete~="new-password" i]')) return true;
+          for (const el of root.querySelectorAll('*')) if (el.shadowRoot && sensitive(el.shadowRoot)) return true;
+          return false;
+        };
+        if (sensitive(document)) return { sensitive: true };
+        const boxed = el => {
+          while (el && getComputedStyle(el).display === 'contents') el = el.parentElement;
+          if (!el) return false;
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.height > 0;
+        };
+        const hiddenOnce = el => {
           if (el.closest('[hidden], [aria-hidden="true"]')) return true;
-          if (el.checkVisibility && !el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return true;
+          if (el.checkVisibility) {
+            if (!el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return true;
+          } else {
+            for (let e = el; e; e = e.parentElement) {
+              const s = getComputedStyle(e);
+              if (s.display === 'none' || s.visibility === 'hidden' || s.opacity === '0') return true;
+            }
+          }
+          if (!boxed(el)) return true;
           const summary = el.closest('summary');
           for (let d = el.closest('details'); d; d = d.parentElement ? d.parentElement.closest('details') : null) {
             if (!d.open && !(summary && summary.parentElement === d)) return true;
           }
           return false;
         };
+        const seen = new Map();
+        const hidden = el => { if (!seen.has(el)) seen.set(el, hiddenOnce(el)); return seen.get(el); };
 
         """ : "const hidden = () => false;\n"
+        let after = forClaude ? "return { sensitive: false, texts: globalThis.changmunTranslation.texts };" : "return nodes.length;"
         return """
         const skip = 'script, style, noscript, textarea, input, select, code, pre, kbd, samp, svg, math, [translate=no], .notranslate, [contenteditable=""], [contenteditable=true]\(more)';
-        \(hidden)const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+        \(before)const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
           acceptNode: n => /\\p{L}/u.test(n.nodeValue) && n.nodeValue.trim().length > 1 && !(n.parentElement && (n.parentElement.closest(skip) || hidden(n.parentElement)))
             ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
         });
@@ -328,7 +351,7 @@ enum PageTranslator {
         const previous = globalThis.changmunTranslation;
         if (previous) previous.nodes.forEach((n, i) => { n.nodeValue = previous.originals[i]; });
         globalThis.changmunTranslation = { nodes, originals: nodes.map(n => n.nodeValue), texts: nodes.map(n => n.nodeValue.trim()) };
-        return nodes.length;
+        \(after)
         """
     }
 

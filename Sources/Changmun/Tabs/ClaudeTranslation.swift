@@ -39,6 +39,8 @@ enum ClaudeTranslation {
     /// What one page may send, top of the page first; the rest stays as it was.
     nonisolated static let maxPageCharacters = 150_000
     nonisolated static let maxBatches = 60
+    /// Batches failing one after another, with none that worked between, that end a page.
+    nonisolated static let failuresInARow = 3
 
     /// Why a batch got no answer.
     enum Failure: Error, Equatable {
@@ -49,7 +51,12 @@ enum ClaudeTranslation {
     static var makeRun: (_ model: String) throws -> Run = { model in
         // Neither the test copy nor the test runner may start the real `claude`: their tests put a runner of their own here.
         guard !Headless.isTestCopy, !OffScreenWindows.isActive, let claude = ChatStore.claudeLocator() else { throw Failure.notAvailable }
-        let environment = childEnvironment(from: ChatStore.environment())
+        return try run(model: model, claude: claude, environment: ChatStore.environment())
+    }
+
+    /// Asking `claude` (at this path) with `model`: the environment cut down (`childEnvironment`) and a folder of its own to stand in.
+    static func run(model: String, claude: String, environment: [String: String]) throws -> Run {
+        let environment = childEnvironment(from: environment)
         let directory = try workingDirectory()
         let arguments = arguments(model: model)
         return { request in
@@ -86,10 +93,15 @@ enum ClaudeTranslation {
         return result
     }
 
-    /// A folder of its own for the child to stand in, which has nothing in it (not the temporary folder, which holds other things).
-    static func workingDirectory() throws -> String {
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("Changmun-translation", isDirectory: true)
+    /// A folder of its own for the child to stand in, only the user's to open and with nothing in it (not the temporary folder, which holds
+    /// other things).
+    static func workingDirectory(in base: URL = FileManager.default.temporaryDirectory) throws -> String {
+        let folder = base.appendingPathComponent("Changmun-translation", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path)
+        for stray in (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? [] {
+            try? FileManager.default.removeItem(at: folder.appendingPathComponent(stray))
+        }
         return folder.path
     }
 
@@ -163,29 +175,34 @@ enum ClaudeTranslation {
     /// What a piece's translation may be at most: a translation is not far longer than what it translates.
     nonisolated static func longestTranslation(of original: String) -> Int { original.count * 3 + 100 }
 
-    // The shapes that carry something out of a page: an address, a link, a long run of digits.
+    // The shapes that carry something out of a page: an address, a link (with its scheme or just a name and a common ending), a long run of digits
+    // (up to two characters of anything but letters and digits between them).
     nonisolated private static let emails = try! NSRegularExpression(pattern: #"[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+"#)
     nonisolated private static let links = try! NSRegularExpression(pattern: #"(?:https?://|www\.)[^\s<>"']+"#, options: .caseInsensitive)
-    nonisolated private static let digits = try! NSRegularExpression(pattern: #"\d(?:[ .,\-]?\d){5,}"#)
+    nonisolated private static let domains = try! NSRegularExpression(
+        pattern: #"(?<![@\w.\-])[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?(?:\.[a-z0-9\-]+)*\.(?:com|net|org|io|co|kr|jp|cn|de|fr|es|uk|us|edu|gov|app|dev|ai|me|info|biz|xyz|ru|br|in|it|nl|tv|cc|ly|so|sh|to)(?![a-z0-9\-])(?:[/?#][^\s<>"']*)?"#,
+        options: .caseInsensitive)
+    nonisolated private static let digits = try! NSRegularExpression(pattern: #"\p{Nd}(?:[^\p{L}\p{Nd}]{0,2}\p{Nd}){5,}"#)
 
-    /// The addresses, links and long digit strings in `text`, in a form that compares (lower case, no trailing punctuation, digits only).
+    /// The addresses, links and long digit strings in `text` (as it is once compatibility forms are folded: full-width `＠` and digits count
+    /// as the plain ones), in a form that compares: lower case, no trailing punctuation, digits only (and plain ones).
     nonisolated static func carriers(in text: String) -> Set<String> {
+        let text = text.precomposedStringWithCompatibilityMapping
         let range = NSRange(text.startIndex..., in: text)
         var found = Set<String>()
-        for match in emails.matches(in: text, range: range) {
-            found.insert(String(text[Range(match.range, in: text)!]).lowercased())
-        }
-        for match in links.matches(in: text, range: range) {
-            found.insert(String(text[Range(match.range, in: text)!]).lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".,;:!?)]}")))
-        }
+        func tidy(_ link: String) -> String { link.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".,;:!?)]}")) }
+        for match in emails.matches(in: text, range: range) { found.insert(String(text[Range(match.range, in: text)!]).lowercased()) }
+        for match in links.matches(in: text, range: range) { found.insert(tidy(String(text[Range(match.range, in: text)!]))) }
+        for match in domains.matches(in: text, range: range) { found.insert(tidy(String(text[Range(match.range, in: text)!]))) }
         for match in digits.matches(in: text, range: range) {
-            found.insert(String(text[Range(match.range, in: text)!]).filter(\.isNumber))
+            found.insert(String(text[Range(match.range, in: text)!]).compactMap { $0.wholeNumberValue.map(String.init) }.joined())
         }
         return found
     }
 
     /// Whether a translation brings an address, a link or a long number that its original doesn't have: whatever Claude knows about the user
-    /// (the address of the account, say) must not be written into a page, where its scripts can read it.
+    /// (the address of the account, say) must not be written into a page, where its scripts can read it. A second line of defence: forms
+    /// spelled out ("x at y dot z") are not looked for.
     nonisolated static func leaks(_ translation: String, from original: String) -> Bool {
         !carriers(in: translation).isSubset(of: carriers(in: original))
     }
@@ -223,6 +240,9 @@ enum ClaudeTranslation {
         var skippedBatches = 0
         /// Pieces not sent: past what a page may send, or longer than a batch.
         var leftOut = 0
+        /// Pieces of answered batches that stay as they were: left out of the answer, not a string, too long, or with an address, link or
+        /// number of their own.
+        var dropped = 0
         /// The work was stopped because the tab may no longer go to Claude.
         var denied = false
         var cancelled = false
@@ -236,7 +256,8 @@ enum ClaudeTranslation {
     /// translations to `apply` as it comes back. `allowed` is asked before every batch is started and again before its answer is used:
     /// when it says no the work stops. It also stops when the task is cancelled, and when Claude can't be run at all (not found,
     /// not started); the pieces not reached stay as they were. A batch that times out, ends with a failure or answers with something
-    /// that isn't usable only fails itself: the next is asked for.
+    /// that isn't usable only fails itself: the next is asked for, until `failuresInARow` batches have failed one after the other, which
+    /// ends the page (offline, or logged out, is not going to get better batch by batch).
     static func translate(_ pieces: [Piece], language: String, run: @escaping Run, allowed: @escaping @MainActor () -> Bool = { true },
                           apply: @MainActor ([Int: String]) async -> Void) async -> Report {
         var report = Report()
@@ -244,6 +265,7 @@ enum ClaudeTranslation {
         report.leftOut = limited.leftOut
         var pending = limited.batches[...]
         var halted = false
+        var failing = 0
         await withTaskGroup(of: (batch: [Piece], result: Result).self) { group in
             func ask(_ batch: [Piece]) {
                 group.addTask {
@@ -261,7 +283,7 @@ enum ClaudeTranslation {
                 }
             }
             for _ in 0..<parallel { if let batch = pending.popFirst() { ask(batch) } }
-            while let (_, result) = await group.next() {
+            while let (batch, result) = await group.next() {
                 if Task.isCancelled { report.cancelled = true }
                 switch result {
                 case .cancelled:
@@ -275,6 +297,7 @@ enum ClaudeTranslation {
                     halted = true
                 case .failed:
                     report.failedBatches += 1
+                    failing += 1
                 case .answered(let answer):
                     if halted {
                         break
@@ -282,12 +305,16 @@ enum ClaudeTranslation {
                         report.denied = true
                         halted = true
                     } else if let answer, !answer.isEmpty {
+                        failing = 0
                         report.translated += answer.count
+                        report.dropped += batch.count - answer.count
                         await apply(answer)
                     } else {
                         report.failedBatches += 1
+                        failing += 1
                     }
                 }
+                if failing >= failuresInARow { halted = true }
                 if halted || report.cancelled {
                     halted = true
                     group.cancelAll()
@@ -383,7 +410,10 @@ enum ClaudeProcess {
                 pid = try spawn()
                 alive = true
             }
+            ClaudeProcess.beforeRegistering?()
             ClaudeProcess.live.add(self)
+            // `stopAll` may have run between the start and the list: then nobody has this one to end, and it ends itself.
+            if ClaudeProcess.live.stopping { killNow() }
         }
 
         /// The whole group, now. Not before the process is there, and not after it is reaped (its number is another's then).
@@ -430,6 +460,9 @@ enum ClaudeProcess {
     }
 
     private static let live = Live()
+
+    /// Tests only: called after a process is started and before it is on the list `stopAll` goes through.
+    nonisolated(unsafe) static var beforeRegistering: (() -> Void)?
 
     /// Ends every `claude` still running for a translation, at once, and starts none after (the app is quitting).
     static func stopAll() { live.stopAll().forEach { $0.killNow() } }
