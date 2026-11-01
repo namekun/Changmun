@@ -14,10 +14,8 @@ struct StripFavorite<MenuItems: View>: View {
 
     var body: some View {
         SiteIcon(url: entry.url, size: 16)
+            .favoriteIcon(state)
             .frame(width: TabStrip.favoriteWidth, height: StripTab.height)
-            .overlay(alignment: .bottom) {
-                if state == .open { Circle().fill(Theme.tertiary).frame(width: 4, height: 4).padding(.bottom, 4) }
-            }
             .rowChrome(hover: hover, selected: state == .shown)
             .onTapGesture(perform: open)
             .onHover { hover = $0 }

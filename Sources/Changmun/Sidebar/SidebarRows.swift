@@ -12,6 +12,13 @@ enum BookmarkTabState {
     }
 }
 
+extension View {
+    /// A favorite's icon: faded while it has no tab, so the ones that have one stand out.
+    func favoriteIcon(_ state: BookmarkTabState) -> some View {
+        saturation(state == .closed ? 0.25 : 1).opacity(state == .closed ? 0.42 : 1)
+    }
+}
+
 struct FavoriteTile<MenuItems: View>: View {
     let entry: Library.Entry
     let state: BookmarkTabState
@@ -24,11 +31,9 @@ struct FavoriteTile<MenuItems: View>: View {
 
     var body: some View {
         SiteIcon(url: entry.url, size: 20)
+            .favoriteIcon(state)
             .frame(maxWidth: .infinity)
             .frame(height: Metrics.tile)
-            .overlay(alignment: .bottom) {
-                if state == .open { Circle().fill(Theme.tertiary).frame(width: 4, height: 4).padding(.bottom, 4) }
-            }
             .rowChrome(hover: hover, selected: state == .shown, radius: Metrics.fieldRadius)
             .onTapGesture(perform: open)
             .onHover { hover = $0 }
