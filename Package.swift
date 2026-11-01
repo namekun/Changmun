@@ -14,8 +14,10 @@ let package = Package(
     targets: [
         // The bottom layer, which knows nothing of the app: the compiler refuses a dependency from it upward.
         .target(name: "ChangmunCore", path: "Sources/ChangmunCore"),
+        // Keeps test windows off the screens; in C, to start before any test does.
+        .target(name: "ChangmunOffScreen", path: "Sources/ChangmunOffScreen"),
         // Apple's on-device model is there from macOS 26; on older systems tidying goes without it.
-        .executableTarget(name: "Changmun", dependencies: ["ChangmunCore", .product(name: "Sparkle", package: "Sparkle")], path: "Sources/Changmun",
+        .executableTarget(name: "Changmun", dependencies: ["ChangmunCore", "ChangmunOffScreen", .product(name: "Sparkle", package: "Sparkle")], path: "Sources/Changmun",
                           linkerSettings: [.unsafeFlags(["-weak_framework", "FoundationModels"]), .linkedFramework("SecurityInterface")]),
         .testTarget(name: "ChangmunTests", dependencies: ["Changmun"], path: "Tests/ChangmunTests"),
     ]
