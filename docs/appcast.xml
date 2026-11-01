@@ -6,6 +6,27 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.12.0</title>
+      <pubDate>Sun, 01 Nov 2026 04:20:12 +0000</pubDate>
+      <sparkle:version>43</sparkle:version>
+      <sparkle:shortVersionString>0.12.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.12.0</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **A design pass over the whole app.** Six text sizes instead of twenty-three, four corner radii, three shadows, and one kind of main button. All spacing now sits on an 8-point grid, so sidebar rows are 32 points tall and a screen shows slightly fewer tabs. Faint text is darker and easier to read. Switching tabs from the keyboard no longer animates, and a selected tab's title no longer changes weight. Checks now keep these rules from drifting.
+- **Dialogs are clearer and safer.** Questions about deleting, opening another app, the camera, signing in and extensions share one design: a short question, one sentence, verbs on the buttons. The filled button is always the one Return presses, and it is the safe choice. When a page, an extension or the AI asks, Allow stays locked for half a second, so a timed click can't land on it. A page you block can't ask again until it reloads, dialogs no longer stack, and long addresses are cut from the left so the real domain stays visible. An extension's prompt never grants more than it shows. A web page's own alert, confirm and prompt stay system dialogs.
+- **The AI's approval card has a clear order:** Don't Allow is the strong button, Allow Once sits beside it, and allowing for the chat is a quiet link.
+- **A friendlier first run.** One question to start, what will be brought over stated in one line, and it always ends ready to use: without Claude Code the browser works right away and the AI can wait.
+- **The certificate warning leads with what matters.** The title, the site and the reason come first, and the details and Visit This Website are under Show Details. Warnings that a certificate changed stay in view.
+- **A new app icon:** a larger window, with its arched light and the shadow of its bars falling on the floor.
+- **A new homepage,** in ink on white, that shows the product on the first screen. On a phone it offers to send the link to your Mac.
+- **Clearer Korean,** in one voice throughout.
+- **Fixed:** with many favorites, the start page's row no longer runs past the page.
+
+Tried with automated tests and the headless copy. The dialogs' real look on screen, pressed buttons, Korean IME, VoiceOver and the homepage on a real iPhone haven't been tried by hand, so tell me what looks or feels off.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.12.0/Changmun-0.12.0.dmg" length="7088868" type="application/octet-stream" sparkle:edSignature="6appUr9hQk3Bg6QHI5Fua0wuz7H8s9LLS3Eol2Yqda7d8+5CkuNdvrceHwG2viGq1GAyC8g6ABCDMt2X62R6DQ==" />
+    </item>
+    <item>
       <title>0.11.0</title>
       <pubDate>Sat, 31 Oct 2026 01:34:08 +0000</pubDate>
       <sparkle:version>42</sparkle:version>
@@ -129,20 +150,9 @@
 - **Window bar.** A double-click with a tiny tremor still zooms (drags start after 3 points).</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.4/Changmun-0.8.4.dmg" length="5355063" type="application/octet-stream" sparkle:edSignature="6+2sgEswfsfcTdmRG7+IFW++hFB9f5SCtNpXUNFDQGq/IPTnJyL5xVDf0r4++jYSApncrxou+1690DKICyNmCg==" />
     </item>
-    <item>
-      <title>0.8.3</title>
-      <pubDate>Tue, 27 Oct 2026 03:02:46 +0000</pubDate>
-      <sparkle:version>33</sparkle:version>
-      <sparkle:shortVersionString>0.8.3</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.8.3</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Client certificates, as in Safari.** When a site asks for a certificate to identify you (a company intranet, a bank), Changmun offers the ones in your Keychain or on a smart card that the site accepts, in the system's own sheet. What you pick is saved as an identity preference for that site (remove it in Keychain Access), so the next visit doesn't ask. Private windows save nothing, and a page the AI is using always asks you: the AI never picks a certificate for you, not even one you chose before.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.3/Changmun-0.8.3.dmg" length="5316296" type="application/octet-stream" sparkle:edSignature="iJB3wzp8/9rnW4YHL/VUmCTqHCnSVbBEDsMr+drUVZDVoNQv9NjwwgdyIdpx0n6bcGQBkPApWP+swMYg5QeKBg==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: hs0FWEtsR6OY9n6OoXPg1osvC/qN8wgZqpnOfqtL6zadE9VWdwZUuLrjri983X2TVYCt/ApVlQlyyuC/9hN7Cg==
-length: 20923
+edSignature: o806xdqTcJ1/T3NslpaEI3FMTiFiwz/blg0Ose01APRhRYzKNAtNpqJu3eOIjjCuPuz/GvwXcZMZxVfyrGl8DA==
+length: 22696
 -->
