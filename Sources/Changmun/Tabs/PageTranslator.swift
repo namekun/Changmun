@@ -319,6 +319,8 @@ enum PageTranslator {
         };
         const hiddenOnce = el => {
           if (el.closest('[hidden], [aria-hidden="true"]')) return true;
+          // The text's own element decides first: one with `display: contents` has no box to say it is hidden (`hidden` and `collapse` both).
+          if (getComputedStyle(el).visibility !== 'visible') return true;
           const box = boxOf(el);
           if (!box) return true;
           if (box.checkVisibility) {

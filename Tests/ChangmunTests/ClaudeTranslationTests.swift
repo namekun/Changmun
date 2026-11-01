@@ -170,9 +170,32 @@ struct ClaudeTranslationPureTests {
         #expect(ClaudeTranslation.carriers(in: "e.g. the U.S. and i.e. Mr. Smith, file.txt, Node.js, version 1.2.3, page 12 of 40, items 1 2 3 4 5").isEmpty)
     }
 
+    @Test func everyAddressIsFoundWhateverTheOneBeforeItTook() {
+        // The case that slipped past: the second address begins where the first ended.
+        let original = "Mail known@page.com please"
+        for translation in ["known@page.com+other@evil.org", "known@page.com,other@evil.org", "known@page.com;other@evil.org", "known@page.com other@evil.org",
+                            "known@page.com/other@evil.org", "known@page.com<other@evil.org>", "known@page.com.other@evil.org"] {
+            #expect(ClaudeTranslation.leaks(translation, from: original), "\(translation): \(ClaudeTranslation.carriers(in: translation))")
+        }
+        #expect(ClaudeTranslation.carriers(in: "known@page.com+other@evil.org").contains("page.com+other@evil.org"), "each from its own @")
+        #expect(ClaudeTranslation.carriers(in: "ＡＢ＠Ｅｖｉｌ．ｏｒｇ").contains("ab@evil.org"), "folded forms")
+        #expect(!ClaudeTranslation.leaks("메일 known@page.com 로 보내세요", from: original), "the page's own address is fine")
+        // Not addresses.
+        #expect(ClaudeTranslation.emailAddresses(in: "@ x@ @y.com a@b a@.com a@b..c").isEmpty)
+        #expect(ClaudeTranslation.emailAddresses(in: "name@sub.example.co.kr.") == ["name@sub.example.co.kr"])
+    }
+
+    @Test func aDomainIsFoundWhateverStandsBeforeIt() {
+        let original = "Visit known.com"
+        for translation in ["known.com_evil.org", "known.com,evil.org", "known.com+evil.org", "한evil.org", "...evil.org", "known.com..evil.org", "_evil.org", "@evil.org", "known.com\u{200B}evil.org"] {
+            #expect(ClaudeTranslation.leaks(translation, from: original), "\(translation): \(ClaudeTranslation.carriers(in: translation))")
+        }
+        #expect(!ClaudeTranslation.leaks("known.com 을 방문하세요", from: original))
+    }
+
     @Test func aHugeWordOrAChainOfDotsCostsNextToNothing() {
         let started = Date()
-        for text in [String(repeating: "a", count: 4000), String(repeating: "a.", count: 2000), String(repeating: "1 ", count: 2000), String(repeating: "a@", count: 2000), String(repeating: "www.", count: 1000)] {
+        for text in [String(repeating: "a+", count: 2000) + "@x.com", String(repeating: "a@", count: 4000), String(repeating: "a", count: 4000), String(repeating: "a.", count: 2000), String(repeating: "1 ", count: 2000), String(repeating: "a@", count: 2000), String(repeating: "www.", count: 1000)] {
             _ = ClaudeTranslation.carriers(in: text)
         }
         #expect(Date().timeIntervalSince(started) < 2)
@@ -751,6 +774,24 @@ extension SharedAgentState {
             let fake = FakeClaude.uppercasing()
             _ = await using(fake) { await PageTranslator.translateWithClaude(view, model: "haiku", to: Locale.Language(identifier: "ko"), while: { true }) }
             #expect(fake.textsAsked == ["Visible words here."])
+        }
+
+        @Test func displayContentsDoesNotMakeHiddenTextVisible() async throws {
+            for withCheckVisibility in [true, false] {
+                let (view, window) = try await load("""
+                    <p id=a>Visible words here.</p>
+                    <p><span style="display:contents;visibility:hidden">Hidden contents words</span></p>
+                    <p><span style="display:contents;visibility:collapse">Collapsed contents words</span></p>
+                    <p style="visibility:hidden"><span style="display:contents;visibility:visible">Shown again words</span></p>
+                    <p><span style="display:contents">Plain contents words</span></p>
+                    """)
+                defer { window.close() }
+                if !withCheckVisibility { _ = try await view.callAsyncJavaScript("delete Element.prototype.checkVisibility", contentWorld: .defaultClient) }
+                let fake = FakeClaude.uppercasing()
+                _ = await using(fake) { await PageTranslator.translateWithClaude(view, model: "haiku", to: Locale.Language(identifier: "ko"), while: { true }) }
+                // "Shown again" is drawn, but its box is hidden: left out, which is the safe side.
+                #expect(fake.textsAsked == ["Visible words here.", "Plain contents words"], "with checkVisibility: \(withCheckVisibility)")
+            }
         }
 
         @Test func whatHasNoWidthOrHeightIsLeftOutButTextInsideDisplayContentsIsNot() async throws {

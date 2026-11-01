@@ -175,14 +175,38 @@ enum ClaudeTranslation {
     /// What a piece's translation may be at most: a translation is not far longer than what it translates.
     nonisolated static func longestTranslation(of original: String) -> Int { original.count * 3 + 100 }
 
-    // The shapes that carry something out of a page: an address, a link (with its scheme or just a name and a common ending), a long run of digits
-    // (up to two characters of anything but letters and digits between them).
-    nonisolated private static let emails = try! NSRegularExpression(pattern: #"(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+"#)
+    // The shapes that carry something out of a page: an address (found by its `@`, in `emailAddresses`), a link (with its scheme or just a name and
+    // a common ending), a long run of digits (up to two characters of anything but letters and digits between them). Each is found whatever
+    // stands before it, and not through where the one before it ended.
     nonisolated private static let links = try! NSRegularExpression(pattern: #"(?:https?://|www\.)[^\s<>"']+"#, options: .caseInsensitive)
     nonisolated private static let domains = try! NSRegularExpression(
-        pattern: #"(?<![@\w.\-])(?:[a-z0-9][a-z0-9\-]*\.)+(?:com|net|org|io|co|kr|jp|cn|de|fr|es|uk|us|edu|gov|app|dev|ai|me|info|biz|xyz|ru|br|in|it|nl|tv|cc|ly|so|sh|to)(?![a-z0-9\-])(?:[/?#][^\s<>"']*)?"#,
+        pattern: #"(?<![A-Za-z0-9\-])(?<![A-Za-z0-9\-]\.)(?:[a-z0-9][a-z0-9\-]*\.)+(?:com|net|org|io|co|kr|jp|cn|de|fr|es|uk|us|edu|gov|app|dev|ai|me|info|biz|xyz|ru|br|in|it|nl|tv|cc|ly|so|sh|to)(?![a-z0-9\-])(?:[/?#][^\s<>"']*)?"#,
         options: .caseInsensitive)
     nonisolated private static let digits = try! NSRegularExpression(pattern: #"\p{Nd}(?:[^\p{L}\p{Nd}]{0,2}\p{Nd}){5,}"#)
+
+    /// The e-mail addresses in `text`, each found from its own `@`: the local part runs left over what may be in one, the domain right over what
+    /// may be in one, and what the address before it took is no matter (`a@b.com+c@d.org` has two). One pass over the text, so a long word costs
+    /// no more than its length.
+    nonisolated static func emailAddresses(in text: String) -> Set<String> {
+        let scalars = Array(text.unicodeScalars)
+        func alphanumeric(_ s: Unicode.Scalar) -> Bool { s.isASCII && (s.properties.isAlphabetic || (48...57).contains(s.value)) }
+        func inLocal(_ s: Unicode.Scalar) -> Bool { alphanumeric(s) || "._%+-".unicodeScalars.contains(s) }
+        func inDomain(_ s: Unicode.Scalar) -> Bool { alphanumeric(s) || s == "-" || s == "." }
+        var found = Set<String>()
+        for (at, scalar) in scalars.enumerated() where scalar == "@" {
+            var start = at
+            while start > 0, inLocal(scalars[start - 1]) { start -= 1 }
+            var end = at + 1
+            while end < scalars.count, inDomain(scalars[end]) { end += 1 }
+            // The domain: names of letters, digits and hyphens, at least two, as a mail address has.
+            var domain = String(String.UnicodeScalarView(scalars[(at + 1)..<end]))
+            while domain.hasSuffix(".") || domain.hasSuffix("-") { domain.removeLast() }
+            let labels = domain.split(separator: ".", omittingEmptySubsequences: false)
+            guard start < at, labels.count >= 2, labels.allSatisfy({ !$0.isEmpty }) else { continue }
+            found.insert((String(String.UnicodeScalarView(scalars[start..<at])) + "@" + domain).lowercased())
+        }
+        return found
+    }
 
     /// The addresses, links and long digit strings in `text` (as it is once compatibility forms are folded: full-width `＠` and digits count
     /// as the plain ones), in a form that compares: lower case, no trailing punctuation, digits only (and plain ones).
@@ -191,7 +215,7 @@ enum ClaudeTranslation {
         let range = NSRange(text.startIndex..., in: text)
         var found = Set<String>()
         func tidy(_ link: String) -> String { link.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".,;:!?)]}")) }
-        for match in emails.matches(in: text, range: range) { found.insert(String(text[Range(match.range, in: text)!]).lowercased()) }
+        found.formUnion(emailAddresses(in: text))
         for match in links.matches(in: text, range: range) { found.insert(tidy(String(text[Range(match.range, in: text)!]))) }
         for match in domains.matches(in: text, range: range) { found.insert(tidy(String(text[Range(match.range, in: text)!]))) }
         for match in digits.matches(in: text, range: range) {
