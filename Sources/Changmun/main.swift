@@ -11,6 +11,7 @@ case .app: break
 }
 
 MainActor.assumeIsolated {
+    OffScreenWindows.install()
     let app = NSApplication.shared
     let delegate = AppDelegate()
     app.delegate = delegate
