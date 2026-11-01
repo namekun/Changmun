@@ -198,11 +198,20 @@ enum ClaudeTranslation {
             while start > 0, inLocal(scalars[start - 1]) { start -= 1 }
             var end = at + 1
             while end < scalars.count, inDomain(scalars[end]) { end += 1 }
-            // The domain: names of letters, digits and hyphens, at least two, as a mail address has.
-            var domain = String(String.UnicodeScalarView(scalars[(at + 1)..<end]))
-            while domain.hasSuffix(".") || domain.hasSuffix("-") { domain.removeLast() }
-            let labels = domain.split(separator: ".", omittingEmptySubsequences: false)
-            guard start < at, labels.count >= 2, labels.allSatisfy({ !$0.isEmpty }) else { continue }
+            // The domain: names of letters, digits and hyphens, at least two, as a mail address has. Cut where a name is empty (`b.ch..x` is
+            // `b.ch` and what follows), not thrown out: what comes before is an address all the same.
+            var labels: [Substring] = []
+            for label in String(String.UnicodeScalarView(scalars[(at + 1)..<end])).split(separator: ".", omittingEmptySubsequences: false) {
+                if label.isEmpty { break }
+                labels.append(label)
+            }
+            // A name that ends in a hyphen ends the address before the hyphens.
+            if var last = labels.last {
+                while last.last == "-" { last = last.dropLast() }
+                if last.isEmpty { labels.removeLast() } else { labels[labels.count - 1] = last }
+            }
+            guard start < at, labels.count >= 2 else { continue }
+            let domain = labels.joined(separator: ".")
             found.insert((String(String.UnicodeScalarView(scalars[start..<at])) + "@" + domain).lowercased())
         }
         return found

@@ -183,6 +183,11 @@ struct ClaudeTranslationPureTests {
         // Not addresses.
         #expect(ClaudeTranslation.emailAddresses(in: "@ x@ @y.com a@b a@.com a@b..c").isEmpty)
         #expect(ClaudeTranslation.emailAddresses(in: "name@sub.example.co.kr.") == ["name@sub.example.co.kr"])
+        // An empty name cuts the domain; it doesn't throw the address out.
+        #expect(ClaudeTranslation.emailAddresses(in: "a@b.ch..x") == ["a@b.ch"])
+        #expect(ClaudeTranslation.emailAddresses(in: "a@c.de-- a@d.fr.") == ["a@c.de", "a@d.fr"])
+        #expect(ClaudeTranslation.leaks("메일 a@b.ch..x", from: "mail other"), "the address before the empty name is still one")
+        #expect(!ClaudeTranslation.leaks("메일 a@b.ch..x", from: "mail a@b.ch"))
     }
 
     @Test func aDomainIsFoundWhateverStandsBeforeIt() {
