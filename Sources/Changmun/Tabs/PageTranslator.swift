@@ -81,7 +81,8 @@ enum PageTranslator {
 
     /// Translates the page from `source` in batches, showing each batch as it comes back, for as long as `current` holds.
     /// A piece of text the system can't translate is left as it was; only a page with nothing translated is a failure.
-    static func translate(_ webView: WKWebView, from source: Locale.Language, to target: Locale.Language = target,
+    /// `script` collects what is to be translated: the whole page, or (`followScript`) what it has added or changed since.
+    static func translate(_ webView: WKWebView, from source: Locale.Language, to target: Locale.Language = target, collecting script: String? = nil,
                           while current: () -> Bool = { true }) async -> Outcome {
         guard #available(macOS 26.0, *) else { return .unsupported }
         let (engines, otherwise, availability) = await engines(from: source, to: target)
@@ -95,13 +96,18 @@ enum PageTranslator {
             log.notice("translate: outcome \(String(describing: otherwise), privacy: .public) (no model installed)")
             return otherwise
         }
+        let first: Int
         let count: Int
         do {
-            guard let found = try await webView.callAsyncJavaScript(collectScript, contentWorld: .defaultClient) as? Int else {
+            let found = try await webView.callAsyncJavaScript(script ?? collectScript, contentWorld: .defaultClient)
+            if let all = found as? Int {
+                (first, count) = (0, all)
+            } else if let fresh = found as? [String: Any], let at = fresh["first"] as? Int, let texts = fresh["texts"] as? [String] {
+                (first, count) = (at, texts.count)
+            } else {
                 log.error("translate: reading the page gave no count; outcome failed")
                 return .failed
             }
-            count = found
         } catch {
             log.error("translate: reading the page failed: \(describe(error), privacy: .public); outcome failed")
             return .failed
@@ -110,7 +116,7 @@ enum PageTranslator {
         guard count > 0 else { return .nothingToTranslate }
         let (outcome, used) = await firstEngineThatWorks(engines) { engine in
             log.notice("translate: trying \(engine.rawValue, privacy: .public)")
-            return await translatePage(webView, count: count, session: session(engine, from: source, to: target), while: current)
+            return await translatePage(webView, from: first, count: count, session: session(engine, from: source, to: target), while: current)
         }
         if let used, used != engines[0] { log.notice("translate: \(used.rawValue, privacy: .public) worked after \(engines[0].rawValue, privacy: .public) did not") }
         log.notice("translate: outcome \(String(describing: outcome), privacy: .public)")
@@ -134,27 +140,39 @@ enum PageTranslator {
     /// and then the work stops. What Claude doesn't translate is left as it was. A page with a password or a payment field is not sent at all.
     static func translateWithClaude(_ webView: WKWebView, model: String, to target: Locale.Language = target, while current: @escaping () -> Bool,
                                     permitted: @escaping @MainActor () -> Bool = { true }) async -> Outcome {
+        await translateWithClaude(webView, model: model, to: target, within: ClaudeTranslation.Budget(), collecting: claudeCollectScript,
+                                  while: current, permitted: permitted).outcome
+    }
+
+    /// The same for the text that `script` collects (`claudeCollectScript`, or `claudeFollowScript` for what a page has added since), sent
+    /// within what is left of `budget` and counted against it: with the outcome, what of the page's allowance is used now.
+    static func translateWithClaude(_ webView: WKWebView, model: String, to target: Locale.Language = target, within budget: ClaudeTranslation.Budget,
+                                    collecting script: String, while current: @escaping () -> Bool,
+                                    permitted: @escaping @MainActor () -> Bool) async -> (outcome: Outcome, budget: ClaudeTranslation.Budget) {
         let run: ClaudeTranslation.Run
         do { run = try ClaudeTranslation.makeRun(model) } catch {
             log.error("translate: Claude can't be run: \(String(describing: error), privacy: .public)")
-            return .claudeFailed
+            return (.claudeFailed, budget)
         }
+        let first: Int
         let texts: [String]
         do {
             // One run of one script decides whether the page may be sent and collects it: the page can't change between the two.
-            guard let found = try await webView.callAsyncJavaScript(claudeCollectScript, contentWorld: .defaultClient) as? [String: Any] else { return .failed }
-            if found["sensitive"] as? Bool != false { return .sensitivePage }
-            guard let all = found["texts"] as? [String] else { return .failed }
-            guard !all.isEmpty else { return .nothingToTranslate }
-            texts = all
+            guard let found = try await webView.callAsyncJavaScript(script, contentWorld: .defaultClient) as? [String: Any] else { return (.failed, budget) }
+            if found["sensitive"] as? Bool != false { return (.sensitivePage, budget) }
+            guard let all = found["texts"] as? [String], let at = found["first"] as? Int else { return (.failed, budget) }
+            guard !all.isEmpty else { return (.nothingToTranslate, budget) }
+            (first, texts) = (at, all)
         } catch {
             log.error("translate: reading the page failed: \(describe(error), privacy: .public); outcome failed")
-            return .failed
+            return (.failed, budget)
         }
         log.notice("translate: \(texts.count, privacy: .public) pieces of text, with Claude")
         let language = ClaudeTranslation.languageName(target)
+        let pieces = texts.enumerated().map { (id: first + $0, text: $1) }
+        let spent = ClaudeTranslation.limited(pieces, after: budget).spent
         let work = Task {
-            await ClaudeTranslation.translate(texts.enumerated().map { (id: $0, text: $1) }, language: language, run: run, allowed: { current() && permitted() }) { translated in
+            await ClaudeTranslation.translate(pieces, language: language, after: budget, run: run, allowed: { current() && permitted() }) { translated in
                 guard current() else { return }
                 _ = try? await webView.appScript(applyScript, arguments: ["texts": Dictionary(uniqueKeysWithValues: translated.map { (String($0.key), $0.value) })])
             }
@@ -169,18 +187,18 @@ enum PageTranslator {
         let report = await withTaskCancellationHandler { await work.value } onCancel: { work.cancel() }
         watcher.cancel()
         log.notice("translate: Claude translated \(report.translated, privacy: .public) pieces, \(report.failedBatches, privacy: .public) batches failed, \(report.skippedBatches, privacy: .public) not asked, \(report.leftOut, privacy: .public) left out, \(report.dropped, privacy: .public) dropped, denied \(report.denied, privacy: .public)")
-        if report.translated == 0 { return .claudeFailed }
-        return report.failedBatches > 0 || report.skippedBatches > 0 || report.leftOut > 0 || report.dropped > 0 || report.denied ? .translatedPartly : .translated
+        if report.translated == 0 { return (.claudeFailed, spent) }
+        return (report.failedBatches > 0 || report.skippedBatches > 0 || report.leftOut > 0 || report.dropped > 0 || report.denied ? .translatedPartly : .translated, spent)
     }
 
-    /// The page's `count` pieces of text (already collected) translated with `session`, batch by batch.
+    /// The page's `count` pieces of text (already collected, the first of them number `first`) translated with `session`, batch by batch.
     @available(macOS 26.0, *)
-    private static func translatePage(_ webView: WKWebView, count: Int, session: TranslationSession, while current: () -> Bool) async -> Outcome {
-        var start = 0
+    private static func translatePage(_ webView: WKWebView, from first: Int, count: Int, session: TranslationSession, while current: () -> Bool) async -> Outcome {
+        var start = first
         var translatedAny = false
         var batchErrorLogged = false
         var firstPieceError: Error?
-        while start < count {
+        while start < first + count {
             // A page that went away mid-way (navigated, put to sleep) leaves nothing to read: that is a failure, not the end.
             guard current(), let texts = try? await webView.callAsyncJavaScript("return globalThis.changmunTranslation.texts.slice(start, start + size)",
                                                                                  arguments: ["start": start, "size": 60], contentWorld: .defaultClient) as? [String]
@@ -203,7 +221,7 @@ enum PageTranslator {
             }
             // Pieces refused one by one, all of them: the session is broken, and the rest of the page would be as many calls.
             if gaveUp {
-                log.error("translate: gave up at \(start, privacy: .public) of \(count, privacy: .public); a single piece was refused: \(firstPieceError.map(describe) ?? "-", privacy: .public)")
+                log.error("translate: gave up at \(start, privacy: .public) of \(first + count, privacy: .public); a single piece was refused: \(firstPieceError.map(describe) ?? "-", privacy: .public)")
                 return translatedAny ? .translated : .engineFailed
             }
             start += texts.count
@@ -274,7 +292,7 @@ enum PageTranslator {
 
     static func showOriginal(_ webView: WKWebView) async {
         _ = try? await webView.appScript(
-            "const t = globalThis.changmunTranslation; if (t) t.nodes.forEach((n, i) => { n.nodeValue = t.originals[i]; }); delete globalThis.changmunTranslation;")
+            "const t = globalThis.changmunTranslation; if (t) { if (t.observer) t.observer.disconnect(); t.nodes.forEach((n, i) => { n.nodeValue = t.originals[i]; }); } delete globalThis.changmunTranslation;")
     }
 
     /// The first 4000 or so characters of the page's text, without laying the whole page out for `innerText`.
@@ -302,9 +320,20 @@ enum PageTranslator {
     /// options, and only what is to be seen: not what is `hidden` or `aria-hidden`, nor what can't be seen (`checkVisibility`, or the
     /// computed style where a page has no such function: `display: none`, `visibility: hidden`, no opacity), nor what has no width or
     /// height, nor the inside of a closed `details`. It doesn't look into frames of other sites.
-    static let claudeCollectScript = makeCollectScript(skipping: ", option, datalist, [contenteditable]:not([contenteditable=false i]), [role=textbox], [role=searchbox], [role=combobox]", forClaude: true)
+    static let claudeCollectScript = makeCollectScript(skipping: claudeSkipping, forClaude: true)
 
-    private static func makeCollectScript(skipping more: String, forClaude: Bool = false) -> String {
+    private static let claudeSkipping = ", option, datalist, [contenteditable]:not([contenteditable=false i]), [role=textbox], [role=searchbox], [role=combobox]"
+
+    /// What a page has added or changed since the last run of a collecting script, in the same way, for a page that is translated and watched
+    /// (`observeScript`): a text node it holds a record of, with the text left in it, is not looked at again, so that our own writes are never
+    /// fresh and a node whose text the site has changed is. The pieces get the numbers after the ones there are, so that `applyScript` and
+    /// `showOriginal` go on working; at most 20,000 nodes are held in all. `null` where the page has no translation to follow.
+    static let followScript = makeCollectScript(skipping: "", following: true)
+
+    /// The same for what goes to Claude: with the check for a password or a payment field in the same run, and the same filters.
+    static let claudeFollowScript = makeCollectScript(skipping: claudeSkipping, forClaude: true, following: true)
+
+    private static func makeCollectScript(skipping more: String, forClaude: Bool = false, following: Bool = false) -> String {
         let before = forClaude ? """
         const sensitive = root => {
           if (root.querySelector('input[type=password i], input[autocomplete~="one-time-code" i], input[autocomplete*="cc-" i], input[autocomplete~="current-password" i], input[autocomplete~="new-password" i]')) return true;
@@ -343,30 +372,125 @@ enum PageTranslator {
         const hidden = el => { if (!seen.has(el)) seen.set(el, hiddenOnce(el)); return seen.get(el); };
 
         """ : "const hidden = () => false;\n"
-        let after = forClaude ? "return { sensitive: false, texts: globalThis.changmunTranslation.texts };" : "return nodes.length;"
+        let settled = following ? """
+        const t = globalThis.changmunTranslation;
+        if (!t) return null;
+        const settled = n => t.written.get(n) === n.nodeValue;
+        const limit = Math.min(4000, \(maxTrackedNodes) - t.nodes.length);
+
+        """ : "const settled = () => false;\nconst limit = 4000;\n"
+        let finish = following ? """
+        const first = t.nodes.length;
+        for (const n of nodes) { t.nodes.push(n); t.originals.push(n.nodeValue); t.texts.push(n.nodeValue.trim()); t.written.set(n, n.nodeValue); }
+        // More may be waiting where this stopped short: still, as if it had been long ago.
+        t.changedAt = nodes.length >= limit ? performance.now() - 1e9 : null;
+        return { sensitive: false, first, texts: t.texts.slice(first) };
+        """ : """
+        const previous = globalThis.changmunTranslation;
+        if (previous) {
+          if (previous.observer) previous.observer.disconnect();
+          previous.nodes.forEach((n, i) => { n.nodeValue = previous.originals[i]; });
+        }
+        globalThis.changmunTranslation = { nodes, originals: nodes.map(n => n.nodeValue), texts: nodes.map(n => n.nodeValue.trim()), written: new WeakMap(nodes.map(n => [n, n.nodeValue])) };
+        \(forClaude ? "return { sensitive: false, first: 0, texts: globalThis.changmunTranslation.texts };" : "return nodes.length;")
+        """
         return """
         const skip = 'script, style, noscript, textarea, input, select, code, pre, kbd, samp, svg, math, [translate=no], .notranslate, [contenteditable=""], [contenteditable=true]\(more)';
-        \(before)const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
-          acceptNode: n => /\\p{L}/u.test(n.nodeValue) && n.nodeValue.trim().length > 1 && !(n.parentElement && (n.parentElement.closest(skip) || hidden(n.parentElement)))
+        \(before)\(settled)const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+          acceptNode: n => !settled(n) && /\\p{L}/u.test(n.nodeValue) && n.nodeValue.trim().length > 1 && !(n.parentElement && (n.parentElement.closest(skip) || hidden(n.parentElement)))
             ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
         });
         const nodes = [];
-        while (walker.nextNode() && nodes.length < 4000) nodes.push(walker.currentNode);
-        const previous = globalThis.changmunTranslation;
-        if (previous) previous.nodes.forEach((n, i) => { n.nodeValue = previous.originals[i]; });
-        globalThis.changmunTranslation = { nodes, originals: nodes.map(n => n.nodeValue), texts: nodes.map(n => n.nodeValue.trim()) };
-        \(after)
+        while (walker.nextNode() && nodes.length < limit) nodes.push(walker.currentNode);
+        \(finish)
         """
     }
 
-    /// Puts translations in place, keeping the spaces around each piece of text.
+    /// Puts translations in place, keeping the spaces around each piece of text. A node the site has written to since it was read keeps the
+    /// site's text, which is read again as new.
     static let applyScript = """
     const t = globalThis.changmunTranslation;
     if (!t) return;
     for (const [i, text] of Object.entries(texts)) {
+      const node = t.nodes[i];
+      if (!node || t.written.get(node) !== node.nodeValue) continue;
       const original = t.originals[i];
       const lead = original.match(/^\\s*/)[0], trail = original.match(/\\s*$/)[0];
-      t.nodes[i].nodeValue = lead + text + trail;
+      node.nodeValue = lead + text + trail;
+      t.written.set(node, node.nodeValue);
     }
     """
+
+    // MARK: Keeping on
+
+    /// How often a translated page of a site that is kept is asked whether it has changed.
+    nonisolated(unsafe) static var pollInterval = Duration.seconds(2)
+    /// How long a page must have been still before what it has added is collected.
+    nonisolated(unsafe) static var quietMilliseconds = 1000.0
+    /// Nodes held for a page in all; what a page adds beyond them is left as it is.
+    static let maxTrackedNodes = 20_000
+
+    /// Starts watching the page, after it is translated: the observer only notes that something changed (and when), and does not look at
+    /// what. A change that is only our own writing (a text node holding what we left in it) is not one. Text that came while the page was
+    /// being translated is looked for at the first poll (the page is taken to have been still long before).
+    static let observeScript = """
+    const t = globalThis.changmunTranslation;
+    if (!t || t.observer) return;
+    t.changedAt = performance.now() - 1e9;
+    t.observer = new MutationObserver(records => {
+      if (records.some(r => r.type !== 'characterData' || t.written.get(r.target) !== r.target.nodeValue)) t.changedAt = performance.now();
+    });
+    t.observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    """
+
+    /// How long the page has been still since it last changed, in milliseconds, or -1 when it has not changed since it was looked at.
+    /// `null` where there is nothing to follow (no translation, no observer, or all the nodes there may be are held).
+    static let pollScript = """
+    const t = globalThis.changmunTranslation;
+    if (!t || !t.observer || t.nodes.length >= \(maxTrackedNodes)) return null;
+    return t.changedAt === null ? -1 : performance.now() - t.changedAt;
+    """
+
+    /// What to flash for an outcome, if it has anything to say (a page that translated has not: that is announced).
+    static func statusMessage(for outcome: Outcome) -> String? {
+        switch outcome {
+        case .needsDownload: String(localized: "Download this language in System Settings › General › Language & Region › Translation Languages")
+        case .unsupported: String(localized: "This language can’t be translated")
+        case .nothingToTranslate: String(localized: "No text in another language to translate")
+        case .failed: String(localized: "Couldn't translate this page")
+        case .engineFailed: String(localized: "Couldn't translate this page. macOS’s translation didn’t respond — try again, or check System Settings › General › Language & Region › Translation Languages.")
+        case .claudeFailed: String(localized: "Claude couldn’t translate this page. It was left as it was.")
+        case .translatedPartly: String(localized: "Claude couldn’t translate all of this page. The rest was left as it was.")
+        case .sensitivePage: String(localized: "This page has a password or payment field, so it isn’t sent to Claude, and this Mac can’t translate it: that needs macOS 26 or later.")
+        case .translated: nil
+        }
+    }
+
+    /// Why a page wasn't started.
+    static func statusMessage(for refusal: Refusal) -> String {
+        switch refusal {
+        case .claudeUnavailable: String(localized: "Claude Code isn’t available, so the page wasn’t translated. Install it, or choose On this Mac in Settings › General.")
+        case .onDeviceUnavailable: String(localized: "Pages in this window are only translated on this Mac, which needs macOS 26 or later.")
+        }
+    }
+
+    /// What the follow-ups of a page have flashed: they say nothing when they translated all, nothing when they found nothing, and what they
+    /// said last they don't say again.
+    @MainActor struct FollowUpState: Equatable {
+        private(set) var last: String?
+        /// The page showed a password or payment field: what it adds goes no more to Claude, whether the field is still there or not.
+        var claudeStopped = false
+
+        mutating func message(for outcome: Outcome) -> String? {
+            guard outcome != .translated, outcome != .nothingToTranslate else { return nil }
+            return say(PageTranslator.statusMessage(for: outcome))
+        }
+
+        /// `text` unless it is what was said last.
+        mutating func say(_ text: String?) -> String? {
+            guard let text, text != last else { return nil }
+            last = text
+            return text
+        }
+    }
 }

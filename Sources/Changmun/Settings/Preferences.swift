@@ -222,6 +222,10 @@ final class Preferences: ObservableObject {
     @Published var translationEngine: TranslationEngine { didSet { defaults.set(translationEngine.rawValue, forKey: "translationEngine") } }
     /// The model Claude translates with (`--model`).
     @Published var translationModel: String { didSet { defaults.set(translationModel, forKey: "translationModel") } }
+    /// Sites whose pages are translated as they open, and whose new text is translated too (the site settings' switch).
+    @Published var translatedHosts: [String] { didSet { defaults.set(translatedHosts, forKey: "translatedHosts") } }
+
+    func keepsTranslating(_ host: String?) -> Bool { Self.matches(host, translatedHosts) }
 
     // MARK: Advanced
 
@@ -278,6 +282,7 @@ final class Preferences: ObservableObject {
         claudePath = d.string(forKey: "claudePath") ?? ""
         translationEngine = TranslationEngine.initial(stored: d.string(forKey: "translationEngine"))
         translationModel = TranslationEngine.model(stored: d.string(forKey: "translationModel"))
+        translatedHosts = d.stringArray(forKey: "translatedHosts") ?? []
         developerMode = d.bool(forKey: "developerMode")
         addressBar = AddressBarChoice(rawValue: d.string(forKey: "addressBar") ?? "") ?? .automatic
         shortcuts = ShortcutScheme(rawValue: d.string(forKey: "shortcuts") ?? "") ?? .safari

@@ -70,6 +70,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     @Published var isReadable = false
     @Published var isReading = false
     var translating: Task<Void, Never>?
+    /// The page is translated and its site is kept translating: watches for text it adds (see Tab+KeepTranslating).
+    var following: Task<Void, Never>?
+    /// What of this page's allowance for Claude the translation and its follow-ups have used; a new page starts with all of it.
+    var translationBudget = ClaudeTranslation.Budget()
     /// Counts the pages shown, so work begun for one page doesn't land on the next.
     var page = 0
 

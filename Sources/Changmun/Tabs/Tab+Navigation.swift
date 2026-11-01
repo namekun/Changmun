@@ -194,11 +194,7 @@ extension Tab: WKNavigationDelegate {
         if !isPrivate, let url = webView.url?.absoluteString { Library.shared.recordVisit(url: url, title: webView.title ?? "") }
         browser?.pageLoaded(webView.url?.absoluteString)
         checkForLogins()
-        let page = page
-        Task {
-            let language = await PageTranslator.foreignLanguage(of: webView)
-            if self.page == page && translation == .original { foreignLanguage = language }
-        }
+        checkLanguage(in: webView)
         if webView.url?.scheme?.hasPrefix("http") == true { Task { await checkReader() } }
     }
 
@@ -207,6 +203,9 @@ extension Tab: WKNavigationDelegate {
         page += 1
         translating?.cancel()
         translating = nil
+        following?.cancel()
+        following = nil
+        translationBudget = ClaudeTranslation.Budget()
         translatesWithClaude = false
         blockedPopup = nil
         isInPictureInPicture = false

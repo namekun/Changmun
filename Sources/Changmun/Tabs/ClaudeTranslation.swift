@@ -149,25 +149,42 @@ enum ClaudeTranslation {
         return result
     }
 
-    /// What a page may send: the pieces from the top, until `maxPageCharacters` characters or `maxBatches` batches (the rest is left out), a
-    /// piece longer than a batch skipped, and how many pieces were left out.
-    nonisolated static func limited(_ pieces: [Piece]) -> (batches: [[Piece]], leftOut: Int) {
-        var kept: [Piece] = []
+    /// What of a page's allowance has been used. The first pass and every follow-up of a page draw on this one, so that a page that
+    /// keeps producing text can't send more than `maxPageCharacters` characters or `maxBatches` batches in all.
+    struct Budget: Equatable {
         var characters = 0
+        var batches = 0
+        /// Something was left out for want of room.
+        var exhausted = false
+    }
+
+    /// What a page may send, top of the page first, once `spent` is used: the pieces until `maxPageCharacters` characters or `maxBatches`
+    /// batches (the rest is left out), a piece longer than a batch skipped, how many pieces were left out, and what is used then.
+    nonisolated static func limited(_ pieces: [Piece], after spent: Budget = Budget()) -> (batches: [[Piece]], leftOut: Int, spent: Budget) {
+        var kept: [Piece] = []
+        var characters = spent.characters
         var leftOut = 0
+        var exhausted = spent.exhausted
         for (index, piece) in pieces.enumerated() {
             let size = piece.text.count
             if size > batchCharacters { leftOut += 1; continue }
-            if characters + size > maxPageCharacters { leftOut += pieces.count - index; break }
+            if characters + size > maxPageCharacters {
+                leftOut += pieces.count - index
+                exhausted = true
+                break
+            }
             kept.append(piece)
             characters += size
         }
         var all = batches(kept)
-        if all.count > maxBatches {
-            leftOut += all[maxBatches...].reduce(0) { $0 + $1.count }
-            all = Array(all[..<maxBatches])
+        let room = max(maxBatches - spent.batches, 0)
+        if all.count > room {
+            leftOut += all[room...].reduce(0) { $0 + $1.count }
+            all = Array(all[..<room])
+            exhausted = true
         }
-        return (all, leftOut)
+        let used = Budget(characters: spent.characters + all.joined().reduce(0) { $0 + $1.text.count }, batches: spent.batches + all.count, exhausted: exhausted)
+        return (all, leftOut, used)
     }
 
     // MARK: The answer
@@ -285,16 +302,16 @@ enum ClaudeTranslation {
         case answered([Int: String]?), failed, cannotRun, cancelled, denied
     }
 
-    /// Translates `pieces` into `language` with `run`, `parallel` batches at a time, the top of the page first, handing each batch's
-    /// translations to `apply` as it comes back. `allowed` is asked before every batch is started and again before its answer is used:
+    /// Translates `pieces` into `language` with `run`, `parallel` batches at a time, the top of the page first, within what is left of
+    /// `spent`, handing each batch's translations to `apply` as it comes back. `allowed` is asked before every batch is started and again before its answer is used:
     /// when it says no the work stops. It also stops when the task is cancelled, and when Claude can't be run at all (not found,
     /// not started); the pieces not reached stay as they were. A batch that times out, ends with a failure or answers with something
     /// that isn't usable only fails itself: the next is asked for, until `failuresInARow` batches have failed one after the other, which
     /// ends the page (offline, or logged out, is not going to get better batch by batch).
-    static func translate(_ pieces: [Piece], language: String, run: @escaping Run, allowed: @escaping @MainActor () -> Bool = { true },
+    static func translate(_ pieces: [Piece], language: String, after spent: Budget = Budget(), run: @escaping Run, allowed: @escaping @MainActor () -> Bool = { true },
                           apply: @MainActor ([Int: String]) async -> Void) async -> Report {
         var report = Report()
-        let limited = limited(pieces)
+        let limited = limited(pieces, after: spent)
         report.leftOut = limited.leftOut
         var pending = limited.batches[...]
         var halted = false

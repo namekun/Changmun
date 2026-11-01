@@ -1010,3 +1010,7 @@
 "Translating with Claude: the page’s text is being sent to Anthropic. Click to stop (⌥⌘T)." = "Claudeで翻訳中: ページのテキストがAnthropicに送信されています。クリックで停止します (⌥⌘T)。";
 "This page has a password or payment field, so it is translated on this Mac and not sent to Claude." = "このページにはパスワード欄または支払い欄があるため、Claudeには送らず、このMacで翻訳します。";
 "This page has a password or payment field, so it isn’t sent to Claude, and this Mac can’t translate it: that needs macOS 26 or later." = "このページにはパスワード欄または支払い欄があるためClaudeには送られず、このMacでも翻訳できません（macOS 26以降が必要です）。";
+"Keep translating this site" = "このサイトを翻訳し続ける";
+"Translates this site’s pages as they open, and the text they add later. With Claude, the text of each page is sent to Anthropic automatically, without asking again." = "このサイトのページを開くたびに、あとから追加されるテキストも含めて翻訳します。Claudeを使う場合、各ページのテキストは確認なしで自動的にAnthropicへ送信されます。";
+"Sites you turned “Keep translating this site” on for stay here. Their pages are translated as they open. With Claude, the text of each of those pages is sent to Anthropic automatically." = "「このサイトを翻訳し続ける」をオンにしたサイトはここに残ります。これらのサイトのページは開くと翻訳されます。Claudeを使う場合、それらのページのテキストは自動的にAnthropicへ送信されます。";
+"Kept translating" = "翻訳を継続";
