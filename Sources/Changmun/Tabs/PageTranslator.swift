@@ -312,23 +312,25 @@ enum PageTranslator {
           return false;
         };
         if (sensitive(document)) return { sensitive: true };
-        const boxed = el => {
+        // The element that has a box where a text is drawn: one with `display: contents` has none, and its text is drawn in its parent's.
+        const boxOf = el => {
           while (el && getComputedStyle(el).display === 'contents') el = el.parentElement;
-          if (!el) return false;
-          const r = el.getBoundingClientRect();
-          return r.width > 0 && r.height > 0;
+          return el;
         };
         const hiddenOnce = el => {
           if (el.closest('[hidden], [aria-hidden="true"]')) return true;
-          if (el.checkVisibility) {
-            if (!el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return true;
+          const box = boxOf(el);
+          if (!box) return true;
+          if (box.checkVisibility) {
+            if (!box.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return true;
           } else {
-            for (let e = el; e; e = e.parentElement) {
+            for (let e = box; e; e = e.parentElement) {
               const s = getComputedStyle(e);
               if (s.display === 'none' || s.visibility === 'hidden' || s.opacity === '0') return true;
             }
           }
-          if (!boxed(el)) return true;
+          const r = box.getBoundingClientRect();
+          if (!(r.width > 0 && r.height > 0)) return true;
           const summary = el.closest('summary');
           for (let d = el.closest('details'); d; d = d.parentElement ? d.parentElement.closest('details') : null) {
             if (!d.open && !(summary && summary.parentElement === d)) return true;

@@ -177,10 +177,10 @@ enum ClaudeTranslation {
 
     // The shapes that carry something out of a page: an address, a link (with its scheme or just a name and a common ending), a long run of digits
     // (up to two characters of anything but letters and digits between them).
-    nonisolated private static let emails = try! NSRegularExpression(pattern: #"[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+"#)
+    nonisolated private static let emails = try! NSRegularExpression(pattern: #"(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+"#)
     nonisolated private static let links = try! NSRegularExpression(pattern: #"(?:https?://|www\.)[^\s<>"']+"#, options: .caseInsensitive)
     nonisolated private static let domains = try! NSRegularExpression(
-        pattern: #"(?<![@\w.\-])[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?(?:\.[a-z0-9\-]+)*\.(?:com|net|org|io|co|kr|jp|cn|de|fr|es|uk|us|edu|gov|app|dev|ai|me|info|biz|xyz|ru|br|in|it|nl|tv|cc|ly|so|sh|to)(?![a-z0-9\-])(?:[/?#][^\s<>"']*)?"#,
+        pattern: #"(?<![@\w.\-])(?:[a-z0-9][a-z0-9\-]*\.)+(?:com|net|org|io|co|kr|jp|cn|de|fr|es|uk|us|edu|gov|app|dev|ai|me|info|biz|xyz|ru|br|in|it|nl|tv|cc|ly|so|sh|to)(?![a-z0-9\-])(?:[/?#][^\s<>"']*)?"#,
         options: .caseInsensitive)
     nonisolated private static let digits = try! NSRegularExpression(pattern: #"\p{Nd}(?:[^\p{L}\p{Nd}]{0,2}\p{Nd}){5,}"#)
 

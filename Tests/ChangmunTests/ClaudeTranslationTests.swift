@@ -157,6 +157,38 @@ struct ClaudeTranslationPureTests {
         #expect(!ClaudeTranslation.leaks("mail me@x.org", from: "mail ME@X.ORG"), "the same address in another case is not a leak")
     }
 
+    @Test func theFilterLooksAtTheFoldedFormAndAtDomainsWithoutAScheme() {
+        let sent = [(id: 0, text: "Welcome"), (id: 1, text: "Visit example.com/help or mail help@example.com"), (id: 2, text: "Plain")]
+        // Full-width characters are the plain ones.
+        #expect(ClaudeTranslation.translations(in: ClaudeFakeJSON.object([0: "환영 12113101＠inha．edu"]), sent: sent) == [:])
+        #expect(ClaudeTranslation.translations(in: ClaudeFakeJSON.object([0: "환영 １２３４５６７８"]), sent: sent) == [:])
+        // A name with a common ending, with or without a path.
+        #expect(ClaudeTranslation.translations(in: ClaudeFakeJSON.object([0: "환영 evil.com", 2: "평범 evil.io/x?y=1"]), sent: sent) == [:])
+        // What the page had is fine, in any case and form.
+        #expect(ClaudeTranslation.translations(in: ClaudeFakeJSON.object([1: "EXAMPLE.com/help 를 방문하거나 help＠example.com 으로 쓰세요"]), sent: sent) == [1: "EXAMPLE.com/help 를 방문하거나 help＠example.com 으로 쓰세요"])
+        // Ordinary words with dots and short numbers are not carriers.
+        #expect(ClaudeTranslation.carriers(in: "e.g. the U.S. and i.e. Mr. Smith, file.txt, Node.js, version 1.2.3, page 12 of 40, items 1 2 3 4 5").isEmpty)
+    }
+
+    @Test func aHugeWordOrAChainOfDotsCostsNextToNothing() {
+        let started = Date()
+        for text in [String(repeating: "a", count: 4000), String(repeating: "a.", count: 2000), String(repeating: "1 ", count: 2000), String(repeating: "a@", count: 2000), String(repeating: "www.", count: 1000)] {
+            _ = ClaudeTranslation.carriers(in: text)
+        }
+        #expect(Date().timeIntervalSince(started) < 2)
+    }
+
+    @Test func digitsApartCountAndThePagesOwnNumbersPass() {
+        let carriers = ClaudeTranslation.carriers(in: "Code 1 2 3 4 5 6 and 12-34-56 and ١٢٣٤٥٦٧")
+        #expect(carriers.contains("123456") && carriers.contains("1234567"), "\(carriers)")
+        #expect(ClaudeTranslation.carriers(in: "Code 1 2 3 4 5 6").contains("123456"))
+        #expect(ClaudeTranslation.carriers(in: "ID ١٢٣٤٥٦٧").contains("1234567"), "other digits are the plain ones")
+        let sent = [(id: 0, text: "Order 2024-12-03, number 12345678")]
+        #expect(ClaudeTranslation.translations(in: ClaudeFakeJSON.object([0: "주문 2024-12-03, 번호 12345678"]), sent: sent) == [0: "주문 2024-12-03, 번호 12345678"])
+        #expect(ClaudeTranslation.translations(in: ClaudeFakeJSON.object([0: "주문 2024.12.03, 번호 12345678"]), sent: sent) == [0: "주문 2024.12.03, 번호 12345678"], "the same digits, other marks")
+        #expect(ClaudeTranslation.translations(in: ClaudeFakeJSON.object([0: "주문 03/12/2024, 번호 12345678"]), sent: sent) == [:], "other order: dropped (and reported)")
+    }
+
     @Test func aTranslationMayBeAtMostThreeTimesAsLongPlusAHundred() {
         #expect(ClaudeTranslation.longestTranslation(of: "Hello") == 115)
         #expect(ClaudeTranslation.longestTranslation(of: String(repeating: "a", count: 1000)) == 3100)
@@ -249,7 +281,33 @@ extension SharedAgentState {
             var applied: [Int: String] = [:]
             let report = await ClaudeTranslation.translate([(0, "a"), (1, "b"), (2, "c")], language: "ko", run: fake.run) { applied.merge($0) { $1 } }
             #expect(applied == [0: "A", 2: "C"])
-            #expect(report.translated == 2 && report.failedBatches == 0)
+            #expect(report.translated == 2 && report.failedBatches == 0 && report.dropped == 1, "the piece left out is counted")
+        }
+
+        @Test func piecesTheFilterDropsAreCountedToo() async {
+            let fake = FakeClaude { texts in FakeClaude.json(texts.mapValues { $0.uppercased() + ($0 == "b" ? " 12113101@inha.edu" : "") }) }
+            var applied: [Int: String] = [:]
+            let report = await ClaudeTranslation.translate([(0, "a"), (1, "b"), (2, "c")], language: "ko", run: fake.run) { applied.merge($0) { $1 } }
+            #expect(applied == [0: "A", 2: "C"] && report.translated == 2 && report.dropped == 1 && report.failedBatches == 0)
+        }
+
+        @Test func threeBatchesFailingOneAfterTheOtherEndThePage() async {
+            let fake = FakeClaude { _ in throw ClaudeTranslation.Failure.exited(1) }
+            let report = await ClaudeTranslation.translate(pieces(10, size: 3000), language: "ko", run: fake.run) { _ in }
+            // The three already under way fail; each failure before the third asks for one more, which is cancelled or fails as well.
+            #expect(report.translated == 0 && report.failedBatches >= 3 && report.skippedBatches >= 5 && fake.calls <= 5, "\(report), calls \(fake.calls)")
+        }
+
+        @Test func aBatchThatWorksBetweenFailuresStartsTheCountOver() async {
+            // Answered in the order asked (the later one waits longer), so the failures are never three in a row.
+            let fake = FakeClaude { texts in
+                let id = texts.keys.min() ?? 0
+                try await Task.sleep(for: .milliseconds(60 * id))
+                if id % 3 != 2 { throw ClaudeTranslation.Failure.timedOut }
+                return FakeClaude.json(texts.mapValues { $0.uppercased() })
+            }
+            let report = await ClaudeTranslation.translate(pieces(9, size: 3000), language: "ko", run: fake.run) { _ in }
+            #expect(fake.calls == 9 && report.translated == 3 && report.failedBatches == 6 && report.skippedBatches == 0, "\(report), calls \(fake.calls)")
         }
 
         @Test func anInstructionInThePageComesBackTranslatedAndIsAppliedAsText() async {
@@ -486,8 +544,73 @@ extension SharedAgentState {
             #expect(URL(fileURLWithPath: output.trimmingCharacters(in: .whitespacesAndNewlines)).resolvingSymlinksInPath() == URL(fileURLWithPath: folder).resolvingSymlinksInPath())
         }
 
-        @Test func theRealClaudeIsNeverStartedFromTheTestRunner() {
+        /// A program that says what it was given: its folder, its environment, its arguments, and that it ran at all.
+        private func standIn(marker: String) throws -> String {
+            let file = FileManager.default.temporaryDirectory.appendingPathComponent("claude-stand-in-\(UUID().uuidString)")
+            try Data("#!/bin/sh\ntouch '\(marker)'\ncat > /dev/null\npwd\nenv\necho \"ARGS $*\"\n".utf8).write(to: file)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: file.path)
+            return file.path
+        }
+
+        @Test func theRealClaudeIsNeverStartedFromTheTestRunner() throws {
+            let marker = pidFile()
+            let program = try standIn(marker: marker)
+            let saved = ChatStore.claudeLocator
+            defer { ChatStore.claudeLocator = saved; try? FileManager.default.removeItem(atPath: program); try? FileManager.default.removeItem(atPath: marker) }
+            // A `claude` that is there, wherever this runs: it is still not used.
+            ChatStore.claudeLocator = { program }
             #expect(throws: ClaudeTranslation.Failure.notAvailable) { _ = try ClaudeTranslation.makeRun("haiku") }
+            #expect(!FileManager.default.fileExists(atPath: marker), "and nothing was started")
+        }
+
+        @Test func askingClaudeUsesTheSmallEnvironmentTheFolderAndTheArguments() async throws {
+            let marker = pidFile()
+            let program = try standIn(marker: marker)
+            defer { try? FileManager.default.removeItem(atPath: program); try? FileManager.default.removeItem(atPath: marker) }
+            let run = try ClaudeTranslation.run(model: "opus", claude: program, environment: ["HOME": "/Users/x", "PATH": "/usr/bin:/bin", "NODE_OPTIONS": "--require /evil.js",
+                                                                                              "ANTHROPIC_BASE_URL": "https://evil.example", "CLAUDE_CODE_ENTRYPOINT": "cli"])
+            let output = try await run(ClaudeTranslation.request([(0, "Hello")], language: "Korean (ko)"))
+            #expect(FileManager.default.fileExists(atPath: marker))
+            let folder = try ClaudeTranslation.workingDirectory()
+            let lines = output.split(separator: "\n").map(String.init)
+            #expect(URL(fileURLWithPath: lines[0]).resolvingSymlinksInPath() == URL(fileURLWithPath: folder).resolvingSymlinksInPath(), "it stood in the folder of its own: \(lines[0])")
+            #expect(output.contains("HOME=/Users/x") && output.contains("CLAUDE_CODE_DISABLE_CLAUDE_MDS=1") && output.contains("CLAUDE_CODE_DISABLE_AUTO_MEMORY=1"))
+            #expect(!output.contains("NODE_OPTIONS") && !output.contains("ANTHROPIC_BASE_URL") && !output.contains("CLAUDE_CODE_ENTRYPOINT"))
+            #expect(output.contains("ARGS -p --model opus --tools  --strict-mcp-config"), "the arguments of ClaudeTranslation.arguments")
+        }
+
+        @Test func theWorkingFolderIsOnlyTheUsersAndEmptyEvenIfItWasThereBefore() throws {
+            let base = FileManager.default.temporaryDirectory.appendingPathComponent("translation-base-\(UUID().uuidString)", isDirectory: true)
+            defer { try? FileManager.default.removeItem(at: base) }
+            let folder = base.appendingPathComponent("Changmun-translation", isDirectory: true)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o755])
+            try Data("left behind".utf8).write(to: folder.appendingPathComponent("stray.txt"))
+            try FileManager.default.createDirectory(at: folder.appendingPathComponent("stray-folder"), withIntermediateDirectories: true)
+            let path = try ClaudeTranslation.workingDirectory(in: base)
+            #expect(path == folder.path)
+            #expect(try FileManager.default.contentsOfDirectory(atPath: path).isEmpty)
+            let permissions = try FileManager.default.attributesOfItem(atPath: path)[.posixPermissions] as? Int
+            #expect(permissions == 0o700)
+        }
+
+        @Test func aProcessStartedWhileTheAppQuitsEndsItself() async throws {
+            defer {
+                ClaudeProcess.beforeRegistering = nil
+                ClaudeProcess.startAgain()
+            }
+            // The quit comes after the process is started and before it is on the list that quitting goes through.
+            ClaudeProcess.beforeRegistering = { ClaudeProcess.stopAll() }
+            let started = Date()
+            await #expect(throws: CancellationError.self) { _ = try await self.run("exec sleep 600.4242") }
+            #expect(Date().timeIntervalSince(started) < 20, "it ended at once, not when it was done")
+            #expect(await waitUntil(5) { ClaudeProcess.running == 0 })
+            let leftover = Process()
+            leftover.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+            leftover.arguments = ["-f", "sleep 600.4242"]
+            leftover.standardOutput = FileHandle.nullDevice
+            try leftover.run()
+            leftover.waitUntilExit()
+            #expect(leftover.terminationStatus == 1, "nothing is left running")
         }
     }
 
@@ -586,6 +709,70 @@ extension SharedAgentState {
             defer { window.close() }
             let ordinary = await using(FakeClaude.uppercasing()) { await PageTranslator.translateWithClaude(view, model: "haiku", while: { true }) }
             #expect(ordinary == .translated)
+        }
+
+        @Test func aPasswordFieldThatBecameTextIsStillOneAndShadowRootsAreLookedInto() async throws {
+            for field in ["<input type=text autocomplete=current-password>", "<input type=text autocomplete=\"new-password\">"] {
+                let (view, window) = try await load("<p id=a>The bicycle was invented in the nineteenth century.</p>\(field)")
+                let fake = FakeClaude.uppercasing()
+                let outcome = await using(fake) { await PageTranslator.translateWithClaude(view, model: "haiku", while: { true }) }
+                window.close()
+                #expect(outcome == .sensitivePage && fake.calls == 0, "\(field)")
+            }
+            let (view, window) = try await load("<p id=a>The bicycle was invented in the nineteenth century.</p><div id=host></div>")
+            defer { window.close() }
+            _ = try await view.callAsyncJavaScript("document.getElementById('host').attachShadow({mode: 'open'}).innerHTML = '<div><input type=password></div>'", contentWorld: .page)
+            let fake = FakeClaude.uppercasing()
+            let outcome = await using(fake) { await PageTranslator.translateWithClaude(view, model: "haiku", while: { true }) }
+            #expect(outcome == .sensitivePage && fake.calls == 0)
+        }
+
+        @Test func aSensitivePageIsDecidedInTheSameRunThatWouldCollectIt() async throws {
+            let (view, window) = try await load("<p id=a>The bicycle was invented in the nineteenth century.</p><input type=password>")
+            defer { window.close() }
+            let result = try await view.callAsyncJavaScript(PageTranslator.claudeCollectScript, contentWorld: .defaultClient) as? [String: Any]
+            #expect(result?["sensitive"] as? Bool == true && result?["texts"] == nil)
+            #expect(try await view.callAsyncJavaScript("return typeof globalThis.changmunTranslation", contentWorld: .defaultClient) as? String == "undefined", "nothing was collected")
+            let plain = try await load("<p id=a>The bicycle was invented in the nineteenth century.</p>")
+            defer { plain.1.close() }
+            let collected = try await plain.0.callAsyncJavaScript(PageTranslator.claudeCollectScript, contentWorld: .defaultClient) as? [String: Any]
+            #expect(collected?["sensitive"] as? Bool == false && collected?["texts"] as? [String] == ["The bicycle was invented in the nineteenth century."])
+        }
+
+        @Test func withoutCheckVisibilityWhatCannotBeSeenIsStillLeftOut() async throws {
+            let (view, window) = try await load("""
+                <p id=a>Visible words here.</p>
+                <p hidden>Hidden attribute words.</p><p style="display:none">Display none words.</p><p style="visibility:hidden">Visibility hidden words.</p>
+                <p style="opacity:0">Opacity zero words.</p><div style="display:none"><span>Inside none words.</span></div>
+                """)
+            defer { window.close() }
+            _ = try await view.callAsyncJavaScript("delete Element.prototype.checkVisibility; return typeof document.body.checkVisibility", contentWorld: .defaultClient)
+            #expect(try await view.callAsyncJavaScript("return typeof document.body.checkVisibility", contentWorld: .defaultClient) as? String == "undefined")
+            let fake = FakeClaude.uppercasing()
+            _ = await using(fake) { await PageTranslator.translateWithClaude(view, model: "haiku", to: Locale.Language(identifier: "ko"), while: { true }) }
+            #expect(fake.textsAsked == ["Visible words here."])
+        }
+
+        @Test func whatHasNoWidthOrHeightIsLeftOutButTextInsideDisplayContentsIsNot() async throws {
+            let (view, window) = try await load("""
+                <p id=a>Visible words here.</p>
+                <p style="width:0;height:0;overflow:hidden">Zero box words.</p><p style="margin:0;height:0;overflow:hidden">Zero height words.</p>
+                <p><span style="display:contents">Inner contents words</span></p>
+                """)
+            defer { window.close() }
+            let fake = FakeClaude.uppercasing()
+            _ = await using(fake) { await PageTranslator.translateWithClaude(view, model: "haiku", to: Locale.Language(identifier: "ko"), while: { true }) }
+            #expect(fake.textsAsked == ["Visible words here.", "Inner contents words"])
+        }
+
+        @Test func aPieceTheFilterDroppedMakesThePageOnlyPartlyTranslated() async throws {
+            let (view, window) = try await load("<p id=a>The bicycle was invented in the nineteenth century.</p><p id=b>It became popular soon after that.</p>")
+            defer { window.close() }
+            let fake = FakeClaude { texts in FakeClaude.json(texts.mapValues { $0.uppercased() + ($0.hasPrefix("It") ? " 12113101@inha.edu" : "") }) }
+            let outcome = await using(fake) { await PageTranslator.translateWithClaude(view, model: "haiku", to: Locale.Language(identifier: "ko"), while: { true }) }
+            #expect(outcome == .translatedPartly)
+            #expect(try await text(view, "a") == "THE BICYCLE WAS INVENTED IN THE NINETEENTH CENTURY.")
+            #expect(try await text(view, "b") == "It became popular soon after that.")
         }
 
         @Test func aPageLongerThanAPageMaySendIsTranslatedInPartAndSaysSo() async throws {
