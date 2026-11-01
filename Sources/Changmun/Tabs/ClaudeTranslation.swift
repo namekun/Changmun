@@ -426,12 +426,16 @@ enum ClaudeProcess {
         var count: Int { lock.withLock { jobs.count } }
         var stopping: Bool { lock.withLock { _stopping } }
         func stopAll() -> [Job] { lock.withLock { _stopping = true; return Array(jobs.values) } }
+        func startAgain() { lock.withLock { _stopping = false } }
     }
 
     private static let live = Live()
 
     /// Ends every `claude` still running for a translation, at once, and starts none after (the app is quitting).
     static func stopAll() { live.stopAll().forEach { $0.killNow() } }
+
+    /// Lets processes start again. For tests: the app never does after `stopAll`.
+    static func startAgain() { live.startAgain() }
 
     /// The processes running: for tests that look for ones left behind.
     static var running: Int { live.count }

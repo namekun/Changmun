@@ -140,6 +140,54 @@ struct ClaudeTranslationPureTests {
         #expect(ClaudeTranslation.translations(in: ClaudeFakeJSON.object([0: fits]), sent: sent) == [0: fits])
     }
 
+    @Test func aTranslationThatBringsTheAccountsAddressIsNotUsed() {
+        let sent = [(id: 0, text: "Welcome back"), (id: 1, text: "Write to help@example.com for more"), (id: 2, text: "Plain words")]
+        // What the model did when asked for the address: it wrote it into a translation.
+        let output = ClaudeFakeJSON.object([0: "다시 오신 것을 환영합니다 (12113101@inha.edu)", 1: "더 알려면 help@example.com 으로 쓰세요", 2: "그냥 말"])
+        #expect(ClaudeTranslation.translations(in: output, sent: sent) == [1: "더 알려면 help@example.com 으로 쓰세요", 2: "그냥 말"],
+                "the piece with an address of its own is dropped, one whose address was in the page is kept")
+    }
+
+    @Test func aLinkOrALongNumberOfItsOwnIsNotUsedEither() {
+        let sent = [(id: 0, text: "See the guide"), (id: 1, text: "Call 1234 567 890 or visit https://example.com/help."), (id: 2, text: "Year 2024")]
+        let output = ClaudeFakeJSON.object([0: "안내 보기 https://evil.example/x?d=1", 1: "1234-567-890 으로 전화하거나 https://example.com/help 를 보세요.", 2: "2024년 문서 www.evil.example"])
+        #expect(ClaudeTranslation.translations(in: output, sent: sent) == [1: "1234-567-890 으로 전화하거나 https://example.com/help 를 보세요."])
+        #expect(ClaudeTranslation.translations(in: ClaudeFakeJSON.object([2: "코드 123456789012"]), sent: sent) == [:], "a long run of digits that was not there")
+        #expect(ClaudeTranslation.translations(in: ClaudeFakeJSON.object([2: "2024년 12월 3일"]), sent: sent) == [2: "2024년 12월 3일"], "short numbers are only numbers")
+        #expect(!ClaudeTranslation.leaks("mail me@x.org", from: "mail ME@X.ORG"), "the same address in another case is not a leak")
+    }
+
+    @Test func aTranslationMayBeAtMostThreeTimesAsLongPlusAHundred() {
+        #expect(ClaudeTranslation.longestTranslation(of: "Hello") == 115)
+        #expect(ClaudeTranslation.longestTranslation(of: String(repeating: "a", count: 1000)) == 3100)
+    }
+
+    @Test func theChildGetsASmallEnvironmentAndNoInstructionsFilesOrMemory() {
+        let given = ["HOME": "/Users/x", "PATH": "/usr/bin", "TMPDIR": "/tmp/x/", "LANG": "en_US.UTF-8", "LC_ALL": "C", "LC_CTYPE": "UTF-8", "USER": "x", "LOGNAME": "x",
+                     "SHELL": "/bin/zsh", "CLAUDE_CONFIG_DIR": "/c", "ANTHROPIC_API_KEY": "sk-test", "NODE_OPTIONS": "--require /evil.js", "ANTHROPIC_BASE_URL": "https://evil.example",
+                     "HTTPS_PROXY": "http://evil.example", "ANTHROPIC_AUTH_TOKEN": "t", "CLAUDE_CODE_USE_BEDROCK": "1", "DYLD_INSERT_LIBRARIES": "/evil.dylib", "SSH_AUTH_SOCK": "/s"]
+        let child = ClaudeTranslation.childEnvironment(from: given)
+        #expect(Set(child.keys) == ["HOME", "PATH", "TMPDIR", "LANG", "LC_ALL", "LC_CTYPE", "USER", "LOGNAME", "SHELL", "CLAUDE_CONFIG_DIR", "ANTHROPIC_API_KEY",
+                                    "CLAUDE_CODE_DISABLE_CLAUDE_MDS", "CLAUDE_CODE_DISABLE_AUTO_MEMORY"])
+        #expect(child["CLAUDE_CODE_DISABLE_CLAUDE_MDS"] == "1" && child["CLAUDE_CODE_DISABLE_AUTO_MEMORY"] == "1")
+        #expect(child["ANTHROPIC_API_KEY"] == "sk-test", "the key is the user's, if there is one")
+    }
+
+    @Test func aPageSendsNoMoreThanItMayAndSaysHowMuchWasLeftOut() {
+        func pieces(_ sizes: [Int]) -> [ClaudeTranslation.Piece] { sizes.enumerated().map { (id: $0, text: String(repeating: "w", count: $1)) } }
+        // 200 pieces of 1000 characters: the first 150 fit (150,000), the rest is left out, from the top.
+        let big = ClaudeTranslation.limited(pieces(Array(repeating: 1000, count: 200)))
+        #expect(big.batches.flatMap { $0 }.count == 150 && big.leftOut == 50)
+        #expect(big.batches.flatMap { $0 }.map(\.id) == Array(0..<150))
+        // A piece longer than a batch is skipped, the others go.
+        let long = ClaudeTranslation.limited(pieces([10, ClaudeTranslation.batchCharacters + 1, 10]))
+        #expect(long.batches.flatMap { $0 }.map(\.id) == [0, 2] && long.leftOut == 1)
+        // Many small pieces: at most `maxBatches` batches.
+        let many = ClaudeTranslation.limited(pieces(Array(repeating: 2, count: 5000)))
+        #expect(many.batches.count == ClaudeTranslation.maxBatches && many.leftOut == 5000 - ClaudeTranslation.maxBatches * ClaudeTranslation.batchPieces)
+        #expect(ClaudeTranslation.limited([]).batches.isEmpty && ClaudeTranslation.limited([]).leftOut == 0)
+    }
+
     @MainActor @Test func theSettingsOfTheTranslationAreRoutedAsChosen() {
         let ready = AIAvailability.ready
         // This Mac chosen: this Mac, whatever Claude is doing, for every kind of tab.
@@ -165,6 +213,7 @@ struct ClaudeTranslationPureTests {
 
 @MainActor final class Flag {
     var on = true
+    var count = 0
 }
 
 enum ClaudeFakeJSON {
@@ -221,12 +270,46 @@ extension SharedAgentState {
         }
 
         @Test func aBatchThatCannotBeRunStopsTheRest() async {
-            struct Broken: Error {}
-            let fake = FakeClaude { _ in throw Broken() }
+            let fake = FakeClaude { _ in throw ClaudeTranslation.Failure.notAvailable }
             let report = await ClaudeTranslation.translate(pieces(10, size: 3000), language: "ko", run: fake.run) { _ in }
             #expect(report.translated == 0)
             #expect(fake.calls <= ClaudeTranslation.parallel, "no more processes are started once Claude can't be run")
             #expect(report.failedBatches + report.skippedBatches == 10)
+        }
+
+        @Test func aBatchThatTimesOutOrExitsWithAFailureOnlyFailsItself() async {
+            for failure in [ClaudeTranslation.Failure.timedOut, .exited(1), .tooLong] {
+                let fake = FakeClaude { texts in
+                    if texts.keys.contains(0) { throw failure }
+                    return FakeClaude.json(texts.mapValues { $0.uppercased() })
+                }
+                let report = await ClaudeTranslation.translate(pieces(6, size: 3000), language: "ko", run: fake.run) { _ in }
+                #expect(fake.calls == 6 && report.translated == 5 && report.failedBatches == 1 && report.skippedBatches == 0, "\(failure)")
+            }
+            // Only a Claude that is not there, or can't be started, ends the page.
+            for failure in [ClaudeTranslation.Failure.notAvailable, .couldNotStart] {
+                let fake = FakeClaude { _ in throw failure }
+                let report = await ClaudeTranslation.translate(pieces(10, size: 3000), language: "ko", run: fake.run) { _ in }
+                #expect(fake.calls <= ClaudeTranslation.parallel && report.skippedBatches > 0, "\(failure)")
+            }
+        }
+
+        @Test func aTabThatMayNoLongerGoToClaudeStopsTheWorkAtOnce() async {
+            // No longer allowed before the first batch: nothing is asked.
+            let none = FakeClaude.uppercasing()
+            var applied = 0
+            let denied = await ClaudeTranslation.translate(pieces(10, size: 3000), language: "ko", run: none.run, allowed: { false }) { _ in applied += 1 }
+            #expect(none.calls == 0 && applied == 0 && denied.denied && denied.translated == 0)
+            // Allowed for the first batches, then not: what is under way is cancelled and its answer, if it comes, is not used.
+            let fake = FakeClaude.uppercasing(delay: .milliseconds(100))
+            let asked = Flag()
+            var results: [Int: String] = [:]
+            let report = await ClaudeTranslation.translate(pieces(12, size: 3000), language: "ko", run: fake.run, allowed: {
+                asked.count += 1
+                return asked.count <= 3
+            }) { results.merge($0) { $1 } }
+            #expect(report.denied && report.translated == 0 && results.isEmpty, "the answers of the first three came after the tab was no longer allowed")
+            #expect(fake.calls <= 3, "and no batch was started after")
         }
 
         @Test func aBatchWithABadAnswerOnlyCountsAsFailedAndTheNextIsAsked() async {
@@ -260,8 +343,8 @@ extension SharedAgentState {
 
         private func isGone(_ pid: pid_t) async -> Bool { await waitUntil(5) { kill(pid, 0) != 0 } }
 
-        private func run(_ script: String, _ file: String = "", input: Data = Data(), timeout: TimeInterval = 20, max: Int = 1_000_000) async throws -> String {
-            try await ClaudeProcess.run(executable: "/bin/sh", arguments: ["-c", script, "sh", file], environment: ["PATH": "/usr/bin:/bin"],
+        private func run(_ script: String, _ file: String = "", _ second: String = "", input: Data = Data(), timeout: TimeInterval = 20, max: Int = 1_000_000) async throws -> String {
+            try await ClaudeProcess.run(executable: "/bin/sh", arguments: ["-c", script, "sh", file, second], environment: ["PATH": "/usr/bin:/bin"],
                                         input: input, timeout: timeout, maxOutputBytes: max)
         }
 
@@ -325,14 +408,86 @@ extension SharedAgentState {
             #expect(ClaudeProcess.running == 0)
         }
 
-        @Test func stoppingAllEndsWhatIsStillRunning() async throws {
+        @Test func stoppingAllEndsWhatIsStillRunningAndStartsNothingAfter() async throws {
             let file = pidFile()
-            defer { try? FileManager.default.removeItem(atPath: file) }
+            defer { try? FileManager.default.removeItem(atPath: file); ClaudeProcess.startAgain() }
             let task = Task { try await run(#"echo $$ > "$1"; exec sleep 60"#, file) }
             let child = try #require(await pid(in: file))
             ClaudeProcess.stopAll()
-            await #expect(throws: CancellationError.self) { try await task.value }
+            // Synchronously: it is gone before the call returns, not half a second later.
             #expect(await isGone(child))
+            await #expect(throws: CancellationError.self) { try await task.value }
+            await #expect(throws: CancellationError.self) { _ = try await self.run("echo hello") }
+        }
+
+        @Test func theWholeGroupEndsNotOnlyTheProgram() async throws {
+            let file = pidFile(), grandchildFile = pidFile()
+            defer { try? FileManager.default.removeItem(atPath: file); try? FileManager.default.removeItem(atPath: grandchildFile) }
+            // The program starts a helper of its own and waits for it, as a launcher script would.
+            let task = Task { try await run(#"sleep 60 & echo $! > "$2"; echo $$ > "$1"; wait"#, file, grandchildFile) }
+            let child = try #require(await pid(in: file))
+            let grandchild = try #require(await pid(in: grandchildFile))
+            #expect(kill(grandchild, 0) == 0)
+            task.cancel()
+            await #expect(throws: CancellationError.self) { try await task.value }
+            let childGone = await isGone(child), grandchildGone = await isGone(grandchild)
+            #expect(childGone && grandchildGone, "the helper went with it")
+        }
+
+        @Test func aHelperThatLeftTheGroupAndHoldsTheOutputCannotHangTheCall() async throws {
+            let grandchildFile = pidFile()
+            defer { try? FileManager.default.removeItem(atPath: grandchildFile) }
+            // The program says its answer and ends, leaving a helper in a session of its own that keeps the output open for 20 seconds.
+            let started = Date()
+            let output = try await run(#"perl -MPOSIX -e 'POSIX::setsid(); open(F, ">", $ARGV[0]); print F $$; close(F); sleep 20' "$2" & echo answer; exit 0"#, "", grandchildFile)
+            #expect(output == "answer\n")
+            #expect(Date().timeIntervalSince(started) < 10, "returned after a moment, not when the helper let go")
+            if let helper = await pid(in: grandchildFile) { kill(helper, SIGKILL) }
+        }
+
+        @Test func atMostThreeRunAtOnceWhateverAsksForThem() async throws {
+            let tracker = Flag()
+            let watch = Task { @MainActor in
+                while !Task.isCancelled { tracker.count = max(tracker.count, ClaudeProcess.running); try? await Task.sleep(for: .milliseconds(5)) }
+            }
+            await withTaskGroup(of: Void.self) { group in
+                for _ in 0..<9 { group.addTask { _ = try? await ClaudeProcess.run(executable: "/bin/sleep", arguments: ["0.3"], environment: [:], input: Data(), timeout: 20, maxOutputBytes: 1000) } }
+            }
+            watch.cancel()
+            let most = tracker.count
+            #expect(most >= 1 && most <= ClaudeProcess.limit, "most at once: \(most)")
+            #expect(ClaudeProcess.running == 0)
+        }
+
+        @Test func aCallWaitingForItsTurnCanBeCancelled() async throws {
+            let blockers = (0..<ClaudeProcess.limit).map { _ in Task { try await run("exec sleep 5") } }
+            #expect(await waitUntil(5) { ClaudeProcess.running == ClaudeProcess.limit })
+            let waiting = Task { try await run("echo never") }
+            try await Task.sleep(for: .milliseconds(200))
+            waiting.cancel()
+            await #expect(throws: CancellationError.self) { try await waiting.value }
+            blockers.forEach { $0.cancel() }
+            for blocker in blockers { _ = try? await blocker.value }
+            #expect(ClaudeProcess.running == 0)
+        }
+
+        @Test func theChildSeesNothingButTheEnvironmentItIsGiven() async throws {
+            let environment = ClaudeTranslation.childEnvironment(from: ["HOME": "/Users/x", "PATH": "/usr/bin:/bin", "NODE_OPTIONS": "--require /evil.js", "ANTHROPIC_BASE_URL": "https://evil.example"])
+            let output = try await ClaudeProcess.run(executable: "/usr/bin/env", arguments: [], environment: environment, input: Data(), timeout: 20, maxOutputBytes: 100_000)
+            #expect(output.contains("HOME=/Users/x") && output.contains("CLAUDE_CODE_DISABLE_CLAUDE_MDS=1") && output.contains("CLAUDE_CODE_DISABLE_AUTO_MEMORY=1"))
+            #expect(!output.contains("NODE_OPTIONS") && !output.contains("ANTHROPIC_BASE_URL") && !output.contains("evil"))
+        }
+
+        @Test func theChildStandsInAFolderOfItsOwnWithNothingInIt() async throws {
+            let folder = try ClaudeTranslation.workingDirectory()
+            #expect(folder != FileManager.default.temporaryDirectory.path && folder != NSTemporaryDirectory())
+            #expect(try FileManager.default.contentsOfDirectory(atPath: folder).isEmpty)
+            let output = try await ClaudeProcess.run(executable: "/bin/pwd", arguments: [], environment: [:], directory: folder, input: Data(), timeout: 20, maxOutputBytes: 1000)
+            #expect(URL(fileURLWithPath: output.trimmingCharacters(in: .whitespacesAndNewlines)).resolvingSymlinksInPath() == URL(fileURLWithPath: folder).resolvingSymlinksInPath())
+        }
+
+        @Test func theRealClaudeIsNeverStartedFromTheTestRunner() {
+            #expect(throws: ClaudeTranslation.Failure.notAvailable) { _ = try ClaudeTranslation.makeRun("haiku") }
         }
     }
 
@@ -386,8 +541,8 @@ extension SharedAgentState {
         @Test func fieldsAndWhatTheUserTypesAreNeverSent() async throws {
             let (view, window) = try await load("""
                 <p id=a>The bicycle was invented in the nineteenth century.</p>
-                <input type=password value="hunter2-secret-password"><input value="4242 4242 4242 4242 card holder">
-                <input type=text autocomplete=one-time-code value="code 123456 letters">
+                <input type=text value="hunter2-secret-password"><input value="4242 4242 4242 4242 card holder">
+                <input type=text autocomplete=off value="code 123456 letters">
                 <textarea>my private draft text</textarea><select><option>Choice words here</option></select>
                 <div contenteditable=plaintext-only>typed note in a plain editor</div><div contenteditable>rich editor words here</div>
                 <div role=textbox>aria textbox words here</div><div role=combobox>aria combobox words here</div>
@@ -399,6 +554,52 @@ extension SharedAgentState {
             let outcome = await using(fake) { await PageTranslator.translateWithClaude(view, model: "haiku", to: Locale.Language(identifier: "ko"), while: { true }) }
             #expect(outcome == .translated)
             #expect(fake.textsAsked == ["The bicycle was invented in the nineteenth century."])
+        }
+
+        @Test func whatCannotBeSeenIsNeverSent() async throws {
+            let (view, window) = try await load("""
+                <p id=a>Visible words here.</p>
+                <p hidden>Hidden attribute words.</p><p style="display:none">Display none words.</p><p style="visibility:hidden">Visibility hidden words.</p>
+                <p style="opacity:0">Opacity zero words.</p><div aria-hidden="true"><p>Aria hidden words.</p></div>
+                <details><summary>Closed summary words</summary><p>Closed details words.</p></details>
+                <details open><summary>Open summary words</summary><p>Open details words.</p></details>
+                <div style="display:none"><span>Inside none words.</span></div>
+                """)
+            defer { window.close() }
+            let fake = FakeClaude.uppercasing()
+            let outcome = await using(fake) { await PageTranslator.translateWithClaude(view, model: "haiku", to: Locale.Language(identifier: "ko"), while: { true }) }
+            #expect(outcome == .translated)
+            #expect(fake.textsAsked == ["Visible words here.", "Closed summary words", "Open summary words", "Open details words."])
+        }
+
+        @Test func aPageWithAPasswordOrPaymentFieldIsNotSentAtAll() async throws {
+            for field in ["<input type=password>", "<input autocomplete=one-time-code>", "<input autocomplete=\"cc-number\">", "<input autocomplete=\"section-a shipping cc-exp\">", "<INPUT TYPE=PASSWORD>"] {
+                let (view, window) = try await load("<p id=a>The bicycle was invented in the nineteenth century.</p>\(field)")
+                let fake = FakeClaude.uppercasing()
+                let outcome = await using(fake) { await PageTranslator.translateWithClaude(view, model: "haiku", to: Locale.Language(identifier: "ko"), while: { true }) }
+                window.close()
+                #expect(outcome == .sensitivePage && fake.calls == 0, "\(field)")
+                #expect(try await text(view, "a") == "The bicycle was invented in the nineteenth century.")
+            }
+            // An ordinary field is no reason.
+            let (view, window) = try await load("<p id=a>The bicycle was invented in the nineteenth century.</p><input type=text name=q>")
+            defer { window.close() }
+            let ordinary = await using(FakeClaude.uppercasing()) { await PageTranslator.translateWithClaude(view, model: "haiku", while: { true }) }
+            #expect(ordinary == .translated)
+        }
+
+        @Test func aPageLongerThanAPageMaySendIsTranslatedInPartAndSaysSo() async throws {
+            // 200 paragraphs of 1000 characters: 150 of them are sent.
+            let words = String(repeating: "word ", count: 199) + "end."
+            let paragraphs = (0..<200).map { "<p id=p\($0)>\(words)</p>" }.joined()
+            let (view, window) = try await load(paragraphs)
+            defer { window.close() }
+            let fake = FakeClaude.uppercasing()
+            let outcome = await using(fake) { await PageTranslator.translateWithClaude(view, model: "haiku", to: Locale.Language(identifier: "ko"), while: { true }) }
+            #expect(outcome == .translatedPartly)
+            #expect(fake.textsAsked.count == 150)
+            let first = try await text(view, "p0"), last = try await text(view, "p199")
+            #expect(first == words.uppercased() && last == words)
         }
 
         @Test func aPageWhereClaudeFailsIsLeftAsItWasAndNeverTranslatedAnotherWay() async throws {
@@ -499,6 +700,13 @@ extension SharedAgentState {
             try await view.callAsyncJavaScript("return document.getElementById(id).textContent", arguments: ["id": id], contentWorld: .page) as? String ?? ""
         }
 
+        private func using<T>(_ fake: FakeClaude, _ body: () async throws -> T) async rethrows -> T {
+            let saved = ClaudeTranslation.makeRun
+            ClaudeTranslation.makeRun = { _ in fake.run }
+            defer { ClaudeTranslation.makeRun = saved }
+            return try await body()
+        }
+
         private func toggle(_ tab: Tab, in browser: Browser) async -> [String] {
             var messages: [String] = []
             let watch = browser.overlay.$statusMessage.sink { if let message = $0 { messages.append(message) } }
@@ -528,6 +736,19 @@ extension SharedAgentState {
             #expect(fake.calls == 0)
         }
 
+        /// A page in a language that is not the user's, whichever that is.
+        private var foreignText: String {
+            PageTranslator.target.languageCode == "en" ? "자전거는 19세기에 발명되어 전 세계로 널리 퍼졌고, 오늘날 많은 사람이 탄다." : "The bicycle was invented in the nineteenth century and became popular all over the world."
+        }
+
+        private func show(_ tab: Tab, _ html: String) async -> (WKWebView, NSWindow) {
+            let view = tab.wake()
+            let window = OffscreenWindow(view)
+            view.loadHTMLString(html, baseURL: nil)
+            _ = await waitUntil(30) { !view.isLoading && view.url != nil }
+            return (view, window)
+        }
+
         @Test func aPrivateWindowNeverGoesToClaude() async {
             let saved = Saved()
             defer { saved.restore() }
@@ -537,10 +758,11 @@ extension SharedAgentState {
             defer { browser.windowClosed() }
             let tab = browser.openTab(url: nil, activate: false)
             #expect(!browser.isVisibleToAI(tab))
-            tab.wake()
-            // No text on the page: this Mac's translation (or the refusal on a Mac without it) answers at once.
+            let (_, window) = await show(tab, "<p>\(foreignText)</p>")
+            defer { window.close() }
+            // Where the page goes: this Mac, or nowhere (a Mac without it says so). Never Claude.
+            #expect(tab.translationRoute() == (PageTranslator.onDeviceAvailable ? .onDevice : .refused(.onDeviceUnavailable)))
             _ = await toggle(tab, in: browser)
-            #expect(tab.translation == .original)
             #expect(fake.calls == 0)
         }
 
@@ -556,10 +778,65 @@ extension SharedAgentState {
             defer { browser.windowClosed(); erase(bank.id) }
             let tab = browser.openTab(url: nil, activate: false, space: bank.id)
             #expect(browser.spaceID != bank.id && !browser.isVisibleToAI(tab))
-            tab.wake()
+            let (_, window) = await show(tab, "<p>\(foreignText)</p>")
+            defer { window.close() }
+            #expect(tab.translationRoute() == (PageTranslator.onDeviceAvailable ? .onDevice : .refused(.onDeviceUnavailable)))
             _ = await toggle(tab, in: browser)
-            #expect(tab.translation == .original)
             #expect(fake.calls == 0)
+        }
+
+        /// A profile's tab is translated with Claude, `change` happens while the batch is under way, and its answer is not used.
+        private func translationStops(after change: (Browser, Tab) -> Void) async throws {
+            let saved = Saved()
+            defer { saved.restore() }
+            let box = Sandbox()
+            let store = box.store()
+            let bank = store.add(name: "Bank", symbol: "key", tint: .coral, isProfile: true)
+            let browser = Browser(spaces: store)
+            browser.focused()
+            browser.switchSpace(to: bank.id)
+            defer { browser.windowClosed(); erase(bank.id) }
+            let tab = browser.openTab(url: nil, activate: false, space: bank.id)
+            #expect(browser.isVisibleToAI(tab), "the profile shown")
+            let fake = FakeClaude.uppercasing(delay: .milliseconds(1500))
+            chooseClaude(available: .ready, fake: fake)
+            let (view, window) = await show(tab, "<p id=a>\(foreignText)</p>")
+            defer { window.close() }
+            #expect(tab.translationRoute() == .claude(model: "haiku"))
+            tab.toggleTranslation()
+            #expect(await waitUntil(30) { fake.calls == 1 })
+            #expect(tab.translatesWithClaude, "the button says the text is going to Anthropic")
+            change(browser, tab)
+            #expect(await waitUntil(30) { tab.translation != .translating })
+            #expect(tab.translation == .original && !tab.translatesWithClaude)
+            #expect(try await view.callAsyncJavaScript("return document.getElementById('a').textContent", contentWorld: .page) as? String == foreignText, "the answer was not used")
+            #expect(fake.calls == 1)
+        }
+
+        @Test func aTabThatStopsBeingVisibleToTheAIWhileTranslatingEndsTheWork() async throws {
+            // The window goes to another space: the profile is no longer the one shown.
+            try await translationStops { browser, tab in
+                browser.switchSpace(to: Space.defaultID)
+                #expect(!browser.isVisibleToAI(tab))
+            }
+        }
+
+        @Test func choosingThisMacWhileClaudeIsTranslatingEndsTheWork() async throws {
+            try await translationStops { _, _ in Preferences.shared.translationEngine = .onDevice }
+        }
+
+        @Test func aPageWithAPasswordFieldIsNotSentToClaude() async throws {
+            let saved = Saved()
+            defer { saved.restore() }
+            let fake = FakeClaude.uppercasing()
+            let browser = Browser()
+            browser.focused()
+            defer { browser.windowClosed() }
+            let tab = browser.openTab(url: nil, activate: false)
+            let (view, window) = await show(tab, "<p id=a>\(foreignText)</p><input type=password>")
+            defer { window.close() }
+            let outcome = await using(fake) { await PageTranslator.translateWithClaude(view, model: "haiku", while: { true }) }
+            #expect(outcome == .sensitivePage && fake.calls == 0)
         }
 
         @Test func anOrdinaryTabGoesToClaudeAndShowsOriginalBringsTheTextBack() async throws {

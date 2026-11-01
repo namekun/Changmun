@@ -44,7 +44,7 @@ struct GeneralSettings: View {
                         Text("Sonnet (fast and balanced)").tag("sonnet")
                         Text("Opus (smartest, slower)").tag("opus")
                     }
-                    Caption(text: "The text of each page you translate is sent to Anthropic and counts against your Claude subscription. Pages in private windows, and in profiles other than the one in front, are never sent.")
+                    Caption(text: "The text of each page you translate is sent to Anthropic and counts against your Claude subscription, or your API key if one is set. Pages in private windows, in profiles other than the one in front, and with a password or payment field are never sent.")
                 } else {
                     Caption(text: "The text of a page stays on this Mac. It is translated with the models of macOS, which needs macOS 26 or later.")
                 }
