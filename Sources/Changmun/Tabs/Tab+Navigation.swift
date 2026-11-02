@@ -10,6 +10,10 @@ extension Tab: WKNavigationDelegate {
             return (.cancel, preferences)
         }
         if action.shouldPerformDownload { return (.download, preferences) }
+        // Back onto the blank document a page's window started on, however it was asked for (see `blankStart`). The list may or may not have moved yet.
+        if action.navigationType == .backForward, action.targetFrame?.isMainFrame ?? true, let blank = blankStart, action.request.url == blank.url {
+            return (.cancel, preferences)
+        }
         let userInitiated = !AppScripts.drives(webView) && Self.userStartedForAppLinks(Self.isUserInitiated(action), knowsUserInitiated: Self.knowsUserInitiated)
         if let url = action.request.url, let scheme = url.scheme?.lowercased(), !Self.browserSchemes.contains(scheme) {
             // A frame can't speak for the page: the question is only for what the page itself, or the user's click, asks.
@@ -161,6 +165,7 @@ extension Tab: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         navigations += 1
+        refreshCanGoBack()
         // What the old page asked is not for the page that replaces it, and the new page starts without having been told no.
         endPageQuestions()
         blockedThisLoad = []
