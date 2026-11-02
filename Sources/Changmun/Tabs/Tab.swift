@@ -36,6 +36,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var navigations = 0
     @Published var progress: Double = 0
     @Published var favicon: NSImage?
+    /// Whether Back has a page to go to: WebKit's `canGoBack` also counts the blank document a page's window started on (see `blankStart`).
     @Published var canGoBack = false
     @Published var canGoForward = false
     @Published var savedLogins: [String] = []
@@ -172,6 +173,21 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         spaceID = browser.spaceID
         super.init()
         attach(PageWebView(frame: .zero, configuration: configuration))
+    }
+
+    /// The first entry of the history of a window a page opened, when it is the empty document the window started on and a page came after it.
+    /// The page's `window.open("about:blank")` leaves none (the page it goes to replaces it, as in other browsers) unless the page wrote into
+    /// it, and then it is a page to go back to. `about:blank;` does leave one, and Back would show a white page. WebKit's list can't be
+    /// edited, so Back is kept off that entry instead (see `decidePolicyFor`).
+    var blankStart: WKBackForwardListItem? {
+        guard openerID != nil, let list = webView?.backForwardList, list.backList.count + list.forwardList.count > 0,
+              let first = list.backList.first ?? list.currentItem, first.url.scheme?.lowercased() == "about", first.url.absoluteString != "about:blank" else { return nil }
+        return first
+    }
+
+    func refreshCanGoBack() {
+        guard let webView else { return }
+        canGoBack = webView.canGoBack && !(blankStart != nil && webView.backForwardList.backList.count == 1)
     }
 
     var sortItem: TabSorter.Item {
@@ -314,10 +330,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         view.pageZoom = Preferences.shared.zoom(for: url?.host())
         observations = [
             view.observe(\.title) { [weak self] v, _ in Task { @MainActor in if let t = v.title, !t.isEmpty { self?.title = t; self?.extensionsSeeChange() } } },
-            view.observe(\.url) { [weak self] v, _ in Task { @MainActor in if let u = v.url { if self?.url != u { self?.closeReader() }; self?.url = u; self?.extensionsSeeChange() } } },
+            view.observe(\.url) { [weak self] v, _ in Task { @MainActor in if let u = v.url { if self?.url != u { self?.closeReader() }; self?.url = u; self?.refreshCanGoBack(); self?.extensionsSeeChange() } } },
             view.observe(\.isLoading) { [weak self] v, _ in Task { @MainActor in self?.isLoading = v.isLoading; self?.extensionsSeeChange() } },
             view.observe(\.estimatedProgress) { [weak self] v, _ in Task { @MainActor in self?.progress = v.estimatedProgress } },
-            view.observe(\.canGoBack) { [weak self] v, _ in Task { @MainActor in self?.canGoBack = v.canGoBack } },
+            view.observe(\.canGoBack) { [weak self] _, _ in Task { @MainActor in self?.refreshCanGoBack() } },
             view.observe(\.canGoForward) { [weak self] v, _ in Task { @MainActor in self?.canGoForward = v.canGoForward } },
             // WebKit moves the page into a full screen window and back; the host that shows it makes sure it is back (see PageHost.restore).
             view.observe(\.fullscreenState) { [weak self] v, _ in

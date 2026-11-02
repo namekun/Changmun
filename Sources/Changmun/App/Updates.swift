@@ -23,6 +23,16 @@ final class Updates: ObservableObject {
         if defaults.object(forKey: "checkForUpdates") as? Bool == false { updater.automaticallyChecksForUpdates = false }
         for key in ["checkForUpdates", "lastUpdateCheck", "latestVersion", "dismissedUpdate"] { defaults.removeObject(forKey: key) }
         controller.startUpdater()
+        checkAfterLaunch(updater)
+    }
+
+    /// The update installed on quitting is the one found before it: Sparkle doesn't read the feed while one waits to be installed, and
+    /// counts the install as a check. So a launch looks for what came out in the meantime, once Sparkle has finished starting.
+    private func checkAfterLaunch(_ updater: SPUUpdater) {
+        Task {
+            try? await Task.sleep(for: .seconds(5))
+            if updater.automaticallyChecksForUpdates && updater.canCheckForUpdates { updater.checkForUpdatesInBackground() }
+        }
     }
 
     var isAvailable: Bool { updater != nil }

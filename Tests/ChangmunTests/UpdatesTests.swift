@@ -19,6 +19,10 @@ struct UpdatesTests {
         #expect(info["SUEnableAutomaticChecks"] as? Bool == true)
     }
 
+    @Test func theAppLooksForTheNewestVersionEveryHour() {
+        #expect(info["SUScheduledCheckInterval"] as? Int == 3600)
+    }
+
     @Test func theFeedInTheRepositoryIsAFeedSparkleCanRead() throws {
         let feed = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../docs/appcast.xml").standardized
         let parser = XMLParser(contentsOf: feed)
