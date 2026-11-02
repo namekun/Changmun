@@ -176,11 +176,12 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     }
 
     /// The first entry of the history of a window a page opened, when it is the empty document the window started on and a page came after it.
-    /// The page's `window.open("about:blank")` leaves none (the page it goes to replaces it, as in other browsers), but `about:blank;` does,
-    /// and Back would show a white page. WebKit's list can't be edited, so Back is kept off that entry instead (see `decidePolicyFor`).
+    /// The page's `window.open("about:blank")` leaves none (the page it goes to replaces it, as in other browsers) unless the page wrote into
+    /// it, and then it is a page to go back to. `about:blank;` does leave one, and Back would show a white page. WebKit's list can't be
+    /// edited, so Back is kept off that entry instead (see `decidePolicyFor`).
     var blankStart: WKBackForwardListItem? {
         guard openerID != nil, let list = webView?.backForwardList, list.backList.count + list.forwardList.count > 0,
-              let first = list.backList.first ?? list.currentItem, first.url.scheme?.lowercased() == "about" else { return nil }
+              let first = list.backList.first ?? list.currentItem, first.url.scheme?.lowercased() == "about", first.url.absoluteString != "about:blank" else { return nil }
         return first
     }
 
