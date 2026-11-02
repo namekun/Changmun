@@ -83,6 +83,8 @@
 	<string>Ez5uRNzch69fB2q28YeBLyQ9kwe6I2Ce356Is6hG98Y=</string>
 	<key>SURequireSignedFeed</key>
 	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>3600</integer>
 	<key>SUVerifyUpdateBeforeExtraction</key>
 	<true/>
 </dict>
