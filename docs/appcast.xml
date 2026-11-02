@@ -6,6 +6,20 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.14.1</title>
+      <pubDate>Mon, 02 Nov 2026 06:50:01 +0000</pubDate>
+      <sparkle:version>46</sparkle:version>
+      <sparkle:shortVersionString>0.14.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.14.1</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Updates reach the newest version sooner.** Changmun now looks for updates every hour instead of once a day, and each time it opens. A version already downloaded and waiting is still installed when you quit, so if a newer one came out after it, that one follows the next time you open and quit.
+- **Fixed:** in a tab a page opened with `about:blank;`, Back no longer leads to a white page. On the first real page of such a tab, Back is off, as in other browsers.
+
+Tried with automated tests and the headless copy. Hourly and at-launch checks only start from this version, so they haven't run against a real newer release yet, and swiping back in such a tab hasn't been tried by hand.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.1/Changmun-0.14.1.dmg" length="7209001" type="application/octet-stream" sparkle:edSignature="Nim2yITnKrmC0c+8wAFcRxtTaRno+4W7viGRN81Ky1mEzdfOfFSBeYJCJ8FvdwVJNSb/CgeNJS5drrDxq15rAA==" />
+    </item>
+    <item>
       <title>0.14.0</title>
       <pubDate>Sun, 01 Nov 2026 15:41:56 +0000</pubDate>
       <sparkle:version>45</sparkle:version>
@@ -138,20 +152,9 @@ Tried with automated tests and the headless copy. The dialogs' real look on scre
 - **Stay open after the last window closes, if you like.** Settings › General › "Quit when the last window is closed" is on, as before; turn it off and Changmun keeps running like Safari, and the Dock icon or ⌘N brings back your last session.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.7/Changmun-0.8.7.dmg" length="5622394" type="application/octet-stream" sparkle:edSignature="YQ95f5oTroybBUQ8dV+4xDbrBrImHyUBK9yr/zC3sDPVBfrAi6fGahYJMJW2lHzAJo60r+LQsN1dfNXCxwXXAA==" />
     </item>
-    <item>
-      <title>0.8.6</title>
-      <pubDate>Wed, 28 Oct 2026 05:20:18 +0000</pubDate>
-      <sparkle:version>36</sparkle:version>
-      <sparkle:shortVersionString>0.8.6</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.8.6</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Sidebar hidden: the sidebar button no longer crowds the window buttons.** With the sidebar collapsed, its button sat only 8 points from the green window button; it now has the same room as the first tab tile has with the tabs on top.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.6/Changmun-0.8.6.dmg" length="5523198" type="application/octet-stream" sparkle:edSignature="0myrY56WiGiG029cVsC6FEImHAnFzm3Cn70yBFdAPM/Zy27XB3rKXSfc5VWCmINhgHqm3WCAG/wUiPcPqL41Bg==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: kV5gnj1HI8diUGFIko+C7d0/AHrj788F89LY4ZeZqPnlaY/zNga4yKkxfLEVHniZhuI/Tc4hwIHnYxVR4KNoCQ==
-length: 21432
+edSignature: Sfqk+KkJxAYs92A0iTDhOrcT96V8eT8uVGYNtAS2VcVh/7uoUIh216M+zvaPacXnH8Xze146Phqztaw3abNqDw==
+length: 21886
 -->
