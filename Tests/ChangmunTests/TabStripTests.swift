@@ -1,4 +1,6 @@
+import AppKit
 import Foundation
+import SwiftUI
 import Testing
 @testable import Changmun
 
@@ -25,6 +27,33 @@ extension SharedAgentState {
                 case .tab(let tab): "\(tab.id)"
                 }
             }
+        }
+
+        // MARK: Scrolling
+
+        private func scrollViews(in view: NSView) -> [NSScrollView] {
+            (view as? NSScrollView).map { [$0] } ?? view.subviews.flatMap(scrollViews)
+        }
+
+        @Test func theStripDoesNotScrollUpAndDownUnderTheTitleBar() async throws {
+            let strip = NSHostingView(rootView: TabStrip(browser: browser(3)).frame(maxHeight: .infinity, alignment: .top).ignoresSafeArea())
+            let window = NSWindow(contentRect: NSRect(x: -32000, y: -32000, width: 1400, height: 400), styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.titlebarAppearsTransparent = true
+            window.contentView = strip
+            window.layoutIfNeeded()
+            try await Task.sleep(for: .milliseconds(300))
+            let tabs = try #require(scrollViews(in: strip).first)
+            let document = try #require(tabs.documentView)
+            #expect(document.frame.height == tabs.frame.height)
+            #expect(tabs.convert(tabs.bounds, to: nil).midY == strip.frame.height - BrowserWindow.tabStripHeight / 2)
+            // Above and below a tab the strip still moves the window.
+            let top = strip.frame.height
+            for (y, kind) in [(top - 2, "DragView"), (top - 38, "DragView")] {
+                #expect(strip.hitTest(NSPoint(x: 200, y: y)).map { String(describing: type(of: $0)) } == kind)
+            }
+            #expect(strip.hitTest(NSPoint(x: 200, y: top - 20)).map { String(describing: type(of: $0)) } != "DragView")
+            window.close()
         }
 
         // MARK: The setting

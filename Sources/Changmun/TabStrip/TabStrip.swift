@@ -40,9 +40,9 @@ struct TabStrip: View {
                 }
                 if let width = Self.favoritesScrollWidth(count: favorites.count, strip: stripWidth, leading: leading) {
                     // So many that the tabs would have no room: the favorites scroll, and the tabs and the plus button stay.
-                    ScrollView(.horizontal, showsIndicators: false) { tiles }
+                    ScrollView(.horizontal, showsIndicators: false) { tiles.frame(height: BrowserWindow.tabStripHeight).background(WindowDragArea()) }
                         .background(StripWheelScroll())
-                        .frame(width: width, height: StripTab.height)
+                        .frame(width: width, height: BrowserWindow.tabStripHeight)
                 } else {
                     tiles
                 }
@@ -84,7 +84,11 @@ struct TabStrip: View {
                             }
                         }
                     }
+                    .frame(height: BrowserWindow.tabStripHeight)
+                    .background(WindowDragArea())
                 }
+                // As tall as the strip: a shorter one, under the title bar, has content taller than itself and scrolls up and down.
+                .frame(height: BrowserWindow.tabStripHeight)
                 // The tab shown comes into view: when the strip appears, and when another tab is switched to from the keyboard or the command bar.
                 .background(StripWheelScroll())
                 .accessibilityElement(children: .contain)
