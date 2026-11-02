@@ -7,15 +7,21 @@ import WebKit
 /// What WebKit hands a tab's delegate for a click or a window.open of the user's, without a real page behind it.
 private final class FakeAction: WKNavigationAction {
     var shift = false
-    override var navigationType: WKNavigationType { shift ? .linkActivated : .other }
-    override var request: URLRequest { URLRequest(url: URL(string: "https://link.example/")!) }
+    var address = "https://link.example/"
+    var goesBack = false
+    override var navigationType: WKNavigationType { goesBack ? .backForward : shift ? .linkActivated : .other }
+    override var request: URLRequest { URLRequest(url: URL(string: address)!) }
+    override var targetFrame: WKFrameInfo? { nil }
+    override var shouldPerformDownload: Bool { false }
     override var modifierFlags: NSEvent.ModifierFlags { shift ? .shift : [] }
     override var buttonNumber: Int { 0 }
     @objc func _isUserInitiated() -> Bool { true }
 
-    static func make(shift: Bool = false) -> FakeAction {
+    static func make(shift: Bool = false, address: String = "https://link.example/", goesBack: Bool = false) -> FakeAction {
         let action = unsafeDowncast(class_createInstance(FakeAction.self, 0) as AnyObject, to: FakeAction.self)
         action.shift = shift
+        action.address = address
+        action.goesBack = goesBack
         return action
     }
 }
@@ -117,6 +123,43 @@ extension SharedAgentState {
             #expect(peek.webView === view, "the page that asked for the window is still there, for window.opener")
             #expect(b.peek == nil && b.tabs.contains { $0 === peek }, "kept as a tab")
             #expect(b.active?.webView === popup, "and the window is the tab in front")
+        }
+
+        // MARK: Windows a page opened
+
+        /// `window.open("about:blank;")` followed by `w.location.href = …` leaves the blank document as the window's first entry of the back list
+        /// (WebKit replaces only the plain `about:blank`): Back would show a white page, so nothing goes back to it.
+        @Test func backDoesNotGoToTheBlankDocumentAWindowStartedOn() async throws {
+            let server = try await TinyServer { _, path in "<p>\(path)</p>" }
+            defer { server.stop() }
+            let b = browser()
+            defer { b.windowClosed() }
+            let opener = b.openTab(url: nil)
+            let window = b.openTab(url: nil), typed = b.openTab(url: nil)
+            window.openerID = opener.id
+            func load(_ tab: Tab, _ address: URL) async -> Bool {
+                let view = tab.wake()
+                view.load(URLRequest(url: address))
+                return await waitUntil { view.url == address && !view.isLoading }
+            }
+            func back(_ tab: Tab, to address: URL) async -> WKNavigationActionPolicy {
+                await tab.webView(tab.wake(), decidePolicyFor: FakeAction.make(address: address.absoluteString, goesBack: true), preferences: WKWebpagePreferences()).0
+            }
+            let blank = URL(string: "about:blank#start")!
+            let frame = OffscreenWindow(window.wake()), typedFrame = OffscreenWindow(typed.wake())
+            defer { frame.close(); typedFrame.close() }
+            for tab in [window, typed] {
+                #expect(await load(tab, blank))
+                #expect(await load(tab, server.url("/first")))
+                #expect(tab.wake().canGoBack, "WebKit counts the blank document")
+            }
+            #expect(!window.canGoBack)
+            #expect(await back(window, to: blank) == .cancel)
+            #expect(typed.canGoBack, "a tab the user opened goes back to it")
+            #expect(await back(typed, to: blank) != .cancel)
+            #expect(await load(window, server.url("/second")))
+            #expect(await waitUntil { window.canGoBack }, "a page to go back to")
+            #expect(await back(window, to: server.url("/first")) != .cancel)
         }
 
         @Test func aLinkShiftClickedInThePeekReplacesItOutsideItsOwnCallback() async throws {
