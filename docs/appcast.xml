@@ -6,6 +6,20 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.14.2</title>
+      <pubDate>Tue, 03 Nov 2026 04:41:45 +0000</pubDate>
+      <sparkle:version>47</sparkle:version>
+      <sparkle:shortVersionString>0.14.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.14.2</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Fixed:** with the tabs along the top, the tab strip could be scrolled up and down by a few points. It now stays put, and the strip still moves the window above and below the tabs.
+- **Fixed:** with very many favorites and the tabs along the top, the strip could grow wider than the window after a relaunch and the tabs disappeared. The favorites now scroll inside the window.
+
+Tried with automated tests and the headless copy. Scrolling with a real trackpad hasn't been tried by hand, so tell me if the strip still moves.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.2/Changmun-0.14.2.dmg" length="7216344" type="application/octet-stream" sparkle:edSignature="Nyxc7ysHMbaM/WgDKYxfGboMrlEloTrTuqhCF7Wdf5t0dalotY3IX1cGDVGBA6EgeuwFFRrYQNBnaZhL8WkvBA==" />
+    </item>
+    <item>
       <title>0.14.1</title>
       <pubDate>Mon, 02 Nov 2026 06:50:01 +0000</pubDate>
       <sparkle:version>46</sparkle:version>
@@ -140,21 +154,9 @@ Tried with automated tests and the headless copy. The dialogs' real look on scre
 - **Clearing site data now really clears your saved sign-ins.** A sign-in snapshot taken a moment before you cleared site data (or removed a profile, or turned "Stay signed in after quitting" off) could still be written afterwards and come back at the next launch. That race, in 0.8.7, is closed, and a test now hammers it.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.9.0/Changmun-0.9.0.dmg" length="5844236" type="application/octet-stream" sparkle:edSignature="Vxqtleu9sISmd/0IteMMTmUhQEr0HrXUn5plX/xPE9ubQjOD4NoIYVorptbDl9+m+TVMqHw9HjfqUcoVzlF0AQ==" />
     </item>
-    <item>
-      <title>0.8.7</title>
-      <pubDate>Wed, 28 Oct 2026 12:58:19 +0000</pubDate>
-      <sparkle:version>37</sparkle:version>
-      <sparkle:shortVersionString>0.8.7</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.8.7</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Sign-ins survive quitting.** Many sites keep you signed in with a cookie meant to end when the browser closes, so closing Changmun signed you out of them every time. Those session cookies are now kept, encrypted with a key in your login Keychain, for up to 30 days and put back before your windows open. Settings › Privacy › "Stay signed in after quitting" turns it off (which also deletes them); clearing site data deletes them too, private windows never keep any, and the Agent copy doesn't keep sign-ins.
-- **Stay open after the last window closes, if you like.** Settings › General › "Quit when the last window is closed" is on, as before; turn it off and Changmun keeps running like Safari, and the Dock icon or ⌘N brings back your last session.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.8.7/Changmun-0.8.7.dmg" length="5622394" type="application/octet-stream" sparkle:edSignature="YQ95f5oTroybBUQ8dV+4xDbrBrImHyUBK9yr/zC3sDPVBfrAi6fGahYJMJW2lHzAJo60r+LQsN1dfNXCxwXXAA==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: Sfqk+KkJxAYs92A0iTDhOrcT96V8eT8uVGYNtAS2VcVh/7uoUIh216M+zvaPacXnH8Xze146Phqztaw3abNqDw==
-length: 21886
+edSignature: 3wKanEhgtVxsm2qosf2zzOcFitrDo6T142I0qQM88IkD0PF8IAgQzpxSYEGwmNRlNGg/nVMRxw3rTCa4lzqxDw==
+length: 21652
 -->
