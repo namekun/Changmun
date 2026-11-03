@@ -8,7 +8,6 @@ struct TabStrip: View {
     @ObservedObject private var library = LibraryWatcher.shared
     @ObservedObject private var drag = SidebarDragWatcher.shared
     @State private var dropTarget: String?
-    @State private var stripWidth = 10_000.0
 
     private static let gap: CGFloat = 4
     private static let tabWidths: ClosedRange<CGFloat> = 120...220
@@ -28,10 +27,18 @@ struct TabStrip: View {
     }
 
     var body: some View {
+        // The width the window gives, read where it is given: one measured from the strip and kept would be the strip's own, which very
+        // many favorites make wider than the window, and they would then never be given less.
+        GeometryReader { geo in strip(width: geo.size.width) }
+            .frame(height: BrowserWindow.tabStripHeight)
+            .animation(Motion.quick, value: dropTarget)
+    }
+
+    private func strip(width stripWidth: CGFloat) -> some View {
         let favorites = library.favorites(in: browser.favoritesFolder)
         let leading = browser.fullScreen ? Metrics.inset : BrowserWindow.windowButtonsTrailing
         let items = Array(browser.stripItems(favorites: favorites).dropFirst(favorites.count))
-        HStack(spacing: 0) {
+        return HStack(spacing: 0) {
             // Room for the window buttons, which sit level with the strip.
             Color.clear.frame(width: leading)
             if !favorites.isEmpty {
@@ -51,11 +58,9 @@ struct TabStrip: View {
             GeometryReader { geo in tabs(items, in: geo.size.width) }
         }
         .padding(.trailing, Metrics.inset)
-        .frame(height: BrowserWindow.tabStripHeight)
+        .frame(width: stripWidth, height: BrowserWindow.tabStripHeight, alignment: .leading)
         .background(WindowDragArea())
-        .onGeometryChange(for: Double.self) { $0.size.width } action: { stripWidth = $0 }
         .animation(Motion.standard, value: items.map(\.id))
-        .animation(Motion.quick, value: dropTarget)
     }
 
     // MARK: Tabs

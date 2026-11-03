@@ -56,6 +56,27 @@ extension SharedAgentState {
             window.close()
         }
 
+        @Test func manyFavoritesLeaveTheTabsTheirRoom() async throws {
+            let urls = (1...150).map { "https://many\($0).example/" }
+            for url in urls { Library.shared.addBookmark(url: url, title: "", folder: Library.favoritesFolder) }
+            defer { for url in urls { Library.shared.removeBookmark(url: url, folder: Library.favoritesFolder) } }
+            try await Task.sleep(for: .milliseconds(300))
+            let strip = NSHostingView(rootView: TabStrip(browser: browser(3)).frame(maxHeight: .infinity, alignment: .top).ignoresSafeArea())
+            let window = NSWindow(contentRect: NSRect(x: -32000, y: -32000, width: 1400, height: 400), styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.titlebarAppearsTransparent = true
+            window.contentView = strip
+            window.layoutIfNeeded()
+            try await Task.sleep(for: .milliseconds(300))
+            let frames = scrollViews(in: strip).map { $0.convert($0.bounds, to: nil) }
+            #expect(frames.count == 2, "the favorites scroll, and so do the tabs")
+            for frame in frames {
+                #expect(frame.minX >= 0 && frame.maxX <= strip.frame.width, "inside the window: \(frame)")
+                #expect(frame.width >= TabStrip.favoriteWidth)
+            }
+            window.close()
+        }
+
         // MARK: The setting
 
         @Test func theTabsAreInTheSidebarUnlessTheStoredValueSaysOtherwise() {
