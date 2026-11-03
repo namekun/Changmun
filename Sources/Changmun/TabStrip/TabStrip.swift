@@ -8,7 +8,6 @@ struct TabStrip: View {
     @ObservedObject private var library = LibraryWatcher.shared
     @ObservedObject private var drag = SidebarDragWatcher.shared
     @State private var dropTarget: String?
-    @State private var stripWidth = 10_000.0
 
     private static let gap: CGFloat = 4
     private static let tabWidths: ClosedRange<CGFloat> = 120...220
@@ -28,10 +27,18 @@ struct TabStrip: View {
     }
 
     var body: some View {
+        // The width the window gives, read where it is given: one measured from the strip and kept would be the strip's own, which very
+        // many favorites make wider than the window, and they would then never be given less.
+        GeometryReader { geo in strip(width: geo.size.width) }
+            .frame(height: BrowserWindow.tabStripHeight)
+            .animation(Motion.quick, value: dropTarget)
+    }
+
+    private func strip(width stripWidth: CGFloat) -> some View {
         let favorites = library.favorites(in: browser.favoritesFolder)
         let leading = browser.fullScreen ? Metrics.inset : BrowserWindow.windowButtonsTrailing
         let items = Array(browser.stripItems(favorites: favorites).dropFirst(favorites.count))
-        HStack(spacing: 0) {
+        return HStack(spacing: 0) {
             // Room for the window buttons, which sit level with the strip.
             Color.clear.frame(width: leading)
             if !favorites.isEmpty {
@@ -40,9 +47,9 @@ struct TabStrip: View {
                 }
                 if let width = Self.favoritesScrollWidth(count: favorites.count, strip: stripWidth, leading: leading) {
                     // So many that the tabs would have no room: the favorites scroll, and the tabs and the plus button stay.
-                    ScrollView(.horizontal, showsIndicators: false) { tiles }
+                    ScrollView(.horizontal, showsIndicators: false) { tiles.frame(height: BrowserWindow.tabStripHeight).background(WindowDragArea()) }
                         .background(StripWheelScroll())
-                        .frame(width: width, height: StripTab.height)
+                        .frame(width: width, height: BrowserWindow.tabStripHeight)
                 } else {
                     tiles
                 }
@@ -51,11 +58,9 @@ struct TabStrip: View {
             GeometryReader { geo in tabs(items, in: geo.size.width) }
         }
         .padding(.trailing, Metrics.inset)
-        .frame(height: BrowserWindow.tabStripHeight)
+        .frame(width: stripWidth, height: BrowserWindow.tabStripHeight, alignment: .leading)
         .background(WindowDragArea())
-        .onGeometryChange(for: Double.self) { $0.size.width } action: { stripWidth = $0 }
         .animation(Motion.standard, value: items.map(\.id))
-        .animation(Motion.quick, value: dropTarget)
     }
 
     // MARK: Tabs
@@ -84,7 +89,11 @@ struct TabStrip: View {
                             }
                         }
                     }
+                    .frame(height: BrowserWindow.tabStripHeight)
+                    .background(WindowDragArea())
                 }
+                // As tall as the strip: a shorter one, under the title bar, has content taller than itself and scrolls up and down.
+                .frame(height: BrowserWindow.tabStripHeight)
                 // The tab shown comes into view: when the strip appears, and when another tab is switched to from the keyboard or the command bar.
                 .background(StripWheelScroll())
                 .accessibilityElement(children: .contain)
