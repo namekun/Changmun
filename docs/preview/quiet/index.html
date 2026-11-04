@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="robots" content="noindex, nofollow">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Changmun — Tabs on the side, the page large.</title>
+<meta name="description" content="A light Mac browser that an AI can use. Tabs on the side, the page large.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111111" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" href="../../images/icon.png">
+<link rel="apple-touch-icon" href="../../images/icon.png">
+<style>
+  /* Tokens as on the current page: ink on white, #F4F4F1 plates, #111 and #1C1C1E in the dark. No accent colour; links are ink.
+     Spacing: padding, margin and gap are 4 or multiples of 8, as scripts/test-scripts.sh checks for docs/index.html. */
+  :root {
+    --bg: #fff; --card: #F4F4F1; --card2: #E9E9E4; --tx: #111; --dim: #6B6B68; --faint: #C9C9C4; --line: rgba(17,17,17,.1);
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo", "Hiragino Sans", "PingFang SC", "Segoe UI", "Noto Sans CJK KR", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --wrap: min(960px, 100% - 48px); --col: 600px; --lh: 1.6;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111; --card: #1C1C1E; --card2: #2A2A2C; --tx: #F4F4F1; --dim: #9A9A96; --faint: #3A3A38; --line: rgba(244,244,241,.14); color-scheme: dark; }
+  }
+  :lang(ko) { --lh: 1.75; }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; overflow-x: clip; }
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+  body { margin: 0; background: var(--bg); color: var(--tx); font: 400 15px/var(--lh) var(--sans); padding-inline: env(safe-area-inset-left) env(safe-area-inset-right); -webkit-font-smoothing: antialiased; overflow-x: clip; overflow-wrap: break-word; -webkit-tap-highlight-color: transparent; }
+  :lang(ko) { word-break: keep-all; }
+  img { display: block; max-width: 100%; height: auto; }
+  a { color: inherit; text-underline-offset: 3px; text-decoration-color: var(--faint); }
+  @media (hover: hover) { a:hover { text-decoration-color: currentColor; } }
+  button { font: inherit; color: inherit; touch-action: manipulation; }
+  code { font-family: var(--mono); font-size: .9em; }
+  h1, h2, h3, p, figure { margin: 0; }
+  :focus-visible { outline: 2px solid var(--tx); outline-offset: 2px; border-radius: 4px; }
+  .skip { position: fixed; left: 16px; top: -80px; z-index: 10; background: var(--tx); color: var(--bg); padding: 8px 16px; border-radius: 8px; text-decoration: none; }
+  .skip:focus { top: 16px; }
+  .wrap { width: var(--wrap); margin-inline: auto; }
+  .dim, .lead-p { color: var(--dim); }
+
+  /* A section opens with one paragraph: a bold sentence (the heading), then grey explanation. Both run inline so they read as one paragraph. */
+  .lead-block { max-width: var(--col); }
+  .lead, .lead-p { display: inline; font-size: 15px; }
+  .lead { font-weight: 600; }
+  .more { max-width: var(--col); margin-top: 16px; color: var(--dim); }
+  .sec { margin-top: 96px; }
+  .sec > :is(.plate, .lay, .term, .feat, .faq, .cta, .more) { margin-top: 32px; }
+  .sec > .more { margin-top: 16px; }
+
+  /* Top row and language menu */
+  .top { display: flex; justify-content: flex-end; padding: 8px 0; }
+  .lang { position: relative; }
+  .lang-btn { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: var(--dim); font-size: 13px; cursor: pointer; }
+  @media (hover: hover) { .lang-btn:hover { color: var(--tx); } }
+  .lang.open .lang-btn { color: var(--tx); }
+  .lang-btn svg { width: 16px; height: 16px; }
+  .lang-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 5; min-width: 160px; margin: 0; padding: 8px; list-style: none; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); display: none; }
+  .lang.open .lang-menu { display: block; }
+  .lang-menu button { display: block; width: 100%; min-height: 40px; padding: 0 8px; border: 0; border-radius: 4px; background: transparent; text-align: left; font-size: 14px; cursor: pointer; }
+  .lang-menu button[aria-selected="true"] { font-weight: 600; }
+  @media (hover: hover) { .lang-menu button:hover { background: var(--card); } }
+
+  /* Buttons */
+  .cta { display: flex; flex-wrap: wrap; gap: 8px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 16px; border: 1px solid var(--tx); border-radius: 8px; background: var(--tx); color: var(--bg); font-size: 15px; font-weight: 600; text-decoration: none; cursor: pointer; }
+  .btn.alt { background: transparent; color: var(--tx); border-color: var(--faint); }
+  @media (hover: hover) { .btn:hover { opacity: .85; } .btn.alt:hover { opacity: 1; border-color: var(--tx); } }
+  .brew { display: flex; align-items: center; gap: 4px; max-width: 100%; margin-top: 16px; padding: 0 4px 0 16px; border-radius: 8px; background: var(--card); width: max-content; min-height: 40px; }
+  .brew code { min-width: 0; font-size: 13px; white-space: nowrap; overflow-x: auto; scrollbar-width: none; user-select: all; }
+  .brew code::-webkit-scrollbar { display: none; }
+  .copy { position: relative; flex: none; min-height: 32px; min-width: 64px; padding: 0 8px; border: 0; border-radius: 4px; background: transparent; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .copy .ok { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0; background: var(--card); }
+  .copy.done .ok { opacity: 1; }
+  @media (hover: hover) { .copy:hover { background: var(--card2); } .copy:hover .ok { background: var(--card2); } }
+  .ver { margin-top: 16px; font-size: 13px; color: var(--dim); }
+
+  /* Hero */
+  .hero { margin-top: 48px; }
+  .hero > img { width: 64px; height: 64px; margin-bottom: 24px; }
+  .hero .cta { margin-top: 24px; }
+
+  /* Plates: a soft grey ground, a one-line caption underneath */
+  .plate { padding: 32px; border-radius: 12px; background: var(--card); }
+  .plate img { border-radius: 4px; box-shadow: 0 0 0 1px var(--line); }
+  .cap { margin-top: 8px; font-size: 13px; line-height: 1.5; color: var(--dim); }
+  .sec > .cap { margin-top: 8px; }
+
+  /* Three layouts */
+  .lay { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; list-style: none; padding: 0; }
+  .lay img { border-radius: 8px; box-shadow: 0 0 0 1px var(--line); }
+  .lay h3 { margin-top: 16px; font-size: 15px; font-weight: 600; }
+  .lay p { margin-top: 4px; font-size: 14px; line-height: 1.5; color: var(--dim); }
+
+  /* AI panel, drawn in HTML on a grey plate */
+  .mock-plate { display: flex; justify-content: center; padding: 40px 32px; }
+  .mock { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 16px; padding: 16px; border-radius: 12px; background: var(--bg); box-shadow: 0 0 0 1px var(--line); font-size: 13px; line-height: 1.5; }
+  .mk-head { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .mk-head b { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mk-head svg { width: 16px; height: 16px; flex: none; color: var(--dim); }
+  .mk-user { align-self: flex-end; max-width: 88%; padding: 8px 16px; border-radius: 12px 12px 4px 12px; background: var(--tx); color: var(--bg); }
+  .mk-steps { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+  .mk-steps li { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; background: var(--card); color: var(--dim); }
+  .mk-steps svg { width: 16px; height: 16px; flex: none; }
+  .mk-steps .run { color: var(--tx); }
+  .mk-work { display: flex; align-items: center; gap: 8px; color: var(--dim); }
+  .mk-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tx); }
+  .mk-ask { display: flex; flex-direction: column; gap: 4px; padding: 16px; border-radius: 8px; box-shadow: 0 0 0 1px var(--dim); }
+  .mk-ask strong { font-size: 14px; font-weight: 600; }
+  .mk-ask p { color: var(--dim); }
+  .mk-btns { display: flex; gap: 8px; margin-top: 8px; }
+  .mk-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 32px; padding: 0 8px; border-radius: 4px; background: var(--card2); font-weight: 600; text-align: center; }
+  .mk-btn.go { background: var(--tx); color: var(--bg); }
+  .mk-btn kbd { font: 500 11px var(--sans); opacity: .7; }
+  .mk-box { display: flex; flex-direction: column; gap: 16px; padding: 16px 16px 8px; border-radius: 8px; background: var(--card); color: var(--dim); }
+  .mk-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .mk-model { padding: 0 8px; border-radius: 4px; background: var(--card2); font-size: 12px; white-space: nowrap; }
+  .mk-send { width: 24px; height: 24px; border-radius: 50%; background: var(--tx); color: var(--bg); display: grid; place-items: center; flex: none; }
+  .mk-send svg { width: 12px; height: 12px; }
+
+  /* Terminal */
+  .term { border-radius: 8px; background: var(--card); }
+  .term pre { margin: 0; padding: 16px; overflow-x: auto; font: 400 13px/24px var(--mono); tab-size: 2; }
+  .term pre:focus-visible { outline-offset: -2px; }
+  .term .l { display: block; white-space: pre; }
+  .term .pr { color: var(--dim); font-style: normal; user-select: none; margin-right: 1ch; }
+  .term .p { color: var(--dim); }
+
+  /* The grey band with a few numbers */
+  .band { margin-top: 96px; padding: 64px 0; background: var(--card); }
+  .nums { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 32px 24px; margin: 40px 0 0; padding: 0; list-style: none; }
+  .nums b { display: block; font-size: 28px; line-height: 1.2; font-weight: 600; letter-spacing: -.01em; }
+  .nums span { display: block; margin-top: 8px; font-size: 14px; line-height: 1.5; color: var(--dim); }
+
+  /* Features */
+  .feat { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px 24px; margin-bottom: 0; padding: 0; list-style: none; }
+  .feat svg { display: block; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .feat h3 { margin-top: 8px; font-size: 15px; font-weight: 600; }
+  .feat p { margin-top: 4px; font-size: 14px; line-height: 1.5; color: var(--dim); }
+
+  /* FAQ */
+  .faq { max-width: var(--col); border-bottom: 1px solid var(--line); }
+  .faq details { border-top: 1px solid var(--line); }
+  .faq summary { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 16px 0; font-weight: 600; cursor: pointer; list-style: none; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "+"; content: "+" / ""; flex: none; color: var(--dim); font-weight: 400; }
+  .faq details[open] summary::after { content: "\2212"; content: "\2212" / ""; }
+  .faq summary:focus-visible { outline-offset: -2px; }
+  .faq details p { padding: 0 32px 16px 0; color: var(--dim); }
+
+  /* Footer */
+  .foot { margin-top: 96px; padding: 24px 0 48px; border-top: 1px solid var(--line); font-size: 13px; color: var(--dim); }
+  .foot ul { display: flex; flex-wrap: wrap; gap: 4px 24px; margin: 0; padding: 0; list-style: none; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  @media (prefers-reduced-motion: no-preference) { .btn, .copy, .lang-btn { transition: opacity .15s, color .15s, background-color .15s, border-color .15s; } }
+
+  @media (max-width: 899px) { .feat { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 799px) {
+    .sec, .band, .foot { margin-top: 72px; }
+    .band { padding: 48px 0; }
+    .plate { padding: 16px; }
+    .mock-plate { padding: 32px 16px; }
+    .lay { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+    .nums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .feat { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 519px) {
+    .plate { padding: 8px; }
+    .mock-plate { padding: 24px 8px; }
+    .nums { grid-template-columns: minmax(0, 1fr); }
+    .feat { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+    .btn { flex: 1 1 100%; }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#main" data-i="skip">Skip to content</a>
+
+<header class="top wrap">
+  <div class="lang" id="lang">
+    <button class="lang-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z"/></svg>
+      <span id="langLabel">English</span>
+    </button>
+    <ul class="lang-menu" role="listbox" aria-label="Language" data-a="aria-label:langLbl">
+      <li role="none"><button type="button" role="option" tabindex="-1" data-set="en" lang="en">English</button></li>
+      <li role="none"><button type="button" role="option" tabindex="-1" data-set="ko" lang="ko">한국어</button></li>
+    </ul>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap">
+
+<section class="hero" aria-labelledby="top">
+  <img src="../../images/icon.png" width="64" height="64" alt="Changmun">
+  <div class="lead-block">
+    <h1 class="lead" id="top" data-i="h1">Tabs on the side, the page large.</h1>
+    <p class="lead-p" data-i="hp">A light Mac browser that an AI can use. It runs on the WebKit already in macOS, so the download is about 7 MB and the app about 22 MB. Free and open source (MIT).</p>
+  </div>
+  <div class="cta">
+    <a class="btn" href="https://github.com/namekun/Changmun/releases/latest/download/Changmun.dmg" data-i="dl">Download for Mac</a>
+    <a class="btn alt" href="#numbers" data-i="nums_btn">See the numbers</a>
+  </div>
+  <div class="brew"><code>brew install --cask namekun/tap/changmun</code><button class="copy" type="button" data-copy="brew install --cask namekun/tap/changmun"><span data-i="copy">Copy</span><span class="ok" aria-hidden="true" data-i="copied">Copied</span></button></div>
+  <p class="ver" data-i="ver">Version 0.14.2 · macOS 14 or later · Apple silicon only · Signed and notarized by Apple</p>
+</section>
+
+<div class="sec">
+  <figure class="plate"><picture><source media="(max-width: 700px) and (prefers-color-scheme: dark)" srcset="../../images/hero-m-dark-760.webp 760w, ../../images/hero-m-dark-1100.webp 1100w" sizes="calc(100vw - 80px)" type="image/webp"><source media="(max-width: 700px)" srcset="../../images/hero-m-light-760.webp 760w, ../../images/hero-m-light-1100.webp 1100w" sizes="calc(100vw - 80px)" type="image/webp"><source media="(prefers-color-scheme: dark)" srcset="../../images/hero-dark-1440.webp 1440w, ../../images/hero-dark-2400.webp 2400w" sizes="(min-width: 1000px) 896px, calc(100vw - 80px)" type="image/webp"><img src="../../images/hero-light-1440.webp" srcset="../../images/hero-light-1440.webp 1440w, ../../images/hero-light-2400.webp 2400w" sizes="(min-width: 1000px) 896px, calc(100vw - 80px)" width="1440" height="900" fetchpriority="high" alt="Changmun with the sidebar on the left, a page in the middle and the AI panel on the right." data-a="alt:h_alt"></picture></figure>
+  <p class="cap" data-i="hcap">The sidebar on the left, a page in the middle, the AI panel on the right.</p>
+</div>
+
+<section class="sec" id="layouts" aria-labelledby="h-layouts">
+  <div class="lead-block">
+    <h2 class="lead" id="h-layouts" data-i="y_h">Tabs where you want them.</h2>
+    <p class="lead-p" data-i="y_p">The sidebar is the default. Prefer a strip of tabs along the top? That is one setting.</p>
+  </div>
+  <ul class="lay">
+    <li><figure><picture><source media="(max-width: 700px) and (prefers-color-scheme: dark)" srcset="../../images/lay-sidebar-m-dark-760.webp 760w, ../../images/lay-sidebar-m-dark-1100.webp 1100w" sizes="calc(100vw - 48px)" type="image/webp"><source media="(max-width: 700px)" srcset="../../images/lay-sidebar-m-light-760.webp 760w, ../../images/lay-sidebar-m-light-1100.webp 1100w" sizes="calc(100vw - 48px)" type="image/webp"><source media="(prefers-color-scheme: dark)" srcset="../../images/lay-sidebar-dark-1440.webp 1440w, ../../images/lay-sidebar-dark-2400.webp 2400w" sizes="(min-width: 800px) 304px, calc(100vw - 48px)" type="image/webp"><img src="../../images/lay-sidebar-light-1440.webp" srcset="../../images/lay-sidebar-light-1440.webp 1440w, ../../images/lay-sidebar-light-2400.webp 2400w" sizes="(min-width: 800px) 304px, calc(100vw - 48px)" width="1440" height="900" loading="lazy" decoding="async" alt="Changmun with favorites and vertical tabs in a sidebar on the left." data-a="alt:y_a1"></picture><figcaption><h3 data-i="y_k1">Sidebar</h3><p data-i="y_t1">Favorites, bookmark folders and vertical tabs share one column.</p></figcaption></figure></li>
+    <li><figure><picture><source media="(max-width: 700px) and (prefers-color-scheme: dark)" srcset="../../images/lay-top-m-dark-760.webp 760w, ../../images/lay-top-m-dark-1100.webp 1100w" sizes="calc(100vw - 48px)" type="image/webp"><source media="(max-width: 700px)" srcset="../../images/lay-top-m-light-760.webp 760w, ../../images/lay-top-m-light-1100.webp 1100w" sizes="calc(100vw - 48px)" type="image/webp"><source media="(prefers-color-scheme: dark)" srcset="../../images/lay-top-dark-1440.webp 1440w, ../../images/lay-top-dark-2400.webp 2400w" sizes="(min-width: 800px) 304px, calc(100vw - 48px)" type="image/webp"><img src="../../images/lay-top-light-1440.webp" srcset="../../images/lay-top-light-1440.webp 1440w, ../../images/lay-top-light-2400.webp 2400w" sizes="(min-width: 800px) 304px, calc(100vw - 48px)" width="1440" height="900" loading="lazy" decoding="async" alt="Changmun with the tabs in a strip above the address bar." data-a="alt:y_a2"></picture><figcaption><h3 data-i="y_k2">Along the top</h3><p data-i="y_t2">Favorites first, then the tabs in a strip.</p></figcaption></figure></li>
+    <li><figure><picture><source media="(max-width: 700px) and (prefers-color-scheme: dark)" srcset="../../images/lay-hidden-m-dark-760.webp 760w, ../../images/lay-hidden-m-dark-1100.webp 1100w" sizes="calc(100vw - 48px)" type="image/webp"><source media="(max-width: 700px)" srcset="../../images/lay-hidden-m-light-760.webp 760w, ../../images/lay-hidden-m-light-1100.webp 1100w" sizes="calc(100vw - 48px)" type="image/webp"><source media="(prefers-color-scheme: dark)" srcset="../../images/lay-hidden-dark-1440.webp 1440w, ../../images/lay-hidden-dark-2400.webp 2400w" sizes="(min-width: 800px) 304px, calc(100vw - 48px)" type="image/webp"><img src="../../images/lay-hidden-light-1440.webp" srcset="../../images/lay-hidden-light-1440.webp 1440w, ../../images/lay-hidden-light-2400.webp 2400w" sizes="(min-width: 800px) 304px, calc(100vw - 48px)" width="1440" height="900" loading="lazy" decoding="async" alt="Changmun with the sidebar hidden and only the page showing." data-a="alt:y_a3"></picture><figcaption><h3 data-i="y_k3">Just the page</h3><p data-i="y_t3">Hide the sidebar and the page takes the whole window.</p></figcaption></figure></li>
+  </ul>
+</section>
+
+<section class="sec" id="ai" aria-labelledby="h-ai">
+  <div class="lead-block">
+    <h2 class="lead" id="h-ai" data-i="a_h">A browser your AI can use.</h2>
+    <p class="lead-p" data-i="a_p">The panel (⌘E) runs on the claude CLI you already have, so it uses your Claude Code subscription. It reads pages, clicks and types, and asks before anything risky. Passwords stay off limits.</p>
+  </div>
+  <div class="plate mock-plate">
+    <div class="mock" role="group" aria-label="Illustration of the AI panel" data-a="aria-label:m_aria">
+      <div class="mk-head"><b data-i="m_title">Book Friday’s 9:40 train</b>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+      </div>
+      <div class="mk-user" data-i="m_user">Book the 9:40 train to Busan on Friday.</div>
+      <ul class="mk-steps">
+        <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="m6.8 10.2 2.2 2.2 4.2-4.6"/></svg><span data-i="m_s1">Read the page</span></li>
+        <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="m6.8 10.2 2.2 2.2 4.2-4.6"/></svg><span data-i="m_s2">Type “Busan”</span></li>
+        <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="m6.8 10.2 2.2 2.2 4.2-4.6"/></svg><span data-i="m_s3">Click “Fri 9:40”</span></li>
+        <li class="run"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5" opacity=".28"/><path d="M10 2.5a7.5 7.5 0 0 1 7.5 7.5"/></svg><span data-i="m_s4">Open pay.example</span></li>
+      </ul>
+      <div class="mk-work"><i class="mk-dot"></i><span data-i="m_work">Working for 12 s</span></div>
+      <div class="mk-ask">
+        <strong data-i="m_ask">Open a new address?</strong>
+        <p data-i="m_askd">The AI wants to open pay.example, which you haven’t visited.</p>
+        <div class="mk-btns"><span class="mk-btn go"><span data-i="m_allow">Allow once</span><kbd>⌘↩</kbd></span><span class="mk-btn"><span data-i="m_deny">Decline</span><kbd>esc</kbd></span></div>
+      </div>
+      <div class="mk-box">
+        <span data-i="m_ph">Ask about this page</span>
+        <div class="mk-row"><span class="mk-model">Sonnet · High</span><span class="mk-send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg></span></div>
+      </div>
+    </div>
+  </div>
+  <p class="cap" data-i="m_cap">The panel stops to ask before it opens an address you have not visited.</p>
+  <p class="more" data-i="g_p">Agents such as Claude Code get the same tools over MCP and the <code>changmun</code> command. Headless mode runs it off screen, with a profile of its own.</p>
+  <div class="term" role="group" aria-label="Terminal" data-a="aria-label:t_aria">
+    <pre tabindex="0"><code><span class="l"><i class="pr">$</i>changmun <span class="p">headless start</span></span><span class="l"><i class="pr">$</i>changmun <span class="p">--headless open example.com</span></span><span class="l"><i class="pr">$</i>changmun <span class="p">--headless read</span></span><span class="l"><i class="pr">$</i>claude <span class="p">mcp add changmun -- /Applications/Changmun.app/Contents/MacOS/Changmun --mcp</span></span></code></pre>
+  </div>
+</section>
+
+</div>
+
+<!-- the band runs the full width of the page, so it closes the first column and opens the second -->
+
+<section class="band" id="numbers" aria-labelledby="h-nums">
+  <div class="wrap">
+    <div class="lead-block">
+      <h2 class="lead" id="h-nums" data-i="l_h">There is not much to carry.</h2>
+      <p class="lead-p" data-i="l_p">Changmun runs on the WebKit already in macOS, so it brings no engine of its own.</p>
+    </div>
+    <ul class="nums">
+      <li><b data-i="n1">About 7 MB</b><span data-i="n1l">to download. On disk the app takes about 22 MB.</span></li>
+      <li><b>WebKit</b><span data-i="n2l">The engine in macOS and Safari. Security fixes arrive with macOS.</span></li>
+      <li><b>Swift</b><span data-i="n3l">Native, not a wrapper around a web page.</span></li>
+      <li><b data-i="n4">No account</b><span data-i="n4l">No server and no analytics either.</span></li>
+    </ul>
+  </div>
+</section>
+
+<div class="wrap">
+<section class="sec" id="features" aria-labelledby="h-feat">
+  <div class="lead-block">
+    <h2 class="lead" id="h-feat" data-i="f_h">And the smaller things.</h2>
+    <p class="lead-p" data-i="f_p">Each one is in the app today. <a href="https://github.com/namekun/Changmun/blob/main/GUIDE.md">The guide</a> covers the rest.</p>
+  </div>
+  <ul class="feat">
+    <li><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 3h10v14H5z"/><path d="M7.5 7h5M7.5 10h5M7.5 13h3"/></svg><h3 data-i="b1t">Reader mode</h3><p data-i="b1l">Strips an article down to clean text over the page. ⇧⌘R.</p></li>
+    <li><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h8M7 3v2M4.5 5c.5 3 2.5 5 5 6M9.5 5c-.5 3-3 5.5-5.5 6.5"/><path d="m11 17 3-8 3 8M12 14.5h4"/></svg><h3 data-i="b2t">Page translation</h3><p data-i="b2l">Translates in place with ⌥⌘T, on your Mac by default (macOS 26 or later) or with Claude if you choose it.</p></li>
+    <li><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3c2 2 3 4.5 3 7s-1 5-3 7c-2-2-3-4.5-3-7s1-5 3-7z"/></svg><h3 data-i="b3t">Keep translating a site</h3><p data-i="b3l">Turn it on for a site and its next pages are translated as they open.</p></li>
+    <li><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="4" width="15" height="12" rx="2"/><rect x="10" y="10" width="5.5" height="3.5" rx="1"/></svg><h3 data-i="b4t">Picture in picture</h3><p data-i="b4l">A video stays in view after you leave its tab. ⌃⌘P.</p></li>
+    <li><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg><h3 data-i="b5t">Spaces</h3><p data-i="b5l">Separate tabs and favorites for work and home, on ⌃1 to 9. A profile keeps cookies apart too.</p></li>
+    <li><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h4a1.5 1.5 0 0 1 3 0h4v4a1.5 1.5 0 0 1 0 3v3H3z"/></svg><h3 data-i="b6t">Extensions</h3><p data-i="b6l">Safari extensions, and ones from the Chrome Web Store, on macOS 15.4 or later.</p></li>
+    <li><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2.5 6 2v5c0 4-2.5 6.5-6 8-3.5-1.5-6-4-6-8v-5z"/></svg><h3 data-i="b7t">Ad blocking</h3><p data-i="b7l">EasyList and EasyPrivacy, refreshed on their own.</p></li>
+    <li><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9M6.5 8.5 10 12l3.5-3.5M3.5 13v3h13v-3"/></svg><h3 data-i="b8t">Import</h3><p data-i="b8l">Bring bookmarks and history from Chrome, Arc, Safari and other browsers.</p></li>
+    <li><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 10S5.2 5 10 5s7.5 5 7.5 5-2.7 5-7.5 5-7.5-5-7.5-5z"/><circle cx="10" cy="10" r="2"/><path d="M4 16 16 4"/></svg><h3 data-i="b9t">Private windows</h3><p data-i="b9l">Cookies and site data stay in memory and are forgotten when you close the window.</p></li>
+    <li><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="9" width="12" height="8" rx="2"/><path d="M7 9V6.5a3 3 0 0 1 6 0V9"/></svg><h3 data-i="b10t">Passwords</h3><p data-i="b10l">Saved in the Keychain, and filled after Touch ID or your Mac password.</p></li>
+    <li><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7V4a1 1 0 0 1 1-1h3M13 3h3a1 1 0 0 1 1 1v3M17 13v3a1 1 0 0 1-1 1h-3M7 17H4a1 1 0 0 1-1-1v-3"/><circle cx="10" cy="10" r="1.5"/></svg><h3 data-i="b11t">Focus mode</h3><p data-i="b11l">Hides everything but the page. ⌘⇧F.</p></li>
+    <li><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 6 3.5 10l4 4M12.5 6l4 4-4 4"/></svg><h3 data-i="b12t">Open source</h3><p data-i="b12l">MIT licensed, so anyone can read the code and check what it does.</p></li>
+  </ul>
+</section>
+
+<section class="sec" id="faq" aria-labelledby="h-faq">
+  <div class="lead-block">
+    <h2 class="lead" id="h-faq" data-i="q_h">A few questions.</h2>
+    <p class="lead-p" data-i="q_p">Short answers. The guide has the long ones.</p>
+  </div>
+  <div class="faq">
+    <details><summary data-i="q1k">Which engine does it use?</summary><p data-i="q1v">WebKit, the engine in macOS and Safari. It is not Chromium, so a site built only for Chromium can misbehave here, as in Safari.</p></details>
+    <details><summary data-i="q2k">Is it free?</summary><p data-i="q2v">Yes. It is open source under the MIT license and needs no account.</p></details>
+    <details><summary data-i="q3k">Which Macs does it run on?</summary><p data-i="q3v">Apple silicon Macs with macOS 14 or later. Extensions need macOS 15.4, and translation on your Mac needs macOS 26.</p></details>
+    <details><summary data-i="q4k">Can I bring my bookmarks and passwords?</summary><p data-i="q4v">Yes, on first launch or from the menu. Bookmarks and history come from Safari and Chromium browsers such as Chrome, Arc and Brave; passwords and cookies come from the Chromium ones, once macOS allows it.</p></details>
+    <details><summary data-i="q5k">Does it sync?</summary><p data-i="q5v">No. Bookmarks, history and passwords stay on the Mac where you made them, and there is no account to sync through.</p></details>
+    <details><summary data-i="q6k">How do updates work?</summary><p data-i="q6v">Inside the app. It checks every hour and at each launch; Changmun › Check for Updates… checks right away. Settings › Advanced turns it off or lets it install on its own.</p></details>
+    <details><summary data-i="q7k">Can it be my default browser?</summary><p data-i="q7v">Yes. Choose Make Default Browser in Settings › General; macOS asks you to confirm.</p></details>
+    <details><summary data-i="q8k">Can I install it with Homebrew?</summary><p data-i="q8v">Yes: <code>brew install --cask namekun/tap/changmun</code>. Later updates still come from inside the app.</p></details>
+    <details><summary data-i="q9k">Do extensions work?</summary><p data-i="q9v">Safari extensions and Chrome Web Store extensions, on macOS 15.4 or later. Some Chrome extensions need things WebKit lacks.</p></details>
+    <details><summary data-i="q10k">What does the AI need, and what leaves my Mac?</summary><p data-i="q10v">It needs the claude CLI, signed in to Claude Code. The AI panel sends what you ask and the pages it reads to Anthropic through it, and so does Claude translation if you choose it. Otherwise: no account, server or analytics.</p></details>
+  </div>
+</section>
+
+<section class="sec" id="download" aria-labelledby="h-end">
+  <div class="lead-block">
+    <h2 class="lead" id="h-end" data-i="e_h">Try it.</h2>
+    <p class="lead-p" data-i="e_p">Free, about 7 MB, no account. If something is missing or out of date, please <a href="https://github.com/namekun/Changmun/issues">open an issue</a>.</p>
+  </div>
+  <div class="cta">
+    <a class="btn" href="https://github.com/namekun/Changmun/releases/latest/download/Changmun.dmg" data-i="dl">Download for Mac</a>
+  </div>
+</section>
+</div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <ul>
+      <li><a href="https://github.com/namekun/Changmun/blob/main/LICENSE" data-i="fl1">MIT License</a></li>
+      <li><a href="https://github.com/namekun/Changmun">GitHub</a></li>
+      <li><a href="https://github.com/namekun/Changmun/releases" data-i="fl3">Release notes</a></li>
+      <li><span data-i="fl4">Sister app</span> <a href="https://namekun.github.io/Nunsseop/">Nunsseop</a></li>
+    </ul>
+  </div>
+</footer>
+
+<div class="sr" id="live" aria-live="polite"></div>
+
+<script>
+(function () {
+  var LANGS = ['en', 'ko'];
+  var D = {"title": ["Changmun — 탭은 옆에, 페이지는 크게."], "desc": ["AI가 쓸 수 있는 가벼운 Mac 브라우저. 탭은 옆에, 페이지는 크게."], "langLbl": ["언어"], "skip": ["본문으로 건너뛰기"], "h1": ["탭은 옆에, 페이지는 크게."], "hp": ["AI가 쓸 수 있는 가벼운 Mac 브라우저예요. Mac에 이미 있는 WebKit으로 돌아가서 내려받는 크기는 약 7MB, 앱은 약 22MB예요. 무료에 오픈 소스(MIT)예요."], "dl": ["Mac용 다운로드"], "nums_btn": ["숫자로 보기"], "copy": ["복사"], "copied": ["복사됨"], "ver": ["버전 0.14.2 · macOS 14 이상 · Apple 실리콘만 · 서명 및 Apple 공증 완료"], "h_alt": ["왼쪽에 사이드바, 가운데에 페이지, 오른쪽에 AI 패널이 열린 Changmun 창"], "hcap": ["왼쪽에 사이드바, 가운데에 페이지, 오른쪽에 AI 패널이에요."], "y_h": ["탭은 원하는 자리에."], "y_p": ["사이드바가 기본이에요. 탭 줄이 편하면 설정 하나로 위쪽에 둘 수 있어요."], "y_k1": ["사이드바"], "y_t1": ["즐겨찾기, 북마크 폴더, 세로 탭이 한 줄에 모여요."], "y_k2": ["위쪽 탭"], "y_t2": ["즐겨찾기가 맨 앞에, 그 뒤로 탭이 한 줄로 이어져요."], "y_k3": ["페이지만"], "y_t3": ["사이드바를 숨기면 페이지가 창을 다 써요."], "y_a1": ["왼쪽 사이드바에 즐겨찾기와 세로 탭이 모인 Changmun"], "y_a2": ["주소창 위에 탭이 한 줄로 놓인 Changmun"], "y_a3": ["사이드바를 숨기고 페이지만 보이는 Changmun"], "a_h": ["AI가 쓸 수 있는 브라우저."], "a_p": ["패널(⌘E)은 이미 설치된 claude CLI로 돌아가서 Claude Code 구독을 그대로 써요. 페이지를 읽고, 클릭하고, 입력해요. 위험할 수 있는 일은 먼저 물어보고, 비밀번호 칸은 건드리지 못해요."], "m_aria": ["AI 패널 그림"], "m_title": ["금요일 9시 40분 기차 예매"], "m_user": ["금요일 9시 40분 부산행 기차 예매해 줘."], "m_s1": ["페이지 읽기"], "m_s2": ["“부산” 입력"], "m_s3": ["“금 9:40” 클릭"], "m_s4": ["pay.example 열기"], "m_work": ["12초째 작업 중"], "m_ask": ["새 주소를 열까요?"], "m_askd": ["AI가 방문한 적 없는 pay.example을 열려고 해요."], "m_allow": ["한 번만 허용"], "m_deny": ["허용 안 함"], "m_ph": ["이 페이지에 대해 물어보세요"], "m_cap": ["방문한 적 없는 주소를 열기 전에는 패널이 먼저 물어봐요."], "g_p": ["Claude Code 같은 에이전트는 같은 도구를 MCP와 <code>changmun</code> 명령으로 쓸 수 있어요. 헤드리스 모드는 화면 밖에서 자기만의 프로필로 돌아가요."], "t_aria": ["터미널"], "l_h": ["싣고 다닐 게 많지 않아요."], "l_p": ["Changmun은 macOS에 이미 있는 WebKit으로 돌아가요. 자기 엔진을 따로 갖고 있지 않아요."], "n1": ["약 7MB"], "n1l": ["내려받는 크기예요. 설치한 앱은 약 22MB예요."], "n2l": ["macOS와 Safari가 쓰는 엔진이에요. 보안 수정은 macOS와 함께 들어와요."], "n3l": ["웹 페이지를 감싼 앱이 아니라 네이티브 앱이에요."], "n4": ["계정 없음"], "n4l": ["서버도 분석 도구도 없어요."], "f_h": ["작은 기능도 다 들어 있어요."], "f_p": ["모두 지금 앱에 있어요. 나머지는 <a href=\"https://github.com/namekun/Changmun/blob/main/GUIDE.ko.md\">가이드</a>에 있어요."], "b1t": ["읽기 모드"], "b1l": ["기사에서 글만 남겨 페이지 위에 깔끔하게 보여 줘요. ⇧⌘R."], "b2t": ["페이지 번역"], "b2l": ["⌥⌘T로 그 자리에서 옮겨요. 기본은 Mac 안에서 해요(macOS 26 이상). Claude를 고를 수도 있어요."], "b3t": ["사이트 계속 번역"], "b3l": ["한 사이트에 켜 두면 다음 페이지도 열릴 때 바로 번역해요."], "b4t": ["화면 속 화면"], "b4l": ["탭을 떠나도 영상이 계속 보여요. ⌃⌘P."], "b5t": ["스페이스"], "b5l": ["일할 때와 쉴 때의 탭과 즐겨찾기를 나눠요. ⌃1~9. 프로필을 켜면 쿠키도 따로예요."], "b6t": ["확장 프로그램"], "b6l": ["Safari 확장과 Chrome 웹 스토어 확장을 써요. macOS 15.4 이상."], "b7t": ["광고 차단"], "b7l": ["EasyList와 EasyPrivacy가 들어 있고, 알아서 새로 받아요."], "b8t": ["가져오기"], "b8l": ["Chrome, Arc, Safari 같은 브라우저에서 북마크와 방문 기록을 가져와요."], "b9t": ["개인 창"], "b9l": ["쿠키와 사이트 데이터는 메모리에만 있다가 창을 닫으면 사라져요."], "b10t": ["비밀번호"], "b10l": ["키체인에 저장하고, 채우기 전에 Touch ID나 Mac 암호로 확인해요."], "b11t": ["집중 모드"], "b11l": ["페이지만 남기고 나머지를 모두 숨겨요. ⌘⇧F."], "b12t": ["오픈 소스"], "b12l": ["MIT 라이선스예요. 누구나 코드를 읽고 무엇을 하는지 확인할 수 있어요."], "q_h": ["자주 묻는 질문."], "q_p": ["짧게 답해요. 긴 설명은 가이드에 있어요."], "q1k": ["어떤 엔진을 쓰나요?"], "q1v": ["macOS와 Safari가 쓰는 WebKit이에요. Chromium이 아니라서, Chromium만 생각하고 만든 사이트는 Safari처럼 어색하게 동작할 수 있어요."], "q2k": ["무료인가요?"], "q2v": ["네. MIT 라이선스의 오픈 소스이고, 계정도 필요 없어요."], "q3k": ["어떤 Mac에서 돼요?"], "q3v": ["macOS 14 이상의 Apple 실리콘 Mac이에요. 확장 프로그램은 macOS 15.4 이상, Mac 안에서 하는 번역은 macOS 26 이상이 필요해요."], "q4k": ["북마크와 비밀번호를 가져올 수 있나요?"], "q4v": ["네. 처음 실행할 때나 메뉴에서 가져와요. 북마크와 방문 기록은 Safari와 Chrome, Arc, Brave 같은 크로미움 브라우저에서, 비밀번호와 쿠키는 크로미움 브라우저에서 와요. macOS가 허용 여부를 먼저 물어봐요."], "q5k": ["동기화되나요?"], "q5v": ["아니요. 북마크, 방문 기록, 비밀번호는 만든 Mac에만 있어요. 동기화에 쓸 계정도 없어요."], "q6k": ["업데이트는 어떻게 하나요?"], "q6v": ["앱 안에서 해요. 1시간마다, 그리고 실행할 때마다 새 버전을 확인해요. Changmun › 업데이트 확인…은 바로 확인해요. 설정 › 고급에서 끄거나 자동 설치로 바꿀 수 있어요."], "q7k": ["기본 브라우저로 쓸 수 있나요?"], "q7v": ["네. 설정 › 일반에서 ‘기본 브라우저로 설정’을 누르면 돼요. macOS가 한 번 확인해요."], "q8k": ["Homebrew로 설치할 수 있나요?"], "q8v": ["네. <code>brew install --cask namekun/tap/changmun</code>이에요. 이후 업데이트는 앱 안에서 받아요."], "q9k": ["확장 프로그램도 되나요?"], "q9v": ["Safari 확장과 Chrome 웹 스토어 확장을 macOS 15.4 이상에서 써요. WebKit에 없는 기능이 필요한 Chrome 확장은 안 될 수 있어요."], "q10k": ["AI에는 무엇이 필요하고, 무엇이 Mac 밖으로 나가나요?"], "q10v": ["Claude Code에 로그인한 claude CLI가 필요해요. AI 패널은 묻는 말과 AI가 읽은 페이지를 그 CLI를 거쳐 Anthropic에 보내요. Claude로 번역하기를 고르면 번역하는 페이지의 글도 같은 길로 가요. 그 밖에는 계정도 서버도 분석 도구도 없어요."], "e_h": ["써 보세요."], "e_p": ["무료이고 약 7MB예요. 계정도 필요 없어요. 빠진 것이나 오래된 내용이 있으면 <a href=\"https://github.com/namekun/Changmun/issues\">이슈</a>로 알려 주세요."], "fl1": ["MIT 라이선스"], "fl3": ["릴리스 노트"], "fl4": ["자매 앱"]};
+  var root = document.documentElement;
+  var metaDesc = document.querySelector('meta[name="description"]');
+  var orig = { title: document.title, desc: metaDesc.getAttribute('content'), langLbl: 'Language' };
+  var texts = [].slice.call(document.querySelectorAll('[data-i]'));
+  var attrs = [].slice.call(document.querySelectorAll('[data-a]'));
+  texts.forEach(function (n) { var k = n.getAttribute('data-i'); if (!(k in orig)) orig[k] = n.innerHTML; });
+  attrs.forEach(function (n) {
+    var p = n.getAttribute('data-a').split(':');
+    if (!(p[1] in orig)) orig[p[1]] = n.getAttribute(p[0]);
+  });
+  var langBox = document.getElementById('lang');
+  var langBtn = langBox.querySelector('.lang-btn');
+  var setters = [].slice.call(document.querySelectorAll('[data-set]'));
+  var options = [].slice.call(langBox.querySelectorAll('[role="option"]'));
+  var live = document.getElementById('live');
+  var current = 'en';
+
+  function norm(code) {
+    code = String(code || '').toLowerCase().replace('_', '-').split('-')[0];
+    return LANGS.indexOf(code) >= 0 ? code : null;
+  }
+  function tr(key, lang) {
+    if (lang === 'en' || !D[key]) return orig[key];
+    return D[key][LANGS.indexOf(lang) - 1];
+  }
+  function setLang(lang, save) {
+    current = lang;
+    root.lang = lang;
+    document.title = tr('title', lang);
+    metaDesc.setAttribute('content', tr('desc', lang));
+    texts.forEach(function (n) { n.innerHTML = tr(n.getAttribute('data-i'), lang); });
+    attrs.forEach(function (n) { var p = n.getAttribute('data-a').split(':'); n.setAttribute(p[0], tr(p[1], lang)); });
+    setters.forEach(function (b) {
+      var on = b.getAttribute('data-set') === lang;
+      b.setAttribute('aria-selected', String(on));
+      if (on) {
+        document.getElementById('langLabel').textContent = b.textContent;
+        langBtn.setAttribute('aria-label', tr('langLbl', lang) + ': ' + b.textContent);
+      }
+    });
+    if (save) { try { localStorage.setItem('changmun-lang', lang); } catch (e) {} }
+  }
+  function initialLang() {
+    var q = null, saved = null, i;
+    try { q = norm(new URLSearchParams(location.search).get('lang')); } catch (e) {}
+    if (q) return q;
+    try { saved = norm(localStorage.getItem('changmun-lang')); } catch (e) {}
+    if (saved) return saved;
+    var prefs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''];
+    for (i = 0; i < prefs.length; i++) { var c = norm(prefs[i]); if (c) return c; }
+    return 'en';
+  }
+  setLang(initialLang(), false);
+
+  // Language menu: a button that opens a listbox; arrows, Home/End, Escape and Tab all work from the keyboard.
+  function openMenu(v) { langBox.classList.toggle('open', v); langBtn.setAttribute('aria-expanded', String(v)); }
+  function selectedOption() { return langBox.querySelector('[aria-selected="true"]') || options[0]; }
+  langBtn.addEventListener('click', function () { var v = !langBox.classList.contains('open'); openMenu(v); if (v) selectedOption().focus(); });
+  langBtn.addEventListener('keydown', function (e) { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); openMenu(true); selectedOption().focus(); } });
+  options.forEach(function (o, i) {
+    o.addEventListener('keydown', function (e) {
+      var n = options.length;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); options[(i + (e.key === 'ArrowDown' ? 1 : n - 1)) % n].focus(); }
+      else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); options[e.key === 'Home' ? 0 : n - 1].focus(); }
+    });
+  });
+  setters.forEach(function (b) {
+    b.addEventListener('click', function () { setLang(b.getAttribute('data-set'), true); openMenu(false); langBtn.focus(); });
+  });
+  document.addEventListener('click', function (e) { if (!langBox.contains(e.target)) openMenu(false); });
+  langBox.addEventListener('mousedown', function (e) { e.preventDefault(); });
+  langBox.addEventListener('focusout', function () { setTimeout(function () { if (!langBox.contains(document.activeElement)) openMenu(false); }, 0); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && langBox.classList.contains('open')) { openMenu(false); langBtn.focus(); } });
+
+  // Copy: the label turns into "Copied" for a moment; if the browser refuses, the command is selected for ⌘C.
+  function legacyCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta); ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return legacyCopy(text); });
+    return Promise.resolve(legacyCopy(text));
+  }
+  [].forEach.call(document.querySelectorAll('[data-copy]'), function (btn) {
+    btn.addEventListener('click', function () {
+      copyText(btn.getAttribute('data-copy')).then(function (ok) {
+        if (!ok) { var r = document.createRange(); r.selectNodeContents(btn.parentNode.querySelector('code')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); return; }
+        btn.classList.add('done');
+        live.textContent = tr('copied', current);
+        clearTimeout(btn.flashTimer);
+        btn.flashTimer = setTimeout(function () { btn.classList.remove('done'); live.textContent = ''; }, 1600);
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
