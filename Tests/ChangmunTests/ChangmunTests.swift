@@ -2569,17 +2569,27 @@ extension SharedAgentState {
             #expect(b.tabs.count == 2)
         }
 
-        @Test func aWarningTellsTheConsoleWhenAPopupIsBlocked() async throws {
+        @Test func thePagesOwnFunctionsAreLeftAsTheBrowsersWhileAPopupIsRefused() async throws {
             let restore = allowing([])
             defer { restore() }
             let b = Browser()
             b.focused()
             defer { b.windowClosed() }
-            let (_, view, window) = try await page("""
-                <script>window.warned = []; console.warn = m => warned.push(m); setTimeout(() => window.open('/next'), 50)</script>
-                """, base: "https://popup.test/page", in: b)
+            // A bot check reads the source of window.open and the other globals; a replacement would show, and the browser would be
+            // taken for a bot. The refused window is still offered, from the app's own decision.
+            let (tab, view, window) = try await page("<script>setTimeout(() => window.open('/next'), 50)</script>", base: "https://popup.test/page", in: b)
             defer { window.close() }
-            #expect(await eventually("warned.join('|')", in: view).contains("https://popup.test/next"))
+            #expect(await waitUntil { tab.blockedPopup != nil })
+            let replaced = try await view.evaluateJavaScript("""
+                ['open','fetch','setTimeout','XMLHttpRequest','addEventListener','postMessage','alert','confirm','prompt','close','focus','print']
+                  .filter(n => !Function.prototype.toString.call(window[n]).includes('[native code]')).join(',')
+                """) as? String
+            #expect(replaced == "")
+            let navigatorReplaced = try await view.evaluateJavaScript("""
+                Object.getOwnPropertyNames(Navigator.prototype).filter(n => { try { const d = Object.getOwnPropertyDescriptor(Navigator.prototype, n);
+                  const f = d.get || d.value; return typeof f === 'function' && !Function.prototype.toString.call(f).includes('[native code]') } catch (e) { return true } }).join(',')
+                """) as? String
+            #expect(navigatorReplaced == "")
         }
 
         /// A script that opens a window from a timer under the gesture the app's call carries, and says what it got in the page.

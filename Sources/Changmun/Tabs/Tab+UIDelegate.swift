@@ -23,10 +23,17 @@ extension Tab: WKUIDelegate {
         var activate = true
         // The user's window is the first of its gesture, so that a loop of window.open in a click opens one tab, not hundreds.
         if !userInitiated || isAnotherWindowOfTheGesture() {
-            // Not the user's, or one more of the same gesture: only a site the user allowed gets a window, and only a few.
+            // Not the user's, or one more of the same gesture: only a site the user allowed gets a window, and only a few. A refused one is
+            // offered in the bar from here, not from a replaced `window.open`: a site that checks whether its functions are the browser's
+            // own (a bot check does) would see the replacement and treat the browser as a bot.
             let site = PopupWatcher.site(of: action.sourceFrame)
             guard let browser, !isPrivate, Preferences.shared.allowsPopups(from: site.isEmpty ? nil : site),
-                  browser.takeAllowedPopupSlot() else { return nil }
+                  browser.takeAllowedPopupSlot() else {
+                if let url = action.request.url, ["http", "https"].contains(url.scheme?.lowercased()) {
+                    popupRefused(url, fromFrame: action.sourceFrame.isMainFrame ? nil : site, pageSite: action.sourceFrame.isMainFrame ? site : nil)
+                }
+                return nil
+            }
             activate = browser.isShown(self)
         }
         // The window about to take the front would close the peek, which is the page asking and its `window.opener`: it is kept as a tab.
