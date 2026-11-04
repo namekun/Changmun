@@ -6,6 +6,19 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.14.3</title>
+      <pubDate>Wed, 04 Nov 2026 13:16:32 +0000</pubDate>
+      <sparkle:version>48</sparkle:version>
+      <sparkle:shortVersionString>0.14.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.14.3</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Fixed:** sites with a bot check, such as Coupang, could refuse to show search results or other pages. Changmun used to replace the page's `window.open` to notice pop-ups it had refused, and a bot check that reads the browser's own functions saw the replacement and took the browser for a bot. Refused pop-ups are now noticed from the app's own decision, so the page's functions stay the browser's own. The bar that offers a refused pop-up works as before; the warning in the page's console is gone.
+
+Tried with automated tests and the headless copy. Whether Coupang now shows results hasn't been tried by hand, so tell me if it still refuses.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.3/Changmun-0.14.3.dmg" length="7212032" type="application/octet-stream" sparkle:edSignature="RlCILLtiCUBF5uOliYflbSerdsJOd3b+PLY16vC5bvHpmmzYfUwIbSqzIA/Ux8xIEX74UB9kV9tyXvMoHFJsCg==" />
+    </item>
+    <item>
       <title>0.14.2</title>
       <pubDate>Tue, 03 Nov 2026 04:41:45 +0000</pubDate>
       <sparkle:version>47</sparkle:version>
@@ -139,24 +152,9 @@ Tried with automated tests and the headless copy. The dialogs' real look on scre
 - **Fixed:** a private window's search suggestions no longer list pages from your normal history. (The picture, the layout and the options are tried headlessly; the blur, the Customize popover's look, drag-to-reorder and typing with a Korean keyboard are not yet tried by hand, so tell me what looks or feels off.)</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.10.0/Changmun-0.10.0.dmg" length="6720713" type="application/octet-stream" sparkle:edSignature="2wLfYc8eeFcMfHbbhX7+XoZRc9sKB7+QH6I2U7+HobhjMkVkeEHUCgsmlEZMIjQnr5G/pWEQzV+IVYd6S/lABA==" />
     </item>
-    <item>
-      <title>0.9.0</title>
-      <pubDate>Wed, 28 Oct 2026 23:53:54 +0000</pubDate>
-      <sparkle:version>38</sparkle:version>
-      <sparkle:shortVersionString>0.9.0</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.9.0</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Works with VoiceOver and the keyboard.** The sidebar, tab strip, page bar, command bar, find bar, AI panel, approval cards, settings and the untrusted-certificate warning now have names, states and actions; rows that were only clickable can be pressed from the keyboard and by VoiceOver; status messages (undo, downloads, translation, load errors) are announced. An audit that dumps the app's own accessibility tree found 113 unnamed controls before and none after, and the look is unchanged. (Not yet tried with a real VoiceOver session, so tell me what reads oddly.)
-- **Reading List.** Save a page for later from Bookmarks › Add to Reading List (⇧⌘D), a tab's menu or a link's menu; the list sits at the top of the bookmarks popover with unread pages in bold, marks pages read when you open them, and comes along when you import from Safari. It is never shown to the AI and never kept from private windows.
-- **Tracking removed from addresses you open.** Known tracking parameters (utm_*, fbclid, gclid and the like) are taken out of addresses you type, bookmarks, links you open in a new tab or peek, and what the AI opens. Links you click inside a page are left alone, because rewriting them from outside the engine would weaken sites' cross-site cookie protection. Switch in Settings › Privacy, and per site in the site's settings.
-- **Prefer secure connections.** An http:// address you open is tried over https first and falls back to http only if the site refuses or drops the connection, never after a certificate error. Switch in Settings › Privacy.
-- **Clearing site data now really clears your saved sign-ins.** A sign-in snapshot taken a moment before you cleared site data (or removed a profile, or turned "Stay signed in after quitting" off) could still be written afterwards and come back at the next launch. That race, in 0.8.7, is closed, and a test now hammers it.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.9.0/Changmun-0.9.0.dmg" length="5844236" type="application/octet-stream" sparkle:edSignature="Vxqtleu9sISmd/0IteMMTmUhQEr0HrXUn5plX/xPE9ubQjOD4NoIYVorptbDl9+m+TVMqHw9HjfqUcoVzlF0AQ==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: 3wKanEhgtVxsm2qosf2zzOcFitrDo6T142I0qQM88IkD0PF8IAgQzpxSYEGwmNRlNGg/nVMRxw3rTCa4lzqxDw==
-length: 21652
+edSignature: DIqN/1qCHWnV0gGLM8vy9Dh9eJhna5B17/GSa5l/iG8IrMxm1KFUzIz4KdnE41ruHntGD5hHKcg/kFYCmyyhCQ==
+length: 20405
 -->
