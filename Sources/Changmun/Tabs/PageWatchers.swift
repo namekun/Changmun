@@ -53,6 +53,36 @@ struct LoginOffer: Equatable {
     }
 }
 
+/// Notices a sign-in form coming or going after the page has loaded (a script drawing it late, a dialog opening), so the key
+/// button can follow it: the page is looked at once when it finishes, which misses a form drawn after. Runs in an isolated world
+/// and only ever asks the tab to look again, so a page posting to it gains nothing.
+final class LoginFormWatcher: NSObject, WKScriptMessageHandler {
+    static let name = "changmunLoginForm"
+
+    static let script = """
+    (() => {
+      const has = () => !!document.querySelector('input[type=password], input[autocomplete=username]');
+      let last = has(), timer = 0;
+      const look = () => { timer = 0; const now = has(); if (now !== last) { last = now; window.webkit.messageHandlers.\(name).postMessage(now); } };
+      new MutationObserver(() => { if (!timer) timer = setTimeout(look, 150); })
+        .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['type', 'autocomplete'] });
+    })();
+    """
+
+    static func install(in controller: WKUserContentController) {
+        controller.addUserScript(WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: .defaultClient))
+        controller.add(LoginFormWatcher(), contentWorld: .defaultClient, name: name)
+    }
+
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.frameInfo.isMainFrame else { return }
+        MainActor.assumeIsolated {
+            guard let webView = message.webView, let tab = Browser.tab(showing: webView) else { return }
+            tab.checkForLogins()
+        }
+    }
+}
+
 /// Notices sign-in forms being submitted, so the browser can offer to save the password. Runs in an isolated world:
 /// pages can't post to it, though they can fill a form with anything, so nothing is saved without the user's yes.
 final class LoginCapture: NSObject, WKScriptMessageHandler {
