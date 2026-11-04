@@ -6,6 +6,19 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.14.4</title>
+      <pubDate>Wed, 04 Nov 2026 14:03:24 +0000</pubDate>
+      <sparkle:version>49</sparkle:version>
+      <sparkle:shortVersionString>0.14.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.14.4</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Fixed:** the key button that fills a saved login didn't appear on sites whose scripts draw the sign-in form after the page has loaded, Coupang among them. The page was looked at once, when it finished loading, and the form wasn't there yet. The button now comes when the password field appears, and goes when the field goes.
+
+Tried with automated tests and the headless copy. Coupang's own sign-in page hasn't been tried by hand, so tell me if the key is still missing there.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.4/Changmun-0.14.4.dmg" length="7213859" type="application/octet-stream" sparkle:edSignature="T6spbnH2GObjrbREYEHA3kcPfJWwP3oCXOmhCKEyjiuHz+OFTVSh7JO6PRJu+vtF8aRc564el1YSVFmTE+bwAw==" />
+    </item>
+    <item>
       <title>0.14.3</title>
       <pubDate>Wed, 04 Nov 2026 13:16:32 +0000</pubDate>
       <sparkle:version>48</sparkle:version>
@@ -137,24 +150,9 @@ Tried with automated tests and the headless copy. The dialogs' real look on scre
       <description sparkle:format="markdown">- **Bookmarks inside a folder can be put in order.** Drag a bookmark in a sidebar folder and drop it on another row of the same folder to place it just above that row; drop it on the folder itself to send it to the end. A bookmark dragged in from another folder lands at the row you drop it on. Folders you have never arranged stay exactly as they were imported, and a bookmark added or moved in later goes last. (Tabs and links dropped on a row of a folder now go into that folder, as if dropped on the folder. Tried through the code and the saved order; the drag itself is not yet tried by hand, so tell me if it doesn't take.)</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.10.1/Changmun-0.10.1.dmg" length="6741417" type="application/octet-stream" sparkle:edSignature="VQoVfTN7BkrRIuON5veHvilZCa2Psk2tzW+bG4yvTWLgHB3DajvmsbLxRsymqdx/vKgJ6uD+bWPjxEmvZ3WmBw==" />
     </item>
-    <item>
-      <title>0.10.0</title>
-      <pubDate>Thu, 29 Oct 2026 07:50:45 +0000</pubDate>
-      <sparkle:version>39</sparkle:version>
-      <sparkle:shortVersionString>0.10.0</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.10.0</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **A start page of your own.** A new tab, a new window and an empty space now open a start page instead of a blank bar: a search field that takes addresses, searches and questions for the AI, your favorites as tiles, "Continue viewing" (recently closed tabs and recent pages), your Reading List, frequently visited sites, and a row of things to ask the AI. ⌘T opens a tab showing it with the search field ready; ⌘L still goes to the address.
-- **Make it yours.** Three styles (Dashboard, Quiet, AI First); turn each section on or off, drag them into the order you like, and set per-section options. Pick the background: the space's colour glow, plain, one of eight colours or your own, or one picture of yours (shrunk and stripped of its metadata, with a veil that keeps the text readable). Choose what a new tab opens: the start page, the command bar, a blank page or an address you set. Customize from the page itself, from View › Customize Start Page…, or in Settings › Start Page.
-- **Private by design.** A private window's start page shows no history, closed tabs, Reading List or AI suggestions, and ignores a custom new-tab address. The AI, MCP, the command-line tool and extensions see a start tab as a blank page and never read what it shows. Items you hide from the page are kept only as salted hashes, and are wiped when you clear history or site data.
-- **Clearing history now also forgets recently closed tabs**, so they no longer come back on the start page.
-- **Fixed:** a private window's search suggestions no longer list pages from your normal history. (The picture, the layout and the options are tried headlessly; the blur, the Customize popover's look, drag-to-reorder and typing with a Korean keyboard are not yet tried by hand, so tell me what looks or feels off.)</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.10.0/Changmun-0.10.0.dmg" length="6720713" type="application/octet-stream" sparkle:edSignature="2wLfYc8eeFcMfHbbhX7+XoZRc9sKB7+QH6I2U7+HobhjMkVkeEHUCgsmlEZMIjQnr5G/pWEQzV+IVYd6S/lABA==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: DIqN/1qCHWnV0gGLM8vy9Dh9eJhna5B17/GSa5l/iG8IrMxm1KFUzIz4KdnE41ruHntGD5hHKcg/kFYCmyyhCQ==
-length: 20405
+edSignature: LDlW1DQMnWVs+FLdvX/P9hOxGc+8aKiEi4NyYObgT5Kb52xm6EFfg8gRtqNQYisKVnCGd96rzmtroa6TOY+qCw==
+length: 19085
 -->
