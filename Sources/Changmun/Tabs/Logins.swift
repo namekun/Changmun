@@ -239,11 +239,15 @@ final class FillAuthorization {
 }
 
 extension Tab {
-    /// Shows the key button when the page asks for a password and one is saved for its host.
+    /// The saved accounts of a host, as the key button asks (tests put their own: a WebKit callback can't see a task-local backend).
+    nonisolated(unsafe) static var loginAccounts: (String) -> [String] = Logins.accounts(for:)
+
+    /// Shows the key button when the page asks for a password and one is saved for its host. Asked when the page finishes, and again
+    /// whenever a password field comes or goes after that (`LoginFormWatcher`).
     func checkForLogins() {
         // Not on a page whose certificate the user went on with, though it could not be verified: a saved password is for the site it was saved for.
         guard let webView, webView.url?.scheme == "https", !Self.isUnverified(webView.url), let host = webView.url.flatMap(Logins.key(for:)) else { savedLogins = []; return }
-        let accounts = Logins.accounts(for: host)
+        let accounts = Self.loginAccounts(host)
         guard !accounts.isEmpty else { savedLogins = []; return }
         webView.evaluateJavaScript("!!document.querySelector('input[type=password], input[autocomplete=username]')") { [weak self] value, _ in
             Task { @MainActor in self?.savedLogins = (value as? Bool == true) ? accounts : [] }
