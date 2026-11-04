@@ -248,7 +248,6 @@ final class Browser: ObservableObject {
             config.preferences.setValue(true, forKey: "allowsPictureInPictureMediaPlayback")
         }
         LinkHover.install(in: config.userContentController)
-        PopupWatcher.install(in: config.userContentController)
         PictureInPictureWatcher.install(in: config.userContentController)
         FrameWatcher.install(in: config.userContentController)
         PasswordWatcher.install(in: config.userContentController)

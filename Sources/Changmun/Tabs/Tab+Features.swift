@@ -12,19 +12,24 @@ extension Tab {
         let site = (frame ?? pageSite ?? url?.host() ?? "").lowercased()
         let judged = site.isEmpty ? nil : site
         guard !isPrivate, Preferences.shared.allowsPopups(from: judged), let browser, browser.takeAllowedPopupSlot() else {
-            // The bar keeps the first one until it is closed, so that a frame can't swap the address (and the site "Always
-            // Allow" would allow) under a user who is about to press it; the others only add to its count.
-            if blockedPopup == nil {
-                blockedPopup = popup
-                blockedPopupFrame = frame
-                blockedPopupSite = judged
-                blockedPopupCount = 1
-            } else {
-                blockedPopupCount += 1
-            }
+            popupRefused(popup, fromFrame: frame, pageSite: judged)
             return
         }
         browser.openTab(url: popup, activate: browser.isShown(self), after: self).openerID = id
+    }
+
+    /// A popup the app has just refused goes to the bar. The bar keeps the first one until it is closed, so that a frame can't swap
+    /// the address (and the site "Always Allow" would allow) under a user who is about to press it; the others only add to its count.
+    func popupRefused(_ popup: URL, fromFrame frame: String?, pageSite: String?) {
+        let site = (frame ?? pageSite ?? "").lowercased()
+        if blockedPopup == nil {
+            blockedPopup = popup
+            blockedPopupFrame = frame
+            blockedPopupSite = site.isEmpty ? nil : site
+            blockedPopupCount = 1
+        } else {
+            blockedPopupCount += 1
+        }
     }
 
     /// Whether the site the bar would allow is not the one the page shows (a frame's, or the main frame's when the tab has
