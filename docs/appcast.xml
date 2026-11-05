@@ -6,6 +6,19 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.14.5</title>
+      <pubDate>Thu, 05 Nov 2026 00:19:49 +0000</pubDate>
+      <sparkle:version>50</sparkle:version>
+      <sparkle:shortVersionString>0.14.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.14.5</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Downloads in one place.** With the sidebar showing, the downloads button now sits in its bottom bar, right under the shelf where a download's progress appears, so the list opens where you saw it come in instead of at the other end of the window. With the tabs on top or the sidebar hidden, the button stays beside the address.
+
+Tried with automated tests and the headless copy.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.5/Changmun-0.14.5.dmg" length="7212670" type="application/octet-stream" sparkle:edSignature="Ek3w9zZemCOtOcLbDnJuaxkV+l2dZzp+slO+rhgV/YiczsPYkTjk2DK3xEOvQelU2T0iqvnUIzgWvNOMUtkpDA==" />
+    </item>
+    <item>
       <title>0.14.4</title>
       <pubDate>Wed, 04 Nov 2026 14:03:24 +0000</pubDate>
       <sparkle:version>49</sparkle:version>
@@ -139,20 +152,9 @@ Tried with automated tests and the headless copy. The dialogs' real look on scre
 - **A place to drop at the end of a group or a folder.** Items could only be dropped just above a row, so a tab could never be put last in a group, nor a bookmark last in a folder. A thin strip below the last row of an open group or folder now takes the drop and puts it at the end. (Tried through the code only; the drag itself is not yet tried by hand, so tell me if it does not take. The tab strip on top still has no such place.)</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.10.2/Changmun-0.10.2.dmg" length="6737285" type="application/octet-stream" sparkle:edSignature="wuvpE99wnJgt79aKbhG1ROlGLjTrFo9DU2MTh+pTInOVomJ7rm+nusocKP/D2NHyQFQTbcn+bq6Mh4Q1/vbhAw==" />
     </item>
-    <item>
-      <title>0.10.1</title>
-      <pubDate>Thu, 29 Oct 2026 08:32:24 +0000</pubDate>
-      <sparkle:version>40</sparkle:version>
-      <sparkle:shortVersionString>0.10.1</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.10.1</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Bookmarks inside a folder can be put in order.** Drag a bookmark in a sidebar folder and drop it on another row of the same folder to place it just above that row; drop it on the folder itself to send it to the end. A bookmark dragged in from another folder lands at the row you drop it on. Folders you have never arranged stay exactly as they were imported, and a bookmark added or moved in later goes last. (Tabs and links dropped on a row of a folder now go into that folder, as if dropped on the folder. Tried through the code and the saved order; the drag itself is not yet tried by hand, so tell me if it doesn't take.)</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.10.1/Changmun-0.10.1.dmg" length="6741417" type="application/octet-stream" sparkle:edSignature="VQoVfTN7BkrRIuON5veHvilZCa2Psk2tzW+bG4yvTWLgHB3DajvmsbLxRsymqdx/vKgJ6uD+bWPjxEmvZ3WmBw==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: LDlW1DQMnWVs+FLdvX/P9hOxGc+8aKiEi4NyYObgT5Kb52xm6EFfg8gRtqNQYisKVnCGd96rzmtroa6TOY+qCw==
-length: 19085
+edSignature: sJSUNt+hwM38QJD5u1fZuvvZADA7g5Ujdhd83hfdwEwf54kPMo4p0emPPGkp7MHaYHCSYgUlsLHxfFcX3ktoCg==
+length: 18837
 -->
