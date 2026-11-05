@@ -32,7 +32,7 @@ struct PageBar: View {
             }
             .padding(.horizontal, Metrics.inset)
             if #available(macOS 15.4, *), !browser.isPrivate { ExtensionButtons(browser: browser) }
-            DownloadButton(browser: browser, arrowEdge: .bottom)
+            if !Browser.downloadsInSidebar(layout: prefs.tabLayout, sidebarShown: browser.showSidebar) { DownloadButton(browser: browser, arrowEdge: .bottom) }
             if browser.isPrivate {
                 PrivateBadge()
             } else {

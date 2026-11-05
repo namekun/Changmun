@@ -77,6 +77,12 @@ extension SharedAgentState {
             window.close()
         }
 
+        @Test func theDownloadsButtonSitsUnderTheShelfWhenThereIsASidebar() {
+            #expect(Browser.downloadsInSidebar(layout: .sidebar, sidebarShown: true))
+            #expect(!Browser.downloadsInSidebar(layout: .sidebar, sidebarShown: false), "a hidden sidebar: beside the address")
+            #expect(!Browser.downloadsInSidebar(layout: .top, sidebarShown: true), "tabs on top: beside the address")
+        }
+
         // MARK: The setting
 
         @Test func theTabsAreInTheSidebarUnlessTheStoredValueSaysOtherwise() {

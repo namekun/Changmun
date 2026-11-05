@@ -101,10 +101,9 @@ struct Sidebar: View {
             HStack(spacing: Metrics.rowGap) {
                 BarButton(symbol: "bookmark", help: String(localized: "Bookmarks")) { showLibrary.toggle() }
                     .popover(isPresented: $showLibrary, arrowEdge: .top) { allBookmarks }
-                if toolbarHere {
-                    DownloadButton(browser: browser, arrowEdge: .top)
-                    if #available(macOS 15.4, *), !browser.isPrivate { ExtensionButtons(browser: browser) }
-                }
+                // The list opens where the progress was shown, above the shelf, not across the window.
+                if !overlay { DownloadButton(browser: browser, arrowEdge: .top) }
+                if toolbarHere, #available(macOS 15.4, *), !browser.isPrivate { ExtensionButtons(browser: browser) }
                 MoreButton(inBar: true) {
                     Button("History") { NSApp.sendAction(#selector(AppDelegate.showHistory(_:)), to: nil, from: nil) }
                     Button("Archived Tabs") { NSApp.sendAction(#selector(AppDelegate.showArchive(_:)), to: nil, from: nil) }
