@@ -50,7 +50,7 @@ Ad and tracker blocking is covered under [Ad blocking](#ad-blocking), and what s
 ### Saving and downloads
 
 - **Save a page.** Keep a page for later as a PDF or a picture. Save it as one long PDF (File › Save as PDF…) or as a picture of the whole page, not just what's on screen (File › Capture Full Page…). Both are also in a tab's menu, save to your Downloads folder unless you pick another, and work in private windows too. Pages that scroll inside an inner panel and images that load only on scroll may not be captured in full.
-- **Downloads.** See how a download is going, with a safety check on first open. Downloads show their progress at the bottom of the sidebar and get Safari's quarantine flag, so Gatekeeper checks them on first open. Apps, scripts and installers are shown in Finder instead of run. A download that breaks off picks up from where it stopped with Try Again on its row.
+- **Downloads.** See how a download is going, with a safety check on first open. Downloads show their progress at the bottom of the sidebar, where the downloads button just below opens the list (with the tabs on top or the sidebar hidden, the button is beside the address). They get Safari's quarantine flag, so Gatekeeper checks them on first open. Apps, scripts and installers are shown in Finder instead of run. A download that breaks off picks up from where it stopped with Try Again on its row.
 - **Page zoom.** Zoom a site once and it stays zoomed: page zoom is remembered per site, so you only squint once.
 - **Session saving.** Browsers crash. Open tabs are saved every 15 seconds, so a crash costs almost nothing.
 

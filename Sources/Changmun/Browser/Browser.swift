@@ -162,6 +162,12 @@ final class Browser: ObservableObject {
         didSet { if commandBar != nil { closePeek() } }
     }
     @Published var showOnboarding = false
+    /// Whether the downloads button is in the sidebar's bottom bar, under the shelf that shows their progress: whenever the sidebar is
+    /// there as a column. With the tabs on top, or the sidebar hidden, it is beside the address instead.
+    nonisolated static func downloadsInSidebar(layout: TabLayout, sidebarShown: Bool) -> Bool {
+        layout == .sidebar && sidebarShown
+    }
+
     @Published var showDownloads = false {
         didSet { if showDownloads { focusMode = false } }
     }
