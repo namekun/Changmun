@@ -24,7 +24,6 @@
 "Kept your newer passwords %@" = "保留较新的密码 %@";
 "Update password for %@?" = "要更新 %@ 的密码吗？";
 "a frame of an unknown site" = "来源不明的框架";
-"A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "完整地址可以直接在原位编辑（⌘L）。若显示网站和标题，按 ⌘L 会打开搜索栏进行编辑。";
 "%@ is muted" = "已将“%@”静音";
 "%@ is not muted" = "已取消“%@”的静音";
 "%@ is playing audio" = "“%@”正在播放声音";
@@ -57,7 +56,6 @@
 "Added %lld tabs to groups" = "已将 %lld 个标签页加入群组";
 "Added to “%@”" = "已加入“%@”";
 "Address" = "地址";
-"Address Bar" = "地址栏";
 "Address copied" = "已拷贝地址";
 "Advanced" = "高级";
 "After 1 day" = "1 天后";
@@ -293,7 +291,6 @@
 "For sites you keep open, like music or meetings. Subdomains are included." = "适用于需要一直开着的网站，如音乐或会议。包含子域名。";
 "Forward" = "前进";
 "Forward (⌘])" = "前进 (⌘])";
-"Full Address" = "完整地址";
 "Full Screen" = "全屏幕";
 "General" = "通用";
 "Get search suggestions as you type" = "输入时获取搜索建议";
@@ -329,7 +326,6 @@
 "Looking at the page" = "正在查看页面";
 "Make Default Browser" = "设为默认浏览器";
 "Manage…" = "管理…";
-"Match developer mode (currently: %@)" = "与开发者模式一致（当前：%@）";
 "Microphone" = "麦克风";
 "Minimize" = "最小化";
 "Mobile Bookmarks" = "移动设备书签";
@@ -475,7 +471,6 @@
 "Sidebar ⌘⇧L · Hard Reload ⌥⌘R · Console ⌥⌘C · Downloads ⌥⌘L" = "边栏 ⌘⇧L · 强制重新载入 ⌥⌘R · 控制台 ⌥⌘C · 下载 ⌥⌘L";
 "Sign In" = "登录";
 "Sign in to %@" = "登录 %@";
-"Site and Title" = "网站和标题";
 "site data" = "网站数据";
 "Site data" = "网站数据";
 "Site data such as cookies and cache (signs you out of sites)" = "Cookie 和缓存等网站数据（会退出网站登录）";
@@ -537,7 +532,6 @@
 "Turned off" = "已关闭";
 "Turned on" = "开";
 "Type" = "输入";
-"Type an address or words to search for, then press Return" = "输入地址或搜索词，然后按 Return 键";
 "Type to see suggestions. Use the up and down arrow keys to choose one, and Return to open it" = "输入即可看到建议。用上下箭头键选择，按 Return 键打开";
 "Typing into “%@”" = "正在“%@”中输入";
 "Undo" = "撤销";
@@ -575,9 +569,6 @@
 "Claude Code" = "Claude Code";
 "claude CLI" = "claude CLI";
 "Passwords" = "密码";
-"Address Bar Position" = "地址栏位置";
-"Above the Page" = "页面上方";
-"In the Sidebar" = "边栏";
 "Move To" = "移到";
 "More" = "更多";
 "Pin to Sidebar" = "固定到边栏";
@@ -740,9 +731,6 @@
 "Renamed the bookmark" = "已重命名书签";
 "Folder name" = "文件夹名称";
 "Renamed the folder" = "已重命名文件夹";
-"Tab Layout" = "标签页布局";
-"On Top" = "顶部";
-"With tabs on top, favorites and open tabs sit in a strip above the address bar, and the sidebar opens over the page from the button beside the address bar." = "标签页放在顶部时，个人收藏和已打开的标签页会排在地址栏上方的标签栏中，边栏则通过地址栏旁的按钮在页面上方展开。";
 "Add Image…" = "添加图片…";
 "Add Tab…" = "添加标签页…";
 "Add tabs, a screenshot or images for the AI to look at" = "添加供 AI 查看的标签页、截图或图片";

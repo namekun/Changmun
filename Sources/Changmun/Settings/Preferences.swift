@@ -1,37 +1,6 @@
 import AppKit
 import SwiftUI
 
-enum AddressBarChoice: String, CaseIterable, Identifiable {
-    /// The whole address in developer mode, the site and the page's title otherwise.
-    case automatic
-    /// The site and the page's title; ⌘L edits it in the command bar. (Named for where it used to sit.)
-    case sidebar
-    /// The whole address, edited in place.
-    case top
-
-    var id: String { rawValue }
-}
-
-/// Where the address bar and the back and forward buttons sit: on the page card, as in Dia, or at the top of the
-/// sidebar, as in Arc. With the sidebar hidden they are always on the page card.
-enum ToolbarPlace: String, CaseIterable, Identifiable {
-    case page
-    case sidebar
-
-    var id: String { rawValue }
-}
-
-/// Where the open tabs are: a column down the left (the sidebar), or a strip along the top of the window above the page bar.
-enum TabLayout: String, CaseIterable, Identifiable {
-    case sidebar
-    case top
-
-    var id: String { rawValue }
-
-    /// What is stored; anything else (a value from a later version, nothing yet) is the sidebar.
-    init(stored: String?) { self = stored.flatMap(TabLayout.init(rawValue:)) ?? .sidebar }
-}
-
 enum ShortcutScheme: String, CaseIterable, Identifiable {
     case safari
     case chrome
@@ -105,8 +74,6 @@ final class Preferences: ObservableObject {
         }
     }
     @Published var sidebarWidth: Double { didSet { defaults.set(sidebarWidth, forKey: "sidebarWidth") } }
-    @Published var toolbarPlace: ToolbarPlace { didSet { defaults.set(toolbarPlace.rawValue, forKey: "toolbarPlace") } }
-    @Published var tabLayout: TabLayout { didSet { defaults.set(tabLayout.rawValue, forKey: "tabLayout") } }
     @Published var defaultZoom: Double { didSet { defaults.set(defaultZoom, forKey: "defaultZoom") } }
     /// Leaving a tab whose video is playing floats the video in picture in picture.
     @Published var autoPictureInPicture: Bool { didSet { defaults.set(autoPictureInPicture, forKey: "autoPictureInPicture") } }
@@ -250,7 +217,6 @@ final class Preferences: ObservableObject {
     // MARK: Advanced
 
     @Published var developerMode: Bool { didSet { defaults.set(developerMode, forKey: "developerMode") } }
-    @Published var addressBar: AddressBarChoice { didSet { defaults.set(addressBar.rawValue, forKey: "addressBar") } }
     @Published var shortcuts: ShortcutScheme { didSet { defaults.set(shortcuts.rawValue, forKey: "shortcuts") } }
 
     private init() {
@@ -265,13 +231,6 @@ final class Preferences: ObservableObject {
         quitWhenLastWindowCloses = d.object(forKey: "quitWhenLastWindowCloses") as? Bool ?? true
         appearance = AppAppearance(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
         sidebarWidth = Self.clampedSidebarWidth(d.object(forKey: "sidebarWidth") as? Double ?? Self.defaultSidebarWidth)
-        // The address moved into the sidebar with the glass look; everyone starts there once, and can move it back.
-        if !d.bool(forKey: "addressInSidebarOnce") {
-            d.set(ToolbarPlace.sidebar.rawValue, forKey: "toolbarPlace")
-            d.set(true, forKey: "addressInSidebarOnce")
-        }
-        toolbarPlace = ToolbarPlace(rawValue: d.string(forKey: "toolbarPlace") ?? "") ?? .sidebar
-        tabLayout = TabLayout(stored: d.string(forKey: "tabLayout"))
         defaultZoom = d.object(forKey: "defaultZoom") as? Double ?? 1
         autoPictureInPicture = d.object(forKey: "autoPictureInPicture") as? Bool ?? true
         siteZoom = d.dictionary(forKey: "siteZoom") as? [String: Double] ?? [:]
@@ -304,14 +263,11 @@ final class Preferences: ObservableObject {
         translationModel = TranslationEngine.model(stored: d.string(forKey: "translationModel"))
         translatedHosts = d.stringArray(forKey: "translatedHosts") ?? []
         developerMode = d.bool(forKey: "developerMode")
-        addressBar = AddressBarChoice(rawValue: d.string(forKey: "addressBar") ?? "") ?? .automatic
         shortcuts = ShortcutScheme(rawValue: d.string(forKey: "shortcuts") ?? "") ?? .safari
     }
 
     /// A privacy switch that is on until the user turns it off: nothing stored (everyone who had the app before it), or a value of another kind, is on.
     nonisolated static func privacySwitch(_ stored: Any?) -> Bool { stored as? Bool ?? true }
-
-    var addressBarOnTop: Bool { Self.onTop(addressBar, developerMode: developerMode) }
 
     static let defaultSidebarWidth = 252.0
     static let sidebarWidths = 200.0...420.0
@@ -330,10 +286,6 @@ final class Preferences: ObservableObject {
     /// The panel's width as chosen, but never so wide that the page beside it (within `available`, both together) gets less than 320.
     nonisolated static func aiPanelWidth(_ chosen: Double, available: Double) -> Double {
         max(300, min(clampedAIPanelWidth(chosen), available - 320))
-    }
-
-    nonisolated static func onTop(_ choice: AddressBarChoice, developerMode: Bool) -> Bool {
-        choice == .top || (choice == .automatic && developerMode)
     }
 
     /// Whether a background tab on this host may give up its web process.

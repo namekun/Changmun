@@ -90,63 +90,6 @@ struct AddressPill: View {
     }
 }
 
-/// The whole address, edited in place.
-struct AddressField: View {
-    @ObservedObject var tab: Tab
-    @ObservedObject var browser: Browser
-    @State private var text = ""
-    @FocusState private var focused: Bool
-
-    private var current: String { tab.url?.absoluteString ?? "" }
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: tab.isUnverified ? "exclamationmark.triangle" : tab.url?.scheme == "https" ? "lock" : "globe")
-                .font(.symbolInline)
-                .foregroundStyle(tab.isUnverified ? Theme.waiting : Theme.secondary)
-                .accessibilityLabel(Accessibility.connectionValue(scheme: tab.url?.scheme, unverified: tab.isUnverified, choseToGoOn: tab.usesTrustException) ?? "")
-                .accessibilityHidden(Accessibility.connectionValue(scheme: tab.url?.scheme, unverified: tab.isUnverified, choseToGoOn: tab.usesTrustException) == nil)
-            TextField("Search or enter address", text: $text)
-                .textFieldStyle(.plain)
-                .font(.body)
-                .foregroundStyle(Theme.primary)
-                .focused($focused)
-                .accessibilityLabel(String(localized: "Address"))
-                .accessibilityHint(String(localized: "Type an address or words to search for, then press Return"))
-                .onSubmit {
-                    browser.open(text, in: .editCurrent)
-                    focused = false
-                }
-                .onKeyPress(.escape) {
-                    text = current
-                    focused = false
-                    return .handled
-                }
-            TranslateButton(tab: tab)
-            LoginButton(tab: tab)
-            PictureInPictureButton(tab: tab)
-            AdBlockShield(tab: tab)
-            BookmarkStar(tab: tab)
-            if focused { Keycap("↵") }
-        }
-        .padding(.leading, 8)
-        .padding(.trailing, 4)
-        .frame(height: Metrics.control)
-        .background(FieldBackground(focused: focused))
-        .help("Edit Address (⌘L)")
-        .onAppear { text = current }
-        .onChange(of: tab.url) { if !focused { text = current } }
-        .onChange(of: browser.addressFocusRequest) { focused = true }
-        .onChange(of: focused) {
-            if focused {
-                DispatchQueue.main.async { NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil) }
-            } else {
-                text = current
-            }
-        }
-    }
-}
-
 struct AddressPlaceholder: View {
     let open: () -> Void
     @State private var hover = false

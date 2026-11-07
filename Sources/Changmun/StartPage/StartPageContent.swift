@@ -276,7 +276,6 @@ struct StartPageContent: View {
         .onDisappear { StartPageUI.disappeared(from: browser) }
         .onChange(of: model.stamp) { pruneHidden() }
         .onChange(of: browser.tabs.count) { model.reload(isPrivate: browser.isPrivate); now = Date() }
-        .onChange(of: browser.addressFocusRequest) { cursor = StartPageCursor(); searchFocus += 1 }
         .onReceive(NotificationCenter.default.publisher(for: Library.didChange)) { _ in model.reload(isPrivate: browser.isPrivate) }
         .onReceive(NotificationCenter.default.publisher(for: StartPageUI.customizeRequested)) { note in
             guard note.object as? Browser === browser else { return }

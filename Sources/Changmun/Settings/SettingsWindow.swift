@@ -50,8 +50,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
              String(localized: "Downloads Folder"), String(localized: "Ask where to save each download"),
              String(localized: "Default Browser"), String(localized: "Other Browsers")]
         case .appearance:
-            [String(localized: "Theme"), String(localized: "Address Bar Position"), String(localized: "Address Bar"),
-             String(localized: "Sidebar Width"), String(localized: "Default Zoom")]
+            [String(localized: "Theme"), String(localized: "Default Zoom")]
         case .tabs:
             [String(localized: "Play video in Picture in Picture when you switch to another tab"), String(localized: "Sleep inactive tabs"),
              String(localized: "Sites that never sleep"), String(localized: "Tab Cleanup"),

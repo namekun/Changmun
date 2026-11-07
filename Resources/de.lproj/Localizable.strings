@@ -24,7 +24,6 @@
 "Kept your newer passwords %@" = "Neuere Passwörter behalten %@";
 "Update password for %@?" = "Passwort für %@ aktualisieren?";
 "a frame of an unknown site" = "ein Frame einer unbekannten Website";
-"A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "Eine vollständige Adresse kannst du direkt an Ort und Stelle bearbeiten (⌘L). Bei „Website und Titel“ öffnet ⌘L das Suchfeld zum Bearbeiten.";
 "%@ is muted" = "%@ ist stummgeschaltet";
 "%@ is not muted" = "%@ ist nicht mehr stummgeschaltet";
 "%@ is playing audio" = "%@ gibt Ton wieder";
@@ -57,7 +56,6 @@
 "Added %lld tabs to groups" = "%lld Tabs zu Gruppen hinzugefügt";
 "Added to “%@”" = "Zu „%@“ hinzugefügt";
 "Address" = "Adresse";
-"Address Bar" = "Adressleiste";
 "Address copied" = "Adresse kopiert";
 "Advanced" = "Erweitert";
 "After 1 day" = "Nach 1 Tag";
@@ -293,7 +291,6 @@
 "For sites you keep open, like music or meetings. Subdomains are included." = "Für Websites, die du dauerhaft geöffnet lässt, z. B. Musik oder Meetings. Subdomains sind eingeschlossen.";
 "Forward" = "Vorwärts";
 "Forward (⌘])" = "Vorwärts (⌘])";
-"Full Address" = "Vollständige Adresse";
 "Full Screen" = "Vollbild";
 "General" = "Allgemein";
 "Get search suggestions as you type" = "Suchvorschläge während der Eingabe erhalten";
@@ -329,7 +326,6 @@
 "Looking at the page" = "Sehe mir die Seite an";
 "Make Default Browser" = "Als Standardbrowser festlegen";
 "Manage…" = "Verwalten …";
-"Match developer mode (currently: %@)" = "Wie Entwicklermodus (aktuell: %@)";
 "Microphone" = "Mikrofon";
 "Minimize" = "Minimieren";
 "Mobile Bookmarks" = "Mobile Lesezeichen";
@@ -475,7 +471,6 @@
 "Sidebar ⌘⇧L · Hard Reload ⌥⌘R · Console ⌥⌘C · Downloads ⌥⌘L" = "Seitenleiste ⌘⇧L · Vollständig neu laden ⌥⌘R · Konsole ⌥⌘C · Downloads ⌥⌘L";
 "Sign In" = "Anmelden";
 "Sign in to %@" = "Bei %@ anmelden";
-"Site and Title" = "Website und Titel";
 "site data" = "Websitedaten";
 "Site data" = "Websitedaten";
 "Site data such as cookies and cache (signs you out of sites)" = "Websitedaten wie Cookies und Cache (du wirst von Websites abgemeldet)";
@@ -537,7 +532,6 @@
 "Turned off" = "Ausgeschaltet";
 "Turned on" = "Ein";
 "Type" = "Tippen";
-"Type an address or words to search for, then press Return" = "Adresse oder Suchbegriffe eingeben und Return drücken";
 "Type to see suggestions. Use the up and down arrow keys to choose one, and Return to open it" = "Tippen Sie, um Vorschläge zu sehen. Wählen Sie mit den Pfeiltasten nach oben und unten eine aus und öffnen Sie sie mit Return";
 "Typing into “%@”" = "Tippe in „%@“";
 "Undo" = "Widerrufen";
@@ -575,9 +569,6 @@
 "Claude Code" = "Claude Code";
 "claude CLI" = "claude CLI";
 "Passwords" = "Passwörter";
-"Address Bar Position" = "Position der Adressleiste";
-"Above the Page" = "Über der Seite";
-"In the Sidebar" = "In der Seitenleiste";
 "Move To" = "Bewegen nach";
 "More" = "Mehr";
 "Pin to Sidebar" = "In der Seitenleiste fixieren";
@@ -740,9 +731,6 @@
 "Renamed the bookmark" = "Lesezeichen umbenannt";
 "Folder name" = "Ordnername";
 "Renamed the folder" = "Ordner umbenannt";
-"Tab Layout" = "Tab-Anordnung";
-"On Top" = "Oben";
-"With tabs on top, favorites and open tabs sit in a strip above the address bar, and the sidebar opens over the page from the button beside the address bar." = "Liegen die Tabs oben, stehen Favoriten und geöffnete Tabs in einer Leiste über der Adressleiste, und die Seitenleiste öffnet sich über der Seite mit der Taste neben der Adressleiste.";
 "Add Image…" = "Bild hinzufügen…";
 "Add Tab…" = "Tab hinzufügen…";
 "Add tabs, a screenshot or images for the AI to look at" = "Tabs, einen Screenshot oder Bilder für die KI hinzufügen";

@@ -15,59 +15,13 @@ struct AppearanceSettings: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
             }
-            Section("Tab Layout") {
-                Picker("Tabs", selection: $prefs.tabLayout) {
-                    Text("Sidebar").tag(TabLayout.sidebar)
-                    Text("On Top").tag(TabLayout.top)
-                }
-                .pickerStyle(.segmented)
-                Caption(text: "With tabs on top, favorites and open tabs sit in a strip above the address bar, and the sidebar opens over the page from the button beside the address bar.")
-            }
-            Section("Address Bar") {
-                Picker("Address Bar Position", selection: $prefs.toolbarPlace) {
-                    Text("Above the Page").tag(ToolbarPlace.page)
-                    Text("In the Sidebar").tag(ToolbarPlace.sidebar)
-                }
-                .pickerStyle(.segmented)
-                // With the tabs on top the address bar is always on the page card.
-                .disabled(prefs.tabLayout == .top)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Address Bar")
-                    addressBarChoice(.automatic) {
-                        Text("Match developer mode (currently: \(Preferences.onTop(.automatic, developerMode: prefs.developerMode) ? String(localized: "Full Address") : String(localized: "Site and Title")))")
-                    }
-                    addressBarChoice(.sidebar) { Text("Site and Title") }
-                    addressBarChoice(.top) { Text("Full Address") }
-                }
-                Caption(text: "A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it.")
-            }
             Section("Display") {
-                LabeledContent("Sidebar Width") {
-                    Slider(value: $prefs.sidebarWidth, in: Preferences.sidebarWidths, step: 4).frame(width: 220)
-                }
                 Picker("Default Zoom", selection: $prefs.defaultZoom) {
                     ForEach([0.75, 0.9, 1, 1.1, 1.25, 1.5], id: \.self) { Text("\(Int($0 * 100))%").tag($0) }
                 }
             }
         }
         .formStyle(.grouped)
-    }
-}
-
-extension AppearanceSettings {
-    /// A radio row, with the radio on the left of its text.
-    private func addressBarChoice(_ choice: AddressBarChoice, @ViewBuilder label: () -> some View) -> some View {
-        Button { prefs.addressBar = choice } label: {
-            HStack(spacing: 8) {
-                Image(systemName: prefs.addressBar == choice ? "largecircle.fill.circle" : "circle")
-                    .foregroundStyle(prefs.addressBar == choice ? Theme.primary : Theme.secondary)
-                label()
-                Spacer()
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(prefs.addressBar == choice ? .isSelected : [])
     }
 }
 

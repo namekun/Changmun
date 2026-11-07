@@ -96,15 +96,13 @@ extension Browser {
     /// The recent pages, closed tabs, reading list and frequent sites are history: a private window keeps none, so it never reads them either.
     var startPageMayShowHistory: Bool { !isPrivate }
 
-    /// ⌘L: on a start tab (or an empty window that shows the start page) the field of the start page is the address entry; on a page it is the address bar.
+    /// ⌘L: on a start tab (or an empty window that shows the start page) the field of the start page is the address entry; on a page the command bar edits it.
     func openLocation() {
         if showsStartPage {
             commandBar = nil
             focusStartPage()
         } else if active == nil {
             commandBar = .newTab
-        } else if Preferences.shared.addressBarOnTop && !focusMode {
-            addressFocusRequest += 1
         } else {
             commandBar = .editCurrent
         }

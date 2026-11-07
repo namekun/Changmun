@@ -24,7 +24,6 @@
 "Kept your newer passwords %@" = "新しいパスワードを維持 %@";
 "Update password for %@?" = "%@のパスワードを更新しますか？";
 "a frame of an unknown site" = "不明なサイトのフレーム";
-"A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "完全なアドレスはその場で編集できます (⌘L)。サイトとタイトルを表示している場合は、⌘Lで検索フィールドを開いて編集します。";
 "%@ is muted" = "「%@」をミュートしました";
 "%@ is not muted" = "「%@」のミュートを解除しました";
 "%@ is playing audio" = "「%@」で音声が再生されています";
@@ -57,7 +56,6 @@
 "Added %lld tabs to groups" = "%lld個のタブをグループに追加しました";
 "Added to “%@”" = "「%@」に追加しました";
 "Address" = "アドレス";
-"Address Bar" = "アドレスバー";
 "Address copied" = "アドレスをコピーしました";
 "Advanced" = "詳細";
 "After 1 day" = "1日後";
@@ -293,7 +291,6 @@
 "For sites you keep open, like music or meetings. Subdomains are included." = "音楽や会議など、開いたままにするサイト用です。サブドメインも含まれます。";
 "Forward" = "進む";
 "Forward (⌘])" = "進む (⌘])";
-"Full Address" = "完全なアドレス";
 "Full Screen" = "フルスクリーン";
 "General" = "一般";
 "Get search suggestions as you type" = "入力中に検索候補を表示";
@@ -329,7 +326,6 @@
 "Looking at the page" = "ページを見ています";
 "Make Default Browser" = "デフォルトのブラウザに設定";
 "Manage…" = "管理…";
-"Match developer mode (currently: %@)" = "デベロッパモードに合わせる (現在: %@)";
 "Microphone" = "マイク";
 "Minimize" = "しまう";
 "Mobile Bookmarks" = "モバイルのブックマーク";
@@ -475,7 +471,6 @@
 "Sidebar ⌘⇧L · Hard Reload ⌥⌘R · Console ⌥⌘C · Downloads ⌥⌘L" = "サイドバー ⌘⇧L · 強制再読み込み ⌥⌘R · コンソール ⌥⌘C · ダウンロード ⌥⌘L";
 "Sign In" = "サインイン";
 "Sign in to %@" = "%@にサインイン";
-"Site and Title" = "サイトとタイトル";
 "site data" = "サイトデータ";
 "Site data" = "サイトデータ";
 "Site data such as cookies and cache (signs you out of sites)" = "Cookieやキャッシュなどのサイトデータ (サイトからサインアウトされます)";
@@ -537,7 +532,6 @@
 "Turned off" = "オフ";
 "Turned on" = "オン";
 "Type" = "入力";
-"Type an address or words to search for, then press Return" = "アドレスまたは検索語を入力し、Returnキーを押します";
 "Type to see suggestions. Use the up and down arrow keys to choose one, and Return to open it" = "入力すると候補が表示されます。上下の矢印キーで選び、Returnキーで開きます";
 "Typing into “%@”" = "「%@」に入力中";
 "Undo" = "取り消す";
@@ -575,9 +569,6 @@
 "Claude Code" = "Claude Code";
 "claude CLI" = "claude CLI";
 "Passwords" = "パスワード";
-"Address Bar Position" = "アドレスバーの位置";
-"Above the Page" = "ページの上";
-"In the Sidebar" = "サイドバー";
 "Move To" = "移動";
 "More" = "その他";
 "Pin to Sidebar" = "サイドバーに固定";
@@ -740,9 +731,6 @@
 "Renamed the bookmark" = "ブックマークの名前を変更しました";
 "Folder name" = "フォルダ名";
 "Renamed the folder" = "フォルダの名前を変更しました";
-"Tab Layout" = "タブのレイアウト";
-"On Top" = "上部";
-"With tabs on top, favorites and open tabs sit in a strip above the address bar, and the sidebar opens over the page from the button beside the address bar." = "タブを上部にすると、お気に入りと開いているタブがアドレスバーの上のストリップに並び、サイドバーはアドレスバー横のボタンでページの上に開きます。";
 "Add Image…" = "画像を追加…";
 "Add Tab…" = "タブを追加…";
 "Add tabs, a screenshot or images for the AI to look at" = "AIが見るタブ、スクリーンショット、画像を追加します";

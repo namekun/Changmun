@@ -24,7 +24,6 @@
 "Kept your newer passwords %@" = "Contraseñas más recientes conservadas %@";
 "Update password for %@?" = "¿Actualizar la contraseña de %@?";
 "a frame of an unknown site" = "un marco de un sitio desconocido";
-"A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "Una dirección completa se puede editar directamente (⌘L). Con sitio y título, ⌘L abre el campo de búsqueda para editarla.";
 "%@ is muted" = "%@ está silenciada";
 "%@ is not muted" = "%@ ya no está silenciada";
 "%@ is playing audio" = "%@ está reproduciendo audio";
@@ -57,7 +56,6 @@
 "Added %lld tabs to groups" = "Se han añadido %lld pestañas a grupos";
 "Added to “%@”" = "Añadido a “%@”";
 "Address" = "Dirección";
-"Address Bar" = "Barra de direcciones";
 "Address copied" = "Dirección copiada";
 "Advanced" = "Avanzado";
 "After 1 day" = "Después de 1 día";
@@ -293,7 +291,6 @@
 "For sites you keep open, like music or meetings. Subdomains are included." = "Para sitios que mantienes abiertos, como música o reuniones. Se incluyen los subdominios.";
 "Forward" = "Adelante";
 "Forward (⌘])" = "Adelante (⌘])";
-"Full Address" = "Dirección completa";
 "Full Screen" = "Pantalla completa";
 "General" = "General";
 "Get search suggestions as you type" = "Obtener sugerencias de búsqueda mientras escribes";
@@ -329,7 +326,6 @@
 "Looking at the page" = "Mirando la página";
 "Make Default Browser" = "Establecer como navegador predeterminado";
 "Manage…" = "Gestionar…";
-"Match developer mode (currently: %@)" = "Igual que el modo de desarrollador (ahora: %@)";
 "Microphone" = "Micrófono";
 "Minimize" = "Minimizar";
 "Mobile Bookmarks" = "Marcadores del móvil";
@@ -475,7 +471,6 @@
 "Sidebar ⌘⇧L · Hard Reload ⌥⌘R · Console ⌥⌘C · Downloads ⌥⌘L" = "Barra lateral ⌘⇧L · Recarga forzada ⌥⌘R · Consola ⌥⌘C · Descargas ⌥⌘L";
 "Sign In" = "Iniciar sesión";
 "Sign in to %@" = "Iniciar sesión en %@";
-"Site and Title" = "Sitio y título";
 "site data" = "datos de sitios web";
 "Site data" = "Datos de sitios web";
 "Site data such as cookies and cache (signs you out of sites)" = "Datos de sitios web, como cookies y caché (cierra tu sesión en los sitios)";
@@ -537,7 +532,6 @@
 "Turned off" = "Desactivado";
 "Turned on" = "Activado";
 "Type" = "Escribir";
-"Type an address or words to search for, then press Return" = "Escribe una dirección o palabras para buscar y pulsa Retorno";
 "Type to see suggestions. Use the up and down arrow keys to choose one, and Return to open it" = "Escribe para ver sugerencias. Elige una con las flechas arriba y abajo y ábrela con Retorno";
 "Typing into “%@”" = "Escribiendo en «%@»";
 "Undo" = "Deshacer";
@@ -575,9 +569,6 @@
 "Claude Code" = "Claude Code";
 "claude CLI" = "claude CLI";
 "Passwords" = "Contraseñas";
-"Address Bar Position" = "Posición de la barra de direcciones";
-"Above the Page" = "Sobre la página";
-"In the Sidebar" = "En la barra lateral";
 "Move To" = "Mover a";
 "More" = "Más";
 "Pin to Sidebar" = "Fijar en la barra lateral";
@@ -740,9 +731,6 @@
 "Renamed the bookmark" = "Marcador renombrado";
 "Folder name" = "Nombre de la carpeta";
 "Renamed the folder" = "Carpeta renombrada";
-"Tab Layout" = "Disposición de las pestañas";
-"On Top" = "Arriba";
-"With tabs on top, favorites and open tabs sit in a strip above the address bar, and the sidebar opens over the page from the button beside the address bar." = "Con las pestañas arriba, los favoritos y las pestañas abiertas van en una franja sobre la barra de direcciones, y la barra lateral se abre sobre la página con el botón junto a la barra de direcciones.";
 "Add Image…" = "Añadir imagen…";
 "Add Tab…" = "Añadir pestaña…";
 "Add tabs, a screenshot or images for the AI to look at" = "Añade pestañas, una captura o imágenes para que la IA las vea";

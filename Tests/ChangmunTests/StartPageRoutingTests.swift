@@ -222,13 +222,12 @@ struct StartTabTests {
         defer { b.windowClosed() }
         b.openNewTab()
         let before = b.startPageFocusRequest
-        let address = b.addressFocusRequest
         b.openLocation()
-        #expect(b.startPageFocusRequest == before + 1 && b.addressFocusRequest == address && b.commandBar == nil)
+        #expect(b.startPageFocusRequest == before + 1 && b.commandBar == nil)
         _ = b.openTab(url: URL(string: "http://127.0.0.1:9/"))
         b.openLocation()
-        #expect(b.startPageFocusRequest == before + 1, "on a page it is the address bar's")
-        #expect(b.commandBar == .editCurrent || b.addressFocusRequest == address + 1)
+        #expect(b.startPageFocusRequest == before + 1, "on a page it is the command bar's")
+        #expect(b.commandBar == .editCurrent)
     }
 
     // MARK: Lifecycle

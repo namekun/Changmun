@@ -47,7 +47,7 @@ struct PeekCard: View {
             .padding(.horizontal, min(64, max(16, (area.width - 480) / 2)))
             .padding(.leading, area.leading)
             .padding(.trailing, area.trailing)
-            .padding(.top, BrowserWindow.pageTop)
+            .padding(.top, BrowserWindow.barHeight)
             .padding(.bottom, 32)
             .accessibilityElement(children: .contain)
             .accessibilityLabel(String(localized: "Link Preview"))

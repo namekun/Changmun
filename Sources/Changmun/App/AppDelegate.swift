@@ -242,7 +242,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func watchSpaceSwipes() {
         swipeMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
             guard event.hasPreciseScrollingDeltas, let browser = (event.window as? BrowserWindow)?.browser, !browser.isPrivate,
-                  browser.showSidebar, Preferences.shared.tabLayout == .sidebar, !browser.focusMode, event.locationInWindow.x < Preferences.shared.sidebarWidth else { return event }
+                  browser.showSidebar, !browser.focusMode, event.locationInWindow.x < Preferences.shared.sidebarWidth else { return event }
             let began = event.phase.contains(.began), ended = event.phase.contains(.ended) || event.phase.contains(.cancelled)
             guard let step = browser.swipe.scrolled(dx: event.scrollingDeltaX, dy: event.scrollingDeltaY, began: began, ended: ended) else { return event }
             // It stops at the ends, and a space with nothing in it stays empty: only a click or a key opens the bar.
@@ -251,16 +251,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// While a link is peeked, esc closes it and ⌘↩ keeps it as a tab. With the sidebar open over the page, esc puts it away, unless a text
-    /// field is being typed in.
+    /// While a link is peeked, esc closes it and ⌘↩ keeps it as a tab.
     private func watchPeekKeys() {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             guard let browser = (event.window as? BrowserWindow)?.browser else { return event }
             let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            if event.keyCode == 53 && modifiers.isEmpty && browser.escapeClosesSidebarOverlay(typing: event.window?.firstResponder is NSText) {
-                browser.showSidebarOverlay = false
-                return nil
-            }
             guard browser.peek != nil, browser.commandBar == nil else { return event }
             if event.keyCode == 53 && modifiers.isEmpty {
                 browser.closePeek()
@@ -399,12 +394,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     @objc func toggleBrowserSidebar(_ sender: Any?) {
-        if Preferences.shared.tabLayout == .top {
-            browser.focusMode = false
-            browser.showSidebarOverlay.toggle()
-        } else {
-            browser.showSidebar = browser.focusMode || !browser.showSidebar
-        }
+        browser.showSidebar = browser.focusMode || !browser.showSidebar
     }
     @objc func toggleFocusMode(_ sender: Any?) { browser.focusMode.toggle() }
     @objc func nextTab(_ sender: Any?) { browser.selectTab(offset: 1) }

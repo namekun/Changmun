@@ -136,43 +136,13 @@ final class Browser: ObservableObject {
             if showSidebar { focusMode = false } else { renamingGroup = nil; renamingTab = nil; renamingBookmark = nil; renamingFolder = nil }
         }
     }
-    /// With the tabs on top there is no sidebar column: this shows the sidebar over the page, from the page bar, until a click outside it.
-    @Published var showSidebarOverlay = false {
-        didSet {
-            if showSidebarOverlay {
-                showDownloads = false
-            } else if oldValue {
-                // A name typed in the overlay's rows goes with it, as with the sidebar (and must not turn up in the strip's field instead).
-                renamingGroup = nil; renamingTab = nil; renamingBookmark = nil; renamingFolder = nil
-            }
-        }
-    }
-
-    /// With the tabs on top a name is typed in the strip, or in the rows of the sidebar while it is open over the page: never in both, whose
-    /// two fields would take the focus from each other. (A favorite's popover follows the same rule; bookmarks and folders are in the sidebar only.)
-    func stripRenaming(tab id: Int) -> Bool { renamingTab == id && !showSidebarOverlay }
-    func stripRenaming(group id: UUID) -> Bool { renamingGroup == id && !showSidebarOverlay }
-
-    /// Esc puts the sidebar away from over the page, unless a text field is being typed in (its Esc is its own) or something else on top
-    /// has the key: the command bar, the peek card, the tab switcher, a sheet, the introduction.
-    func escapeClosesSidebarOverlay(typing: Bool) -> Bool {
-        showSidebarOverlay && !focusMode && !typing && commandBar == nil && peek == nil && tabSwitcher == nil && spaceSheet == nil && !showOnboarding
-    }
     @Published var commandBar: CommandBarMode? {
         didSet { if commandBar != nil { closePeek() } }
     }
     @Published var showOnboarding = false
-    /// Whether the downloads button is in the sidebar's bottom bar, under the shelf that shows their progress: whenever the sidebar is
-    /// there as a column. With the tabs on top, or the sidebar hidden, it is beside the address instead.
-    nonisolated static func downloadsInSidebar(layout: TabLayout, sidebarShown: Bool) -> Bool {
-        layout == .sidebar && sidebarShown
-    }
-
     @Published var showDownloads = false {
         didSet { if showDownloads { focusMode = false } }
     }
-    /// Bumped to put the cursor in the full address field (⌘L).
-    @Published var addressFocusRequest = 0
     /// Bumped to put the cursor in the start page's search field (⌘T, ⌘L on a start tab, a window or space with no tab); the page, once it
     /// is on screen, answers by focusing the field. Bumped before the page is there, it is answered when the page appears.
     @Published var startPageFocusRequest = 0
@@ -188,7 +158,6 @@ final class Browser: ObservableObject {
                 window?.standardWindowButton(kind)?.isHidden = focusMode
             }
             guard focusMode else { return }
-            showSidebarOverlay = false
             showDownloads = false
             renamingGroup = nil
             renamingTab = nil

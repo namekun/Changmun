@@ -433,15 +433,6 @@ struct ApprovalRuleTests {
     }
 }
 
-struct PreferencesTests {
-    @Test func developerModePutsTheAddressBarOnTopUnlessChosen() {
-        #expect(!Preferences.onTop(.automatic, developerMode: false))
-        #expect(Preferences.onTop(.automatic, developerMode: true))
-        #expect(!Preferences.onTop(.sidebar, developerMode: true))
-        #expect(Preferences.onTop(.top, developerMode: false))
-    }
-}
-
 @MainActor
 struct ShortcutTests {
     private func keys(_ scheme: ShortcutScheme) -> [(key: String, mods: NSEvent.ModifierFlags, action: String)] {

@@ -5,34 +5,24 @@ import SwiftUI
 /// then what acts on the whole window.
 struct PageBar: View {
     @ObservedObject var browser: Browser
-    @ObservedObject private var prefs = Preferences.shared
 
     var body: some View {
         HStack(spacing: Metrics.rowGap) {
-            if prefs.tabLayout == .top {
-                // The tabs are in the strip above: this opens the rest of the sidebar over the page.
-                BarButton(symbol: "sidebar.left", help: browser.showSidebarOverlay ? String(localized: "Hide Sidebar") : String(localized: "Show Sidebar"),
-                          label: String(localized: "Sidebar"), value: Accessibility.shownValue(browser.showSidebarOverlay)) { browser.showSidebarOverlay.toggle() }
-            } else {
-                if !browser.showSidebar && !browser.fullScreen { Color.clear.frame(width: BrowserWindow.windowButtonsTrailing - Metrics.inset - Metrics.rowGap) }
-                BarButton(symbol: "sidebar.left", help: browser.showSidebar ? String(localized: "Hide Sidebar") : String(localized: "Show Sidebar"),
-                          label: String(localized: "Sidebar"), value: Accessibility.shownValue(browser.showSidebar)) { browser.showSidebar.toggle() }
-            }
+            if !browser.showSidebar && !browser.fullScreen { Color.clear.frame(width: BrowserWindow.windowButtonsTrailing - Metrics.inset - Metrics.rowGap) }
+            BarButton(symbol: "sidebar.left", help: browser.showSidebar ? String(localized: "Hide Sidebar") : String(localized: "Show Sidebar"),
+                      label: String(localized: "Sidebar"), value: Accessibility.shownValue(browser.showSidebar)) { browser.showSidebar.toggle() }
             if let tab = browser.active { NavigationButtons(tab: tab) } else { DisabledNavigationButtons() }
             Group {
                 if let tab = browser.active {
-                    if prefs.addressBarOnTop {
-                        AddressField(tab: tab, browser: browser).id(tab.id)
-                    } else {
-                        AddressPill(tab: tab) { browser.commandBar = .editCurrent }
-                    }
+                    AddressPill(tab: tab) { browser.commandBar = .editCurrent }
                 } else {
                     AddressPlaceholder { browser.openNewTab(.emptied) }
                 }
             }
             .padding(.horizontal, Metrics.inset)
             if #available(macOS 15.4, *), !browser.isPrivate { ExtensionButtons(browser: browser) }
-            if !Browser.downloadsInSidebar(layout: prefs.tabLayout, sidebarShown: browser.showSidebar) { DownloadButton(browser: browser, arrowEdge: .bottom) }
+            // With the sidebar shown the button is under its shelf, where the progress is.
+            if !browser.showSidebar { DownloadButton(browser: browser, arrowEdge: .bottom) }
             if browser.isPrivate {
                 PrivateBadge()
             } else {

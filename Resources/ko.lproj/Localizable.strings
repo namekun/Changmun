@@ -24,7 +24,6 @@
 "Kept your newer passwords %@" = "더 최근 비밀번호 유지 %@";
 "Update password for %@?" = "%@의 비밀번호를 업데이트할까요?";
 "a frame of an unknown site" = "알 수 없는 사이트의 프레임";
-"A full address can be edited right in place (⌘L). With site and title, ⌘L opens the search field to edit it." = "전체 주소는 그 자리에서 바로 고칠 수 있어요 (⌘L). 사이트와 제목은 ⌘L로 검색 창에서 고쳐요.";
 "%@ is muted" = "%@의 소리를 껐어요";
 "%@ is not muted" = "%@의 소리를 켰어요";
 "%@ is playing audio" = "%@에서 소리가 나요";
@@ -57,7 +56,6 @@
 "Added %lld tabs to groups" = "탭 %lld개를 그룹에 넣었어요";
 "Added to “%@”" = "'%@' 그룹에 넣었어요";
 "Address" = "주소";
-"Address Bar" = "주소창";
 "Address copied" = "주소를 복사했어요";
 "Advanced" = "고급";
 "After 1 day" = "하루 뒤";
@@ -293,7 +291,6 @@
 "For sites you keep open, like music or meetings. Subdomains are included." = "음악·회의처럼 계속 켜 둘 사이트예요. 하위 도메인도 포함돼요.";
 "Forward" = "앞으로";
 "Forward (⌘])" = "앞으로 (⌘])";
-"Full Address" = "전체 주소";
 "Full Screen" = "전체 화면";
 "General" = "일반";
 "Get search suggestions as you type" = "입력하는 동안 검색어 추천 받기";
@@ -329,7 +326,6 @@
 "Looking at the page" = "페이지 보는 중";
 "Make Default Browser" = "기본 브라우저로 설정";
 "Manage…" = "관리…";
-"Match developer mode (currently: %@)" = "개발자 모드에 맞춤 (지금: %@)";
 "Microphone" = "마이크";
 "Minimize" = "최소화";
 "Mobile Bookmarks" = "모바일 북마크";
@@ -475,7 +471,6 @@
 "Sidebar ⌘⇧L · Hard Reload ⌥⌘R · Console ⌥⌘C · Downloads ⌥⌘L" = "사이드바 ⌘⇧L · 강력 새로고침 ⌥⌘R · 콘솔 ⌥⌘C · 다운로드 ⌥⌘L";
 "Sign In" = "로그인";
 "Sign in to %@" = "%@에 로그인";
-"Site and Title" = "사이트와 제목";
 "site data" = "사이트 데이터";
 "Site data" = "사이트 데이터";
 "Site data such as cookies and cache (signs you out of sites)" = "쿠키·캐시 등 사이트 데이터 (로그인이 풀려요)";
@@ -537,7 +532,6 @@
 "Turned off" = "꺼져 있어요";
 "Turned on" = "켜져 있어요";
 "Type" = "입력";
-"Type an address or words to search for, then press Return" = "주소나 검색어를 입력하고 Return 키를 눌러요";
 "Type to see suggestions. Use the up and down arrow keys to choose one, and Return to open it" = "입력하면 추천이 나와요. 위아래 화살표 키로 고르고 Return 키로 열어요";
 "Typing into “%@”" = "“%@”에 입력 중";
 "Undo" = "실행 취소";
@@ -575,9 +569,6 @@
 "Claude Code" = "Claude Code";
 "claude CLI" = "claude CLI";
 "Passwords" = "비밀번호";
-"Address Bar Position" = "주소창 위치";
-"Above the Page" = "페이지 위";
-"In the Sidebar" = "사이드바";
 "Move To" = "옮기기";
 "More" = "더 보기";
 "Pin to Sidebar" = "사이드바에 고정";
@@ -740,9 +731,6 @@
 "Renamed the bookmark" = "북마크 이름을 바꿨어요";
 "Folder name" = "폴더 이름";
 "Renamed the folder" = "폴더 이름을 바꿨어요";
-"Tab Layout" = "탭 배치";
-"On Top" = "위쪽";
-"With tabs on top, favorites and open tabs sit in a strip above the address bar, and the sidebar opens over the page from the button beside the address bar." = "탭을 위쪽에 두면 즐겨찾기와 열린 탭이 주소창 위의 띠에 놓이고, 사이드바는 주소창 옆 버튼으로 페이지 위에 열려요.";
 "Add Image…" = "이미지 추가…";
 "Add Tab…" = "탭 추가…";
 "Add tabs, a screenshot or images for the AI to look at" = "AI가 볼 탭, 스크린샷, 이미지를 추가해요";

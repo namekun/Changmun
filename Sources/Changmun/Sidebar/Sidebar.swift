@@ -5,25 +5,16 @@ import SwiftUI
 
 struct Sidebar: View {
     @ObservedObject var browser: Browser
-    /// Over the page, opened from the page bar when the tabs are in a strip on top: no window buttons above it, and the page bar already
-    /// holds the address, the downloads and the AI button.
-    var overlay = false
-    @ObservedObject private var prefs = Preferences.shared
     @ObservedObject private var library = LibraryWatcher.shared
     @ObservedObject private var drag = SidebarDragWatcher.shared
     @State private var dropTarget: String?
     @State private var showLibrary = false
     @State private var bookmarkQuery = ""
     @State private var newTabHover = false
-    private var toolbarHere: Bool { !overlay && prefs.toolbarPlace == .sidebar }
 
     var body: some View {
         VStack(spacing: 0) {
-            if toolbarHere {
-                SidebarToolbar(browser: browser)
-            } else {
-                WindowDragArea().frame(height: browser.fullScreen || overlay ? 0 : BrowserWindow.windowButtonsBottom)
-            }
+            WindowDragArea().frame(height: browser.fullScreen ? 0 : BrowserWindow.windowButtonsBottom)
 
             ScrollViewReader { scroller in
             ScrollView {
@@ -76,7 +67,7 @@ struct Sidebar: View {
                         } isTargeted: { target("tabs:end", $0) }
                 }
                 .padding(.horizontal, Metrics.inset)
-                .padding(.top, toolbarHere ? Metrics.section : Metrics.inset)
+                .padding(.top, Metrics.inset)
                 .padding(.bottom, Metrics.inset)
                 .animation(Motion.pointer, value: browser.tabs.map(\.id))
                 .animation(Motion.standard, value: browser.groups)
@@ -102,8 +93,7 @@ struct Sidebar: View {
                 BarButton(symbol: "bookmark", help: String(localized: "Bookmarks")) { showLibrary.toggle() }
                     .popover(isPresented: $showLibrary, arrowEdge: .top) { allBookmarks }
                 // The list opens where the progress was shown, above the shelf, not across the window.
-                if !overlay { DownloadButton(browser: browser, arrowEdge: .top) }
-                if toolbarHere, #available(macOS 15.4, *), !browser.isPrivate { ExtensionButtons(browser: browser) }
+                DownloadButton(browser: browser, arrowEdge: .top)
                 MoreButton(inBar: true) {
                     Button("History") { NSApp.sendAction(#selector(AppDelegate.showHistory(_:)), to: nil, from: nil) }
                     Button("Archived Tabs") { NSApp.sendAction(#selector(AppDelegate.showArchive(_:)), to: nil, from: nil) }
@@ -115,13 +105,6 @@ struct Sidebar: View {
                     Button("Settings…") { NSApp.sendAction(#selector(AppDelegate.showSettings(_:)), to: nil, from: nil) }
                 }
                 Spacer(minLength: 0)
-                if toolbarHere {
-                    if browser.isPrivate {
-                        PrivateBadge()
-                    } else {
-                        AIButton(isOn: browser.panelShown) { browser.showChat.toggle() }
-                    }
-                }
             }
             .padding(.horizontal, Metrics.inset)
             .padding(.bottom, browser.isPrivate ? Metrics.inset : 0)
