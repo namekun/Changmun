@@ -23,6 +23,7 @@
 "(No username)" = "(Aucun nom d’utilisateur)";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "Impossible de supprimer l’espace : ses favoris n’ont pas pu être déplacés";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "Impossible d’ouvrir le fichier des signets et de l’historique : rien de nouveau n’y est enregistré";
+"Delete %@" = "Supprimer %@";
 "Downloading" = "Téléchargement";
 "Kept your newer passwords %@" = "Mots de passe plus récents conservés %@";
 "Shows what the page is waiting on you for" = "Montre ce que la page attend de vous";

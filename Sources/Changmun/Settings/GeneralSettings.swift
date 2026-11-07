@@ -56,6 +56,7 @@ struct GeneralSettings: View {
                         Caption(text: "Kept translating")
                         Button { prefs.translatedHosts.removeAll { $0 == host } } label: { Image(systemName: "minus.circle") }
                             .buttonStyle(.borderless)
+                            .accessibilityLabel(String(localized: "Remove \(host)"))
                     }
                 }
                 if !claudeReady {

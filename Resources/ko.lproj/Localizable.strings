@@ -23,6 +23,7 @@
 "(No username)" = "(아이디 없음)";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "스페이스를 삭제하지 못했어요. 즐겨찾기를 옮길 수 없었어요";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "북마크와 방문 기록 파일을 열 수 없어서, 새로 저장되는 내용이 없어요";
+"Delete %@" = "%@ 삭제";
 "Downloading" = "받는 중";
 "Kept your newer passwords %@" = "더 최근 비밀번호 유지 %@";
 "Shows what the page is waiting on you for" = "페이지가 기다리는 일을 보여 줘요";
@@ -55,7 +56,7 @@
 "Add to Favorites" = "즐겨찾기에 추가";
 "Add to Favorites (⌘D)" = "즐겨찾기에 추가 (⌘D)";
 "Add to New Group" = "새 그룹으로 묶기";
-"Add/Remove Bookmark" = "즐겨찾기 추가/제거";
+"Add/Remove Bookmark" = "즐겨찾기 추가/빼기";
 "Added %lld tab to a group" = "탭 %lld개를 그룹에 넣었어요";
 "Added %lld tabs to groups" = "탭 %lld개를 그룹에 넣었어요";
 "Address" = "주소";
@@ -131,7 +132,7 @@
 "Chrome Web Store URL or extension ID" = "Chrome 웹 스토어 주소 또는 확장 ID";
 "Chrome-style" = "Chrome식";
 "Clear" = "지우기";
-"Clear %@? (%@)" = "%2$@의 %1$@를 지울까요?";
+"Clear %@? (%@)" = "%2$@의 %1$@ 항목을 지울까요?";
 "Clear All" = "모두 지우기";
 "Clear Chat" = "대화 지우기";
 "Clear Finished" = "끝난 항목 지우기";
@@ -175,7 +176,7 @@
 "Couldn't save the page" = "페이지를 저장하지 못했어요";
 "Couldn't translate this page" = "이 페이지를 번역하지 못했어요";
 "Couldn't translate this page. macOS’s translation didn’t respond — try again, or check System Settings › General › Language & Region › Translation Languages." = "이 페이지를 번역하지 못했어요. macOS 번역이 응답하지 않았어요. 다시 시도하거나 시스템 설정 › 일반 › 언어 및 지역 › 번역 언어를 확인해 보세요.";
-"Couldn’t download %@" = "%@을(를) 다운로드하지 못했어요";
+"Couldn’t download %@" = "%@ 파일을 다운로드하지 못했어요";
 "Couldn’t run it: %@" = "실행하지 못했어요: %@";
 "Didn’t answer in time: %@" = "응답하지 않았어요: %@";
 "Current Site" = "지금 사이트";
@@ -183,12 +184,12 @@
 "Dark" = "다크";
 "Default Browser" = "기본 브라우저";
 "Default Zoom" = "기본 확대";
-"Delete" = "지우기";
+"Delete" = "삭제";
 "Delete All %@ Bookmarks…" = "%@ 북마크 모두 삭제…";
-"Delete all bookmarks imported from %@?" = "%@에서 가져온 북마크를 모두 지울까요?";
+"Delete all bookmarks imported from %@?" = "%@에서 가져온 북마크를 모두 삭제할까요?";
 "Delete Bookmark" = "북마크 삭제";
 "Delete Folder…" = "폴더 삭제…";
-"Delete the password for %@?" = "%@의 비밀번호를 지울까요?";
+"Delete the password for %@?" = "%@의 비밀번호를 삭제할까요?";
 "Deny" = "거부";
 "Deny if the address carries content from another page or from the conversation." = "주소에 다른 페이지나 대화의 내용이 실려 있다면 거부해 주세요.";
 "Develop" = "개발자";
@@ -209,7 +210,7 @@
 "Drag" = "드래그";
 "Drag to resize the sidebar · double-click for default width" = "끌어서 사이드바 폭 조절 · 더블클릭하면 기본 폭";
 "Drag to resize · double-click to split evenly" = "끌어서 폭 나누기 · 더블클릭하면 반반";
-"Dragging “%@” to “%@”" = "“%@”을(를) “%@”(으)로 끄는 중";
+"Dragging “%@” to “%@”" = "끄는 중: “%@” → “%@”";
 "e.g. music.youtube.com" = "예: music.youtube.com";
 "Each browser locks passwords and login state in the Keychain, so macOS will ask for permission. Enter your login password and click 'Allow'. Imported passwords are stored only in this Mac's Keychain." = "비밀번호와 로그인 상태는 각 브라우저가 키체인에 잠가 둬서, macOS가 접근 허용을 물어봐요. 로그인 암호를 넣고 '허용'을 눌러 주세요. 가져온 비밀번호는 이 Mac의 키체인에만 저장돼요.";
 "EasyList (ads)" = "EasyList (광고)";
@@ -239,7 +240,7 @@
 "Playing audio" = "소리 재생 중";
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "%@ 미리보기 중이에요. ⌘Return을 누르면 탭으로 열고, Esc를 누르면 닫아요.";
 "Purple" = "보라색";
-"Remove %@" = "%@ 제거";
+"Remove %@" = "%@ 빼기";
 "Remove this image" = "이 이미지 빼기";
 "Reopens the tab" = "탭을 다시 열어요";
 "Return opens it" = "Return 키로 열어요";
@@ -424,11 +425,11 @@
 "Reload" = "새로고침";
 "Reload (⌘R)" = "새로고침 (⌘R)";
 "Remember for this site" = "이 사이트는 다음에도 똑같이";
-"Remove from Archive" = "보관함에서 지우기";
+"Remove from Archive" = "보관함에서 빼기";
 "Remove from Favorites" = "즐겨찾기에서 빼기";
 "Remove from Favorites (⌘D)" = "즐겨찾기에서 빼기 (⌘D)";
 "Remove from Group" = "그룹에서 빼기";
-"Remove from History" = "기록에서 지우기";
+"Remove from History" = "기록에서 빼기";
 "Remove from the AI's tabs" = "AI 탭에서 빼기";
 "Rename" = "이름 바꾸기";
 "Reopen" = "다시 열기";
@@ -527,7 +528,7 @@
 "Turn Off" = "끄기";
 "Turn off ad blocking for this site (if it breaks)" = "이 사이트에서 광고 차단 끄기 (사이트가 깨질 때)";
 "Turn On" = "켜기";
-"Turn on '%@'?" = "'%@'을(를) 켤까요?";
+"Turn on '%@'?" = "'%@' 확장을 켤까요?";
 "Turn on ad blocking for this site" = "이 사이트에서 광고 차단 켜기";
 "Turned off" = "꺼져 있어요";
 "Turned on" = "켜져 있어요";
@@ -579,7 +580,7 @@
 "Bookmarks you bring over from another browser show up here." = "다른 브라우저에서 가져온 북마크가 여기에 나와요.";
 "Closed %lld tab" = "탭 %lld개를 닫았어요";
 "Closed %lld tabs" = "탭 %lld개를 닫았어요";
-"Deleted the bookmark" = "북마크를 지웠어요";
+"Deleted the bookmark" = "북마크를 삭제했어요";
 "Removed from Favorites" = "즐겨찾기에서 뺐어요";
 "Search Bookmarks" = "북마크 검색";
 "Duplicate Tab" = "탭 복제";
@@ -846,7 +847,7 @@
 "Open %@?" = "%@ 앱을 열까요?";
 "%@ wants to open the app." = "%@에서 앱을 열려고 해요.";
 "Account" = "계정";
-"Delete the folder “%@”?" = "“%@” 폴더를 지울까요?";
+"Delete the folder “%@”?" = "“%@” 폴더를 삭제할까요?";
 "If you allow it, this site can turn on the camera." = "허용하면 이 사이트에서 카메라가 켜져요.";
 "If you allow it, this site can turn on the microphone." = "허용하면 이 사이트에서 마이크가 켜져요.";
 "If you allow it, this site can turn on the camera and microphone." = "허용하면 이 사이트에서 카메라와 마이크가 켜져요.";

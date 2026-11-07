@@ -135,7 +135,7 @@ private struct LoginNoticeRow: View {
                       title: offer.updatesExisting && !offer.username.isEmpty ? String(localized: "Update password for \(offer.username)?") : String(localized: "Save login info for \(site)?"),
                       detail: !offer.username.isEmpty && !offer.updatesExisting ? [offer.username] : [],
                       close: { tab.loginOffer = nil }) {
-                PeekAction(title: String(localized: "Save")) {
+                PeekAction(title: offer.updatesExisting && !offer.username.isEmpty ? String(localized: "Update") : String(localized: "Save")) {
                     if Logins.save(host: offer.host, username: offer.username, password: offer.password) {
                         tab.browser?.flashStatus(String(localized: "Login info saved"))
                     }

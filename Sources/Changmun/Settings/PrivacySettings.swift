@@ -92,6 +92,7 @@ struct PrivacySettings: View {
                         Caption(text: "Never ask to save")
                         Button { prefs.neverSaveLoginHosts.removeAll { $0 == host } } label: { Image(systemName: "minus.circle") }
                             .buttonStyle(.borderless)
+                            .accessibilityLabel(String(localized: "Remove \(host)"))
                     }
                 }
             }
@@ -104,6 +105,7 @@ struct PrivacySettings: View {
                         Caption(text: "Pop-ups allowed")
                         Button { prefs.popupHosts.removeAll { $0 == host } } label: { Image(systemName: "minus.circle") }
                             .buttonStyle(.borderless)
+                            .accessibilityLabel(String(localized: "Remove \(host)"))
                     }
                 }
             }
@@ -123,6 +125,7 @@ struct PrivacySettings: View {
                             .fixedSize()
                         }
                         Button { permissions.forget(host) } label: { Image(systemName: "minus.circle") }.buttonStyle(.borderless)
+                            .accessibilityLabel(String(localized: "Remove \(host)"))
                     }
                 }
             }
@@ -197,6 +200,7 @@ struct PasswordsSheet: View {
                         if copied == login.id { Text("Copied").font(.caption).foregroundStyle(.secondary) }
                         Button("Copy Password") { Task { await copy(login) } }.buttonStyle(.borderless)
                         Button(role: .destructive) { deleting = login } label: { Image(systemName: "trash") }.buttonStyle(.borderless)
+                            .accessibilityLabel(String(localized: "Delete \(login.host)"))
                     }
                 }
             }
@@ -252,6 +256,7 @@ struct AdBlockSection: View {
                         if list.id.hasPrefix("custom-") {
                             Button { prefs.customFilterLists.removeAll { $0 == list.url }; Task { await blocker.recompile() } } label: { Image(systemName: "minus.circle") }
                                 .buttonStyle(.borderless)
+                                .accessibilityLabel(String(localized: "Remove \(list.name)"))
                         }
                     }
                 }
@@ -273,6 +278,7 @@ struct AdBlockSection: View {
                             Spacer()
                             Text("Not blocked").foregroundStyle(.secondary)
                             Button { blocker.toggleSite(host) } label: { Image(systemName: "minus.circle") }.buttonStyle(.borderless)
+                                .accessibilityLabel(String(localized: "Remove \(host)"))
                         }
                     }
                 }
