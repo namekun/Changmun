@@ -13,6 +13,8 @@
 "%lld history items" = "履歴 %lld件";
 "%lld match" = "%lld件";
 "%lld matches" = "%lld件";
+"%lld notice" = "お知らせ%lld件";
+"%lld notices" = "お知らせ%lld件";
 "%lld password" = "%lld件";
 "%lld passwords" = "%lld件";
 "'%@' asks for more permissions" = "「%@」が追加の権限を要求しています";
@@ -22,6 +24,7 @@
 "Couldn’t delete the space: its favorites couldn’t be moved" = "スペースを削除できませんでした。お気に入りを移動できませんでした";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "ブックマークと履歴のファイルを開けないため、新しい内容は保存されません";
 "Kept your newer passwords %@" = "新しいパスワードを維持 %@";
+"Shows what the page is waiting on you for" = "ページがあなたの返事を待っているものを表示します";
 "Update password for %@?" = "%@のパスワードを更新しますか？";
 "a frame of an unknown site" = "不明なサイトのフレーム";
 "%@ is muted" = "「%@」をミュートしました";

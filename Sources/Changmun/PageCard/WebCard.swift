@@ -20,15 +20,6 @@ struct WebCard: View {
                 }
             }
             .overlay(alignment: .top) {
-                if let tab = browser.active {
-                    VStack(spacing: 0) {
-                        LoginOfferBar(tab: tab)
-                        PopupBar(tab: tab)
-                        if #available(macOS 15.4, *), !browser.isPrivate { WebStoreBar(tab: tab, host: ExtensionHost.shared) }
-                    }
-                }
-            }
-            .overlay(alignment: .top) {
                 if let tab = browser.active { LoadingLine(tab: tab) }
             }
             .overlay(alignment: .bottomLeading) {

@@ -13,6 +13,8 @@
 "%lld history items" = "%lld 条历史记录";
 "%lld match" = "%lld 个匹配项";
 "%lld matches" = "%lld 个匹配项";
+"%lld notice" = "%lld 条通知";
+"%lld notices" = "%lld 条通知";
 "%lld password" = "%lld 个密码";
 "%lld passwords" = "%lld 个密码";
 "'%@' asks for more permissions" = "“%@”请求更多权限";
@@ -22,6 +24,7 @@
 "Couldn’t delete the space: its favorites couldn’t be moved" = "无法删除空间：无法移动其中的个人收藏";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "无法打开书签和历史记录文件，因此不会再向其中保存新内容";
 "Kept your newer passwords %@" = "保留较新的密码 %@";
+"Shows what the page is waiting on you for" = "显示页面在等你处理的事项";
 "Update password for %@?" = "要更新 %@ 的密码吗？";
 "a frame of an unknown site" = "来源不明的框架";
 "%@ is muted" = "已将“%@”静音";

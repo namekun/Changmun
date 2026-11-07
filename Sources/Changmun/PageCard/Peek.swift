@@ -25,6 +25,7 @@ struct PeekCard: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                     Spacer(minLength: 8)
+                    NoticesButton(tab: tab)
                     PeekAction(title: String(localized: "Open as Tab"), key: "⌘↩") { browser.keepPeek() }
                     PeekAction(title: String(localized: "Close"), key: "esc") { browser.closePeek() }
                 }
@@ -33,7 +34,6 @@ struct PeekCard: View {
                 ZStack(alignment: .top) {
                     Theme.page
                     WebViewHost(tab: tab, browser: browser)
-                    LoginOfferBar(tab: tab)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
                 .overlay(alignment: .top) {

@@ -13,6 +13,8 @@
 "%lld history items" = "%lld Verlaufseinträge";
 "%lld match" = "%lld Treffer";
 "%lld matches" = "%lld Treffer";
+"%lld notice" = "%lld Hinweis";
+"%lld notices" = "%lld Hinweise";
 "%lld password" = "%lld Passwort";
 "%lld passwords" = "%lld Passwörter";
 "'%@' asks for more permissions" = "„%@“ fordert weitere Berechtigungen an";
@@ -22,6 +24,7 @@
 "Couldn’t delete the space: its favorites couldn’t be moved" = "Der Space konnte nicht gelöscht werden: Seine Favoriten ließen sich nicht verschieben";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "Die Datei mit Lesezeichen und Verlauf konnte nicht geöffnet werden, daher wird nichts Neues darin gesichert";
 "Kept your newer passwords %@" = "Neuere Passwörter behalten %@";
+"Shows what the page is waiting on you for" = "Zeigt, worauf die Seite von dir wartet";
 "Update password for %@?" = "Passwort für %@ aktualisieren?";
 "a frame of an unknown site" = "ein Frame einer unbekannten Website";
 "%@ is muted" = "%@ ist stummgeschaltet";

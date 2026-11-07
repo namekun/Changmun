@@ -3,9 +3,6 @@ import SwiftUI
 
 struct AddressPill: View {
     @ObservedObject var tab: Tab
-    /// In the narrow sidebar: the site alone, without the page's title or the ⌘L hint.
-    var compact = false
-    var height = Metrics.control
     let edit: () -> Void
     @ObservedObject private var library = LibraryWatcher.shared
     @State private var hover = false
@@ -36,6 +33,7 @@ struct AddressPill: View {
         let hasSite = tab.url?.scheme?.hasPrefix("http") == true && host?.isEmpty == false
         HStack(spacing: 8) {
             HStack(spacing: 4) {
+                NoticesButton(tab: tab)
                 Image(systemName: tab.isUnverified ? "exclamationmark.triangle" : tab.url?.scheme == "https" ? "lock" : "globe")
                     .font(.symbolInline)
                     .foregroundStyle(tab.isUnverified ? Theme.waiting : Theme.secondary)
@@ -58,7 +56,7 @@ struct AddressPill: View {
                     .accessibleButton(String(localized: "Address"), value: tab.url?.absoluteString ?? "", hint: String(localized: "Edit the address"), activate: edit)
             }
             .layoutPriority(1)
-            if !compact, let title = Self.shownTitle(tab.title, host: host) {
+            if let title = Self.shownTitle(tab.title, host: host) {
                 Text(verbatim: "·").font(.body).foregroundStyle(Theme.secondary).decorative()
                 Text(verbatim: title)
                     .font(.body)
@@ -75,7 +73,7 @@ struct AddressPill: View {
         }
         .padding(.leading, 4)
         .padding(.trailing, 4)
-        .frame(height: height)
+        .frame(height: Metrics.control)
         .background(FieldBackground())
         .overlay {
             RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous)
