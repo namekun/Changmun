@@ -190,14 +190,14 @@ def seed():
 
 
 def unseed():
-    ui(command="none", find=False, overlay=False, downloads=False)
+    ui(command="none", find=False, downloads=False)
     ui(folder={"name": "", "remove": True, "pages": [[page("Fav one"), "Fav one"], [page("Fav two"), "Fav two"]]})
     ui(folder={"name": "AuditFolder", "remove": True, "pages": [[page("Mark one"), "Mark one"], [page("Mark two"), "Mark two"]]})
     post("/ai-chat", {"clearHistory": True})
     post("/approvals", {"newChat": True})
     post("/accessibility", {"approval": False})
     post("/panel", {"open": False})
-    ui(tabs="sidebar", toolbar="sidebar", sidebar=True, appearance="system")
+    ui(sidebar=True, appearance="system")
     for tab in ui()["tabs"]:
         if tab["title"] in TABS:
             call("close_tab", {"tab_id": tab["id"]})
@@ -212,15 +212,15 @@ def main():
     if only == {"start"}:
         start_page()
         return
-    ui(appearance="light", tabs="sidebar", toolbar="sidebar", sidebar=True, command="none", find=False)
+    ui(appearance="light", sidebar=True, command="none", find=False)
     ids = seed()
     ui(progress=0.4)
     toolbar = ["Sidebar", "Back", "Forward", "Stop", "Bookmarks", "Downloads", "AI Panel", "Address"]
     rows = [*TABS, "Audit group", "Fav one", "Fav two", "Mark one", "AuditFolder", "New Tab"]
 
     if wanted("sidebar"):
-        print("sidebar layout")
-        state = "sidebar, toolbar in the sidebar"
+        print("sidebar")
+        state = "sidebar"
         nodes = audit(state)
         expect_controls(state, nodes, toolbar + rows)
         expect_selected(state, nodes, "Alpha")
@@ -236,28 +236,6 @@ def main():
         expect_actions(state, nodes, "Audit group", ["Collapse", "Rename"])
         expect_actions(state, nodes, "AuditFolder", ["Collapse", "Rename"])
         expect_actions(state, nodes, "Mark one", ["Rename"])
-        state = "sidebar, toolbar over the page"
-        ui(toolbar="page")
-        nodes = audit(state)
-        expect_controls(state, nodes, ["Sidebar", "Back", "Forward", "Address", "AI Panel", *rows])
-        ui(toolbar="sidebar")
-
-    if wanted("top"):
-        print("tabs on top")
-        ui(tabs="top", overlay=False)
-        state = "tabs on top"
-        nodes = audit(state)
-        expect_controls(state, nodes, [*TABS, "Audit group", "Fav one", "New Tab", "Sidebar", "Back", "Forward", "Address", "Downloads", "AI Panel"])
-        expect_selected(state, nodes, "Alpha")
-        expect_value(state, nodes, "Sidebar", "Hidden")
-        expect_value(state, nodes, "Audit group", "Expanded, 2 tabs")
-        expect_actions(state, nodes, "Bravo", ["Close Tab", "Rename"])
-        ui(overlay=True)
-        state = "tabs on top, sidebar over the page"
-        nodes = audit(state)
-        expect_value(state, nodes, "Sidebar", "Shown")
-        expect_controls(state, nodes, ["Bookmarks", "AuditFolder", "Mark one"])
-        ui(overlay=False, tabs="sidebar")
 
     if wanted("command"):
         print("command bar")
