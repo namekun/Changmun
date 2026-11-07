@@ -39,11 +39,11 @@ Ou [téléchargez l’app](https://github.com/namekun/Changmun/releases/latest/d
 ## Pourquoi Changmun
 
 - **Léger.** Une app de 21 Mo, pour un téléchargement d’environ 7 Mo. Elle utilise le moteur WebKit que votre Mac possède déjà.
-- **Une barre latérale.** Onglets verticaux, favoris, dossiers de signets, groupes d’onglets et espaces dans une seule colonne. Vous préférez les onglets en haut ? C’est un réglage.
+- **Une barre latérale.** Onglets verticaux, favoris, dossiers de signets, groupes d’onglets et espaces dans une seule colonne.
 - **Une IA qui utilise le navigateur.** Claude lit les pages, clique et saisit à votre place, et demande avant toute action risquée.
 - **Privé.** Pas de compte, pas de serveur, pas d’analyse. Les publicités et les traceurs sont bloqués d’emblée.
 - **Vos affaires vous suivent.** Il importe les signets et l’historique de Safari et des navigateurs Chromium, et les mots de passe de ces derniers.
-- **Une page de démarrage à vous.** Trois styles, des sections que vous réorganisez à votre guise et votre propre arrière-plan.
+- **Une page de démarrage sobre.** Une zone de recherche et vos favoris.
 
 ## L’IA
 

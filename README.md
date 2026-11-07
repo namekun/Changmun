@@ -39,11 +39,11 @@ Or [download the app](https://github.com/namekun/Changmun/releases/latest/downlo
 ## Why use it
 
 - **Light.** A 21 MB app, about 7 MB to download. It uses the WebKit engine already on your Mac.
-- **A sidebar.** Vertical tabs, favorites, bookmark folders, tab groups and spaces in one column. Prefer tabs on top? That's a setting.
+- **A sidebar.** Vertical tabs, favorites, bookmark folders, tab groups and spaces in one column.
 - **An AI that uses the browser.** Claude reads pages, clicks and types for you, and asks before anything risky.
 - **Private.** No account, no server, no analytics. Ads and trackers are blocked out of the box.
 - **Your stuff comes along.** Imports bookmarks and history from Safari and Chromium browsers, and passwords from the Chromium ones.
-- **A start page of your own.** Three styles, sections you can arrange, and your own background.
+- **A plain start page.** A search field and your favorites.
 
 ## The AI
 
