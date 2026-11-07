@@ -2992,12 +2992,6 @@ extension SharedAgentState {
             ], "one tab joins a group that is there; a topic of one tab gives way to its site; tabs the model doesn't know are left out")
         }
 
-        @Test func aNewTabJoinsAGroupAllOnItsSite() async {
-            let group = [Item(id: 1, title: "a", host: "github.com", opener: nil), Item(id: 2, title: "b", host: "www.github.com", opener: nil)]
-            let index = await TabSorter.fit(Item(id: 3, title: "c", host: "github.com", opener: nil), groups: [("여행", []), ("개발", group)])
-            #expect(index == 1)
-        }
-
         @Test func aTidyMakesAndFillsGroupsAndCanBeTakenBack() {
             let b = Browser()
             let a = b.openTab(url: URL(string: "https://a.example/"))

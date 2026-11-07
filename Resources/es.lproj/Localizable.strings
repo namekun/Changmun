@@ -58,7 +58,6 @@
 "Add/Remove Bookmark" = "Añadir/quitar marcador";
 "Added %lld tab to a group" = "Se ha añadido %lld pestaña a un grupo";
 "Added %lld tabs to groups" = "Se han añadido %lld pestañas a grupos";
-"Added to “%@”" = "Añadido a “%@”";
 "Address" = "Dirección";
 "Address copied" = "Dirección copiada";
 "Advanced" = "Avanzado";
@@ -95,7 +94,6 @@
 "Ask AI: %@" = "Preguntar a la IA: %@";
 "Ask where to save each download" = "Preguntar dónde guardar cada descarga";
 "Authentication is required to copy the saved password" = "Se requiere autenticación para copiar la contraseña guardada";
-"Automatically put new tabs in the right group" = "Colocar automáticamente las pestañas nuevas en el grupo adecuado";
 "Back" = "Atrás";
 "Back (⌘[)" = "Atrás (⌘[)";
 "Block" = "Bloquear";
@@ -397,7 +395,6 @@
 "Picture in Picture" = "Imagen en imagen";
 "Picture in Picture (⌃⌘P)" = "Imagen en imagen (⌃⌘P)";
 "Pin to Favorites" = "Fijar en favoritos";
-"Play video in Picture in Picture when you switch to another tab" = "Reproducir el vídeo en imagen en imagen al cambiar a otra pestaña";
 "Pointing at “%@”" = "Apuntando a «%@»";
 "Pop-up blocked" = "Ventana emergente bloqueada";
 "Pop-ups" = "Ventanas emergentes";

@@ -52,9 +52,8 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .appearance:
             [String(localized: "Theme"), String(localized: "Default Zoom")]
         case .tabs:
-            [String(localized: "Play video in Picture in Picture when you switch to another tab"), String(localized: "Sleep inactive tabs"),
-             String(localized: "Sites that never sleep"), String(localized: "Tab Cleanup"),
-             String(localized: "Automatically put new tabs in the right group"), String(localized: "Archive tabs you haven’t viewed in a while")]
+            [String(localized: "Sleep inactive tabs"), String(localized: "Sites that never sleep"), String(localized: "Tab Cleanup"),
+             String(localized: "Archive tabs you haven’t viewed in a while")]
         case .startPage:
             [String(localized: "New Tabs Open")]
         case .privacy:

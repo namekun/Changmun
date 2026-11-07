@@ -58,7 +58,6 @@
 "Add/Remove Bookmark" = "즐겨찾기 추가/제거";
 "Added %lld tab to a group" = "탭 %lld개를 그룹에 넣었어요";
 "Added %lld tabs to groups" = "탭 %lld개를 그룹에 넣었어요";
-"Added to “%@”" = "'%@' 그룹에 넣었어요";
 "Address" = "주소";
 "Address copied" = "주소를 복사했어요";
 "Advanced" = "고급";
@@ -95,7 +94,6 @@
 "Ask AI: %@" = "AI에게 묻기: %@";
 "Ask where to save each download" = "다운로드할 때마다 저장 위치 묻기";
 "Authentication is required to copy the saved password" = "저장된 비밀번호를 복사하려면 확인이 필요해요";
-"Automatically put new tabs in the right group" = "새 탭을 맞는 그룹에 자동으로 넣기";
 "Back" = "뒤로";
 "Back (⌘[)" = "뒤로 (⌘[)";
 "Block" = "차단";
@@ -397,7 +395,6 @@
 "Picture in Picture" = "화면 속 화면(PiP)";
 "Picture in Picture (⌃⌘P)" = "화면 속 화면 (⌃⌘P)";
 "Pin to Favorites" = "즐겨찾기에 고정";
-"Play video in Picture in Picture when you switch to another tab" = "다른 탭으로 가면 재생 중인 영상을 화면 속 화면으로";
 "Pointing at “%@”" = "“%@” 가리키는 중";
 "Pop-up blocked" = "팝업을 막았어요";
 "Pop-ups" = "팝업";

@@ -135,14 +135,13 @@ struct StartTabTests {
         #expect(b.tabs.count == 1 && b.active === first && b.startPageFocusRequest == before + 1)
     }
 
-    @Test func aStartTabJoinsTheSpaceAndTheGroupRulesOfAnyNewTab() {
+    @Test func aStartTabJoinsTheSpaceOfAnyNewTab() {
         let b = browser()
         defer { b.windowClosed() }
         let page = b.openTab(url: URL(string: "http://127.0.0.1:9/"))
         b.openNewTab()
         let tab = try! #require(b.active)
         #expect(b.tabs.map(\.id) == [page.id, tab.id] && tab.spaceID == b.spaceID && tab.groupID == nil)
-        #expect(tab.sortsIntoGroup, "once it has a first page it may join the group it belongs in")
     }
 
     @Test func theCommandBarSettingStillOpensTheBarAndMakesNoTab() {

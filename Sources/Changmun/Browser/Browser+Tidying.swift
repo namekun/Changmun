@@ -78,21 +78,4 @@ extension Browser {
             moveTab(id, to: after)
         }
     }
-
-    /// A new tab whose first page has loaded joins the group it plainly belongs in, if there is one.
-    func sortIntoGroup(_ tab: Tab) {
-        // A tab opened from another (a link, a sign-in popup) stays by it.
-        let spaceGroups = spaceGroups
-        guard Preferences.shared.groupNewTabs, tab.groupID == nil, tab.bookmarkKey == nil, tab.openerID == nil, !spaceGroups.isEmpty,
-              tab.spaceID == spaceID else { return }
-        let ids = spaceGroups.map(\.id)
-        let candidates = spaceGroups.map { group in (name: group.name, members: tabs.filter { $0.groupID == group.id && !$0.isStart }.map(\.sortItem)) }
-        let item = tab.sortItem
-        Task {
-            guard let index = await TabSorter.fit(item, groups: candidates), self.tab(tab.id) === tab, tab.groupID == nil,
-                  let group = groups.first(where: { $0.id == ids[index] }) else { return }
-            addTab(tab.id, to: group.id)
-            if isShown(tab) { flashStatus(String(localized: "Added to “\(group.name)”")) }
-        }
-    }
 }

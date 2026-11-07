@@ -58,7 +58,6 @@
 "Add/Remove Bookmark" = "Lesezeichen hinzufügen/entfernen";
 "Added %lld tab to a group" = "%lld Tab zu einer Gruppe hinzugefügt";
 "Added %lld tabs to groups" = "%lld Tabs zu Gruppen hinzugefügt";
-"Added to “%@”" = "Zu „%@“ hinzugefügt";
 "Address" = "Adresse";
 "Address copied" = "Adresse kopiert";
 "Advanced" = "Erweitert";
@@ -95,7 +94,6 @@
 "Ask AI: %@" = "KI fragen: %@";
 "Ask where to save each download" = "Bei jedem Download nach dem Sichern-Ort fragen";
 "Authentication is required to copy the saved password" = "Zum Kopieren des gesicherten Passworts ist eine Authentifizierung erforderlich";
-"Automatically put new tabs in the right group" = "Neue Tabs automatisch in die passende Gruppe legen";
 "Back" = "Zurück";
 "Back (⌘[)" = "Zurück (⌘[)";
 "Block" = "Blockieren";
@@ -397,7 +395,6 @@
 "Picture in Picture" = "Bild-in-Bild";
 "Picture in Picture (⌃⌘P)" = "Bild-in-Bild (⌃⌘P)";
 "Pin to Favorites" = "An Favoriten anheften";
-"Play video in Picture in Picture when you switch to another tab" = "Video in Bild-in-Bild abspielen, wenn du zu einem anderen Tab wechselst";
 "Pointing at “%@”" = "Zeige auf „%@“";
 "Pop-up blocked" = "Pop-up blockiert";
 "Pop-ups" = "Pop-ups";

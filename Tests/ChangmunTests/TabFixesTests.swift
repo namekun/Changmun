@@ -151,14 +151,13 @@ extension SharedAgentState {
             #expect(SidebarDrag.dragging == nil && SidebarDrag.carriesTab)
         }
 
-        @Test func aLinkDroppedAtAPlaceStaysThereInsteadOfSortingIntoAGroup() throws {
+        @Test func aLinkDroppedAtAPlaceStaysThere() {
             let b = browser(2)
             let target = b.tabs[0].id
             #expect(SidebarDrag.drop(["https://dropped.example/"], onTab: target, browser: b))
-            let dropped = try #require(b.tabs.first { $0.url?.host() == "dropped.example" })
-            #expect(!dropped.sortsIntoGroup)
+            #expect(b.tabs.contains { $0.url?.host() == "dropped.example" })
             #expect(SidebarDrag.dropAtEnd(["https://end.example/"], browser: b))
-            #expect(b.tabs.last?.url?.host() == "end.example" && b.tabs.last?.sortsIntoGroup == false)
+            #expect(b.tabs.last?.url?.host() == "end.example")
             for tab in b.tabs { tab.sleep() }
         }
 

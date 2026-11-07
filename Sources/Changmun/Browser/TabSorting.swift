@@ -92,17 +92,6 @@ enum TabSorter {
         return host
     }
 
-    /// Which of the groups a newly opened tab belongs in, if it plainly belongs in one: a group all on its site, or, by
-    /// the model, a group doing the same thing.
-    static func fit(_ item: Item, groups: [(name: String, members: [Item])]) async -> Int? {
-        if let site = item.host.map(site),
-           let index = groups.firstIndex(where: { group in !group.members.isEmpty && group.members.allSatisfy { $0.host.map(Self.site) == site } }) {
-            return index
-        }
-        guard #available(macOS 26, *) else { return nil }
-        return await Model.fit(item, groups: groups)
-    }
-
     static func topics(for items: [Item], existing: [String]) async -> [Int: String]? {
         guard #available(macOS 26, *) else { return nil }
         return await Model.topics(for: items, existing: existing)
@@ -166,30 +155,6 @@ private enum Model {
             }
             return topics
         }
-    }
-
-    static func fit(_ item: TabSorter.Item, groups: [(name: String, members: [TabSorter.Item])]) async -> Int? {
-        guard SystemLanguageModel.default.isAvailable, !groups.isEmpty else { return nil }
-        var names: [String] = []
-        for group in groups where !names.contains(group.name) && group.name != TabSorter.noTopic { names.append(group.name) }
-        guard !names.isEmpty else { return nil }
-        let choices = names
-        let described = groups.map { group in
-            "- \(group.name): " + group.members.prefix(4).map { TabSorter.line($0) }.joined(separator: "; ")
-        }.joined(separator: "\n")
-        let name = await withTimeout {
-            let session = LanguageModelSession(instructions: """
-                Pick the group a newly opened browser tab belongs in. Pick a group only if the tab is clearly the same activity as the tabs in it; otherwise pick "\(TabSorter.noTopic)".
-                """)
-            let schema = try GenerationSchema(root: DynamicGenerationSchema(name: "Pick", properties: [
-                .init(name: "group", schema: .init(referenceTo: "Group")),
-            ]), dependencies: [DynamicGenerationSchema(name: "Group", anyOf: choices + [TabSorter.noTopic])])
-            let answer = try await session.respond(to: "Groups:\n\(described)\n\nNew tab: \(TabSorter.line(item))", schema: schema,
-                                                   options: GenerationOptions(sampling: .greedy))
-            return try answer.content.value(String.self, forProperty: "group")
-        }
-        guard let name else { return nil }
-        return groups.firstIndex { $0.name == name }
     }
 
     /// The work's answer, or nil if it failed or took too long (a busy model shouldn't hold the button). Work that runs

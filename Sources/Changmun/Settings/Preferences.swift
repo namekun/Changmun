@@ -75,8 +75,6 @@ final class Preferences: ObservableObject {
     }
     @Published var sidebarWidth: Double { didSet { defaults.set(sidebarWidth, forKey: "sidebarWidth") } }
     @Published var defaultZoom: Double { didSet { defaults.set(defaultZoom, forKey: "defaultZoom") } }
-    /// Leaving a tab whose video is playing floats the video in picture in picture.
-    @Published var autoPictureInPicture: Bool { didSet { defaults.set(autoPictureInPicture, forKey: "autoPictureInPicture") } }
     /// Sites zoomed to something other than the default, by host.
     @Published var siteZoom: [String: Double] { didSet { defaults.set(siteZoom, forKey: "siteZoom") } }
     /// Sites never to offer saving a password for.
@@ -118,8 +116,6 @@ final class Preferences: ObservableObject {
     @Published var neverSleepHosts: [String] { didSet { defaults.set(neverSleepHosts, forKey: "neverSleepHosts") } }
     /// Hours before a tab not looked at is archived; 0 never.
     @Published var archiveHours: Int { didSet { defaults.set(archiveHours, forKey: "archiveTabsAfterHours") } }
-    /// A newly opened tab joins the group it belongs in.
-    @Published var groupNewTabs: Bool { didSet { defaults.set(groupNewTabs, forKey: "groupNewTabs") } }
 
     // MARK: Privacy
 
@@ -232,14 +228,12 @@ final class Preferences: ObservableObject {
         appearance = AppAppearance(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
         sidebarWidth = Self.clampedSidebarWidth(d.object(forKey: "sidebarWidth") as? Double ?? Self.defaultSidebarWidth)
         defaultZoom = d.object(forKey: "defaultZoom") as? Double ?? 1
-        autoPictureInPicture = d.object(forKey: "autoPictureInPicture") as? Bool ?? true
         siteZoom = d.dictionary(forKey: "siteZoom") as? [String: Double] ?? [:]
         neverSaveLoginHosts = d.stringArray(forKey: "neverSaveLoginHosts") ?? []
         popupHosts = d.stringArray(forKey: "popupHosts") ?? []
         sleepMinutes = d.object(forKey: "sleepTabsAfterMinutes") as? Int ?? 20
         neverSleepHosts = d.stringArray(forKey: "neverSleepHosts") ?? []
         archiveHours = d.object(forKey: "archiveTabsAfterHours") as? Int ?? 0
-        groupNewTabs = d.object(forKey: "groupNewTabs") as? Bool ?? true
         blockTrackers = d.object(forKey: "blockTrackers") as? Bool ?? true
         keepSessionCookies = CookieJournal.storedSetting()
         requireAuthToFill = d.object(forKey: "requireAuthToFill") as? Bool ?? true

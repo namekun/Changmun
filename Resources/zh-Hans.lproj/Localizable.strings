@@ -58,7 +58,6 @@
 "Add/Remove Bookmark" = "添加/移除书签";
 "Added %lld tab to a group" = "已将 %lld 个标签页加入群组";
 "Added %lld tabs to groups" = "已将 %lld 个标签页加入群组";
-"Added to “%@”" = "已加入“%@”";
 "Address" = "地址";
 "Address copied" = "已拷贝地址";
 "Advanced" = "高级";
@@ -95,7 +94,6 @@
 "Ask AI: %@" = "询问 AI：%@";
 "Ask where to save each download" = "每次下载时询问存储位置";
 "Authentication is required to copy the saved password" = "需要验证身份才能拷贝已存储的密码";
-"Automatically put new tabs in the right group" = "自动将新标签页放入合适的群组";
 "Back" = "后退";
 "Back (⌘[)" = "后退 (⌘[)";
 "Block" = "拦截";
@@ -397,7 +395,6 @@
 "Picture in Picture" = "画中画";
 "Picture in Picture (⌃⌘P)" = "画中画 (⌃⌘P)";
 "Pin to Favorites" = "固定到个人收藏";
-"Play video in Picture in Picture when you switch to another tab" = "切换到其他标签页时，以画中画播放视频";
 "Pointing at “%@”" = "正在指向“%@”";
 "Pop-up blocked" = "已拦截弹出式窗口";
 "Pop-ups" = "弹出式窗口";

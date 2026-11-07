@@ -58,7 +58,6 @@
 "Add/Remove Bookmark" = "ブックマークを追加/削除";
 "Added %lld tab to a group" = "%lld個のタブをグループに追加しました";
 "Added %lld tabs to groups" = "%lld個のタブをグループに追加しました";
-"Added to “%@”" = "「%@」に追加しました";
 "Address" = "アドレス";
 "Address copied" = "アドレスをコピーしました";
 "Advanced" = "詳細";
@@ -95,7 +94,6 @@
 "Ask AI: %@" = "AIに質問: %@";
 "Ask where to save each download" = "ダウンロードごとに保存先を確認";
 "Authentication is required to copy the saved password" = "保存されたパスワードをコピーするには認証が必要です";
-"Automatically put new tabs in the right group" = "新しいタブを適切なグループに自動で追加";
 "Back" = "戻る";
 "Back (⌘[)" = "戻る (⌘[)";
 "Block" = "ブロック";
@@ -397,7 +395,6 @@
 "Picture in Picture" = "ピクチャインピクチャ";
 "Picture in Picture (⌃⌘P)" = "ピクチャインピクチャ (⌃⌘P)";
 "Pin to Favorites" = "お気に入りに固定";
-"Play video in Picture in Picture when you switch to another tab" = "別のタブに切り替えたときに、動画をピクチャインピクチャで再生";
 "Pointing at “%@”" = "「%@」にポインタを合わせ中";
 "Pop-up blocked" = "ポップアップをブロックしました";
 "Pop-ups" = "ポップアップ";
