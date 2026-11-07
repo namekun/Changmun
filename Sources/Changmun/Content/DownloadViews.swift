@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: Downloads
 
-/// The download button: a ring while files come in, a dot once one finished unseen, and the list in a popover.
+/// The download button: the arrow, and the list in a popover. How the files come along is said on the shelf, in words.
 struct DownloadButton: View {
     @ObservedObject var browser: Browser
     let arrowEdge: Edge
@@ -11,36 +11,11 @@ struct DownloadButton: View {
 
     var body: some View {
         let items = downloads.items(for: browser)
-        let progress = Downloads.progress(of: items)
-        let unseen = items.contains { $0.state == .finished && !$0.seen }
-        Button { browser.showDownloads.toggle() } label: {
-            ZStack {
-                if let progress {
-                    Circle().stroke(Theme.track, lineWidth: 2)
-                    Circle().trim(from: 0, to: max(0.04, progress))
-                        .stroke(Theme.primary, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                    Image(systemName: "arrow.down").font(.system(size: 8, weight: .bold))  // design-exempt: a mark inside the 15 pt progress ring
-                } else {
-                    Image(systemName: "arrow.down.circle").font(.symbolToolbar)
-                }
+        BarButton(symbol: "arrow.down", help: String(localized: "Downloads"),
+                  value: Accessibility.downloadsValue(active: items.filter { $0.state == .running }.count) ?? "") { browser.showDownloads.toggle() }
+            .popover(isPresented: $browser.showDownloads, arrowEdge: arrowEdge) {
+                DownloadList(browser: browser)
             }
-            .frame(width: progress == nil ? nil : 15, height: progress == nil ? nil : 15)
-            .frame(width: Metrics.control, height: Metrics.control)
-            .overlay(alignment: .topTrailing) {
-                if unseen { Circle().fill(Theme.working).frame(width: 6, height: 6).padding(4) }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(FillStyle(resting: browser.showDownloads ? Theme.field : .clear))
-        .foregroundStyle(progress != nil ? Theme.primary : Theme.secondary)
-        .help("Downloads")
-        .accessibilityLabel(String(localized: "Downloads"))
-        .accessibilityValue(Accessibility.downloadsValue(active: items.filter { $0.state == .running }.count) ?? (unseen ? String(localized: "New download finished") : ""))
-        .popover(isPresented: $browser.showDownloads, arrowEdge: arrowEdge) {
-            DownloadList(browser: browser)
-        }
-        .animation(Motion.quick, value: progress == nil)
     }
 }
 
@@ -86,8 +61,6 @@ struct DownloadList: View {
             }
         }
         .frame(width: 320)
-        .onAppear { downloads.markSeen(for: browser) }
-        .onChange(of: items.filter(\.isDone).count) { downloads.markSeen(for: browser) }
     }
 
     private func rows(_ items: [DownloadItem]) -> some View {
@@ -99,7 +72,7 @@ struct DownloadList: View {
     }
 }
 
-/// Files that are coming in, at the bottom of the sidebar; each stays a few seconds after it finishes.
+/// Files that are coming in, at the bottom of the sidebar, each a line of words; a finished one stays until it is closed.
 struct DownloadShelf: View {
     let browser: Browser
     @ObservedObject private var downloads = Downloads.shared
@@ -108,7 +81,7 @@ struct DownloadShelf: View {
         let items = Array(downloads.shelf(for: browser).prefix(3))
         VStack(spacing: 0) {
             ForEach(items) { item in
-                DownloadRow(item: item).transition(Motion.slide(.bottom))
+                DownloadRow(item: item, onShelf: true).transition(Motion.slide(.bottom))
             }
         }
         .padding(.horizontal, Metrics.inset)
@@ -119,58 +92,74 @@ struct DownloadShelf: View {
 struct DownloadRow: View {
     static let height: CGFloat = 40
     @ObservedObject var item: DownloadItem
+    /// On the shelf: one line of words, "name · 42% · Downloading" or "name · 2.1 MB · Done", without the file's icon.
+    var onShelf = false
     @State private var hover = false
 
     private var file: URL? { item.state == .finished ? item.destination : nil }
 
+    /// The shelf's line: the name, how far it has come (or its size, or why it stopped), and in a word where it is.
+    static func shelfLine(_ item: DownloadItem) -> String {
+        let size = { (bytes: Int64) in ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file) }
+        let parts: [String] = switch item.state {
+        case .running where !item.sizeKnown: [item.filename, size(item.bytes ?? 0), String(localized: "Downloading")]
+        case .running: [item.filename, "\(Int((item.progress * 100).rounded()))%", String(localized: "Downloading")]
+        case .finished: [item.filename] + (item.bytes.map { [size($0)] } ?? []) + [String(localized: "Done")]
+        case .cancelled: [item.filename, String(localized: "Cancelled")]
+        case .failed(let reason): [item.filename, String(localized: "Failed: \(reason)")]
+        }
+        return parts.joined(separator: " · ")
+    }
+
     var body: some View {
-        HStack(spacing: Metrics.iconGap) {
-            Group {
-                if let file {
-                    Image(nsImage: NSWorkspace.shared.icon(forFile: file.path)).resizable()
-                } else {
-                    Image(systemName: item.state == .running ? "arrow.down.circle" : "exclamationmark.circle")
-                        .font(.symbolEmpty)
-                        .foregroundStyle(Theme.tertiary)
+        Group {
+            if onShelf {
+                HStack(spacing: Metrics.iconGap) {
+                    Text(verbatim: Self.shelfLine(item))
+                        .font(.row.monospacedDigit())
+                        .foregroundStyle(failed ? Theme.waitingText : Theme.primary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer(minLength: 0)
+                    action
                 }
-            }
-            .frame(width: 24, height: 24)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.filename)
-                    .font(.row)
-                    .foregroundStyle(Theme.primary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                detail
-            }
-            Spacer(minLength: 0)
-            if item.state == .running {
-                HoverAction(symbol: "xmark", help: String(localized: "Cancel")) { item.cancel() }
-            } else if item.resumeData != nil {
-                HoverAction(symbol: "arrow.clockwise", help: String(localized: "Try Again")) { Downloads.shared.retry(item) }
-            } else if hover, let file {
-                HoverAction(symbol: "magnifyingglass", help: String(localized: "Show in Finder")) { Outside.reveal([file]) }
+                .frame(height: Metrics.row)
+            } else {
+                HStack(spacing: Metrics.iconGap) {
+                    Group {
+                        if let file {
+                            Image(nsImage: NSWorkspace.shared.icon(forFile: file.path)).resizable()
+                        } else {
+                            Image(systemName: item.state == .running ? "arrow.down.circle" : "exclamationmark.circle")
+                                .font(.symbolEmpty)
+                                .foregroundStyle(Theme.tertiary)
+                        }
+                    }
+                    .frame(width: 24, height: 24)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(item.filename)
+                            .font(.row)
+                            .foregroundStyle(Theme.primary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        detail
+                    }
+                    Spacer(minLength: 0)
+                    action
+                }
+                .frame(height: Self.height)
             }
         }
         .padding(.leading, Metrics.rowPadding)
         .padding(.trailing, 4)
-        .frame(height: Self.height)
         .rowChrome(hover: hover && file != nil)
-        .onHover {
-            hover = $0
-            item.isHovered = $0
-        }
-        // A row that goes away under the pointer gets no "left": the shelf must not wait for it.
-        .onDisappear { item.isHovered = false }
+        .onHover { hover = $0 }
         .onTapGesture { open() }
-        .accessibleButton(item.filename, value: downloadValue, actions: downloadActions) { open() }
+        .accessibleButton(onShelf ? Self.shelfLine(item) : item.filename, value: onShelf ? nil : downloadValue, actions: downloadActions) { open() }
         .modifier(FileDrag(file: file))
         .contextMenu {
             if let file {
-                Button("Open") {
-                    item.seen = true
-                    Outside.open(file)
-                }
+                Button("Open") { Outside.open(file) }
                 Button("Show in Finder") { Outside.reveal([file]) }
                 Button("Copy Path") {
                     NSPasteboard.general.clearContents()
@@ -187,6 +176,23 @@ struct DownloadRow: View {
         .help(file.map { "\($0.path)\n" + (Downloads.opensOnClick($0) ? String(localized: "Click to open it. You can drag it into another app.") : String(localized: "Click to show it in Finder. You can drag it into another app.")) } ?? item.filename)
     }
 
+    private var failed: Bool {
+        if case .failed = item.state { true } else { false }
+    }
+
+    /// Cancel while it runs, Try Again when it broke off; under the pointer, on the shelf a finished row's × and in the list Show in Finder.
+    @ViewBuilder private var action: some View {
+        if item.state == .running {
+            HoverAction(symbol: "xmark", help: String(localized: "Cancel")) { item.cancel() }
+        } else if item.resumeData != nil {
+            HoverAction(symbol: "arrow.clockwise", help: String(localized: "Try Again")) { Downloads.shared.retry(item) }
+        } else if hover, onShelf {
+            HoverAction(symbol: "xmark", help: String(localized: "Close")) { Downloads.shared.dismiss(item) }
+        } else if hover, let file {
+            HoverAction(symbol: "magnifyingglass", help: String(localized: "Show in Finder")) { Outside.reveal([file]) }
+        }
+    }
+
     /// How far it has come, or why it stopped.
     private var downloadValue: String? {
         switch item.state {
@@ -201,6 +207,7 @@ struct DownloadRow: View {
         if item.state == .running { actions.append(.init(String(localized: "Cancel")) { item.cancel() }) }
         if item.resumeData != nil { actions.append(.init(String(localized: "Try Again")) { Downloads.shared.retry(item) }) }
         if let file { actions.append(.init(String(localized: "Show in Finder")) { Outside.reveal([file]) }) }
+        if onShelf, item.isDone { actions.append(.init(String(localized: "Close")) { Downloads.shared.dismiss(item) }) }
         return actions
     }
 
@@ -229,8 +236,6 @@ struct DownloadRow: View {
     private func open() {
         guard let file else { return }
         guard FileManager.default.fileExists(atPath: file.path) else { return NSSound.beep() }
-        item.seen = true
-        Downloads.shared.dismiss(item)
         if Downloads.opensOnClick(file) {
             Outside.open(file)
         } else {

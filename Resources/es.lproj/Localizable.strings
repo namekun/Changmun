@@ -23,6 +23,7 @@
 "(No username)" = "(sin nombre de usuario)";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "No se pudo eliminar el espacio: no se pudieron mover sus favoritos";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "No se pudo abrir el archivo de marcadores e historial, así que no se guarda nada nuevo en él";
+"Downloading" = "Descargando";
 "Kept your newer passwords %@" = "Contraseñas más recientes conservadas %@";
 "Shows what the page is waiting on you for" = "Muestra lo que la página espera de ti";
 "Update password for %@?" = "¿Actualizar la contraseña de %@?";
@@ -230,7 +231,6 @@
 "Link Preview" = "Vista previa del enlace";
 "Loading" = "Cargando";
 "Muted" = "Silenciada";
-"New download finished" = "Terminó una descarga nueva";
 "No suggestions" = "Sin sugerencias";
 "Not open" = "No abierto";
 "Open %@" = "Abrir %@";

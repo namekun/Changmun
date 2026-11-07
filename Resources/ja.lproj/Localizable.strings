@@ -23,6 +23,7 @@
 "(No username)" = "(ユーザ名なし)";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "スペースを削除できませんでした。お気に入りを移動できませんでした";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "ブックマークと履歴のファイルを開けないため、新しい内容は保存されません";
+"Downloading" = "ダウンロード中";
 "Kept your newer passwords %@" = "新しいパスワードを維持 %@";
 "Shows what the page is waiting on you for" = "ページがあなたの返事を待っているものを表示します";
 "Update password for %@?" = "%@のパスワードを更新しますか？";
@@ -230,7 +231,6 @@
 "Link Preview" = "リンクのプレビュー";
 "Loading" = "読み込み中";
 "Muted" = "ミュート中";
-"New download finished" = "新しいダウンロードが完了しました";
 "No suggestions" = "候補なし";
 "Not open" = "開いていません";
 "Open %@" = "%@を開く";

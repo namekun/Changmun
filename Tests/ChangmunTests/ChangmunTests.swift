@@ -1738,15 +1738,6 @@ extension SharedAgentState {
             #expect(downloads.shelf.map(\.filename) == ["second.pdf", "a.zip"])
         }
 
-        @Test func progressAveragesOnlyRunningDownloads() {
-            let a = item("a"), b = item("b"), c = item("c")
-            a.progress = 0.2
-            b.progress = 0.6
-            c.state = .finished
-            #expect(Downloads.progress(of: [a, b, c]) == 0.4)
-            #expect(Downloads.progress(of: [c]) == nil)
-        }
-
         @Test func progressFollowsItDownAndCountsBytesWhenTheSizeIsUnknown() {
             let a = item("a")
             a.update(fraction: 0.5, bytes: 50, sizeKnown: true)
@@ -1770,15 +1761,15 @@ extension SharedAgentState {
             #expect(downloads.shelf.map(\.filename) == ["running", "private"])
         }
 
-        @Test func openingTheListMarksFinishedDownloadsSeen() {
-            let downloads = Downloads()
-            let normal = Browser(isPrivate: false)
-            let done = item("done"), running = item("running"), hidden = item("hidden", from: Browser(isPrivate: true))
-            [done, running, hidden].forEach(downloads.add)
-            done.state = .finished
-            hidden.state = .finished
-            downloads.markSeen(for: normal)
-            #expect(done.seen && !running.seen && !hidden.seen)
+        @Test func theShelfSaysInWordsHowADownloadIsGoing() {
+            let a = item("report.pdf")
+            a.update(fraction: 0.42, bytes: 42, sizeKnown: true)
+            #expect(DownloadRow.shelfLine(a) == "report.pdf · 42% · " + String(localized: "Downloading"))
+            a.update(fraction: 0, bytes: 2_100_000, sizeKnown: false)
+            #expect(DownloadRow.shelfLine(a) == "report.pdf · " + ByteCountFormatter.string(fromByteCount: 2_100_000, countStyle: .file) + " · " + String(localized: "Downloading"))
+            a.bytes = 2_100_000
+            a.state = .finished
+            #expect(DownloadRow.shelfLine(a) == "report.pdf · " + ByteCountFormatter.string(fromByteCount: 2_100_000, countStyle: .file) + " · " + String(localized: "Done"))
         }
 
         @Test func downloadedFilesAreQuarantined() throws {

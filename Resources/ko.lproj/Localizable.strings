@@ -23,6 +23,7 @@
 "(No username)" = "(아이디 없음)";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "스페이스를 삭제하지 못했어요. 즐겨찾기를 옮길 수 없었어요";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "북마크와 방문 기록 파일을 열 수 없어서, 새로 저장되는 내용이 없어요";
+"Downloading" = "받는 중";
 "Kept your newer passwords %@" = "더 최근 비밀번호 유지 %@";
 "Shows what the page is waiting on you for" = "페이지가 기다리는 일을 보여 줘요";
 "Update password for %@?" = "%@의 비밀번호를 업데이트할까요?";
@@ -230,7 +231,6 @@
 "Link Preview" = "링크 미리보기";
 "Loading" = "로딩 중";
 "Muted" = "음소거됨";
-"New download finished" = "새 다운로드를 마쳤어요";
 "No suggestions" = "추천 없음";
 "Not open" = "열려 있지 않아요";
 "Open %@" = "%@ 열기";

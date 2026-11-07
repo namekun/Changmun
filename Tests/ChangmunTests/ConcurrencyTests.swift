@@ -146,26 +146,15 @@ struct ControlServerTests {
 
 @MainActor
 struct DownloadShelfTests {
-    @Test func aHoveredRowThatLeavesTheShelfIsNotWaitedForForever() async throws {
-        let saved = Downloads.shelfTime
-        Downloads.shelfTime = .milliseconds(50)
-        defer { Downloads.shelfTime = saved }
-        weak var watched: Downloads?
-        do {
-            let downloads = Downloads()
-            watched = downloads
-            let item = DownloadItem(filename: "a.zip", progress: Progress(totalUnitCount: 1), isPrivate: false)
-            downloads.add(item)
-            item.state = .finished
-            item.isHovered = true
-            downloads.settle(item)
-            try await Task.sleep(for: .milliseconds(200))
-            #expect(downloads.shelf.contains { $0 === item }, "it stays while the pointer is on it")
-            // The row disappears under the pointer: no "left" ever comes.
-            downloads.dismiss(item)
-        }
-        for _ in 0..<60 where watched != nil { try await Task.sleep(for: .milliseconds(100)) }
-        #expect(watched == nil, "the task that waits for the pointer to leave a row ended with the row")
+    @Test func aFinishedDownloadStaysOnTheShelfUntilItIsClosed() async throws {
+        let downloads = Downloads()
+        let item = DownloadItem(filename: "a.zip", progress: Progress(totalUnitCount: 1), isPrivate: false)
+        downloads.add(item)
+        item.state = .finished
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(downloads.shelf.contains { $0 === item }, "no timer takes it away")
+        downloads.dismiss(item)
+        #expect(downloads.shelf.isEmpty && downloads.items.contains { $0 === item }, "closed on the shelf, it is still in the list")
     }
 }
 

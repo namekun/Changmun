@@ -23,6 +23,7 @@
 "(No username)" = "（无用户名）";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "无法删除空间：无法移动其中的个人收藏";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "无法打开书签和历史记录文件，因此不会再向其中保存新内容";
+"Downloading" = "正在下载";
 "Kept your newer passwords %@" = "保留较新的密码 %@";
 "Shows what the page is waiting on you for" = "显示页面在等你处理的事项";
 "Update password for %@?" = "要更新 %@ 的密码吗？";
@@ -230,7 +231,6 @@
 "Link Preview" = "链接预览";
 "Loading" = "正在载入";
 "Muted" = "已静音";
-"New download finished" = "有新的下载已完成";
 "No suggestions" = "没有建议";
 "Not open" = "未打开";
 "Open %@" = "打开 %@";
