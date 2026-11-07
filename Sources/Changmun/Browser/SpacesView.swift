@@ -60,7 +60,7 @@ struct SpaceSlide: ViewModifier {
     }
 }
 
-/// The bottom row of the sidebar: the space shown as a chip with its name, the others as symbols, and a plus to make one.
+/// The bottom row of the sidebar: the space shown by its symbol and name in plain ink, the others as symbols, and a plus to make one.
 struct SpaceSwitcher: View {
     @ObservedObject var browser: Browser
 
@@ -105,13 +105,11 @@ struct SpaceSwitcher: View {
     private func chip(_ space: Space) -> some View {
         HStack(spacing: 4) {
             icon(space)
-            Text(space.name).font(.secondaryStrong).lineLimit(1)
+            Text(space.name).font(.secondary).lineLimit(1)
         }
         .foregroundStyle(Theme.primary)
         .padding(.horizontal, 8)
         .frame(height: Metrics.control)
-        .background(Capsule().fill(Theme.selectedFill).overlay(Capsule().strokeBorder(Theme.selectedEdge, lineWidth: 0.5))
-            .e1())
         .help(space.name)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(space.name)

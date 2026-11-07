@@ -53,7 +53,6 @@ enum Theme {
     static let track = ink(0.15)
     static let meter = ink(0.75)
     static let waiting = Color(red: 1.0, green: 0.62, blue: 0.2)
-    static let working = Color(red: 0.31, green: 0.82, blue: 0.47)
     /// The orange for text and small glyphs: `waiting` is too light to read on the light ground (about 2:1), so light mode gets a deeper one (4.5:1 or better on the ground and on a tinted chip).
     static let waitingText = dynamic(light: NSColor(red: 0.58, green: 0.30, blue: 0, alpha: 1), dark: NSColor(red: 1.0, green: 0.62, blue: 0.2, alpha: 1))
 

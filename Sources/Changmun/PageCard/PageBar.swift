@@ -118,7 +118,7 @@ struct BarButton: View {
     }
 }
 
-/// Like Nunsseop's selected tab: a capsule with a symbol and a word, brighter while the panel is open.
+/// A symbol and a word in ink, with no pill behind them but the pointer's.
 struct AIButton: View {
     let isOn: Bool
     let action: () -> Void
@@ -134,7 +134,7 @@ struct AIButton: View {
             .foregroundStyle(Theme.primary)
             .contentShape(Capsule())
         }
-        .buttonStyle(FillStyle(resting: isOn ? Theme.pill : Theme.hoverTab, hoverFill: isOn ? Theme.pill : Theme.field, radius: nil))
+        .buttonStyle(FillStyle(radius: nil))
         .help("AI Panel (⌘E)")
         .accessibilityLabel(String(localized: "AI Panel"))
         .accessibilityValue(Accessibility.onOffValue(isOn))

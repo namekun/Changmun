@@ -94,7 +94,7 @@ struct PromptChip: View {
     }
 }
 
-/// Nunsseop's "working" state: a green dot and how long the run has lasted, to open for the steps it has taken so far.
+/// The "working" state: how long the run has lasted, in words, to open for the steps it has taken so far.
 struct Working: View {
     /// When the run began; the seconds count up from it.
     var started: Date?
@@ -102,7 +102,6 @@ struct Working: View {
     var step: String?
     /// The steps of the run under way (a `.live` row of the transcript), which opening the line shows.
     var steps: ChatRowModel?
-    @State private var on = false
     @State private var open = false
 
     var body: some View {
@@ -112,7 +111,6 @@ struct Working: View {
                     let elapsed = started.map { ElapsedText.text(seconds: Int(context.date.timeIntervalSince($0))) }
                     let label = elapsed.map { String(localized: "Working for \($0)") } ?? String(localized: "Working")
                     HStack(spacing: 4) {
-                        Circle().fill(Theme.working).frame(width: 6, height: 6).opacity(on ? 1 : 0.35)
                         Text(verbatim: label)
                         if let step {
                             Text(verbatim: "·").foregroundStyle(Theme.secondary)
@@ -122,7 +120,7 @@ struct Working: View {
                             Image(systemName: "chevron.down").font(.symbolInline).rotationEffect(.degrees(open ? 180 : 0))
                         }
                     }
-                    .font(.captionStrong)
+                    .font(.caption)
                     .foregroundStyle(Theme.secondary)
                     .contentShape(Rectangle())
                     // The time is a value that keeps changing, not a label to be read again every second.
@@ -136,8 +134,6 @@ struct Working: View {
             .disabled(steps == nil)
             if open, let steps { ChatStepsRow(row: steps) }
         }
-        // With Reduce Motion on the dot stays lit instead of pulsing.
-        .onAppear { if Motion.reduced { on = true } else { withAnimation(.easeInOut(duration: 0.8).repeatForever()) { on = true } } }
     }
 }
 
