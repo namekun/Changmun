@@ -20,10 +20,6 @@ struct AdvancedSettings: View {
                         : "Sidebar ⌘S · Hard Reload ⌘⇧R · Console ⌥⌘J · Downloads ⌘⇧J · Move Between Tabs ⌥⌘← ⌥⌘→")
             }
             Section {
-                Toggle("Developer Mode", isOn: $prefs.developerMode)
-                Caption(text: "When on, the address bar shows the full address by default. You can open the Web Inspector any time with F12 (Network tab) or ⌥⌘I.")
-            }
-            Section {
                 Toggle("Check for updates automatically", isOn: $updates.automaticallyChecks)
                 Toggle("Download and install updates automatically", isOn: $updates.automaticallyDownloads)
                     .disabled(!updates.allowsAutomaticDownloads)

@@ -212,10 +212,10 @@ struct AccessibilityTests {
         "Ask AI: %@", "Switch to tab %@", "Switch to tab %@ in %@", "No suggestions", "1 suggestion", "%lld suggestions", "You said: %@", "AI said",
         "%lld points", "Address", "Edit Address", "Edit the address", "Return opens it", "Link Preview", "Certificate warning", "Approval needed",
         "Approval needed: %@", "Shortcut: Return", "Shortcut: Command Return", "Shortcut: Option Command Return", "Split View Divider", "AI Panel Width",
-        "Translate", "Translating", "Ad blocking for this site", "Add to Favorites", "Separate logins and cookies", "New download finished",
+        "Translate", "Translating", "Ad blocking for this site", "Add to Favorites", "Separate logins and cookies",
         "Downloaded %@", "Couldn’t download %@", "Page translated", "Showing the original page", "%@. Undo is available in the sidebar.", "Remove %@",
         "This connection isn’t private. %@", "Opens in a new tab", "Reopens the tab", "%@ is muted", "%@ is not muted", "%@ is playing audio",
-        "Blue", "Coral", "Green", "Purple", "Amber", "Teal", "Pink", "Gray", "Type an address or words to search for, then press Return",
+        "Blue", "Coral", "Green", "Purple", "Amber", "Teal", "Pink", "Gray",
         "Type to see suggestions. Use the up and down arrow keys to choose one, and Return to open it",
         "Previewing %@. Press Command Return to open it as a tab, or Escape to close it.",
     ]
@@ -243,8 +243,8 @@ struct AccessibilityTests {
         let words = try table("ko")
         // Full sentences end in 요; none is in the formal ending.
         let sentences = [
-            "Edit the address", "Return opens it", "Type an address or words to search for, then press Return", "Page translated", "Showing the original page",
-            "Type to see suggestions. Use the up and down arrow keys to choose one, and Return to open it", "New download finished", "Not open",
+            "Edit the address", "Return opens it", "Page translated", "Showing the original page",
+            "Type to see suggestions. Use the up and down arrow keys to choose one, and Return to open it", "Not open",
             "%@. Undo is available in the sidebar.", "Approval needed", "Separate logins and cookies", "Connection is not secure",
             "Previewing %@. Press Command Return to open it as a tab, or Escape to close it.", "Couldn’t download %@", "Downloaded %@",
         ]

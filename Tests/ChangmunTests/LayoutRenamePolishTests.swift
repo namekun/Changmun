@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import Changmun
 
-/// Naming things with the tabs on top, where the strip and the sidebar over the page both show the tabs; and the strip's smaller rules.
+/// Naming groups, folders and bookmarks.
 extension SharedAgentState {
     @MainActor @Suite(.serialized)
     struct LayoutRenamePolishTests {
@@ -14,41 +14,6 @@ extension SharedAgentState {
             return (b, a, group)
         }
 
-        // MARK: One field at a time
-
-        @Test func theStripTypesTheNameUnlessTheSidebarIsOpenOverThePage() {
-            let (b, tab, group) = browser()
-            defer { b.windowClosed() }
-            b.renamingTab = tab.id
-            b.renamingGroup = group
-            #expect(b.stripRenaming(tab: tab.id) && b.stripRenaming(group: group))
-            #expect(!b.stripRenaming(tab: tab.id + 1) && !b.stripRenaming(group: UUID()), "only the one being named")
-            b.showSidebarOverlay = true
-            #expect(!b.stripRenaming(tab: tab.id) && !b.stripRenaming(group: group), "the overlay's rows type it, so the two fields do not fight for the focus")
-            #expect(b.renamingTab == tab.id && b.renamingGroup == group, "opening the overlay does not end it")
-        }
-
-        @Test func closingTheOverlayEndsTheNamesBeingTyped() {
-            let (b, tab, group) = browser()
-            defer { b.windowClosed() }
-            b.showSidebarOverlay = true
-            b.renamingTab = tab.id
-            b.renamingGroup = group
-            b.renamingBookmark = "key"
-            b.renamingFolder = "folder"
-            b.showSidebarOverlay = false
-            #expect(b.renamingTab == nil && b.renamingGroup == nil && b.renamingBookmark == nil && b.renamingFolder == nil)
-            #expect(!b.stripRenaming(tab: tab.id), "the strip's field does not open in its place")
-        }
-
-        @Test func aNameTypedInTheStripSurvivesTheOverlayBeingPutAwayAgain() {
-            let (b, tab, _) = browser()
-            defer { b.windowClosed() }
-            b.renamingTab = tab.id
-            b.showSidebarOverlay = false
-            #expect(b.renamingTab == tab.id, "putting away what was never open changes nothing")
-        }
-
         @Test func showingAnotherSpaceEndsTheGroupNameToo() {
             let box = Sandbox()
             let b = Browser(spaces: box.store())
@@ -57,24 +22,6 @@ extension SharedAgentState {
             let other = b.spaces.add(name: "Other", symbol: "star", tint: .blue, isProfile: false)
             b.switchSpace(to: other.id, opensBar: false)
             #expect(b.renamingGroup == nil)
-        }
-
-        // MARK: Esc
-
-        @Test func escPutsTheOverlayAwayUnlessSomethingElseHasTheKey() throws {
-            let (b, _, _) = browser()
-            defer { b.windowClosed() }
-            #expect(!b.escapeClosesSidebarOverlay(typing: false), "nothing to put away")
-            b.showSidebarOverlay = true
-            #expect(b.escapeClosesSidebarOverlay(typing: false))
-            #expect(!b.escapeClosesSidebarOverlay(typing: true), "a field being typed in keeps its Esc")
-            b.commandBar = .newTab
-            #expect(!b.escapeClosesSidebarOverlay(typing: false), "the command bar's")
-            b.commandBar = nil
-            b.showOnboarding = true
-            #expect(!b.escapeClosesSidebarOverlay(typing: false))
-            b.showOnboarding = false
-            #expect(b.escapeClosesSidebarOverlay(typing: false))
         }
 
         // MARK: Group names
@@ -113,31 +60,6 @@ extension SharedAgentState {
                 #expect(Library.shared.favorites().first { $0.url == url }?.title == original)
                 Library.shared.removeBookmark(url: url, folder: folder)
             }
-        }
-
-        // MARK: The strip
-
-        @Test func manyFavoritesScrollWithinTheRoomThatLeavesTheTabsTheirLeast() throws {
-            let strip: CGFloat = 900, leading: CGFloat = 80
-            #expect(TabStrip.favoritesScrollWidth(count: 0, strip: strip, leading: leading) == nil)
-            #expect(TabStrip.favoritesScrollWidth(count: 4, strip: strip, leading: leading) == nil, "a few fit beside the tabs")
-            let width = try #require(TabStrip.favoritesScrollWidth(count: 40, strip: strip, leading: leading))
-            #expect(width < strip - leading - 120 - Metrics.control, "the tabs keep room for one of the least width and the plus button")
-            #expect(width > 34, "and the favorites keep more than one tile")
-            #expect(try #require(TabStrip.favoritesScrollWidth(count: 40, strip: 100, leading: leading)) == TabStrip.favoriteWidth,
-                    "a window too narrow for either still shows a tile")
-            let limit = (1...60).first { TabStrip.favoritesScrollWidth(count: $0, strip: strip, leading: leading) != nil }
-            #expect(limit != nil && limit! > 4, "it begins to scroll where they stop fitting, not before")
-        }
-
-        @Test func theWheelMovesTheTabsSidewaysOnlyWhenTheyOverflow() {
-            typealias W = StripWheelScroll
-            #expect(W.offset(current: 0, delta: -30, content: 400, viewport: 400) == nil, "all fit: nothing to move")
-            #expect(W.offset(current: 0, delta: -30, content: 300, viewport: 400) == nil)
-            #expect(W.offset(current: 100, delta: -30, content: 800, viewport: 400) == 130, "the wheel toward you moves on")
-            #expect(W.offset(current: 100, delta: 30, content: 800, viewport: 400) == 70)
-            #expect(W.offset(current: 10, delta: 30, content: 800, viewport: 400) == 0, "not past the start")
-            #expect(W.offset(current: 390, delta: -30, content: 800, viewport: 400) == 400, "nor the end")
         }
     }
 }

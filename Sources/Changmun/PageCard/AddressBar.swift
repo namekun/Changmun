@@ -3,11 +3,7 @@ import SwiftUI
 
 struct AddressPill: View {
     @ObservedObject var tab: Tab
-    /// In the narrow sidebar: the site alone, without the page's title or the ⌘L hint.
-    var compact = false
-    var height = Metrics.control
     let edit: () -> Void
-    @ObservedObject private var library = LibraryWatcher.shared
     @State private var hover = false
     @State private var siteHover = false
     @State private var showSite = false
@@ -36,9 +32,10 @@ struct AddressPill: View {
         let hasSite = tab.url?.scheme?.hasPrefix("http") == true && host?.isEmpty == false
         HStack(spacing: 8) {
             HStack(spacing: 4) {
+                NoticesButton(tab: tab)
                 Image(systemName: tab.isUnverified ? "exclamationmark.triangle" : tab.url?.scheme == "https" ? "lock" : "globe")
                     .font(.symbolInline)
-                    .foregroundStyle(tab.isUnverified ? Theme.waiting : Theme.secondary)
+                    .foregroundStyle(tab.isUnverified ? Theme.waitingText : Theme.secondary)
                     .frame(width: 22, height: 22)
                     .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(hasSite && (siteHover || showSite) ? Theme.pill : .clear))
                     .contentShape(Rectangle())
@@ -58,7 +55,7 @@ struct AddressPill: View {
                     .accessibleButton(String(localized: "Address"), value: tab.url?.absoluteString ?? "", hint: String(localized: "Edit the address"), activate: edit)
             }
             .layoutPriority(1)
-            if !compact, let title = Self.shownTitle(tab.title, host: host) {
+            if let title = Self.shownTitle(tab.title, host: host) {
                 Text(verbatim: "·").font(.body).foregroundStyle(Theme.secondary).decorative()
                 Text(verbatim: title)
                     .font(.body)
@@ -70,12 +67,13 @@ struct AddressPill: View {
             TranslateButton(tab: tab)
             LoginButton(tab: tab)
             PictureInPictureButton(tab: tab)
-            if hover || AdBlocker.shared.isAllowed(tab.url?.host() ?? "") { AdBlockShield(tab: tab) }
-            if !tab.isPrivate, hover || tab.url.map({ library.isFavorite($0.absoluteString, in: tab.favoritesFolder) }) == true { BookmarkStar(tab: tab) }
+            // Always there, for the keyboard and VoiceOver; quiet until the pointer is over the pill.
+            AdBlockShield(tab: tab, emphasized: hover)
+            if !tab.isPrivate { BookmarkStar(tab: tab, emphasized: hover) }
         }
         .padding(.leading, 4)
         .padding(.trailing, 4)
-        .frame(height: height)
+        .frame(height: Metrics.control)
         .background(FieldBackground())
         .overlay {
             RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous)
@@ -87,63 +85,6 @@ struct AddressPill: View {
         .pressArea(press)
         .onTapGesture(perform: edit)
         .help("Edit Address (⌘L)")
-    }
-}
-
-/// The whole address, edited in place.
-struct AddressField: View {
-    @ObservedObject var tab: Tab
-    @ObservedObject var browser: Browser
-    @State private var text = ""
-    @FocusState private var focused: Bool
-
-    private var current: String { tab.url?.absoluteString ?? "" }
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: tab.isUnverified ? "exclamationmark.triangle" : tab.url?.scheme == "https" ? "lock" : "globe")
-                .font(.symbolInline)
-                .foregroundStyle(tab.isUnverified ? Theme.waiting : Theme.secondary)
-                .accessibilityLabel(Accessibility.connectionValue(scheme: tab.url?.scheme, unverified: tab.isUnverified, choseToGoOn: tab.usesTrustException) ?? "")
-                .accessibilityHidden(Accessibility.connectionValue(scheme: tab.url?.scheme, unverified: tab.isUnverified, choseToGoOn: tab.usesTrustException) == nil)
-            TextField("Search or enter address", text: $text)
-                .textFieldStyle(.plain)
-                .font(.body)
-                .foregroundStyle(Theme.primary)
-                .focused($focused)
-                .accessibilityLabel(String(localized: "Address"))
-                .accessibilityHint(String(localized: "Type an address or words to search for, then press Return"))
-                .onSubmit {
-                    browser.open(text, in: .editCurrent)
-                    focused = false
-                }
-                .onKeyPress(.escape) {
-                    text = current
-                    focused = false
-                    return .handled
-                }
-            TranslateButton(tab: tab)
-            LoginButton(tab: tab)
-            PictureInPictureButton(tab: tab)
-            AdBlockShield(tab: tab)
-            BookmarkStar(tab: tab)
-            if focused { Keycap("↵") }
-        }
-        .padding(.leading, 8)
-        .padding(.trailing, 4)
-        .frame(height: Metrics.control)
-        .background(FieldBackground(focused: focused))
-        .help("Edit Address (⌘L)")
-        .onAppear { text = current }
-        .onChange(of: tab.url) { if !focused { text = current } }
-        .onChange(of: browser.addressFocusRequest) { focused = true }
-        .onChange(of: focused) {
-            if focused {
-                DispatchQueue.main.async { NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil) }
-            } else {
-                text = current
-            }
-        }
     }
 }
 

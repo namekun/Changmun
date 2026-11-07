@@ -9,7 +9,6 @@ extension Browser {
         let tab = Tab(id: Self.takeID(), url: url, browser: self, isStart: start)
         if let space, spaces.contains(space) { tab.spaceID = space }
         insert(tab, after: after)
-        tab.sortsIntoGroup = tab.groupID == nil
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
         if activate {
             self.activate(tab.id)
@@ -22,7 +21,6 @@ extension Browser {
         let tab = Tab(id: Self.takeID(), configuration: configuration, browser: self)
         if let after { tab.spaceID = after.spaceID }
         insert(tab, after: after)
-        tab.sortsIntoGroup = tab.groupID == nil
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(tab) }
         if activate { self.activate(tab.id) }
         return tab
@@ -37,14 +35,8 @@ extension Browser {
         if tab.spaceID != spaceID && !isPrivate { enter(tab.spaceID) }
         if let previous, previous !== tab {
             previousActiveID = previous.spaceID == tab.spaceID ? previous.id : nil
-            // Like Arc: a video playing in the tab being left keeps playing in picture in picture, until it is shown again
-            // (not when the two halves of a split trade places, as both stay on screen).
-            let staysOnScreen = split?.contains(previous.id) == true && split?.contains(id) == true
-            if Preferences.shared.autoPictureInPicture && previous.isPlayingAudio && !staysOnScreen {
-                previous.pictureInPicture(.enter)
-            }
         }
-        // Also after closing a tab, when there is no previous tab left to compare with.
+        // A video floated in picture in picture comes back into its tab when the tab is shown.
         if previous !== tab { tab.pictureInPicture(.exit) }
         for shown in tabs where isShown(shown) { shown.lastShown = Date() }
         activeID = id

@@ -433,15 +433,6 @@ struct ApprovalRuleTests {
     }
 }
 
-struct PreferencesTests {
-    @Test func developerModePutsTheAddressBarOnTopUnlessChosen() {
-        #expect(!Preferences.onTop(.automatic, developerMode: false))
-        #expect(Preferences.onTop(.automatic, developerMode: true))
-        #expect(!Preferences.onTop(.sidebar, developerMode: true))
-        #expect(Preferences.onTop(.top, developerMode: false))
-    }
-}
-
 @MainActor
 struct ShortcutTests {
     private func keys(_ scheme: ShortcutScheme) -> [(key: String, mods: NSEvent.ModifierFlags, action: String)] {
@@ -1747,15 +1738,6 @@ extension SharedAgentState {
             #expect(downloads.shelf.map(\.filename) == ["second.pdf", "a.zip"])
         }
 
-        @Test func progressAveragesOnlyRunningDownloads() {
-            let a = item("a"), b = item("b"), c = item("c")
-            a.progress = 0.2
-            b.progress = 0.6
-            c.state = .finished
-            #expect(Downloads.progress(of: [a, b, c]) == 0.4)
-            #expect(Downloads.progress(of: [c]) == nil)
-        }
-
         @Test func progressFollowsItDownAndCountsBytesWhenTheSizeIsUnknown() {
             let a = item("a")
             a.update(fraction: 0.5, bytes: 50, sizeKnown: true)
@@ -1779,15 +1761,15 @@ extension SharedAgentState {
             #expect(downloads.shelf.map(\.filename) == ["running", "private"])
         }
 
-        @Test func openingTheListMarksFinishedDownloadsSeen() {
-            let downloads = Downloads()
-            let normal = Browser(isPrivate: false)
-            let done = item("done"), running = item("running"), hidden = item("hidden", from: Browser(isPrivate: true))
-            [done, running, hidden].forEach(downloads.add)
-            done.state = .finished
-            hidden.state = .finished
-            downloads.markSeen(for: normal)
-            #expect(done.seen && !running.seen && !hidden.seen)
+        @Test func theShelfSaysInWordsHowADownloadIsGoing() {
+            let a = item("report.pdf")
+            a.update(fraction: 0.42, bytes: 42, sizeKnown: true)
+            #expect(DownloadRow.shelfLine(a) == "report.pdf · 42% · " + String(localized: "Downloading"))
+            a.update(fraction: 0, bytes: 2_100_000, sizeKnown: false)
+            #expect(DownloadRow.shelfLine(a) == "report.pdf · " + ByteCountFormatter.string(fromByteCount: 2_100_000, countStyle: .file) + " · " + String(localized: "Downloading"))
+            a.bytes = 2_100_000
+            a.state = .finished
+            #expect(DownloadRow.shelfLine(a) == "report.pdf · " + ByteCountFormatter.string(fromByteCount: 2_100_000, countStyle: .file) + " · " + String(localized: "Done"))
         }
 
         @Test func downloadedFilesAreQuarantined() throws {
@@ -3008,12 +2990,6 @@ extension SharedAgentState {
                 TabSorter.Group(name: "쇼핑", ids: [4]),
                 TabSorter.Group(name: "github.com", ids: [5, 6]),
             ], "one tab joins a group that is there; a topic of one tab gives way to its site; tabs the model doesn't know are left out")
-        }
-
-        @Test func aNewTabJoinsAGroupAllOnItsSite() async {
-            let group = [Item(id: 1, title: "a", host: "github.com", opener: nil), Item(id: 2, title: "b", host: "www.github.com", opener: nil)]
-            let index = await TabSorter.fit(Item(id: 3, title: "c", host: "github.com", opener: nil), groups: [("여행", []), ("개발", group)])
-            #expect(index == 1)
         }
 
         @Test func aTidyMakesAndFillsGroupsAndCanBeTakenBack() {

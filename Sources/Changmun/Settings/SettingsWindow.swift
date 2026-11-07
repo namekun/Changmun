@@ -50,14 +50,12 @@ enum SettingsPage: String, CaseIterable, Identifiable {
              String(localized: "Downloads Folder"), String(localized: "Ask where to save each download"),
              String(localized: "Default Browser"), String(localized: "Other Browsers")]
         case .appearance:
-            [String(localized: "Theme"), String(localized: "Address Bar Position"), String(localized: "Address Bar"),
-             String(localized: "Sidebar Width"), String(localized: "Default Zoom")]
+            [String(localized: "Theme"), String(localized: "Default Zoom")]
         case .tabs:
-            [String(localized: "Play video in Picture in Picture when you switch to another tab"), String(localized: "Sleep inactive tabs"),
-             String(localized: "Sites that never sleep"), String(localized: "Tab Cleanup"),
-             String(localized: "Automatically put new tabs in the right group"), String(localized: "Archive tabs you haven’t viewed in a while")]
+            [String(localized: "Sleep inactive tabs"), String(localized: "Sites that never sleep"), String(localized: "Tab Cleanup"),
+             String(localized: "Archive tabs you haven’t viewed in a while")]
         case .startPage:
-            [String(localized: "Style"), String(localized: "Sections"), String(localized: "Background"), String(localized: "New Tabs Open")]
+            [String(localized: "New Tabs Open")]
         case .privacy:
             [String(localized: "Clear History"), String(localized: "Ad Blocking"), String(localized: "Saved Passwords"),
              String(localized: "Pop-ups"), String(localized: "Camera & Microphone")]
@@ -66,8 +64,8 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .ai:
             [String(localized: "Model"), String(localized: "Claude Code"), String(localized: "AI Chat")]
         case .advanced:
-            [String(localized: "Shortcuts"), String(localized: "Developer Mode"),
-             String(localized: "Check for updates automatically"), String(localized: "Download and install updates automatically")]
+            [String(localized: "Shortcuts"), String(localized: "Check for updates automatically"),
+             String(localized: "Download and install updates automatically")]
         }
     }
 

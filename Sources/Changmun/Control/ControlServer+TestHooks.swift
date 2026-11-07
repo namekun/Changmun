@@ -369,10 +369,10 @@ extension ControlServer {
             }
             return true
         }
-        // Tests only: the front window put into a look. "appearance" is system, light or dark; "toolbar" is page or sidebar; "tabs" is sidebar or top (where the tabs are), "overlay" shows or hides the sidebar over the page that goes with top; "sidebar",
-        // "focus", "find" (with "findText"), "downloads" and "onboarding" show or hide that part; "command" is newTab, editCurrent or
+        // Tests only: the front window put into a look. "appearance" is system, light or dark; "sidebar",
+        // "focus", "find" (with "findText"), "downloads" and "onboarding" show or hide that part; "finishedDownload" ([name, bytes]) puts a finished download on the shelf; "command" is newTab, editCurrent or
         // none; "progress" (0...1) holds the tab in front as loading at that point, and a negative one lets it be ("peek": true for the peek card's tab); "popup" (a link), "login"
-        // (a user name) and "foreign" (a language) put up the bar or button for that on the tab in front, "" taking it down again; "reader" toggles Reader Mode; "group" ({"ids", "name"}) gathers tabs into a group;
+        // (a user name) and "foreign" (a language) put up the notice or button for that on the tab in front, "" taking it down again; "reader" toggles Reader Mode; "group" ({"ids", "name"}) gathers tabs into a group;
         // "folder" ({"name", "pages": [[url, title]], "pin", "open", "remove"}) fills a bookmark folder, pinned and opened in the sidebar ("remove" takes those pages out again);
         // "rename" names the tab in front (an empty name takes the name away), and "renaming" opens or closes the name field in its row; "renamingBookmark" ([url, folder]) opens the name field of that bookmark, "renamingFolder" (a folder row's open key, "" to close it) that of that folder, "renameFolder" ([key, name]) names a folder, "renamingGroup" opens that of the first group.
         if Headless.isTestCopy, request.method == "POST", request.path == "/ui",
@@ -382,13 +382,17 @@ extension ControlServer {
                     return self.respond(connection, status: "404 Not Found", body: ["error": "no window"])
                 }
                 if let name = body["appearance"] as? String, let appearance = AppAppearance(rawValue: name) { Preferences.shared.appearance = appearance }
-                if let name = body["toolbar"] as? String, let place = ToolbarPlace(rawValue: name) { Preferences.shared.toolbarPlace = place }
-                if let name = body["tabs"] as? String, let layout = TabLayout(rawValue: name) { Preferences.shared.tabLayout = layout }
-                if let on = body["overlay"] as? Bool { browser.showSidebarOverlay = on }
                 if let on = body["sidebar"] as? Bool { browser.showSidebar = on }
                 if let on = body["focus"] as? Bool { browser.focusMode = on }
                 if let on = body["onboarding"] as? Bool { browser.showOnboarding = on }
                 if let on = body["downloads"] as? Bool { browser.showDownloads = on }
+                if let done = body["finishedDownload"] as? [Any], let name = done.first as? String {
+                    let item = DownloadItem(filename: name, progress: Progress(totalUnitCount: 1), isPrivate: browser.isPrivate)
+                    item.owner = browser.isPrivate ? browser : nil
+                    Downloads.shared.add(item)
+                    item.bytes = (done.dropFirst().first as? NSNumber)?.int64Value
+                    item.state = .finished
+                }
                 if let text = body["findText"] as? String { browser.overlay.findText = text }
                 if let on = body["find"] as? Bool { if on { browser.showFindBar() } else { browser.hideFindBar() } }
                 switch body["command"] as? String {

@@ -190,14 +190,14 @@ def seed():
 
 
 def unseed():
-    ui(command="none", find=False, overlay=False, downloads=False)
+    ui(command="none", find=False, downloads=False)
     ui(folder={"name": "", "remove": True, "pages": [[page("Fav one"), "Fav one"], [page("Fav two"), "Fav two"]]})
     ui(folder={"name": "AuditFolder", "remove": True, "pages": [[page("Mark one"), "Mark one"], [page("Mark two"), "Mark two"]]})
     post("/ai-chat", {"clearHistory": True})
     post("/approvals", {"newChat": True})
     post("/accessibility", {"approval": False})
     post("/panel", {"open": False})
-    ui(tabs="sidebar", toolbar="sidebar", sidebar=True, appearance="system")
+    ui(sidebar=True, appearance="system")
     for tab in ui()["tabs"]:
         if tab["title"] in TABS:
             call("close_tab", {"tab_id": tab["id"]})
@@ -212,15 +212,15 @@ def main():
     if only == {"start"}:
         start_page()
         return
-    ui(appearance="light", tabs="sidebar", toolbar="sidebar", sidebar=True, command="none", find=False)
+    ui(appearance="light", sidebar=True, command="none", find=False)
     ids = seed()
     ui(progress=0.4)
     toolbar = ["Sidebar", "Back", "Forward", "Stop", "Bookmarks", "Downloads", "AI Panel", "Address"]
     rows = [*TABS, "Audit group", "Fav one", "Fav two", "Mark one", "AuditFolder", "New Tab"]
 
     if wanted("sidebar"):
-        print("sidebar layout")
-        state = "sidebar, toolbar in the sidebar"
+        print("sidebar")
+        state = "sidebar"
         nodes = audit(state)
         expect_controls(state, nodes, toolbar + rows)
         expect_selected(state, nodes, "Alpha")
@@ -236,28 +236,6 @@ def main():
         expect_actions(state, nodes, "Audit group", ["Collapse", "Rename"])
         expect_actions(state, nodes, "AuditFolder", ["Collapse", "Rename"])
         expect_actions(state, nodes, "Mark one", ["Rename"])
-        state = "sidebar, toolbar over the page"
-        ui(toolbar="page")
-        nodes = audit(state)
-        expect_controls(state, nodes, ["Sidebar", "Back", "Forward", "Address", "AI Panel", *rows])
-        ui(toolbar="sidebar")
-
-    if wanted("top"):
-        print("tabs on top")
-        ui(tabs="top", overlay=False)
-        state = "tabs on top"
-        nodes = audit(state)
-        expect_controls(state, nodes, [*TABS, "Audit group", "Fav one", "New Tab", "Sidebar", "Back", "Forward", "Address", "Downloads", "AI Panel"])
-        expect_selected(state, nodes, "Alpha")
-        expect_value(state, nodes, "Sidebar", "Hidden")
-        expect_value(state, nodes, "Audit group", "Expanded, 2 tabs")
-        expect_actions(state, nodes, "Bravo", ["Close Tab", "Rename"])
-        ui(overlay=True)
-        state = "tabs on top, sidebar over the page"
-        nodes = audit(state)
-        expect_value(state, nodes, "Sidebar", "Shown")
-        expect_controls(state, nodes, ["Bookmarks", "AuditFolder", "Mark one"])
-        ui(overlay=False, tabs="sidebar")
 
     if wanted("command"):
         print("command bar")
@@ -343,54 +321,20 @@ def main():
 
 
 def start_page():
-    """The start page in each style (from a window with no tab, with something of every kind to show), the Customize popover over it, and a
-    private window's page. What it shows has to be pressable by name, and the popover's handles, switches and tiles say what and where they are."""
+    """The start page (from a window with no tab, with a favorite to show) and a private window's page. What it shows has to be pressable by name."""
     print("start page")
     start = lambda **fields: post("/start-page", fields)
-    start(reset=True, ai="ready", noTabs=True, appearance="light", style="dashboard", sections=["aiSuggestions", "favorites", "continueViewing", "readingList", "frequent"],
-          seed={"icons": False, "favorites": [["https://audit-fav.test/", "Audit Fav"]], "history": [["https://audit-page.test/", "Audit Page", 3, 0]],
-                "closed": [["https://audit-closed.test/", "Audit Closed", 5]], "reading": [["https://audit-read.test/a", "Audit Unread", 1, False]]})
-    state = "start page, dashboard"
+    start(reset=True, noTabs=True, appearance="light", seed={"icons": False, "favorites": [["https://audit-fav.test/", "Audit Fav"]]})
+    state = "start page"
     nodes = audit(state)
-    expect_controls(state, nodes, ["Audit Fav", "Audit Closed", "Audit Page", "Audit Unread", "Customize Start Page", "Show History", "Ask AI"])
-    expect_value(state, nodes, "Audit Closed", "Closed Tab")
+    expect_controls(state, nodes, ["Audit Fav"])
     expect_label(state, nodes, "Start Page")
-    state = "start page, quiet"
-    start(style="quiet", sections=["favorites", "continueViewing", "readingList"])
-    nodes = audit(state)
-    expect_controls(state, nodes, ["Audit Fav", "Audit Closed", "Audit Unread", "Customize Start Page"])
-    state = "start page, AI first"
-    start(style="aiFirst", sections=["aiSuggestions", "favorites"])
-    nodes = audit(state)
-    expect_controls(state, nodes, ["Audit Fav", "Customize Start Page", "Ask AI", "Send"])
-    expect_label(state, nodes, "Ask the AI")
-    state = "start page, customize popover"
-    start(style="dashboard", sections=["aiSuggestions", "favorites", "continueViewing", "readingList", "frequent"], popover={"open": True})
-    nodes = audit(state)
-    expect_controls(state, nodes, ["Dashboard", "Quiet", "AI First", "Space Color", "Plain", "Colors", "Image…", "None", "Reset to Defaults", "Done",
-                                   "Start Page", "Command Bar", "Blank Page", "Address", "Favorites options", "Reorder Reading List"])
-    expect_selected(state, nodes, "Dashboard")
-    expect_selected(state, nodes, "Space Color")
-    expect_selected(state, nodes, "Start Page")
-    expect_value(state, nodes, "Reorder AI Suggestions", "1 of 5")
-    expect_value(state, nodes, "Reorder Reading List", "4 of 5")
-    expect_actions(state, nodes, "Reorder Reading List", ["Move Up", "Move Down"])
-    expect_value(state, nodes, "Show Reading List", "1")
-    expect_value(state, nodes, "Favorites options", "Collapsed")
-    expect_announced(state, "Customize Start Page")
-    state = "start page, customize popover, options open"
-    start(popover={"open": False})
-    time.sleep(0.5)
-    start(popover={"open": True, "expand": "favorites"})
-    nodes = audit(state)
-    expect_value(state, nodes, "Favorites options", "Expanded")
-    expect_controls(state, nodes, ["One row", "Two rows"])
-    start(popover={"open": False}, private=True)
+    start(private=True)
     nodes = audit("start page, private window")
     expect_label("start page, private window", nodes, "Private Window")
     post("/window-close", {})
     time.sleep(0.5)
-    start(popover={"open": False}, clear=True, reset=True, noTabs=False)
+    start(clear=True, reset=True, noTabs=False)
 
 
 def trust():

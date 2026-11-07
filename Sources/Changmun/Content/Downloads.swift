@@ -20,13 +20,9 @@ final class DownloadItem: ObservableObject, Identifiable {
     @Published var destination: URL?
     @Published var progress: Double = 0
     @Published var state: State = .running
-    /// Finished while nobody was looking: the download button wears a dot until the list is opened.
-    @Published var seen = false
     /// Bytes so far while running (shown when the size isn't known), the file size once finished.
     @Published var bytes: Int64?
     @Published var sizeKnown = true
-    /// Under the pointer on the shelf: it stays there until the pointer leaves.
-    var isHovered = false
     weak var download: WKDownload?
     /// What WebKit kept of a download that broke off, to pick it up from there.
     var resumeData: Data?
@@ -84,9 +80,8 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
     static let shared = Downloads()
 
     @Published private(set) var items: [DownloadItem] = []
-    /// Shown at the bottom of the sidebar: running downloads, and finished ones for a few seconds after.
+    /// Shown at the bottom of the sidebar: running downloads, and finished and failed ones until they are closed there or cleared from the list.
     @Published private(set) var shelf: [DownloadItem] = []
-    static var shelfTime: Duration = .seconds(8)
     private var relays: [UUID: AnyCancellable] = [:]
     /// Where each download came from and goes, kept apart from the list so a forgotten item still gets quarantined.
     private var origins: [ObjectIdentifier: (file: URL?, page: URL?, destination: URL?)] = [:]
@@ -138,10 +133,6 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         return running.map(\.progress).reduce(0, +) / Double(running.count)
     }
 
-    func markSeen(for browser: Browser) {
-        for item in items(for: browser) where item.isDone && !item.seen { item.seen = true }
-    }
-
     func dismiss(_ item: DownloadItem) {
         shelf.removeAll { $0 === item }
     }
@@ -154,17 +145,6 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         items.removeAll(where: match)
         shelf.removeAll(where: match)
         relays = relays.filter { id, _ in items.contains { $0.id == id } }
-    }
-
-    func settle(_ item: DownloadItem?) {
-        guard let item else { return }
-        Task {
-            try? await Task.sleep(for: Self.shelfTime)
-            // Not while the pointer rests on it, but a row that is gone from the shelf can't be hovered anymore.
-            while item.isHovered && shelf.contains(where: { $0 === item }) { try? await Task.sleep(for: .seconds(1)) }
-            // Picked up again meanwhile (Try Again): it stays while it runs.
-            if item.isDone { dismiss(item) }
-        }
     }
 
     /// Marks a downloaded file the way Safari does, so Gatekeeper checks it before it first runs.
@@ -280,7 +260,6 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
             } catch {
                 try? FileManager.default.removeItem(at: landing.place)
                 item(download)?.state = .failed(error.localizedDescription)
-                settle(item(download))
                 return
             }
         }
@@ -292,7 +271,6 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         item(download)?.state = .finished
         if let name = item(download)?.filename { Announcer.announce(String(localized: "Downloaded \(name)")) }
         if let id = item(download)?.id { resumers[id] = nil }
-        settle(item(download))
         if !Headless.isOn { NSSound(named: "Glass")?.play() }
     }
 
@@ -317,7 +295,7 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
             item.origin = origin
             item.landing = resumeData == nil ? nil : landing
         }
-        if cancelled { dismiss(item) } else { settle(item) }
+        if cancelled { dismiss(item) }
     }
 
     /// Web views that picked up a broken-off download, kept until it ends.

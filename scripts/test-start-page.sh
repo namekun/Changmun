@@ -6,7 +6,7 @@
 #   custom address loads (an invalid one falls back to the start page); a private window shows the start page whatever address is set and reads no
 #   history; a window or a space with no tab shows the start page; closing the last tab leaves it; ⌘L on a start tab focuses the field;
 #   the AI's list_tabs, read_page, read_structured, read_markdown, read_tabs and screenshot (and a click) on a start tab show nothing of the history the page would show; a start tab
-#   (and the window of only one) comes back after a quit; a 12 MP photo is made the background off the main thread.
+#   (and the window of only one) comes back after a quit.
 # Cleans up the settings, the history it seeded, its space and its windows. The control.json is shared with other agents' tests: only run it when
 # no other Changmun Headless is in use.
 #
@@ -91,10 +91,10 @@ expect "…with no web view" "false" "$(val "$R" 'd["hasWebView"]')"
 expect "…and no command bar" "none" "$(vs "$R" 'd["commandBar"]')"
 expect "…and the field asked for the focus" "true" "$(val "$R" "d[\"focusRequests\"] > $BEFORE")"
 expect "…titled New Tab, with no address" "true" "$(val "$R" 'd["tabs"][0]["url"] == "" and d["tabs"][0]["title"] in ("New Tab", "새 탭")')"
-# The page is drawn for the start tab: its "Customize" control is in what VoiceOver sees (named in English or Korean, as the app is).
+# The page is drawn for the start tab: it is in what VoiceOver sees, by its name (in English or Korean, as the app is).
 sleep 0.5
 AX="$(post /accessibility '{}')"
-expect "…and the page is on screen for it" "true" "$(val "$AX" '"Customize Start Page" in json.dumps(d, ensure_ascii=False) or "시작 페이지 맞춤 설정" in json.dumps(d, ensure_ascii=False)')"
+expect "…and the page is on screen for it" "true" "$(val "$AX" '"Start Page" in json.dumps(d, ensure_ascii=False) or "시작 페이지" in json.dumps(d, ensure_ascii=False)')"
 BEFORE="$(val "$R" 'd["focusRequests"]')"
 R="$(sp '{"action": "newTab"}')"
 expect "a second ⌘T goes to the field of the same tab" "true" "$(val "$R" "len(d[\"tabs\"]) == 1 and d[\"focusRequests\"] > $BEFORE")"
@@ -198,19 +198,6 @@ if [[ -n "$STARTED" ]]; then
     expect "…and shows the start page without a web view" "true|false" "$(vs "$R" 'str(d["showsStartPage"]).lower() + "|" + str(d["hasWebView"]).lower()')"
 else
     echo "skip: the app was running already, so it is not quit and started here"
-fi
-
-# --- the background picture: a 12 MP photo, off the main thread ---
-PHOTO="$(ls /System/Library/Desktop\ Pictures/*.heic 2>/dev/null | head -1)"
-if [[ -n "$PHOTO" ]]; then
-    R="$(sp "{\"image\": \"$PHOTO\", \"wait\": 100}")"
-    expect "a system photo can be made the background" "true" "$(val "$R" 'd["imageOK"]')"
-    echo "info: $(basename "$PHOTO") imported in $(val "$R" 'd["imageMs"]') ms"
-    FILE="$(val "$R" 'd["imageFile"]' | tr -d '"')"
-    IMG="$SUPPORT/StartPage/$FILE"
-    [[ -f "$IMG" ]] && expect "the copy is private (0600) in a private folder (0700)" "600 700" "$(stat -f '%Lp' "$IMG") $(stat -f '%Lp' "$SUPPORT/StartPage")" || bad "no copy at $IMG"
-    [[ -f "$IMG" ]] && expect "its long edge is at most 3840" "true" "$(sips -g pixelWidth -g pixelHeight "$IMG" | awk '/pixel/ {if ($2 > m) m = $2} END {print (m <= 3840) ? "true" : "false"}')"
-    sp '{"reset": true}' >/dev/null
 fi
 
 exit "$FAILED"

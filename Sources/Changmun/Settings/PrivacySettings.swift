@@ -92,6 +92,7 @@ struct PrivacySettings: View {
                         Caption(text: "Never ask to save")
                         Button { prefs.neverSaveLoginHosts.removeAll { $0 == host } } label: { Image(systemName: "minus.circle") }
                             .buttonStyle(.borderless)
+                            .accessibilityLabel(String(localized: "Remove \(host)"))
                     }
                 }
             }
@@ -104,6 +105,7 @@ struct PrivacySettings: View {
                         Caption(text: "Pop-ups allowed")
                         Button { prefs.popupHosts.removeAll { $0 == host } } label: { Image(systemName: "minus.circle") }
                             .buttonStyle(.borderless)
+                            .accessibilityLabel(String(localized: "Remove \(host)"))
                     }
                 }
             }
@@ -123,6 +125,7 @@ struct PrivacySettings: View {
                             .fixedSize()
                         }
                         Button { permissions.forget(host) } label: { Image(systemName: "minus.circle") }.buttonStyle(.borderless)
+                            .accessibilityLabel(String(localized: "Remove \(host)"))
                     }
                 }
             }
@@ -146,8 +149,8 @@ struct PrivacySettings: View {
             // The tab archive names the sites too, and so do the icons cached for them.
             TabArchive.shared.remove(since: since)
             Task { await Browser.pruneIcons() }
-            // What was taken off the start page names sites too.
-            StartHiddenItems.shared.showAll()
+            // What an older version kept of what was taken off the start page names sites too.
+            UserDefaults.standard.removeObject(forKey: "startPageHiddenItems")
         }
         if clearSiteData {
             // The kept cookies go first, so a snapshot of cookies about to be erased can't be written after; what the stores keep is written once they are done.
@@ -157,7 +160,7 @@ struct PrivacySettings: View {
                 for store in stores { await store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: since) }
                 CookieJournal.shared.cleared()
             }
-            StartHiddenItems.shared.showAll()
+            UserDefaults.standard.removeObject(forKey: "startPageHiddenItems")
             done.append(String(localized: "Site data"))
         }
         cleared = String(localized: "Cleared: \(done.joined(separator: ", "))")
@@ -197,6 +200,7 @@ struct PasswordsSheet: View {
                         if copied == login.id { Text("Copied").font(.caption).foregroundStyle(.secondary) }
                         Button("Copy Password") { Task { await copy(login) } }.buttonStyle(.borderless)
                         Button(role: .destructive) { deleting = login } label: { Image(systemName: "trash") }.buttonStyle(.borderless)
+                            .accessibilityLabel(String(localized: "Delete \(login.host)"))
                     }
                 }
             }
@@ -252,6 +256,7 @@ struct AdBlockSection: View {
                         if list.id.hasPrefix("custom-") {
                             Button { prefs.customFilterLists.removeAll { $0 == list.url }; Task { await blocker.recompile() } } label: { Image(systemName: "minus.circle") }
                                 .buttonStyle(.borderless)
+                                .accessibilityLabel(String(localized: "Remove \(list.name)"))
                         }
                     }
                 }
@@ -273,6 +278,7 @@ struct AdBlockSection: View {
                             Spacer()
                             Text("Not blocked").foregroundStyle(.secondary)
                             Button { blocker.toggleSite(host) } label: { Image(systemName: "minus.circle") }.buttonStyle(.borderless)
+                                .accessibilityLabel(String(localized: "Remove \(host)"))
                         }
                     }
                 }

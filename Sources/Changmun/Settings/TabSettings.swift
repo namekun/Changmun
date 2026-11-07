@@ -10,7 +10,6 @@ struct TabSettings: View {
     var body: some View {
         Form {
             Section("Behavior") {
-                Toggle("Play video in Picture in Picture when you switch to another tab", isOn: $prefs.autoPictureInPicture)
                 Picker("Sleep inactive tabs", selection: $prefs.sleepMinutes) {
                     Text("Off").tag(0)
                     Text("After 10 minutes").tag(10)
@@ -39,7 +38,6 @@ struct TabSettings: View {
                 Caption(text: "For sites you keep open, like music or meetings. Subdomains are included.")
             }
             Section("Tab Cleanup") {
-                Toggle("Automatically put new tabs in the right group", isOn: $prefs.groupNewTabs)
                 Picker("Archive tabs you haven’t viewed in a while", selection: $prefs.archiveHours) {
                     Text("Off").tag(0)
                     Text("After 12 hours").tag(12)

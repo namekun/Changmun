@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// A tab as VoiceOver meets it, in the sidebar's row and in the strip along the top: its title, what it is doing, whether it is the one shown,
+/// A tab as VoiceOver meets it in its sidebar row: its title, what it is doing, whether it is the one shown,
 /// and what its menu does that a press does not.
 extension Accessibility {
     @MainActor
@@ -23,7 +23,7 @@ extension Accessibility {
 }
 
 extension View {
-    /// Makes a tab's row or strip tile a button for VoiceOver and the keyboard (see `AccessibleButton`).
+    /// Makes a tab's row a button for VoiceOver and the keyboard (see `AccessibleButton`).
     @MainActor
     func accessibleTab(_ tab: Tab, in browser: Browser, isActive: Bool, renaming: Bool, close: @escaping () -> Void, select: @escaping () -> Void) -> some View {
         accessibleButton(tab.displayTitle, value: Accessibility.tabValue(Accessibility.facts(of: tab, in: browser)), selected: isActive, enabled: !renaming,

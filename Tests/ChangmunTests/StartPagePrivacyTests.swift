@@ -14,8 +14,7 @@ extension SharedAgentState {
         private func seeded() -> (Browser, Tab) {
             let b = Browser(spaces: Sandbox().store())
             b.focused()
-            b.startPageStore = StartPageStore(defaults: UserDefaults(suiteName: "start-privacy-\(UUID().uuidString)")!,
-                                              folder: FileManager.default.temporaryDirectory.appendingPathComponent("start-privacy-\(UUID().uuidString)"))
+            b.startPageStore = StartPageStore(defaults: UserDefaults(suiteName: "start-privacy-\(UUID().uuidString)")!)
             let library = Library(path: FileManager.default.temporaryDirectory.appendingPathComponent("lib-\(UUID().uuidString).sqlite").path)
             library.recordVisit(url: "https://secret-frequent.example/", title: "SECRET-RECENT-PAGE")
             library.addToReadingList(url: "https://secret-frequent.example/read", title: "SECRET-READING-ITEM", added: Date())

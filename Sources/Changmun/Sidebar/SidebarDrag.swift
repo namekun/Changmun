@@ -138,8 +138,6 @@ enum SidebarDrag {
         if let url = link(items) {
             withAnimation(Motion.standard) {
                 let tab = browser.openTab(url: url)
-                // Put where the user chose, not where its page would sort it to.
-                tab.sortsIntoGroup = false
                 browser.moveTab(tab.id, to: nil)
             }
             return true
@@ -201,7 +199,6 @@ enum SidebarDrag {
             withAnimation(Motion.standard) {
                 // Just above the tab it was dropped on, where the drop line showed, and into its group.
                 let tab = browser.openTab(url: url)
-                tab.sortsIntoGroup = false
                 browser.moveTab(tab.id, to: nil)
                 browser.dropTab(tab.id, on: target)
             }

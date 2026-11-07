@@ -1,7 +1,7 @@
 #!/bin/bash
 # Is every control of Changmun named for VoiceOver? Puts Changmun Headless.app (English, off screen) into the states a VoiceOver or Full
-# Keyboard Access user meets: the sidebar layout and the tabs-on-top layout (with the sidebar over the page), the command bar with
-# suggestions, the find bar, the AI panel with a conversation, a waiting question and the chat history, the start page in its three styles with the Customize popover and a private window's, every page of Settings, and the
+# Keyboard Access user meets: the sidebar, the command bar with
+# suggestions, the find bar, the AI panel with a conversation, a waiting question and the chat history, the start page and a private window's, every page of Settings, and the
 # warning for a certificate that can't be verified. In each it reads the accessibility tree in the app's own process and fails for a
 # button, check box, text field, menu button, link, image or pressable row without a name (scripts/audit-accessibility.py has the rules and the
 # list of known exceptions). It checks names, not how a screen reader reads them: that takes a real VoiceOver session.

@@ -39,11 +39,11 @@ O [descarga la app](https://github.com/namekun/Changmun/releases/latest/download
 ## Por qué Changmun
 
 - **Ligero.** Una app de 21 MB, con una descarga de unos 7 MB. Usa el motor WebKit que ya tiene tu Mac.
-- **Una barra lateral.** Pestañas verticales, favoritos, carpetas de marcadores, grupos de pestañas y espacios en una sola columna. ¿Prefieres las pestañas arriba? Es un ajuste.
+- **Una barra lateral.** Pestañas verticales, favoritos, carpetas de marcadores, grupos de pestañas y espacios en una sola columna.
 - **Una IA que usa el navegador.** Claude lee páginas, hace clic y escribe por ti, y pregunta antes de hacer algo arriesgado.
 - **Privado.** Sin cuenta, sin servidor, sin analíticas. Los anuncios y los rastreadores se bloquean desde el primer momento.
 - **Tus cosas te acompañan.** Importa marcadores e historial de Safari y de los navegadores Chromium, y las contraseñas de estos últimos.
-- **Una página de inicio propia.** Tres estilos, secciones que puedes ordenar a tu gusto y tu propio fondo.
+- **Una página de inicio sencilla.** Un cuadro de búsqueda y tus favoritos.
 
 ## La IA
 

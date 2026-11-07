@@ -80,6 +80,8 @@ struct PictureInPictureButton: View {
 
 struct AdBlockShield: View {
     @ObservedObject var tab: Tab
+    /// The pointer is over the address: drawn in full ink.
+    var emphasized = false
     @ObservedObject private var prefs = Preferences.shared
 
     var body: some View {
@@ -88,7 +90,7 @@ struct AdBlockShield: View {
             Button { AdBlocker.shared.toggleSite(host) } label: {
                 Image(systemName: off ? "shield.slash" : "shield.fill")
                     .font(.symbolInline)
-                    .foregroundStyle(off ? Theme.waitingText : Theme.tertiary)
+                    .foregroundStyle(off ? Theme.waitingText : emphasized ? Theme.primary : Theme.secondary)
                     .frame(width: 20, height: 22)
                     .contentShape(Rectangle())
             }
@@ -102,6 +104,8 @@ struct AdBlockShield: View {
 
 struct BookmarkStar: View {
     @ObservedObject var tab: Tab
+    /// The pointer is over the address: drawn in full ink.
+    var emphasized = false
     @ObservedObject private var library = LibraryWatcher.shared
 
     var body: some View {
@@ -119,7 +123,7 @@ struct BookmarkStar: View {
         } label: {
             Image(systemName: marked ? "star.fill" : "star")
                 .font(.symbolInline)
-                .foregroundStyle(marked ? Theme.primary : Theme.tertiary)
+                .foregroundStyle(marked || emphasized ? Theme.primary : Theme.secondary)
                 .frame(width: 20, height: 22)
                 .contentShape(Rectangle())
         }

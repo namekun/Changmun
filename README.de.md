@@ -39,11 +39,11 @@ Oder [lade die App direkt herunter](https://github.com/namekun/Changmun/releases
 ## Warum Changmun
 
 - **Leicht.** Die App ist 21 MB groß, der Download etwa 7 MB. Sie nutzt die WebKit-Engine, die dein Mac schon hat.
-- **Eine Seitenleiste.** Vertikale Tabs, Favoriten, Lesezeichenordner, Tab-Gruppen und Spaces in einer Spalte. Lieber Tabs oben? Das ist eine Einstellung.
+- **Eine Seitenleiste.** Vertikale Tabs, Favoriten, Lesezeichenordner, Tab-Gruppen und Spaces in einer Spalte.
 - **Eine KI, die den Browser bedient.** Claude liest Seiten, klickt und tippt für dich und fragt nach, bevor etwas riskant wird.
 - **Privat.** Kein Konto, kein Server, keine Analyse. Werbung und Tracker werden von Anfang an blockiert.
 - **Deine Sachen kommen mit.** Er übernimmt Lesezeichen und Verlauf aus Safari und Chromium-Browsern, Passwörter aus den Chromium-Browsern.
-- **Eine eigene Startseite.** Drei Stile, Bereiche, die du frei anordnen kannst, und ein eigener Hintergrund.
+- **Eine schlichte Startseite.** Ein Suchfeld und deine Favoriten.
 
 ## Die KI
 

@@ -2,7 +2,7 @@ import AppKit
 
 /// What a new tab is asked for from.
 enum NewTabContext: Equatable, Sendable {
-    /// ⌘T, "New Tab" in the sidebar or the strip: a tab is wanted.
+    /// ⌘T, "New Tab" in the sidebar: a tab is wanted.
     case shortcut
     /// A window that has just opened (⌘N, the Dock, a launch with nothing to restore).
     case windowOpen
@@ -51,7 +51,7 @@ extension Browser {
                                   tabsInSpace: spaceTabs.count, context: context)
     }
 
-    /// The one way to ask for a new tab: ⌘T, the sidebar's and the strip's buttons, a new window, the last tab closing, an empty space.
+    /// The one way to ask for a new tab: ⌘T, the sidebar's button, a new window, the last tab closing, an empty space.
     func openNewTab(_ context: NewTabContext = .shortcut) {
         switch newTabRoute(context) {
         case .commandBar:
@@ -96,15 +96,13 @@ extension Browser {
     /// The recent pages, closed tabs, reading list and frequent sites are history: a private window keeps none, so it never reads them either.
     var startPageMayShowHistory: Bool { !isPrivate }
 
-    /// ⌘L: on a start tab (or an empty window that shows the start page) the field of the start page is the address entry; on a page it is the address bar.
+    /// ⌘L: on a start tab (or an empty window that shows the start page) the field of the start page is the address entry; on a page the command bar edits it.
     func openLocation() {
         if showsStartPage {
             commandBar = nil
             focusStartPage()
         } else if active == nil {
             commandBar = .newTab
-        } else if Preferences.shared.addressBarOnTop && !focusMode {
-            addressFocusRequest += 1
         } else {
             commandBar = .editCurrent
         }

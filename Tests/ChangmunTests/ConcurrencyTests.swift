@@ -146,26 +146,39 @@ struct ControlServerTests {
 
 @MainActor
 struct DownloadShelfTests {
-    @Test func aHoveredRowThatLeavesTheShelfIsNotWaitedForForever() async throws {
-        let saved = Downloads.shelfTime
-        Downloads.shelfTime = .milliseconds(50)
-        defer { Downloads.shelfTime = saved }
-        weak var watched: Downloads?
-        do {
-            let downloads = Downloads()
-            watched = downloads
-            let item = DownloadItem(filename: "a.zip", progress: Progress(totalUnitCount: 1), isPrivate: false)
-            downloads.add(item)
-            item.state = .finished
-            item.isHovered = true
-            downloads.settle(item)
-            try await Task.sleep(for: .milliseconds(200))
-            #expect(downloads.shelf.contains { $0 === item }, "it stays while the pointer is on it")
-            // The row disappears under the pointer: no "left" ever comes.
-            downloads.dismiss(item)
-        }
-        for _ in 0..<60 where watched != nil { try await Task.sleep(for: .milliseconds(100)) }
-        #expect(watched == nil, "the task that waits for the pointer to leave a row ended with the row")
+    @Test func aFinishedDownloadStaysOnTheShelfUntilItIsClosed() {
+        let downloads = Downloads()
+        let item = DownloadItem(filename: "a.zip", progress: Progress(totalUnitCount: 1), isPrivate: false)
+        downloads.add(item)
+        item.state = .finished
+        #expect(downloads.shelf.contains { $0 === item }, "finished, it is still on the shelf")
+        // What the row's × does.
+        downloads.dismiss(item)
+        #expect(!downloads.shelf.contains { $0 === item }, "closed, it leaves the shelf")
+        #expect(downloads.items.contains { $0 === item }, "and stays in the list")
+    }
+
+    @Test func aFailedDownloadCanBeClosedAndStillTriedAgainFromTheList() {
+        let downloads = Downloads()
+        let item = DownloadItem(filename: "b.zip", progress: Progress(totalUnitCount: 1), isPrivate: false)
+        downloads.add(item)
+        item.state = .failed("The network connection was lost.")
+        item.resumeData = Data("resume".utf8)
+        #expect(downloads.shelf.contains { $0 === item })
+        downloads.dismiss(item)
+        #expect(!downloads.shelf.contains { $0 === item }, "the × takes it off the shelf")
+        #expect(downloads.items.contains { $0 === item } && item.resumeData != nil, "the list keeps it, with Try Again")
+    }
+
+    @Test func besideTheAddressTheShareDoneShowsOnlyWhileSomethingRuns() {
+        let running = DownloadItem(filename: "c.zip", progress: Progress(totalUnitCount: 100), isPrivate: false)
+        running.update(fraction: 0.42, bytes: 42, sizeKnown: true)
+        let done = DownloadItem(filename: "d.zip", progress: Progress(totalUnitCount: 1), isPrivate: false)
+        done.state = .finished
+        #expect(DownloadButton.progressText([running, done]) == "42%")
+        running.state = .finished
+        #expect(DownloadButton.progressText([running, done]) == nil, "nothing runs: no words")
+        #expect(DownloadButton.progressText([]) == nil)
     }
 }
 

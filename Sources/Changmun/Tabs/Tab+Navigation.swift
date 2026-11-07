@@ -192,10 +192,6 @@ extension Tab: WKNavigationDelegate {
         navigatingTo = nil
         finishedState = webView.interactionState as? Data
         loadFavicon()
-        if sortsIntoGroup, webView.url?.scheme?.hasPrefix("http") == true, webView.title?.isEmpty == false {
-            sortsIntoGroup = false
-            browser?.sortIntoGroup(self)
-        }
         if !isPrivate, let url = webView.url?.absoluteString { Library.shared.recordVisit(url: url, title: webView.title ?? "") }
         browser?.pageLoaded(webView.url?.absoluteString)
         checkForLogins()

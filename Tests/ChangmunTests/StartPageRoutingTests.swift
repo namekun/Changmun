@@ -5,8 +5,7 @@ import Testing
 /// A store with "New tabs open: command bar", for the tests of what an empty window or space did before the start page.
 @MainActor
 func commandBarStore() -> StartPageStore {
-    let store = StartPageStore(defaults: UserDefaults(suiteName: "command-bar-\(UUID().uuidString)")!,
-                               folder: FileManager.default.temporaryDirectory.appendingPathComponent("command-bar-\(UUID().uuidString)"))
+    let store = StartPageStore(defaults: UserDefaults(suiteName: "command-bar-\(UUID().uuidString)")!)
     store.setNewTab(.commandBar)
     return store
 }
@@ -105,7 +104,7 @@ struct StartTabTests {
         let b = Browser(isPrivate: isPrivate, spaces: Sandbox().store())
         b.focused()
         let suite = UserDefaults(suiteName: "start-tab-\(UUID().uuidString)")!
-        let store = StartPageStore(defaults: suite, folder: FileManager.default.temporaryDirectory.appendingPathComponent("start-tab-\(UUID().uuidString)"))
+        let store = StartPageStore(defaults: suite)
         store.setNewTab(opens)
         store.setAddress(address)
         b.startPageStore = store
@@ -136,14 +135,13 @@ struct StartTabTests {
         #expect(b.tabs.count == 1 && b.active === first && b.startPageFocusRequest == before + 1)
     }
 
-    @Test func aStartTabJoinsTheSpaceAndTheGroupRulesOfAnyNewTab() {
+    @Test func aStartTabJoinsTheSpaceOfAnyNewTab() {
         let b = browser()
         defer { b.windowClosed() }
         let page = b.openTab(url: URL(string: "http://127.0.0.1:9/"))
         b.openNewTab()
         let tab = try! #require(b.active)
         #expect(b.tabs.map(\.id) == [page.id, tab.id] && tab.spaceID == b.spaceID && tab.groupID == nil)
-        #expect(tab.sortsIntoGroup, "once it has a first page it may join the group it belongs in")
     }
 
     @Test func theCommandBarSettingStillOpensTheBarAndMakesNoTab() {
@@ -222,13 +220,12 @@ struct StartTabTests {
         defer { b.windowClosed() }
         b.openNewTab()
         let before = b.startPageFocusRequest
-        let address = b.addressFocusRequest
         b.openLocation()
-        #expect(b.startPageFocusRequest == before + 1 && b.addressFocusRequest == address && b.commandBar == nil)
+        #expect(b.startPageFocusRequest == before + 1 && b.commandBar == nil)
         _ = b.openTab(url: URL(string: "http://127.0.0.1:9/"))
         b.openLocation()
-        #expect(b.startPageFocusRequest == before + 1, "on a page it is the address bar's")
-        #expect(b.commandBar == .editCurrent || b.addressFocusRequest == address + 1)
+        #expect(b.startPageFocusRequest == before + 1, "on a page it is the command bar's")
+        #expect(b.commandBar == .editCurrent)
     }
 
     // MARK: Lifecycle

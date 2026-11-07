@@ -8,13 +8,11 @@ struct StartSearchBox: View {
     @ObservedObject var chat: ChatStore
     /// Where a typed address or search goes: a new tab, or the tab that shows this page (see `CommandBarMode`).
     var mode: CommandBarMode = .newTab
-    /// The smaller field under the AI box of the AI-first page.
-    var compact = false
     /// Whether something is typed: the page behind steps back while it is.
     @Binding var typing: Bool
-    /// Changes when the field should have the keyboard (⌘L, ⇧⇥ from the first section, a new page).
+    /// Changes when the field should have the keyboard (⌘L, ⇧⇥ from the favorites, a new page).
     var focusRequest = 0
-    /// The keyboard leaves the field for the sections (↓ or ⇥ with nothing to choose from).
+    /// The keyboard leaves the field for the favorites (↓ or ⇥ with nothing to choose from).
     var leave: (_ backwards: Bool) -> Void = { _ in }
     @ObservedObject private var prefs = Preferences.shared
     @State private var text = ""
@@ -27,7 +25,6 @@ struct StartSearchBox: View {
     @State private var announceTask: Task<Void, Never>?
 
     private var placeholder: String {
-        if compact { return String(localized: "Or search or enter an address") }
         return browser.isPrivate ? String(localized: "Search or enter an address") : String(localized: "Search, enter an address or ask AI")
     }
 
@@ -40,7 +37,7 @@ struct StartSearchBox: View {
     var body: some View {
         let items = items
         // The list floats over the sections under the field, which step back; it does not push them down.
-        field(height: compact ? 38 : 46)
+        field(height: 46)
             .overlay(alignment: .top) {
                 if !items.isEmpty {
                     VStack(spacing: 4) {
@@ -53,7 +50,7 @@ struct StartSearchBox: View {
                     }
                     .padding(8)
                     .floatingPanel(radius: Metrics.cardRadius)
-                    .offset(y: (compact ? 38 : 46) + 8)
+                    .offset(y: 46 + 8)
                 }
             }
             .zIndex(10)
@@ -123,12 +120,12 @@ struct StartSearchBox: View {
                           let editor = CommandBar.ownEditor(note.object as? NSResponder, in: browser.window, placeholder: placeholder) else { return }
                     shown = CommandBar.shownText(editor: editor.string, binding: text)
                 }
-            Keycap(text.isEmpty ? "⌘L" : "esc")
+            if !text.isEmpty { Keycap("esc") }
         }
         .padding(.leading, 16)
         .padding(.trailing, 8)
         .frame(height: height)
-        .startPlate(radius: Metrics.cardRadius, fill: Theme.field)
+        .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Theme.field))
     }
 
     private var currentItems: [CommandBar.Suggestion] { items }
