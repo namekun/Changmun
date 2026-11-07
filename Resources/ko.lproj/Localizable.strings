@@ -193,7 +193,6 @@
 "Deny" = "거부";
 "Deny if the address carries content from another page or from the conversation." = "주소에 다른 페이지나 대화의 내용이 실려 있다면 거부해 주세요.";
 "Develop" = "개발자";
-"Developer Mode" = "개발자 모드";
 "Done" = "완료";
 "Done · %@" = "완료 · %@";
 "Don’t Allow" = "허용 안 함";
@@ -555,7 +554,6 @@
 "Web Inspector (Network)" = "웹 인스펙터 (네트워크)";
 "WebKit didn't accept the rules: %@" = "WebKit이 규칙을 받아들이지 않았어요: %@";
 "What you type in the command bar is sent to your search engine to get suggestions. Nothing is sent in private windows." = "명령 막대에 입력한 글자를 검색 엔진에 보내 추천을 받아요. 개인 창에서는 보내지 않아요.";
-"When on, the address bar shows the full address by default. You can open the Web Inspector any time with F12 (Network tab) or ⌥⌘I." = "켜면 주소창이 기본으로 전체 주소를 보여 줘요. 웹 인스펙터는 언제든 F12(네트워크 탭)나 ⌥⌘I로 열 수 있어요.";
 "Window" = "윈도우";
 "Working" = "작업 중";
 "You can attach up to %lld images to a message." = "메시지 하나에 이미지는 %lld장까지 붙일 수 있어요.";

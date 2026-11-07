@@ -193,7 +193,6 @@
 "Deny" = "拒否";
 "Deny if the address carries content from another page or from the conversation." = "アドレスにほかのページや会話の内容が含まれている場合は拒否してください。";
 "Develop" = "開発";
-"Developer Mode" = "デベロッパモード";
 "Done" = "完了";
 "Done · %@" = "完了 · %@";
 "Don’t Allow" = "許可しない";
@@ -555,7 +554,6 @@
 "Web Inspector (Network)" = "Webインスペクタ (ネットワーク)";
 "WebKit didn't accept the rules: %@" = "WebKitがルールを受け付けませんでした: %@";
 "What you type in the command bar is sent to your search engine to get suggestions. Nothing is sent in private windows." = "コマンドバーに入力した文字は、候補を取得するために検索エンジンに送信されます。プライベートウインドウでは送信されません。";
-"When on, the address bar shows the full address by default. You can open the Web Inspector any time with F12 (Network tab) or ⌥⌘I." = "オンにすると、アドレスバーにデフォルトで完全なアドレスが表示されます。Webインスペクタは、F12 (ネットワークタブ) または ⌥⌘I でいつでも開けます。";
 "Window" = "ウインドウ";
 "Working" = "作業中";
 "You can attach up to %lld images to a message." = "1つのメッセージに添付できる画像は%lld枚までです。";

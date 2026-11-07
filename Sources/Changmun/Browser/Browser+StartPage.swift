@@ -2,7 +2,7 @@ import AppKit
 
 /// What a new tab is asked for from.
 enum NewTabContext: Equatable, Sendable {
-    /// ⌘T, "New Tab" in the sidebar or the strip: a tab is wanted.
+    /// ⌘T, "New Tab" in the sidebar: a tab is wanted.
     case shortcut
     /// A window that has just opened (⌘N, the Dock, a launch with nothing to restore).
     case windowOpen
@@ -51,7 +51,7 @@ extension Browser {
                                   tabsInSpace: spaceTabs.count, context: context)
     }
 
-    /// The one way to ask for a new tab: ⌘T, the sidebar's and the strip's buttons, a new window, the last tab closing, an empty space.
+    /// The one way to ask for a new tab: ⌘T, the sidebar's button, a new window, the last tab closing, an empty space.
     func openNewTab(_ context: NewTabContext = .shortcut) {
         switch newTabRoute(context) {
         case .commandBar:

@@ -3,19 +3,32 @@ import SwiftUI
 
 // MARK: Downloads
 
-/// The download button: the arrow, and the list in a popover. How the files come along is said on the shelf, in words.
+/// The download button: the arrow, and the list in a popover. How the files come along is said in words: on the shelf, or, with the sidebar
+/// hidden and no shelf to show it, as the share done beside the arrow.
 struct DownloadButton: View {
     @ObservedObject var browser: Browser
     let arrowEdge: Edge
+    /// Beside the address, where there is no shelf.
+    var showsProgress = false
     @ObservedObject private var downloads = Downloads.shared
+
+    /// "42%" while something runs; nil when nothing does.
+    static func progressText(_ items: [DownloadItem]) -> String? {
+        Downloads.progress(of: items).map { "\(Int(($0 * 100).rounded()))%" }
+    }
 
     var body: some View {
         let items = downloads.items(for: browser)
-        BarButton(symbol: "arrow.down", help: String(localized: "Downloads"),
-                  value: Accessibility.downloadsValue(active: items.filter { $0.state == .running }.count) ?? "") { browser.showDownloads.toggle() }
-            .popover(isPresented: $browser.showDownloads, arrowEdge: arrowEdge) {
-                DownloadList(browser: browser)
+        HStack(spacing: 0) {
+            BarButton(symbol: "arrow.down", help: String(localized: "Downloads"),
+                      value: Accessibility.downloadsValue(active: items.filter { $0.state == .running }.count) ?? "") { browser.showDownloads.toggle() }
+                .popover(isPresented: $browser.showDownloads, arrowEdge: arrowEdge) {
+                    DownloadList(browser: browser)
+                }
+            if showsProgress, let text = Self.progressText(items) {
+                Text(verbatim: text).font(.caption.monospacedDigit()).foregroundStyle(Theme.secondary).decorative()
             }
+        }
     }
 }
 
@@ -180,12 +193,14 @@ struct DownloadRow: View {
         if case .failed = item.state { true } else { false }
     }
 
-    /// Cancel while it runs, Try Again when it broke off; under the pointer, on the shelf a finished row's × and in the list Show in Finder.
+    /// Cancel while it runs, Try Again when it broke off; under the pointer, on the shelf a finished or failed row's × and in the list Show in Finder.
     @ViewBuilder private var action: some View {
         if item.state == .running {
             HoverAction(symbol: "xmark", help: String(localized: "Cancel")) { item.cancel() }
         } else if item.resumeData != nil {
             HoverAction(symbol: "arrow.clockwise", help: String(localized: "Try Again")) { Downloads.shared.retry(item) }
+            // Closed on the shelf, it stays in the list, where Try Again still is.
+            if hover, onShelf { HoverAction(symbol: "xmark", help: String(localized: "Close")) { Downloads.shared.dismiss(item) } }
         } else if hover, onShelf {
             HoverAction(symbol: "xmark", help: String(localized: "Close")) { Downloads.shared.dismiss(item) }
         } else if hover, let file {

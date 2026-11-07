@@ -126,6 +126,13 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         remove { $0.isPrivate && ($0.owner == nil || $0.owner === browser) }
     }
 
+    /// The share done of the running downloads, or nil when none is running.
+    static func progress(of items: [DownloadItem]) -> Double? {
+        let running = items.filter { !$0.isDone }
+        guard !running.isEmpty else { return nil }
+        return running.map(\.progress).reduce(0, +) / Double(running.count)
+    }
+
     func dismiss(_ item: DownloadItem) {
         shelf.removeAll { $0 === item }
     }

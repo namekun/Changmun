@@ -193,7 +193,6 @@
 "Deny" = "拒绝";
 "Deny if the address carries content from another page or from the conversation." = "如果地址中带有其他页面或对话中的内容，请拒绝。";
 "Develop" = "开发";
-"Developer Mode" = "开发者模式";
 "Done" = "完成";
 "Done · %@" = "完成 · %@";
 "Don’t Allow" = "不允许";
@@ -555,7 +554,6 @@
 "Web Inspector (Network)" = "网页检查器（网络）";
 "WebKit didn't accept the rules: %@" = "WebKit 未接受这些规则：%@";
 "What you type in the command bar is sent to your search engine to get suggestions. Nothing is sent in private windows." = "你在命令栏中输入的内容会发送给搜索引擎以获取建议。在私密浏览窗口中不会发送任何内容。";
-"When on, the address bar shows the full address by default. You can open the Web Inspector any time with F12 (Network tab) or ⌥⌘I." = "开启后，地址栏默认显示完整地址。你随时可以按 F12（“网络”标签页）或 ⌥⌘I 打开网页检查器。";
 "Window" = "窗口";
 "Working" = "处理中";
 "You can attach up to %lld images to a message." = "每条消息最多可附加 %lld 张图片。";

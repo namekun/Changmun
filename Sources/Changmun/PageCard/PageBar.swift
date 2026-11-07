@@ -22,7 +22,7 @@ struct PageBar: View {
             .padding(.horizontal, Metrics.inset)
             if #available(macOS 15.4, *), !browser.isPrivate { ExtensionButtons(browser: browser) }
             // With the sidebar shown the button is under its shelf, where the progress is.
-            if !browser.showSidebar { DownloadButton(browser: browser, arrowEdge: .bottom) }
+            if !browser.showSidebar { DownloadButton(browser: browser, arrowEdge: .bottom, showsProgress: true) }
             if browser.isPrivate {
                 PrivateBadge()
             } else {

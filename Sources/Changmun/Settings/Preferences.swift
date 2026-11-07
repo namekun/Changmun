@@ -212,7 +212,6 @@ final class Preferences: ObservableObject {
 
     // MARK: Advanced
 
-    @Published var developerMode: Bool { didSet { defaults.set(developerMode, forKey: "developerMode") } }
     @Published var shortcuts: ShortcutScheme { didSet { defaults.set(shortcuts.rawValue, forKey: "shortcuts") } }
 
     private init() {
@@ -256,7 +255,6 @@ final class Preferences: ObservableObject {
         translationEngine = TranslationEngine.initial(stored: d.string(forKey: "translationEngine"))
         translationModel = TranslationEngine.model(stored: d.string(forKey: "translationModel"))
         translatedHosts = d.stringArray(forKey: "translatedHosts") ?? []
-        developerMode = d.bool(forKey: "developerMode")
         shortcuts = ShortcutScheme(rawValue: d.string(forKey: "shortcuts") ?? "") ?? .safari
     }
 

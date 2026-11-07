@@ -224,8 +224,7 @@ struct BookmarkRow<MenuItems: View>: View {
     }
 }
 
-/// The same items for a favorite and a bookmark, in the same order: the tab, then where it goes, then deleting. In the sidebar, and for a favorite
-/// in the strip along the top.
+/// The same items for a favorite and a bookmark, in the same order: the tab, then where it goes, then deleting.
 struct BookmarkMenu: View {
     let browser: Browser
     let url: String
@@ -392,7 +391,7 @@ struct TabGroupHeader: View {
     }
 }
 
-/// A group's menu, in the tab list and on its chip in the strip along the top.
+/// A group's menu, on its header in the tab list.
 struct GroupMenu: View {
     let group: Browser.TabGroup
     let browser: Browser

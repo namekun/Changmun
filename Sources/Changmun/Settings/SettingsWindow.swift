@@ -64,8 +64,8 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .ai:
             [String(localized: "Model"), String(localized: "Claude Code"), String(localized: "AI Chat")]
         case .advanced:
-            [String(localized: "Shortcuts"), String(localized: "Developer Mode"),
-             String(localized: "Check for updates automatically"), String(localized: "Download and install updates automatically")]
+            [String(localized: "Shortcuts"), String(localized: "Check for updates automatically"),
+             String(localized: "Download and install updates automatically")]
         }
     }
 

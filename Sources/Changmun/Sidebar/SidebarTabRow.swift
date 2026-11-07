@@ -91,8 +91,7 @@ struct SidebarTabRow: View {
     }
 }
 
-/// What a tab's context menu offers, in the sidebar's row and in the strip along the top: the tab, then where it goes, then closing it,
-/// the same order as a bookmark's menu.
+/// What a tab's context menu offers in its sidebar row: the tab, then where it goes, then closing it, the same order as a bookmark's menu.
 struct TabMenu: View {
     @ObservedObject var tab: Tab
     let browser: Browser

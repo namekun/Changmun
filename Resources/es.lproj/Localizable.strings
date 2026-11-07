@@ -193,7 +193,6 @@
 "Deny" = "Denegar";
 "Deny if the address carries content from another page or from the conversation." = "Deniega si la dirección contiene contenido de otra página o de la conversación.";
 "Develop" = "Desarrollo";
-"Developer Mode" = "Modo de desarrollador";
 "Done" = "Listo";
 "Done · %@" = "Listo · %@";
 "Don’t Allow" = "No permitir";
@@ -555,7 +554,6 @@
 "Web Inspector (Network)" = "Inspector web (Red)";
 "WebKit didn't accept the rules: %@" = "WebKit no ha aceptado las reglas: %@";
 "What you type in the command bar is sent to your search engine to get suggestions. Nothing is sent in private windows." = "Lo que escribes en la barra de comandos se envía a tu buscador para obtener sugerencias. No se envía nada en las ventanas privadas.";
-"When on, the address bar shows the full address by default. You can open the Web Inspector any time with F12 (Network tab) or ⌥⌘I." = "Si está activado, la barra de direcciones muestra la dirección completa de forma predeterminada. Puedes abrir el Inspector web en cualquier momento con F12 (pestaña Red) o ⌥⌘I.";
 "Window" = "Ventana";
 "Working" = "Trabajando";
 "You can attach up to %lld images to a message." = "Puedes adjuntar hasta %lld imágenes a un mensaje.";
