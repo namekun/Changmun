@@ -5,8 +5,7 @@ import Testing
 /// A store with "New tabs open: command bar", for the tests of what an empty window or space did before the start page.
 @MainActor
 func commandBarStore() -> StartPageStore {
-    let store = StartPageStore(defaults: UserDefaults(suiteName: "command-bar-\(UUID().uuidString)")!,
-                               folder: FileManager.default.temporaryDirectory.appendingPathComponent("command-bar-\(UUID().uuidString)"))
+    let store = StartPageStore(defaults: UserDefaults(suiteName: "command-bar-\(UUID().uuidString)")!)
     store.setNewTab(.commandBar)
     return store
 }
@@ -105,7 +104,7 @@ struct StartTabTests {
         let b = Browser(isPrivate: isPrivate, spaces: Sandbox().store())
         b.focused()
         let suite = UserDefaults(suiteName: "start-tab-\(UUID().uuidString)")!
-        let store = StartPageStore(defaults: suite, folder: FileManager.default.temporaryDirectory.appendingPathComponent("start-tab-\(UUID().uuidString)"))
+        let store = StartPageStore(defaults: suite)
         store.setNewTab(opens)
         store.setAddress(address)
         b.startPageStore = store

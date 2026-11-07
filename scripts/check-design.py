@@ -6,8 +6,8 @@ Reads the Swift files under Sources/Changmun (or the files and folders named on 
   - a `.system(size:` literal: use a Font token (Theme.swift defines them),
   - a corner radius that is a number outside 4, 8, 12 and 16: `cornerRadius: 10`, or `radius: 10` of a plate, a panel or a button style,
   - a `.shadow(` outside DesignSystem/: use e1(), e2() or e3().
-A number in an expression (`size * 0.24`, a share of a plate) is not a literal. Not looked at: StartPageMiniature.swift (a scaled-down drawing
-of the page), Theme.swift for the font rule (it defines the tokens), and a line that ends in a `// design-exempt: why` comment, for a mark drawn
+A number in an expression (`size * 0.24`, a share of a plate) is not a literal. Not looked at:
+Theme.swift for the font rule (it defines the tokens), and a line that ends in a `// design-exempt: why` comment, for a mark drawn
 inside an icon, a size that is a share of its plate, a drawing that is a scaled-down model. Run by scripts/test-scripts.sh.
 
     scripts/check-design.py [file or folder ...]
@@ -16,7 +16,6 @@ import os
 import re
 import sys
 
-EXEMPT_FILES = {"StartPageMiniature.swift"}
 FONT_FILES = {"Theme.swift"}
 MARKER = "// design-exempt:"
 RADII = {4, 8, 12, 16}
@@ -54,8 +53,6 @@ def swift_files(paths):
 def main():
     failed = 0
     for path in swift_files(sys.argv[1:] or ["Sources/Changmun"]):
-        if os.path.basename(path) in EXEMPT_FILES:
-            continue
         with open(path, encoding="utf-8") as source:
             for number, line in enumerate(source, 1):
                 if MARKER in line or line.lstrip().startswith("//"):

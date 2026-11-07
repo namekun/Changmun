@@ -5,7 +5,7 @@ label, stacked label lines, a badge's padding), everything between components an
 Reads the Swift files under Sources/Changmun (or the files and folders named on the command line) and fails for a number that is not
 on the grid in a `.padding(...)`, a `spacing:` (also `horizontalSpacing:` and `verticalSpacing:`) or a `Spacer(minLength:`. A number in a
 `Metrics.` expression is left to the token (`Metrics.inset + 4` is checked for its 4 only), a count (`2 * x`) and a divisor (`x / 2`) are not
-spacing. Not looked at: StartPageMiniature.swift (a scaled-down drawing of the page, in scale-model proportions) and a line that ends in a
+spacing. Not looked at: a line that ends in a
 `// grid-exempt: why` comment, for a value the system fixes (an inset to line up with) or one that is no gap (a 1 pt optical nudge, a share of an
 icon's size). Run by scripts/test-scripts.sh.
 
@@ -15,7 +15,6 @@ import os
 import re
 import sys
 
-EXEMPT_FILES = {"StartPageMiniature.swift"}
 MARKER = "// grid-exempt:"
 NUMBER = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)(?![\w])")
 CONTEXT = re.compile(r"\.padding\(|Spacer\(minLength:|\b[a-zA-Z]*[sS]pacing:")
@@ -75,8 +74,6 @@ def swift_files(paths):
 def main():
     failed = 0
     for path in swift_files(sys.argv[1:] or ["Sources/Changmun"]):
-        if os.path.basename(path) in EXEMPT_FILES:
-            continue
         with open(path, encoding="utf-8") as source:
             for number, line in enumerate(source, 1):
                 if MARKER in line or line.lstrip().startswith("//"):

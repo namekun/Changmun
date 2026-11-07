@@ -39,14 +39,10 @@ enum StartPageTestSeed {
 
 extension ControlServer {
     /// Tests only: the start page put into a state to look at, and where new tabs go, on the front window (the private one if that is in front).
-    /// Settings: "reset" (the defaults again), "appearance" (system, light or dark), "style" (dashboard, quiet or aiFirst), "sections" (the ones that are on,
-    /// in order, for that style; "options": {"favorites": 1} sets theirs), "background" ({"kind", "colorID", "customHex", "imageFile", "blur", "dim"}),
-    /// "newTab" (startPage, commandBar, blank, address) and "address". Windows and actions, run in this order: "window" (new or private: a window opens as
+    /// Settings: "reset" (the defaults again), "appearance" (system, light or dark), "newTab" (startPage, commandBar, blank, address) and "address". Windows and actions, run in this order: "window" (new or private: a window opens as
     /// ⌘N and ⇧⌘N do), "private" (a private window, no new tab), "removeSpace" (the space shown, if it is not the first), "noTabs" (the tabs of the space
     /// shown are closed so that the page shows), "newTab" ("action": "newTab" is ⌘T), "action" (newTab, openLocation, closeActive, closeAll), "type" (what
-    /// the start page's search field does with typed text: it opens in the tab in front), "popover" ({"open": true, "expand": "favorites"}), "empty" (the
-    /// page of a fresh profile), "ai" (ready or none: what the AI chips go by), "image" (a path: the picture is made the background as the settings page's
-    /// button would, and the answer has "imageMs" and "imageOK"). "seed" fills the profile ({"icons", "favorites": [[url, title]], "history": [[url, title]]
+    /// the start page's search field does with typed text: it opens in the tab in front). "seed" fills the profile ({"icons", "favorites": [[url, title]], "history": [[url, title]]
     /// or [[url, title, visits, minutesAgo]], "closed": [[url, title]] or [[url, title, minutesAgo]], "reading": [[url, title, days, read]], "tabs": [url]})
     /// so that a test can look for it where it must never be; "unseed" takes a list of history addresses, or the same lists as "seed", out again, and
     /// "clear" takes everything that was seeded away. The answer says how things stand.
@@ -62,39 +58,13 @@ extension ControlServer {
             }
             if body["private"] as? Bool == true { BrowserWindow.open(private: true) }
             guard let browser = Browser.current else { return self.respond(connection, status: "404 Not Found", body: ["error": "no window"]) }
-            if let empty = body["empty"] as? Bool { StartPageUI.showsAsEmpty = empty }
-            if let ai = body["ai"] as? String {
-                AIAvailability.detector = { ai == "ready" ? .ready : .none }
-                ChatStore.shared.refreshAvailability()
-            }
             // The page is looked at without the command bar that a call about the page's looks may have left up; a call about routing keeps what it made.
-            if !Set(["private", "removeSpace", "clear", "style", "sections", "options", "background", "popover", "noTabs", "empty", "ai"]).isDisjoint(with: body.keys) { browser.commandBar = nil }
+            if !Set(["private", "removeSpace", "clear", "noTabs"]).isDisjoint(with: body.keys) { browser.commandBar = nil }
             // Takes away the space shown (not the first one): for the extra space a test made to see a space's colour.
             if body["removeSpace"] as? Bool == true, browser.spaceID != Space.defaultID { Browser.deleteSpace(browser.spaceID, from: browser.spaces) }
             if body["clear"] as? Bool == true { StartPageTestSeed.clear(in: browser) }
-            if body["reset"] as? Bool == true { store.reset(); StartHiddenItems.shared.showAll() }
+            if body["reset"] as? Bool == true { store.update { $0 = .default } }
             if let name = body["appearance"] as? String, let appearance = AppAppearance(rawValue: name) { Preferences.shared.appearance = appearance }
-            if let name = body["style"] as? String, let style = StartStyle(rawValue: name) { store.setStyle(style) }
-            if let names = body["sections"] as? [String] {
-                let on = names.compactMap(StartSection.init(rawValue:))
-                store.update { settings in
-                    let rest = settings.current.items.map(\.section).filter { !on.contains($0) }
-                    let old = settings.current
-                    let items = (on + rest).map { section in StartItem(section: section, enabled: on.contains(section), option: old.item(section)?.option ?? 0) }
-                    settings = settings.with(layout: StartLayout(items: items), for: settings.style)
-                }
-            }
-            for (name, option) in body["options"] as? [String: Int] ?? [:] { if let section = StartSection(rawValue: name) { store.setOption(section, option) } }
-            if let background = body["background"] as? [String: Any] {
-                var next = store.settings.background
-                if let kind = (background["kind"] as? String).flatMap(StartBackgroundKind.init(rawValue:)) { next.kind = kind }
-                if let id = background["colorID"] as? String { next.colorID = id }
-                if let hex = background["customHex"] as? String { next.customHex = hex }
-                if background.keys.contains("imageFile") { next.imageFile = background["imageFile"] as? String }
-                if let blur = background["blur"] as? Double { next.blur = blur }
-                if let dim = background["dim"] as? Double { next.dim = dim }
-                store.setBackground(next)
-            }
             if let name = body["newTab"] as? String, let opens = NewTabOpens(rawValue: name) { store.setNewTab(opens) }
             if let address = body["address"] as? String { store.setAddress(address) }
             for url in body["unseed"] as? [String] ?? [] { Library.shared.deleteHistory(url: url) }
@@ -152,19 +122,6 @@ extension ControlServer {
             default: break
             }
             if let text = body["type"] as? String { browser.open(text, in: .editCurrent) }
-            if let popover = body["popover"] as? [String: Any] {
-                let open = popover["open"] as? Bool ?? true
-                var info: [String: Any] = ["open": open]
-                if let expand = popover["expand"] as? String { info["expand"] = expand }
-                NotificationCenter.default.post(name: StartPageUI.customizeRequested, object: browser, userInfo: info)
-            }
-            var image: [String: Any] = [:]
-            if let path = body["image"] as? String {
-                let start = ContinuousClock.now
-                let ok = await store.chooseImage(from: URL(fileURLWithPath: path))
-                let took = ContinuousClock.now - start
-                image = ["imageOK": ok, "imageMs": Int(Double(took.components.seconds) * 1000 + Double(took.components.attoseconds) / 1e15), "imageFile": store.settings.background.imageFile ?? ""]
-            }
             try? await Task.sleep(for: .milliseconds(body["wait"] as? Int ?? 700))
             let active = browser.active
             let settings = store.settings
@@ -174,9 +131,7 @@ extension ControlServer {
                 "private": browser.isPrivate, "mayShowHistory": browser.startPageMayShowHistory, "windows": Browser.all.count,
                 "newTab": settings.newTab.rawValue, "closedTabs": browser.closedTabs.count, "hasWebView": active?.webView != nil,
                 "tabs": browser.spaceTabs.map { ["id": $0.id, "isStart": $0.isStart, "url": $0.url?.absoluteString ?? "", "title": $0.displayTitle] as [String: Any] },
-                "style": settings.style.rawValue, "sections": settings.current.shown.map(\.section.rawValue), "background": settings.background.kind.rawValue,
-                "shown": StartPageUI.isShown(in: browser),
-            ].merging(image) { $1 })
+            ])
         }
         return true
     }

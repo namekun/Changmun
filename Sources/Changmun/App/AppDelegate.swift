@@ -71,8 +71,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             pendingURLs = []
         }
         ControlServer.shared.start()
-        // The start page's picture copies that no setting names (left by a reset or an interrupted import) go once a launch.
-        Task { await StartPageStore.shared.removeOrphanedImages() }
         sessionTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { _ in
             MainActor.assumeIsolated { Browser.saveSessionIfChanged() }
         }
@@ -166,9 +164,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.titleVisibility = .hidden
         }
     }
-
-    /// The popover on the start page of the window in front, or the Settings page when it shows none.
-    @objc func customizeStartPage(_ sender: Any?) { StartPageUI.customize(Browser.current) }
 
     @objc func showHistory(_ sender: Any?) {
         Panels.show("history", title: String(localized: "History"), size: NSSize(width: 640, height: 560)) { HistoryView() }

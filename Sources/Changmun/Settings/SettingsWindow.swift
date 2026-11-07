@@ -56,7 +56,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
              String(localized: "Sites that never sleep"), String(localized: "Tab Cleanup"),
              String(localized: "Automatically put new tabs in the right group"), String(localized: "Archive tabs you haven’t viewed in a while")]
         case .startPage:
-            [String(localized: "Style"), String(localized: "Sections"), String(localized: "Background"), String(localized: "New Tabs Open")]
+            [String(localized: "New Tabs Open")]
         case .privacy:
             [String(localized: "Clear History"), String(localized: "Ad Blocking"), String(localized: "Saved Passwords"),
              String(localized: "Pop-ups"), String(localized: "Camera & Microphone")]

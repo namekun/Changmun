@@ -246,8 +246,6 @@ printf 'Text("a").padding(.leading, CGFloat(depth) * 14)\n' >"$WORK/guard/grid-n
 printf '.padding(.leading, Metrics.inset + 3)\n' >"$WORK/guard/grid-mixed.swift"
 printf '.padding(.leading, 1) // grid-exempt: optical nudge\n' >"$WORK/guard/grid-marked.swift"
 printf '// .padding(12)\n.padding(8)\n.padding(.top, 0)\nVStack(spacing: 4)\nHStack(spacing: Metrics.rowGap)\n.padding(.top, Metrics.section - 2 * Metrics.rowGap)\n.padding(.leading, 2 * Metrics.inset)\n.padding(.horizontal, min(64, max(16, (w - 480) / 2)))\nSpacer(minLength: 40)\nGridItem(.adaptive(minimum: 40), spacing: 4)\n.frame(width: 12).font(.system(size: 13))\n' >"$WORK/guard/grid-fine.swift"
-mkdir -p "$WORK/guard/folder"
-printf '.padding(.top, 70)\n' >"$WORK/guard/folder/StartPageMiniature.swift"
 check "the guard fails a padding of 12" refuses grid "$WORK/guard/grid-padding.swift"
 check "the guard fails a spacing of 6" refuses grid "$WORK/guard/grid-spacing.swift"
 check "the guard fails a Spacer's minimum length of 90" refuses grid "$WORK/guard/grid-spacer.swift"
@@ -257,7 +255,6 @@ check "the guard fails a literal beside a Metrics token" refuses grid "$WORK/gua
 check "the guard names the file, the line and the value" bash -c 'python3 -I -B scripts/check-grid.py "$1" 2>&1 | grep -q "grid-padding.swift:1: 12 is not on the 8-point grid"' _ "$WORK/guard/grid-padding.swift"
 check "the guard lets a line marked grid-exempt be" grid "$WORK/guard/grid-marked.swift"
 check "the guard lets 0, 4, multiples of 8, Metrics tokens, counts and divisors be" grid "$WORK/guard/grid-fine.swift"
-check "the guard leaves the miniature of the page alone" grid "$WORK/guard/folder"
 check "the guard reads a folder" refuses grid "$WORK/guard"
 grid >"$WORK/grid.txt" 2>&1
 check "the spacing in Sources/Changmun is on the grid" test $? -eq 0
@@ -265,7 +262,7 @@ check "the spacing in Sources/Changmun is on the grid" test $? -eq 0
 echo "design guard"
 # Type comes from the Font tokens, corners are 4, 8, 12 or 16, shadows are e1, e2 or e3; scripts/check-design.py reads .system(size:, cornerRadius:, radius: and .shadow(.
 design() { python3 -I -B scripts/check-design.py "$@"; }
-mkdir -p "$WORK/design/folder" "$WORK/design/DesignSystem"
+mkdir -p "$WORK/design/DesignSystem"
 printf 'Text("a").font(.system(size: 13, weight: .semibold))\n' >"$WORK/design/design-font.swift"
 printf 'Image(systemName: "xmark").font(.system(size: 8, weight: .bold))\n' >"$WORK/design/design-glyph.swift"
 printf 'RoundedRectangle(cornerRadius: 10, style: .continuous)\n' >"$WORK/design/design-corner.swift"
@@ -276,7 +273,6 @@ printf 'Text("a").font(.system(size: 8)) // design-exempt: a badge inside an ico
 printf '// .system(size: 13)\n/// cornerRadius: 10\n.font(.body)\n.font(.symbolInline)\nRoundedRectangle(cornerRadius: 4)\nRoundedRectangle(cornerRadius: 8, style: .continuous)\nRoundedRectangle(cornerRadius: Metrics.cardRadius)\nRoundedRectangle(cornerRadius: size * 0.24)\n.floatingPanel(radius: 16)\n.startPlate(radius: Metrics.cardRadius)\n.e2()\n.blur(radius: 24)\nstyle="border-radius: 6px"\nhost.attachShadow(mode)\n' >"$WORK/design/design-fine.swift"
 printf 'func e2() -> some View { shadow(color: .clear, radius: 12, y: 4) }\n.font(.system(size: 28, weight: .semibold))\n' >"$WORK/design/DesignSystem/Theme.swift"
 printf 'func e2() -> some View { shadow(color: .clear, radius: 12, y: 4) }\n' >"$WORK/design/DesignSystem/Controls.swift"
-printf 'Text("a").font(.system(size: 9)).padding(.top, 70)\nRoundedRectangle(cornerRadius: 11)\n' >"$WORK/design/folder/StartPageMiniature.swift"
 check "the design guard fails a font size literal" refuses design "$WORK/design/design-font.swift"
 check "the design guard fails a symbol size literal" refuses design "$WORK/design/design-glyph.swift"
 check "the design guard fails a corner radius of 10" refuses design "$WORK/design/design-corner.swift"
@@ -287,7 +283,6 @@ check "the design guard names the file, the line and the value" bash -c 'python3
 check "the design guard lets a line marked design-exempt be" design "$WORK/design/design-marked.swift"
 check "the design guard lets tokens, 4, 8, 12, 16, shares of a plate, comments and web text be" design "$WORK/design/design-fine.swift"
 check "the design guard lets the design system define the tokens and the shadows" design "$WORK/design/DesignSystem"
-check "the design guard leaves the miniature of the page alone" design "$WORK/design/folder"
 check "the design guard reads a folder" refuses design "$WORK/design"
 design >"$WORK/design.txt" 2>&1
 check "the type, corners and shadows in Sources/Changmun come from the tokens" test $? -eq 0
