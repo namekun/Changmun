@@ -6,6 +6,25 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.15.0</title>
+      <pubDate>Sat, 07 Nov 2026 15:16:08 +0000</pubDate>
+      <sparkle:version>51</sparkle:version>
+      <sparkle:shortVersionString>0.15.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.15.0</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **One layout.** Tabs live in the sidebar, the toolbar sits above the page, and the address is the pill. The settings that moved these around, tabs on top, toolbar in the sidebar, address bar position and sidebar width, are gone, along with the tab strip they needed. If you had tabs on top, they are back in the sidebar.
+- **Notices in one place.** A saved-login offer, a blocked pop-up and a Web Store install no longer stack as bars over the page. A dot at the left of the address shows there is something waiting, and one list behind it holds them, with the same choices as before.
+- **A plainer start page.** A search field and your favorites, on a plain background. The three start page styles, the extra sections, the background picture and the shortcut hints are gone.
+- **Downloads in words.** A running download reads "name · 42% · Downloading" and a finished one "name · 2.1 MB · Done", in the sidebar, and a finished one stays until you close it. With the sidebar hidden, the percentage shows beside the downloads button. The progress ring and the dot are gone.
+- **No accent in the chrome.** The AI button, the working indicator and the space name are plain ink.
+- **Fewer settings.** Developer Mode, Picture in Picture on tab switch and automatic grouping of new tabs are gone; the rest stays.
+- **Fixed:** the certificate warning was hard to see in light mode; the shield and star beside the address can now be reached from the keyboard and VoiceOver; the remove buttons in Settings have names for VoiceOver; the "Update password?" question had a Save button; a few Korean particles and the words for Delete and Remove were inconsistent.
+
+This follows Dieter Rams's "less, but better": settings that chose where things go are gone, and one place holds each thing. Tried with automated tests and the headless copy. The settings you lose come back at their defaults; tell me if one you relied on is missing.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.0/Changmun-0.15.0.dmg" length="6347280" type="application/octet-stream" sparkle:edSignature="4Y76TBTtB4z9owkWjMZl6aVMWEAosD5SM4nEB9TlJnz4b/dp3Z3pUw9ymOccgKW73IG7fE3ZMlGmnwDQ3t2GCg==" />
+    </item>
+    <item>
       <title>0.14.5</title>
       <pubDate>Thu, 05 Nov 2026 00:19:49 +0000</pubDate>
       <sparkle:version>50</sparkle:version>
@@ -139,22 +158,9 @@ Tried with automated tests and the headless copy. The dialogs' real look on scre
 - **README:** a comparison with Safari, Chrome, Arc and Dia, with what Changmun doesn't do yet, and the app's real size (21 MB, about 7 MB to download).</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.11.0/Changmun-0.11.0.dmg" length="6791357" type="application/octet-stream" sparkle:edSignature="osF8pEWVREIicT6zZwaecACzgSrKQGzuuyN2Wlq51F8yYUSBczzcyVcsApIIoGvTXLo1cV9mby8tZC+yiuhSCQ==" />
     </item>
-    <item>
-      <title>0.10.2</title>
-      <pubDate>Thu, 29 Oct 2026 14:21:40 +0000</pubDate>
-      <sparkle:version>41</sparkle:version>
-      <sparkle:shortVersionString>0.10.2</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.10.2</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Fixed: ↑/↓ in the start page's search field.** With something typed, the arrow keys (and ⇥) moved the focus among the sections behind the suggestion list instead of choosing a suggestion; they now choose one, and with nothing typed ↓ still goes down into the sections.
-- **Fixed: unpinning a folder from the sidebar no longer makes its open tabs vanish.** The tabs of a folder's bookmarks show only where the folder is, so unpinning it hid them everywhere. They now come back to the tab list as a group named for the folder (a lone one as a plain tab); the folder stays among your bookmarks.
-- **A place to drop at the end of a group or a folder.** Items could only be dropped just above a row, so a tab could never be put last in a group, nor a bookmark last in a folder. A thin strip below the last row of an open group or folder now takes the drop and puts it at the end. (Tried through the code only; the drag itself is not yet tried by hand, so tell me if it does not take. The tab strip on top still has no such place.)</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.10.2/Changmun-0.10.2.dmg" length="6737285" type="application/octet-stream" sparkle:edSignature="wuvpE99wnJgt79aKbhG1ROlGLjTrFo9DU2MTh+pTInOVomJ7rm+nusocKP/D2NHyQFQTbcn+bq6Mh4Q1/vbhAw==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: sJSUNt+hwM38QJD5u1fZuvvZADA7g5Ujdhd83hfdwEwf54kPMo4p0emPPGkp7MHaYHCSYgUlsLHxfFcX3ktoCg==
-length: 18837
+edSignature: pfWBq3P1tTtKbmAOZOBsvdsvR3JTu3hmgMiSF2OuEUolr53ArPT262U7JaH8+B29Uk5b5p9PVmRjoEIHgGYCBw==
+length: 19725
 -->
