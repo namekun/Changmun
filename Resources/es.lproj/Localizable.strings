@@ -21,6 +21,7 @@
 "'%@' is updating and asks for more permissions" = "“%@” se está actualizando y solicita más permisos";
 "'%@' wants to access this site" = "“%@” quiere acceder a este sitio";
 "(No username)" = "(sin nombre de usuario)";
+"A window the site fills in itself. Allow it, then try again." = "Una ventana que el sitio rellena por su cuenta. Permítela y vuelve a intentarlo.";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "No se pudo eliminar el espacio: no se pudieron mover sus favoritos";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "No se pudo abrir el archivo de marcadores e historial, así que no se guarda nada nuevo en él";
 "Delete %@" = "Eliminar %@";

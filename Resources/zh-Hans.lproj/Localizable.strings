@@ -21,6 +21,7 @@
 "'%@' is updating and asks for more permissions" = "“%@”正在更新，并请求更多权限";
 "'%@' wants to access this site" = "“%@”想要访问此网站";
 "(No username)" = "（无用户名）";
+"A window the site fills in itself. Allow it, then try again." = "这是网站自行填充内容的窗口。请允许后再试一次。";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "无法删除空间：无法移动其中的个人收藏";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "无法打开书签和历史记录文件，因此不会再向其中保存新内容";
 "Delete %@" = "删除 %@";

@@ -21,6 +21,7 @@
 "'%@' is updating and asks for more permissions" = "'%@'이(가) 업데이트되며 권한을 더 요청해요";
 "'%@' wants to access this site" = "'%@'이(가) 이 사이트에 접근하려고 해요";
 "(No username)" = "(아이디 없음)";
+"A window the site fills in itself. Allow it, then try again." = "사이트가 직접 채우는 창이에요. 허용한 뒤 다시 눌러 주세요.";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "스페이스를 삭제하지 못했어요. 즐겨찾기를 옮길 수 없었어요";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "북마크와 방문 기록 파일을 열 수 없어서, 새로 저장되는 내용이 없어요";
 "Delete %@" = "%@ 삭제";

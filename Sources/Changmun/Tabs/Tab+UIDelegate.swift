@@ -29,7 +29,9 @@ extension Tab: WKUIDelegate {
             let site = PopupWatcher.site(of: action.sourceFrame)
             guard let browser, !isPrivate, Preferences.shared.allowsPopups(from: site.isEmpty ? nil : site),
                   browser.takeAllowedPopupSlot() else {
-                if let url = action.request.url, ["http", "https"].contains(url.scheme?.lowercased()) {
+                // An empty window (window.open('')) is told about too: older sites open one and fill it in themselves.
+                let url = action.request.url.flatMap { $0.absoluteString.isEmpty ? nil : $0 } ?? URL(string: "about:blank")!
+                if ["http", "https"].contains(url.scheme?.lowercased()) || url.absoluteString == "about:blank" {
                     popupRefused(url, fromFrame: action.sourceFrame.isMainFrame ? nil : site, pageSite: action.sourceFrame.isMainFrame ? site : nil)
                 }
                 return nil

@@ -2299,8 +2299,6 @@ extension SharedAgentState {
             #expect(b.tabs.count == 3 && b.allowedPopups.count == 1)
         }
 
-        /// Guards `_isUserInitiated`, which is all that tells a click's window from a page's own (see createWebViewWith): a timer
-        /// with no click behind it must get null back, not a window.
         @Test func theKeyButtonComesWhenAPageDrawsItsPasswordFieldLate() async throws {
             // Sites whose scripts draw the sign-in form after the page has loaded (Coupang does) had no key button: the field was
             // looked for once, when the page finished, and never again.
@@ -2323,6 +2321,8 @@ extension SharedAgentState {
             }
         }
 
+        /// Guards `_isUserInitiated`, which is all that tells a click's window from a page's own (see createWebViewWith): a timer
+        /// with no click behind it must get null back, not a window.
         @Test func aTimersPopupWithNoGestureIsRefused() async throws {
             let restore = allowing([])
             defer { restore() }
@@ -2338,6 +2338,32 @@ extension SharedAgentState {
             #expect(b.tabs.count == 1)
             #expect(tab.blockedPopup?.absoluteString == "https://popup.test/next")
             #expect(tab.blockedPopupFrame == nil && tab.blockedPopupSite == "popup.test")
+        }
+
+        /// Older sites (in-house systems, banks) open an empty window and fill it in themselves. Refused, it still has to be told
+        /// about with a way to allow its site, or there is nothing the user can do; and once allowed, the next try gets its window.
+        @Test func aRefusedEmptyPopupIsToldAboutAndItsSiteCanBeAllowed() async throws {
+            let restore = allowing([])
+            defer { restore() }
+            let b = Browser()
+            b.focused()
+            defer { b.windowClosed() }
+            let (tab, view, window) = try await page("""
+                <script>
+                function tryOpen() { setTimeout(() => { const w = window.open('', 'course'); window.result = w === null ? 'refused' : 'window' }, 50) }
+                tryOpen()
+                </script>
+                """, base: "https://lms.test/page", in: b)
+            defer { window.close() }
+            #expect(await eventually("window.result || ''", in: view) == "refused")
+            #expect(await waitUntil { tab.blockedPopup != nil }, "the bar tells about it")
+            #expect(tab.blockedPopupSite == "lms.test" && tab.blockedPopupIsEmpty)
+            tab.openBlockedPopup(always: true)
+            #expect(b.tabs.count == 1, "an empty window is not opened for the page: the page fills it")
+            #expect(Preferences.shared.allowsPopups(from: "lms.test"))
+            _ = try await view.evaluateJavaScript("window.result = ''; tryOpen()")
+            #expect(await eventually("window.result || ''", in: view) == "window")
+            #expect(b.tabs.count == 2)
         }
 
         @Test func aFramesPopupIsJudgedByTheFramesSiteNotThePages() throws {

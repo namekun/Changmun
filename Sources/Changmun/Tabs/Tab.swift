@@ -57,6 +57,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     @Published var blockedPopupSite: String?
     /// How many windows the bar stands for: the first one it shows, and the ones refused after it while it stayed up.
     @Published var blockedPopupCount = 0
+    /// The blocked pop-up is an empty window the page meant to fill in itself: it can't be opened for the page, only its site allowed.
+    var blockedPopupIsEmpty: Bool { blockedPopup?.absoluteString == "about:blank" }
     @Published var isInPictureInPicture = false {
         didSet { if isInPictureInPicture != oldValue { PictureInPictureKeys.update() } }
     }
