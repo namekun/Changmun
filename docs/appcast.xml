@@ -6,6 +6,19 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.15.1</title>
+      <pubDate>Sun, 08 Nov 2026 08:38:09 +0000</pubDate>
+      <sparkle:version>52</sparkle:version>
+      <sparkle:shortVersionString>0.15.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.15.1</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **A new app icon.** The window is drawn as a sign: the arch, one upright and one crossbar, all in a single stroke, in two colours. The light on the floor, its shadow and the gradient on the tile are gone. It reads at 32 pixels, on a light Dock and on a dark one.
+
+Tried with automated tests and a render of the icon on both Docks. An icon that changes with the system's light and dark look isn't in this version: I couldn't confirm on my Mac that macOS draws it.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.1/Changmun-0.15.1.dmg" length="6155841" type="application/octet-stream" sparkle:edSignature="r2Sj4eakNWiWD6xBIxgdHaFgRrOwlYKeT4/Ld1P0b2xdpAV6OJ0TSobbrfwy/k8HhW2FbGAv1ywIxUmTVvKEAw==" />
+    </item>
+    <item>
       <title>0.15.0</title>
       <pubDate>Sat, 07 Nov 2026 15:16:08 +0000</pubDate>
       <sparkle:version>51</sparkle:version>
@@ -141,26 +154,9 @@ Tried with automated tests, and with one call to the real claude outside the app
 Tried with automated tests and the headless copy. The dialogs' real look on screen, pressed buttons, Korean IME, VoiceOver and the homepage on a real iPhone haven't been tried by hand, so tell me what looks or feels off.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.12.0/Changmun-0.12.0.dmg" length="7088868" type="application/octet-stream" sparkle:edSignature="6appUr9hQk3Bg6QHI5Fua0wuz7H8s9LLS3Eol2Yqda7d8+5CkuNdvrceHwG2viGq1GAyC8g6ABCDMt2X62R6DQ==" />
     </item>
-    <item>
-      <title>0.11.0</title>
-      <pubDate>Sat, 31 Oct 2026 01:34:08 +0000</pubDate>
-      <sparkle:version>42</sparkle:version>
-      <sparkle:shortVersionString>0.11.0</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.11.0</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **The AI reads pages better.** Two new tools sit next to `read_page`. `read_structured` gives the facts a page carries about itself (JSON-LD, OpenGraph and Twitter tags, description, language, canonical and alternate links) as compact JSON, with no page text and no request to the network, so a price, an author or a date costs almost nothing to find out. `read_markdown` gives the visible content as Markdown, keeping tables, nested lists, code blocks with their language, and links (paths on the same site, tracking parameters out). It isn't always shorter than `read_page`; it keeps the structure. `read_page` is still what numbers things to click. All three work from the AI panel, MCP and the `changmun` CLI (`changmun structured`, `changmun markdown`), under the same approvals.
-- **A site's own Markdown version.** When a page points to a Markdown version of itself on its own site (a `.md`, `.markdown` or `.txt` address in the same language), `read_markdown` reads that instead and says so, with a note that it may differ from what you see on screen.
-- **Secrets stay out of what the AI reads.** In both tools, parameters named like tokens, keys, signatures, sessions and passwords have their values hidden in addresses, sign-in fragments are dropped, and invisible characters are stripped.
-- **Dropping at the end of a group or folder is tidier.** The place to drop only appears while you drag, so groups have no extra gap at rest, and it is now in the tab strip too. Links dragged in from a page go on the group's header, which puts them at its end. (The drag itself still has not been tried by hand, so tell me if it doesn't take.)
-- **Unpinning a folder** keeps the tabs of an inner folder that is still pinned where they are.
-- **Start page:** the unread dot sits beside the title instead of floating in the middle of the page.
-- **README:** a comparison with Safari, Chrome, Arc and Dia, with what Changmun doesn't do yet, and the app's real size (21 MB, about 7 MB to download).</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.11.0/Changmun-0.11.0.dmg" length="6791357" type="application/octet-stream" sparkle:edSignature="osF8pEWVREIicT6zZwaecACzgSrKQGzuuyN2Wlq51F8yYUSBczzcyVcsApIIoGvTXLo1cV9mby8tZC+yiuhSCQ==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: pfWBq3P1tTtKbmAOZOBsvdsvR3JTu3hmgMiSF2OuEUolr53ArPT262U7JaH8+B29Uk5b5p9PVmRjoEIHgGYCBw==
-length: 19725
+edSignature: Xs1dbu6UADuZca/SPreKrM0Vly/p+fxerp6CNz/dGZ34E140klXNz33dhpmUHn4d21NKfWv3T9cMdE4/iCWrBg==
+length: 18193
 -->
