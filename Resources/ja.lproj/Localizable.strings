@@ -394,6 +394,7 @@
 "Pick out only the important links on this page" = "このページの重要なリンクだけを抜き出して";
 "Picture in Picture" = "ピクチャインピクチャ";
 "Picture in Picture (⌃⌘P)" = "ピクチャインピクチャ (⌃⌘P)";
+"Play video in Picture in Picture when you switch to another tab" = "別のタブに切り替えたときに、動画をピクチャインピクチャで再生";
 "Pin to Favorites" = "お気に入りに固定";
 "Pointing at “%@”" = "「%@」にポインタを合わせ中";
 "Pop-up blocked" = "ポップアップをブロックしました";

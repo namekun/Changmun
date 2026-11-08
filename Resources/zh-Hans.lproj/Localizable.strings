@@ -394,6 +394,7 @@
 "Pick out only the important links on this page" = "只挑出此页面上的重要链接";
 "Picture in Picture" = "画中画";
 "Picture in Picture (⌃⌘P)" = "画中画 (⌃⌘P)";
+"Play video in Picture in Picture when you switch to another tab" = "切换到其他标签页时，以画中画播放视频";
 "Pin to Favorites" = "固定到个人收藏";
 "Pointing at “%@”" = "正在指向“%@”";
 "Pop-up blocked" = "已拦截弹出式窗口";
