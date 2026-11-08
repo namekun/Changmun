@@ -15,7 +15,7 @@ enum FilterConverter {
 
     /// Raised whenever what `convert` makes changes. The compiled rule lists are named by it, so rules made by an older converter are
     /// not taken for current after an update: they are built again from the saved lists.
-    static let version = 1
+    static let version = 2
 
     /// Whether downloaded bytes can be a filter list: text, and not the HTML page (a login wall, an error page sent with 200) that stands in for it.
     static func looksLikeList(_ data: Data) -> Bool {
@@ -369,7 +369,7 @@ final class AdBlocker: ObservableObject {
         let files = enabledLists.map { folder.appendingPathComponent($0.id + ".txt") }
         let allowlist = Preferences.shared.adBlockAllowlist
         let converted = await Task.detached(priority: .userInitiated) { () -> (String, String, Int, Int) in
-            var text = ContentBlocker.hosts.map { "||\($0)^$third-party" }.joined(separator: "\n")
+            var text = (ContentBlocker.hosts.map { "||\($0)^$third-party" } + ContentBlocker.siteFilters).joined(separator: "\n")
             for file in files {
                 if let content = try? String(contentsOf: file, encoding: .utf8) { text += "\n" + content }
             }
