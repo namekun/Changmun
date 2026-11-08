@@ -2,9 +2,7 @@
 import AppKit
 
 let ink = NSColor(srgbRed: 0.957, green: 0.957, blue: 0.945, alpha: 1)
-let tileTop = NSColor(srgbRed: 44.0 / 255, green: 44.0 / 255, blue: 48.0 / 255, alpha: 1)
-let tileBottom = NSColor(srgbRed: 22.0 / 255, green: 22.0 / 255, blue: 25.0 / 255, alpha: 1)
-let bars = NSColor(srgbRed: 0.067, green: 0.067, blue: 0.067, alpha: 1)
+let tile = NSColor(srgbRed: 30.0 / 255, green: 30.0 / 255, blue: 33.0 / 255, alpha: 1)
 
 func render(size: CGFloat) -> NSBitmapImageRep {
     let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size), pixelsHigh: Int(size),
@@ -15,52 +13,35 @@ func render(size: CGFloat) -> NSBitmapImageRep {
     let s = size / 1024
     // macOS icon grid: 824pt rounded square centered in 1024.
     let body = NSRect(x: 100 * s, y: 100 * s, width: 824 * s, height: 824 * s)
-    let tile = NSBezierPath(roundedRect: body, xRadius: 185 * s, yRadius: 185 * s)
-    NSGradient(starting: tileTop, ending: tileBottom)!.draw(in: tile, angle: -90)
+    tile.setFill()
+    NSBezierPath(roundedRect: body, xRadius: 185 * s, yRadius: 185 * s).fill()
     // A faint edge, so that the tile holds its shape on a dark Dock.
     NSColor(white: 1, alpha: 0.14).setStroke()
     let edge = NSBezierPath(roundedRect: body.insetBy(dx: 3 * s, dy: 3 * s), xRadius: 182 * s, yRadius: 182 * s)
     edge.lineWidth = 6 * s
     edge.stroke()
 
-    // An arched window, and the light it lets in falling to the lower right, in its shape and with the shadow of its bars.
-    let w = 380 * s, h = 518 * s, bar = 30 * s
-    let frame = NSRect(x: 251 * s, y: 305 * s, width: w, height: h)
-    // The light is the window laid on the floor: its sill stays at the wall, and its arch lands farthest away.
-    let floor = 126 * s, drop = 150 * s
-    let depth = frame.minY - floor
-    let shoulder = (h - w / 2) / h
-    let top = { (u: CGFloat) in shoulder + (1 - shoulder) * (1 - (2 * u - 1) * (2 * u - 1)).squareRoot() }
-    let at = { (u: CGFloat, v: CGFloat) in NSPoint(x: frame.minX + u * w + v * drop, y: frame.minY - v * depth) }
-    let light = NSBezierPath()
-    func pane(_ u0: CGFloat, _ u1: CGFloat, _ v0: CGFloat, _ v1: (CGFloat) -> CGFloat) {
-        light.move(to: at(u0, v0))
-        light.line(to: at(u1, v0))
-        for step in 0...32 {
-            let u = u1 + (u0 - u1) * CGFloat(step) / 32
-            light.line(to: at(u, v1(u)))
-        }
-        light.close()
-    }
-    let across = bar / (2 * w), along = bar * 0.8 / (2 * depth), cross = (207 * s + bar / 2) / h
-    pane(0, 0.5 - across, 0) { _ in cross - along }
-    pane(0.5 + across, 1, 0) { _ in cross - along }
-    pane(0, 0.5 - across, cross + along, top)
-    pane(0.5 + across, 1, cross + along, top)
-    NSGradient(starting: ink.withAlphaComponent(0.66), ending: ink.withAlphaComponent(0.40))!.draw(in: light, angle: -62)
+    // The window as a sign: an arch, one upright and one crossbar, all of the same stroke, in two colours and nothing else.
+    let stroke = 56 * s, w = 392 * s, h = 520 * s
+    let f = NSRect(x: body.midX - w / 2, y: body.midY - h / 2, width: w, height: h)
     let arch = NSBezierPath()
-    arch.move(to: NSPoint(x: frame.minX, y: frame.minY))
-    arch.line(to: NSPoint(x: frame.minX, y: frame.maxY - w / 2))
-    arch.appendArc(withCenter: NSPoint(x: frame.midX, y: frame.maxY - w / 2), radius: w / 2, startAngle: 180, endAngle: 0, clockwise: true)
-    arch.line(to: NSPoint(x: frame.maxX, y: frame.minY))
+    arch.move(to: NSPoint(x: f.minX, y: f.minY))
+    arch.line(to: NSPoint(x: f.minX, y: f.maxY - w / 2))
+    arch.appendArc(withCenter: NSPoint(x: f.midX, y: f.maxY - w / 2), radius: w / 2, startAngle: 180, endAngle: 0, clockwise: true)
+    arch.line(to: NSPoint(x: f.maxX, y: f.minY))
     arch.close()
-    ink.setFill()
-    arch.fill()
-    // The bars run the whole height of the window, into the arch.
-    arch.addClip()
-    bars.setFill()
-    NSBezierPath(rect: NSRect(x: frame.midX - bar / 2, y: frame.minY, width: bar, height: h)).fill()
-    NSBezierPath(rect: NSRect(x: frame.minX, y: frame.minY + 207 * s, width: w, height: bar)).fill()
+    arch.lineWidth = stroke
+    arch.lineJoinStyle = .round
+    ink.setStroke()
+    arch.stroke()
+    let bars = NSBezierPath()
+    bars.move(to: NSPoint(x: f.midX, y: f.minY))
+    bars.line(to: NSPoint(x: f.midX, y: f.maxY - w / 2 + 6 * s))
+    bars.move(to: NSPoint(x: f.minX, y: f.minY + h * 0.42))
+    bars.line(to: NSPoint(x: f.maxX, y: f.minY + h * 0.42))
+    bars.lineWidth = stroke
+    bars.lineCapStyle = .butt
+    bars.stroke()
 
     NSGraphicsContext.restoreGraphicsState()
     return rep
