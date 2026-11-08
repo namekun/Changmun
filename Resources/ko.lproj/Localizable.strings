@@ -394,6 +394,7 @@
 "Pick out only the important links on this page" = "이 페이지에서 중요한 링크만 골라 줘";
 "Picture in Picture" = "화면 속 화면(PiP)";
 "Picture in Picture (⌃⌘P)" = "화면 속 화면 (⌃⌘P)";
+"Play video in Picture in Picture when you switch to another tab" = "다른 탭으로 가면 재생 중인 영상을 화면 속 화면으로";
 "Pin to Favorites" = "즐겨찾기에 고정";
 "Pointing at “%@”" = "“%@” 가리키는 중";
 "Pop-up blocked" = "팝업을 막았어요";

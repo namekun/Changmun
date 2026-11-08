@@ -58,7 +58,6 @@ struct TranslateButton: View {
     }
 }
 
-/// Ad blocking for the current site: filled while blocking, slashed when turned off here.
 /// Shows while the tab plays sound (a video, most likely): floats it in picture in picture.
 struct PictureInPictureButton: View {
     @ObservedObject var tab: Tab

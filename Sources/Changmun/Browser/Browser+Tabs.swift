@@ -35,8 +35,14 @@ extension Browser {
         if tab.spaceID != spaceID && !isPrivate { enter(tab.spaceID) }
         if let previous, previous !== tab {
             previousActiveID = previous.spaceID == tab.spaceID ? previous.id : nil
+            // Like Arc: a video playing in the tab being left keeps playing in picture in picture, until it is shown again
+            // (not when the two halves of a split trade places, as both stay on screen).
+            let staysOnScreen = split?.contains(previous.id) == true && split?.contains(id) == true
+            if Preferences.shared.autoPictureInPicture && previous.isPlayingAudio && !staysOnScreen {
+                previous.pictureInPicture(.enter)
+            }
         }
-        // A video floated in picture in picture comes back into its tab when the tab is shown.
+        // Also after closing a tab, when there is no previous tab left to compare with.
         if previous !== tab { tab.pictureInPicture(.exit) }
         for shown in tabs where isShown(shown) { shown.lastShown = Date() }
         activeID = id

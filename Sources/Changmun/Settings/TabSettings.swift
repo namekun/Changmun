@@ -10,6 +10,7 @@ struct TabSettings: View {
     var body: some View {
         Form {
             Section("Behavior") {
+                Toggle("Play video in Picture in Picture when you switch to another tab", isOn: $prefs.autoPictureInPicture)
                 Picker("Sleep inactive tabs", selection: $prefs.sleepMinutes) {
                     Text("Off").tag(0)
                     Text("After 10 minutes").tag(10)
