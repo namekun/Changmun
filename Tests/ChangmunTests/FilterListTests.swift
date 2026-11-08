@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import WebKit
 @testable import Changmun
 
 @MainActor
@@ -8,6 +9,8 @@ struct FilterListUpdateTests {
     final class Calls: @unchecked Sendable {
         var fetched: [URL] = []
         var compiled: [String] = []
+        /// What each identifier was built from.
+        var json: [String: String] = [:]
         var status = 200
         var body = Data(("! Title: a list\n" + String(repeating: "||ads.example^\n", count: 20)).utf8)
         var delay: Duration = .zero
@@ -39,8 +42,9 @@ struct FilterListUpdateTests {
             calls.fetched.append(url)
             if calls.delay > .zero { try await Task.sleep(for: calls.delay) }
             return (calls.body, HTTPURLResponse(url: url, statusCode: calls.status, httpVersion: nil, headerFields: nil)!)
-        }, compile: { id, _ in
+        }, compile: { id, json in
             calls.compiled.append(id)
+            calls.json[id] = json
             if calls.failCompile || calls.failing.contains(where: { id.contains($0) }) { throw URLError(.cannotParseResponse) }
             return nil
         })
@@ -152,6 +156,63 @@ struct FilterListUpdateTests {
         let withBoth = rig.blocker.ruleCount
         await rig.blocker.recompile()
         #expect(rig.blocker.ruleCount == withBoth)
+    }
+
+    /// Olive Young's page, on the loopback: once the cart has answered it calls the Kakao pixel's function and only then shows its layer.
+    /// The rules are the ones built, with the site's host made localhost and the pixel's 127.0.0.1, so nothing reaches either.
+    @Test func aSiteFilterLetsInWhatTheSiteNeedsOnThatSiteAlone() async throws {
+        let rig = try rig()
+        defer { rig.restore() }
+        try Data("||t1.daumcdn.net/*/static/kp.js\n".utf8).write(to: rig.folder.appendingPathComponent("easyprivacy.txt"))
+        await rig.blocker.recompile()
+        let server = try await TinyServer { _, path in
+            switch path {
+            case "/kas/static/kp.js": "window.kakaoPixel = () => ({ addToCart() {} })"
+            case "/cart": "{}"
+            default: """
+                <script>
+                const script = document.createElement('script')
+                script.src = 'http://127.0.0.1:' + location.port + '/kas/static/kp.js'
+                script.onload = () => window.pixel = 'loaded'
+                script.onerror = () => window.pixel = 'blocked'
+                document.head.append(script)
+                </script>
+                <button onclick="fetch('/cart').then(() => { kakaoPixel('x').addToCart({}); document.body.insertAdjacentHTML('beforeend', '<p id=layer>장바구니 담기 완료</p>') })">장바구니</button>
+                """
+            }
+        }
+        defer { server.stop() }
+        server.replyHead = { $0.hasSuffix(".js") ? ("200 OK", "text/javascript") : ("200 OK", "text/html; charset=utf-8") }
+        let built = try #require(rig.calls.json.first { $0.key.contains("-network-") }?.value)
+        let json = built.replacingOccurrences(of: #"t1\\.daumcdn\\.net"#, with: #"127\\.0\\.0\\.1:"# + "\(server.port)")
+            .replacingOccurrences(of: "oliveyoung.co.kr", with: "localhost")
+        let store = try #require(WKContentRuleListStore(url: FileManager.default.temporaryDirectory.appendingPathComponent("rules-\(UUID().uuidString)")))
+        let list = try #require(try await store.compileContentRuleList(forIdentifier: "network", encodedContentRuleList: json))
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController.add(list)
+        let view = WKWebView(frame: .zero, configuration: configuration)
+        let window = OffscreenWindow(view)
+        defer { window.close() }
+        /// What `script` says, once it says something.
+        func eventually(_ script: String) async -> String {
+            let end = Date().addingTimeInterval(5)
+            var value = ""
+            while value.isEmpty && Date() < end {
+                value = (try? await view.evaluateJavaScript(script)) as? String ?? ""
+                if value.isEmpty { try? await Task.sleep(for: .milliseconds(20)) }
+            }
+            return value
+        }
+        func open(_ host: String) async throws -> String {
+            view.load(URLRequest(url: try #require(URL(string: "http://\(host):\(server.port)/goods"))))
+            _ = await waitUntil { !view.isLoading && view.url?.host() == host }
+            return await eventually("window.pixel || ''")
+        }
+        #expect(try await open("localhost") == "loaded")
+        _ = try await view.evaluateJavaScript("document.querySelector('button').click()")
+        #expect(await eventually("document.getElementById('layer')?.textContent ?? ''") == "장바구니 담기 완료")
+        // Any other site still has the pixel blocked.
+        #expect(try await open("127.0.0.1") == "blocked")
     }
 
     @Test func compiledListsOfOtherConverterVersionsAreFoundForRemoval() {
