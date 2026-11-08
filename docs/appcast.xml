@@ -6,6 +6,19 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.15.3</title>
+      <pubDate>Sun, 08 Nov 2026 14:28:36 +0000</pubDate>
+      <sparkle:version>54</sparkle:version>
+      <sparkle:shortVersionString>0.15.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.15.3</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Back:** a video playing in a tab you leave floats in Picture in Picture again, like in Arc, and goes back into its tab when you return. It was taken out in 0.15.0 to trim settings; it is on by default, and Settings › Tabs › "Play video in Picture in Picture when you switch to another tab" turns it off.
+
+Tried with the automated tests. Picture in Picture opens a window on screen, which the off-screen test copy can't do, so the float itself hasn't been watched; tell me if a video doesn't float when you switch tabs.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.3/Changmun-0.15.3.dmg" length="6154880" type="application/octet-stream" sparkle:edSignature="0uQ7MWCUPJGcrOv1YO/ZDzQ+I58OQ/agTkRlUecJMfbWal+O0lTOtyeDx59HShAIX4cfY1t/6RyWUqT9qHpgAA==" />
+    </item>
+    <item>
       <title>0.15.2</title>
       <pubDate>Sun, 08 Nov 2026 12:42:59 +0000</pubDate>
       <sparkle:version>53</sparkle:version>
@@ -132,23 +145,9 @@ Tried with automated tests and the headless copy. Hourly and at-launch checks on
 Tried with automated tests and the headless copy. The new switch and menu on screen, keeping going with translation on this Mac, and pages restored with Back haven't been tried by hand, so tell me what looks or feels off.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.0/Changmun-0.14.0.dmg" length="7205034" type="application/octet-stream" sparkle:edSignature="JyWUVB7GnZLwyOkqd15ak4FevNDAfnQcFRcSjGOI2oht7sO4tn6FOJXJ1U1IpXJv89QpaNeSeyxMmDFQfj+CCg==" />
     </item>
-    <item>
-      <title>0.13.0</title>
-      <pubDate>Sun, 01 Nov 2026 11:07:03 +0000</pubDate>
-      <sparkle:version>44</sparkle:version>
-      <sparkle:shortVersionString>0.13.0</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.13.0</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Translate pages with Claude.** If Claude Code is set up on your Mac, you can pick Claude and a model for page translation in Settings › General, next to translation on this Mac. It is off by default. The page's text goes to Anthropic, and the translate button says so while it works. Private windows and other profiles' pages stay on this Mac. Pages with a password, one-time code or card field are never sent, and neither is text you can't see. Claude runs with no tools, and a translation that brings an address, a link or a long number the page didn't have is thrown away. If only part of a page was translated, the status line says so.
-- **Favorites show which ones are open by their color.** A favorite with no tab is faded, so the open ones stand out, in the sidebar and in tabs on top. The dot under the tile is gone.
-
-Tried with automated tests, and with one call to the real claude outside the app. A real translation through the app, the new tooltip and messages on screen, and macOS 14 and 15 haven't been tried by hand, so tell me what looks or feels off.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.13.0/Changmun-0.13.0.dmg" length="7164465" type="application/octet-stream" sparkle:edSignature="ReAwlu1VoXbUQGmNHl2AqZTvSVuiugSDdbLbIEP7IzqGFGLm8S85dwA5IJnYR9CumpOYbQfGDWpjyOYP1rPkCg==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: /Y2lysA6rCsKaTLCs2t+bBZZKs38m+3mhvrLL9Ukr5W1rC3SrhuSLraBL7C43Kwm9197SPL5gMzzH1OplWNcAg==
-length: 16628
+edSignature: hAzq/qcbuAbJUxPmCnYwQjFdOwXea1hyJhY5vpQlqcXPpUpMyxl5fFi/gEuMa8ajqN2JoatsICLQ/wLABtpTDA==
+length: 16081
 -->
