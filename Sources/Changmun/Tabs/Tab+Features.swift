@@ -46,9 +46,10 @@ extension Tab {
         guard let popup = blockedPopup else { return }
         let site = blockedPopupSite
         if let seen, seen.popup != popup || (always && seen.site != site) { return }
+        let empty = blockedPopupIsEmpty
         blockedPopup = nil
         if always, !isPrivate, let site { Preferences.shared.allowPopups(from: site) }
-        browser?.openTab(url: popup, after: self).openerID = id
+        if !empty { browser?.openTab(url: popup, after: self).openerID = id }
     }
 
     // MARK: Reader Mode

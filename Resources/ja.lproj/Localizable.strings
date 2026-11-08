@@ -21,6 +21,7 @@
 "'%@' is updating and asks for more permissions" = "「%@」はアップデート中で、追加の権限を要求しています";
 "'%@' wants to access this site" = "「%@」がこのサイトにアクセスしようとしています";
 "(No username)" = "(ユーザ名なし)";
+"A window the site fills in itself. Allow it, then try again." = "サイトが自分で内容を入れるウィンドウです。許可してから、もう一度お試しください。";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "スペースを削除できませんでした。お気に入りを移動できませんでした";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "ブックマークと履歴のファイルを開けないため、新しい内容は保存されません";
 "Delete %@" = "%@を削除";

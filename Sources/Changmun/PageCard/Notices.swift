@@ -158,6 +158,7 @@ private struct PopupNoticeRow: View {
 
     /// Where the pop-up goes, and when a frame in the page asked for it, whose frame.
     private func description(of popup: URL) -> String {
+        if tab.blockedPopupIsEmpty { return String(localized: "A window the site fills in itself. Allow it, then try again.") }
         let host = popup.host() ?? popup.absoluteString
         guard let frame = tab.blockedPopupFrame else { return host }
         return frame.isEmpty ? String(localized: "\(host), from a frame") : String(localized: "\(host), from a frame of \(frame)")
@@ -169,7 +170,9 @@ private struct PopupNoticeRow: View {
                       detail: [description(of: popup)] + (tab.blockedPopupCount > 1 ? [String(localized: "and \(tab.blockedPopupCount - 1) more")] : []),
                       close: { tab.blockedPopup = nil }) {
                 // What is pressed is what the row shows now: if it has changed by the time the press is handled, nothing happens.
-                PeekAction(title: String(localized: "Open")) { tab.openBlockedPopup(always: false, seen: (popup, tab.blockedPopupSite)) }
+                if !tab.blockedPopupIsEmpty {
+                    PeekAction(title: String(localized: "Open")) { tab.openBlockedPopup(always: false, seen: (popup, tab.blockedPopupSite)) }
+                }
                 if !tab.isPrivate, let site = tab.blockedPopupSite {
                     // Allowing a pop-up from another site's frame allows that site, which the button says.
                     QuietAction(title: tab.blockedPopupIsFromOtherSite ? String(localized: "Always Allow for \(site)") : String(localized: "Always Allow for This Site")) {
