@@ -6,6 +6,19 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.15.4</title>
+      <pubDate>Mon, 09 Nov 2026 00:14:50 +0000</pubDate>
+      <sparkle:version>55</sparkle:version>
+      <sparkle:shortVersionString>0.15.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.15.4</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Fixed:** when a site opened an empty window without a click and filled it in itself, as many older in-house and school systems do, Changmun blocked it without telling you, so there was no way to let it through and the site just failed. Now the dot beside the address tells you about it, with "Always Allow for This Site"; allow it and press the site's button again.
+
+Tried with automated tests on a page that opens an empty window from a timer. The in-house system this came up on hasn't been tried, so tell me if its window still doesn't open.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.4/Changmun-0.15.4.dmg" length="6158880" type="application/octet-stream" sparkle:edSignature="aaiwFYiW8CP4KSg6nObZQ0/3kxfpCZRFx1zCyjxqIrZQN4dCJPVerwEnT8jCYTJFWMivU3AFIr37f+yoGbqEDQ==" />
+    </item>
+    <item>
       <title>0.15.3</title>
       <pubDate>Sun, 08 Nov 2026 14:28:36 +0000</pubDate>
       <sparkle:version>54</sparkle:version>
@@ -130,24 +143,9 @@ Tried with automated tests and the headless copy. Scrolling with a real trackpad
 Tried with automated tests and the headless copy. Hourly and at-launch checks only start from this version, so they haven't run against a real newer release yet, and swiping back in such a tab hasn't been tried by hand.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.1/Changmun-0.14.1.dmg" length="7209001" type="application/octet-stream" sparkle:edSignature="Nim2yITnKrmC0c+8wAFcRxtTaRno+4W7viGRN81Ky1mEzdfOfFSBeYJCJ8FvdwVJNSb/CgeNJS5drrDxq15rAA==" />
     </item>
-    <item>
-      <title>0.14.0</title>
-      <pubDate>Sun, 01 Nov 2026 15:41:56 +0000</pubDate>
-      <sparkle:version>45</sparkle:version>
-      <sparkle:shortVersionString>0.14.0</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.14.0</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Keep translating a site.** Turn on "Keep translating this site" in the site settings over the address, or by right-clicking the translate button, and its foreign pages translate by themselves as you go from one to the next. Text a page adds later, as you scroll, is translated too. Show Original counts for that page only. It works on the exact address you turned it on for, with or without www, and never in a private window. Pages in your own language are left alone.
-- **With Claude, this sends each page's text to Anthropic without a click,** so it has limits. A page and what it adds later share one allowance, a site can send at most 300,000 characters in ten minutes on its own, and a page that keeps reloading itself is stopped there. Pages with a password, one-time code or card field are never sent, and a tab you aren't looking at sends no added text.
-- **Translating no longer writes over text a site has changed in the meantime,** and Show Original leaves such text as it is.
-
-Tried with automated tests and the headless copy. The new switch and menu on screen, keeping going with translation on this Mac, and pages restored with Back haven't been tried by hand, so tell me what looks or feels off.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.0/Changmun-0.14.0.dmg" length="7205034" type="application/octet-stream" sparkle:edSignature="JyWUVB7GnZLwyOkqd15ak4FevNDAfnQcFRcSjGOI2oht7sO4tn6FOJXJ1U1IpXJv89QpaNeSeyxMmDFQfj+CCg==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: hAzq/qcbuAbJUxPmCnYwQjFdOwXea1hyJhY5vpQlqcXPpUpMyxl5fFi/gEuMa8ajqN2JoatsICLQ/wLABtpTDA==
-length: 16081
+edSignature: AWjFynKcj3gW6KVVaQGzIyVVABUyeI5E61/LG7PQ4B01pHaDQGyi0G/tEKilIbt60mEZKmsfBzWwjmxcNR/pCw==
+length: 15414
 -->
