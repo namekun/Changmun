@@ -23,7 +23,8 @@ extension Tab {
     }
 }
 
-/// The dot that says the page has notices, and the popover that lists them.
+/// What the page is waiting on the user for, said in words at the left of the address, and the popover that lists it.
+/// A dot alone said nothing to someone who didn't already know it.
 struct NoticesButton: View {
     @ObservedObject var tab: Tab
     @State private var shown = false
@@ -32,13 +33,30 @@ struct NoticesButton: View {
         count == 1 ? String(localized: "\(count) notice") : String(localized: "\(count) notices")
     }
 
+    /// The symbol and the words for the notices: the notice itself when there is one, how many when there are more.
+    static func title(_ notices: [PageNotice]) -> (symbol: String, text: String) {
+        guard notices.count == 1, let notice = notices.first else { return ("bell", label(notices.count)) }
+        switch notice {
+        case .login: return ("key", String(localized: "Save Password?"))
+        case .popup: return ("macwindow.badge.plus", String(localized: "Pop-up Blocked"))
+        case .webStore: return ("puzzlepiece.extension", String(localized: "Install Extension"))
+        }
+    }
+
     var body: some View {
         let notices = tab.notices
         if !notices.isEmpty {
+            let title = Self.title(notices)
             Button { shown.toggle() } label: {
-                Circle().fill(Theme.primary).frame(width: 6, height: 6)
-                    .frame(width: 20, height: 22)
-                    .contentShape(Rectangle())
+                HStack(spacing: 4) {
+                    Image(systemName: title.symbol).font(.symbolInline)
+                    Text(title.text).font(.secondaryStrong).lineLimit(1).fixedSize()
+                }
+                .padding(.horizontal, 8)
+                .frame(height: 22)
+                .foregroundStyle(Theme.waitingText)
+                .background(Capsule().fill(Theme.pill))
+                .contentShape(Capsule())
             }
             .buttonStyle(.plain)
             .help(Self.label(notices.count))

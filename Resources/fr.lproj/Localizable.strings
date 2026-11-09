@@ -26,7 +26,10 @@
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "Impossible d’ouvrir le fichier des signets et de l’historique : rien de nouveau n’y est enregistré";
 "Delete %@" = "Supprimer %@";
 "Downloading" = "Téléchargement";
+"Install Extension" = "Installer l’extension";
 "Kept your newer passwords %@" = "Mots de passe plus récents conservés %@";
+"Pop-up Blocked" = "Pop-up bloquée";
+"Save Password?" = "Enregistrer le mot de passe ?";
 "Shows what the page is waiting on you for" = "Montre ce que la page attend de vous";
 "Update password for %@?" = "Mettre à jour le mot de passe de %@ ?";
 "a frame of an unknown site" = "un cadre d’un site inconnu";
