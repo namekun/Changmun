@@ -6,6 +6,19 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.15.5</title>
+      <pubDate>Mon, 09 Nov 2026 01:02:22 +0000</pubDate>
+      <sparkle:version>56</sparkle:version>
+      <sparkle:shortVersionString>0.15.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.15.5</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Changed:** when a page is waiting on you (a pop-up it was refused, a password to save, an extension to install), the left of the address now says so in words, such as "Pop-up Blocked", instead of showing a small dot that didn't say what it was. Press it for the same choices as before, such as "Always Allow for This Site".
+
+Tried with automated tests and the off-screen test copy, on a page that opens an empty window from a timer the way older in-house systems do.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.5/Changmun-0.15.5.dmg" length="6158250" type="application/octet-stream" sparkle:edSignature="t1b4teLMCDQjYUUTeIvwz9Hfj59DKZrEmyEzoLwp4RCOU+sWNkdYi0nEED8yWxTXRbTsdPLMGvIWLozCj7KRCg==" />
+    </item>
+    <item>
       <title>0.15.4</title>
       <pubDate>Mon, 09 Nov 2026 00:14:50 +0000</pubDate>
       <sparkle:version>55</sparkle:version>
@@ -129,23 +142,9 @@ Tried with automated tests and the headless copy. Whether Coupang now shows resu
 Tried with automated tests and the headless copy. Scrolling with a real trackpad hasn't been tried by hand, so tell me if the strip still moves.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.2/Changmun-0.14.2.dmg" length="7216344" type="application/octet-stream" sparkle:edSignature="Nyxc7ysHMbaM/WgDKYxfGboMrlEloTrTuqhCF7Wdf5t0dalotY3IX1cGDVGBA6EgeuwFFRrYQNBnaZhL8WkvBA==" />
     </item>
-    <item>
-      <title>0.14.1</title>
-      <pubDate>Mon, 02 Nov 2026 06:50:01 +0000</pubDate>
-      <sparkle:version>46</sparkle:version>
-      <sparkle:shortVersionString>0.14.1</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.14.1</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Updates reach the newest version sooner.** Changmun now looks for updates every hour instead of once a day, and each time it opens. A version already downloaded and waiting is still installed when you quit, so if a newer one came out after it, that one follows the next time you open and quit.
-- **Fixed:** in a tab a page opened with `about:blank;`, Back no longer leads to a white page. On the first real page of such a tab, Back is off, as in other browsers.
-
-Tried with automated tests and the headless copy. Hourly and at-launch checks only start from this version, so they haven't run against a real newer release yet, and swiping back in such a tab hasn't been tried by hand.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.1/Changmun-0.14.1.dmg" length="7209001" type="application/octet-stream" sparkle:edSignature="Nim2yITnKrmC0c+8wAFcRxtTaRno+4W7viGRN81Ky1mEzdfOfFSBeYJCJ8FvdwVJNSb/CgeNJS5drrDxq15rAA==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: AWjFynKcj3gW6KVVaQGzIyVVABUyeI5E61/LG7PQ4B01pHaDQGyi0G/tEKilIbt60mEZKmsfBzWwjmxcNR/pCw==
-length: 15414
+edSignature: Znx0cmmtgWDm6sGxSsg/izieQfqFLLqaYnDszTp6+JynCr/9Z9y7j2CMS00htm8V5e31PPj8UcMeH/gqTZVJCw==
+length: 15198
 -->
