@@ -26,7 +26,10 @@
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "북마크와 방문 기록 파일을 열 수 없어서, 새로 저장되는 내용이 없어요";
 "Delete %@" = "%@ 삭제";
 "Downloading" = "받는 중";
+"Install Extension" = "확장 프로그램 설치";
 "Kept your newer passwords %@" = "더 최근 비밀번호 유지 %@";
+"Pop-up Blocked" = "팝업을 막았어요";
+"Save Password?" = "비밀번호 저장할까요?";
 "Shows what the page is waiting on you for" = "페이지가 기다리는 일을 보여 줘요";
 "Update password for %@?" = "%@의 비밀번호를 업데이트할까요?";
 "a frame of an unknown site" = "알 수 없는 사이트의 프레임";
