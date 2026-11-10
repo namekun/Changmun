@@ -266,6 +266,26 @@ extension Browser {
         BrowserWindow.open(private: isPrivate, restoring: saved)
     }
 
+    /// Whether a tab dragged from another window may come into this one: as with Move to New Window, a private window's tab only into a
+    /// private window and an ordinary one only into an ordinary one, and a bookmark's tab stays with its bookmark.
+    nonisolated static func adopts(fromPrivate: Bool, toPrivate: Bool, bound: Bool) -> Bool { fromPrivate == toPrivate && !bound }
+
+    /// Takes a tab dragged from another window of the app into this one, with its back and forward history, and shows it. It goes to the
+    /// space shown when that keeps the same cookies; a profile's tab otherwise stays in its own space. Nil when it can't come.
+    func adoptTab(_ id: Int) -> Tab? {
+        guard let source = Self.all.first(where: { $0 !== self && $0.tabs.contains { $0.id == id } }), let tab = source.tab(id),
+              Self.adopts(fromPrivate: source.isPrivate, toPrivate: isPrivate, bound: tab.bookmarkKey != nil) else { return nil }
+        let sameStore = isPrivate || spaces.space(tab.spaceID).dataStoreID == spaces.space(spaceID).dataStoreID
+        let moved = Tab(id: Self.takeID(), url: tab.url, title: tab.title, state: tab.sessionState, browser: self, isStart: tab.isStart)
+        moved.customTitle = tab.customTitle
+        moved.spaceID = sameStore ? spaceID : tab.spaceID
+        insert(moved, after: nil)
+        if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(moved) }
+        source.close(id, remember: false)
+        activate(moved.id)
+        return moved
+    }
+
     /// Something just done that can be taken back, under the new tab row for a few seconds.
     struct Notice: Equatable {
         let id = UUID()

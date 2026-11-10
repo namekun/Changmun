@@ -251,6 +251,29 @@ extension SharedAgentState {
             #expect(moved?.url == URL(string: "https://site2.example/") && moved?.customTitle == "Named" && moved?.isAsleep == true)
         }
 
+        // MARK: Dropping on another window
+
+        @Test func aTabDroppedOnAnotherWindowMovesThereOrTheDropTakesNothing() {
+            #expect(Browser.adopts(fromPrivate: false, toPrivate: false, bound: false))
+            #expect(!Browser.adopts(fromPrivate: true, toPrivate: false, bound: false) && !Browser.adopts(fromPrivate: false, toPrivate: true, bound: false))
+            #expect(!Browser.adopts(fromPrivate: false, toPrivate: false, bound: true))
+            let store = Sandbox().store()
+            let from = Browser(spaces: store), to = Browser(spaces: store), hidden = Browser(isPrivate: true)
+            for b in [from, to, hidden] { b.focused() }
+            defer { for b in [from, to, hidden] { b.windowClosed() } }
+            let leaving = from.openTab(url: URL(string: "https://leaving.example/"), activate: false)
+            leaving.customTitle = "Leaving"
+            _ = from.openTab(url: URL(string: "https://stays.example/"), activate: false)
+            let target = to.openTab(url: URL(string: "https://here.example/"), activate: false)
+            #expect(SidebarDrag.drop([SidebarDrag.tab(leaving.id)], onTab: target.id, browser: to))
+            #expect(from.tab(leaving.id) == nil && from.tabs.count == 1 && from.closedTabs.isEmpty)
+            #expect(to.tabs.map(\.customTitle) == ["Leaving", nil], "just above the tab it was dropped on")
+            let secret = hidden.openTab(url: URL(string: "https://secret.example/"), activate: false)
+            #expect(!SidebarDrag.drop([SidebarDrag.tab(secret.id)], onTab: target.id, browser: to), "a private tab never comes into an ordinary window")
+            #expect(!SidebarDrag.dropAtEnd([SidebarDrag.tab(secret.id)], browser: to))
+            #expect(hidden.tab(secret.id) != nil && to.tabs.count == 2)
+        }
+
         // MARK: Closing several
 
         @Test func closingOthersOrBelowChoosesFromTheTabListOnly() {

@@ -146,7 +146,7 @@ enum SidebarDrag {
             withAnimation(Motion.standard) { browser.moveGroup(group, before: nil) }
             return true
         }
-        guard let id = tabID(items) else { return false }
+        guard let id = local(tabID(items), in: browser) else { return false }
         withAnimation(Motion.standard) {
             browser.moveTab(id, to: nil)
             browser.removeFromGroup(id)
@@ -208,7 +208,7 @@ enum SidebarDrag {
             withAnimation(Motion.standard) { browser.moveGroup(group, before: target) }
             return true
         }
-        guard let id = tabID(items) else { return false }
+        guard let id = local(tabID(items), in: browser) else { return false }
         withAnimation(Motion.standard) { browser.dropTab(id, on: target) }
         return true
     }
@@ -223,7 +223,7 @@ enum SidebarDrag {
             withAnimation(Motion.standard) { browser.dropGroup(dragged, onGroup: group) }
             return true
         }
-        guard let id = tabID(items) else { return false }
+        guard let id = local(tabID(items), in: browser) else { return false }
         withAnimation(Motion.standard) { browser.addTab(id, to: group) }
         return true
     }
@@ -233,6 +233,14 @@ enum SidebarDrag {
         defer { dragging = nil }
         guard let id = tabID(items), browser.tab(id) != nil else { return false }
         return withAnimation(Motion.standard) { browser.moveTab(id, toSpace: space) }
+    }
+
+    /// A tab of this window, or one of another window of the app brought into this one first; nil when it can't come (then the drop says
+    /// it took nothing, rather than look done).
+    private static func local(_ id: Int?, in browser: Browser) -> Int? {
+        guard let id else { return nil }
+        if browser.tabs.contains(where: { $0.id == id }) { return id }
+        return withAnimation(Motion.standard) { browser.adoptTab(id)?.id }
     }
 
     private static func tabID(_ items: [String]) -> Int? {
