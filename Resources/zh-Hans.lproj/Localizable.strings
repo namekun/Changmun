@@ -32,10 +32,16 @@
 "Approvals: how much the AI asks before it acts. Now: %@" = "批准：AI 在行动前询问的程度。当前：%@";
 "Choose Don’t Allow if the address carries content from another page or from the conversation." = "如果地址中带有其他页面或对话中的内容，请选择“不允许”。";
 "Claude Code may need updating" = "Claude Code 可能需要更新";
+"Ad blocking is off on this site" = "此网站已关闭广告拦截";
+"Ad blocking is off on this site. Click to turn it on." = "此网站已关闭广告拦截。点按即可开启。";
+"Camera and microphone on" = "摄像头和麦克风已开启";
+"Camera on" = "摄像头已开启";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "无法删除空间：无法移动其中的个人收藏";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "无法打开书签和历史记录文件，因此不会再向其中保存新内容";
+"Data Page" = "数据页面";
 "Delete %@" = "删除 %@";
 "Delete this chat?" = "要删除此对话吗？";
+"Download Again" = "重新下载";
 "Downloading" = "正在下载";
 "Edit and Send Again" = "编辑后重新发送";
 "Install Extension" = "安装扩展";
@@ -49,6 +55,10 @@
 "No chats match “%@”" = "没有与“%@”匹配的对话";
 "Not allowed in %@ unless you answer." = "如不作答，%@后将视为“不允许”。";
 "Past chats can only be read. Choose Back to Chat in the title menu, or start a new chat, to write." = "以前的对话只能阅读。要输入内容，请在标题菜单中选择“返回对话”，或开始新对话。";
+"Microphone on" = "麦克风已开启";
+"No matches" = "无匹配项";
+"Not Secure" = "不安全";
+"Paste and Go" = "粘贴并前往";
 "Pop-up Blocked" = "已阻止弹出窗口";
 "Revoke %@" = "撤销 %@";
 "Save Password?" = "存储密码?";
@@ -62,6 +72,10 @@
 "The AI is working. Open the AI panel to follow it (⌘E)" = "AI 正在处理。打开 AI 面板即可查看进度 (⌘E)";
 "This can't be undone." = "此操作无法撤销。";
 "This chat is nearly full, so the AI may lose track of what was said early on. A new chat will work better." = "此对话快满了，AI 可能会记不清前面说过的内容。开始新对话效果会更好。";
+"Shows the list of downloads" = "显示下载列表";
+"Stop the camera" = "停止使用摄像头";
+"Stop the camera and microphone" = "停止使用摄像头和麦克风";
+"Stop the microphone" = "停止使用麦克风";
 "Update password for %@?" = "要更新 %@ 的密码吗？";
 "a frame of an unknown site" = "来源不明的框架";
 "a page without a site" = "没有网站的页面";
@@ -411,7 +425,6 @@
 "No tabs to group" = "没有可分组的标签页";
 "No tabs to tidy" = "没有需要整理的标签页";
 "No text in another language to translate" = "没有需要翻译的其他语言文本";
-"None" = "无";
 "Not a Chrome Web Store address or extension ID" = "不是 Chrome 网上应用店的地址或扩展 ID";
 "Not an extension file" = "不是扩展文件";
 "Not blocked" = "未拦截";
@@ -580,7 +593,6 @@
 "Turn off ad blocking for this site (if it breaks)" = "为此网站关闭广告拦截（网站出现异常时）";
 "Turn On" = "开启";
 "Turn on '%@'?" = "要开启“%@”吗？";
-"Turn on ad blocking for this site" = "为此网站开启广告拦截";
 "Turned off" = "已关闭";
 "Turned on" = "开";
 "Type" = "输入";

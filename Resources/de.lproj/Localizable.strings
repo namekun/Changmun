@@ -32,10 +32,16 @@
 "Approvals: how much the AI asks before it acts. Now: %@" = "Freigaben: wie oft die KI fragt, bevor sie handelt. Jetzt: %@";
 "Choose Don’t Allow if the address carries content from another page or from the conversation." = "Wähle „Nicht erlauben“, wenn die Adresse Inhalte einer anderen Seite oder aus der Unterhaltung enthält.";
 "Claude Code may need updating" = "Claude Code muss eventuell aktualisiert werden";
+"Ad blocking is off on this site" = "Werbeblocker ist auf dieser Website ausgeschaltet";
+"Ad blocking is off on this site. Click to turn it on." = "Werbeblocker ist auf dieser Website ausgeschaltet. Klicken, um ihn einzuschalten.";
+"Camera and microphone on" = "Kamera und Mikrofon an";
+"Camera on" = "Kamera an";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "Der Space konnte nicht gelöscht werden: Seine Favoriten ließen sich nicht verschieben";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "Die Datei mit Lesezeichen und Verlauf konnte nicht geöffnet werden, daher wird nichts Neues darin gesichert";
+"Data Page" = "Datenseite";
 "Delete %@" = "%@ löschen";
 "Delete this chat?" = "Diesen Chat löschen?";
+"Download Again" = "Erneut herunterladen";
 "Downloading" = "Wird geladen";
 "Edit and Send Again" = "Bearbeiten und erneut senden";
 "Install Extension" = "Erweiterung installieren";
@@ -49,6 +55,10 @@
 "No chats match “%@”" = "Keine Chats passen zu „%@“";
 "Not allowed in %@ unless you answer." = "Ohne Antwort in %@ nicht erlaubt.";
 "Past chats can only be read. Choose Back to Chat in the title menu, or start a new chat, to write." = "Frühere Chats kann man nur lesen. Um zu schreiben, wähle „Zurück zum Chat“ im Titelmenü oder starte einen neuen Chat.";
+"Microphone on" = "Mikrofon an";
+"No matches" = "Keine Treffer";
+"Not Secure" = "Nicht sicher";
+"Paste and Go" = "Einsetzen und öffnen";
 "Pop-up Blocked" = "Pop-up blockiert";
 "Revoke %@" = "%@ widerrufen";
 "Save Password?" = "Passwort sichern?";
@@ -62,6 +72,10 @@
 "The AI is working. Open the AI panel to follow it (⌘E)" = "Die KI arbeitet. Öffne die KI-Seitenleiste, um ihr zu folgen (⌘E)";
 "This can't be undone." = "Das lässt sich nicht rückgängig machen.";
 "This chat is nearly full, so the AI may lose track of what was said early on. A new chat will work better." = "Dieser Chat ist fast voll, sodass die KI den Anfang aus den Augen verlieren kann. Ein neuer Chat funktioniert besser.";
+"Shows the list of downloads" = "Zeigt die Liste der Downloads";
+"Stop the camera" = "Kamera stoppen";
+"Stop the camera and microphone" = "Kamera und Mikrofon stoppen";
+"Stop the microphone" = "Mikrofon stoppen";
 "Update password for %@?" = "Passwort für %@ aktualisieren?";
 "a frame of an unknown site" = "ein Frame einer unbekannten Website";
 "a page without a site" = "eine Seite ohne Website";
@@ -411,7 +425,6 @@
 "No tabs to group" = "Keine Tabs zum Gruppieren";
 "No tabs to tidy" = "Keine Tabs zum Aufräumen";
 "No text in another language to translate" = "Kein Text in einer anderen Sprache zum Übersetzen";
-"None" = "Keine";
 "Not a Chrome Web Store address or extension ID" = "Keine Chrome-Web-Store-Adresse oder Erweiterungs-ID";
 "Not an extension file" = "Keine Erweiterungsdatei";
 "Not blocked" = "Nicht blockiert";
@@ -580,7 +593,6 @@
 "Turn off ad blocking for this site (if it breaks)" = "Werbeblocker für diese Website ausschalten (falls sie nicht richtig funktioniert)";
 "Turn On" = "Einschalten";
 "Turn on '%@'?" = "„%@“ einschalten?";
-"Turn on ad blocking for this site" = "Werbeblocker für diese Website einschalten";
 "Turned off" = "Ausgeschaltet";
 "Turned on" = "Ein";
 "Type" = "Tippen";

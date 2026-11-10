@@ -18,7 +18,8 @@ extension Tab {
         var notices: [PageNotice] = []
         if loginOffer != nil { notices.append(.login) }
         if blockedPopup != nil { notices.append(.popup) }
-        if #available(macOS 15.4, *), !isPrivate, let url, let id = ChromeWebStore.extensionID(from: url.absoluteString) { notices.append(.webStore(id)) }
+        if #available(macOS 15.4, *), !isPrivate, let url, let id = ChromeWebStore.extensionID(from: url.absoluteString),
+           !dismissedStoreNotices.contains(id) { notices.append(.webStore(id)) }
         return notices
     }
 }
@@ -92,7 +93,7 @@ struct NoticeList: View {
         case .login: LoginNoticeRow(tab: tab)
         case .popup: PopupNoticeRow(tab: tab)
         case .webStore(let id):
-            if #available(macOS 15.4, *) { WebStoreNoticeRow(id: id, host: ExtensionHost.shared) }
+            if #available(macOS 15.4, *) { WebStoreNoticeRow(tab: tab, id: id, host: ExtensionHost.shared) }
         }
     }
 }
@@ -205,6 +206,7 @@ private struct PopupNoticeRow: View {
 /// On a Chrome Web Store extension page: install it into Changmun (the store's own button only works in Chrome).
 @available(macOS 15.4, *)
 private struct WebStoreNoticeRow: View {
+    @ObservedObject var tab: Tab
     let id: String
     @ObservedObject var host: ExtensionHost
 
@@ -212,7 +214,8 @@ private struct WebStoreNoticeRow: View {
         let installed = host.isInstalled(chromeWebStoreID: id)
         NoticeRow(symbol: "puzzlepiece.extension",
                   title: installed ? String(localized: "This extension is installed in Changmun") : String(localized: "You can use this extension in Changmun"),
-                  detail: host.storeErrors[id].map { [$0] } ?? [], detailColor: Theme.waitingText) {
+                  detail: host.storeErrors[id].map { [$0] } ?? [], detailColor: Theme.waitingText,
+                  close: { tab.dismissedStoreNotices.insert(id) }) {
             if host.installing.contains(id) {
                 ProgressView().controlSize(.small).padding(.horizontal, Metrics.rowPadding).frame(height: Metrics.row)
             } else {

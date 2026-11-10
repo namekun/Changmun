@@ -101,7 +101,7 @@ struct AccessibilityTests {
         #expect(Accessibility.resultsCount(0) == "No suggestions")
         #expect(Accessibility.resultsCount(1) == "1 suggestion")
         #expect(Accessibility.resultsCount(7) == "7 suggestions")
-        #expect(Accessibility.findMatches(0) == "None")
+        #expect(Accessibility.findMatches(0) == "No matches")
         #expect(Accessibility.findMatches(1) == "1 match")
         #expect(Accessibility.findMatches(12) == "12 matches")
     }

@@ -158,7 +158,7 @@ enum Accessibility {
     // MARK: Find and the AI panel
 
     static func findMatches(_ matches: Int) -> String {
-        matches == 0 ? String(localized: "None") : matches == 1 ? String(localized: "\(matches) match") : String(localized: "\(matches) matches")
+        matches == 0 ? String(localized: "No matches") : matches == 1 ? String(localized: "\(matches) match") : String(localized: "\(matches) matches")
     }
 
     /// "You said" before the user's words, and "AI said" over the AI's answer, so a list of messages reads as a conversation.

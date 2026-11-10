@@ -11,6 +11,14 @@ struct CommandBarTests {
         #expect(CommandBar.chosen(rows, at: 3) == .page(url: "https://en.wikipedia.org/", title: "Wikipedia"))
     }
 
+    @Test func commandReturnOpensInANewTabAndAnInputMethodsReturnOpensNothing() {
+        #expect(CommandBar.returnMode(command: false, composing: false, mode: .editCurrent) == .editCurrent, "Return replaces the page, as before")
+        #expect(CommandBar.returnMode(command: true, composing: false, mode: .editCurrent) == .newTab)
+        #expect(CommandBar.returnMode(command: true, composing: false, mode: .newTab) == .newTab)
+        #expect(CommandBar.returnMode(command: false, composing: true, mode: .editCurrent) == nil, "a Return that only settles a Korean syllable submits nothing")
+        #expect(CommandBar.returnMode(command: true, composing: true, mode: .editCurrent) == nil)
+    }
+
     /// The same highlight in a longer list is another row: Return has to be given the list on screen, not the one the field was set up with.
     @Test func theSameHighlightIsAnotherRowOnceMoreResultsHaveCome() {
         let before = Array(rows.prefix(2))

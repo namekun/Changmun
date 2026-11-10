@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import WebKit
 
 /// On a page that looks like an article: shows it as clean text over the page, and takes it away again.
 struct ReaderButton: View {
@@ -77,11 +78,82 @@ struct PictureInPictureButton: View {
     }
 }
 
+/// What the page is using the camera and the microphone for right now, said in words in the address (see `CaptureButton`).
+struct MediaCapture: Equatable {
+    var camera = false
+    var microphone = false
+
+    init() {}
+
+    /// A page that is muted (WebKit holds the device but nothing flows) is not capturing.
+    init(camera: WKMediaCaptureState, microphone: WKMediaCaptureState) {
+        self.camera = camera == .active
+        self.microphone = microphone == .active
+    }
+
+    var label: String? {
+        switch (camera, microphone) {
+        case (true, true): String(localized: "Camera and microphone on")
+        case (true, false): String(localized: "Camera on")
+        case (false, true): String(localized: "Microphone on")
+        case (false, false): nil
+        }
+    }
+
+    var stopHelp: String? {
+        switch (camera, microphone) {
+        case (true, true): String(localized: "Stop the camera and microphone")
+        case (true, false): String(localized: "Stop the camera")
+        case (false, true): String(localized: "Stop the microphone")
+        case (false, false): nil
+        }
+    }
+
+    var symbol: String { camera ? "video.fill" : "mic.fill" }
+}
+
+/// Shows while the page is capturing from the camera or microphone: says which in words, and a click stops it.
+struct CaptureButton: View {
+    @ObservedObject var tab: Tab
+
+    var body: some View {
+        if let label = tab.capture.label, let help = tab.capture.stopHelp {
+            Button {
+                if tab.capture.camera { tab.webView?.setCameraCaptureState(.none) }
+                if tab.capture.microphone { tab.webView?.setMicrophoneCaptureState(.none) }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: tab.capture.symbol).font(.symbolInline)
+                    Text(label).font(.secondaryStrong).lineLimit(1).fixedSize()
+                }
+                .padding(.horizontal, 8)
+                .frame(height: 22)
+                .foregroundStyle(Theme.waitingText)
+                .background(Capsule().fill(Theme.pill))
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .help(help)
+            .accessibilityLabel(label)
+            .accessibilityHint(help)
+        }
+    }
+}
+
 struct AdBlockShield: View {
     @ObservedObject var tab: Tab
     /// The pointer is over the address: drawn in full ink.
     var emphasized = false
     @ObservedObject private var prefs = Preferences.shared
+
+    /// Said in words, as the shield turns orange when it is off.
+    static func help(off: Bool) -> String {
+        off ? String(localized: "Ad blocking is off on this site. Click to turn it on.") : String(localized: "Turn off ad blocking for this site (if it breaks)")
+    }
+
+    static func value(off: Bool) -> String {
+        off ? String(localized: "Ad blocking is off on this site") : Accessibility.onOffValue(true)
+    }
 
     var body: some View {
         if prefs.blockTrackers, let host = tab.url?.host(), tab.url?.scheme?.hasPrefix("http") == true {
@@ -94,9 +166,9 @@ struct AdBlockShield: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(off ? String(localized: "Turn on ad blocking for this site") : String(localized: "Turn off ad blocking for this site (if it breaks)"))
+            .help(Self.help(off: off))
             .accessibilityLabel(String(localized: "Ad blocking for this site"))
-            .accessibilityValue(Accessibility.onOffValue(!off))
+            .accessibilityValue(Self.value(off: off))
         }
     }
 }

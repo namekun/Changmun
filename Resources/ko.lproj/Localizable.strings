@@ -32,10 +32,16 @@
 "Approvals: how much the AI asks before it acts. Now: %@" = "승인: AI가 행동하기 전에 얼마나 물을지 정해요. 지금: %@";
 "Choose Don’t Allow if the address carries content from another page or from the conversation." = "주소에 다른 페이지나 대화의 내용이 실려 있다면 ‘허용 안 함’을 눌러 주세요.";
 "Claude Code may need updating" = "Claude Code를 업데이트해야 할 수도 있어요";
+"Ad blocking is off on this site" = "이 사이트에서는 광고 차단이 꺼져 있어요";
+"Ad blocking is off on this site. Click to turn it on." = "이 사이트에서는 광고 차단이 꺼져 있어요. 누르면 켜요.";
+"Camera and microphone on" = "카메라와 마이크 켜짐";
+"Camera on" = "카메라 켜짐";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "스페이스를 삭제하지 못했어요. 즐겨찾기를 옮길 수 없었어요";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "북마크와 방문 기록 파일을 열 수 없어서, 새로 저장되는 내용이 없어요";
+"Data Page" = "데이터 페이지";
 "Delete %@" = "%@ 삭제";
 "Delete this chat?" = "이 대화를 삭제할까요?";
+"Download Again" = "다시 다운로드";
 "Downloading" = "받는 중";
 "Edit and Send Again" = "고쳐서 다시 보내기";
 "Install Extension" = "확장 프로그램 설치";
@@ -49,6 +55,10 @@
 "No chats match “%@”" = "“%@”에 맞는 대화가 없어요";
 "Not allowed in %@ unless you answer." = "답하지 않으면 %@ 뒤 ‘허용 안 함’으로 처리돼요.";
 "Past chats can only be read. Choose Back to Chat in the title menu, or start a new chat, to write." = "지난 대화는 읽기만 할 수 있어요. 글을 쓰려면 제목 메뉴에서 ‘대화로 돌아가기’를 고르거나 새 대화를 시작해 주세요.";
+"Microphone on" = "마이크 켜짐";
+"No matches" = "일치하는 항목이 없어요";
+"Not Secure" = "안전하지 않음";
+"Paste and Go" = "붙여넣고 이동";
 "Pop-up Blocked" = "팝업을 막았어요";
 "Revoke %@" = "%@ 허용 취소";
 "Save Password?" = "비밀번호 저장할까요?";
@@ -62,6 +72,10 @@
 "The AI is working. Open the AI panel to follow it (⌘E)" = "AI가 작업 중이에요. 지켜보려면 AI 패널을 열어 주세요 (⌘E)";
 "This can't be undone." = "되돌릴 수 없어요.";
 "This chat is nearly full, so the AI may lose track of what was said early on. A new chat will work better." = "이 대화가 거의 가득 차서 AI가 앞에서 나눈 이야기를 놓칠 수 있어요. 새 대화에서 더 잘 동작해요.";
+"Shows the list of downloads" = "다운로드 목록을 열어요";
+"Stop the camera" = "카메라 끄기";
+"Stop the camera and microphone" = "카메라와 마이크 끄기";
+"Stop the microphone" = "마이크 끄기";
 "Update password for %@?" = "%@의 비밀번호를 업데이트할까요?";
 "a frame of an unknown site" = "알 수 없는 사이트의 프레임";
 "a page without a site" = "사이트가 없는 페이지";
@@ -411,7 +425,6 @@
 "No tabs to group" = "묶을 만한 탭이 없어요";
 "No tabs to tidy" = "정리할 탭이 없어요";
 "No text in another language to translate" = "번역할 다른 언어의 글이 없어요";
-"None" = "없음";
 "Not a Chrome Web Store address or extension ID" = "Chrome 웹 스토어 주소나 확장 ID가 아니에요";
 "Not an extension file" = "확장 파일 형식이 아니에요";
 "Not blocked" = "차단 안 함";
@@ -580,7 +593,6 @@
 "Turn off ad blocking for this site (if it breaks)" = "이 사이트에서 광고 차단 끄기 (사이트가 깨질 때)";
 "Turn On" = "켜기";
 "Turn on '%@'?" = "'%@' 확장을 켤까요?";
-"Turn on ad blocking for this site" = "이 사이트에서 광고 차단 켜기";
 "Turned off" = "꺼져 있어요";
 "Turned on" = "켜져 있어요";
 "Type" = "입력";

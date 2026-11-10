@@ -121,7 +121,7 @@ struct CommandBar: View {
                         .accessibilityHint(String(localized: "Type to see suggestions. Use the up and down arrow keys to choose one, and Return to open it"))
                         // The list as it is when Return is pressed: the field keeps the handler it was given when its text last changed, so
                         // the `items` of that render would hold the rows from before the local and engine results came in.
-                        .onSubmit { run(Self.chosen(suggestions, at: selection)) }
+                        .onSubmit { submit(command: NSEvent.modifierFlags.contains(.command)) }
                         .onChange(of: text) { syncShown() }
                         .onChange(of: shown) {
                             selection = 0
@@ -167,6 +167,11 @@ struct CommandBar: View {
             .onKeyPress(.downArrow) { selection = max(0, min(selection + 1, items.count - 1)); return .handled }
             .onKeyPress(.upArrow) { selection = max(selection - 1, 0); return .handled }
             .onKeyPress(.escape) { dismiss(); return .handled }
+            // ⌘Return: in a new tab, whatever the bar would do.
+            .onKeyPress(.return) {
+                guard NSEvent.modifierFlags.contains(.command) else { return .ignored }
+                return submit(command: true) ? .handled : .ignored
+            }
         }
         .onChange(of: items) { old, new in keepSelection(old, new) }
         // The number of suggestions is said once the typing pauses, not at every letter.
@@ -254,6 +259,22 @@ struct CommandBar: View {
 
     private func run(_ item: Suggestion?) {
         Self.run(item, browser: browser, chat: chat, mode: mode)
+    }
+
+    /// Where Return opens the row: in the bar's own place, in a new tab with ⌘ held, nowhere while an input method is still composing
+    /// (that Return only settles the syllable).
+    static func returnMode(command: Bool, composing: Bool, mode: CommandBarMode) -> CommandBarMode? {
+        guard !composing else { return nil }
+        return command ? .newTab : mode
+    }
+
+    /// Opens the highlighted row. Whichever of the field's submit and the key press comes first closes the bar, so the other finds it gone.
+    @discardableResult private func submit(command: Bool) -> Bool {
+        guard browser.commandBar != nil,
+              let route = Self.returnMode(command: command, composing: fieldEditor?.hasMarkedText() == true, mode: mode),
+              let item = Self.chosen(suggestions, at: selection) else { return false }
+        Self.run(item, browser: browser, chat: chat, mode: route)
+        return true
     }
 
     /// What Return or a click does with a row, which the start page's search field shares.

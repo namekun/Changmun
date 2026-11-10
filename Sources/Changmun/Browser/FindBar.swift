@@ -24,17 +24,17 @@ struct FindBar: View {
                     return .handled
                 }
                 .onKeyPress(.escape) {
-                    browser.hideFindBar()
+                    browser.hideFindBar(refocusPage: true)
                     return .handled
                 }
             if let matches = overlay.findMatches, !overlay.findText.isEmpty {
-                Text(matches == 0 ? String(localized: "None") : matches == 1 ? String(localized: "\(matches) match") : String(localized: "\(matches) matches"))
+                Text(matches == 0 ? String(localized: "No matches") : matches == 1 ? String(localized: "\(matches) match") : String(localized: "\(matches) matches"))
                     .font(.captionStrong.monospacedDigit())
                     .foregroundStyle(matches == 0 ? Theme.waitingText : Theme.secondary)
             }
             BarButton(symbol: "chevron.up", help: String(localized: "Previous (⌘⇧G)")) { browser.find(backwards: true) }.disabled(overlay.findText.isEmpty)
             BarButton(symbol: "chevron.down", help: String(localized: "Next (⌘G)")) { browser.find() }.disabled(overlay.findText.isEmpty)
-            BarButton(symbol: "xmark", help: String(localized: "Close (esc)")) { browser.hideFindBar() }
+            BarButton(symbol: "xmark", help: String(localized: "Close (esc)")) { browser.hideFindBar(refocusPage: true) }
         }
         .padding(.leading, 8)
         .padding(.trailing, 4)

@@ -32,10 +32,16 @@
 "Approvals: how much the AI asks before it acts. Now: %@" = "Autorisations : à quel point l’IA demande avant d’agir. Actuellement : %@";
 "Choose Don’t Allow if the address carries content from another page or from the conversation." = "Choisissez « Ne pas autoriser » si l’adresse contient du contenu provenant d’une autre page ou de la conversation.";
 "Claude Code may need updating" = "Claude Code a peut-être besoin d’une mise à jour";
+"Ad blocking is off on this site" = "Le blocage des publicités est désactivé sur ce site";
+"Ad blocking is off on this site. Click to turn it on." = "Le blocage des publicités est désactivé sur ce site. Cliquez pour l’activer.";
+"Camera and microphone on" = "Caméra et micro activés";
+"Camera on" = "Caméra activée";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "Impossible de supprimer l’espace : ses favoris n’ont pas pu être déplacés";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "Impossible d’ouvrir le fichier des signets et de l’historique : rien de nouveau n’y est enregistré";
+"Data Page" = "Page de données";
 "Delete %@" = "Supprimer %@";
 "Delete this chat?" = "Supprimer cette conversation ?";
+"Download Again" = "Télécharger à nouveau";
 "Downloading" = "Téléchargement";
 "Edit and Send Again" = "Modifier et renvoyer";
 "Install Extension" = "Installer l’extension";
@@ -49,6 +55,10 @@
 "No chats match “%@”" = "Aucune conversation ne correspond à « %@ »";
 "Not allowed in %@ unless you answer." = "Sans réponse, refusé dans %@.";
 "Past chats can only be read. Choose Back to Chat in the title menu, or start a new chat, to write." = "Les conversations passées sont en lecture seule. Pour écrire, choisissez « Retour à la conversation » dans le menu du titre, ou commencez une nouvelle conversation.";
+"Microphone on" = "Micro activé";
+"No matches" = "Aucun résultat";
+"Not Secure" = "Non sécurisé";
+"Paste and Go" = "Coller et aller";
 "Pop-up Blocked" = "Pop-up bloquée";
 "Revoke %@" = "Révoquer %@";
 "Save Password?" = "Enregistrer le mot de passe ?";
@@ -62,6 +72,10 @@
 "The AI is working. Open the AI panel to follow it (⌘E)" = "L’IA travaille. Ouvrez le panneau IA pour la suivre (⌘E)";
 "This can't be undone." = "Cette action est irréversible.";
 "This chat is nearly full, so the AI may lose track of what was said early on. A new chat will work better." = "Cette conversation est presque pleine : l’IA risque de perdre le fil de ce qui a été dit au début. Une nouvelle conversation fonctionnera mieux.";
+"Shows the list of downloads" = "Affiche la liste des téléchargements";
+"Stop the camera" = "Arrêter la caméra";
+"Stop the camera and microphone" = "Arrêter la caméra et le micro";
+"Stop the microphone" = "Arrêter le micro";
 "Update password for %@?" = "Mettre à jour le mot de passe de %@ ?";
 "a frame of an unknown site" = "un cadre d’un site inconnu";
 "a page without a site" = "une page sans site";
@@ -411,7 +425,6 @@
 "No tabs to group" = "Aucun onglet à grouper";
 "No tabs to tidy" = "Aucun onglet à ranger";
 "No text in another language to translate" = "Aucun texte dans une autre langue à traduire";
-"None" = "Aucun";
 "Not a Chrome Web Store address or extension ID" = "Ce n’est ni une adresse du Chrome Web Store ni un ID d’extension";
 "Not an extension file" = "Ce n’est pas un fichier d’extension";
 "Not blocked" = "Non bloqué";
@@ -580,7 +593,6 @@
 "Turn off ad blocking for this site (if it breaks)" = "Désactiver le blocage des publicités pour ce site (s’il ne s’affiche pas correctement)";
 "Turn On" = "Activer";
 "Turn on '%@'?" = "Activer « %@ » ?";
-"Turn on ad blocking for this site" = "Activer le blocage des publicités pour ce site";
 "Turned off" = "Désactivé";
 "Turned on" = "Activé";
 "Type" = "Saisie";
