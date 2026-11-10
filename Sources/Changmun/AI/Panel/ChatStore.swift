@@ -33,6 +33,12 @@ final class ChatStore: ObservableObject {
     }
     /// When the run under way began, for the panel's "Working for 4s"; nil while nothing runs.
     var runStarted: Date?
+    /// A run ended while no panel showed the chat: the AI button says an answer is waiting until a panel shows it.
+    @Published var answerWaiting = false
+    /// When the user last stopped a run, so that an Esc pressed again right after it doesn't also close the panel.
+    private(set) var stoppedAt: Date?
+    /// Whether a panel shows the chat anywhere (tests say).
+    static var panelVisible: @MainActor () -> Bool = { Browser.all.contains { $0.panelShown } }
     /// How full the conversation's context is, from the usage `claude` reports; nil until it has (a new chat), when the panel shows nothing.
     @Published var contextUsage: ContextUsage?
     /// The context window the last result named, until the next one does.
@@ -303,12 +309,13 @@ final class ChatStore: ObservableObject {
         send(next.text, context: next.context, images: next.images, noting: false)
     }
 
-    /// The run is over, however it ended. If it ended well, the next queued message goes out; if it failed or was cut short, the
-    /// queue waits for the user.
+    /// The run is over, however it ended. If it ended well, the next queued message goes out; if it failed or was cut short (or the queue
+    /// is already held, as a stop leaves it), the queue waits for the user.
     func endRun() {
         runToken = nil
         isRunning = false
         step = nil
+        if !items.isEmpty && !Self.panelVisible() { answerWaiting = true }
         persist()
         // Whatever the AI left under way (a question waiting for the user) goes with its process.
         AgentActivity.shared.cancel(caller: Self.caller)
@@ -322,7 +329,7 @@ final class ChatStore: ObservableObject {
             queueHeld = false
             return
         }
-        if runFailed {
+        if runFailed || queueHeld {
             queueHeld = true
         } else {
             sendQueued()
@@ -550,17 +557,24 @@ final class ChatStore: ObservableObject {
         }
     }
 
-    /// The stop button: ends the run, and the messages waiting for it go too.
+    /// The stop button: ends the run, says so in the transcript, and holds the messages waiting for it until the user sends or removes them.
     func stop() {
-        queue.removeAll()
-        queueHeld = false
+        let wasRunning = isRunning
+        queueHeld = !queue.isEmpty
         runDefaultTab = .front
         stopRun()
+        if wasRunning {
+            stoppedAt = Date()
+            items.append(ChatItem(kind: .note, text: String(localized: "Stopped. Nothing more is done until you send a message.")))
+        }
         persist()
     }
 
     func reset() {
         stop()
+        queue.removeAll()
+        queueHeld = false
+        answerWaiting = false
         items.removeAll()
         recordID = UUID()
         recordStarted = Date()
