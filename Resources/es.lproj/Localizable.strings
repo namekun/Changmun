@@ -93,6 +93,8 @@
 "Approval needed" = "Se necesita aprobación";
 "Approval needed: %@" = "Se necesita aprobación: %@";
 "Archive tabs you haven’t viewed in a while" = "Archivar las pestañas que no has visto en un tiempo";
+"Archived %lld tab to History › Archived Tabs" = "Se archivó %lld pestaña en Historial › Pestañas archivadas";
+"Archived %lld tabs to History › Archived Tabs" = "Se archivaron %lld pestañas en Historial › Pestañas archivadas";
 "Archived Tabs" = "Pestañas archivadas";
 "Ask" = "Preguntar";
 "Ask about this page, or give it a task" = "Pregunta sobre esta página o encárgale una tarea";
@@ -139,7 +141,10 @@
 "Chrome-style" = "Estilo Chrome";
 "Clear" = "Borrar";
 "Clear %@? (%@)" = "¿Borrar %1$@? (%2$@)";
+"Clear %lld archived tab?" = "¿Borrar %lld pestaña archivada?";
 "Clear All" = "Borrar todo";
+"Clear all %lld archived tabs?" = "¿Borrar las %lld pestañas archivadas?";
+"Clear All…" = "Borrar todo…";
 "Clear Chat" = "Borrar chat";
 "Clear Finished" = "Borrar finalizados";
 "Clear History" = "Borrar historial";
@@ -871,6 +876,7 @@
 "Its bookmark goes with it. This can't be undone." = "Su marcador se elimina con ella. No se puede deshacer.";
 "Its %lld bookmarks go with it. This can't be undone." = "Sus %lld marcadores se eliminan con ella. No se puede deshacer.";
 "They all go, and this can't be undone." = "Se eliminan todos. No se puede deshacer.";
+"They can’t be reopened after this." = "Después no se podrán volver a abrir.";
 "This site asks for a user name and password." = "Este sitio pide un nombre de usuario y una contraseña.";
 "Bring in what you use?" = "¿Traer lo que ya usas?";
 "Bring your bookmarks and history over. From Chrome and similar browsers, passwords and logins can come too." = "Trae tus marcadores y tu historial. Desde Chrome y navegadores similares también pueden venir las contraseñas y las sesiones.";

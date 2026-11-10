@@ -93,6 +93,8 @@
 "Approval needed" = "Approbation requise";
 "Approval needed: %@" = "Approbation requise : %@";
 "Archive tabs you haven’t viewed in a while" = "Archiver les onglets non consultés depuis un moment";
+"Archived %lld tab to History › Archived Tabs" = "%lld onglet archivé dans Historique › Onglets archivés";
+"Archived %lld tabs to History › Archived Tabs" = "%lld onglets archivés dans Historique › Onglets archivés";
 "Archived Tabs" = "Onglets archivés";
 "Ask" = "Demander";
 "Ask about this page, or give it a task" = "Posez une question sur cette page ou confiez-lui une tâche";
@@ -139,7 +141,10 @@
 "Chrome-style" = "Style Chrome";
 "Clear" = "Effacer";
 "Clear %@? (%@)" = "Effacer %@ ? (%@)";
+"Clear %lld archived tab?" = "Effacer %lld onglet archivé ?";
 "Clear All" = "Tout effacer";
+"Clear all %lld archived tabs?" = "Effacer les %lld onglets archivés ?";
+"Clear All…" = "Tout effacer…";
 "Clear Chat" = "Effacer la conversation";
 "Clear Finished" = "Effacer les éléments terminés";
 "Clear History" = "Effacer l’historique";
@@ -871,6 +876,7 @@
 "Its bookmark goes with it. This can't be undone." = "Son signet sera supprimé avec lui. Cette action est irréversible.";
 "Its %lld bookmarks go with it. This can't be undone." = "Ses %lld signets seront supprimés avec lui. Cette action est irréversible.";
 "They all go, and this can't be undone." = "Ils seront tous supprimés. Cette action est irréversible.";
+"They can’t be reopened after this." = "Ils ne pourront plus être rouverts.";
 "This site asks for a user name and password." = "Ce site demande un nom d’utilisateur et un mot de passe.";
 "Bring in what you use?" = "Reprendre ce que vous utilisez ?";
 "Bring your bookmarks and history over. From Chrome and similar browsers, passwords and logins can come too." = "Reprenez vos signets et votre historique. Depuis Chrome et les navigateurs similaires, les mots de passe et les connexions peuvent suivre.";

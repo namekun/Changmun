@@ -93,6 +93,8 @@
 "Approval needed" = "需要批准";
 "Approval needed: %@" = "需要批准：%@";
 "Archive tabs you haven’t viewed in a while" = "归档一段时间未查看的标签页";
+"Archived %lld tab to History › Archived Tabs" = "已将 %lld 个标签页归档到“历史记录 › 已归档的标签页”";
+"Archived %lld tabs to History › Archived Tabs" = "已将 %lld 个标签页归档到“历史记录 › 已归档的标签页”";
 "Archived Tabs" = "已归档的标签页";
 "Ask" = "询问";
 "Ask about this page, or give it a task" = "询问此页面，或交给它一项任务";
@@ -139,7 +141,10 @@
 "Chrome-style" = "Chrome 风格";
 "Clear" = "清除";
 "Clear %@? (%@)" = "要清除 %2$@ 的%1$@吗？";
+"Clear %lld archived tab?" = "要清除 %lld 个已归档的标签页吗？";
 "Clear All" = "全部清除";
+"Clear all %lld archived tabs?" = "要清除全部 %lld 个已归档的标签页吗？";
+"Clear All…" = "全部清除…";
 "Clear Chat" = "清除对话";
 "Clear Finished" = "清除已完成项目";
 "Clear History" = "清除历史记录";
@@ -871,6 +876,7 @@
 "Its bookmark goes with it. This can't be undone." = "其中的 1 个书签也会一并删除。此操作无法撤销。";
 "Its %lld bookmarks go with it. This can't be undone." = "其中的 %lld 个书签也会一并删除。此操作无法撤销。";
 "They all go, and this can't be undone." = "它们都会被删除，此操作无法撤销。";
+"They can’t be reopened after this." = "清除后将无法再打开。";
 "This site asks for a user name and password." = "此网站需要用户名和密码。";
 "Bring in what you use?" = "要导入你正在使用的内容吗？";
 "Bring your bookmarks and history over. From Chrome and similar browsers, passwords and logins can come too." = "可以导入书签和历史记录。来自 Chrome 等浏览器时，密码和登录状态也能一并导入。";

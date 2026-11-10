@@ -282,6 +282,24 @@ extension SharedAgentState {
             #expect(b.split == nil && b.overlay.statusMessage == "There is no other tab to show beside this one")
         }
 
+        // MARK: Archiving
+
+        @Test func archivingSaysHowManyTabsWentAndUndoBringsThemBack() {
+            let b = browser(3)
+            defer { b.windowClosed() }
+            b.activate(b.tabs[0].id)
+            for tab in b.tabs.dropFirst() { tab.lastShown = .distantPast }
+            let file = FileManager.default.temporaryDirectory.appendingPathComponent("archive-\(UUID().uuidString).json")
+            defer { try? FileManager.default.removeItem(at: file) }
+            let archive = TabArchive(file: file)
+            b.archiveIdleTabs(olderThan: 3600, to: archive)
+            #expect(b.tabs.count == 1 && archive.entries.count == 2)
+            #expect(b.notice?.message == "Archived 2 tabs to History › Archived Tabs")
+            let shown = b.activeID
+            b.undoNotice()
+            #expect(b.tabs.count == 3 && archive.entries.isEmpty && b.activeID == shown, "back where they were kept, without switching to them")
+        }
+
         // MARK: Closing several
 
         @Test func closingOthersOrBelowChoosesFromTheTabListOnly() {

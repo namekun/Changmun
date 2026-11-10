@@ -99,11 +99,20 @@ struct ArchiveView: View {
                 Text("Double-click to reopen. Set how long until tabs are archived in Settings › Tabs.")
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Button("Clear All") { archive.removeAll() }.disabled(archive.entries.isEmpty)
+                Button("Clear All…") { confirmClearAll() }.disabled(archive.entries.isEmpty)
             }
             .padding(8)
         }
         .frame(minWidth: 460, minHeight: 320)
+    }
+
+    private func confirmClearAll() {
+        let count = archive.entries.count
+        let title = count == 1 ? String(localized: "Clear \(count) archived tab?") : String(localized: "Clear all \(count) archived tabs?")
+        Task { @MainActor in
+            let spec = DialogSpec.confirmDelete(title, String(localized: "They can’t be reopened after this."))
+            if await Dialog.present(in: Panels.window("archive") ?? NSApp.keyWindow, spec)?.button == 1 { archive.removeAll() }
+        }
     }
 
     private func open(_ entry: TabArchive.Entry) {

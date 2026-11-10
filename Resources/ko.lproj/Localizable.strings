@@ -93,6 +93,8 @@
 "Approval needed" = "승인이 필요해요";
 "Approval needed: %@" = "승인이 필요해요: %@";
 "Archive tabs you haven’t viewed in a while" = "오래 안 본 탭 보관";
+"Archived %lld tab to History › Archived Tabs" = "탭 %lld개를 방문 기록 › 보관한 탭으로 보냈어요";
+"Archived %lld tabs to History › Archived Tabs" = "탭 %lld개를 방문 기록 › 보관한 탭으로 보냈어요";
 "Archived Tabs" = "보관한 탭";
 "Ask" = "묻기";
 "Ask about this page, or give it a task" = "이 페이지에 대해 묻거나 일을 맡겨 보세요";
@@ -139,7 +141,10 @@
 "Chrome-style" = "Chrome식";
 "Clear" = "지우기";
 "Clear %@? (%@)" = "%2$@의 %1$@ 항목을 지울까요?";
+"Clear %lld archived tab?" = "보관한 탭 %lld개를 지울까요?";
 "Clear All" = "모두 지우기";
+"Clear all %lld archived tabs?" = "보관한 탭 %lld개를 모두 지울까요?";
+"Clear All…" = "모두 지우기…";
 "Clear Chat" = "대화 지우기";
 "Clear Finished" = "끝난 항목 지우기";
 "Clear History" = "기록 지우기";
@@ -871,6 +876,7 @@
 "Its bookmark goes with it. This can't be undone." = "북마크 1개도 함께 지워져요. 되돌릴 수 없어요.";
 "Its %lld bookmarks go with it. This can't be undone." = "북마크 %lld개가 함께 지워져요. 되돌릴 수 없어요.";
 "They all go, and this can't be undone." = "모두 지워지고, 되돌릴 수 없어요.";
+"They can’t be reopened after this." = "지우면 다시 열 수 없어요.";
 "This site asks for a user name and password." = "이 사이트는 아이디와 비밀번호를 물어봐요.";
 "Bring in what you use?" = "쓰던 브라우저에서 가져올까요?";
 "Bring your bookmarks and history over. From Chrome and similar browsers, passwords and logins can come too." = "북마크와 방문 기록을 옮겨 와요. Chrome 계열은 비밀번호도 가져올 수 있어요.";

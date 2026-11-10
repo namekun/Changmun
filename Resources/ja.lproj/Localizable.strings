@@ -93,6 +93,8 @@
 "Approval needed" = "承認が必要です";
 "Approval needed: %@" = "承認が必要です: %@";
 "Archive tabs you haven’t viewed in a while" = "しばらく見ていないタブをアーカイブ";
+"Archived %lld tab to History › Archived Tabs" = "%lld個のタブを履歴 › アーカイブしたタブへ移しました";
+"Archived %lld tabs to History › Archived Tabs" = "%lld個のタブを履歴 › アーカイブしたタブへ移しました";
 "Archived Tabs" = "アーカイブしたタブ";
 "Ask" = "確認";
 "Ask about this page, or give it a task" = "このページについて質問、または作業を依頼";
@@ -139,7 +141,10 @@
 "Chrome-style" = "Chrome方式";
 "Clear" = "消去";
 "Clear %@? (%@)" = "%2$@の%1$@を消去しますか？";
+"Clear %lld archived tab?" = "アーカイブしたタブ%lld個を消去しますか？";
 "Clear All" = "すべて消去";
+"Clear all %lld archived tabs?" = "アーカイブしたタブ%lld個をすべて消去しますか？";
+"Clear All…" = "すべて消去…";
 "Clear Chat" = "チャットを消去";
 "Clear Finished" = "完了した項目を消去";
 "Clear History" = "履歴を消去";
@@ -871,6 +876,7 @@
 "Its bookmark goes with it. This can't be undone." = "中のブックマーク1件も一緒に削除されます。元に戻せません。";
 "Its %lld bookmarks go with it. This can't be undone." = "中のブックマーク%lld件も一緒に削除されます。元に戻せません。";
 "They all go, and this can't be undone." = "すべて削除されます。元に戻せません。";
+"They can’t be reopened after this." = "消去すると再び開けなくなります。";
 "This site asks for a user name and password." = "このサイトはユーザ名とパスワードを求めています。";
 "Bring in what you use?" = "使っているものを読み込みますか？";
 "Bring your bookmarks and history over. From Chrome and similar browsers, passwords and logins can come too." = "ブックマークと履歴を読み込めます。Chrome系のブラウザからは、パスワードとログイン状態も読み込めます。";
