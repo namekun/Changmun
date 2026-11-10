@@ -367,7 +367,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let browser = current else { return }
         if browser.peek != nil { return browser.closePeek() }
         if browser.commandBar != nil { browser.commandBar = nil; return }
-        if let id = browser.activeID { browser.close(id) } else { browser.window?.performClose(nil) }
+        if let id = browser.activeID { browser.closeTab(id) } else { browser.window?.performClose(nil) }
     }
     /// The page in front: the peek while one is open, otherwise the active tab.
     private var frontPage: WKWebView? { current.flatMap { $0.peek?.webView ?? $0.active?.webView } }

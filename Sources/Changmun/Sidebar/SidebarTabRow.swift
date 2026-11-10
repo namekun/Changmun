@@ -59,7 +59,7 @@ struct SidebarTabRow: View {
             // One slot, always the same width, so the title doesn't move when the pointer comes and goes.
             ZStack {
                 if hover {
-                    HoverAction(symbol: "xmark", help: String(localized: "Close Tab (⌘W)"), action: close)
+                    HoverAction(symbol: "xmark", help: isActive ? String(localized: "Close Tab (⌘W)") : String(localized: "Close Tab"), action: close)
                 } else if browser.split?.contains(tab.id) == true {
                     Image(systemName: "rectangle.split.2x1")
                         .font(.symbolInline)

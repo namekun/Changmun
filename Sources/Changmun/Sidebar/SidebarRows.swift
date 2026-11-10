@@ -243,7 +243,7 @@ struct BookmarkMenu: View {
     var body: some View {
         let tab = browser.bookmarkTab(key)
         if let tab {
-            Button("Close Tab") { browser.close(tab.id) }
+            Button("Close Tab") { browser.closeTab(tab.id) }
             if !tab.isAsleep { Button(tab.isMuted ? String(localized: "Unmute") : String(localized: "Mute Tab")) { tab.toggleMute() } }
         }
         if let tab, browser.split?.contains(tab.id) == true {

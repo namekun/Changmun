@@ -585,6 +585,7 @@
 "Bookmarks you bring over from another browser show up here." = "Les signets importés d’un autre navigateur apparaissent ici.";
 "Closed %lld tab" = "%lld onglet fermé";
 "Closed %lld tabs" = "%lld onglets fermés";
+"Closed “%@”" = "« %@ » fermé";
 "Deleted the bookmark" = "Signet supprimé";
 "Removed from Favorites" = "Retiré des favoris";
 "Search Bookmarks" = "Rechercher dans les signets";

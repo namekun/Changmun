@@ -585,6 +585,7 @@
 "Bookmarks you bring over from another browser show up here." = "Lesezeichen aus einem anderen Browser erscheinen hier.";
 "Closed %lld tab" = "%lld Tab geschlossen";
 "Closed %lld tabs" = "%lld Tabs geschlossen";
+"Closed “%@”" = "„%@“ geschlossen";
 "Deleted the bookmark" = "Lesezeichen gelöscht";
 "Removed from Favorites" = "Aus den Favoriten entfernt";
 "Search Bookmarks" = "Lesezeichen durchsuchen";

@@ -585,6 +585,7 @@
 "Bookmarks you bring over from another browser show up here." = "从其他浏览器导入的书签会显示在这里。";
 "Closed %lld tab" = "已关闭 %lld 个标签页";
 "Closed %lld tabs" = "已关闭 %lld 个标签页";
+"Closed “%@”" = "已关闭“%@”";
 "Deleted the bookmark" = "已删除书签";
 "Removed from Favorites" = "已从个人收藏中移除";
 "Search Bookmarks" = "搜索书签";

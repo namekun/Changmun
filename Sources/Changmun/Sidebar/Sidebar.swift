@@ -352,7 +352,7 @@ struct Sidebar: View {
         SidebarTabRow(tab: tab, browser: browser, isActive: tab.id == browser.activeID, renaming: browser.renamingTab == tab.id) {
             browser.activate(tab.id)
         } close: {
-            browser.close(tab.id)
+            browser.closeTab(tab.id)
         }
         .padding(.leading, CGFloat(depth) * Metrics.indent)
         .id("tab:\(tab.id)")

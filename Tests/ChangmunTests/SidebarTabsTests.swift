@@ -58,6 +58,26 @@ extension SharedAgentState {
             #expect(Browser.step(from: loose[0], by: -1, in: order.map(\.id)) == pinned.id)
         }
 
+        // MARK: Undo
+
+        @Test func closingOneTabOffersUndoButNotForAStartTabOrAnEmptyOne() {
+            #expect(Browser.offersUndo(isStart: false, url: URL(string: "https://a.example/")))
+            #expect(!Browser.offersUndo(isStart: true, url: nil))
+            #expect(!Browser.offersUndo(isStart: false, url: nil))
+            let b = browser(2)
+            defer { b.windowClosed() }
+            let first = b.tabs[0]
+            first.customTitle = "First"
+            b.closeTab(first.id)
+            #expect(b.notice?.message == "Closed “First”")
+            b.undoNotice()
+            #expect(b.tabs.count == 2 && b.tabs[0].url == URL(string: "https://site1.example/") && b.tabs[0].customTitle == "First")
+            b.notice = nil
+            let start = b.openTab(url: nil, start: true)
+            b.closeTab(start.id)
+            #expect(b.notice == nil && b.tab(start.id) == nil)
+        }
+
         // MARK: Closing several
 
         @Test func closingOthersOrBelowChoosesFromTheTabListOnly() {

@@ -585,6 +585,7 @@
 "Bookmarks you bring over from another browser show up here." = "다른 브라우저에서 가져온 북마크가 여기에 나와요.";
 "Closed %lld tab" = "탭 %lld개를 닫았어요";
 "Closed %lld tabs" = "탭 %lld개를 닫았어요";
+"Closed “%@”" = "“%@” 탭을 닫았어요";
 "Deleted the bookmark" = "북마크를 삭제했어요";
 "Removed from Favorites" = "즐겨찾기에서 뺐어요";
 "Search Bookmarks" = "북마크 검색";

@@ -585,6 +585,7 @@
 "Bookmarks you bring over from another browser show up here." = "Aquí aparecen los marcadores que traigas de otro navegador.";
 "Closed %lld tab" = "Se cerró %lld pestaña";
 "Closed %lld tabs" = "Se cerraron %lld pestañas";
+"Closed “%@”" = "Se cerró “%@”";
 "Deleted the bookmark" = "Marcador eliminado";
 "Removed from Favorites" = "Quitado de favoritos";
 "Search Bookmarks" = "Buscar marcadores";

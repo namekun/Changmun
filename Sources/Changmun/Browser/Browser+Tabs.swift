@@ -105,6 +105,18 @@ extension Browser {
         }
     }
 
+    /// Closes a tab the user closed (its ×, its menu, ⌘W, a middle click) and offers to bring it back.
+    func closeTab(_ id: Int) {
+        guard let tab = tab(id) else { return }
+        let offers = Self.offersUndo(isStart: tab.isStart, url: tab.url), title = tab.displayTitle.isEmpty ? (tab.url?.host() ?? "") : tab.displayTitle
+        close(id)
+        guard offers, let closed = closedTabs.last else { return }
+        offerUndo(String(localized: "Closed “\(title)”")) { [weak self] in self?.reopenClosedTab(id: closed.id) }
+    }
+
+    /// Whether closing a tab offers Undo: not a start tab or one with no page (⌘W on an empty tab), which leave nothing to bring back.
+    nonisolated static func offersUndo(isStart: Bool, url: URL?) -> Bool { !isStart && url != nil }
+
     /// The tab list of the space in the order shown, a folded group's tabs too: what closing several tabs chooses from.
     var listedInOrder: [Tab] {
         listing.flatMap { item -> [Tab] in
