@@ -6,6 +6,26 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.16.0</title>
+      <pubDate>Tue, 10 Nov 2026 20:26:36 +0000</pubDate>
+      <sparkle:version>57</sparkle:version>
+      <sparkle:shortVersionString>0.16.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.16.0</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">A pass over the things only the person who wrote Changmun would know, and the habits you bring from other browsers.
+
+- **Nothing lost without a word:** quitting asks while files still download; pages with unsaved changes ask before you leave; an AI question you don't answer in 90 seconds counts as Don't Allow and says so; Stop keeps the messages that were waiting; ⇧⌘T brings closed tabs back after a restart too (Clear History removes them).
+- **Moving around:** right-click ‹ or › for the page history, ⌘. or Esc to stop loading, ⌘← / ⌘→ to go back and forward when the page doesn't use those keys, ⌘R retries a page that failed, ⌥-click downloads a link, and Develop › View Page Source (⌥⌘U).
+- **Tabs:** ⌘⇧[ ⌘⇧] and ⌘1–9 follow the whole sidebar; middle-click closes a tab; Close Other Tabs and Close Tabs Below; Undo after closing a tab; Move to Space; a "…" menu on every tab row; favorites and bookmarks show and mute their sound.
+- **Said in words:** "Not Secure" on http pages, "Camera on" while a page uses it (click to stop), the AI button says Working or Answered with its panel closed, and sleeping or background tabs say so.
+- **Easier to find:** a Help menu with the guide and every shortcut (⌘/), Settings search that finds every setting, and a first-run screen that shows the search bar, spaces and approvals.
+- **New:** notifications when a download finishes or the AI waits while you're in another app, the download count on the Dock icon, Share and Services, your own search engines with a keyword, and bookmarks exported to or imported from an HTML file.
+
+Tried with 1611 automated tests and the off-screen test copy. Dragging, hover and notification prompts were not tried on a real screen yet.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.16.0/Changmun-0.16.0.dmg" length="6590953" type="application/octet-stream" sparkle:edSignature="LzKzAuicGMMRO3G1z8DLEl9IbWcRIdyS/4BA4O2dqJ/VKexs1sl1Iof6uwq0cLLDSZDfXsUbfUO09XtnwWtKDA==" />
+    </item>
+    <item>
       <title>0.15.5</title>
       <pubDate>Mon, 09 Nov 2026 01:02:22 +0000</pubDate>
       <sparkle:version>56</sparkle:version>
@@ -128,23 +148,9 @@ Tried with automated tests and the headless copy. Coupang's own sign-in page has
 Tried with automated tests and the headless copy. Whether Coupang now shows results hasn't been tried by hand, so tell me if it still refuses.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.3/Changmun-0.14.3.dmg" length="7212032" type="application/octet-stream" sparkle:edSignature="RlCILLtiCUBF5uOliYflbSerdsJOd3b+PLY16vC5bvHpmmzYfUwIbSqzIA/Ux8xIEX74UB9kV9tyXvMoHFJsCg==" />
     </item>
-    <item>
-      <title>0.14.2</title>
-      <pubDate>Tue, 03 Nov 2026 04:41:45 +0000</pubDate>
-      <sparkle:version>47</sparkle:version>
-      <sparkle:shortVersionString>0.14.2</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.14.2</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Fixed:** with the tabs along the top, the tab strip could be scrolled up and down by a few points. It now stays put, and the strip still moves the window above and below the tabs.
-- **Fixed:** with very many favorites and the tabs along the top, the strip could grow wider than the window after a relaunch and the tabs disappeared. The favorites now scroll inside the window.
-
-Tried with automated tests and the headless copy. Scrolling with a real trackpad hasn't been tried by hand, so tell me if the strip still moves.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.2/Changmun-0.14.2.dmg" length="7216344" type="application/octet-stream" sparkle:edSignature="Nyxc7ysHMbaM/WgDKYxfGboMrlEloTrTuqhCF7Wdf5t0dalotY3IX1cGDVGBA6EgeuwFFRrYQNBnaZhL8WkvBA==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: Znx0cmmtgWDm6sGxSsg/izieQfqFLLqaYnDszTp6+JynCr/9Z9y7j2CMS00htm8V5e31PPj8UcMeH/gqTZVJCw==
-length: 15198
+edSignature: /rk2bMwtAPvdOM9R6Ncbeq04I8TcadSKVaqJkk7pNSVBtZZUY5apV3/pQeqC9z5ptPuc+2C8lI+WZtiyf7PZAw==
+length: 16435
 -->
