@@ -315,7 +315,7 @@ final class ChatStore: ObservableObject {
         runToken = nil
         isRunning = false
         step = nil
-        if !items.isEmpty && !Self.panelVisible() { answerWaiting = true }
+        if !items.isEmpty && !runFailed && !Self.panelVisible() { answerWaiting = true }
         persist()
         // Whatever the AI left under way (a question waiting for the user) goes with its process.
         AgentActivity.shared.cancel(caller: Self.caller)

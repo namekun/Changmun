@@ -276,6 +276,10 @@ extension SharedAgentState {
             #expect(chat.answerWaiting)
             chat.reset()
             #expect(!chat.answerWaiting)
+            chat.submit("fails")
+            chat.runFailed = true
+            chat.endRun()
+            #expect(!chat.answerWaiting, "a run that failed answered nothing: the panel's error row says so when it opens")
         }
     }
 }
