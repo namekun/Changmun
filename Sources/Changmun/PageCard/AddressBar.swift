@@ -26,8 +26,33 @@ struct AddressPill: View {
         return String(trimmed)
     }
 
+    /// What the pill calls the page: its site, a file's own name, a plain word for a page made of data; nil when there is no address.
+    static func shownName(for url: URL?) -> String? {
+        switch url?.scheme?.lowercased() {
+        case "file": url.map(\.lastPathComponent)
+        case "data": String(localized: "Data Page")
+        default: url?.host().map(DisplayHost.trimmed)
+        }
+    }
+
+    /// An http page says so in words beside its name (a local file or a data page is not on the network).
+    static func isNotSecure(_ url: URL?) -> Bool { url?.scheme?.lowercased() == "http" }
+
+    /// What "Paste and Go" would open: the pasteboard's text if it makes an address or a search.
+    static func pastedAddress(_ text: String?) -> URL? { text.flatMap(AddressInput.resolve) }
+
+    /// What a drag out of the site's name carries: the page's address, named by its title.
+    private var dragProvider: NSItemProvider {
+        guard let url = tab.url else { return NSItemProvider() }
+        let provider = NSItemProvider(object: url as NSURL)
+        provider.suggestedName = tab.displayTitle
+        return provider
+    }
+
     var body: some View {
         let host = tab.url?.host().map(DisplayHost.trimmed)
+        let name = Self.shownName(for: tab.url)
+        let notSecure = Self.isNotSecure(tab.url)
         // The lock opens the site's settings; the rest of the pill, the site's name included, edits the address.
         let hasSite = tab.url?.scheme?.hasPrefix("http") == true && host?.isEmpty == false
         HStack(spacing: 8) {
@@ -35,12 +60,13 @@ struct AddressPill: View {
                 NoticesButton(tab: tab)
                 Image(systemName: tab.isUnverified ? "exclamationmark.triangle" : tab.url?.scheme == "https" ? "lock" : "globe")
                     .font(.symbolInline)
-                    .foregroundStyle(tab.isUnverified ? Theme.waitingText : Theme.secondary)
+                    .foregroundStyle(tab.isUnverified || notSecure ? Theme.waitingText : Theme.secondary)
                     .frame(width: 22, height: 22)
                     .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(hasSite && (siteHover || showSite) ? Theme.pill : .clear))
                     .contentShape(Rectangle())
                     .onHover { siteHover = $0 }
                     .onTapGesture { if hasSite { showSite = true } else { edit() } }
+                    .onDrag { dragProvider }
                     .accessibleButton(hasSite ? String(localized: "Site Settings") : String(localized: "Edit Address"),
                                       value: Accessibility.connectionValue(scheme: tab.url?.scheme, unverified: tab.isUnverified, choseToGoOn: tab.usesTrustException)) {
                         if hasSite { showSite = true } else { edit() }
@@ -48,14 +74,26 @@ struct AddressPill: View {
                     .popover(isPresented: $showSite, arrowEdge: .bottom) { SiteSettings(tab: tab) }
                     .onChange(of: tab.url?.host()) { _, _ in showSite = false }
                     .help(tab.usesTrustException ? String(localized: "The certificate wasn’t verified: you chose to go on") : hasSite ? String(localized: "Site Settings") : String(localized: "Edit Address (⌘L)"))
-                Text(host ?? String(localized: "Enter Address"))
+                Text(name ?? String(localized: "Enter Address"))
                     .font(.bodyStrong)
                     .lineLimit(1)
                     .foregroundStyle(Theme.primary)
                     .accessibleButton(String(localized: "Address"), value: tab.url?.absoluteString ?? "", hint: String(localized: "Edit the address"), activate: edit)
+                    .onDrag { dragProvider }
+                if notSecure {
+                    // The lock's own label says the same to a screen reader.
+                    Text("Not Secure")
+                        .font(.secondaryStrong)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .foregroundStyle(Theme.waitingText)
+                        .decorative()
+                        .onTapGesture { if hasSite { showSite = true } else { edit() } }
+                }
             }
             .layoutPriority(1)
-            if let title = Self.shownTitle(tab.title, host: host) {
+            CaptureButton(tab: tab)
+            if let title = Self.shownTitle(tab.title, host: name) {
                 Text(verbatim: "·").font(.body).foregroundStyle(Theme.secondary).decorative()
                 Text(verbatim: title)
                     .font(.body)
@@ -85,6 +123,19 @@ struct AddressPill: View {
         .pressArea(press)
         .onTapGesture(perform: edit)
         .help("Edit Address (⌘L)")
+        .contextMenu {
+            Button("Copy Address") {
+                guard let address = tab.url?.absoluteString else { return }
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(address, forType: .string)
+                tab.browser?.flashStatus(String(localized: "Address copied"))
+            }
+            .disabled(tab.url == nil)
+            Button("Paste and Go") {
+                if let url = Self.pastedAddress(NSPasteboard.general.string(forType: .string)) { tab.load(url) }
+            }
+            .disabled(Self.pastedAddress(NSPasteboard.general.string(forType: .string)) == nil)
+        }
     }
 }
 

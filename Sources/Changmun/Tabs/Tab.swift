@@ -111,6 +111,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var errorNavigation: WKNavigation?
     @Published private(set) var isPlayingAudio = false
     @Published private(set) var isMuted = false
+    /// What the page is capturing now (see `CaptureButton`).
+    @Published private(set) var capture = MediaCapture()
+    /// The Chrome Web Store pages (by extension ID) whose install notice was put away.
+    @Published var dismissedStoreNotices: Set<String> = []
     /// The AI is using the tab behind the page in front (held by whatever shows the page, see PageHost): in the window, so WebKit counts
     /// it as visible and lets its media play, which nobody asked for, so it is silent there.
     private(set) var isHeldBehind = false
@@ -335,6 +339,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
             view.observe(\.estimatedProgress) { [weak self] v, _ in Task { @MainActor in self?.progress = v.estimatedProgress } },
             view.observe(\.canGoBack) { [weak self] _, _ in Task { @MainActor in self?.refreshCanGoBack() } },
             view.observe(\.canGoForward) { [weak self] v, _ in Task { @MainActor in self?.canGoForward = v.canGoForward } },
+            view.observe(\.cameraCaptureState) { [weak self] v, _ in Task { @MainActor in self?.capture = MediaCapture(camera: v.cameraCaptureState, microphone: v.microphoneCaptureState) } },
+            view.observe(\.microphoneCaptureState) { [weak self] v, _ in Task { @MainActor in self?.capture = MediaCapture(camera: v.cameraCaptureState, microphone: v.microphoneCaptureState) } },
             // WebKit moves the page into a full screen window and back; the host that shows it makes sure it is back (see PageHost.restore).
             view.observe(\.fullscreenState) { [weak self] v, _ in
                 Task { @MainActor in if v.fullscreenState == .notInFullscreen, let self { self.pageOwner.host?.restore(for: self) } }
