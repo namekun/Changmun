@@ -47,6 +47,7 @@
 "%lld tab" = "%lld 个标签页";
 "%lld tabs" = "%lld 个标签页";
 "1 suggestion" = "1 条建议";
+"A favorite’s or bookmark’s tab stays with it" = "收藏或书签的标签页会留在原处";
 "A private window can't be shown to the AI." = "无法向 AI 展示隐私窗口。";
 "About Changmun" = "关于 Changmun";
 "Action:" = "操作：";
@@ -597,6 +598,8 @@
 "Search Bookmarks" = "搜索书签";
 "Duplicate Tab" = "复制标签页";
 "Move to New Window" = "移到新窗口";
+"Move to Space" = "移到空间";
+"Moved to “%@”" = "已移到“%@”";
 "Open In" = "用其他应用打开";
 "Appearance" = "外观";
 "Tabs" = "标签页";
@@ -773,6 +776,7 @@
 "Recent Chats" = "最近对话";
 "Show All Chats" = "显示全部对话";
 "The model and effort for your next messages (also in Settings › AI)" = "后续消息使用的模型和推理强度（也可在设置 › AI 中更改）";
+"The only space can’t be deleted" = "无法删除唯一的空间";
 "Working for %@" = "已处理 %@";
 "You chose to be asked before every action." = "你已设置为每次操作前都询问。";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "Changmun 无法确认你连接的是 %@。网络上的某个人可能正在冒充该网站，并看到你发送的内容。";

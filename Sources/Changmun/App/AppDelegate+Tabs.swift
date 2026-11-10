@@ -16,3 +16,17 @@ extension AppDelegate {
         browser.closeTabsBelow(id)
     }
 }
+
+extension AppDelegate {
+    /// The space shown, from the Window menu as from a right-click on its icon.
+    @objc func editSpace(_ sender: Any?) {
+        guard let browser = front, !browser.isPrivate else { return }
+        browser.spaceSheet = .edit(browser.spaceID)
+    }
+
+    @objc func deleteSpace(_ sender: Any?) {
+        guard let browser = front, !browser.isPrivate else { return }
+        guard browser.spaces.spaces.count > 1 else { return browser.flashStatus(String(localized: "The only space can’t be deleted")) }
+        SpaceSwitcher.confirmDelete(browser.space, in: browser)
+    }
+}

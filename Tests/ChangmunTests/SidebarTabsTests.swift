@@ -212,6 +212,45 @@ extension SharedAgentState {
             #expect(b.sidebarTabs(favorites: [], pinned: [folder]).first === pinned)
         }
 
+        // MARK: Moving to another space
+
+        @Test func movingToAnotherSpaceKeepsThePageUnlessTheCookieStoresDiffer() {
+            let home = Space.defaultID, work = UUID(), profile = UUID()
+            #expect(Browser.spaceMove(bound: false, from: home, to: work, fromStore: nil, toStore: nil) == .move)
+            #expect(Browser.spaceMove(bound: false, from: home, to: profile, fromStore: nil, toStore: profile) == .reload)
+            #expect(Browser.spaceMove(bound: false, from: profile, to: home, fromStore: profile, toStore: nil) == .reload)
+            #expect(Browser.spaceMove(bound: true, from: home, to: work, fromStore: nil, toStore: nil) == .refuse)
+            #expect(Browser.spaceMove(bound: false, from: home, to: home, fromStore: nil, toStore: nil) == .stay)
+        }
+
+        @Test func aTabMovesToAnotherSpaceAndTheShownOneTakesItsSpaceAlong() throws {
+            let b = browser(3)
+            defer { b.windowClosed() }
+            let t = b.tabs
+            let work = b.spaces.add(name: "Work", symbol: "briefcase", tint: .blue, isProfile: false)
+            let group = try #require(b.group([t[1].id, t[2].id], name: "G"))
+            b.activate(t[1].id)
+            #expect(b.moveTab(t[2].id, toSpace: work.id))
+            #expect(t[2].spaceID == work.id && t[2].groupID == nil && b.spaceID == Space.defaultID, "a tab not shown moves alone, out of its group")
+            #expect(b.moveTab(t[1].id, toSpace: work.id))
+            #expect(b.spaceID == work.id && b.activeID == t[1].id && b.tab(t[1].id) === t[1], "the same tab, page and all")
+            #expect(!b.groups.contains { $0.id == group })
+            let favorite = bookmarkTab(b, "https://fav.example/", in: b.favoritesFolder)
+            #expect(!b.moveTab(favorite.id, toSpace: Space.defaultID) && favorite.spaceID == work.id, "a favorite's tab stays")
+        }
+
+        @Test func aTabMovedIntoAProfileLoadsAfreshThereWithNothingOfItsSession() {
+            let b = browser(2)
+            defer { b.windowClosed() }
+            let profile = b.spaces.add(name: "Bank", symbol: "lock", tint: .green, isProfile: true)
+            let tab = b.tabs[1]
+            tab.customTitle = "Named"
+            #expect(b.moveTab(tab.id, toSpace: profile.id))
+            #expect(b.tab(tab.id) == nil && b.closedTabs.isEmpty, "the old tab goes, and is not one to reopen")
+            let moved = b.tabs.first { $0.spaceID == profile.id }
+            #expect(moved?.url == URL(string: "https://site2.example/") && moved?.customTitle == "Named" && moved?.isAsleep == true)
+        }
+
         // MARK: Closing several
 
         @Test func closingOthersOrBelowChoosesFromTheTabListOnly() {

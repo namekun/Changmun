@@ -90,6 +90,7 @@ struct SpaceSwitcher: View {
                     }
                 }
                 .id(space.id)
+                .dropDestination(for: SidebarDrop.self) { items, _ in SidebarDrag.drop(items.texts, onSpace: space.id, browser: browser) }
                 .contextMenu {
                     Button("Edit Space…") { browser.spaceSheet = .edit(space.id) }
                     if spaces.count > 1 {

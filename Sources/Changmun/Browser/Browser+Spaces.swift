@@ -79,6 +79,51 @@ extension Browser {
         if spaceID == id { spaceID = next }
     }
 
+    /// What moving a tab to another space does. A bookmark's tab belongs to its bookmark's place and stays. Between spaces with
+    /// different cookie stores (a profile and anything else) the page can't take its web view along: it loads afresh in the new space,
+    /// with no back and forward list or page state, so nothing of one profile's session reaches the other.
+    enum SpaceMove: Equatable {
+        case stay, refuse, move, reload
+    }
+
+    nonisolated static func spaceMove(bound: Bool, from: UUID, to: UUID, fromStore: UUID?, toStore: UUID?) -> SpaceMove {
+        if from == to { return .stay }
+        if bound { return .refuse }
+        return fromStore == toStore ? .move : .reload
+    }
+
+    /// Moves a tab to another space, out of its group and its split; the tab shown goes along and its space with it. False when it can't.
+    @discardableResult
+    func moveTab(_ id: Int, toSpace target: UUID) -> Bool {
+        guard !isPrivate, let tab = tab(id), spaces.contains(target) else { return false }
+        let from = tab.spaceID
+        switch Self.spaceMove(bound: tab.bookmarkKey != nil, from: from, to: target, fromStore: spaces.space(from).dataStoreID, toStore: spaces.space(target).dataStoreID) {
+        case .stay: return true
+        case .refuse:
+            flashStatus(String(localized: "A favorite’s or bookmark’s tab stays with it"))
+            return false
+        case .move:
+            let shown = activeID == id
+            for (space, shared) in splits where shared.contains(id) { setSplit(nil, in: space) }
+            if spaceSelection[from] == id { spaceSelection[from] = nil }
+            tab.groupID = nil
+            tab.spaceID = target
+            pruneGroups()
+            objectWillChange.send()
+            if shown { activate(id) }
+        case .reload:
+            let fresh = Tab(id: Self.takeID(), url: tab.url, title: tab.title, browser: self, isStart: tab.isStart)
+            fresh.customTitle = tab.customTitle
+            fresh.spaceID = target
+            insert(fresh, after: nil)
+            if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(fresh) }
+            if activeID == id { activate(fresh.id) }
+            close(id, remember: false)
+        }
+        flashStatus(String(localized: "Moved to “\(spaces.space(target).name)”"))
+        return true
+    }
+
     /// Whether the AI may see the tab: not a private window's, and not a profile's other than the one the window shows,
     /// whose logins are kept apart on purpose.
     func isVisibleToAI(_ tab: Tab) -> Bool {

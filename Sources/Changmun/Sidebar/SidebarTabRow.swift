@@ -104,6 +104,14 @@ struct TabMenu: View {
         Button("Rename Tab…") { browser.renamingTab = tab.id }
         if tab.customTitle != nil { Button("Reset Name") { tab.customTitle = nil } }
         if !tab.isPrivate && tab.bookmarkKey == nil { Button("Move to New Window") { browser.moveToNewWindow(tab.id) } }
+        let otherSpaces = browser.spaces.spaces.filter { $0.id != tab.spaceID }
+        if !browser.isPrivate && tab.bookmarkKey == nil && !otherSpaces.isEmpty {
+            Menu("Move to Space") {
+                ForEach(otherSpaces) { space in
+                    Button(space.name) { withAnimation(Motion.standard) { _ = browser.moveTab(tab.id, toSpace: space.id) } }
+                }
+            }
+        }
         if let url = tab.url, url.scheme?.hasPrefix("http") == true {
             ShareLink(item: url)
             OpenInMenu(url: url)

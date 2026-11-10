@@ -47,6 +47,7 @@
 "%lld tab" = "タブ%lld個";
 "%lld tabs" = "タブ%lld個";
 "1 suggestion" = "候補1件";
+"A favorite’s or bookmark’s tab stays with it" = "お気に入りやブックマークのタブはその場所に残ります";
 "A private window can't be shown to the AI." = "プライベートウインドウはAIに見せられません。";
 "About Changmun" = "Changmunについて";
 "Action:" = "操作:";
@@ -597,6 +598,8 @@
 "Search Bookmarks" = "ブックマークを検索";
 "Duplicate Tab" = "タブを複製";
 "Move to New Window" = "新規ウインドウに移動";
+"Move to Space" = "スペースへ移動";
+"Moved to “%@”" = "「%@」へ移動しました";
 "Open In" = "ほかのアプリで開く";
 "Appearance" = "外観";
 "Tabs" = "タブ";
@@ -773,6 +776,7 @@
 "Recent Chats" = "最近のチャット";
 "Show All Chats" = "すべてのチャットを表示";
 "The model and effort for your next messages (also in Settings › AI)" = "次のメッセージから使うモデルと推論の強さです（設定 › AI でも変更できます）";
+"The only space can’t be deleted" = "唯一のスペースは削除できません";
 "Working for %@" = "%@ 作業中";
 "You chose to be asked before every action." = "すべての操作の前に確認する設定になっています。";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "%@ に接続していることをChangmunは確認できません。ネットワーク上の誰かがこのサイトになりすまし、送信内容を見ている可能性があります。";

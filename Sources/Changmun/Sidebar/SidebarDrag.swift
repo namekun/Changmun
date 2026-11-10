@@ -228,6 +228,13 @@ enum SidebarDrag {
         return true
     }
 
+    /// A tab dropped on a space's icon moves to that space.
+    static func drop(_ items: [String], onSpace space: UUID, browser: Browser) -> Bool {
+        defer { dragging = nil }
+        guard let id = tabID(items), browser.tab(id) != nil else { return false }
+        return withAnimation(Motion.standard) { browser.moveTab(id, toSpace: space) }
+    }
+
     private static func tabID(_ items: [String]) -> Int? {
         guard let item = items.first, item.hasPrefix("changmun-tab:") else { return nil }
         return Int(item.dropFirst("changmun-tab:".count))

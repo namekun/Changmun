@@ -108,6 +108,8 @@ enum AppMenu {
         }
         window.addItem(.separator())
         add(window, "New Space…", #selector(AppDelegate.newSpace(_:)), "n", [.command, .control])
+        add(window, "Edit Space…", #selector(AppDelegate.editSpace(_:)))
+        add(window, "Delete Space…", #selector(AppDelegate.deleteSpace(_:)))
         add(window, "Next Space", #selector(AppDelegate.nextSpace(_:)), right, [.control, .option])
         add(window, "Previous Space", #selector(AppDelegate.previousSpace(_:)), left, [.control, .option])
         for n in 1...9 {

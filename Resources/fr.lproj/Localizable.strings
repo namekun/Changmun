@@ -47,6 +47,7 @@
 "%lld tab" = "%lld onglet";
 "%lld tabs" = "%lld onglets";
 "1 suggestion" = "1 suggestion";
+"A favorite’s or bookmark’s tab stays with it" = "L’onglet d’un favori ou d’un signet reste avec lui";
 "A private window can't be shown to the AI." = "Une fenêtre privée ne peut pas être montrée à l’IA.";
 "About Changmun" = "À propos de Changmun";
 "Action:" = "Action :";
@@ -597,6 +598,8 @@
 "Search Bookmarks" = "Rechercher dans les signets";
 "Duplicate Tab" = "Dupliquer l’onglet";
 "Move to New Window" = "Déplacer vers une nouvelle fenêtre";
+"Move to Space" = "Déplacer vers l’espace";
+"Moved to “%@”" = "Déplacé vers « %@ »";
 "Open In" = "Ouvrir dans";
 "Appearance" = "Apparence";
 "Tabs" = "Onglets";
@@ -773,6 +776,7 @@
 "Recent Chats" = "Conversations récentes";
 "Show All Chats" = "Afficher toutes les conversations";
 "The model and effort for your next messages (also in Settings › AI)" = "Le modèle et l’effort pour vos prochains messages (aussi dans Réglages › IA)";
+"The only space can’t be deleted" = "Le seul espace ne peut pas être supprimé";
 "Working for %@" = "En cours depuis %@";
 "You chose to be asked before every action." = "Vous avez choisi d’être consulté avant chaque action.";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "Changmun ne peut pas confirmer que vous êtes connecté à %@. Quelqu’un sur le réseau pourrait se faire passer pour ce site et voir ce que vous envoyez.";
