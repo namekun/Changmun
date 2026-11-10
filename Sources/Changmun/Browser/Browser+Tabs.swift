@@ -242,7 +242,7 @@ extension Browser {
 
     func sidebarTabs(favorites: [Library.Entry], pinned: [Library.Folder]) -> [Tab] {
         let drawn = favorites.map { Self.bookmarkKey(url: $0.url, folder: favoritesFolder) }
-            + pinned.flatMap { Sidebar.treeRows($0, depth: 0, scope: "pin:", pinned: true, open: space.openFolders, dragging: false) }.compactMap { row in
+            + pinned.flatMap { Sidebar.treeRows($0, depth: 0, scope: "pin:", pinned: true, open: space.openFolders, shownKey: active?.bookmarkKey, dragging: false) }.compactMap { row in
                 if case .bookmark(let entry, let folder, _, _) = row { Self.bookmarkKey(url: entry.url, folder: folder) } else { nil }
             }
         var bound: [String: Int] = [:]

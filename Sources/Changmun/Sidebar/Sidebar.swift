@@ -83,7 +83,8 @@ struct Sidebar: View {
             .middleClickList()
             .onChange(of: browser.activeID) { _, id in
                 guard let id else { return }
-                withAnimation(Motion.pointer) { scroller.scrollTo("tab:\(id)") }
+                // A pinned bookmark's tab is in its bookmark's row.
+                withAnimation(Motion.pointer) { scroller.scrollTo(browser.tab(id)?.bookmarkKey.map { "pin:" + $0 } ?? "tab:\(id)") }
             }
             }
             .modifier(SpaceSlide(spaceID: browser.spaceID, direction: browser.spaceDirection))
@@ -265,15 +266,24 @@ struct Sidebar: View {
     }
 
     private func treeRows(_ folder: Library.Folder, depth: Int, scope: String, pinned: Bool) -> [TreeRow] {
-        Self.treeRows(folder, depth: depth, scope: scope, pinned: pinned, open: browser.space.openFolders, dragging: drag.isDragging)
+        Self.treeRows(folder, depth: depth, scope: scope, pinned: pinned, open: browser.space.openFolders,
+                      shownKey: pinned ? browser.active?.bookmarkKey : nil, dragging: drag.isDragging)
     }
 
     /// A folder, and when it is open the folders and bookmarks inside it, each a step further in. `open` holds the open rows' keys
-    /// (see `Space.openFolders`); `dragging` adds the strip to drop at the end of an open folder.
-    static func treeRows(_ folder: Library.Folder, depth: Int, scope: String, pinned: Bool, open: [String], dragging: Bool) -> [TreeRow] {
+    /// (see `Space.openFolders`); `dragging` adds the strip to drop at the end of an open folder. A folded folder still shows the bookmark
+    /// `shownKey` names when it is inside it, as a folded group keeps the tab shown: the tab on screen always has its row.
+    static func treeRows(_ folder: Library.Folder, depth: Int, scope: String, pinned: Bool, open: [String], shownKey: String? = nil, dragging: Bool) -> [TreeRow] {
         var rows: [TreeRow] = [.folder(folder, depth: depth, scope: scope, pinned: pinned)]
-        guard open.contains(scope + folder.key) else { return rows }
-        for child in folder.children { rows += treeRows(child, depth: depth + 1, scope: scope, pinned: pinned, open: open, dragging: dragging) }
+        guard open.contains(scope + folder.key) else {
+            for (inner, _) in folder.flattened() {
+                if let entry = inner.entries.first(where: { Browser.bookmarkKey(url: $0.url, folder: inner.key) == shownKey }) {
+                    rows.append(.bookmark(entry, folder: inner.key, depth: depth + 1, scope: scope))
+                }
+            }
+            return rows
+        }
+        for child in folder.children { rows += treeRows(child, depth: depth + 1, scope: scope, pinned: pinned, open: open, shownKey: shownKey, dragging: dragging) }
         rows += folder.entries.map { .bookmark($0, folder: folder.key, depth: depth + 1, scope: scope) }
         if dragging, !folder.entries.isEmpty { rows.append(.end(folder: folder.key, depth: depth + 1, scope: scope)) }
         return rows

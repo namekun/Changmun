@@ -184,6 +184,34 @@ extension SharedAgentState {
             #expect(restored.closedTabs.map(\.title) == ["Before"])
         }
 
+        // MARK: Folded folders
+
+        @Test func aFoldedFolderStillShowsTheRowOfTheTabShownAsAFoldedGroupDoes() {
+            let inner = Library.Folder(key: "Work / Old", label: "Old", entries: [entry("https://deep.example/")])
+            let folder = Library.Folder(key: "Work", label: "Work", entries: [entry("https://a.example/"), entry("https://b.example/")], children: [inner])
+            func bookmarks(_ rows: [Sidebar.TreeRow]) -> [String] {
+                rows.compactMap { if case .bookmark(let entry, let folder, _, _) = $0 { folder + " " + entry.url } else { nil } }
+            }
+            let folded = Sidebar.treeRows(folder, depth: 0, scope: "pin:", pinned: true, open: [], shownKey: "Work\nhttps://b.example/", dragging: false)
+            #expect(folded.count == 2 && bookmarks(folded) == ["Work https://b.example/"])
+            let deep = Sidebar.treeRows(folder, depth: 0, scope: "pin:", pinned: true, open: [], shownKey: "Work / Old\nhttps://deep.example/", dragging: false)
+            #expect(bookmarks(deep) == ["Work / Old https://deep.example/"], "from a folder inside it too")
+            #expect(Sidebar.treeRows(folder, depth: 0, scope: "pin:", pinned: true, open: [], shownKey: nil, dragging: false).count == 1, "nothing shown, nothing but the folder")
+            let open = Sidebar.treeRows(folder, depth: 0, scope: "pin:", pinned: true, open: ["pin:Work"], shownKey: "Work\nhttps://b.example/", dragging: false)
+            #expect(bookmarks(open) == ["Work https://a.example/", "Work https://b.example/"], "an open folder shows its own once")
+        }
+
+        @Test func theKeysReachTheShownBookmarkTabOfAFoldedFolder() {
+            let b = browser(1)
+            defer { b.windowClosed() }
+            let pinned = bookmarkTab(b, "https://pin.example/", in: "Work")
+            b.spaces.pinFolder("Work", in: b.spaceID)
+            let folder = Library.Folder(key: "Work", label: "Work", entries: [entry("https://pin.example/")])
+            #expect(!b.sidebarTabs(favorites: [], pinned: [folder]).contains { $0 === pinned }, "folded away while not shown")
+            b.activate(pinned.id)
+            #expect(b.sidebarTabs(favorites: [], pinned: [folder]).first === pinned)
+        }
+
         // MARK: Closing several
 
         @Test func closingOthersOrBelowChoosesFromTheTabListOnly() {
