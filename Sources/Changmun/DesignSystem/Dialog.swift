@@ -1,9 +1,9 @@
 import AppKit
 import SwiftUI
 
-/// The one dialog of the app: a sheet on a window, drawn from the design system, for every question the app asks that is not a
-/// page's own alert (those stay the system's, because they show text a page wrote). It is a real window sheet, so it stays modal
-/// to its window, the system handles the focus, and nothing in a page can draw over it.
+/// The one dialog of the app: a sheet on a window, drawn from the design system, for every question the app asks, a page's own
+/// alert, confirm and prompt included (their text, which a page wrote, stays in the detail box). It is a real window sheet, so it
+/// stays modal to its window, the system handles the focus, and nothing in a page can draw over it.
 @MainActor
 enum Dialog {
     /// What happens when the window already has a sheet up.

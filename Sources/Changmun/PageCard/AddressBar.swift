@@ -36,7 +36,13 @@ struct AddressPill: View {
     }
 
     /// An http page says so in words beside its name (a local file or a data page is not on the network).
-    static func isNotSecure(_ url: URL?) -> Bool { url?.scheme?.lowercased() == "http" }
+    /// A page that came over the network without encryption. This Mac's own servers (a project being built) never leave the machine.
+    static func isNotSecure(_ url: URL?) -> Bool {
+        guard url?.scheme?.lowercased() == "http", let host = url?.host()?.lowercased() else { return false }
+        let parts = host.split(separator: ".", omittingEmptySubsequences: false)
+        let loopbackIPv4 = parts.count == 4 && parts.first == "127" && parts.allSatisfy { UInt8($0) != nil }
+        return !(host == "localhost" || host.hasSuffix(".localhost") || loopbackIPv4 || host == "::1" || host == "[::1]")
+    }
 
     /// What "Paste and Go" would open: the pasteboard's text if it makes an address or a search.
     static func pastedAddress(_ text: String?) -> URL? { text.flatMap(AddressInput.resolve) }
