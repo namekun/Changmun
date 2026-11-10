@@ -60,8 +60,9 @@ extension Browser {
     /// Whether the tab is on screen: the active one, or the other half of the split.
     func isShown(_ tab: Tab) -> Bool { tab.id == activeID || shownSplit?.contains(tab.id) == true }
 
-    struct ClosedTab {
-        let id = UUID()
+    /// Kept in the session too, so ⌘⇧T brings tabs back after a restart.
+    struct ClosedTab: Codable {
+        var id = UUID()
         var url: URL?
         var title: String
         var customTitle: String?

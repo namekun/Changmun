@@ -31,7 +31,12 @@ extension Browser {
         var saved: Date?
         /// The space the window was showing.
         var space: UUID?
+        /// The last tabs closed in it, most recent last, for ⌘⇧T; sessions from before have none.
+        var closed: [ClosedTab]?
     }
+
+    /// How many of a window's closed tabs the session keeps.
+    static let keptClosedTabs = 20
 
     /// The open windows, the one in front last. Older versions saved one window as a bare `SavedSession`.
     struct SavedWindows: Codable {
@@ -66,7 +71,8 @@ extension Browser {
             previous: tabs.firstIndex { $0.id == previousActiveID },
             groups: groups,
             saved: Date(),
-            space: spaceID
+            space: spaceID,
+            closed: isPrivate ? nil : Array(closedTabs.suffix(Self.keptClosedTabs))
         )
     }
 
@@ -104,6 +110,7 @@ extension Browser {
         all.filter { !$0.isPrivate }.map { browser in
             browser.tabs.map { "\($0.id) \($0.spaceID) \($0.groupID?.uuidString ?? "") \($0.bookmarkKey ?? "") \($0.url?.absoluteString ?? "") \($0.customTitle ?? "")" }.joined(separator: "|")
                 + " #\(browser.activeID ?? 0) \(browser.spaceID) " + browser.groups.map { "\($0.id) \($0.isOpen) \($0.name)" }.joined(separator: "|")
+                + " ~" + browser.closedTabs.suffix(keptClosedTabs).map(\.id.uuidString).joined(separator: "|")
         }
     }
 
@@ -137,6 +144,7 @@ extension Browser {
         }
         groups = saved.groups ?? []
         pruneGroups()
+        if !isPrivate { closedTabs = saved.closed ?? [] }
         guard !tabs.isEmpty else { return }
         let shown = tabs[min(saved.active ?? 0, tabs.count - 1)]
         // The space the window was in, with the tab it showed there; a space with none shows its first tab, or is empty.
@@ -166,6 +174,7 @@ extension Browser.SavedSession {
         groups = try? values.decodeIfPresent([Browser.TabGroup].self, forKey: .groups)
         saved = try? values.decodeIfPresent(Date.self, forKey: .saved)
         space = try? values.decodeIfPresent(UUID.self, forKey: .space)
+        closed = ((try? values.decodeIfPresent([Browser.Lossy<Browser.ClosedTab>].self, forKey: .closed)) ?? nil)?.compactMap(\.value)
     }
 }
 

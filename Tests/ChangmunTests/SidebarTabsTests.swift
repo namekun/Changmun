@@ -84,6 +84,48 @@ extension SharedAgentState {
             #expect(!Browser.undoOnPage(sidebarShown: false, focusMode: true), "focus mode shows no notices")
         }
 
+        // MARK: Closed tabs across a restart
+
+        @Test func closedTabsAreKeptWithTheSessionAndComeBackAfterARestart() throws {
+            let spaces = Sandbox().store()
+            let b = Browser(spaces: spaces)
+            defer { b.windowClosed() }
+            for n in 1...3 { b.openTab(url: URL(string: "https://site\(n).example/"), activate: false) }
+            b.tabs[1].customTitle = "Kept"
+            b.close(b.tabs[1].id)
+            let data = try JSONEncoder().encode(Browser.SavedWindows(windows: [b.savedSession]))
+            let restored = Browser(spaces: spaces)
+            defer { restored.windowClosed() }
+            restored.restore(try #require(Browser.SavedWindows.decode(data).first))
+            #expect(restored.closedTabs.map(\.url) == [URL(string: "https://site2.example/")])
+            restored.reopenClosedTab()
+            #expect(restored.tabs.map(\.url?.absoluteString) == (1...3).map { "https://site\($0).example/" } && restored.tabs[1].customTitle == "Kept")
+        }
+
+        @Test func aPrivateWindowKeepsNoClosedTabsAndOnlyTheLastOnesAreKept() {
+            let b = Browser(isPrivate: true)
+            defer { b.windowClosed() }
+            b.closedTabs = [Browser.ClosedTab(url: URL(string: "https://private.example/"), title: "P", index: 0, space: b.spaceID)]
+            #expect(b.savedSession.closed == nil)
+            let normal = browser(1)
+            defer { normal.windowClosed() }
+            normal.closedTabs = (0..<30).map { Browser.ClosedTab(url: URL(string: "https://c\($0).example/"), title: "", index: 0, space: normal.spaceID) }
+            #expect(normal.savedSession.closed?.count == Browser.keptClosedTabs)
+            #expect(normal.savedSession.closed?.last?.url == URL(string: "https://c29.example/"), "the most recent")
+        }
+
+        @Test func aSessionFromBeforeOrWithADamagedClosedTabStillLoads() throws {
+            let old = #"{"windows":[{"tabs":[{"url":"https://a.example/","title":"A"}],"active":0}]}"#
+            let window = try #require(Browser.SavedWindows.decode(Data(old.utf8)).first)
+            #expect(window.tabs.count == 1 && window.closed == nil)
+            let damaged = #"{"windows":[{"tabs":[{"url":"https://a.example/","title":"A"}],"active":0,"closed":[{"title":2},"#
+                + #"{"id":"5BACE000-0000-4000-8000-0000000000AA","url":"https://b.example/","title":"B","index":0,"space":"5BACE000-0000-4000-8000-000000000001","closedAt":0}]}]}"#
+            let read = try #require(Browser.SavedWindows.decode(Data(damaged.utf8)).first)
+            #expect(read.tabs.count == 1 && read.closed?.map(\.title) == ["B"])
+            let wrong = #"{"windows":[{"tabs":[{"url":"https://a.example/","title":"A"}],"closed":"nope"}]}"#
+            #expect(Browser.SavedWindows.decode(Data(wrong.utf8)).first?.tabs.count == 1)
+        }
+
         // MARK: Closing several
 
         @Test func closingOthersOrBelowChoosesFromTheTabListOnly() {
