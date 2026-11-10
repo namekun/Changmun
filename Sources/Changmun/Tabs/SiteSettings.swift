@@ -46,7 +46,10 @@ struct SiteSettings: View {
             row(String(localized: "Zoom")) {
                 HStack(spacing: 4) {
                     HoverAction(symbol: "minus", help: String(localized: "Zoom Out")) { setZoom(zoom - 0.1) }
-                    Button { setZoom(prefs.defaultZoom) } label: {
+                    Button {
+                        tab.webView?.magnification = 1
+                        setZoom(prefs.defaultZoom)
+                    } label: {
                         Text("\(Int((zoom * 100).rounded()))%").font(.rowSelected).monospacedDigit()
                             .frame(width: 48, height: Metrics.action).contentShape(Rectangle())
                     }
