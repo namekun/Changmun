@@ -141,6 +141,8 @@ enum ToolCatalog {
         // A start tab shows the start page (history, closed tabs, the reading list), which the AI never sees: to every tool it is a blank page,
         // and nothing is woken, read or recorded as read.
         if tab.isStart, let answer = startTabAnswer(name, tab, browser) { return answer }
+        // A page's source (View Source) has no address that ties what it says to its site: the AI is not given it.
+        if tab.sourceOf != nil { return .text("Error: this tab shows a page's source, which you can't use. Use list_tabs and pass the tab_id of another tab.", error: true) }
         // Only the tab in front of the user goes without asking, closing a tab too. What was approved is the site it was on when
         // it was asked about, and the tools that act on the page check the page they reach against it.
         // A page whose certificate the user went on with, though it could not be verified, is asked about even in front: the AI reads it as another site's.

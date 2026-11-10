@@ -124,10 +124,10 @@ extension Browser {
         return true
     }
 
-    /// Whether the AI may see the tab: not a private window's, and not a profile's other than the one the window shows,
-    /// whose logins are kept apart on purpose.
+    /// Whether the AI may see the tab: not a private window's, not a page's source (which no address ties to its site), and not a profile's
+    /// other than the one the window shows, whose logins are kept apart on purpose.
     func isVisibleToAI(_ tab: Tab) -> Bool {
-        !isPrivate && (tab.spaceID == spaceID || !spaces.space(tab.spaceID).isProfile)
+        !isPrivate && tab.sourceOf == nil && (tab.spaceID == spaceID || !spaces.space(tab.spaceID).isProfile)
     }
 
     var space: Space { spaces.space(spaceID) }

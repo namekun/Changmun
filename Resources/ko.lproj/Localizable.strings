@@ -871,6 +871,7 @@
 "This site insists on a secure connection, so its certificate can’t be overridden." = "이 사이트는 보안 연결을 반드시 요구하므로 인증서 경고를 무시할 수 없어요.";
 "This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on." = "이 사이트의 인증서는 이번 세션 앞부분에서는 문제가 없었는데 지금은 아니에요. 누군가 연결을 가로채고 있을 수 있어서 계속할 방법이 없어요.";
 "The site named other certificate issuers than yours, so all your certificates are shown." = "사이트가 지정한 인증서 발급 기관이 내 인증서와 달라서 모든 인증서를 보여 드려요.";
+"The source can't be reloaded. View the page's source again." = "소스는 새로고침할 수 없어요. 페이지 소스를 다시 열어 주세요.";
 "This page's certificate wasn't verified: you chose to go on." = "이 페이지의 인증서는 확인되지 않았어요. 계속하기로 직접 선택했어요.";
 "Stay signed in after quitting" = "종료한 뒤에도 로그인 유지";
 "Keeps the sign-in cookies that sites meant to end when the browser closes, for up to 30 days, in a file on this Mac encrypted with a key from your login Keychain, until you turn it off or clear site data." = "사이트가 브라우저를 닫으면 끝나도록 만든 로그인 쿠키를 최대 30일 동안, 로그인 키체인의 키로 암호화해서 이 Mac의 파일에 보관해요. 이 설정을 끄거나 사이트 데이터를 지울 때까지 유지돼요.";

@@ -227,6 +227,20 @@ extension SharedAgentState {
             #expect(PageWebView.filesToOpen(loading: archive, dropped: dropped, droppedAt: now, now: now) == nil, "nothing that doesn't open")
         }
 
+        @Test func aDropIsSpentOnlyByALoadOfADroppedFileAndALoadOfTheTabsOwnEndsIt() throws {
+            let (browser, tab, view) = pageTab()
+            defer { browser.windowClosed() }
+            let web = try #require(view as? PageWebView)
+            let page = URL(fileURLWithPath: "/tmp/drop/page.html"), other = URL(fileURLWithPath: "/tmp/drop/other.html")
+            web.noteDrop([page])
+            #expect(web.takeDrop(leadingTo: other) == nil, "a file that wasn't dropped")
+            #expect(web.takeDrop(leadingTo: page) == [page], "and the claim is still there for the dropped one")
+            #expect(web.takeDrop(leadingTo: page) == nil, "spent")
+            web.noteDrop([page])
+            tab.load(URL(string: "about:blank")!)
+            #expect(web.takeDrop(leadingTo: page) == nil, "a load the tab starts (Open File, the address bar) ends the claim")
+        }
+
         @Test func aPageStillCannotLoadAFileByItself() async {
             let (browser, tab, view) = pageTab()
             defer { browser.windowClosed() }
@@ -242,6 +256,27 @@ extension SharedAgentState {
             #expect(page.contains("&lt;script&gt;alert(1)&lt;/script&gt;&amp;"))
             #expect(!page.contains("<script>") && !page.contains("<b>"))
             #expect(page.contains("ui-monospace"))
+        }
+
+        @Test func aSourceTabIsNotTheAIsAndComesBackAsItsPage() {
+            let (browser, tab, _) = pageTab()
+            defer { browser.windowClosed() }
+            let page = URL(string: "https://a.example/page")!
+            let source = browser.openTab(url: nil, activate: false, after: tab)
+            source.sourceOf = page
+            source.wake().loadHTMLString(Tab.sourcePage("<p>", title: "Source"), baseURL: nil)
+            #expect(!browser.isVisibleToAI(source) && browser.isVisibleToAI(tab), "the AI is never given a source view")
+            let saved = browser.savedSession.tabs.first { $0.url == page.absoluteString }
+            #expect(saved != nil && saved?.state == nil, "the session keeps it as its page, not a blank one")
+            #expect(browser.duplicate(source.id)?.url == page)
+            source.reload()
+            #expect(browser.overlay.statusMessage == String(localized: "The source can't be reloaded. View the page's source again."))
+            browser.close(source.id)
+            #expect(browser.closedTabs.last?.url == page && browser.closedTabs.last?.state == nil)
+            let shown = browser.openTab(url: nil, activate: false)
+            shown.sourceOf = page
+            shown.load(URL(string: "about:blank")!)
+            #expect(shown.sourceOf == nil && shown.keptURL == URL(string: "about:blank"), "a load of its own makes it a page tab again")
         }
 
         // MARK: Quitting with downloads running

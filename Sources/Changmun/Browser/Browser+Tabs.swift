@@ -84,7 +84,7 @@ extension Browser {
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabClosed(closing) }
         // A start tab has nothing to bring back.
         if remember && !closing.isStart {
-            closedTabs.append(ClosedTab(url: closing.url, title: closing.title, customTitle: closing.customTitle, state: closing.sessionState, index: index, bookmarkKey: closing.bookmarkKey,
+            closedTabs.append(ClosedTab(url: closing.keptURL, title: closing.title, customTitle: closing.customTitle, state: closing.keptState, index: index, bookmarkKey: closing.bookmarkKey,
                                         group: groups.first { $0.id == closing.groupID }, space: closing.spaceID))
             if closedTabs.count > 100 { closedTabs.removeFirst() }
         }

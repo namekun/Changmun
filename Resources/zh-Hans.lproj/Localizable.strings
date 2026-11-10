@@ -871,6 +871,7 @@
 "This site insists on a secure connection, so its certificate can’t be overridden." = "该网站强制要求安全连接，因此无法忽略其证书警告。";
 "This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on." = "该网站的证书在本次会话早些时候没有问题，现在却有问题。可能有人正在拦截连接，因此无法继续。";
 "The site named other certificate issuers than yours, so all your certificates are shown." = "该网站指定的证书颁发机构与你的证书都不同，因此显示了你的所有证书。";
+"The source can't be reloaded. View the page's source again." = "源代码无法重新载入。请再次查看网页源代码。";
 "This page's certificate wasn't verified: you chose to go on." = "此页面的证书未经验证：这是你选择继续的。";
 "Stay signed in after quitting" = "退出后保持登录";
 "Keeps the sign-in cookies that sites meant to end when the browser closes, for up to 30 days, in a file on this Mac encrypted with a key from your login Keychain, until you turn it off or clear site data." = "将网站原本在关闭浏览器时就会失效的登录 Cookie，最长 30 天、用登录钥匙串中的密钥加密后保存在这台 Mac 的文件中，直到你关闭此选项或清除网站数据。";

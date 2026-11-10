@@ -62,7 +62,9 @@ extension Tab {
         webView.callAsyncJavaScript("return document.documentElement ? document.documentElement.outerHTML : ''", arguments: [:], in: nil, in: .defaultClient) { [weak self] result in
             Task { @MainActor in
                 guard let self, let browser = self.browser, case .success(let value) = result, let source = value as? String else { return }
-                browser.openTab(url: nil, after: self).wake().loadHTMLString(Self.sourcePage(source, title: title), baseURL: nil)
+                let tab = browser.openTab(url: nil, after: self)
+                tab.sourceOf = self.url
+                tab.wake().loadHTMLString(Self.sourcePage(source, title: title), baseURL: nil)
             }
         }
     }

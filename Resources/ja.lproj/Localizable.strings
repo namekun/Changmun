@@ -871,6 +871,7 @@
 "This site insists on a secure connection, so its certificate can’t be overridden." = "このサイトは安全な接続を必須としているため、証明書の警告を無視することはできません。";
 "This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on." = "このサイトの証明書は、このセッションの先ほどまでは問題ありませんでしたが、今は問題があります。誰かが通信を傍受している可能性があるため、続行できません。";
 "The site named other certificate issuers than yours, so all your certificates are shown." = "サイトが指定した証明書の発行元があなたの証明書と異なるため、すべての証明書を表示しています。";
+"The source can't be reloaded. View the page's source again." = "ソースは再読み込みできません。ページのソースをもう一度表示してください。";
 "This page's certificate wasn't verified: you chose to go on." = "このページの証明書は確認されていません。続行を選択しました。";
 "Stay signed in after quitting" = "終了後もサインインを保持";
 "Keeps the sign-in cookies that sites meant to end when the browser closes, for up to 30 days, in a file on this Mac encrypted with a key from your login Keychain, until you turn it off or clear site data." = "ブラウザを閉じると終了するようサイトが設定したサインイン用Cookieを、最長30日間、ログインキーチェーンの鍵で暗号化してこのMacのファイルに保存します。この設定をオフにするか、サイトデータを消去するまで保持されます。";
