@@ -12,13 +12,19 @@ extension Accessibility {
 
     @MainActor
     static func tabActions(of tab: Tab, in browser: Browser, close: @escaping () -> Void) -> [AccessibleButton.Action] {
-        var actions: [AccessibleButton.Action] = [
+        let actions: [AccessibleButton.Action] = [
             .init(String(localized: "Close Tab"), close),
             .init(String(localized: "Rename"), { browser.renamingTab = tab.id }),
             .init(String(localized: "Reload")) { if tab.isAsleep { browser.activate(tab.id) } else { tab.webView?.reload() } },
         ]
-        if !tab.isAsleep { actions.append(.init(tab.isMuted ? String(localized: "Unmute") : String(localized: "Mute Tab")) { tab.toggleMute() }) }
-        return actions
+        return actions + muteActions(of: tab)
+    }
+
+    /// Mute or Unmute, for a tab that has a page (a favorite's or a bookmark's tab too); nothing for none.
+    @MainActor
+    static func muteActions(of tab: Tab?) -> [AccessibleButton.Action] {
+        guard let tab, !tab.isAsleep else { return [] }
+        return [.init(tab.isMuted ? String(localized: "Unmute") : String(localized: "Mute Tab")) { tab.toggleMute() }]
     }
 }
 

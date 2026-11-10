@@ -55,10 +55,7 @@ struct SidebarTabRow: View {
             }
             Spacer(minLength: 0)
             CertificateWaitBadge(tab: tab)
-            if tab.isPlayingAudio || tab.isMuted {
-                HoverAction(symbol: tab.isMuted ? "speaker.slash.fill" : "speaker.wave.2",
-                            help: tab.isMuted ? String(localized: "Unmute (⌃⌘M)") : String(localized: "Mute (⌃⌘M)")) { tab.toggleMute() }
-            }
+            TabAudioButton(tab: tab, isActive: isActive)
             // One slot, always the same width, so the title doesn't move when the pointer comes and goes.
             ZStack {
                 if hover {
@@ -151,6 +148,21 @@ struct TabMenu: View {
         }
         Divider()
         Button("Close Tab", action: close)
+    }
+}
+
+/// The speaker on a row whose tab plays sound or is muted: a click mutes or unmutes it. The same on a tab's row, a bookmark's and a favorite's.
+/// The key is shown only on the tab shown, which is the one ⌃⌘M mutes.
+struct TabAudioButton: View {
+    @ObservedObject var tab: Tab
+    let isActive: Bool
+
+    var body: some View {
+        if tab.isPlayingAudio || tab.isMuted {
+            HoverAction(symbol: tab.isMuted ? "speaker.slash.fill" : "speaker.wave.2",
+                        help: isActive ? (tab.isMuted ? String(localized: "Unmute (⌃⌘M)") : String(localized: "Mute (⌃⌘M)"))
+                                       : (tab.isMuted ? String(localized: "Unmute") : String(localized: "Mute Tab"))) { tab.toggleMute() }
+        }
     }
 }
 

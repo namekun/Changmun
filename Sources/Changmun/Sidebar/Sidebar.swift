@@ -124,7 +124,7 @@ struct Sidebar: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 40), spacing: 4)], spacing: 4) {
                 ForEach(library.favorites(in: browser.favoritesFolder), id: \.url) { entry in
                     let key = Browser.bookmarkKey(url: entry.url, folder: browser.favoritesFolder)
-                    FavoriteTile(entry: entry, state: BookmarkTabState(key, browser), renaming: browser.renamingBookmark == key,
+                    FavoriteTile(entry: entry, state: BookmarkTabState(key, browser), tab: browser.bookmarkTab(key), renaming: browser.renamingBookmark == key,
                                  finishRenaming: { browser.finishRenamingBookmark(url: entry.url, folder: browser.favoritesFolder, title: entry.title, with: $0) }) {
                         browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
                     } menu: {
@@ -278,7 +278,7 @@ struct Sidebar: View {
             folderRow(folder, depth: depth, scope: scope, pinned: pinned)
         case .bookmark(let entry, let folder, let depth, _):
             let key = Browser.bookmarkKey(url: entry.url, folder: folder)
-            BookmarkRow(entry: entry, state: BookmarkTabState(key, browser), renaming: browser.renamingBookmark == key,
+            BookmarkRow(entry: entry, state: BookmarkTabState(key, browser), tab: browser.bookmarkTab(key), renaming: browser.renamingBookmark == key,
                         startRenaming: { browser.renamingBookmark = key },
                         finishRenaming: { browser.finishRenamingBookmark(url: entry.url, folder: folder, title: entry.title, with: $0) }) {
                 browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
