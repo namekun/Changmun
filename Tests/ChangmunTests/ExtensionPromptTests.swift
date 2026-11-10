@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import WebKit
 @testable import Changmun
 
 /// What an extension's permission question shows is all that Allow grants: every entry whole, broad ones first, and when something cannot be shown the
@@ -18,7 +19,7 @@ struct ExtensionPromptTests {
         let spec = ExtensionPrompt.permissionsSpec(name: "X", hosts: hosts, permissions: ["tabs", "storage"], updating: false)
         #expect(allows(spec))
         for host in hosts { #expect(shownText(spec).contains(host), "\(host) is granted, so it is shown") }
-        #expect(shownText(spec).contains("tabs") && shownText(spec).contains("storage"))
+        #expect(shownText(spec).contains(String(localized: "See the tabs you have open")) && shownText(spec).contains(String(localized: "Keep its own data on this Mac")))
         #expect(spec.message == String(localized: "It can read and change the content of all websites."))
     }
 
@@ -59,5 +60,35 @@ struct ExtensionPromptTests {
     @Test func aNoticeThatSaysNothingIsStillSafe() {
         let spec = ExtensionPrompt.askSpec("t", items: [])
         #expect(spec.detail == nil && allows(spec) && spec.button(for: .return) == 0)
+    }
+
+    @Test func permissionsAreSaidInWordsAndWhatIsNotKnownKeepsItsId() {
+        let spec = ExtensionPrompt.permissionsSpec(name: "X", hosts: ["https://a.example/*"], permissions: ["tabs", "webRequest", "declarativeNetRequest", "somethingNew"], updating: false)
+        let text = shownText(spec)
+        #expect(text.contains(String(localized: "See the tabs you have open")))
+        #expect(text.components(separatedBy: String(localized: "See and change what pages load")).count == 2, "two ids that say the same are said once")
+        #expect(text.contains("somethingNew"), "an id with no words is shown as it is, so nothing granted is left unsaid")
+        #expect(!text.contains("declarativeNetRequest") && !text.contains("webRequest"))
+        #expect(text.contains("https://a.example/*"), "a match pattern is shown whole")
+        #expect(ExtensionPrompt.words(for: "nativeMessaging") == String(localized: "Talk to other apps on this Mac"))
+        #expect(ExtensionPrompt.words(for: "https://*/*") == "https://*/*")
+    }
+
+    @Test func theQuestionWhileItRunsOffersAddAndTheSafeDontAdd() {
+        let spec = ExtensionPrompt.askSpec("t", items: ["https://a.example/*"])
+        #expect(spec.buttons.map(\.title) == [String(localized: "Don’t Add"), String(localized: "Add")])
+        #expect(spec.button(for: .return) == 0 && spec.button(for: .escape) == 0, "Return and Esc both give the safe answer")
+    }
+
+    @available(macOS 15.4, *)
+    @Test func anExtensionWebKitDoesNotSupportSaysSoBeforeTheSystemsText() {
+        let unsupported = NSError(domain: WKWebExtension.errorDomain, code: WKWebExtension.Error.Code.unsupportedManifestVersion.rawValue,
+                                  userInfo: [NSLocalizedDescriptionKey: "Manifest version 1 is not supported."])
+        let text = ExtensionHost.failureText(unsupported)
+        #expect(text == String(localized: "WebKit, which Changmun uses, does not support this extension. Manifest version 1 is not supported."))
+        let other = NSError(domain: NSCocoaErrorDomain, code: 4, userInfo: [NSLocalizedDescriptionKey: "No such file."])
+        #expect(ExtensionHost.failureText(other) == "No such file.", "other failures are the system's own words")
+        let broken = NSError(domain: WKWebExtension.errorDomain, code: WKWebExtension.Error.Code.resourceNotFound.rawValue, userInfo: [NSLocalizedDescriptionKey: "Missing."])
+        #expect(ExtensionHost.failureText(broken) == "Missing.", "a missing file is not WebKit refusing the extension")
     }
 }
