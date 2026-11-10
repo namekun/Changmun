@@ -311,6 +311,18 @@ extension SharedAgentState {
             #expect(b.tabs.count == 3 && archive.entries.isEmpty && b.activeID == shown, "back where they were kept, without switching to them")
         }
 
+        // MARK: Keyboard
+
+        @Test func arrowKeysGoFromRowToRowAndStopAtTheEnds() {
+            let rows = ["fav:a", "pin:Work", "tab:1", "tab:2"]
+            #expect(Sidebar.focusStep(from: "pin:Work", by: 1, in: rows) == "tab:1")
+            #expect(Sidebar.focusStep(from: "pin:Work", by: -1, in: rows) == "fav:a")
+            #expect(Sidebar.focusStep(from: "fav:a", by: -1, in: rows) == "fav:a")
+            #expect(Sidebar.focusStep(from: "tab:2", by: 1, in: rows) == "tab:2")
+            #expect(Sidebar.focusStep(from: nil, by: 1, in: rows) == nil, "the keyboard isn't in the sidebar: the arrows are left alone")
+            #expect(Sidebar.focusStep(from: "gone", by: 1, in: rows) == nil)
+        }
+
         // MARK: Closing several
 
         @Test func closingOthersOrBelowChoosesFromTheTabListOnly() {
