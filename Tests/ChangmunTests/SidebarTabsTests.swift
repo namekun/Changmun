@@ -135,6 +135,46 @@ extension SharedAgentState {
             #expect(Browser.SavedWindows.decode(Data(wrong.utf8)).first?.tabs.count == 1)
         }
 
+        @Test func clearingHistoryScrubsTheClosedTabsFromEveryWindowAndTheSessionFiles() throws {
+            let box = Sandbox()
+            let now = Date(), since = now.addingTimeInterval(3600)
+            let old = Browser.ClosedTab(url: URL(string: "https://old.example/"), title: "Old", index: 0, space: Space.defaultID, closedAt: now.addingTimeInterval(-7200))
+            let recent = Browser.ClosedTab(url: URL(string: "https://recent.example/"), title: "Recent", index: 0, space: Space.defaultID, closedAt: since.addingTimeInterval(60))
+            let b = browser(1)
+            b.focused()
+            defer { b.windowClosed() }
+            b.closedTabs = [old, recent]
+            var window = b.savedSession
+            window.closed = [old, recent]
+            let file = box.file("session.json"), damaged = box.file("damaged.json"), missing = box.file("missing.json")
+            try JSONEncoder().encode(Browser.SavedWindows(windows: [window])).write(to: file)
+            try Data("{\"windows\":[{\"tabs\":".utf8).write(to: damaged)
+            Browser.forgetClosedTabs(since: since, files: [file, damaged, missing], defaults: box.defaults)
+            #expect(b.closedTabs.map(\.title) == ["Old"], "open windows forget them")
+            let read = try #require(Browser.SavedWindows.decode(Data(contentsOf: file)).first)
+            #expect(read.closed?.map(\.title) == ["Old"] && read.tabs.count == 1, "the file is rewritten at once, its tabs kept")
+            #expect(!FileManager.default.fileExists(atPath: damaged.path), "a file that can't be read goes")
+            #expect(!FileManager.default.fileExists(atPath: missing.path))
+        }
+
+        @Test func closedTabsAFileStillHoldsAfterAClearDoNotComeBack() throws {
+            let box = Sandbox()
+            let now = Date()
+            let cleared = Browser.ClosedTab(url: URL(string: "https://cleared.example/"), title: "Cleared", index: 0, space: Space.defaultID, closedAt: now.addingTimeInterval(-60))
+            let before = Browser.ClosedTab(url: URL(string: "https://before.example/"), title: "Before", index: 0, space: Space.defaultID, closedAt: now.addingTimeInterval(-7200))
+            Browser.noteCleared(since: now.addingTimeInterval(-3600), at: now, defaults: box.defaults)
+            #expect(Browser.wasCleared(cleared.closedAt, defaults: box.defaults) && !Browser.wasCleared(before.closedAt, defaults: box.defaults))
+            #expect(!Browser.wasCleared(now.addingTimeInterval(60), defaults: box.defaults), "a tab closed after the clear is kept")
+            let source = browser(1)
+            defer { source.windowClosed() }
+            var window = source.savedSession
+            window.closed = [before, cleared]
+            let restored = Browser(spaces: Sandbox().store())
+            defer { restored.windowClosed() }
+            restored.restore(window, defaults: box.defaults)
+            #expect(restored.closedTabs.map(\.title) == ["Before"])
+        }
+
         // MARK: Closing several
 
         @Test func closingOthersOrBelowChoosesFromTheTabListOnly() {

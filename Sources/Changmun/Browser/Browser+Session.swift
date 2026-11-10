@@ -114,6 +114,52 @@ extension Browser {
         }
     }
 
+    // MARK: Clearing history
+
+    /// Clearing history forgets the tabs closed since `date`: in every window, and in the session files at once, with no window open too.
+    /// `files` stands in for the session file and the copy of the one before in tests.
+    static func forgetClosedTabs(since date: Date, files: [URL]? = nil, defaults: UserDefaults = .standard) {
+        noteCleared(since: date, defaults: defaults)
+        for browser in all { browser.removeClosedTabs(since: date) }
+        if files == nil { saveSession() }
+        sessionQueue.sync {
+            for file in files ?? [sessionFile, previousSessionFile] { scrubClosedTabs(in: file, since: date) }
+        }
+    }
+
+    /// Takes the tabs closed since `date` out of a session file. A file that can't be read, or written back, goes: what was cleared must not
+    /// come back at the next launch.
+    nonisolated static func scrubClosedTabs(in file: URL, since date: Date) {
+        guard let data = try? Data(contentsOf: file) else { return }
+        guard let windows = SavedWindows.decodeIfValid(data) else {
+            try? FileManager.default.removeItem(at: file)
+            return
+        }
+        let kept = windows.map { window in
+            var window = window
+            window.closed = window.closed?.filter { $0.closedAt < date }
+            return window
+        }
+        guard (try? JSONEncoder().encode(SavedWindows(windows: kept)).write(to: file, options: .atomic)) != nil else {
+            try? FileManager.default.removeItem(at: file)
+            return
+        }
+    }
+
+    private static let clearedKey = "closedTabsCleared"
+
+    /// Notes the span of time whose closed tabs were cleared, so a session file that couldn't be scrubbed or removed still doesn't bring them back.
+    static func noteCleared(since date: Date, at now: Date = Date(), defaults: UserDefaults = .standard) {
+        let spans = (defaults.array(forKey: clearedKey) as? [[Double]] ?? []) + [[date.timeIntervalSinceReferenceDate, now.timeIntervalSinceReferenceDate]]
+        defaults.set(Array(spans.suffix(10)), forKey: clearedKey)
+    }
+
+    /// Whether a tab closed at `date` was closed in a span whose history was cleared.
+    static func wasCleared(_ date: Date, defaults: UserDefaults = .standard) -> Bool {
+        let time = date.timeIntervalSinceReferenceDate
+        return (defaults.array(forKey: clearedKey) as? [[Double]] ?? []).contains { $0.count == 2 && time >= $0[0] && time <= $0[1] }
+    }
+
     /// Ordinary windows closed while others stayed open, most recent last; ⌘⇧T brings them back once no tab is left to reopen.
     static var closedWindows: [SavedSession] = []
 
@@ -129,7 +175,7 @@ extension Browser {
     }
 
     /// Restores a saved window asleep, apart from the tab that was shown.
-    func restore(_ saved: SavedSession) {
+    func restore(_ saved: SavedSession, defaults: UserDefaults = .standard) {
         // A tab whose bookmark was deleted since (by a crash before the next save, or another window) is a plain tab.
         let known = saved.tabs.contains { $0.bookmarkKey != nil } ? Self.libraryKeys() : nil
         for item in saved.tabs {
@@ -144,7 +190,7 @@ extension Browser {
         }
         groups = saved.groups ?? []
         pruneGroups()
-        if !isPrivate { closedTabs = saved.closed ?? [] }
+        if !isPrivate { closedTabs = (saved.closed ?? []).filter { !Self.wasCleared($0.closedAt, defaults: defaults) } }
         guard !tabs.isEmpty else { return }
         let shown = tabs[min(saved.active ?? 0, tabs.count - 1)]
         // The space the window was in, with the tab it showed there; a space with none shows its first tab, or is empty.
