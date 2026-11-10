@@ -33,9 +33,12 @@
 "Shows what the page is waiting on you for" = "Muestra lo que la página espera de ti";
 "Update password for %@?" = "¿Actualizar la contraseña de %@?";
 "a frame of an unknown site" = "un marco de un sitio desconocido";
+"A keyword is one word of up to %lld letters, numbers, - or _." = "Una palabra clave es una sola palabra de hasta %lld letras, números, - o _.";
+"A notification when a download finishes, or when the AI is waiting for your answer, while another app is in front. The first one asks the Mac for permission." = "Una notificación cuando termina una descarga o la IA espera tu respuesta mientras otra app está en primer plano. La primera pide permiso al Mac.";
 "%@ is muted" = "%@ está silenciada";
 "%@ is not muted" = "%@ ya no está silenciada";
 "%@ is playing audio" = "%@ está reproduciendo audio";
+"%@ must come after the site's name, not in it." = "%@ debe ir después del nombre del sitio, no dentro de él.";
 "%@. Undo is available in the sidebar." = "%@. Puedes deshacerlo en la barra lateral.";
 "%lld bookmark" = "%lld marcador";
 "%lld bookmarks" = "%lld marcadores";
@@ -219,6 +222,7 @@
 "EasyList (ads)" = "EasyList (anuncios)";
 "EasyPrivacy (tracking)" = "EasyPrivacy (rastreo)";
 "Edit" = "Editar";
+"Edit %@" = "Editar %@";
 "Edit Address" = "Editar dirección";
 "Edit Address (⌘L)" = "Editar dirección (⌘L)";
 "Edit the address" = "Edita la dirección";
@@ -632,6 +636,7 @@
 "↵ queues it for when the AI is done · ⌘↵ steers it now" = "↵ lo pone en cola hasta que la IA termine · ⌘↵ la reorienta ahora";
 "Remove from the queue" = "Quitar de la cola";
 "Send Queued" = "Enviar en cola";
+"Services" = "Servicios";
 "The last run didn't finish, so these wait for you" = "La última ejecución no terminó, así que estos esperan tu orden";
 "Signing in to %@" = "Iniciando sesión en %@";
 "Authentication is required to let the AI sign in to %@" = "Se necesita autenticación para que la IA inicie sesión en %@";
@@ -659,6 +664,8 @@
 "Support for %@ on this Mac is coming." = "Pronto habrá compatibilidad con %@ en este Mac.";
 "Everything else in Changmun works without AI. To turn the AI panel on later, install Claude Code." = "Todo lo demás en Changmun funciona sin IA. Para activar el panel de IA más adelante, instala Claude Code.";
 "Get Claude Code" = "Obtener Claude Code";
+"Give the engine a keyword: one word you type before what you search for." = "Dale una palabra clave al motor: la palabra que escribes antes de lo que buscas.";
+"Give the engine a name." = "Dale un nombre al motor.";
 "Already installed? Enter where it is in Settings › AI." = "Si ya lo tienes instalado, indica dónde está en Ajustes › IA.";
 "The AI panel needs Claude Code, so your question wasn't sent." = "El panel de IA necesita Claude Code, así que tu pregunta no se envió.";
 "Read earlier in this chat: %@" = "Sitios leídos antes en este chat: %@";
@@ -683,6 +690,7 @@
 "Couldn't find Claude Code" = "No se encuentra Claude Code";
 "Couldn't reach Claude" = "No se pudo conectar con Claude";
 "Declined" = "Rechazado";
+"Default" = "Predeterminado";
 "Delete All" = "Eliminar todo";
 "Delete all saved chats? This can't be undone." = "¿Eliminar todos los chats guardados? No se puede deshacer.";
 "Delete this chat" = "Eliminar este chat";
@@ -769,10 +777,13 @@
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "Changmun no puede confirmar que estás conectado a %@. Alguien en la red podría estar haciéndose pasar por este sitio y ver lo que envías.";
 "Don’t enter passwords or payment details here unless you know and trust this site." = "No introduzcas contraseñas ni datos de pago aquí a menos que conozcas y confíes en este sitio.";
 "Expires" = "Caduca";
+"Export Bookmarks…" = "Exportar marcadores…";
+"Exported bookmarks to %@" = "Marcadores exportados a %@";
 "Go Back" = "Volver";
 "Issued by" = "Emitido por";
 "Other names" = "Otros nombres";
 "SHA-256 fingerprint" = "Huella SHA-256";
+"Share…" = "Compartir…";
 "Stop Trusting This Certificate" = "Dejar de confiar en este certificado";
 "The certificate can’t be verified." = "No se puede verificar el certificado.";
 "The certificate expired on %@." = "El certificado caducó el %@.";
@@ -787,6 +798,7 @@
 "Valid from" = "Válido desde";
 "Visit This Website" = "Visitar este sitio web";
 "Certificate not verified" = "Certificado no verificado";
+"Changmun Bookmarks" = "Marcadores de Changmun";
 "Authentication is required to visit %@ although its certificate can’t be verified" = "Se requiere autenticación para visitar %@ aunque su certificado no se puede verificar";
 "This site insists on a secure connection, so its certificate can’t be overridden." = "Este sitio exige una conexión segura, así que no se puede omitir la advertencia de su certificado.";
 "This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on." = "El certificado de este sitio era correcto antes en esta sesión y ahora no. Alguien podría estar interceptando la conexión, así que no hay forma de continuar.";
@@ -818,7 +830,11 @@
 "Copy Link" = "Copiar enlace";
 "Reading List %@" = "Lista de lectura %@";
 "Read" = "Leído";
+"Remove" = "Quitar";
+"Removed the search engine %@" = "Se quitó el motor de búsqueda %@";
 "Unread" = "Sin leer";
+"Use %@ as Default" = "Usar %@ como predeterminado";
+"Use as Default" = "Usar como predeterminado";
 
 /* Start page */
 "A private window always shows its own start page, whatever is set here." = "Una ventana privada siempre muestra su propia página de inicio, sea cual sea el ajuste.";
@@ -831,6 +847,7 @@
 "It isn't anonymous" = "No es anónimo";
 "Leave it empty to open the start page." = "Déjala vacía para abrir la página de inicio.";
 "New Tabs Open" = "Las pestañas nuevas abren";
+"No bookmarks found in that file" = "No se encontraron marcadores en ese archivo";
 "Nothing is kept" = "No se guarda nada";
 "Start Page" = "Página de inicio";
 "That isn’t a valid address" = "No es una dirección válida";
@@ -850,10 +867,14 @@
 "Open %@?" = "¿Abrir %@?";
 "%@ wants to open the app." = "%@ quiere abrir la app.";
 "Account" = "Cuenta";
+"Add Search Engine…" = "Añadir motor de búsqueda…";
+"Another engine already uses that keyword." = "Otro motor ya usa esa palabra clave.";
 "Delete the folder “%@”?" = "¿Eliminar la carpeta “%@”?";
+"Download finished" = "Descarga terminada";
 "If you allow it, this site can turn on the camera." = "Si lo permites, este sitio podrá activar la cámara.";
 "If you allow it, this site can turn on the microphone." = "Si lo permites, este sitio podrá activar el micrófono.";
 "If you allow it, this site can turn on the camera and microphone." = "Si lo permites, este sitio podrá activar la cámara y el micrófono.";
+"Import Bookmarks from File…" = "Importar marcadores desde un archivo…";
 "Its bookmark goes with it. This can't be undone." = "Su marcador se elimina con ella. No se puede deshacer.";
 "Its %lld bookmarks go with it. This can't be undone." = "Sus %lld marcadores se eliminan con ella. No se puede deshacer.";
 "They all go, and this can't be undone." = "Se eliminan todos. No se puede deshacer.";
@@ -866,6 +887,13 @@
 "You're all set" = "Todo listo";
 "You can browse right away" = "Ya puedes navegar";
 "Tabs on the left, the AI on the right. Press ⌘E and try “Summarize this page”." = "Las pestañas a la izquierda y la IA a la derecha. Pulsa ⌘E y prueba “Resume esta página”.";
+"That file is too large to be a bookmark file" = "Ese archivo es demasiado grande para ser un archivo de marcadores";
+"That search address is already set up." = "Esa dirección de búsqueda ya está configurada.";
+"The address can have %@ only once." = "La dirección solo puede tener %@ una vez.";
+"The address must start with https://." = "La dirección debe empezar por https://.";
+"The address needs %@ where your search words go." = "La dirección necesita %@ donde van las palabras de búsqueda.";
+"The address needs a site name after https://." = "La dirección necesita el nombre del sitio después de https://.";
+"The AI is waiting for your answer" = "La IA espera tu respuesta";
 "The AI turns on once you install Claude Code. You don't have to now: press ⌘E any time and Changmun will show you how." = "La IA se activa cuando instalas Claude Code. No hace falta ahora: pulsa ⌘E cuando quieras y Changmun te mostrará cómo.";
 "How to install" = "Cómo instalarlo";
 "Start" = "Empezar";
@@ -882,9 +910,12 @@
 "sign-ins" = "sesiones iniciadas";
 "Will come over: %@" = "Se traerá: %@";
 "Nothing will come over" = "No se traerá nada";
+"Notifications for Changmun are turned off in System Settings, so none are shown." = "Las notificaciones de Changmun están desactivadas en Ajustes del Sistema, así que no se muestra ninguna.";
+"Notify when the app is in the background" = "Notificar cuando la app está en segundo plano";
 "Translation" = "Traducción";
 "Translate pages with" = "Traducir páginas con";
 "On this Mac" = "En este Mac";
+"Open Notification Settings" = "Abrir ajustes de notificaciones";
 "Claude" = "Claude";
 "The text of each page you translate is sent to Anthropic and counts against your Claude subscription, or your API key if one is set. Pages in private windows, in profiles other than the one in front, and with a password or payment field are never sent." = "El texto de cada página que traduces se envía a Anthropic y cuenta para tu suscripción a Claude, o para tu clave de API si hay una configurada. Nunca se envían las páginas de ventanas privadas, de perfiles distintos del que tienes delante ni con un campo de contraseña o de pago.";
 "The text of a page stays on this Mac. It is translated with the models of macOS, which needs macOS 26 or later." = "El texto de una página se queda en este Mac. Se traduce con los modelos de macOS, que requiere macOS 26 o posterior.";
@@ -893,11 +924,15 @@
 "Pages in this window are only translated on this Mac, which needs macOS 26 or later." = "Las páginas de esta ventana solo se traducen en este Mac, que requiere macOS 26 o posterior.";
 "Claude couldn’t translate this page. It was left as it was." = "Claude no pudo traducir esta página. Se dejó como estaba.";
 "Claude couldn’t translate all of this page. The rest was left as it was." = "Claude no pudo traducir toda esta página. El resto se dejó como estaba.";
+"Couldn’t read that file: %@" = "No se pudo leer ese archivo: %@";
+"Couldn’t save the bookmarks: %@" = "No se pudieron guardar los marcadores: %@";
 "Translating with Claude: the page’s text is being sent to Anthropic. Click to stop (⌥⌘T)." = "Traduciendo con Claude: el texto de la página se envía a Anthropic. Haz clic para detener (⌥⌘T).";
 "This page has a password or payment field, so it is translated on this Mac and not sent to Claude." = "Esta página tiene un campo de contraseña o de pago, así que se traduce en este Mac y no se envía a Claude.";
 "This page has a password or payment field, so it isn’t sent to Claude, and this Mac can’t translate it: that needs macOS 26 or later." = "Esta página tiene un campo de contraseña o de pago, así que no se envió a Claude, y este Mac no puede traducirla: requiere macOS 26 o posterior.";
 "Keep translating this site" = "Seguir traduciendo este sitio";
 "Translates this site’s pages as they open, and the text they add later. With Claude, the text of each page is sent to Anthropic automatically, without asking again." = "Traduce las páginas de este sitio al abrirlas, y también el texto que añaden después. Con Claude, el texto de cada página se envía a Anthropic automáticamente, sin volver a preguntar.";
+"Type an engine’s keyword and then what you want to find in the address bar to search with it. Engines you add get no search suggestions." = "Escribe en la barra de direcciones la palabra clave de un motor y luego lo que quieres buscar para usarlo. Los motores que añadas no ofrecen sugerencias de búsqueda.";
 "Sites you turned “Keep translating this site” on for stay here. Their pages are translated as they open. With Claude, the text of each of those pages is sent to Anthropic automatically." = "Aquí quedan los sitios con «Seguir traduciendo este sitio» activado. Sus páginas se traducen al abrirse. Con Claude, el texto de cada una de esas páginas se envía a Anthropic automáticamente.";
 "Kept translating" = "Se sigue traduciendo";
+"Keyword" = "Palabra clave";
 "Automatic translation with Claude is paused on this site for a few minutes." = "La traducción automática con Claude está en pausa en este sitio durante unos minutos.";

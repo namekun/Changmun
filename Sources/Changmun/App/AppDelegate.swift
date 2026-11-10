@@ -34,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ChatStore.removeOldConfigs()
         let downloads = Downloads.folder
         DispatchQueue.global(qos: .utility).async { Downloads.removeOrphanedParts(in: downloads, olderThan: Date().addingTimeInterval(-86_400)) }
+        DockBadge.shared.start()
         // Watching the library from the start, so no change goes unseen before a sidebar first shows.
         _ = LibraryWatcher.shared
         // Profiles deleted last time whose data couldn't be erased yet.
@@ -291,6 +292,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             current?.isPrivate != true
         case #selector(checkForUpdates(_:)): Updates.shared.canCheck
         case #selector(toggleBookmark(_:)): current?.active?.isPrivate != true && current?.active?.isStart != true
+        case #selector(sharePage(_:)): current?.active.map { SharePage.canShare(isStart: $0.isStart, url: $0.url) } ?? false
         // A start tab has no page: nothing to print, find in, zoom, translate, read, mute or float.
         case #selector(printPage(_:)), #selector(showFind(_:)), #selector(findNext(_:)), #selector(findPrevious(_:)), #selector(reload(_:)), #selector(hardReload(_:)),
              #selector(zoomIn(_:)), #selector(zoomOut(_:)), #selector(actualSize(_:)), #selector(translatePage(_:)), #selector(toggleReader(_:)),
