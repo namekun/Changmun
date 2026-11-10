@@ -83,6 +83,12 @@ struct ContextUsage: Equatable {
 
     var percentText: String { fraction.formatted(.percent.precision(.fractionLength(0))) }
 
+    /// From here on the panel says in words that a new chat will work better: the model starts to lose what was said early on, and the
+    /// conversation is soon cut.
+    static let nearlyFullFrom = 0.85
+
+    var nearlyFull: Bool { fraction >= Self.nearlyFullFrom }
+
     var tooltip: String {
         String(localized: "Context used: \(percentText) (\(Self.short(used)) of \(Self.short(window)) tokens)")
     }
@@ -127,7 +133,7 @@ struct ComposerControlsRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Menu {
-                Picker("Approvals", selection: $prefs.aiApprovalMode) {
+                Picker("Approvals", selection: Binding(get: { prefs.aiApprovalMode }, set: choose)) {
                     ForEach(AIApprovalMode.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.inline)
@@ -139,8 +145,10 @@ struct ComposerControlsRow: View {
                 }
             }
             .plainMenu()
-            .help(prefs.aiApprovalMode.title)
-            .accessibilityLabel(Text("Approvals: \(prefs.aiApprovalMode.title)"))
+            .help(Self.approvalsHelp(prefs.aiApprovalMode))
+            .accessibilityLabel(Text("Approvals"))
+            .accessibilityValue(prefs.aiApprovalMode.title)
+            .accessibilityHint(Self.approvalsHelp(prefs.aiApprovalMode))
             Spacer(minLength: 0)
             if !chat.showHistory, let usage = chat.contextUsage, usage.used > 0 {
                 ContextRing(usage: usage)
@@ -172,6 +180,42 @@ struct ComposerControlsRow: View {
             .plainMenu()
             .help("The model and effort for your next messages (also in Settings › AI)")
             .accessibilityLabel(Text("Model: \(AIEffort.label(model: prefs.aiModel, effort: prefs.aiEffort))"))
+        }
+    }
+}
+
+extension ComposerControlsRow {
+    /// What the approvals control is, with the mode it is on: its icon alone doesn't say.
+    static func approvalsHelp(_ mode: AIApprovalMode) -> String {
+        String(localized: "Approvals: how much the AI asks before it acts. Now: \(mode.title)")
+    }
+
+    /// What choosing a mode here says: the weakest one comes with the warning Settings › AI shows for it.
+    static func warning(choosing mode: AIApprovalMode) -> String? {
+        mode == .irreversibleOnly ? String(localized: "Instructions hidden in a web page can then make the AI send other tabs or content it read earlier to the outside.") : nil
+    }
+
+    private func choose(_ mode: AIApprovalMode) {
+        prefs.aiApprovalMode = mode
+        if let warning = Self.warning(choosing: mode) { chat.say(warning) }
+    }
+}
+
+/// Above the box once the conversation is nearly full: says so in words, with the way to a new chat.
+struct ContextFullNote: View {
+    let newChat: () -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("This chat is nearly full, so the AI may lose track of what was said early on. A new chat will work better.")
+                .font(.caption).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            Button(action: newChat) {
+                Text("New Chat").font(.captionStrong).foregroundStyle(Theme.primary)
+                    .padding(.horizontal, 8).frame(height: 22).background(Capsule().fill(Theme.pill))
+            }
+            .buttonStyle(.plain)
+            .help("Start a new chat (⌘⇧E)")
         }
     }
 }

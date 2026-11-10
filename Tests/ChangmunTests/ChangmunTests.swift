@@ -1107,15 +1107,15 @@ extension SharedAgentState {
             #expect(launched().last == "m3")
         }
 
-        @Test func stopAndNewChatEmptyTheQueue() {
-            for ending in [{ (chat: ChatStore) in chat.stop() }, { (chat: ChatStore) in chat.reset() }] {
+        @Test func stopHoldsTheQueueAndNewChatEmptiesIt() {
+            for (ending, keeps) in [({ (chat: ChatStore) in chat.stop() }, true), ({ (chat: ChatStore) in chat.reset() }, false)] {
                 let (chat, launched, _) = standIn()
                 chat.submit("running")
                 chat.submit("waiting")
                 ending(chat)
-                #expect(chat.queue.isEmpty && !chat.isRunning)
+                #expect(chat.queue.map(\.text) == (keeps ? ["waiting"] : []) && chat.queueHeld == keeps && !chat.isRunning)
                 chat.endRun()
-                #expect(launched() == ["running"], "what was waiting is never sent")
+                #expect(launched() == ["running"], "what was waiting is not sent without the user's say-so")
             }
         }
 
@@ -1230,7 +1230,7 @@ extension SharedAgentState {
             #expect(launched() == ["first", "second"] && !chat.queueHeld && chat.isRunning && chat.queue.map(\.text) == ["third"])
             chat.endRun()
             #expect(launched().last == "third", "after a good run the rest follows as usual")
-            // A chip can still be removed, and the control goes with the last one; stopping empties it.
+            // A chip can still be removed, and the control goes with the last one; stopping keeps them held.
             chat.endRun()
             chat.submit("a")
             chat.submit("b")
@@ -1241,6 +1241,8 @@ extension SharedAgentState {
             chat.removeQueued(chat.queue[0].id)
             #expect(chat.queueHeld)
             chat.stop()
+            #expect(chat.queue.map(\.text) == ["c"] && chat.queueHeld)
+            chat.removeQueued(chat.queue[0].id)
             #expect(chat.queue.isEmpty && !chat.queueHeld)
             chat.sendQueued()
             #expect(launched().last == "a", "nothing is left to send")

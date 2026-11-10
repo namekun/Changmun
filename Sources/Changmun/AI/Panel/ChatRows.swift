@@ -12,7 +12,7 @@ struct ChatRowView: View {
     var body: some View {
         switch row {
         case .item(let item):
-            ChatRow(item: item, retry: item.id == retrying ? { chat?.retryLast() } : nil)
+            ChatRow(item: item, retry: item.id == retrying ? { chat?.retryLast() } : nil, edit: chat.map { chat in { chat.prefill = $0 } })
         case .live, .folded:
             ChatStepsRow(row: row)
         case .summary(let summary):
@@ -24,6 +24,8 @@ struct ChatRowView: View {
 struct ChatRow: View {
     let item: ChatItem
     var retry: (() -> Void)?
+    /// Puts a message of the user's back in the box, to be changed and sent again; nil in a saved chat.
+    var edit: ((String) -> Void)?
 
     var body: some View {
         switch item.kind {
@@ -46,6 +48,13 @@ struct ChatRow: View {
                         .padding(.horizontal, 16).padding(.vertical, 8)
                         .background(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Theme.field))
                         .accessibilityLabel(Accessibility.youSaid(item.text))
+                        .contextMenu {
+                            Button("Copy") {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(item.text, forType: .string)
+                            }
+                            if let edit { Button("Edit and Send Again") { edit(item.text) } }
+                        }
                 }
                 .modifier(SentImages(images: item.images))
             }
@@ -93,6 +102,8 @@ struct ChatTranscript<Empty: View>: View {
     @ViewBuilder var empty: () -> Empty
     /// False once the user has scrolled up from the end; a new message of theirs puts it back.
     @State private var following = true
+    /// Something came in below while the user was scrolled up.
+    @State private var unseen = false
 
     var body: some View {
         let allRows = ChatLayout.rows(chat.items, running: chat.isRunning)
@@ -115,12 +126,39 @@ struct ChatTranscript<Empty: View>: View {
             .scrollIndicators(.never)
             .onChange(of: chat.items) {
                 if chat.items.last?.kind == .user { following = true }
-                guard following else { return }
-                withAnimation(Motion.quick) {
-                    if chat.isRunning { proxy.scrollTo("typing", anchor: .bottom) } else if let last = rows.last { proxy.scrollTo(last.id, anchor: .bottom) }
+                guard following else {
+                    unseen = true
+                    return
+                }
+                withAnimation(Motion.quick) { toEnd(proxy, rows) }
+            }
+            .onChange(of: following) { if following { unseen = false } }
+            .overlay(alignment: .bottom) {
+                if unseen && !following {
+                    Button {
+                        following = true
+                        withAnimation(Motion.quick) { toEnd(proxy, rows) }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.down").font(.symbolInline)
+                            Text("New messages").font(.captionStrong)
+                        }
+                        .foregroundStyle(Theme.primary)
+                        .padding(.horizontal, 8).frame(height: 22)
+                        .background(Capsule().fill(Theme.card))
+                        .overlay(Capsule().strokeBorder(Theme.hairline, lineWidth: 0.5))
+                        .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Jump to the latest message")
+                    .padding(.bottom, 8)
                 }
             }
         }
+    }
+
+    private func toEnd(_ proxy: ScrollViewProxy, _ rows: [ChatRowModel]) {
+        if chat.isRunning { proxy.scrollTo("typing", anchor: .bottom) } else if let last = rows.last { proxy.scrollTo(last.id, anchor: .bottom) }
     }
 }
 

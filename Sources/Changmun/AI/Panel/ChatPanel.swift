@@ -47,6 +47,16 @@ struct ChatPanel: View {
                 Text(notice).font(.caption).foregroundStyle(Theme.waitingText)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8).padding(.bottom, 8)
             }
+            if chat.showHistory {
+                if chat.openedHistory == nil {
+                    // The box is dimmed while the history is shown: say why, and how to write again.
+                    Text("Past chats can only be read. Choose Back to Chat in the title menu, or start a new chat, to write.")
+                        .font(.caption).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8).padding(.bottom, 8)
+                }
+            } else if let usage = chat.contextUsage, usage.nearlyFull {
+                ContextFullNote { chat.reset() }.padding(.horizontal, 8).padding(.bottom, 8)
+            }
             // A run under way can always be stopped.
             composer.disabled(!ready && !chat.isRunning).opacity(ready || chat.isRunning ? 1 : 0.4)
         }
@@ -58,7 +68,7 @@ struct ChatPanel: View {
                 TabMentionList(tabs: tabs, selection: mentionSelection, pick: pickMention).padding(.bottom, composerHeight + 4)
             }
         }
-        .onAppear { chat.refreshAvailability(); takePrefill() }
+        .onAppear { chat.refreshAvailability(); takePrefill(); chat.answerWaiting = false }
         .onChange(of: chat.prefill) { takePrefill() }
         .onChange(of: prefs.claudePath) { chat.refreshAvailability() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in chat.refreshAvailability() }
@@ -197,6 +207,20 @@ struct ChatPanel: View {
         self.mention = nil
     }
 
+    enum Escape: Equatable { case stop, close, ignore, pass }
+
+    /// How long after a stop Esc does nothing: an Esc pressed twice (or held) to stop the AI doesn't close the panel too.
+    static let escapeAfterStop: TimeInterval = 1.5
+
+    /// What Esc does in the box: stops a run (as the stop button does), else closes the panel when the box is empty, except right after a
+    /// stop; with text in the box it is the box's.
+    static func escape(running: Bool, draftEmpty: Bool, sinceStop: TimeInterval?) -> Escape {
+        if running { return .stop }
+        guard draftEmpty else { return .pass }
+        if let sinceStop, sinceStop < escapeAfterStop { return .ignore }
+        return .close
+    }
+
     /// The keys the box hands the panel: choosing from the list of tabs, Esc to stop or close, ↑ ↓ for earlier messages.
     private func composerKey(_ key: ComposerKey) -> Bool {
         if let tabs = mentionTabs {
@@ -220,10 +244,13 @@ struct ChatPanel: View {
         }
         switch key {
         case .escape:
-            // The same as the stop button.
-            if chat.isRunning { chat.stop(); return true }
-            if draft.isEmpty { dismiss(); return true }
-            return false
+            switch Self.escape(running: chat.isRunning, draftEmpty: draft.isEmpty, sinceStop: chat.stoppedAt.map { Date().timeIntervalSince($0) }) {
+            case .stop: chat.stop()
+            case .close: dismiss()
+            case .ignore: break
+            case .pass: return false
+            }
+            return true
         case .up:
             guard let text = ComposerHistory.shared.older(current: draft) else { return false }
             draft = text

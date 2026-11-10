@@ -19,6 +19,8 @@ final class ApprovalCards: ObservableObject {
         let answer: (Approvals.Choice) -> Void
         /// The panel closed with the question open: asks it on the window instead.
         let moveToSheet: () -> Void
+        /// When the question is answered no for want of an answer.
+        var deadline: Date? = nil
     }
 
     /// Oldest first: the AI may ask for several things at once, and they are answered in the order they came.
@@ -271,6 +273,19 @@ enum ApprovalKeys {
     }
 }
 
+/// What a card says of its time: that no answer in time is no, and in the last part how long is left. Without motion the count goes in
+/// steps of five seconds.
+enum ApprovalDeadline {
+    static let countdownFrom: TimeInterval = 30
+
+    static func text(remaining: TimeInterval, total: TimeInterval, reduceMotion: Bool) -> String {
+        guard remaining <= countdownFrom else { return Approvals.noAnswerLine(total) }
+        let step = reduceMotion ? 5.0 : 1.0
+        let seconds = Int((max(remaining, 0) / step).rounded(.up) * step)
+        return String(localized: "Not allowed in \(ElapsedText.text(seconds: seconds)) unless you answer.")
+    }
+}
+
 /// Between the conversation and the composer: the first question waiting in this window's panel.
 struct ApprovalCardHost: View {
     @ObservedObject private var cards = ApprovalCards.shared
@@ -300,6 +315,7 @@ struct ApprovalCardView: View {
     @State private var armed = false
     /// While ⌘ is held the keycaps of the buttons ⌘Return and ⌥⌘Return answer show; the one of Return is always there.
     @State private var commandHeld = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -320,6 +336,7 @@ struct ApprovalCardView: View {
             } else {
                 excerpt(label: "", text: card.prompt.detail)
             }
+            if let deadline = card.deadline { timeLeft(deadline) }
             if waiting > 0 {
                 Text("\(waiting) more waiting").font(.caption).foregroundStyle(Theme.secondary)
             }
@@ -342,6 +359,19 @@ struct ApprovalCardView: View {
             let wait = ApprovalKeys.yesDelay - Date().timeIntervalSince(ApprovalCards.shared.visibleSince(card.id))
             if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
             armed = true
+        }
+    }
+
+    /// One line of the same height throughout: the count changes its digits, never the layout.
+    private func timeLeft(_ deadline: Date) -> some View {
+        let total = deadline.timeIntervalSince(card.shownAt)
+        return TimelineView(.periodic(from: card.shownAt, by: reduceMotion ? 5 : 1)) { context in
+            let remaining = deadline.timeIntervalSince(context.date)
+            Text(verbatim: ApprovalDeadline.text(remaining: remaining, total: total, reduceMotion: reduceMotion))
+                .font(.caption).monospacedDigit().foregroundStyle(Theme.secondary).lineLimit(1)
+                .accessibilityLabel(Approvals.noAnswerLine(total))
+                .accessibilityValue(remaining <= ApprovalDeadline.countdownFrom ? ApprovalDeadline.text(remaining: remaining, total: total, reduceMotion: true) : "")
+                .accessibilityAddTraits(.updatesFrequently)
         }
     }
 

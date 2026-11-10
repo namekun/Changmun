@@ -118,26 +118,58 @@ struct BarButton: View {
     }
 }
 
-/// A symbol and a word in ink, with no pill behind them but the pointer's.
+/// A symbol and a word in ink, with no pill behind them but the pointer's. With the panel out of sight it says in words that the AI is
+/// working, or that an answer waits to be read.
 struct AIButton: View {
     let isOn: Bool
     let action: () -> Void
+    @ObservedObject private var chat = ChatStore.shared
+
+    enum Shows: Equatable { case idle, working, answered }
+
+    /// What the button says: with its panel open nothing more than its name (the panel shows the rest); else a run under way, or an
+    /// answer that came while no panel showed it.
+    static func shows(isOn: Bool, running: Bool, answerWaiting: Bool) -> Shows {
+        isOn ? .idle : running ? .working : answerWaiting ? .answered : .idle
+    }
 
     var body: some View {
+        let shows = Self.shows(isOn: isOn, running: chat.isRunning, answerWaiting: chat.answerWaiting)
         Button(action: action) {
             HStack(spacing: 4) {
                 Image(systemName: "sparkles").font(.symbolInline)
-                Text("AI").font(.secondaryStrong)
+                switch shows {
+                case .idle: Text("AI").font(.secondaryStrong)
+                case .working: Text("AI · Working").font(.secondaryStrong)
+                case .answered: Text("AI · Answered").font(.secondaryStrong)
+                }
             }
             .padding(.horizontal, 8)
             .frame(height: Metrics.control)
             .foregroundStyle(Theme.primary)
+            .background { if shows != .idle { Capsule().fill(Theme.pill) } }
             .contentShape(Capsule())
         }
         .buttonStyle(FillStyle(radius: nil))
-        .help("AI Panel (⌘E)")
+        .help(Self.help(shows))
         .accessibilityLabel(String(localized: "AI Panel"))
-        .accessibilityValue(Accessibility.onOffValue(isOn))
+        .accessibilityValue(Self.value(shows, isOn: isOn))
+    }
+
+    static func help(_ shows: Shows) -> String {
+        switch shows {
+        case .idle: String(localized: "AI Panel (⌘E)")
+        case .working: String(localized: "The AI is working. Open the AI panel to follow it (⌘E)")
+        case .answered: String(localized: "The AI has answered. Open the AI panel to read it (⌘E)")
+        }
+    }
+
+    static func value(_ shows: Shows, isOn: Bool) -> String {
+        switch shows {
+        case .idle: Accessibility.onOffValue(isOn)
+        case .working: Accessibility.onOffValue(isOn) + ", " + String(localized: "Working")
+        case .answered: Accessibility.onOffValue(isOn) + ", " + String(localized: "Answer waiting")
+        }
     }
 }
 
