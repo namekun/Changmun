@@ -293,6 +293,7 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         if let name = item(download)?.filename { Announcer.announce(String(localized: "Downloaded \(name)")) }
         if let id = item(download)?.id { resumers[id] = nil }
         if !Headless.isOn { NSSound(named: "Glass")?.play() }
+        if let item = item(download) { Notifier.shared.downloadFinished(item) }
     }
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {

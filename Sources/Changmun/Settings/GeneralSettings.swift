@@ -35,6 +35,7 @@ struct GeneralSettings: View {
                 Picker("Search Engine", selection: $prefs.searchEngine) {
                     ForEach(SearchEngine.allCases) { Text($0.name).tag($0) }
                 }
+                CustomSearchEnginesSettings(prefs: prefs)
                 Toggle("Get search suggestions as you type", isOn: $prefs.searchSuggestions)
                     .help("What you type in the search bar is sent to your search engine to get suggestions. Nothing is sent in private windows.")
                 Picker("On Startup", selection: $prefs.restoreTabs) {

@@ -28,6 +28,7 @@ struct AdvancedSettings: View {
                 }
                 Caption(text: "Changmun fetches a short list of releases from GitHub Pages, which sees the app name and version in the request. Nothing about you or your Mac is sent, and an update is installed only if it is signed by the developer. To check now, choose Changmun › Check for Updates…")
             }
+            NotificationSettings(prefs: prefs)
         }
         .formStyle(.grouped)
     }

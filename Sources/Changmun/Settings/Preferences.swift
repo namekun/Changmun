@@ -57,11 +57,15 @@ final class Preferences: ObservableObject {
     @Published var searchEngine: SearchEngine {
         didSet { defaults.set(searchEngine.template, forKey: "searchURL") }
     }
+    /// Engines the user added, each with a keyword to search it by (see CustomSearchEngine). Which one is the default is the stored "searchURL".
+    @Published var customSearchEngines: [CustomSearchEngine] { didSet { CustomSearchEngine.store(customSearchEngines, in: defaults) } }
     /// Sends what is typed in the command bar to the search engine for suggestions (never from a private window).
     @Published var searchSuggestions: Bool { didSet { defaults.set(searchSuggestions, forKey: "searchSuggestions") } }
     @Published var restoreTabs: Bool { didSet { defaults.set(restoreTabs, forKey: "restoreTabs") } }
     @Published var downloadFolder: URL { didSet { defaults.set(downloadFolder.path, forKey: "downloadFolder") } }
     @Published var askWhereToSave: Bool { didSet { defaults.set(askWhereToSave, forKey: "askWhereToSave") } }
+    /// A system notification when a download finishes or the AI waits for an answer while the app is in the background (see Notifier).
+    @Published var notifyInBackground: Bool { didSet { defaults.set(notifyInBackground, forKey: "notifyInBackground") } }
     /// Closing the last window ends the app (as it always has); off, the app stays open with no window, like Safari.
     @Published var quitWhenLastWindowCloses: Bool { didSet { defaults.set(quitWhenLastWindowCloses, forKey: "quitWhenLastWindowCloses") } }
 
@@ -220,11 +224,13 @@ final class Preferences: ObservableObject {
         let d = UserDefaults.standard
         let template = d.string(forKey: "searchURL")
         searchEngine = SearchEngine.allCases.first { $0.template == template } ?? .google
+        customSearchEngines = CustomSearchEngine.stored(in: d)
         searchSuggestions = d.object(forKey: "searchSuggestions") as? Bool ?? true
         restoreTabs = d.object(forKey: "restoreTabs") as? Bool ?? true
         downloadFolder = d.string(forKey: "downloadFolder").map { URL(fileURLWithPath: $0) }
             ?? FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
         askWhereToSave = d.bool(forKey: "askWhereToSave")
+        notifyInBackground = d.object(forKey: "notifyInBackground") as? Bool ?? true
         quitWhenLastWindowCloses = d.object(forKey: "quitWhenLastWindowCloses") as? Bool ?? true
         appearance = AppAppearance(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
         sidebarWidth = Self.clampedSidebarWidth(d.object(forKey: "sidebarWidth") as? Double ?? Self.defaultSidebarWidth)

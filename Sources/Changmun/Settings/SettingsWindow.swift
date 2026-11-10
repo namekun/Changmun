@@ -65,7 +65,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .ai:
             ["Model", "Effort", "Approvals", "Claude Code", "claude CLI", "Path override (leave empty to detect automatically)", "Keep chat history", "AI Chat"]
         case .advanced:
-            ["Shortcuts", "Check for updates automatically", "Download and install updates automatically"]
+            ["Shortcuts", "Check for updates automatically", "Download and install updates automatically", "Notify when the app is in the background"]
         }
     }
 

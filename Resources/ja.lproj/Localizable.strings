@@ -83,6 +83,9 @@
 "%@ is not muted" = "「%@」のミュートを解除しました";
 "%@ is playing audio" = "「%@」で音声が再生されています";
 "%@ says" = "%@ からのメッセージ";
+"A keyword is one word of up to %lld letters, numbers, - or _." = "キーワードは、文字・数字・「-」・「_」からなる%lld文字以内の1語です。";
+"A notification when a download finishes, or when the AI is waiting for your answer, while another app is in front. The first one asks the Mac for permission." = "ほかのアプリを使っている間に、ダウンロードが終わったときや AI が返答を待っているときに通知します。最初の通知のときに Mac に許可を求めます。";
+"%@ must come after the site's name, not in it." = "%@はサイト名の中ではなく、サイト名の後ろに置いてください。";
 "%@. Undo is available in the sidebar." = "%@。取り消しはサイドバーにあります。";
 "%lld bookmark" = "ブックマーク%lld件";
 "%lld bookmarks" = "ブックマーク%lld件";
@@ -265,6 +268,7 @@
 "EasyList (ads)" = "EasyList (広告)";
 "EasyPrivacy (tracking)" = "EasyPrivacy (トラッキング)";
 "Edit" = "編集";
+"Edit %@" = "%@を編集";
 "Edit Address" = "アドレスを編集";
 "Edit Address (⌘L)" = "アドレスを編集 (⌘L)";
 "Edit the address" = "アドレスを編集します";
@@ -683,6 +687,7 @@
 "↵ queues it for when the AI is done · ⌘↵ steers it now" = "↵ でAIの作業が終わるまで待機 · ⌘↵ で今すぐ方向転換";
 "Remove from the queue" = "待機から外す";
 "Send Queued" = "待機分を送信";
+"Services" = "サービス";
 "The last run didn't finish, so these wait for you" = "前回の実行が最後まで終わらなかったため、送信はあなたの操作を待っています";
 "Signing in to %@" = "%@にサインイン中";
 "Authentication is required to let the AI sign in to %@" = "AIに%@へサインインさせるには認証が必要です";
@@ -710,6 +715,8 @@
 "Support for %@ on this Mac is coming." = "このMacにある%@にも、まもなく対応する予定です。";
 "Everything else in Changmun works without AI. To turn the AI panel on later, install Claude Code." = "AIがなくても、Changmunのそのほかの機能はすべて使えます。AIパネルは、あとからClaude Codeをインストールすれば使えるようになります。";
 "Get Claude Code" = "Claude Codeを入手";
+"Give the engine a keyword: one word you type before what you search for." = "エンジンにキーワードを付けてください。検索する言葉の前に入力する1語です。";
+"Give the engine a name." = "エンジンに名前を付けてください。";
 "Already installed? Enter where it is in Settings › AI." = "すでにインストール済みなら、設定 › AIでパスを指定してください。";
 "The AI panel needs Claude Code, so your question wasn't sent." = "AIパネルにはClaude Codeが必要なため、質問は送信されませんでした。";
 "Read earlier in this chat: %@" = "この会話でこれまでに読み取ったサイト: %@";
@@ -733,6 +740,7 @@
 "Couldn't find Claude Code" = "Claude Codeが見つかりません";
 "Couldn't reach Claude" = "Claudeに接続できませんでした";
 "Declined" = "拒否されました";
+"Default" = "デフォルト";
 "Delete All" = "すべて削除";
 "Delete all saved chats? This can't be undone." = "保存したチャットをすべて削除しますか？この操作は取り消せません。";
 "Delete this chat" = "このチャットを削除";
@@ -817,10 +825,13 @@
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "%@ に接続していることをChangmunは確認できません。ネットワーク上の誰かがこのサイトになりすまし、送信内容を見ている可能性があります。";
 "Don’t enter passwords or payment details here unless you know and trust this site." = "このサイトをよく知っていて信頼できる場合を除き、パスワードや支払い情報は入力しないでください。";
 "Expires" = "有効期限";
+"Export Bookmarks…" = "ブックマークを書き出す…";
+"Exported bookmarks to %@" = "ブックマークを%@に書き出しました";
 "Go Back" = "戻る";
 "Issued by" = "発行元";
 "Other names" = "その他の名前";
 "SHA-256 fingerprint" = "SHA-256フィンガープリント";
+"Share…" = "共有…";
 "Stop Trusting This Certificate" = "この証明書を信頼しない";
 "The certificate can’t be verified." = "証明書を確認できません。";
 "The certificate expired on %@." = "証明書は %@ に期限切れになりました。";
@@ -835,6 +846,7 @@
 "Valid from" = "有効開始日";
 "Visit This Website" = "このWebサイトにアクセス";
 "Certificate not verified" = "証明書は未確認";
+"Changmun Bookmarks" = "Changmun ブックマーク";
 "Authentication is required to visit %@ although its certificate can’t be verified" = "%@ の証明書を確認できませんが、アクセスするには認証が必要です";
 "This site insists on a secure connection, so its certificate can’t be overridden." = "このサイトは安全な接続を必須としているため、証明書の警告を無視することはできません。";
 "This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on." = "このサイトの証明書は、このセッションの先ほどまでは問題ありませんでしたが、今は問題があります。誰かが通信を傍受している可能性があるため、続行できません。";
@@ -865,7 +877,11 @@
 "Copy Link" = "リンクをコピー";
 "Reading List %@" = "リーディングリスト %@";
 "Read" = "既読";
+"Remove" = "削除";
+"Removed the search engine %@" = "検索エンジン%@を削除しました";
 "Unread" = "未読";
+"Use %@ as Default" = "%@をデフォルトにする";
+"Use as Default" = "デフォルトにする";
 
 "%@: none found" = "%@: 見つかりませんでした";
 "Add a favorite" = "お気に入りを追加";
@@ -961,6 +977,7 @@
 "It isn't anonymous" = "匿名ではありません";
 "Leave it empty to open the start page." = "空のままにすると、スタートページが開きます。";
 "New Tabs Open" = "新規タブの開き方";
+"No bookmarks found in that file" = "そのファイルにブックマークはありませんでした";
 "Nothing is kept" = "何も残しません";
 "Start Page" = "スタートページ";
 "That isn’t a valid address" = "有効なアドレスではありません";
@@ -979,10 +996,14 @@
 "Open %@?" = "%@を開きますか？";
 "%@ wants to open the app." = "%@がアプリを開こうとしています。";
 "Account" = "アカウント";
+"Add Search Engine…" = "検索エンジンを追加…";
+"Another engine already uses that keyword." = "そのキーワードはほかのエンジンで使われています。";
 "Delete the folder “%@”?" = "フォルダ「%@」を削除しますか？";
+"Download finished" = "ダウンロードが完了しました";
 "If you allow it, this site can turn on the camera." = "許可すると、このサイトがカメラをオンにできます。";
 "If you allow it, this site can turn on the microphone." = "許可すると、このサイトがマイクをオンにできます。";
 "If you allow it, this site can turn on the camera and microphone." = "許可すると、このサイトがカメラとマイクをオンにできます。";
+"Import Bookmarks from File…" = "ファイルからブックマークを読み込む…";
 "Its bookmark goes with it. This can't be undone." = "中のブックマーク1件も一緒に削除されます。元に戻せません。";
 "Its %lld bookmarks go with it. This can't be undone." = "中のブックマーク%lld件も一緒に削除されます。元に戻せません。";
 "They all go, and this can't be undone." = "すべて削除されます。元に戻せません。";
@@ -994,6 +1015,13 @@
 "You're all set" = "準備ができました";
 "You can browse right away" = "すぐにブラウズできます";
 "Tabs on the left, the AI on the right. Press ⌘E and try “Summarize this page”." = "左にタブ、右にAIがあります。⌘Eを押して「このページを要約して」と入力してみてください。";
+"That file is too large to be a bookmark file" = "ファイルが大きすぎるため、ブックマークファイルではないようです";
+"That search address is already set up." = "その検索アドレスはすでに登録されています。";
+"The address can have %@ only once." = "アドレスに%@を入れられるのは1回だけです。";
+"The address must start with https://." = "アドレスは https:// で始まる必要があります。";
+"The address needs %@ where your search words go." = "アドレスには、検索する言葉が入る場所に%@が必要です。";
+"The address needs a site name after https://." = "アドレスには https:// の後にサイト名が必要です。";
+"The AI is waiting for your answer" = "AI があなたの返答を待っています";
 "The AI turns on once you install Claude Code. You don't have to now: press ⌘E any time and Changmun will show you how." = "AIはClaude Codeをインストールするとオンになります。今でなくても大丈夫です。あとで⌘Eを押すと、いつでも手順をご案内します。";
 "How to install" = "インストール方法";
 "Start" = "はじめる";
@@ -1010,9 +1038,12 @@
 "sign-ins" = "ログイン状態";
 "Will come over: %@" = "読み込む項目：%@";
 "Nothing will come over" = "読み込む項目はありません";
+"Notifications for Changmun are turned off in System Settings, so none are shown." = "システム設定で Changmun の通知がオフになっているため、通知は表示されません。";
+"Notify when the app is in the background" = "アプリがバックグラウンドのときに通知";
 "Translation" = "翻訳";
 "Translate pages with" = "ページの翻訳に使うもの";
 "On this Mac" = "このMac";
+"Open Notification Settings" = "通知設定を開く";
 "Claude" = "Claude";
 "The text of each page you translate is sent to Anthropic and counts against your Claude subscription, or your API key if one is set. Pages in private windows, in profiles other than the one in front, and with a password or payment field are never sent." = "翻訳するページのテキストはAnthropicに送信され、Claudeのサブスクリプション（APIキーを設定している場合はそのキー）の利用枠を消費します。プライベートウインドウのページ、手前にあるプロファイル以外のプロファイルのページ、パスワード欄や支払い欄のあるページは送信されません。";
 "The text of a page stays on this Mac. It is translated with the models of macOS, which needs macOS 26 or later." = "ページのテキストはこのMacの外に出ません。macOSの翻訳モデルで翻訳します（macOS 26以降が必要です）。";
@@ -1021,11 +1052,15 @@
 "Pages in this window are only translated on this Mac, which needs macOS 26 or later." = "このウインドウのページはこのMacでのみ翻訳されます（macOS 26以降が必要です）。";
 "Claude couldn’t translate this page. It was left as it was." = "Claudeでこのページを翻訳できませんでした。ページはそのままです。";
 "Claude couldn’t translate all of this page. The rest was left as it was." = "Claudeでこのページをすべては翻訳できませんでした。残りはそのままです。";
+"Couldn’t read that file: %@" = "そのファイルを読み込めませんでした: %@";
+"Couldn’t save the bookmarks: %@" = "ブックマークを保存できませんでした: %@";
 "Translating with Claude: the page’s text is being sent to Anthropic. Click to stop (⌥⌘T)." = "Claudeで翻訳中: ページのテキストがAnthropicに送信されています。クリックで停止します (⌥⌘T)。";
 "This page has a password or payment field, so it is translated on this Mac and not sent to Claude." = "このページにはパスワード欄または支払い欄があるため、Claudeには送らず、このMacで翻訳します。";
 "This page has a password or payment field, so it isn’t sent to Claude, and this Mac can’t translate it: that needs macOS 26 or later." = "このページにはパスワード欄または支払い欄があるためClaudeには送られず、このMacでも翻訳できません（macOS 26以降が必要です）。";
 "Keep translating this site" = "このサイトを翻訳し続ける";
 "Translates this site’s pages as they open, and the text they add later. With Claude, the text of each page is sent to Anthropic automatically, without asking again." = "このサイトのページを開くたびに、あとから追加されるテキストも含めて翻訳します。Claudeを使う場合、各ページのテキストは確認なしで自動的にAnthropicへ送信されます。";
+"Type an engine’s keyword and then what you want to find in the address bar to search with it. Engines you add get no search suggestions." = "アドレスバーに、エンジンのキーワードに続けて探したい言葉を入力すると、そのエンジンで検索します。追加したエンジンには検索候補は表示されません。";
 "Sites you turned “Keep translating this site” on for stay here. Their pages are translated as they open. With Claude, the text of each of those pages is sent to Anthropic automatically." = "「このサイトを翻訳し続ける」をオンにしたサイトはここに残ります。これらのサイトのページは開くと翻訳されます。Claudeを使う場合、それらのページのテキストは自動的にAnthropicへ送信されます。";
 "Kept translating" = "翻訳を継続";
+"Keyword" = "キーワード";
 "Automatic translation with Claude is paused on this site for a few minutes." = "このサイトでのClaudeによる自動翻訳を数分間停止しました。";

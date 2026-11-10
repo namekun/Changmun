@@ -586,6 +586,7 @@ enum Approvals {
         let inPanel = (standing == nil || standing?.holds == true) && route(caller: caller, irreversible: irreversible, accounts: accounts, panelOpen: panel != nil, signIn: signIn) == .card
         guard standing != nil || inPanel || Browser.recent?.window != nil else { return (.deny, 0) }
         if standing == nil { NSApp?.requestUserAttention(.informationalRequest) }
+        if standing == nil { Notifier.shared.approvalWaiting(in: panel ?? Browser.recent) }
         return await withCheckedContinuation { continuation in
             let once = Once()
             let id = UUID()
