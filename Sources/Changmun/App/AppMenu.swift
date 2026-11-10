@@ -82,7 +82,7 @@ enum AppMenu {
         add(history, "Back", #selector(AppDelegate.goBack(_:)), "[")
         add(history, "Forward", #selector(AppDelegate.goForward(_:)), "]")
         history.addItem(.separator())
-        add(history, "Add/Remove Bookmark", #selector(AppDelegate.toggleBookmark(_:)), "d")
+        add(history, "Add/Remove Favorite", #selector(AppDelegate.toggleBookmark(_:)), "d")
         add(history, "Add to Reading List", #selector(AppDelegate.addToReadingList(_:)), "d", [.command, .shift])
         history.addItem(.separator())
         add(history, "Show All History", #selector(AppDelegate.showHistory(_:)), "y")
@@ -111,7 +111,11 @@ enum AppMenu {
         for n in 1...9 {
             add(window, n == 9 ? "Last Space" : "Space \(n)", #selector(AppDelegate.selectNumberedSpace(_:)), "\(n)", [.control], hidden: true).tag = n
         }
+        let help = submenu(main, "Help")
+        add(help, "Changmun Guide", #selector(AppDelegate.openGuide(_:)))
+        add(help, "Keyboard Shortcuts", #selector(AppDelegate.showShortcuts(_:)), "/")
         NSApp?.windowsMenu = window
+        NSApp?.helpMenu = help
         return main
     }
 
