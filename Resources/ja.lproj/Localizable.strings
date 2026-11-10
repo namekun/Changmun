@@ -142,7 +142,6 @@
 "Answer" = "回答";
 "Approval needed" = "承認が必要です";
 "Approval needed: %@" = "承認が必要です: %@";
-"Archive tabs you haven’t viewed in a while" = "しばらく見ていないタブをアーカイブ";
 "Archived %lld tab to History › Archived Tabs" = "%lld個のタブを履歴 › アーカイブしたタブへ移しました";
 "Archived %lld tabs to History › Archived Tabs" = "%lld個のタブを履歴 › アーカイブしたタブへ移しました";
 "Archived Tabs" = "アーカイブしたタブ";
@@ -196,7 +195,6 @@
 "Clear All" = "すべて消去";
 "Clear all %lld archived tabs?" = "アーカイブしたタブ%lld個をすべて消去しますか？";
 "Clear All…" = "すべて消去…";
-"Clear Chat" = "チャットを消去";
 "Clear Finished" = "完了した項目を消去";
 "Clear History" = "履歴を消去";
 "Cleared: %@" = "消去しました: %@";

@@ -142,7 +142,6 @@
 "Answer" = "Antwort";
 "Approval needed" = "Freigabe erforderlich";
 "Approval needed: %@" = "Freigabe erforderlich: %@";
-"Archive tabs you haven’t viewed in a while" = "Tabs archivieren, die du länger nicht angesehen hast";
 "Archived %lld tab to History › Archived Tabs" = "%lld Tab nach Verlauf › Archivierte Tabs verschoben";
 "Archived %lld tabs to History › Archived Tabs" = "%lld Tabs nach Verlauf › Archivierte Tabs verschoben";
 "Archived Tabs" = "Archivierte Tabs";
@@ -196,7 +195,6 @@
 "Clear All" = "Alle löschen";
 "Clear all %lld archived tabs?" = "Alle %lld archivierten Tabs löschen?";
 "Clear All…" = "Alle löschen …";
-"Clear Chat" = "Chat löschen";
 "Clear Finished" = "Abgeschlossene löschen";
 "Clear History" = "Verlauf löschen";
 "Cleared: %@" = "Gelöscht: %@";

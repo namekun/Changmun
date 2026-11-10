@@ -142,7 +142,6 @@
 "Answer" = "Réponse";
 "Approval needed" = "Approbation requise";
 "Approval needed: %@" = "Approbation requise : %@";
-"Archive tabs you haven’t viewed in a while" = "Archiver les onglets non consultés depuis un moment";
 "Archived %lld tab to History › Archived Tabs" = "%lld onglet archivé dans Historique › Onglets archivés";
 "Archived %lld tabs to History › Archived Tabs" = "%lld onglets archivés dans Historique › Onglets archivés";
 "Archived Tabs" = "Onglets archivés";
@@ -196,7 +195,6 @@
 "Clear All" = "Tout effacer";
 "Clear all %lld archived tabs?" = "Effacer les %lld onglets archivés ?";
 "Clear All…" = "Tout effacer…";
-"Clear Chat" = "Effacer la conversation";
 "Clear Finished" = "Effacer les éléments terminés";
 "Clear History" = "Effacer l’historique";
 "Cleared: %@" = "Effacé : %@";

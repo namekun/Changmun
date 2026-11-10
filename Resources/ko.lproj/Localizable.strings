@@ -142,7 +142,6 @@
 "Answer" = "답변";
 "Approval needed" = "승인이 필요해요";
 "Approval needed: %@" = "승인이 필요해요: %@";
-"Archive tabs you haven’t viewed in a while" = "오래 안 본 탭 보관";
 "Archived %lld tab to History › Archived Tabs" = "탭 %lld개를 방문 기록 › 보관한 탭으로 보냈어요";
 "Archived %lld tabs to History › Archived Tabs" = "탭 %lld개를 방문 기록 › 보관한 탭으로 보냈어요";
 "Archived Tabs" = "보관한 탭";
@@ -196,7 +195,6 @@
 "Clear All" = "모두 지우기";
 "Clear all %lld archived tabs?" = "보관한 탭 %lld개를 모두 지울까요?";
 "Clear All…" = "모두 지우기…";
-"Clear Chat" = "대화 지우기";
 "Clear Finished" = "끝난 항목 지우기";
 "Clear History" = "기록 지우기";
 "Cleared: %@" = "지웠어요: %@";
