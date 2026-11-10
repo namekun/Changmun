@@ -58,6 +58,15 @@ extension SharedAgentState {
             #expect(Browser.step(from: loose[0], by: -1, in: order.map(\.id)) == pinned.id)
         }
 
+        // MARK: What a row says
+
+        @Test func aTabsTooltipIsItsWholeTitleThenItsAddress() {
+            #expect(Accessibility.tabHelp(title: "A long title", address: "https://a.example/", isStart: false) == "A long title\nhttps://a.example/")
+            #expect(Accessibility.tabHelp(title: "https://a.example/", address: "https://a.example/", isStart: false) == "https://a.example/")
+            #expect(Accessibility.tabHelp(title: "Untitled", address: nil, isStart: false) == "Untitled")
+            #expect(Accessibility.tabHelp(title: "", address: nil, isStart: true) == "New Tab")
+        }
+
         // MARK: Undo
 
         @Test func closingOneTabOffersUndoButNotForAStartTabOrAnEmptyOne() {

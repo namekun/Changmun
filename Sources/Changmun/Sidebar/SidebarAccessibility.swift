@@ -28,6 +28,15 @@ extension Accessibility {
     }
 }
 
+extension Accessibility {
+    /// A tab row's tooltip: its whole title (the row cuts it to one line), then its address; a start tab is a new tab.
+    static func tabHelp(title: String, address: String?, isStart: Bool) -> String {
+        if isStart { return String(localized: "New Tab") }
+        // A page with no title of its own shows its address as the title: it is not said twice.
+        return (title == address ? [title] : [title, address ?? ""]).filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+}
+
 extension View {
     /// Makes a tab's row a button for VoiceOver and the keyboard (see `AccessibleButton`).
     @MainActor

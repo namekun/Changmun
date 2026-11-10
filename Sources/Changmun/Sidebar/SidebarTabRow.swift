@@ -79,7 +79,7 @@ struct SidebarTabRow: View {
         // Alongside the click that shows the tab, so showing it does not wait for a second click.
         .simultaneousGesture(TapGesture(count: 2).onEnded { browser.renamingTab = tab.id })
         .contextMenu { TabMenu(tab: tab, browser: browser, isActive: isActive, close: close) }
-        .help(tab.url?.absoluteString ?? "")
+        .help(Accessibility.tabHelp(title: tab.displayTitle, address: tab.url?.absoluteString, isStart: tab.isStart))
         .accessibleTab(tab, in: browser, isActive: isActive, renaming: renaming, close: close) { select() }
         .closesOnMiddleClick("tab:\(tab.id)", close: close)
     }
@@ -212,6 +212,8 @@ struct Favicon: View {
             }
         }
         .frame(width: 16, height: 16)
-        .opacity(tab.isAsleep ? 0.6 : 1)
+        .opacity(tab.isAsleep ? 0.6 : tab.isLoading && tab.favicon != nil ? 0.35 : 1)
+        // Loading again (a reload, the next page): the spinner over the icon it has.
+        .overlay { if tab.isLoading && tab.favicon != nil { ProgressView().controlSize(.mini) } }
     }
 }
