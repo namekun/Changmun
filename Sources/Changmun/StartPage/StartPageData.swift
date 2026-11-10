@@ -17,6 +17,33 @@ enum StartPageArrangement {
         let width = min(column, pageWidth - 2 * pageMargin)
         return min(count, max(1, Int(width / favoritePitch)))
     }
+
+    /// The favorites' tiles, row by row. A row holds what the column fits. When there are more favorites than that, the one row ends in a "+N" tile
+    /// (in the place of the last favorite that would have fit) that shows them all; shown, they run on in more rows and the last tile folds them back.
+    struct FavoriteLayout: Equatable {
+        /// The tiles on each row, by index: a favorite's own, then (when there is one) the tile that expands or folds.
+        var rows: [Range<Int>]
+        /// How many favorites are shown, and how many are not (the number on the "+N" tile).
+        var shown: Int
+        var hidden: Int
+        /// Everything is shown, and there is more than one row's worth: the last tile folds the rows back to one.
+        var folds: Bool
+
+        var tiles: Int { rows.last?.upperBound ?? 0 }
+        var hasActionTile: Bool { hidden > 0 || folds }
+    }
+
+    static func favoriteLayout(count: Int, pageWidth: CGFloat, expanded: Bool) -> FavoriteLayout {
+        let width = min(column, pageWidth - 2 * pageMargin)
+        let fit = max(1, Int(width / favoritePitch))
+        guard count > fit else { return FavoriteLayout(rows: count > 0 ? [0..<count] : [], shown: count, hidden: 0, folds: false) }
+        if expanded {
+            let rows = stride(from: 0, to: count + 1, by: fit).map { $0..<min($0 + fit, count + 1) }
+            return FavoriteLayout(rows: rows, shown: count, hidden: 0, folds: true)
+        }
+        let shown = max(1, fit - 1)
+        return FavoriteLayout(rows: [0..<(shown + 1)], shown: shown, hidden: count - shown, folds: false)
+    }
 }
 
 // MARK: Icons

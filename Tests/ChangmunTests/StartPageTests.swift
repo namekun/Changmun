@@ -30,6 +30,40 @@ struct StartPageArrangementTests {
         #expect(StartPageArrangement.favoritesShown(count: 0, pageWidth: 300) == 0)
     }
 
+    @Test func aRowThatOverflowsEndsInAMoreTileThatShowsTheRest() {
+        let few = StartPageArrangement.favoriteLayout(count: 3, pageWidth: 1440, expanded: false)
+        #expect(few.rows == [0..<3] && few.shown == 3 && few.hidden == 0 && !few.hasActionTile)
+        let exact = StartPageArrangement.favoriteLayout(count: 6, pageWidth: 1440, expanded: false)
+        #expect(exact.hidden == 0 && exact.tiles == 6, "six fit the 620 pt column: nothing to fold")
+        let many = StartPageArrangement.favoriteLayout(count: 14, pageWidth: 1440, expanded: false)
+        #expect(many.shown == 5 && many.hidden == 9 && many.rows == [0..<6] && many.hasActionTile, "five tiles and '+9' fill the six places of the row")
+        let seven = StartPageArrangement.favoriteLayout(count: 7, pageWidth: 1440, expanded: false)
+        #expect(seven.shown == 5 && seven.hidden == 2)
+        let narrow = StartPageArrangement.favoriteLayout(count: 14, pageWidth: 400, expanded: false)
+        #expect(narrow.shown == 2 && narrow.hidden == 12 && narrow.tiles == 3)
+    }
+
+    @Test func expandedTheFavoritesRunOnInMoreRowsAndTheLastTileFoldsThemBack() {
+        let layout = StartPageArrangement.favoriteLayout(count: 14, pageWidth: 1440, expanded: true)
+        #expect(layout.shown == 14 && layout.hidden == 0 && layout.folds && layout.hasActionTile)
+        #expect(layout.rows == [0..<6, 6..<12, 12..<15], "fourteen tiles and the fold tile, six to a row")
+        #expect(layout.tiles == 15)
+        let fits = StartPageArrangement.favoriteLayout(count: 4, pageWidth: 1440, expanded: true)
+        #expect(!fits.folds && fits.rows == [0..<4], "nothing to unfold when everything fits")
+    }
+
+    @Test func everyFavoriteIsEitherShownOrCountedOnTheMoreTile() {
+        for count in 0...30 {
+            for width in stride(from: CGFloat(320), through: 1600, by: 80) {
+                for expanded in [false, true] {
+                    let layout = StartPageArrangement.favoriteLayout(count: count, pageWidth: width, expanded: expanded)
+                    #expect(layout.shown + layout.hidden == count, "\(count) at \(width)")
+                    #expect(layout.tiles == layout.shown + (layout.hasActionTile ? 1 : 0))
+                }
+            }
+        }
+    }
+
     @Test func iconsAreFullSmallOrALetter() {
         #expect(StartIconStyle.style(pixelWidth: 128) == .full)
         #expect(StartIconStyle.style(pixelWidth: 32) == .plate)
