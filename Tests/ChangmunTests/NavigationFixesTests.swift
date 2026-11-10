@@ -8,18 +8,20 @@ import WebKit
 private final class LinkClick: WKNavigationAction {
     var flags: NSEvent.ModifierFlags = []
     var address = "https://link.example/"
+    var byUser = true
     override var navigationType: WKNavigationType { .linkActivated }
     override var request: URLRequest { URLRequest(url: URL(string: address)!) }
     override var targetFrame: WKFrameInfo? { nil }
     override var shouldPerformDownload: Bool { false }
     override var modifierFlags: NSEvent.ModifierFlags { flags }
     override var buttonNumber: Int { 1 }
-    @objc func _isUserInitiated() -> Bool { true }
+    @objc func _isUserInitiated() -> Bool { byUser }
 
-    static func make(_ flags: NSEvent.ModifierFlags, address: String = "https://link.example/") -> LinkClick {
+    static func make(_ flags: NSEvent.ModifierFlags, address: String = "https://link.example/", byUser: Bool = true) -> LinkClick {
         let action = unsafeDowncast(class_createInstance(LinkClick.self, 0) as AnyObject, to: LinkClick.self)
         action.flags = flags
         action.address = address
+        action.byUser = byUser
         return action
     }
 }
@@ -180,14 +182,18 @@ extension SharedAgentState {
         // MARK: ⌥-click
 
         @Test func optionClickOnALinkDownloadsIt() async {
-            #expect(Tab.isDownloadClick(.linkActivated, modifiers: .option, url: URL(string: "https://a.example/f.zip")))
-            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: [.option, .command], url: URL(string: "https://a.example/")), "⌘ opens a tab")
-            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: [], url: URL(string: "https://a.example/")))
-            #expect(!Tab.isDownloadClick(.other, modifiers: .option, url: URL(string: "https://a.example/")))
-            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: .option, url: URL(string: "mailto:a@a.example")))
+            #expect(Tab.isDownloadClick(.linkActivated, modifiers: .option, url: URL(string: "https://a.example/f.zip"), userInitiated: true))
+            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: [.option, .command], url: URL(string: "https://a.example/"), userInitiated: true), "⌘ opens a tab")
+            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: [], url: URL(string: "https://a.example/"), userInitiated: true))
+            #expect(!Tab.isDownloadClick(.other, modifiers: .option, url: URL(string: "https://a.example/"), userInitiated: true))
+            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: .option, url: URL(string: "mailto:a@a.example"), userInitiated: true))
+            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: .option, url: URL(string: "https://a.example/f.zip"), userInitiated: false),
+                    "a click the page's script made downloads nothing, whatever key is held")
             let (browser, tab, view) = pageTab()
             defer { browser.windowClosed() }
             #expect(await tab.webView(view, decidePolicyFor: LinkClick.make(.option), preferences: WKWebpagePreferences()).0 == .download)
+            #expect(await tab.webView(view, decidePolicyFor: LinkClick.make(.option, byUser: false), preferences: WKWebpagePreferences()).0 != .download,
+                    "a link the page clicked by itself is followed, not downloaded")
             #expect(await tab.webView(view, decidePolicyFor: LinkClick.make([]), preferences: WKWebpagePreferences()).0 != .download)
         }
 

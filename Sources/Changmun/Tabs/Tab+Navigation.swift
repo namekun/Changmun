@@ -36,7 +36,9 @@ extension Tab: WKNavigationDelegate {
             // Never handed to a new tab, which would treat it as opened by the user.
             return (.allow, preferences)
         }
-        if Self.isDownloadClick(action.navigationType, modifiers: action.modifierFlags, url: action.request.url) { return (.download, preferences) }
+        if Self.isDownloadClick(action.navigationType, modifiers: action.modifierFlags, url: action.request.url, userInitiated: userInitiated) {
+            return (.download, preferences)
+        }
         if action.navigationType == .linkActivated, action.modifierFlags.contains(.command) || action.buttonNumber == Self.middleButton,
            let url = action.request.url {
             browser?.openTab(url: url, activate: action.modifierFlags.contains(.shift), after: self).openerID = id
@@ -73,9 +75,10 @@ extension Tab: WKNavigationDelegate {
             && action.modifierFlags.contains(.shift) && !action.modifierFlags.contains(.command)
     }
 
-    /// ⌥-click on a link (without ⌘) downloads what it points to, as in Safari.
-    nonisolated static func isDownloadClick(_ type: WKNavigationType, modifiers: NSEvent.ModifierFlags, url: URL?) -> Bool {
-        type == .linkActivated && modifiers.contains(.option) && !modifiers.contains(.command)
+    /// ⌥-click on a link (without ⌘) downloads what it points to, as in Safari. Only the user's own click counts: a page's script can
+    /// click a link too, and ⌥ may be held for something else at that moment.
+    nonisolated static func isDownloadClick(_ type: WKNavigationType, modifiers: NSEvent.ModifierFlags, url: URL?, userInitiated: Bool) -> Bool {
+        userInitiated && type == .linkActivated && modifiers.contains(.option) && !modifiers.contains(.command)
             && ["http", "https"].contains(url?.scheme?.lowercased() ?? "")
     }
 
