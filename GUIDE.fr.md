@@ -29,8 +29,8 @@
 
 ### Se déplacer dans les pages
 
-- **Précédent et suivant.** ⌘[ et ⌘], ou ⌘← et ⌘→ quand vous ne saisissez pas de texte dans un champ. Un clic droit sur ‹ ou › dans la barre d’outils liste les pages de ce côté ; choisissez-en une.
-- **Arrêter et actualiser.** ⌘. (Présentation › Arrêter) ou Échap arrête une page en cours de chargement ; Échap ne marche que si aucun champ de la page n’a le focus. ⌘R sur une page d’erreur retente l’adresse qui a échoué, au lieu de recharger l’erreur.
+- **Précédent et suivant.** ⌘[ et ⌘], ou ⌘← et ⌘→ quand la page n’utilise pas ces touches elle-même (un champ de saisie, un éditeur ou une app de dessin les garde). Un clic droit sur ‹ ou › dans la barre d’outils liste les pages de ce côté ; choisissez-en une.
+- **Arrêter et actualiser.** ⌘. (Présentation › Arrêter) ou Échap arrête une page en cours de chargement ; Échap ne le fait que si la page n’utilise pas Échap elle-même. ⌘R sur une page d’erreur retente l’adresse qui a échoué, au lieu de recharger l’erreur.
 - **Ouvrir un fichier.** Déposez un fichier HTML, PDF ou image sur une page pour l’ouvrir dans un onglet. Une page qui accepte elle-même les dépôts, comme une zone de téléversement, les garde.
 - **Code source.** Développement › Afficher le code source (⌥⌘U) montre le HTML de la page sous forme de texte dans un nouvel onglet.
 - **Les questions d’une page.** Les alertes, confirmations et questions d’une page s’affichent en feuilles sur la fenêtre, avec le site qui demande nommé en haut. À partir de la deuxième sur une page, vous pouvez choisir « Empêcher cette page d’afficher d’autres dialogues ». Une page avec des modifications non enregistrées demande « Quitter cette page ? » avant que vous partiez ; Rester est ce que fait Retour.
@@ -169,9 +169,9 @@ Choisissez le style Safari ou le style Chrome dans les Réglages (⌘,). Seules 
 | ⌘N / ⌘⇧N / ⌘⇧W | Nouvelle fenêtre / nouvelle fenêtre privée / fermer la fenêtre |
 | ⌘W, ⌘1–9, ⌘⇧[ ⌘⇧] | Fermer l’onglet, aller à un onglet dans l’ordre de la barre latérale (favoris, signets épinglés, puis liste des onglets) |
 | ↑ / ↓, ⌘⌫ | Passer d’une ligne de la barre latérale à l’autre quand le clavier y est ; fermer l’onglet de la ligne |
-| ⌘[ ⌘] / ⌘← ⌘→ | Précédent / suivant (⌘← et ⌘→ seulement quand vous ne saisissez pas de texte dans un champ) |
+| ⌘[ ⌘] / ⌘← ⌘→ | Précédent / suivant (⌘← et ⌘→ seulement quand la page ne les utilise pas) |
 | ⌘R | Actualiser (sur une page d’erreur, retente l’adresse) |
-| ⌘. / Échap | Arrêter le chargement (Échap seulement quand aucun champ de la page n’a le focus) |
+| ⌘. / Échap | Arrêter le chargement (Échap seulement quand la page ne l’utilise pas) |
 | ⌘+ / ⌘− / ⌘0 | Zoom avant / arrière / taille par défaut (⌘0 annule aussi un pincement) |
 | ⌃Tab / ⌃⇧Tab | Changer d’onglet dans l’ordre où vous les avez vus en dernier (maintenez ⌃, appuyez sur Tab, relâchez ; esc annule) |
 | ⌃1–9 | Aller à un espace (9 est le dernier) ; cède la place à « Passer au bureau N » de macOS s’il est activé |

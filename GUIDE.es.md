@@ -29,8 +29,8 @@
 
 ### Moverse por las páginas
 
-- **Atrás y adelante.** ⌘[ y ⌘], o ⌘← y ⌘→ cuando no estás escribiendo en un campo. Haz clic derecho en ‹ o › en la barra de herramientas para ver la lista de páginas en esa dirección y elige una.
-- **Detener y recargar.** ⌘. (Visualización › Detener) o Esc detienen una página que se está cargando; Esc solo funciona cuando ningún campo de la página tiene el foco. ⌘R en una página de error vuelve a intentar la dirección que falló, en lugar de recargar el error.
+- **Atrás y adelante.** ⌘[ y ⌘], o ⌘← y ⌘→ cuando la página no usa esas teclas (un campo de texto, un editor o una app de dibujo se las quedan). Haz clic derecho en ‹ o › en la barra de herramientas para ver la lista de páginas en esa dirección y elige una.
+- **Detener y recargar.** ⌘. (Visualización › Detener) o Esc detienen una página que se está cargando; Esc solo lo hace cuando la página no usa Esc. ⌘R en una página de error vuelve a intentar la dirección que falló, en lugar de recargar el error.
 - **Abrir un archivo.** Suelta un archivo HTML, PDF o de imagen sobre una página para abrirlo en una pestaña. Una página que acepta soltar archivos por sí misma, como una zona de subida, se los queda.
 - **Código fuente de la página.** Desarrollo › Ver código fuente (⌥⌘U) muestra el HTML de la página como texto en una pestaña nueva.
 - **Las preguntas de una página.** Las alertas, confirmaciones y preguntas de una página aparecen como hojas sobre la ventana, con el sitio que pregunta indicado arriba. Desde la segunda en una página, puedes elegir «No dejar que esta página muestre más diálogos». Una página con cambios sin guardar pregunta «¿Salir de esta página?» antes de que te vayas; Quedarse es lo que hace Return.
@@ -169,9 +169,9 @@ Elige estilo Safari o estilo Chrome en Ajustes (⌘,). Solo cambian las teclas e
 | ⌘N / ⌘⇧N / ⌘⇧W | Nueva ventana / nueva ventana privada / cerrar ventana |
 | ⌘W, ⌘1–9, ⌘⇧[ ⌘⇧] | Cerrar pestaña, ir a una pestaña según el orden de la barra lateral (favoritos, marcadores fijados y luego la lista de pestañas) |
 | ↑ / ↓, ⌘⌫ | Pasar de una fila a otra de la barra lateral cuando el teclado está allí; cerrar la pestaña de la fila |
-| ⌘[ ⌘] / ⌘← ⌘→ | Atrás / adelante (⌘← y ⌘→ solo cuando no estás escribiendo en un campo) |
+| ⌘[ ⌘] / ⌘← ⌘→ | Atrás / adelante (⌘← y ⌘→ solo cuando la página no las usa) |
 | ⌘R | Recargar (en una página de error, vuelve a intentar la dirección) |
-| ⌘. / Esc | Detener la carga (Esc solo cuando ningún campo de la página tiene el foco) |
+| ⌘. / Esc | Detener la carga (Esc solo cuando la página no la usa) |
 | ⌘+ / ⌘− / ⌘0 | Acercar / alejar / tamaño predeterminado (⌘0 deshace también un pellizco) |
 | ⌃Tab / ⌃⇧Tab | Cambiar de pestaña en el orden en que las viste por última vez (mantén ⌃, pulsa Tab, suelta; esc cancela) |
 | ⌃1–9 | Ir a un espacio (9 es el último); cede ante «Cambiar al escritorio N» de macOS si lo tienes activado |

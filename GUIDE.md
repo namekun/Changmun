@@ -29,8 +29,8 @@
 
 ### Moving around pages
 
-- **Back and forward.** ⌘[ and ⌘], or ⌘← and ⌘→ when you aren't typing in a field. Right-click ‹ or › in the toolbar for the list of pages that way, and pick one.
-- **Stop and reload.** ⌘. (View › Stop) or Esc stops a page that is loading; Esc works only when no field in the page has focus. ⌘R on an error page tries the address that failed again, instead of reloading the error.
+- **Back and forward.** ⌘[ and ⌘], or ⌘← and ⌘→ when the page doesn't use those keys itself (a field you type in, an editor or a drawing app keeps them). Right-click ‹ or › in the toolbar for the list of pages that way, and pick one.
+- **Stop and reload.** ⌘. (View › Stop) or Esc stops a page that is loading; Esc does this only when the page doesn't use Esc itself. ⌘R on an error page tries the address that failed again, instead of reloading the error.
 - **Open a file.** Drop an HTML, PDF or image file on a page to open it in a tab. A page that takes drops itself, like an upload area, keeps them.
 - **Page source.** Develop › View Page Source (⌥⌘U) shows the page's HTML as text in a new tab.
 - **A page's questions.** A page's alerts, confirmations and questions appear as sheets on the window, with the site that asks named at the top. From the second one on a page, you can choose "Don't let this page show more dialogs". A page with changes you haven't saved asks "Leave this page?" before you go; Stay is what Return does.
@@ -188,9 +188,9 @@ Pick Safari-style or Chrome-style in Settings (⌘,). Only the keys the two brow
 | ⌘N / ⌘⇧N / ⌘⇧W | New window / new private window / close window |
 | ⌘W, ⌘1–9, ⌘⇧[ ⌘⇧] | Close tab, go to a tab in sidebar order (favorites, pinned bookmarks, then the tab list) |
 | ↑ / ↓, ⌘⌫ | Move between sidebar rows once the keyboard is there; close the tab on the row |
-| ⌘[ ⌘] / ⌘← ⌘→ | Back / forward (⌘← and ⌘→ only when you aren't typing in a field) |
+| ⌘[ ⌘] / ⌘← ⌘→ | Back / forward (⌘← and ⌘→ only when the page doesn't use them) |
 | ⌘R | Reload (on an error page, tries the address again) |
-| ⌘. / Esc | Stop loading (Esc only when no field in the page has focus) |
+| ⌘. / Esc | Stop loading (Esc only when the page doesn't use it) |
 | ⌘+ / ⌘− / ⌘0 | Zoom in / out / default size (⌘0 also undoes a pinch) |
 | ⌃Tab / ⌃⇧Tab | Switch tabs in the order you last saw them (hold ⌃, press Tab, let go; esc cancels) |
 | ⌃1–9 | Go to a space (9 is the last); gives way to macOS's "Switch to Desktop N" if you've turned that on |

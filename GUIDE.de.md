@@ -29,8 +29,8 @@
 
 ### Seiten durchstreifen
 
-- **Zurück und Vor.** ⌘[ und ⌘], oder ⌘← und ⌘→, wenn du nicht in einem Feld tippst. Per Rechtsklick auf ‹ oder › in der Werkzeugleiste erscheint die Liste der Seiten in dieser Richtung; wähle eine aus.
-- **Stopp und Neu laden.** ⌘. (Darstellung › Stopp) oder Esc hält eine ladende Seite an; Esc wirkt nur, wenn kein Feld in der Seite den Fokus hat. ⌘R auf einer Fehlerseite versucht die fehlgeschlagene Adresse erneut, statt den Fehler neu zu laden.
+- **Zurück und Vor.** ⌘[ und ⌘], oder ⌘← und ⌘→, wenn die Seite diese Tasten nicht selbst nutzt (ein Eingabefeld, ein Editor oder eine Zeichen-App behält sie). Per Rechtsklick auf ‹ oder › in der Werkzeugleiste erscheint die Liste der Seiten in dieser Richtung; wähle eine aus.
+- **Stopp und Neu laden.** ⌘. (Darstellung › Stopp) oder Esc hält eine ladende Seite an; Esc wirkt nur, wenn die Seite Esc nicht selbst nutzt. ⌘R auf einer Fehlerseite versucht die fehlgeschlagene Adresse erneut, statt den Fehler neu zu laden.
 - **Datei öffnen.** Zieh eine HTML-, PDF- oder Bilddatei auf eine Seite, um sie in einem Tab zu öffnen. Eine Seite, die Ablagen selbst annimmt, etwa ein Upload-Bereich, behält sie.
 - **Seitenquelltext.** Entwickler › Seitenquelltext anzeigen (⌥⌘U) zeigt das HTML der Seite als Text in einem neuen Tab.
 - **Fragen einer Seite.** Alerts, Rückfragen und Fragen einer Seite erscheinen als Blätter am Fenster, mit der fragenden Website oben genannt. Ab dem zweiten auf einer Seite kannst du „Diese Seite keine weiteren Dialoge anzeigen lassen“ wählen. Eine Seite mit nicht gesicherten Änderungen fragt „Diese Seite verlassen?“, bevor du gehst; „Bleiben“ ist, was Return tut.
@@ -169,9 +169,9 @@ Wähle in den Einstellungen (⌘,) „Wie in Safari“ oder „Wie in Chrome“.
 | ⌘N / ⌘⇧N / ⌘⇧W | Neues Fenster / neues privates Fenster / Fenster schließen |
 | ⌘W, ⌘1–9, ⌘⇧[ ⌘⇧] | Tab schließen, zu einem Tab in der Reihenfolge der Seitenleiste wechseln (Favoriten, angeheftete Lesezeichen, dann die Tab-Liste) |
 | ↑ / ↓, ⌘⌫ | Zwischen Zeilen der Seitenleiste wechseln, sobald die Tastatur dort ist; den Tab der Zeile schließen |
-| ⌘[ ⌘] / ⌘← ⌘→ | Zurück / Vor (⌘← und ⌘→ nur, wenn du nicht in einem Feld tippst) |
+| ⌘[ ⌘] / ⌘← ⌘→ | Zurück / Vor (⌘← und ⌘→ nur, wenn die Seite sie nicht nutzt) |
 | ⌘R | Neu laden (auf einer Fehlerseite wird die Adresse erneut versucht) |
-| ⌘. / Esc | Laden stoppen (Esc nur, wenn kein Feld in der Seite den Fokus hat) |
+| ⌘. / Esc | Laden stoppen (Esc nur, wenn die Seite es nicht nutzt) |
 | ⌘+ / ⌘− / ⌘0 | Vergrößern / verkleinern / Standardgröße (⌘0 macht auch ein Zwicken rückgängig) |
 | ⌃Tab / ⌃⇧Tab | Tabs in der Reihenfolge wechseln, in der du sie zuletzt gesehen hast (⌃ halten, Tab drücken, loslassen; esc bricht ab) |
 | ⌃1–9 | Zu einem Space wechseln (9 ist der letzte); weicht dem macOS-Kurzbefehl „Zu Schreibtisch N wechseln“, falls aktiviert |
