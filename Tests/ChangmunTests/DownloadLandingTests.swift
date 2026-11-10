@@ -56,5 +56,42 @@ struct DownloadLandingTests {
         #expect(FileManager.default.fileExists(atPath: freshPart.path), "a download still going is written to now and then")
         #expect(others.allSatisfy { FileManager.default.fileExists(atPath: $0.path) }, "nothing that doesn't match exactly")
     }
-}
 
+    @Test func aDownloadThatFailedWithNothingKeptOffersToBeFetchedAgain() throws {
+        let source = try #require(URL(string: "https://files.example/a.zip"))
+        let item = DownloadItem(filename: "a.zip", progress: Progress(totalUnitCount: 1), isPrivate: false)
+        item.source = source
+        #expect(item.retry == nil, "running: nothing to retry")
+        item.state = .failed("The network connection was lost.")
+        #expect(item.retry == .downloadAgain)
+        item.resumeData = Data([1])
+        #expect(item.retry == .tryAgain, "what WebKit kept is picked up from where it stopped")
+        item.resumeData = nil
+        item.source = nil
+        #expect(item.retry == nil, "with no address to fetch from it stays a dead end")
+        item.source = source
+        item.state = .cancelled
+        #expect(item.retry == nil)
+        item.state = .finished
+        #expect(item.retry == nil)
+    }
+
+    @Test func onlyAPlainGetOfAWebAddressCanBeFetchedAgain() throws {
+        func request(_ address: String, method: String? = nil) throws -> URLRequest {
+            var request = URLRequest(url: try #require(URL(string: address)))
+            request.httpMethod = method
+            return request
+        }
+        #expect(try DownloadItem.repeatableSource(request("https://a.example/f.zip"))?.absoluteString == "https://a.example/f.zip")
+        #expect(try DownloadItem.repeatableSource(request("https://a.example/f.zip", method: "POST")) == nil, "a form's answer is not the same file twice")
+        #expect(try DownloadItem.repeatableSource(request("blob:https://a.example/1234")) == nil, "a blob lives in its page")
+        #expect(DownloadItem.repeatableSource(nil) == nil)
+    }
+
+    @Test func theShelfSaysHowManyFilesItHasNoRowFor() {
+        #expect(DownloadShelf.hiddenCount(total: 0) == 0)
+        #expect(DownloadShelf.hiddenCount(total: 3) == 0)
+        #expect(DownloadShelf.hiddenCount(total: 4) == 1)
+        #expect(DownloadShelf.hiddenCount(total: 9) == 6)
+    }
+}
