@@ -58,16 +58,11 @@ struct SidebarTabRow: View {
             TabAudioButton(tab: tab, isActive: isActive)
             // The tab's menu, as on a bookmark's, a folder's and a group's row, for what a right-click alone would hide.
             if hover && !renaming { MoreButton { TabMenu(tab: tab, browser: browser, isActive: isActive, close: close) } }
-            // One slot, always the same width, so the title doesn't move when the pointer comes and goes.
+            if browser.split?.contains(tab.id) == true { SplitMarker() }
+            // One slot, always the same width, so what is before it doesn't move when the pointer comes and goes.
             ZStack {
                 if hover {
                     HoverAction(symbol: "xmark", help: isActive ? String(localized: "Close Tab (⌘W)") : String(localized: "Close Tab"), action: close)
-                } else if browser.split?.contains(tab.id) == true {
-                    Image(systemName: "rectangle.split.2x1")
-                        .font(.symbolInline)
-                        .foregroundStyle(Theme.tertiary)
-                        .help("Split View")
-                        .decorative()
                 }
             }
             .frame(width: Metrics.action)
@@ -169,6 +164,17 @@ struct TabMenu: View {
             .disabled(Browser.othersToClose(keeping: tab.id, listed: listed).isEmpty)
         Button("Close Tabs Below") { withAnimation(Motion.standard) { browser.closeTabsBelow(tab.id) } }
             .disabled(Browser.belowToClose(tab.id, listed: listed).isEmpty)
+    }
+}
+
+/// A tab in the split: shown on its row, its bookmark's row too, whether or not the pointer is there.
+struct SplitMarker: View {
+    var body: some View {
+        Image(systemName: "rectangle.split.2x1")
+            .font(.symbolInline)
+            .foregroundStyle(Theme.tertiary)
+            .help("Split View")
+            .decorative()
     }
 }
 

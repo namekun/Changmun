@@ -521,6 +521,7 @@
 "The Tidy button in the sidebar groups tabs that aren’t in a group yet. With Apple Intelligence on, tabs are grouped by topic on this Mac; otherwise tabs from the same site, or opened from one another, are grouped together. You can reopen archived tabs from History › Archived Tabs." = "El botón Ordenar de la barra lateral agrupa las pestañas que aún no están en un grupo. Con Apple Intelligence activado, las pestañas se agrupan por tema en este Mac; si no, se agrupan las pestañas del mismo sitio o las abiertas una desde otra. Puedes volver a abrir las pestañas archivadas desde Historial › Pestañas archivadas.";
 "The user name or password is incorrect." = "El nombre de usuario o la contraseña no son correctos.";
 "Theme" = "Tema";
+"There is no other tab to show beside this one" = "No hay otra pestaña que mostrar junto a esta";
 "This extension has no manifest.json" = "Esta extensión no tiene manifest.json";
 "This extension is installed in Changmun" = "Esta extensión está instalada en Changmun";
 "This folder has no manifest.json" = "Esta carpeta no tiene manifest.json";

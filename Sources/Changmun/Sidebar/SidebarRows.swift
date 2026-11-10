@@ -166,6 +166,8 @@ struct BookmarkRow<MenuItems: View>: View {
     let state: BookmarkTabState
     /// Its own tab, when it is open.
     let tab: Tab?
+    /// Its tab is in the split.
+    var inSplit = false
     /// Its title is being typed in the row (see `Browser.renamingBookmark`); `startRenaming` asks for that, `finishRenaming` gets what was
     /// typed, or nil for Esc.
     let renaming: Bool
@@ -207,6 +209,7 @@ struct BookmarkRow<MenuItems: View>: View {
             }
             Spacer(minLength: 0)
             if let tab { TabAudioButton(tab: tab, isActive: state == .shown) }
+            if inSplit { SplitMarker() }
             ZStack {
                 if hover && !renaming {
                     MoreButton(items: menu)

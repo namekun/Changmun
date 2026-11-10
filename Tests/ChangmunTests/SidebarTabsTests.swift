@@ -274,6 +274,14 @@ extension SharedAgentState {
             #expect(hidden.tab(secret.id) != nil && to.tabs.count == 2)
         }
 
+        @Test func splitViewWithNoOtherTabSaysSoInsteadOfBeeping() {
+            let b = browser(1)
+            defer { b.windowClosed() }
+            b.activate(b.tabs[0].id)
+            b.toggleSplit()
+            #expect(b.split == nil && b.overlay.statusMessage == "There is no other tab to show beside this one")
+        }
+
         // MARK: Closing several
 
         @Test func closingOthersOrBelowChoosesFromTheTabListOnly() {

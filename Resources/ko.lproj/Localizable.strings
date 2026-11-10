@@ -521,6 +521,7 @@
 "The Tidy button in the sidebar groups tabs that aren’t in a group yet. With Apple Intelligence on, tabs are grouped by topic on this Mac; otherwise tabs from the same site, or opened from one another, are grouped together. You can reopen archived tabs from History › Archived Tabs." = "사이드바의 정리 버튼은 그룹에 없는 탭을 묶어요. Apple Intelligence가 켜져 있으면 이 Mac 안에서 주제별로 묶고, 아니면 같은 사이트와 한 탭에서 열어 간 탭끼리 묶어요. 보관한 탭은 방문 기록 › 보관한 탭에서 다시 열 수 있어요.";
 "The user name or password is incorrect." = "아이디나 비밀번호가 맞지 않아요.";
 "Theme" = "테마";
+"There is no other tab to show beside this one" = "이 탭 옆에 보여 줄 다른 탭이 없어요";
 "This extension has no manifest.json" = "manifest.json이 없는 확장이에요";
 "This extension is installed in Changmun" = "Changmun에 설치된 확장이에요";
 "This folder has no manifest.json" = "manifest.json이 없는 폴더예요";

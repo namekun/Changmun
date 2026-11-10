@@ -38,7 +38,9 @@ extension Browser {
     /// The split for the menu command: the active tab and the one shown before it.
     func toggleSplit() {
         if shownSplit != nil { return unsplit() }
-        guard let back = previousActiveID, tab(back) != nil, tab(back)?.isStart != true, active?.isStart != true else { return NSSound.beep() }
+        guard let back = previousActiveID, tab(back) != nil, tab(back)?.isStart != true, active?.isStart != true else {
+            return flashStatus(String(localized: "There is no other tab to show beside this one"))
+        }
         split(with: back)
     }
 }

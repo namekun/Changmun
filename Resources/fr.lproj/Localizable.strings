@@ -521,6 +521,7 @@
 "The Tidy button in the sidebar groups tabs that aren’t in a group yet. With Apple Intelligence on, tabs are grouped by topic on this Mac; otherwise tabs from the same site, or opened from one another, are grouped together. You can reopen archived tabs from History › Archived Tabs." = "Le bouton Ranger de la barre latérale regroupe les onglets qui ne sont pas encore dans un groupe. Lorsque Apple Intelligence est activée, les onglets sont regroupés par sujet sur ce Mac ; sinon, les onglets du même site ou ouverts les uns à partir des autres sont regroupés. Vous pouvez rouvrir les onglets archivés depuis Historique › Onglets archivés.";
 "The user name or password is incorrect." = "Le nom d’utilisateur ou le mot de passe est incorrect.";
 "Theme" = "Thème";
+"There is no other tab to show beside this one" = "Il n’y a pas d’autre onglet à afficher à côté de celui-ci";
 "This extension has no manifest.json" = "Cette extension n’a pas de fichier manifest.json";
 "This extension is installed in Changmun" = "Cette extension est installée dans Changmun";
 "This folder has no manifest.json" = "Ce dossier ne contient pas de fichier manifest.json";

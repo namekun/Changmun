@@ -521,6 +521,7 @@
 "The Tidy button in the sidebar groups tabs that aren’t in a group yet. With Apple Intelligence on, tabs are grouped by topic on this Mac; otherwise tabs from the same site, or opened from one another, are grouped together. You can reopen archived tabs from History › Archived Tabs." = "边栏中的“整理”按钮会将尚未分组的标签页分组。开启 Apple Intelligence 后，会在这台 Mac 上按主题分组；否则，会将来自同一网站或互相打开的标签页分在一起。你可以在“历史记录 › 已归档的标签页”中重新打开已归档的标签页。";
 "The user name or password is incorrect." = "用户名或密码不正确。";
 "Theme" = "主题";
+"There is no other tab to show beside this one" = "没有可显示在此标签页旁边的其他标签页";
 "This extension has no manifest.json" = "此扩展没有 manifest.json";
 "This extension is installed in Changmun" = "此扩展已安装在 Changmun 中";
 "This folder has no manifest.json" = "此文件夹中没有 manifest.json";

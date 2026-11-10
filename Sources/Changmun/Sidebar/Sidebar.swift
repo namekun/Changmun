@@ -295,7 +295,8 @@ struct Sidebar: View {
             folderRow(folder, depth: depth, scope: scope, pinned: pinned)
         case .bookmark(let entry, let folder, let depth, _):
             let key = Browser.bookmarkKey(url: entry.url, folder: folder)
-            BookmarkRow(entry: entry, state: BookmarkTabState(key, browser), tab: browser.bookmarkTab(key), renaming: browser.renamingBookmark == key,
+            BookmarkRow(entry: entry, state: BookmarkTabState(key, browser), tab: browser.bookmarkTab(key),
+                        inSplit: browser.bookmarkTab(key).map { browser.split?.contains($0.id) == true } ?? false, renaming: browser.renamingBookmark == key,
                         startRenaming: { browser.renamingBookmark = key },
                         finishRenaming: { browser.finishRenamingBookmark(url: entry.url, folder: folder, title: entry.title, with: $0) }) {
                 browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
