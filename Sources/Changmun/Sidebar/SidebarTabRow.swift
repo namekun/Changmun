@@ -79,7 +79,7 @@ struct SidebarTabRow: View {
         // Alongside the click that shows the tab, so showing it does not wait for a second click.
         .simultaneousGesture(TapGesture(count: 2).onEnded { browser.renamingTab = tab.id })
         .contextMenu { TabMenu(tab: tab, browser: browser, isActive: isActive, close: close) }
-        .help(Accessibility.tabHelp(title: tab.displayTitle, address: tab.url?.absoluteString, isStart: tab.isStart))
+        .help(Accessibility.tabHelp(title: tab.displayTitle, address: tab.url?.absoluteString, isStart: tab.isStart, asleep: tab.isAsleep && !isActive))
         .accessibleTab(tab, in: browser, isActive: isActive, renaming: renaming, close: close) { select() }
         .closesOnMiddleClick("tab:\(tab.id)", close: close)
     }
@@ -119,6 +119,11 @@ struct TabMenu: View {
             NSPasteboard.general.setString(tab.url?.absoluteString ?? "", forType: .string)
         }
         if !tab.isAsleep { Button(tab.isMuted ? String(localized: "Unmute") : String(localized: "Mute Tab")) { tab.toggleMute() } }
+        if tab.isAsleep && !isActive && !tab.isStart {
+            Button("Wake Tab") { _ = tab.wake() }
+        } else if !tab.isAsleep && !browser.isShown(tab) {
+            Button("Put to Sleep") { tab.sleep() }
+        }
         Button("Save as PDF…") { Task { await SavePage.save(tab, as: .pdf) } }
             .disabled(tab.isAsleep)
         Button("Capture Full Page…") { Task { await SavePage.save(tab, as: .image) } }

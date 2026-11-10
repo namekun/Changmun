@@ -98,6 +98,7 @@
 "Ask AI" = "KI fragen";
 "Ask AI: %@" = "KI fragen: %@";
 "Ask where to save each download" = "Bei jedem Download nach dem Sichern-Ort fragen";
+"Asleep: click to wake" = "Ruht: zum Aufwecken klicken";
 "Authentication is required to copy the saved password" = "Zum Kopieren des gesicherten Passworts ist eine Authentifizierung erforderlich";
 "Back" = "Zurück";
 "Back (⌘[)" = "Zurück (⌘[)";
@@ -236,6 +237,7 @@
 "Loading" = "Wird geladen";
 "Muted" = "Stummgeschaltet";
 "No suggestions" = "Keine Vorschläge";
+"No tab open" = "Kein Tab geöffnet";
 "Not open" = "Nicht geöffnet";
 "Open %@" = "%@ öffnen";
 "Opens in a new tab" = "Öffnet in einem neuen Tab";
@@ -245,6 +247,7 @@
 "Playing audio" = "Gibt Ton wieder";
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "Vorschau von %@. Mit Befehl-Return als Tab öffnen, mit Esc schließen.";
 "Purple" = "Violett";
+"Put to Sleep" = "Ruhen lassen";
 "Remove %@" = "%@ entfernen";
 "Remove this image" = "Dieses Bild entfernen";
 "Reopens the tab" = "Öffnet den Tab erneut";
@@ -305,6 +308,7 @@
 "Group name" = "Gruppenname";
 "Haiku (fastest)" = "Haiku (am schnellsten)";
 "Hard Reload" = "Vollständig neu laden";
+"Has its own logins" = "Hat eigene Anmeldungen";
 "Hide Changmun" = "Changmun ausblenden";
 "Hide Sidebar" = "Seitenleiste ausblenden";
 "History" = "Verlauf";
@@ -381,6 +385,7 @@
 "Open File…" = "Datei öffnen …";
 "Open Full Disk Access Settings" = "Einstellungen für Festplattenvollzugriff öffnen";
 "Open in New Tab" = "In neuem Tab öffnen";
+"Open in the background" = "Im Hintergrund geöffnet";
 "Open Location" = "Adresse öffnen";
 "Open new tab · %@" = "Neuen Tab öffnen · %@";
 "Opening %@" = "Öffne %@";
@@ -557,6 +562,7 @@
 "Waiting for you to choose a certificate" = "Warte darauf, dass du ein Zertifikat auswählst";
 "Waiting for “%@”" = "Warte auf „%@“";
 "Waiting for “%@” to go away" = "Warte, bis „%@“ verschwindet";
+"Wake Tab" = "Tab aufwecken";
 "Web extensions are available on macOS 15.4 or later." = "Web-Erweiterungen sind ab macOS 15.4 verfügbar.";
 "Web Inspector (Network)" = "Web-Inspektor (Netzwerk)";
 "WebKit didn't accept the rules: %@" = "WebKit hat die Regeln nicht akzeptiert: %@";

@@ -98,6 +98,7 @@
 "Ask AI" = "询问 AI";
 "Ask AI: %@" = "询问 AI：%@";
 "Ask where to save each download" = "每次下载时询问存储位置";
+"Asleep: click to wake" = "休眠中：点按即可唤醒";
 "Authentication is required to copy the saved password" = "需要验证身份才能拷贝已存储的密码";
 "Back" = "后退";
 "Back (⌘[)" = "后退 (⌘[)";
@@ -236,6 +237,7 @@
 "Loading" = "正在载入";
 "Muted" = "已静音";
 "No suggestions" = "没有建议";
+"No tab open" = "没有打开的标签页";
 "Not open" = "未打开";
 "Open %@" = "打开 %@";
 "Opens in a new tab" = "在新标签页中打开";
@@ -245,6 +247,7 @@
 "Playing audio" = "正在播放声音";
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "正在预览 %@。按 Command-Return 在标签页中打开，按 Esc 关闭。";
 "Purple" = "紫色";
+"Put to Sleep" = "使其休眠";
 "Remove %@" = "移除 %@";
 "Remove this image" = "移除此图片";
 "Reopens the tab" = "重新打开标签页";
@@ -305,6 +308,7 @@
 "Group name" = "群组名称";
 "Haiku (fastest)" = "Haiku（最快）";
 "Hard Reload" = "强制重新载入";
+"Has its own logins" = "有自己的登录信息";
 "Hide Changmun" = "隐藏 Changmun";
 "Hide Sidebar" = "隐藏边栏";
 "History" = "历史记录";
@@ -381,6 +385,7 @@
 "Open File…" = "打开文件…";
 "Open Full Disk Access Settings" = "打开完全磁盘访问权限设置";
 "Open in New Tab" = "在新标签页中打开";
+"Open in the background" = "在后台打开";
 "Open Location" = "打开位置";
 "Open new tab · %@" = "打开新标签页 · %@";
 "Opening %@" = "正在打开 %@";
@@ -557,6 +562,7 @@
 "Waiting for you to choose a certificate" = "正在等待你选择证书";
 "Waiting for “%@”" = "正在等待“%@”";
 "Waiting for “%@” to go away" = "正在等待“%@”消失";
+"Wake Tab" = "唤醒标签页";
 "Web extensions are available on macOS 15.4 or later." = "网页扩展需要 macOS 15.4 或更高版本。";
 "Web Inspector (Network)" = "网页检查器（网络）";
 "WebKit didn't accept the rules: %@" = "WebKit 未接受这些规则：%@";

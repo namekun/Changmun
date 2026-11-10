@@ -42,8 +42,8 @@ struct FavoriteTile<MenuItems: View>: View {
             .onHover { hover = $0 }
             .contextMenu(menuItems: menu)
             .renamePopover(shown: entry.title.isEmpty ? entry.url : entry.title, isPresented: renaming, finish: finishRenaming)
-            .help(entry.title.isEmpty ? entry.url : entry.title)
-            .accessibleButton(Accessibility.bookmarkLabel(title: entry.title, url: entry.url), value: Accessibility.bookmarkValue(state), selected: state == .shown,
+            .help(Accessibility.bookmarkHelp(entry.title.isEmpty ? entry.url : entry.title, state))
+            .accessibleButton(Accessibility.bookmarkLabel(title: entry.title, url: entry.url), value: Accessibility.bookmarkTabValue(state), selected: state == .shown,
                               actions: Accessibility.muteActions(of: tab), activate: open)
     }
 }
@@ -225,8 +225,8 @@ struct BookmarkRow<MenuItems: View>: View {
         // Alongside the click that opens it, so opening does not wait for a second click.
         .simultaneousGesture(TapGesture(count: 2).onEnded(startRenaming))
         .contextMenu(menuItems: menu)
-        .help(entry.url)
-        .accessibleButton(Accessibility.bookmarkLabel(title: entry.title, url: entry.url), value: Accessibility.bookmarkValue(state), selected: state == .shown, enabled: !renaming,
+        .help(Accessibility.bookmarkHelp(entry.url, state))
+        .accessibleButton(Accessibility.bookmarkLabel(title: entry.title, url: entry.url), value: Accessibility.bookmarkTabValue(state), selected: state == .shown, enabled: !renaming,
                           actions: [.init(String(localized: "Rename"), startRenaming)] + Accessibility.muteActions(of: tab), activate: open)
     }
 }

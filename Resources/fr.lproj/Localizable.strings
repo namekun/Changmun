@@ -98,6 +98,7 @@
 "Ask AI" = "Demander à l’IA";
 "Ask AI: %@" = "Demander à l’IA : %@";
 "Ask where to save each download" = "Demander où enregistrer chaque téléchargement";
+"Asleep: click to wake" = "En veille : cliquez pour la réveiller";
 "Authentication is required to copy the saved password" = "Une authentification est requise pour copier le mot de passe enregistré";
 "Back" = "Précédent";
 "Back (⌘[)" = "Précédent (⌘[)";
@@ -236,6 +237,7 @@
 "Loading" = "Chargement";
 "Muted" = "Son coupé";
 "No suggestions" = "Aucune suggestion";
+"No tab open" = "Aucun onglet ouvert";
 "Not open" = "Non ouvert";
 "Open %@" = "Ouvrir %@";
 "Opens in a new tab" = "S’ouvre dans un nouvel onglet";
@@ -245,6 +247,7 @@
 "Playing audio" = "Lecture du son";
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "Aperçu de %@. Appuyez sur Commande-Retour pour l’ouvrir dans un onglet, ou sur Échap pour le fermer.";
 "Purple" = "Violet";
+"Put to Sleep" = "Mettre en veille";
 "Remove %@" = "Retirer %@";
 "Remove this image" = "Retirer cette image";
 "Reopens the tab" = "Rouvre l’onglet";
@@ -305,6 +308,7 @@
 "Group name" = "Nom du groupe";
 "Haiku (fastest)" = "Haiku (le plus rapide)";
 "Hard Reload" = "Actualisation forcée";
+"Has its own logins" = "A ses propres connexions";
 "Hide Changmun" = "Masquer Changmun";
 "Hide Sidebar" = "Masquer la barre latérale";
 "History" = "Historique";
@@ -381,6 +385,7 @@
 "Open File…" = "Ouvrir le fichier…";
 "Open Full Disk Access Settings" = "Ouvrir les réglages d’accès complet au disque";
 "Open in New Tab" = "Ouvrir dans un nouvel onglet";
+"Open in the background" = "Ouvert en arrière-plan";
 "Open Location" = "Ouvrir l’adresse";
 "Open new tab · %@" = "Ouvrir un nouvel onglet · %@";
 "Opening %@" = "Ouverture de %@";
@@ -557,6 +562,7 @@
 "Waiting for you to choose a certificate" = "En attente de votre choix de certificat";
 "Waiting for “%@”" = "Attente de « %@ »";
 "Waiting for “%@” to go away" = "Attente de la disparition de « %@ »";
+"Wake Tab" = "Réveiller l’onglet";
 "Web extensions are available on macOS 15.4 or later." = "Les extensions web sont disponibles sur macOS 15.4 ou version ultérieure.";
 "Web Inspector (Network)" = "Inspecteur web (Réseau)";
 "WebKit didn't accept the rules: %@" = "WebKit n’a pas accepté les règles : %@";

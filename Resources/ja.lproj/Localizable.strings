@@ -98,6 +98,7 @@
 "Ask AI" = "AIに質問";
 "Ask AI: %@" = "AIに質問: %@";
 "Ask where to save each download" = "ダウンロードごとに保存先を確認";
+"Asleep: click to wake" = "スリープ中：クリックで再開";
 "Authentication is required to copy the saved password" = "保存されたパスワードをコピーするには認証が必要です";
 "Back" = "戻る";
 "Back (⌘[)" = "戻る (⌘[)";
@@ -236,6 +237,7 @@
 "Loading" = "読み込み中";
 "Muted" = "ミュート中";
 "No suggestions" = "候補なし";
+"No tab open" = "開いているタブなし";
 "Not open" = "開いていません";
 "Open %@" = "%@を開く";
 "Opens in a new tab" = "新しいタブで開きます";
@@ -245,6 +247,7 @@
 "Playing audio" = "音声を再生中";
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "%@をプレビュー中です。Command+Returnでタブとして開き、Escで閉じます。";
 "Purple" = "紫";
+"Put to Sleep" = "スリープさせる";
 "Remove %@" = "%@を削除";
 "Remove this image" = "この画像を外す";
 "Reopens the tab" = "タブを開き直します";
@@ -305,6 +308,7 @@
 "Group name" = "グループ名";
 "Haiku (fastest)" = "Haiku (最速)";
 "Hard Reload" = "強制再読み込み";
+"Has its own logins" = "ログインを別に保持しています";
 "Hide Changmun" = "Changmunを隠す";
 "Hide Sidebar" = "サイドバーを隠す";
 "History" = "履歴";
@@ -381,6 +385,7 @@
 "Open File…" = "ファイルを開く…";
 "Open Full Disk Access Settings" = "フルディスクアクセスの設定を開く";
 "Open in New Tab" = "新規タブで開く";
+"Open in the background" = "バックグラウンドで開いています";
 "Open Location" = "場所を開く";
 "Open new tab · %@" = "新規タブを開く · %@";
 "Opening %@" = "%@を開いています";
@@ -557,6 +562,7 @@
 "Waiting for you to choose a certificate" = "証明書の選択を待っています";
 "Waiting for “%@”" = "「%@」を待っています";
 "Waiting for “%@” to go away" = "「%@」が消えるのを待っています";
+"Wake Tab" = "タブを再開";
 "Web extensions are available on macOS 15.4 or later." = "Web機能拡張はmacOS 15.4以降で利用できます。";
 "Web Inspector (Network)" = "Webインスペクタ (ネットワーク)";
 "WebKit didn't accept the rules: %@" = "WebKitがルールを受け付けませんでした: %@";

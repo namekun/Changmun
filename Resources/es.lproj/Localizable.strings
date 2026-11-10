@@ -98,6 +98,7 @@
 "Ask AI" = "Preguntar a la IA";
 "Ask AI: %@" = "Preguntar a la IA: %@";
 "Ask where to save each download" = "Preguntar dónde guardar cada descarga";
+"Asleep: click to wake" = "En reposo: haz clic para activarla";
 "Authentication is required to copy the saved password" = "Se requiere autenticación para copiar la contraseña guardada";
 "Back" = "Atrás";
 "Back (⌘[)" = "Atrás (⌘[)";
@@ -236,6 +237,7 @@
 "Loading" = "Cargando";
 "Muted" = "Silenciada";
 "No suggestions" = "Sin sugerencias";
+"No tab open" = "Sin pestaña abierta";
 "Not open" = "No abierto";
 "Open %@" = "Abrir %@";
 "Opens in a new tab" = "Se abre en una pestaña nueva";
@@ -245,6 +247,7 @@
 "Playing audio" = "Reproduciendo audio";
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "Vista previa de %@. Pulsa Comando-Retorno para abrirla como pestaña o Escape para cerrarla.";
 "Purple" = "Morado";
+"Put to Sleep" = "Poner en reposo";
 "Remove %@" = "Quitar %@";
 "Remove this image" = "Quitar esta imagen";
 "Reopens the tab" = "Vuelve a abrir la pestaña";
@@ -305,6 +308,7 @@
 "Group name" = "Nombre del grupo";
 "Haiku (fastest)" = "Haiku (el más rápido)";
 "Hard Reload" = "Recarga forzada";
+"Has its own logins" = "Tiene sus propios inicios de sesión";
 "Hide Changmun" = "Ocultar Changmun";
 "Hide Sidebar" = "Ocultar barra lateral";
 "History" = "Historial";
@@ -381,6 +385,7 @@
 "Open File…" = "Abrir archivo…";
 "Open Full Disk Access Settings" = "Abrir ajustes de Acceso total al disco";
 "Open in New Tab" = "Abrir en una pestaña nueva";
+"Open in the background" = "Abierta en segundo plano";
 "Open Location" = "Abrir ubicación";
 "Open new tab · %@" = "Abrir pestaña nueva · %@";
 "Opening %@" = "Abriendo %@";
@@ -557,6 +562,7 @@
 "Waiting for you to choose a certificate" = "Esperando a que elijas un certificado";
 "Waiting for “%@”" = "Esperando «%@»";
 "Waiting for “%@” to go away" = "Esperando a que «%@» desaparezca";
+"Wake Tab" = "Activar pestaña";
 "Web extensions are available on macOS 15.4 or later." = "Las extensiones web están disponibles en macOS 15.4 o posterior.";
 "Web Inspector (Network)" = "Inspector web (Red)";
 "WebKit didn't accept the rules: %@" = "WebKit no ha aceptado las reglas: %@";

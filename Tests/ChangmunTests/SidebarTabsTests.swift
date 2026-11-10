@@ -67,6 +67,15 @@ extension SharedAgentState {
             #expect(Accessibility.tabHelp(title: "", address: nil, isStart: true) == "New Tab")
         }
 
+        @Test func statesShownByAFadeADotOrABadgeAreSaidInWords() {
+            #expect(Accessibility.tabHelp(title: "A", address: "https://a.example/", isStart: false, asleep: true) == "A\nhttps://a.example/\nAsleep: click to wake")
+            #expect(Accessibility.bookmarkTabValue(.closed) == "No tab open" && Accessibility.bookmarkTabValue(.open) == "Open in the background")
+            #expect(Accessibility.bookmarkHelp("Mail", .closed) == "Mail\nNo tab open")
+            #expect(Accessibility.bookmarkHelp("Mail", .open) == "Mail\nOpen in the background")
+            #expect(Accessibility.bookmarkHelp("Mail", .shown) == "Mail")
+            #expect(Accessibility.spaceHelp("Work", isProfile: true) == "Work\nHas its own logins" && Accessibility.spaceHelp("Home", isProfile: false) == "Home")
+        }
+
         // MARK: Undo
 
         @Test func closingOneTabOffersUndoButNotForAStartTabOrAnEmptyOne() {
