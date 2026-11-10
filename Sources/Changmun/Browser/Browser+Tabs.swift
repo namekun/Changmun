@@ -286,3 +286,20 @@ extension Browser {
         }
     }
 }
+
+extension Browser.ClosedTab {
+    /// On disk a closed tab is its address and its place, not its back and forward list or what its forms held: those stay in memory, for this
+    /// run. A file written before still reads, with them.
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(id, forKey: .id)
+        try values.encodeIfPresent(url, forKey: .url)
+        try values.encode(title, forKey: .title)
+        try values.encodeIfPresent(customTitle, forKey: .customTitle)
+        try values.encode(index, forKey: .index)
+        try values.encodeIfPresent(bookmarkKey, forKey: .bookmarkKey)
+        try values.encodeIfPresent(group, forKey: .group)
+        try values.encode(space, forKey: .space)
+        try values.encode(closedAt, forKey: .closedAt)
+    }
+}
