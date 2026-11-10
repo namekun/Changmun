@@ -22,6 +22,7 @@ struct WebCard: View {
             .overlay(alignment: .top) {
                 if let tab = browser.active { LoadingLine(tab: tab) }
             }
+            .overlay(alignment: .bottomTrailing) { PageUndoNotice(browser: browser) }
             .overlay(alignment: .bottomLeading) {
                 if let text = overlay.statusMessage ?? overlay.hoveredLink.map(StatusLine.display) {
                     StatusLine(text: text).transition(.opacity)

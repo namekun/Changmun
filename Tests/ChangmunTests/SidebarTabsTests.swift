@@ -78,6 +78,12 @@ extension SharedAgentState {
             #expect(b.notice == nil && b.tab(start.id) == nil)
         }
 
+        @Test func undoShowsOverThePageOnlyWhileTheSidebarIsHiddenAndNotInFocusMode() {
+            #expect(!Browser.undoOnPage(sidebarShown: true, focusMode: false))
+            #expect(Browser.undoOnPage(sidebarShown: false, focusMode: false))
+            #expect(!Browser.undoOnPage(sidebarShown: false, focusMode: true), "focus mode shows no notices")
+        }
+
         // MARK: Closing several
 
         @Test func closingOthersOrBelowChoosesFromTheTabListOnly() {

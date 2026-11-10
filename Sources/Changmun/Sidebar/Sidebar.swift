@@ -15,6 +15,13 @@ struct Sidebar: View {
     var body: some View {
         VStack(spacing: 0) {
             WindowDragArea().frame(height: browser.fullScreen ? 0 : BrowserWindow.windowButtonsBottom)
+            // Above the list, so it is in sight however far down the list is scrolled.
+            if browser.lastTidy != nil || browser.notice != nil {
+                UndoNotices(browser: browser)
+                    .padding(.horizontal, Metrics.inset)
+                    .padding(.top, Metrics.inset)
+                    .transition(.opacity)
+            }
 
             ScrollViewReader { scroller in
             ScrollView {
@@ -29,11 +36,6 @@ struct Sidebar: View {
                         if browser.tidying || (newTabHover && browser.looseTabs.count > 1) { TidyButton(browser: browser) }
                     }
                     .onHover { newTabHover = $0 }
-                    if let tidy = browser.lastTidy {
-                        UndoNotice(message: tidy.message) { browser.undoTidy() }.transition(.opacity)
-                    } else if let notice = browser.notice {
-                        UndoNotice(message: notice.message) { browser.undoNotice() }.transition(.opacity)
-                    }
                     ForEach(browser.listing) { item in
                         switch item {
                         case .tab(let tab):
@@ -72,8 +74,6 @@ struct Sidebar: View {
                 .animation(Motion.pointer, value: browser.tabs.map(\.id))
                 .animation(Motion.standard, value: browser.groups)
                 .animation(Motion.standard, value: browser.tabs.map(\.groupID))
-                .animation(Motion.standard, value: browser.lastTidy)
-                .animation(Motion.standard, value: browser.notice)
                 .animation(Motion.standard, value: browser.space.pinnedFolders)
                 .animation(Motion.standard, value: browser.space.openFolders)
                 .animation(Motion.quick, value: dropTarget)
@@ -115,6 +115,7 @@ struct Sidebar: View {
                     .padding(.bottom, Metrics.inset)
             }
         }
+        .animation(Motion.standard, value: browser.notice == nil && browser.lastTidy == nil)
     }
 
     // MARK: Parts
