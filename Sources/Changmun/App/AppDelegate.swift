@@ -108,6 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// What was changed a moment ago is written to the cookie journal before the app ends.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if askBeforeQuitting() { return .terminateLater }
         guard CookieJournal.shared.hasPendingWork else { return .terminateNow }
         Task {
             await CookieJournal.shared.flush(within: .seconds(2))
@@ -299,6 +300,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case #selector(addToReadingList(_:)): current?.active.map { ReadingList.canSave($0.url?.absoluteString, isPrivate: $0.isPrivate) } ?? false
         case #selector(savePDF(_:)): current?.active?.webView != nil
         case #selector(captureFullPage(_:)): current?.active?.webView != nil && current?.active?.showsPDF != true
+        case #selector(stopLoadingPage(_:)): frontTab?.isLoading == true
+        case #selector(viewPageSource(_:)): frontTab?.webView != nil
         default: true
         }
     }
@@ -371,8 +374,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     /// The page in front: the peek while one is open, otherwise the active tab.
     private var frontPage: WKWebView? { current.flatMap { $0.peek?.webView ?? $0.active?.webView } }
-    @objc func reload(_ sender: Any?) { frontPage?.reload() }
-    @objc func hardReload(_ sender: Any?) { frontPage?.reloadFromOrigin() }
+    @objc func reload(_ sender: Any?) { frontTab?.reload() }
+    @objc func hardReload(_ sender: Any?) { frontTab?.reload(fromOrigin: true) }
     @objc func goBack(_ sender: Any?) { frontPage?.goBack() }
     @objc func goForward(_ sender: Any?) { frontPage?.goForward() }
     @objc func toggleChat(_ sender: Any?) {
@@ -406,9 +409,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func seekForward(_ sender: Any?) { PictureInPictureKeys.target?.seekVideo(by: PictureInPictureKeys.step) }
     @objc func previousTab(_ sender: Any?) { browser.selectTab(offset: -1) }
     @objc func selectNumberedTab(_ sender: NSMenuItem) { browser.selectTab(number: sender.tag) }
-    @objc func zoomIn(_ sender: Any?) { browser.active.map { $0.setZoom(($0.webView?.pageZoom ?? 1) + 0.1) } }
-    @objc func zoomOut(_ sender: Any?) { browser.active.map { $0.setZoom(($0.webView?.pageZoom ?? 1) - 0.1) } }
-    @objc func actualSize(_ sender: Any?) { browser.active?.setZoom(Preferences.shared.defaultZoom) }
+    @objc func zoomIn(_ sender: Any?) { zoom(browser, by: 0.1) }
+    @objc func zoomOut(_ sender: Any?) { zoom(browser, by: -0.1) }
+    @objc func actualSize(_ sender: Any?) { resetZoom(in: browser) }
     @objc func toggleMute(_ sender: Any?) { browser.active?.toggleMute() }
     @objc func togglePictureInPicture(_ sender: Any?) { (current?.peek ?? current?.active)?.pictureInPicture(.toggle) }
     @objc func toggleBookmark(_ sender: Any?) {

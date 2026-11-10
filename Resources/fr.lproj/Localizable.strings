@@ -68,6 +68,7 @@
 "%@ is muted" = "%@ : son coupé";
 "%@ is not muted" = "%@ : son réactivé";
 "%@ is playing audio" = "%@ : lecture du son";
+"%@ says" = "%@ indique";
 "%@. Undo is available in the sidebar." = "%@. Vous pouvez annuler dans la barre latérale.";
 "%lld bookmark" = "%lld signet";
 "%lld bookmarks" = "%lld signets";
@@ -121,6 +122,7 @@
 "Amber" = "Ambre";
 "an image you added" = "une image que vous avez ajoutée";
 "and %lld more" = "et %lld de plus";
+"Answer" = "Réponse";
 "Approval needed" = "Approbation requise";
 "Approval needed: %@" = "Approbation requise : %@";
 "Archive tabs you haven’t viewed in a while" = "Archiver les onglets non consultés depuis un moment";
@@ -153,6 +155,7 @@
 "Capture Full Page…" = "Capturer la page entière…";
 "Certificate not verified, you chose to go on" = "Certificat non vérifié, vous avez choisi de continuer";
 "Certificate warning" = "Avertissement de certificat";
+"Changes you made may not be saved." = "Les modifications que vous avez faites ne seront peut-être pas enregistrées.";
 "Change…" = "Modifier…";
 "Changmun fetches a short list of releases from GitHub Pages, which sees the app name and version in the request. Nothing about you or your Mac is sent, and an update is installed only if it is signed by the developer. To check now, choose Changmun › Check for Updates…" = "Changmun récupère sur GitHub Pages une courte liste de versions ; GitHub ne voit que le nom et la version de l’app. Rien sur toi ni sur ton Mac n’est envoyé, et une mise à jour n’est installée que si elle est signée par le développeur. Pour vérifier tout de suite, choisis Changmun › Rechercher des mises à jour…";
 "Changmun is your default browser" = "Changmun est votre navigateur par défaut";
@@ -231,6 +234,7 @@
 "Done" = "Terminé";
 "Done · %@" = "Terminé · %@";
 "Don’t Allow" = "Ne pas autoriser";
+"Don’t let this page show more dialogs" = "Empêcher cette page d’afficher d’autres dialogues";
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "Double-cliquez pour ouvrir dans un nouvel onglet. Pour effacer l’historique par période, accédez à Réglages › Confidentialité.";
 "Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "Double-cliquez pour rouvrir. Définissez le délai avant l’archivage des onglets dans Réglages › Onglets.";
 "Download" = "Télécharger";
@@ -255,12 +259,16 @@
 "Edit the address" = "Modifier l’adresse";
 "Either way, it asks every time before something that looks like it pays, orders, sends, posts, shares, grants access, deletes or cancels." = "Dans tous les cas, l’IA demande à chaque fois avant ce qui ressemble à un paiement, une commande, un envoi, une publication, un partage, un accès accordé, une suppression ou une annulation.";
 "Expanded" = "Déplié";
+"Files that are still downloading won’t be finished." = "Les fichiers en cours de téléchargement ne seront pas terminés.";
 "Gray" = "Gris";
 "Green" = "Vert";
 "Hidden" = "Masqué";
 "Image" = "Image";
 "In group %@" = "Dans le groupe %@";
 "It also asks before something that looks like a cookie banner or a setting (save, clear, reset, block), which you can allow for a site until the chat is cleared." = "Elle demande aussi avant ce qui ressemble à une bannière de cookies ou à un réglage (enregistrer, effacer, réinitialiser, bloquer) ; vous pouvez l’autoriser pour un site jusqu’à l’effacement du chat.";
+"Keep Downloading" = "Continuer le téléchargement";
+"Leave" = "Quitter la page";
+"Leave this page?" = "Quitter cette page ?";
 "Link Preview" = "Aperçu du lien";
 "Loading" = "Chargement";
 "Muted" = "Son coupé";
@@ -272,8 +280,12 @@
 "Pink" = "Rose";
 "Pinned" = "Épinglé";
 "Playing audio" = "Lecture du son";
+"Preview Link" = "Prévisualiser le lien";
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "Aperçu de %@. Appuyez sur Commande-Retour pour l’ouvrir dans un onglet, ou sur Échap pour le fermer.";
 "Purple" = "Violet";
+"Quit" = "Quitter";
+"Quit and stop %lld downloads?" = "Quitter et arrêter %lld téléchargements ?";
+"Quit and stop the download?" = "Quitter et arrêter le téléchargement ?";
 "Remove %@" = "Retirer %@";
 "Remove this image" = "Retirer cette image";
 "Reopens the tab" = "Rouvre l’onglet";
@@ -287,7 +299,9 @@
 "Showing the original page" = "Affichage de la page d’origine";
 "Shown" = "Affiché";
 "Sleeping" = "En veille";
+"Source of %@" = "Source de %@";
 "Split View Divider" = "Séparateur de l’écran partagé";
+"Stay" = "Rester";
 "Switch to tab %@" = "Passer à l’onglet %@";
 "Switch to tab %@ in %@" = "Passer à l’onglet %1$@ dans %2$@";
 "Teal" = "Sarcelle";
@@ -296,6 +310,7 @@
 "The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "L’IA utilise cet onglet. Ne choisissez un certificat que si vous voulez vous identifier auprès de ce site.";
 "The AI wants to do something that can’t be undone" = "L’IA souhaite faire quelque chose d’irréversible";
 "The form sends what is typed in it to %@, another site than this page." = "Le formulaire envoie ce qui y est saisi à %@, un autre site que cette page.";
+"The page stopped loading: %@" = "La page a cessé de se charger : %@";
 "This choice will be remembered for this site. You can remove it in Keychain Access." = "Ce choix sera mémorisé pour ce site. Vous pouvez le supprimer dans Accès au trousseau.";
 "This connection isn’t private. %@" = "Cette connexion n’est pas privée. %@";
 "This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "Cela ressemble à un paiement, une commande, un envoi, une publication, une suppression ou un accès accordé, ce qui est irréversible : la question est donc posée à chaque fois.";
@@ -550,6 +565,7 @@
 "This language can’t be translated" = "Cette langue ne peut pas être traduite";
 "This page" = "Cette page";
 "this page" = "cette page";
+"This page stopped working and was loaded again" = "Cette page a cessé de fonctionner et a été rechargée";
 "Tidied %lld tab" = "%lld onglet rangé";
 "Tidied %lld tabs" = "%lld onglets rangés";
 "Tidy Tabs" = "Ranger les onglets";
@@ -579,6 +595,7 @@
 "Use Previous Permissions Only" = "Utiliser uniquement les anciennes autorisations";
 "User Name" = "Nom d’utilisateur";
 "View" = "Présentation";
+"View Page Source" = "Afficher le code source";
 "View screen" = "Voir l’écran";
 "Wait" = "Attendre";
 "Waiting for %@ Keychain access…" = "En attente de l’accès au Trousseau de %@…";

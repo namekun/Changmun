@@ -68,6 +68,7 @@
 "%@ is muted" = "%@ está silenciada";
 "%@ is not muted" = "%@ ya no está silenciada";
 "%@ is playing audio" = "%@ está reproduciendo audio";
+"%@ says" = "%@ dice";
 "%@. Undo is available in the sidebar." = "%@. Puedes deshacerlo en la barra lateral.";
 "%lld bookmark" = "%lld marcador";
 "%lld bookmarks" = "%lld marcadores";
@@ -121,6 +122,7 @@
 "Amber" = "Ámbar";
 "an image you added" = "una imagen que añadiste";
 "and %lld more" = "y %lld más";
+"Answer" = "Respuesta";
 "Approval needed" = "Se necesita aprobación";
 "Approval needed: %@" = "Se necesita aprobación: %@";
 "Archive tabs you haven’t viewed in a while" = "Archivar las pestañas que no has visto en un tiempo";
@@ -153,6 +155,7 @@
 "Capture Full Page…" = "Capturar página completa…";
 "Certificate not verified, you chose to go on" = "Certificado no verificado; elegiste continuar";
 "Certificate warning" = "Advertencia de certificado";
+"Changes you made may not be saved." = "Es posible que no se guarden los cambios que hiciste.";
 "Change…" = "Cambiar…";
 "Changmun fetches a short list of releases from GitHub Pages, which sees the app name and version in the request. Nothing about you or your Mac is sent, and an update is installed only if it is signed by the developer. To check now, choose Changmun › Check for Updates…" = "Changmun descarga de GitHub Pages una lista breve de versiones; GitHub solo ve el nombre y la versión de la app. No se envía nada sobre ti ni sobre tu Mac, y una actualización solo se instala si está firmada por el desarrollador. Para comprobarlo ahora, elige Changmun › Buscar actualizaciones…";
 "Changmun is your default browser" = "Changmun es tu navegador predeterminado";
@@ -231,6 +234,7 @@
 "Done" = "Listo";
 "Done · %@" = "Listo · %@";
 "Don’t Allow" = "No permitir";
+"Don’t let this page show more dialogs" = "No dejar que esta página muestre más diálogos";
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "Haz doble clic para abrir en una pestaña nueva. Para borrar el historial por intervalo de tiempo, ve a Ajustes › Privacidad.";
 "Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "Haz doble clic para volver a abrir. Define cuánto tiempo pasa hasta archivar las pestañas en Ajustes › Pestañas.";
 "Download" = "Descargar";
@@ -255,12 +259,16 @@
 "Edit the address" = "Edita la dirección";
 "Either way, it asks every time before something that looks like it pays, orders, sends, posts, shares, grants access, deletes or cancels." = "Pase lo que pase, pregunta siempre antes de algo que parezca pagar, pedir, enviar, publicar, compartir, dar acceso, eliminar o cancelar.";
 "Expanded" = "Expandido";
+"Files that are still downloading won’t be finished." = "Los archivos que aún se están descargando no se terminarán.";
 "Gray" = "Gris";
 "Green" = "Verde";
 "Hidden" = "Oculto";
 "Image" = "Imagen";
 "In group %@" = "En el grupo %@";
 "It also asks before something that looks like a cookie banner or a setting (save, clear, reset, block), which you can allow for a site until the chat is cleared." = "También pregunta antes de algo que parezca un aviso de cookies o un ajuste (guardar, borrar, restablecer, bloquear), y puedes permitirlo para un sitio hasta que borres el chat.";
+"Keep Downloading" = "Seguir descargando";
+"Leave" = "Salir";
+"Leave this page?" = "¿Salir de esta página?";
 "Link Preview" = "Vista previa del enlace";
 "Loading" = "Cargando";
 "Muted" = "Silenciada";
@@ -272,8 +280,12 @@
 "Pink" = "Rosa";
 "Pinned" = "Fijada";
 "Playing audio" = "Reproduciendo audio";
+"Preview Link" = "Previsualizar enlace";
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "Vista previa de %@. Pulsa Comando-Retorno para abrirla como pestaña o Escape para cerrarla.";
 "Purple" = "Morado";
+"Quit" = "Salir";
+"Quit and stop %lld downloads?" = "¿Salir y detener %lld descargas?";
+"Quit and stop the download?" = "¿Salir y detener la descarga?";
 "Remove %@" = "Quitar %@";
 "Remove this image" = "Quitar esta imagen";
 "Reopens the tab" = "Vuelve a abrir la pestaña";
@@ -287,7 +299,9 @@
 "Showing the original page" = "Mostrando la página original";
 "Shown" = "Visible";
 "Sleeping" = "En reposo";
+"Source of %@" = "Código fuente de %@";
 "Split View Divider" = "Divisor de vista dividida";
+"Stay" = "Quedarse";
 "Switch to tab %@" = "Cambiar a la pestaña %@";
 "Switch to tab %@ in %@" = "Cambiar a la pestaña %1$@ en %2$@";
 "Teal" = "Verde azulado";
@@ -296,6 +310,7 @@
 "The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "La IA está usando esta pestaña. Elige un certificado solo si quieres identificarte ante este sitio.";
 "The AI wants to do something that can’t be undone" = "La IA quiere hacer algo que no se puede deshacer";
 "The form sends what is typed in it to %@, another site than this page." = "El formulario envía lo que se escribe en él a %@, otro sitio distinto de esta página.";
+"The page stopped loading: %@" = "La página dejó de cargarse: %@";
 "This choice will be remembered for this site. You can remove it in Keychain Access." = "Esta elección se recordará para este sitio. Puedes eliminarla en Acceso a Llaveros.";
 "This connection isn’t private. %@" = "Esta conexión no es privada. %@";
 "This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "Parece que paga, pide, envía, publica, elimina o da acceso, y eso no se puede deshacer, así que se pregunta siempre.";
@@ -550,6 +565,7 @@
 "This language can’t be translated" = "Este idioma no se puede traducir";
 "This page" = "Esta página";
 "this page" = "esta página";
+"This page stopped working and was loaded again" = "Esta página dejó de funcionar y se volvió a cargar";
 "Tidied %lld tab" = "Se ha ordenado %lld pestaña";
 "Tidied %lld tabs" = "Se han ordenado %lld pestañas";
 "Tidy Tabs" = "Ordenar pestañas";
@@ -579,6 +595,7 @@
 "Use Previous Permissions Only" = "Usar solo los permisos anteriores";
 "User Name" = "Nombre de usuario";
 "View" = "Visualización";
+"View Page Source" = "Ver código fuente";
 "View screen" = "Ver pantalla";
 "Wait" = "Esperar";
 "Waiting for %@ Keychain access…" = "Esperando el acceso al llavero de %@…";

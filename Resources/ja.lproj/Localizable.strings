@@ -68,6 +68,7 @@
 "%@ is muted" = "「%@」をミュートしました";
 "%@ is not muted" = "「%@」のミュートを解除しました";
 "%@ is playing audio" = "「%@」で音声が再生されています";
+"%@ says" = "%@ からのメッセージ";
 "%@. Undo is available in the sidebar." = "%@。取り消しはサイドバーにあります。";
 "%lld bookmark" = "ブックマーク%lld件";
 "%lld bookmarks" = "ブックマーク%lld件";
@@ -121,6 +122,7 @@
 "Amber" = "アンバー";
 "an image you added" = "追加した画像";
 "and %lld more" = "ほか%lld件";
+"Answer" = "回答";
 "Approval needed" = "承認が必要です";
 "Approval needed: %@" = "承認が必要です: %@";
 "Archive tabs you haven’t viewed in a while" = "しばらく見ていないタブをアーカイブ";
@@ -153,6 +155,7 @@
 "Capture Full Page…" = "ページ全体をキャプチャ…";
 "Certificate not verified, you chose to go on" = "証明書は未確認ですが、続けることを選択しました";
 "Certificate warning" = "証明書の警告";
+"Changes you made may not be saved." = "行った変更は保存されないことがあります。";
 "Change…" = "変更…";
 "Changmun fetches a short list of releases from GitHub Pages, which sees the app name and version in the request. Nothing about you or your Mac is sent, and an update is installed only if it is signed by the developer. To check now, choose Changmun › Check for Updates…" = "ChangmunはGitHub Pagesからリリースの短い一覧を取得します。GitHubにはアプリ名とバージョンだけが伝わり、あなたやMacに関する情報は送信されません。アップデートは、開発者の署名があるものだけがインストールされます。今すぐ確認するには、Changmun › アップデートを確認… を選択してください。";
 "Changmun is your default browser" = "Changmunがデフォルトのブラウザです";
@@ -231,6 +234,7 @@
 "Done" = "完了";
 "Done · %@" = "完了 · %@";
 "Don’t Allow" = "許可しない";
+"Don’t let this page show more dialogs" = "このページにこれ以上ダイアログを表示させない";
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "ダブルクリックで新規タブに開きます。期間を指定して履歴を消去するには、設定 › プライバシーを開いてください。";
 "Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "ダブルクリックで開き直します。タブをアーカイブするまでの時間は、設定 › タブで設定できます。";
 "Download" = "ダウンロード";
@@ -255,12 +259,16 @@
 "Edit the address" = "アドレスを編集します";
 "Either way, it asks every time before something that looks like it pays, orders, sends, posts, shares, grants access, deletes or cancels." = "どちらの設定でも、支払い・注文・送信・投稿・共有・アクセスの許可・削除・キャンセルに見える操作の前には毎回確認します。";
 "Expanded" = "展開済み";
+"Files that are still downloading won’t be finished." = "ダウンロード中のファイルは完了しません。";
 "Gray" = "グレー";
 "Green" = "緑";
 "Hidden" = "非表示";
 "Image" = "画像";
 "In group %@" = "グループ: %@";
 "It also asks before something that looks like a cookie banner or a setting (save, clear, reset, block), which you can allow for a site until the chat is cleared." = "Cookieバナーや設定（保存・クリア・リセット・ブロック）に見える操作の前にも確認します。会話をクリアするまでサイト単位で許可できます。";
+"Keep Downloading" = "ダウンロードを続ける";
+"Leave" = "移動する";
+"Leave this page?" = "このページから移動しますか?";
 "Link Preview" = "リンクのプレビュー";
 "Loading" = "読み込み中";
 "Muted" = "ミュート中";
@@ -272,8 +280,12 @@
 "Pink" = "ピンク";
 "Pinned" = "固定済み";
 "Playing audio" = "音声を再生中";
+"Preview Link" = "リンクをプレビュー";
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "%@をプレビュー中です。Command+Returnでタブとして開き、Escで閉じます。";
 "Purple" = "紫";
+"Quit" = "終了";
+"Quit and stop %lld downloads?" = "終了して%lld件のダウンロードを停止しますか?";
+"Quit and stop the download?" = "終了してダウンロードを停止しますか?";
 "Remove %@" = "%@を削除";
 "Remove this image" = "この画像を外す";
 "Reopens the tab" = "タブを開き直します";
@@ -287,7 +299,9 @@
 "Showing the original page" = "元のページを表示しています";
 "Shown" = "表示中";
 "Sleeping" = "スリープ中";
+"Source of %@" = "%@ のソース";
 "Split View Divider" = "スプリットビューの境界線";
+"Stay" = "留まる";
 "Switch to tab %@" = "タブ「%@」に切り替える";
 "Switch to tab %@ in %@" = "「%2$@」のタブ「%1$@」に切り替える";
 "Teal" = "ティール";
@@ -296,6 +310,7 @@
 "The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "AIがこのタブを使っています。このサイトに本人を示してよい場合のみ、証明書を選んでください。";
 "The AI wants to do something that can’t be undone" = "AIが元に戻せない操作をしようとしています";
 "The form sends what is typed in it to %@, another site than this page." = "このフォームは、入力した内容をこのページとは別のサイト（%@）に送信します。";
+"The page stopped loading: %@" = "ページの読み込みが途中で止まりました: %@";
 "This choice will be remembered for this site. You can remove it in Keychain Access." = "この選択はこのサイトのために記憶されます。キーチェーンアクセスで削除できます。";
 "This connection isn’t private. %@" = "この接続はプライベートではありません。%@";
 "This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "支払い、注文、送信、投稿、削除、アクセスの許可など、元に戻せない操作のようなので、毎回確認します。";
@@ -550,6 +565,7 @@
 "This language can’t be translated" = "この言語は翻訳できません";
 "This page" = "このページ";
 "this page" = "このページ";
+"This page stopped working and was loaded again" = "ページが動かなくなったため、再読み込みしました";
 "Tidied %lld tab" = "%lld個のタブを整理しました";
 "Tidied %lld tabs" = "%lld個のタブを整理しました";
 "Tidy Tabs" = "タブを整理";
@@ -579,6 +595,7 @@
 "Use Previous Permissions Only" = "以前の権限のみ使用";
 "User Name" = "ユーザ名";
 "View" = "表示";
+"View Page Source" = "ページのソースを表示";
 "View screen" = "画面を表示";
 "Wait" = "待機";
 "Waiting for %@ Keychain access…" = "%@のキーチェーンへのアクセス許可を待機中…";
