@@ -100,6 +100,16 @@ extension SharedAgentState {
             #expect(PageWebView.pageKey(keyCode: 123, modifiers: .command, isRepeat: true) == nil, "held down, once")
         }
 
+        @Test func aKeyActsOnlyWhenThePageHandsItBackUnused() {
+            var given: TimeInterval?
+            #expect(!PageWebView.cameBack(at: 10, given: &given), "the first arrival goes to the page")
+            #expect(PageWebView.cameBack(at: 10, given: &given), "WebKit sending the same key again: the page left it alone")
+            #expect(!PageWebView.cameBack(at: 11, given: &given), "a key the page used never comes back: the next one is new")
+            #expect(!PageWebView.cameBack(at: 12, given: &given))
+            #expect(PageWebView.cameBack(at: 12, given: &given))
+            #expect(!PageWebView.cameBack(at: 12, given: &given), "once per key")
+        }
+
         // MARK: Zoom
 
         @Test func actualSizeUndoesAPinchAndTheSizeIsSaid() {
