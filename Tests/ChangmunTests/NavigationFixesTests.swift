@@ -182,15 +182,21 @@ extension SharedAgentState {
         // MARK: ⌥-click
 
         @Test func optionClickOnALinkDownloadsIt() async {
-            #expect(Tab.isDownloadClick(.linkActivated, modifiers: .option, url: URL(string: "https://a.example/f.zip"), userInitiated: true))
-            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: [.option, .command], url: URL(string: "https://a.example/"), userInitiated: true), "⌘ opens a tab")
-            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: [], url: URL(string: "https://a.example/"), userInitiated: true))
-            #expect(!Tab.isDownloadClick(.other, modifiers: .option, url: URL(string: "https://a.example/"), userInitiated: true))
-            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: .option, url: URL(string: "mailto:a@a.example"), userInitiated: true))
-            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: .option, url: URL(string: "https://a.example/f.zip"), userInitiated: false),
+            #expect(Tab.isDownloadClick(.linkActivated, modifiers: .option, optionHeld: true, url: URL(string: "https://a.example/f.zip"), userInitiated: true))
+            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: [.option, .command], optionHeld: true, url: URL(string: "https://a.example/"), userInitiated: true), "⌘ opens a tab")
+            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: [], optionHeld: true, url: URL(string: "https://a.example/"), userInitiated: true))
+            #expect(!Tab.isDownloadClick(.other, modifiers: .option, optionHeld: true, url: URL(string: "https://a.example/"), userInitiated: true))
+            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: .option, optionHeld: true, url: URL(string: "mailto:a@a.example"), userInitiated: true))
+            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: .option, optionHeld: true, url: URL(string: "https://a.example/f.zip"), userInitiated: false),
                     "a click the page's script made downloads nothing, whatever key is held")
+            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: .option, optionHeld: false, url: URL(string: "https://a.example/f.zip"), userInitiated: true),
+                    "the click says ⌥ (a script's altKey) but the key is up")
             let (browser, tab, view) = pageTab()
-            defer { browser.windowClosed() }
+            defer { browser.windowClosed(); Tab.optionHeldForTests = nil }
+            Tab.optionHeldForTests = false
+            #expect(await tab.webView(view, decidePolicyFor: LinkClick.make(.option), preferences: WKWebpagePreferences()).0 != .download,
+                    "only the keyboard's ⌥ counts")
+            Tab.optionHeldForTests = true
             #expect(await tab.webView(view, decidePolicyFor: LinkClick.make(.option), preferences: WKWebpagePreferences()).0 == .download)
             #expect(await tab.webView(view, decidePolicyFor: LinkClick.make(.option, byUser: false), preferences: WKWebpagePreferences()).0 != .download,
                     "a link the page clicked by itself is followed, not downloaded")
