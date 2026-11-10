@@ -9,7 +9,7 @@
 "%@ wants to use the microphone" = "%@ quiere usar el micrófono";
 "%@, from a frame" = "%@, desde un marco";
 "%@, from a frame of %@" = "%@, desde un marco de %@";
-"%lld allowed" = "%lld permitidos";
+"%lld allowed" = "Permitidos: %lld";
 "%lld history item" = "%lld elemento del historial";
 "%lld history items" = "%lld elementos del historial";
 "%lld match" = "%lld coincidencia";
