@@ -125,13 +125,13 @@ Esto sale de lo que cada proyecto dice de sí mismo. Si algo está desactualizad
 | ⌘T | Pestaña nueva |
 | ⌘L | Editar la dirección |
 | ⌘E | Panel de IA |
-| ⌘D | Añadir o quitar un favorito |
+| ⌘D | Añadir/quitar favorito |
 | ⌃1–9 | Ir a un espacio |
 | ⌥⌘\\ | Vista dividida |
 | ⇧-clic en un enlace | Previsualizarlo sin salir de la página |
 | ⌘⇧T | Reabrir una pestaña cerrada |
 
-¿Teclas al estilo Safari o al estilo Chrome? Elige en Ajustes (⌘,). [Todos los atajos](GUIDE.es.md#atajos).
+¿Teclas al estilo Safari o al estilo Chrome? Elige en Ajustes (⌘,). Ayuda › Atajos de teclado (⌘/) los muestra todos dentro de la app. [Todos los atajos](GUIDE.es.md#atajos).
 
 ## Privacidad
 
