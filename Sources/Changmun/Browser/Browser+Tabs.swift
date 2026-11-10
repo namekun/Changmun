@@ -84,7 +84,7 @@ extension Browser {
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabClosed(closing) }
         // A start tab has nothing to bring back.
         if remember && !closing.isStart {
-            closedTabs.append(ClosedTab(url: closing.url, title: closing.title, customTitle: closing.customTitle, state: closing.sessionState, index: index, bookmarkKey: closing.bookmarkKey,
+            closedTabs.append(ClosedTab(url: closing.keptURL, title: closing.title, customTitle: closing.customTitle, state: closing.keptState, index: index, bookmarkKey: closing.bookmarkKey,
                                         group: groups.first { $0.id == closing.groupID }, space: closing.spaceID))
             if closedTabs.count > 100 { closedTabs.removeFirst() }
         }
@@ -284,5 +284,22 @@ extension Browser {
         } else {
             tabs.append(tab)
         }
+    }
+}
+
+extension Browser.ClosedTab {
+    /// On disk a closed tab is its address and its place, not its back and forward list or what its forms held: those stay in memory, for this
+    /// run. A file written before still reads, with them.
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(id, forKey: .id)
+        try values.encodeIfPresent(url, forKey: .url)
+        try values.encode(title, forKey: .title)
+        try values.encodeIfPresent(customTitle, forKey: .customTitle)
+        try values.encode(index, forKey: .index)
+        try values.encodeIfPresent(bookmarkKey, forKey: .bookmarkKey)
+        try values.encodeIfPresent(group, forKey: .group)
+        try values.encode(space, forKey: .space)
+        try values.encode(closedAt, forKey: .closedAt)
     }
 }

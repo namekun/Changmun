@@ -108,6 +108,21 @@ struct OnboardingTests {
         #expect(await calls.values == ["Chrome", "Safari", "Safari"], "Chrome came over the first time and is left alone")
         #expect(model.reports.count == 2 && !model.reports.contains { $0.needsFullDiskAccess })
         #expect(model.totals.bookmarks == 10)
+        #expect(!model.offersReopen)
+    }
+
+    @Test func quitAndReopenIsOfferedOnlyOnceTryAgainStillCouldNotRead() async {
+        #expect(!ImportModel.offersReopen(triedAgain: false, needsAccess: true), "first Try Again, which may be enough")
+        #expect(ImportModel.offersReopen(triedAgain: true, needsAccess: true))
+        #expect(!ImportModel.offersReopen(triedAgain: true, needsAccess: false))
+        AIAvailability.detector = { .none }
+        defer { AIAvailability.detector = { AIAvailability.detect() } }
+        let model = makeModel([safari])
+        model.runner = { source, _, _ in ImportReport(source: source.title, problems: [ImportRunner.fullDiskAccessProblem]) }
+        await model.start().value
+        #expect(!model.offersReopen)
+        await model.tryAgain().value
+        #expect(model.offersReopen, "macOS applies the grant only after the app reopens")
     }
 
     @Test func theResultNamesEveryTickedKindThatBroughtNothing() {

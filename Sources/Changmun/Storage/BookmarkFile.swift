@@ -49,7 +49,7 @@ enum BookmarkFile {
 
         while index < bytes.count {
             guard bytes[index] == UInt8(ascii: "<") else { index += 1; continue }
-            if matches(bytes, at: index, "<!--") {
+            if matches(bytes, at: index, pattern: commentStart) {
                 index = find(bytes, "-->", from: index + 4).map { $0 + 3 } ?? bytes.count
                 continue
             }
@@ -144,17 +144,21 @@ enum BookmarkFile {
 
     private static func lower(_ byte: UInt8) -> UInt8 { byte >= 0x41 && byte <= 0x5a ? byte + 0x20 : byte }
 
-    private static func matches(_ bytes: [UInt8], at index: Int, _ text: String) -> Bool {
-        let pattern = Array(text.utf8)
+    private static let commentStart = Array("<!--".utf8)
+
+    private static func matches(_ bytes: [UInt8], at index: Int, pattern: [UInt8]) -> Bool {
         guard index + pattern.count <= bytes.count else { return false }
-        return zip(bytes[index...], pattern).allSatisfy { lower($0) == lower($1) }
+        for offset in pattern.indices where lower(bytes[index + offset]) != lower(pattern[offset]) { return false }
+        return true
     }
 
-    /// Where the text is next found (letters in either case), at or after `start`.
+    /// Where the text is next found (letters in either case), at or after `start`. The text is made into bytes once: a file with a comment
+    /// or a script that never ends is read to its end in one pass.
     private static func find(_ bytes: [UInt8], _ text: String, from start: Int) -> Int? {
+        let pattern = Array(text.utf8)
         var index = start
         while index < bytes.count {
-            if matches(bytes, at: index, text) { return index }
+            if matches(bytes, at: index, pattern: pattern) { return index }
             index += 1
         }
         return nil

@@ -32,7 +32,8 @@ struct AIFailure: Codable, Equatable {
         let lower = text.lowercased()
         func has(_ words: [String]) -> Bool { words.contains { lower.contains($0) } }
         let kind: AIErrorKind
-        if has(["unknown option", "unrecognized option", "unknown argument", "unexpected argument"]) {
+        let apiError = code != nil || status != nil
+        if !apiError, isUnknownOption(text) {
             kind = .outdated
         } else if code == "rate_limit" || code == "billing_error" || status == 429
             || has(["usage limit", "rate limit", "rate_limit", "limit reached", "hit your limit", "credit balance", "quota", "too many requests"]) {
@@ -50,6 +51,15 @@ struct AIFailure: Codable, Equatable {
             kind = .other
         }
         return AIFailure(kind: kind, details: text, resets: kind == .usageLimit ? resetTime(in: text) : nil)
+    }
+
+    /// `claude`'s own complaint about an option it doesn't know, on a line of its own as it writes it to stderr ("error: unknown option
+    /// '--effort'"). The same words inside other text (a page, a tool's answer) are not it.
+    static func isUnknownOption(_ text: String) -> Bool {
+        text.split(whereSeparator: \.isNewline).contains { line in
+            let line = line.trimmingCharacters(in: .whitespaces).lowercased()
+            return line.hasPrefix("error: unknown option") || line.hasPrefix("error: unrecognized option")
+        }
     }
 
     /// The time a limit ends, when the message gives it: "resets 3pm (Asia/Seoul)", "will reset at 3pm", or the older

@@ -33,6 +33,10 @@ extension AppDelegate {
                           buttons: [DialogButton(title: String(localized: "Quit")), DialogButton(title: String(localized: "Keep Downloading"), role: .cancel, isDefault: true)])
     }
 
+    /// Whether the app quits after the question about running downloads: only Keep Downloading keeps it open. No answer (the question couldn't
+    /// be shown, or its window went first) quits, as a quit without the question would.
+    nonisolated static func quits(after answer: DialogResult?) -> Bool { answer.map { $0.button == 0 } ?? true }
+
     /// Asks before quitting when downloads are running, and answers the app's question about quitting once the user has: true when it asks (the app
     /// waits for the answer). A headless Changmun never asks. What the cookie journal still has to write is written before the app ends, as always.
     func askBeforeQuitting() -> Bool {
@@ -41,7 +45,7 @@ extension AppDelegate {
         browser.window?.makeKeyAndOrderFront(nil)
         NSApp.activate()
         Task {
-            let quits = await Dialog.present(in: browser.window, spec, key: DialogKey(group: "quit", kind: "downloads"))?.button == 0
+            let quits = Self.quits(after: await Dialog.present(in: browser.window, spec, key: DialogKey(group: "quit", kind: "downloads")))
             if quits, CookieJournal.shared.hasPendingWork { await CookieJournal.shared.flush(within: .seconds(2)) }
             NSApp.reply(toApplicationShouldTerminate: quits)
         }

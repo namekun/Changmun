@@ -252,7 +252,7 @@ extension Browser {
     /// A second tab on the same page, right after it, in its group.
     @discardableResult
     func duplicate(_ id: Int) -> Tab? {
-        guard let tab = tab(id), let url = tab.url else { return nil }
+        guard let tab = tab(id), let url = tab.keptURL else { return nil }
         let copy = openTab(url: url, activate: false, after: tab)
         if let group = tab.groupID, tab.bookmarkKey == nil { join(copy, group) }
         return copy
@@ -261,7 +261,7 @@ extension Browser {
     /// Takes a tab out into a window of its own, keeping its back and forward history.
     func moveToNewWindow(_ id: Int) {
         guard let tab = tab(id) else { return }
-        let saved = SavedSession(tabs: [SavedTab(url: tab.url?.absoluteString, title: tab.title, customTitle: tab.customTitle, state: tab.sessionState, space: tab.spaceID, start: tab.isStart ? true : nil)], active: 0, space: tab.spaceID)
+        let saved = SavedSession(tabs: [SavedTab(url: tab.keptURL?.absoluteString, title: tab.title, customTitle: tab.customTitle, state: tab.keptState, space: tab.spaceID, start: tab.isStart ? true : nil)], active: 0, space: tab.spaceID)
         close(id, remember: false)
         BrowserWindow.open(private: isPrivate, restoring: saved)
     }
@@ -276,7 +276,7 @@ extension Browser {
         guard let source = Self.all.first(where: { $0 !== self && $0.tabs.contains { $0.id == id } }), let tab = source.tab(id),
               Self.adopts(fromPrivate: source.isPrivate, toPrivate: isPrivate, bound: tab.bookmarkKey != nil) else { return nil }
         let sameStore = isPrivate || spaces.space(tab.spaceID).dataStoreID == spaces.space(spaceID).dataStoreID
-        let moved = Tab(id: Self.takeID(), url: tab.url, title: tab.title, state: tab.sessionState, browser: self, isStart: tab.isStart)
+        let moved = Tab(id: Self.takeID(), url: tab.keptURL, title: tab.title, state: tab.keptState, browser: self, isStart: tab.isStart)
         moved.customTitle = tab.customTitle
         moved.spaceID = sameStore ? spaceID : tab.spaceID
         insert(moved, after: nil)

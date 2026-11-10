@@ -33,6 +33,15 @@ struct BookmarkFileTests {
     </DL><p>
     """
 
+    @Test func aHugeCommentOrScriptThatNeverEndsIsReadInOnePass() {
+        let tail = String(repeating: "x", count: 5_000_000)
+        let start = Date()
+        let comment = BookmarkFile.parse(#"<DL><DT><A HREF="https://a.example/">A</A><!--"# + tail)
+        let script = BookmarkFile.parse(#"<DL><DT><A HREF="https://a.example/">A</A><script>"# + tail)
+        #expect(comment.bookmarks.count == 1 && script.bookmarks.count == 1)
+        #expect(Date().timeIntervalSince(start) < 20, "linear: a few seconds at most even in a debug build")
+    }
+
     @Test func chromesFileIsReadWithItsFoldersNested() {
         let parsed = BookmarkFile.parse(Self.chrome)
         #expect(pairs(parsed) == [

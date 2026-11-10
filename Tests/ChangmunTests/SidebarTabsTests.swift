@@ -80,10 +80,11 @@ extension SharedAgentState {
             let list = CGRect(x: 0, y: 100, width: 200, height: 300)
             let rows: [(frame: CGRect, window: Int?)] = [(CGRect(x: 0, y: 60, width: 200, height: 28), 1), (CGRect(x: 0, y: 120, width: 200, height: 28), 2),
                                                         (CGRect(x: 0, y: 120, width: 200, height: 28), 1)]
-            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 130), window: 1, list: list, rows: rows) == 2)
-            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 70), window: 1, list: list, rows: rows) == nil, "a row scrolled out of the list")
-            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 130), window: 1, list: nil, rows: rows) == nil)
-            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 200), window: 1, list: list, rows: rows) == nil)
+            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 130), window: 1, sheetShown: false, list: list, rows: rows) == 2)
+            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 130), window: 1, sheetShown: true, list: list, rows: rows) == nil, "not behind a sheet")
+            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 70), window: 1, sheetShown: false, list: list, rows: rows) == nil, "a row scrolled out of the list")
+            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 130), window: 1, sheetShown: false, list: nil, rows: rows) == nil)
+            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 200), window: 1, sheetShown: false, list: list, rows: rows) == nil)
         }
 
         // MARK: Undo
@@ -174,6 +175,39 @@ extension SharedAgentState {
             #expect(read.closed?.map(\.title) == ["Old"] && read.tabs.count == 1, "the file is rewritten at once, its tabs kept")
             #expect(!FileManager.default.fileExists(atPath: damaged.path), "a file that can't be read goes")
             #expect(!FileManager.default.fileExists(atPath: missing.path))
+        }
+
+        @Test func removingAPageFromHistoryForgetsItsClosedTabsEverywhere() throws {
+            let box = Sandbox()
+            let gone = Browser.ClosedTab(url: URL(string: "https://gone.example/a"), title: "Gone", index: 0, space: Space.defaultID)
+            let kept = Browser.ClosedTab(url: URL(string: "https://kept.example/"), title: "Kept", index: 0, space: Space.defaultID)
+            let b = browser(1)
+            b.focused()
+            defer { b.windowClosed() }
+            b.closedTabs = [gone, kept]
+            var window = b.savedSession
+            window.closed = [gone, kept]
+            let file = box.file("session.json")
+            try JSONEncoder().encode(Browser.SavedWindows(windows: [window])).write(to: file)
+            Browser.forgetClosedTabs(at: "https://gone.example/a", files: [file])
+            #expect(b.closedTabs.map(\.title) == ["Kept"], "open windows forget it")
+            let read = try #require(Browser.SavedWindows.decode(Data(contentsOf: file)).first)
+            #expect(read.closed?.map(\.title) == ["Kept"], "and the file at once, so ⇧⌘T doesn't bring it back after a restart")
+        }
+
+        @Test func aClosedTabIsWrittenWithoutItsHistoryAndAnOldFileWithItStillReads() throws {
+            let state = Data("back and forward, forms".utf8)
+            let closed = Browser.ClosedTab(url: URL(string: "https://a.example/"), title: "A", state: state, index: 2, bookmarkKey: "Bar / A",
+                                           group: nil, space: Space.defaultID)
+            let data = try JSONEncoder().encode(closed)
+            let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            #expect(json["state"] == nil, "only the address and the place go to disk")
+            let read = try JSONDecoder().decode(Browser.ClosedTab.self, from: data)
+            #expect(read.url == closed.url && read.title == "A" && read.index == 2 && read.bookmarkKey == "Bar / A" && read.space == Space.defaultID && read.state == nil)
+            #expect(read.id == closed.id && abs(read.closedAt.timeIntervalSince(closed.closedAt)) < 0.001)
+            let old = #"{"id":"5BACE000-0000-4000-8000-0000000000AA","url":"https://b.example/","title":"B","state":"AAEC","index":0,"space":"5BACE000-0000-4000-8000-000000000001","closedAt":0}"#
+            let earlier = try JSONDecoder().decode(Browser.ClosedTab.self, from: Data(old.utf8))
+            #expect(earlier.title == "B" && earlier.state == Data([0, 1, 2]), "a file from before still reads")
         }
 
         @Test func closedTabsAFileStillHoldsAfterAClearDoNotComeBack() throws {

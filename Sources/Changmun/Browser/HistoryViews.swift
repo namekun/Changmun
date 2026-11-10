@@ -32,6 +32,7 @@ struct HistoryView: View {
                                     Divider()
                                     Button("Remove from History") {
                                         Library.shared.deleteHistory(url: visit.url)
+                                        Browser.forgetClosedTabs(at: visit.url)
                                         reload()
                                     }
                                 }

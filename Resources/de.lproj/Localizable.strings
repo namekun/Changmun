@@ -309,6 +309,7 @@
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "Vorschau von %@. Mit Befehl-Return als Tab öffnen, mit Esc schließen.";
 "Purple" = "Violett";
 "Quit" = "Beenden";
+"Quit and Reopen" = "Beenden und neu öffnen";
 "Quit and stop %lld downloads?" = "Beenden und %lld Downloads abbrechen?";
 "Quit and stop the download?" = "Beenden und den Download abbrechen?";
 "Put to Sleep" = "Ruhen lassen";
@@ -870,6 +871,7 @@
 "This site insists on a secure connection, so its certificate can’t be overridden." = "Diese Website besteht auf einer sicheren Verbindung, daher lässt sich die Zertifikatswarnung nicht umgehen.";
 "This site’s certificate was fine earlier in this session and isn’t now. Someone may be intercepting the connection, so there is no way to go on." = "Das Zertifikat dieser Website war früher in dieser Sitzung in Ordnung und ist es jetzt nicht mehr. Jemand könnte die Verbindung abfangen, daher gibt es keinen Weg weiter.";
 "The site named other certificate issuers than yours, so all your certificates are shown." = "Die Website nennt andere Zertifikataussteller als deine, daher werden alle deine Zertifikate angezeigt.";
+"The source can't be reloaded. View the page's source again." = "Der Quelltext kann nicht neu geladen werden. Zeige den Seitenquelltext erneut an.";
 "This page's certificate wasn't verified: you chose to go on." = "Das Zertifikat dieser Seite wurde nicht überprüft: Du hast dich fürs Fortfahren entschieden.";
 "Stay signed in after quitting" = "Nach dem Beenden angemeldet bleiben";
 "Keeps the sign-in cookies that sites meant to end when the browser closes, for up to 30 days, in a file on this Mac encrypted with a key from your login Keychain, until you turn it off or clear site data." = "Behält die Anmelde-Cookies, die Websites beim Schließen des Browsers verfallen lassen wollten, bis zu 30 Tage in einer Datei auf diesem Mac, verschlüsselt mit einem Schlüssel aus deinem Anmeldeschlüsselbund, bis du die Option ausschaltest oder die Websitedaten löschst.";
@@ -925,6 +927,7 @@
 "Keyboard Shortcuts" = "Tastenkürzel";
 "Keys: %@" = "Tasten: %@";
 "Know where this Mac is" = "Den Standort dieses Macs kennen";
+"macOS usually lets Changmun use Full Disk Access only after it is reopened. If Try Again still can't read it, quit and reopen Changmun." = "macOS gewährt Changmun den Festplattenvollzugriff meist erst, nachdem es neu geöffnet wurde. Wenn „Erneut versuchen“ es immer noch nicht lesen kann, beende Changmun und öffne es erneut.";
 "Make Changmun the default browser" = "Changmun als Standardbrowser festlegen";
 "Mouse and Trackpad" = "Maus und Trackpad";
 "Mouse side buttons" = "Seitentasten der Maus";

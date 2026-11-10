@@ -63,70 +63,74 @@ final class PageWebView: WKWebView {
         }
     }
 
-    /// Whether the keys go to something the user types in: a field, an editor, a frame (whose inside the app can't see from here). There Esc and
-    /// ⌘← / ⌘→ belong to the text.
-    static let typingScript = """
-    if (document.designMode === 'on') return true;
-    let el = document.activeElement;
-    while (el && el.shadowRoot && el.shadowRoot.activeElement) el = el.shadowRoot.activeElement;
-    if (!el || el === document.body || el === document.documentElement) return false;
-    if (el.isContentEditable || ['TEXTAREA', 'SELECT', 'IFRAME', 'FRAME', 'EMBED', 'OBJECT'].includes(el.tagName)) return true;
-    if (el.getAttribute('role') === 'textbox') return true;
-    if (el.tagName !== 'INPUT') return false;
-    return !['button', 'submit', 'reset', 'checkbox', 'radio', 'image', 'file', 'range', 'color'].includes((el.type || '').toLowerCase());
-    """
+    /// The key last given to the page, by its time. WebKit gives the page every key first and sends one it left alone (no listener prevented
+    /// it, no field, editor or frame took it) through the window again, after the page is done with it: that second arrival is the only sign
+    /// that the page didn't use the key, so only then do these keys do what they do here.
+    private var givenToPage: TimeInterval?
 
-    private var lastPageKey: TimeInterval?
+    /// Whether a key arriving at `time` is one given to the page coming back unused. Its first arrival is noted as given.
+    nonisolated static func cameBack(at time: TimeInterval, given: inout TimeInterval?) -> Bool {
+        if given == time {
+            given = nil
+            return true
+        }
+        given = time
+        return false
+    }
 
     override func keyDown(with event: NSEvent) {
+        if pageLeftAlone(event) { return }
         super.keyDown(with: event)
-        afterPageKey(event)
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        let handled = super.performKeyEquivalent(with: event)
-        afterPageKey(event)
-        return handled
+        if pageLeftAlone(event) { return true }
+        return super.performKeyEquivalent(with: event)
     }
 
-    /// The page has the key first, always: these keys only add to what it does with them, and only where nothing takes typing. The question is
-    /// asked in the app's own world, after the page has had the key.
-    private func afterPageKey(_ event: NSEvent) {
-        guard event.type == .keyDown, event.timestamp != lastPageKey, owner != nil, !isAway,
-              (window?.firstResponder as? NSView)?.isDescendant(of: self) == true,
-              let key = Self.pageKey(keyCode: event.keyCode, modifiers: event.modifierFlags, isRepeat: event.isARepeat) else { return }
-        // WebKit hands a key the page left alone back up the chain, which can bring it here a second time.
-        lastPageKey = event.timestamp
-        if key == .stop && !isLoading { return }
-        callAsyncJavaScript(Self.typingScript, arguments: [:], in: nil, in: .defaultClient) { [weak self] result in
-            Task { @MainActor in
-                guard let self, let owner = self.owner, case .success(let typing) = result, typing as? Bool == false else { return }
-                switch key {
-                case .stop: if self.isLoading { self.stopLoading() }
-                case .back: if owner.canGoBack { self.goBack() }
-                case .forward: if owner.canGoForward { self.goForward() }
-                }
-            }
+    /// True when the key came back from the page unused and did what it does here. WebKit gives the page a key only while it is the first
+    /// responder itself, so only then is a first arrival noted.
+    private func pageLeftAlone(_ event: NSEvent) -> Bool {
+        guard event.type == .keyDown, let owner, !isAway, window?.firstResponder === self,
+              let key = Self.pageKey(keyCode: event.keyCode, modifiers: event.modifierFlags, isRepeat: event.isARepeat),
+              Self.cameBack(at: event.timestamp, given: &givenToPage) else { return false }
+        switch key {
+        case .stop:
+            guard isLoading else { return false }
+            stopLoading()
+        case .back:
+            guard owner.canGoBack else { return false }
+            goBack()
+        case .forward:
+            guard owner.canGoForward else { return false }
+            goForward()
         }
+        return true
     }
 
     // MARK: Dropped files
 
     /// Files the user dropped on the page a moment ago. WebKit opens one in the page when the page doesn't take the drop; only a load of such a file
-    /// is the user's, never one the page asks for itself.
+    /// is the user's, never one the page asks for itself. A page that takes the drop loads nothing, so the claim waits for a load of one of
+    /// those very files, and a load the tab starts itself (Open File, the address bar) ends it.
     private var dropped: (files: [URL], at: Date)?
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        let files = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
-        dropped = files.isEmpty ? nil : (files, Date())
+        noteDrop(sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? [])
         return super.performDragOperation(sender)
     }
 
-    /// The files to open when WebKit loads `url`: the openable ones the user dropped, if `url` is one of them. Asked once per drop.
+    func noteDrop(_ files: [URL], at date: Date = Date()) {
+        dropped = files.isEmpty ? nil : (files, date)
+    }
+
+    func forgetDrop() { dropped = nil }
+
+    /// The files to open when WebKit loads `url`: the openable ones the user dropped, if `url` is one of them. Spent by that load only.
     func takeDrop(leadingTo url: URL) -> [URL]? {
-        guard let drop = dropped else { return nil }
+        guard let drop = dropped, let files = Self.filesToOpen(loading: url, dropped: drop.files, droppedAt: drop.at, now: Date()) else { return nil }
         dropped = nil
-        return Self.filesToOpen(loading: url, dropped: drop.files, droppedAt: drop.at, now: Date())
+        return files
     }
 
     /// Only a load that comes right after the drop and is for a dropped file counts, and only web pages, PDFs and images are opened.

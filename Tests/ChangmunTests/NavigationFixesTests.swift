@@ -100,6 +100,16 @@ extension SharedAgentState {
             #expect(PageWebView.pageKey(keyCode: 123, modifiers: .command, isRepeat: true) == nil, "held down, once")
         }
 
+        @Test func aKeyActsOnlyWhenThePageHandsItBackUnused() {
+            var given: TimeInterval?
+            #expect(!PageWebView.cameBack(at: 10, given: &given), "the first arrival goes to the page")
+            #expect(PageWebView.cameBack(at: 10, given: &given), "WebKit sending the same key again: the page left it alone")
+            #expect(!PageWebView.cameBack(at: 11, given: &given), "a key the page used never comes back: the next one is new")
+            #expect(!PageWebView.cameBack(at: 12, given: &given))
+            #expect(PageWebView.cameBack(at: 12, given: &given))
+            #expect(!PageWebView.cameBack(at: 12, given: &given), "once per key")
+        }
+
         // MARK: Zoom
 
         @Test func actualSizeUndoesAPinchAndTheSizeIsSaid() {
@@ -182,15 +192,21 @@ extension SharedAgentState {
         // MARK: ⌥-click
 
         @Test func optionClickOnALinkDownloadsIt() async {
-            #expect(Tab.isDownloadClick(.linkActivated, modifiers: .option, url: URL(string: "https://a.example/f.zip"), userInitiated: true))
-            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: [.option, .command], url: URL(string: "https://a.example/"), userInitiated: true), "⌘ opens a tab")
-            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: [], url: URL(string: "https://a.example/"), userInitiated: true))
-            #expect(!Tab.isDownloadClick(.other, modifiers: .option, url: URL(string: "https://a.example/"), userInitiated: true))
-            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: .option, url: URL(string: "mailto:a@a.example"), userInitiated: true))
-            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: .option, url: URL(string: "https://a.example/f.zip"), userInitiated: false),
+            #expect(Tab.isDownloadClick(.linkActivated, modifiers: .option, optionHeld: true, url: URL(string: "https://a.example/f.zip"), userInitiated: true))
+            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: [.option, .command], optionHeld: true, url: URL(string: "https://a.example/"), userInitiated: true), "⌘ opens a tab")
+            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: [], optionHeld: true, url: URL(string: "https://a.example/"), userInitiated: true))
+            #expect(!Tab.isDownloadClick(.other, modifiers: .option, optionHeld: true, url: URL(string: "https://a.example/"), userInitiated: true))
+            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: .option, optionHeld: true, url: URL(string: "mailto:a@a.example"), userInitiated: true))
+            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: .option, optionHeld: true, url: URL(string: "https://a.example/f.zip"), userInitiated: false),
                     "a click the page's script made downloads nothing, whatever key is held")
+            #expect(!Tab.isDownloadClick(.linkActivated, modifiers: .option, optionHeld: false, url: URL(string: "https://a.example/f.zip"), userInitiated: true),
+                    "the click says ⌥ (a script's altKey) but the key is up")
             let (browser, tab, view) = pageTab()
-            defer { browser.windowClosed() }
+            defer { browser.windowClosed(); Tab.optionHeldForTests = nil }
+            Tab.optionHeldForTests = false
+            #expect(await tab.webView(view, decidePolicyFor: LinkClick.make(.option), preferences: WKWebpagePreferences()).0 != .download,
+                    "only the keyboard's ⌥ counts")
+            Tab.optionHeldForTests = true
             #expect(await tab.webView(view, decidePolicyFor: LinkClick.make(.option), preferences: WKWebpagePreferences()).0 == .download)
             #expect(await tab.webView(view, decidePolicyFor: LinkClick.make(.option, byUser: false), preferences: WKWebpagePreferences()).0 != .download,
                     "a link the page clicked by itself is followed, not downloaded")
@@ -211,6 +227,20 @@ extension SharedAgentState {
             #expect(PageWebView.filesToOpen(loading: archive, dropped: dropped, droppedAt: now, now: now) == nil, "nothing that doesn't open")
         }
 
+        @Test func aDropIsSpentOnlyByALoadOfADroppedFileAndALoadOfTheTabsOwnEndsIt() throws {
+            let (browser, tab, view) = pageTab()
+            defer { browser.windowClosed() }
+            let web = try #require(view as? PageWebView)
+            let page = URL(fileURLWithPath: "/tmp/drop/page.html"), other = URL(fileURLWithPath: "/tmp/drop/other.html")
+            web.noteDrop([page])
+            #expect(web.takeDrop(leadingTo: other) == nil, "a file that wasn't dropped")
+            #expect(web.takeDrop(leadingTo: page) == [page], "and the claim is still there for the dropped one")
+            #expect(web.takeDrop(leadingTo: page) == nil, "spent")
+            web.noteDrop([page])
+            tab.load(URL(string: "about:blank")!)
+            #expect(web.takeDrop(leadingTo: page) == nil, "a load the tab starts (Open File, the address bar) ends the claim")
+        }
+
         @Test func aPageStillCannotLoadAFileByItself() async {
             let (browser, tab, view) = pageTab()
             defer { browser.windowClosed() }
@@ -228,6 +258,27 @@ extension SharedAgentState {
             #expect(page.contains("ui-monospace"))
         }
 
+        @Test func aSourceTabIsNotTheAIsAndComesBackAsItsPage() {
+            let (browser, tab, _) = pageTab()
+            defer { browser.windowClosed() }
+            let page = URL(string: "https://a.example/page")!
+            let source = browser.openTab(url: nil, activate: false, after: tab)
+            source.sourceOf = page
+            source.wake().loadHTMLString(Tab.sourcePage("<p>", title: "Source"), baseURL: nil)
+            #expect(!browser.isVisibleToAI(source) && browser.isVisibleToAI(tab), "the AI is never given a source view")
+            let saved = browser.savedSession.tabs.first { $0.url == page.absoluteString }
+            #expect(saved != nil && saved?.state == nil, "the session keeps it as its page, not a blank one")
+            #expect(browser.duplicate(source.id)?.url == page)
+            source.reload()
+            #expect(browser.overlay.statusMessage == String(localized: "The source can't be reloaded. View the page's source again."))
+            browser.close(source.id)
+            #expect(browser.closedTabs.last?.url == page && browser.closedTabs.last?.state == nil)
+            let shown = browser.openTab(url: nil, activate: false)
+            shown.sourceOf = page
+            shown.load(URL(string: "about:blank")!)
+            #expect(shown.sourceOf == nil && shown.keptURL == URL(string: "about:blank"), "a load of its own makes it a page tab again")
+        }
+
         // MARK: Quitting with downloads running
 
         @Test func quittingAsksOnlyWhileFilesDownloadAndKeepingIsTheDefault() throws {
@@ -237,6 +288,12 @@ extension SharedAgentState {
             #expect(one.title != three.title && three.title.contains("3"))
             #expect(three.buttons[0].title == String(localized: "Quit"))
             #expect(three.defaultIndex == 1 && three.cancelIndex == 1, "Return and Esc keep downloading")
+        }
+
+        @Test func onlyKeepDownloadingKeepsTheAppOpen() {
+            #expect(AppDelegate.quits(after: DialogResult(button: 0, fields: [], remembered: false, picked: 0)))
+            #expect(!AppDelegate.quits(after: DialogResult(button: 1, fields: [], remembered: false, picked: 0)))
+            #expect(AppDelegate.quits(after: nil), "a question that couldn't be shown quits, never cancels the quit silently")
         }
     }
 }

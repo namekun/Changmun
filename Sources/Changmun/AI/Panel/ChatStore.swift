@@ -147,9 +147,12 @@ final class ChatStore: ObservableObject {
         }
     }
 
+    /// The tab in front, as the AI is told of it: a page's source (View Source) is none.
+    static var frontTab: Tab? { Browser.recent?.active.flatMap { $0.sourceOf == nil ? $0 : nil } }
+
     /// The titles and addresses of the tab in front and of the attached tabs go to the AI with each message, so they count as read.
     func noteAttachedRead() {
-        noteRead(front: Browser.recent?.active, attached: attachedTabs)
+        noteRead(front: Self.frontTab, attached: attachedTabs)
     }
 
     private func noteRead(front: Tab?, attached: [Tab]) {
@@ -158,7 +161,7 @@ final class ChatStore: ObservableObject {
 
     /// The tabs in front and attached right now.
     private var currentContext: Context {
-        let front = Browser.recent?.active
+        let front = Self.frontTab
         return Context(frontID: front?.id, frontSite: front.map(Self.site), attachedIDs: attachedIDs,
                        attachedSites: Dictionary(attachedTabs.map { ($0.id, Self.site($0)) }) { $1 })
     }
@@ -315,7 +318,7 @@ final class ChatStore: ObservableObject {
         runToken = nil
         isRunning = false
         step = nil
-        if !items.isEmpty && !Self.panelVisible() { answerWaiting = true }
+        if !items.isEmpty && !runFailed && !Self.panelVisible() { answerWaiting = true }
         persist()
         // Whatever the AI left under way (a question waiting for the user) goes with its process.
         AgentActivity.shared.cancel(caller: Self.caller)
@@ -351,7 +354,7 @@ final class ChatStore: ObservableObject {
     /// The tabs a queued message goes with, as they are now: one that has gone, or was detached since, is left out, and one that is on
     /// another site than when the message was written is named but not described (its title and address are the new site's).
     private func tabs(for context: Context?) -> (front: Tab?, attached: [Tab], closed: Bool, frontMoved: Int?, attachedMoved: [Int]) {
-        guard let context else { return (Browser.recent?.active, attachedTabs, false, nil, []) }
+        guard let context else { return (Self.frontTab, attachedTabs, false, nil, []) }
         var front = context.frontID.flatMap(ToolCatalog.findTab), frontMoved: Int?
         if let tab = front, Self.site(tab) != context.frontSite {
             frontMoved = tab.id

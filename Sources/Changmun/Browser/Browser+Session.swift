@@ -64,7 +64,8 @@ extension Browser {
     /// its last page finished loading, so it doesn't walk every web view on the main thread.
     func savedSession(fresh: Bool) -> SavedSession {
         SavedSession(
-            tabs: tabs.map { SavedTab(url: $0.url?.absoluteString, title: $0.title, customTitle: $0.customTitle, state: fresh ? $0.sessionState : $0.lastSessionState,
+            tabs: tabs.map { SavedTab(url: $0.keptURL?.absoluteString, title: $0.title, customTitle: $0.customTitle,
+                                  state: $0.sourceOf != nil ? nil : fresh ? $0.sessionState : $0.lastSessionState,
                                   bookmarkKey: $0.bookmarkKey, group: $0.groupID, shown: $0.lastShown, space: $0.spaceID,
                                   selected: spaceSelection[$0.spaceID] == $0.id, start: $0.isStart ? true : nil) },
             active: tabs.firstIndex { $0.id == activeID },
@@ -108,7 +109,7 @@ extension Browser {
     /// What `saveSessionIfChanged` compares: the parts of the ordinary windows that the session file keeps.
     static func sessionSignature() -> [String] {
         all.filter { !$0.isPrivate }.map { browser in
-            browser.tabs.map { "\($0.id) \($0.spaceID) \($0.groupID?.uuidString ?? "") \($0.bookmarkKey ?? "") \($0.url?.absoluteString ?? "") \($0.customTitle ?? "")" }.joined(separator: "|")
+            browser.tabs.map { "\($0.id) \($0.spaceID) \($0.groupID?.uuidString ?? "") \($0.bookmarkKey ?? "") \($0.keptURL?.absoluteString ?? "") \($0.customTitle ?? "")" }.joined(separator: "|")
                 + " #\(browser.activeID ?? 0) \(browser.spaceID) " + browser.groups.map { "\($0.id) \($0.isOpen) \($0.name)" }.joined(separator: "|")
                 + " ~" + browser.closedTabs.suffix(keptClosedTabs).map(\.id.uuidString).joined(separator: "|")
         }
@@ -121,15 +122,26 @@ extension Browser {
     static func forgetClosedTabs(since date: Date, files: [URL]? = nil, defaults: UserDefaults = .standard) {
         noteCleared(since: date, defaults: defaults)
         for browser in all { browser.removeClosedTabs(since: date) }
+        forgetClosedTabs(files: files) { $0.closedAt >= date }
+    }
+
+    /// Removing a page from the history forgets the closed tabs that were on it, in the same way.
+    static func forgetClosedTabs(at address: String, files: [URL]? = nil) {
+        for browser in all { browser.closedTabs.removeAll { $0.url?.absoluteString == address } }
+        forgetClosedTabs(files: files) { $0.url?.absoluteString == address }
+    }
+
+    /// Rewrites the session files at once without the closed tabs `forgets` picks; `files` stands in for them in tests.
+    private static func forgetClosedTabs(files: [URL]?, where forgets: (ClosedTab) -> Bool) {
         if files == nil { saveSession() }
         sessionQueue.sync {
-            for file in files ?? [sessionFile, previousSessionFile] { scrubClosedTabs(in: file, since: date) }
+            for file in files ?? [sessionFile, previousSessionFile] { scrubClosedTabs(in: file, where: forgets) }
         }
     }
 
-    /// Takes the tabs closed since `date` out of a session file. A file that can't be read, or written back, goes: what was cleared must not
+    /// Takes the closed tabs `forgets` picks out of a session file. A file that can't be read, or written back, goes: what was cleared must not
     /// come back at the next launch.
-    nonisolated static func scrubClosedTabs(in file: URL, since date: Date) {
+    nonisolated static func scrubClosedTabs(in file: URL, where forgets: (ClosedTab) -> Bool) {
         guard let data = try? Data(contentsOf: file) else { return }
         guard let windows = SavedWindows.decodeIfValid(data) else {
             try? FileManager.default.removeItem(at: file)
@@ -137,7 +149,7 @@ extension Browser {
         }
         let kept = windows.map { window in
             var window = window
-            window.closed = window.closed?.filter { $0.closedAt < date }
+            window.closed = window.closed?.filter { !forgets($0) }
             return window
         }
         guard (try? JSONEncoder().encode(SavedWindows(windows: kept)).write(to: file, options: .atomic)) != nil else {

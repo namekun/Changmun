@@ -36,9 +36,6 @@ extension Tab: WKNavigationDelegate {
             // Never handed to a new tab, which would treat it as opened by the user.
             return (.allow, preferences)
         }
-        if Self.isDownloadClick(action.navigationType, modifiers: action.modifierFlags, url: action.request.url, userInitiated: userInitiated) {
-            return (.download, preferences)
-        }
         if action.navigationType == .linkActivated, action.modifierFlags.contains(.command) || action.buttonNumber == Self.middleButton,
            let url = action.request.url {
             browser?.openTab(url: url, activate: action.modifierFlags.contains(.shift), after: self).openerID = id
@@ -51,6 +48,9 @@ extension Tab: WKNavigationDelegate {
         // After the branches that send the address to another tab (⌘-click, middle click, the peek), which decide for themselves: only the load that is
         // going to happen in this tab is stopped, never the page that is shown for a link opened elsewhere.
         if let target = action.request.url, stopsLoad(of: target, isMainFrame: action.targetFrame?.isMainFrame ?? true, in: webView) { return (.cancel, preferences) }
+        if Self.isDownloadClick(action.navigationType, modifiers: action.modifierFlags, optionHeld: Self.optionKeyHeld, url: action.request.url, userInitiated: userInitiated) {
+            return (.download, preferences)
+        }
         // The load that is allowed is the one whose certificate a challenge is for, until it commits or fails (see TrustFailure.pendingTarget).
         if action.targetFrame?.isMainFrame ?? true, let target = action.request.url, ["http", "https"].contains(target.scheme?.lowercased() ?? "") { navigatingTo = target }
         return (Self.allowHere, preferences)
@@ -76,11 +76,16 @@ extension Tab: WKNavigationDelegate {
     }
 
     /// ⌥-click on a link (without ⌘) downloads what it points to, as in Safari. Only the user's own click counts: a page's script can
-    /// click a link too, and ⌥ may be held for something else at that moment.
-    nonisolated static func isDownloadClick(_ type: WKNavigationType, modifiers: NSEvent.ModifierFlags, url: URL?, userInitiated: Bool) -> Bool {
-        userInitiated && type == .linkActivated && modifiers.contains(.option) && !modifiers.contains(.command)
+    /// click a link too, and ⌥ may be held for something else at that moment. The click's ⌥ is the page's word (a script's click can say
+    /// altKey), so ⌥ must also be down on the keyboard (`optionHeld`).
+    nonisolated static func isDownloadClick(_ type: WKNavigationType, modifiers: NSEvent.ModifierFlags, optionHeld: Bool, url: URL?, userInitiated: Bool) -> Bool {
+        userInitiated && optionHeld && type == .linkActivated && modifiers.contains(.option) && !modifiers.contains(.command)
             && ["http", "https"].contains(url?.scheme?.lowercased() ?? "")
     }
+
+    /// Whether ⌥ is down on the keyboard now. Tests only: what to say in its place.
+    static var optionHeldForTests: Bool?
+    static var optionKeyHeld: Bool { optionHeldForTests ?? NSEvent.modifierFlags.contains(.option) }
 
     /// Schemes that mount servers, run commands or change settings: a page never gets to launch these.
     static let blockedSchemes: Set<String> = ["smb", "afp", "nfs", "ftp", "ftps", "vnc", "ssh", "telnet", "x-apple.systempreferences",

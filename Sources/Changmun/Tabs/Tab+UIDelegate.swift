@@ -20,7 +20,7 @@ extension Tab: WKUIDelegate {
             browser?.openPeek(url)
             return nil
         }
-        if Self.isDownloadClick(action.navigationType, modifiers: action.modifierFlags, url: action.request.url,
+        if Self.isDownloadClick(action.navigationType, modifiers: action.modifierFlags, optionHeld: Self.optionKeyHeld, url: action.request.url,
                                 userInitiated: Self.userStartedForAppLinks(userInitiated, knowsUserInitiated: Self.knowsUserInitiated)) {
             webView.startDownload(using: action.request) { [weak self] download in
                 guard let self else { return }

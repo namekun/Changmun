@@ -66,6 +66,11 @@ struct AIPanelPureFixesTests {
         #expect(failure.kind == .outdated && failure.title == "Claude Code may need updating")
         #expect(failure.command(claude: "/Users/me/.local/bin/claude") == "/Users/me/.local/bin/claude update")
         #expect(AIFailure.classify("error: unrecognized option --setting-sources").kind == .outdated)
+        #expect(AIFailure.classify("Tool failed: unexpected argument 'x' in the page's script").kind != .outdated, "the words inside other text")
+        #expect(AIFailure.classify("The form said: error: unknown option").kind != .outdated, "not on a line of its own")
+        #expect(AIFailure.classify("unknown argument").kind != .outdated)
+        #expect(AIFailure.classify("error: unknown option '--x'", code: "rate_limit").kind == .usageLimit, "the API's own code comes first")
+        #expect(AIFailure.classify("error: unknown option '--x'", status: 529).kind == .overloaded)
         let login = AIFailure.classify("Not logged in · Please run /login", code: "authentication_failed")
         #expect(login.command(claude: nil) == "claude")
         #expect(login.command(claude: "/Users/me/.local/bin/claude") == "/Users/me/.local/bin/claude", "the path the app runs, which the shell may not find by name")
@@ -271,6 +276,10 @@ extension SharedAgentState {
             #expect(chat.answerWaiting)
             chat.reset()
             #expect(!chat.answerWaiting)
+            chat.submit("fails")
+            chat.runFailed = true
+            chat.endRun()
+            #expect(!chat.answerWaiting, "a run that failed answered nothing: the panel's error row says so when it opens")
         }
     }
 }
