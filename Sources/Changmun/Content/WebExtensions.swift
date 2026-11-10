@@ -521,7 +521,7 @@ extension Tab: WKWebExtensionTab {
     }
 
     func reload(fromOrigin: Bool, for context: WKWebExtensionContext, completionHandler: @escaping ((any Error)?) -> Void) {
-        if fromOrigin { webView?.reloadFromOrigin() } else { webView?.reload() }
+        reload(fromOrigin: fromOrigin)
         completionHandler(nil)
     }
 

@@ -95,7 +95,7 @@ struct TabMenu: View {
 
     var body: some View {
         Button("Reload") {
-            if tab.isAsleep { browser.activate(tab.id) } else { tab.webView?.reload() }
+            if tab.isAsleep { browser.activate(tab.id) } else { tab.reload() }
         }
         Button("Duplicate Tab") { browser.duplicate(tab.id) }
         Button("Rename Tab…") { browser.renamingTab = tab.id }

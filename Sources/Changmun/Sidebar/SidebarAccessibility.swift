@@ -15,7 +15,7 @@ extension Accessibility {
         let actions: [AccessibleButton.Action] = [
             .init(String(localized: "Close Tab"), close),
             .init(String(localized: "Rename"), { browser.renamingTab = tab.id }),
-            .init(String(localized: "Reload")) { if tab.isAsleep { browser.activate(tab.id) } else { tab.webView?.reload() } },
+            .init(String(localized: "Reload")) { if tab.isAsleep { browser.activate(tab.id) } else { tab.reload() } },
         ]
         return actions + muteActions(of: tab)
     }
