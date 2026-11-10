@@ -152,17 +152,49 @@ extension Browser {
         if to != from, #available(macOS 15.4, *) { ExtensionHost.shared.tabMoved(tab, from: from) }
     }
 
+    /// The next tab down the sidebar (1) or the one above (-1), going round; from a tab the sidebar doesn't show, the first or the last.
     func selectTab(offset: Int) {
-        let listed = visibleTabs
-        guard !listed.isEmpty else { return }
-        guard let current = listed.firstIndex(where: { $0.id == activeID }) else { return activate(listed[0].id) }
-        activate(listed[(current + offset + listed.count) % listed.count].id)
+        if let id = Self.step(from: activeID, by: offset, in: sidebarTabs.map(\.id)) { activate(id) }
     }
 
+    /// ⌘1 to ⌘8 down the sidebar; 9 is the last.
     func selectTab(number: Int) {
-        let listed = visibleTabs
-        guard !listed.isEmpty else { return }
-        activate(number >= 9 ? listed[listed.count - 1].id : listed[min(number - 1, listed.count - 1)].id)
+        if let id = Self.numbered(number, in: sidebarTabs.map(\.id)) { activate(id) }
+    }
+
+    nonisolated static func step(from current: Int?, by offset: Int, in order: [Int]) -> Int? {
+        guard !order.isEmpty else { return nil }
+        guard let at = order.firstIndex(where: { $0 == current }) else { return offset < 0 ? order.last : order.first }
+        return order[((at + offset) % order.count + order.count) % order.count]
+    }
+
+    nonisolated static func numbered(_ number: Int, in order: [Int]) -> Int? {
+        guard !order.isEmpty else { return nil }
+        return number >= 9 ? order.last : order[min(max(number, 1) - 1, order.count - 1)]
+    }
+
+    /// Every tab the sidebar shows, top to bottom: the favorites' open tabs, the tabs of the bookmarks shown in the pinned folders,
+    /// then the tab list (a folded group shows only its shown tab).
+    var sidebarTabs: [Tab] {
+        let library = LibraryWatcher.shared
+        return sidebarTabs(favorites: library.favorites(in: favoritesFolder), pinned: space.topPinnedFolders.compactMap(library.folder))
+    }
+
+    func sidebarTabs(favorites: [Library.Entry], pinned: [Library.Folder]) -> [Tab] {
+        let drawn = favorites.map { Self.bookmarkKey(url: $0.url, folder: favoritesFolder) }
+            + pinned.flatMap { Sidebar.treeRows($0, depth: 0, scope: "pin:", pinned: true, open: space.openFolders, dragging: false) }.compactMap { row in
+                if case .bookmark(let entry, let folder, _, _) = row { Self.bookmarkKey(url: entry.url, folder: folder) } else { nil }
+            }
+        var bound: [String: Int] = [:]
+        for tab in spaceTabs { if let key = tab.bookmarkKey { bound[key] = tab.id } }
+        return Self.sidebarOrder(drawn: drawn, bound: bound, listed: visibleTabs.map(\.id)).compactMap { id in tabs.first { $0.id == id } }
+    }
+
+    /// The tabs in the order the sidebar draws them: the tab of each bookmark drawn (`drawn`, top to bottom; `bound` names each open
+    /// bookmark's tab), then the listed tabs. A bookmark with no tab open is skipped, and no tab comes twice.
+    nonisolated static func sidebarOrder(drawn: [String], bound: [String: Int], listed: [Int]) -> [Int] {
+        var seen = Set<Int>()
+        return (drawn.compactMap { bound[$0] } + listed).filter { seen.insert($0).inserted }
     }
 
     /// How many listed tabs of the space came before position `index` in `tabs` (after a tab there was removed).

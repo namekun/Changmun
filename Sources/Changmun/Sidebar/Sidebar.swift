@@ -262,13 +262,18 @@ struct Sidebar: View {
         }
     }
 
-    /// A folder, and when it is open the folders and bookmarks inside it, each a step further in.
     private func treeRows(_ folder: Library.Folder, depth: Int, scope: String, pinned: Bool) -> [TreeRow] {
+        Self.treeRows(folder, depth: depth, scope: scope, pinned: pinned, open: browser.space.openFolders, dragging: drag.isDragging)
+    }
+
+    /// A folder, and when it is open the folders and bookmarks inside it, each a step further in. `open` holds the open rows' keys
+    /// (see `Space.openFolders`); `dragging` adds the strip to drop at the end of an open folder.
+    static func treeRows(_ folder: Library.Folder, depth: Int, scope: String, pinned: Bool, open: [String], dragging: Bool) -> [TreeRow] {
         var rows: [TreeRow] = [.folder(folder, depth: depth, scope: scope, pinned: pinned)]
-        guard browser.space.openFolders.contains(scope + folder.key) else { return rows }
-        for child in folder.children { rows += treeRows(child, depth: depth + 1, scope: scope, pinned: pinned) }
+        guard open.contains(scope + folder.key) else { return rows }
+        for child in folder.children { rows += treeRows(child, depth: depth + 1, scope: scope, pinned: pinned, open: open, dragging: dragging) }
         rows += folder.entries.map { .bookmark($0, folder: folder.key, depth: depth + 1, scope: scope) }
-        if drag.isDragging, !folder.entries.isEmpty { rows.append(.end(folder: folder.key, depth: depth + 1, scope: scope)) }
+        if dragging, !folder.entries.isEmpty { rows.append(.end(folder: folder.key, depth: depth + 1, scope: scope)) }
         return rows
     }
 
