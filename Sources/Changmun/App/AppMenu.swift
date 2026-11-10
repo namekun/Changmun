@@ -54,6 +54,7 @@ enum AppMenu {
         let view = submenu(main, "View")
         add(view, "Reload", #selector(AppDelegate.reload(_:)), "r")
         add(view, "Hard Reload", #selector(AppDelegate.hardReload(_:)), "r", chrome ? [.command, .shift] : [.command, .option])
+        add(view, "Stop", #selector(AppDelegate.stopLoadingPage(_:)), ".")
         add(view, "Sidebar", #selector(AppDelegate.toggleBrowserSidebar(_:)), chrome ? "s" : "l", chrome ? [.command] : [.command, .shift])
         add(view, "Focus Mode", #selector(AppDelegate.toggleFocusMode(_:)), "f", [.command, .shift])
         add(view, "AI Panel", #selector(AppDelegate.toggleChat(_:)), "e")
@@ -77,6 +78,7 @@ enum AppMenu {
         add(develop, "Web Inspector (Network)", #selector(AppDelegate.toggleInspector(_:)), f12, [])
         add(develop, "Web Inspector (Network)", #selector(AppDelegate.toggleInspector(_:)), "i", [.command, .option], hidden: true)
         add(develop, "Console", #selector(AppDelegate.showConsole(_:)), chrome ? "j" : "c", [.command, .option])
+        add(develop, "View Page Source", #selector(AppDelegate.viewPageSource(_:)), "u", [.command, .option])
 
         let history = submenu(main, "History")
         add(history, "Back", #selector(AppDelegate.goBack(_:)), "[")

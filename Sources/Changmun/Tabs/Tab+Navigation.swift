@@ -27,10 +27,16 @@ extension Tab: WKNavigationDelegate {
         }
         // Local files load only as the user opened them: that file, or files in its folder (which it may read anyway).
         if let url = action.request.url, url.isFileURL {
+            // A file the user dropped on the page, which the page didn't take: it opens in a tab of its own, as Open File does.
+            if action.targetFrame?.isMainFrame ?? true, let files = (webView as? PageWebView)?.takeDrop(leadingTo: url) {
+                for file in files { browser?.openTab(url: file) }
+                return (.cancel, preferences)
+            }
             guard Self.fileLoadAllowed(url, userOpened: userFileLoad) else { return (.cancel, preferences) }
             // Never handed to a new tab, which would treat it as opened by the user.
             return (.allow, preferences)
         }
+        if Self.isDownloadClick(action.navigationType, modifiers: action.modifierFlags, url: action.request.url) { return (.download, preferences) }
         if action.navigationType == .linkActivated, action.modifierFlags.contains(.command) || action.buttonNumber == Self.middleButton,
            let url = action.request.url {
             browser?.openTab(url: url, activate: action.modifierFlags.contains(.shift), after: self).openerID = id
@@ -65,6 +71,12 @@ extension Tab: WKNavigationDelegate {
         action.navigationType == .linkActivated && action.buttonNumber != middleButton
             && ["http", "https"].contains(action.request.url?.scheme?.lowercased() ?? "")
             && action.modifierFlags.contains(.shift) && !action.modifierFlags.contains(.command)
+    }
+
+    /// ⌥-click on a link (without ⌘) downloads what it points to, as in Safari.
+    nonisolated static func isDownloadClick(_ type: WKNavigationType, modifiers: NSEvent.ModifierFlags, url: URL?) -> Bool {
+        type == .linkActivated && modifiers.contains(.option) && !modifiers.contains(.command)
+            && ["http", "https"].contains(url?.scheme?.lowercased() ?? "")
     }
 
     /// Schemes that mount servers, run commands or change settings: a page never gets to launch these.
@@ -169,6 +181,8 @@ extension Tab: WKNavigationDelegate {
         // What the old page asked is not for the page that replaces it, and the new page starts without having been told no.
         endPageQuestions()
         blockedThisLoad = []
+        pageDialogsThisLoad = 0
+        if navigation == nil || navigation !== shownError?.navigation { shownError = nil }
         navigatingTo = nil
         pendingUpgrade = nil
         hasUnverifiedFrame = false
@@ -230,6 +244,19 @@ extension Tab: WKNavigationDelegate {
         offerTrustException(after: nsError, in: webView)
     }
 
+    /// A page that had begun to show stopped loading (the connection went, the server stopped answering): the page stays as far as it came, and
+    /// the user is told, which a page cut off halfway does not say by itself. A load that was stopped or replaced is no failure.
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        let nsError = error as NSError
+        guard !Self.isInterruption(domain: nsError.domain, code: nsError.code), !isInBackground else { return }
+        browser?.flashStatus(String(localized: "The page stopped loading: \(nsError.localizedDescription)"))
+    }
+
+    /// A load that was stopped (by the user, or by another load), turned into a download, or handed to a plug-in.
+    nonisolated static func isInterruption(domain: String, code: Int) -> Bool {
+        code == NSURLErrorCancelled || (domain == "WebKitErrorDomain" && [102, 204].contains(code))
+    }
+
     /// A page of our own in place of one that couldn't be shown, with a way to try again.
     @discardableResult
     func showError(_ heading: String, _ message: String, address: URL?, in webView: WKWebView) -> WKNavigation? {
@@ -238,13 +265,15 @@ extension Tab: WKNavigationDelegate {
         }
         let link = address.flatMap { ["http", "https"].contains($0.scheme?.lowercased()) ? escape($0.absoluteString) : nil }
         let retry = link.map { "<a href=\"\($0)\" style=\"display: inline-block; margin-top: 16px; padding: 6px 14px; border-radius: 8px; background: rgba(128,128,128,0.16); color: CanvasText; text-decoration: none; font-weight: 600; font-size: 13px\">\(escape(String(localized: "Try Again")))</a>" } ?? ""
-        return webView.loadHTMLString("""
+        let navigation = webView.loadHTMLString("""
         <meta name="color-scheme" content="light dark"><title>\(escape(heading))</title>
         <body style="font: 13px -apple-system; display: grid; place-content: center; height: 90vh; text-align: center; color: #888">
         <h2 style="color: CanvasText; font-weight: 600; font-size: 17px; margin: 0 0 8px">\(escape(heading))</h2><div>\(escape(message))</div>
         <div style="font-size: 11px; margin-top: 4px">\(escape(address?.absoluteString ?? ""))</div>\(retry)
         </body>
         """, baseURL: nil)
+        shownError = (navigation, address)
+        return navigation
     }
 
     /// Sites behind HTTP authentication ask for a user name and password, and others for a certificate. A server's own certificate is
@@ -338,8 +367,31 @@ extension Tab: WKNavigationDelegate {
             } else {
                 webView.reload()
             }
+            if !isInBackground { browser?.flashStatus(String(localized: "This page stopped working and was loaded again")) }
         } else {
             showError(String(localized: "This page keeps crashing"), String(localized: "Changmun stopped reloading it."), address: url, in: webView)
+        }
+    }
+}
+
+extension Tab {
+    /// The pages the menu of the Back (or Forward) button lists, nearest first, each with what it is called; never the blank document Back is
+    /// kept off (see `blankStart`).
+    func historyMenu(back: Bool) -> [(item: WKBackForwardListItem, title: String)] {
+        guard let list = webView?.backForwardList else { return [] }
+        let blank = blankStart
+        let items = (back ? list.backList : list.forwardList).filter { $0 !== blank }
+        return Self.historyMenu(items.map { ($0.title, $0.url) }, back: back).map { (items[$0.index], $0.title) }
+    }
+
+    /// WebKit's back list runs from the oldest page, its forward list from the next one: the menu starts at the page one press away. A page with no
+    /// title is called by its host, or by its address when it has none.
+    nonisolated static func historyMenu(_ pages: [(title: String?, url: URL)], back: Bool) -> [(index: Int, title: String)] {
+        let order = back ? Array(pages.indices.reversed()) : Array(pages.indices)
+        return order.map { index in
+            let page = pages[index]
+            let title = page.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return (index, title.isEmpty ? page.url.host() ?? page.url.absoluteString : title)
         }
     }
 }

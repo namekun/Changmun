@@ -42,9 +42,23 @@ struct NavigationButtons: View {
 
     var body: some View {
         BarButton(symbol: "chevron.left", help: String(localized: "Back (⌘[)")) { tab.webView?.goBack() }.disabled(!tab.canGoBack)
+            .contextMenu { HistoryMenu(tab: tab, back: true) }
         BarButton(symbol: "chevron.right", help: String(localized: "Forward (⌘])")) { tab.webView?.goForward() }.disabled(!tab.canGoForward)
+            .contextMenu { HistoryMenu(tab: tab, back: false) }
         BarButton(symbol: tab.isLoading ? "xmark" : "arrow.clockwise", help: String(localized: "Reload (⌘R)"), label: tab.isLoading ? String(localized: "Stop") : String(localized: "Reload")) {
-            if tab.isLoading { tab.webView?.stopLoading() } else { tab.webView?.reload() }
+            if tab.isLoading { tab.webView?.stopLoading() } else { tab.reload() }
+        }
+    }
+}
+
+/// A right-click on Back or Forward: the pages that way, nearest first, to go straight to one.
+private struct HistoryMenu: View {
+    let tab: Tab
+    let back: Bool
+
+    var body: some View {
+        ForEach(Array(tab.historyMenu(back: back).enumerated()), id: \.offset) { _, entry in
+            Button(entry.title) { tab.webView?.go(to: entry.item) }
         }
     }
 }

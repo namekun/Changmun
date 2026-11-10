@@ -36,6 +36,7 @@
 "%@ is muted" = "%@ ist stummgeschaltet";
 "%@ is not muted" = "%@ ist nicht mehr stummgeschaltet";
 "%@ is playing audio" = "%@ gibt Ton wieder";
+"%@ says" = "%@ meldet";
 "%@. Undo is available in the sidebar." = "%@. Widerrufen ist in der Seitenleiste möglich.";
 "%lld bookmark" = "%lld Lesezeichen";
 "%lld bookmarks" = "%lld Lesezeichen";
@@ -89,6 +90,7 @@
 "Amber" = "Bernstein";
 "an image you added" = "ein von Ihnen hinzugefügtes Bild";
 "and %lld more" = "und %lld weitere";
+"Answer" = "Antwort";
 "Approval needed" = "Freigabe erforderlich";
 "Approval needed: %@" = "Freigabe erforderlich: %@";
 "Archive tabs you haven’t viewed in a while" = "Tabs archivieren, die du länger nicht angesehen hast";
@@ -121,6 +123,7 @@
 "Capture Full Page…" = "Ganze Seite aufnehmen …";
 "Certificate not verified, you chose to go on" = "Zertifikat nicht überprüft, Sie haben sich fürs Fortfahren entschieden";
 "Certificate warning" = "Zertifikatswarnung";
+"Changes you made may not be saved." = "Deine Änderungen werden möglicherweise nicht gespeichert.";
 "Change…" = "Ändern …";
 "Changmun fetches a short list of releases from GitHub Pages, which sees the app name and version in the request. Nothing about you or your Mac is sent, and an update is installed only if it is signed by the developer. To check now, choose Changmun › Check for Updates…" = "Changmun lädt von GitHub Pages eine kurze Liste der Versionen; GitHub sieht dabei nur Name und Version der App. Nichts über dich oder deinen Mac wird gesendet, und ein Update wird nur installiert, wenn es vom Entwickler signiert ist. Zum sofortigen Prüfen wähle Changmun › Nach Updates suchen…";
 "Changmun is your default browser" = "Changmun ist dein Standardbrowser";
@@ -200,6 +203,7 @@
 "Done" = "Fertig";
 "Done · %@" = "Fertig · %@";
 "Don’t Allow" = "Nicht erlauben";
+"Don’t let this page show more dialogs" = "Diese Seite keine weiteren Dialoge anzeigen lassen";
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "Doppelklicken, um in einem neuen Tab zu öffnen. Um den Verlauf nach Zeitraum zu löschen, gehe zu Einstellungen › Datenschutz.";
 "Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "Doppelklicken, um erneut zu öffnen. Wie lange es bis zur Archivierung dauert, legst du unter Einstellungen › Tabs fest.";
 "Download" = "Download";
@@ -224,12 +228,16 @@
 "Edit the address" = "Adresse bearbeiten";
 "Either way, it asks every time before something that looks like it pays, orders, sends, posts, shares, grants access, deletes or cancels." = "In beiden Fällen fragt die KI jedes Mal nach, bevor etwas bezahlt, bestellt, gesendet, gepostet, geteilt, Zugriff gewährt, gelöscht oder storniert zu werden scheint.";
 "Expanded" = "Ausgeklappt";
+"Files that are still downloading won’t be finished." = "Dateien, die noch geladen werden, werden nicht fertig.";
 "Gray" = "Grau";
 "Green" = "Grün";
 "Hidden" = "Ausgeblendet";
 "Image" = "Bild";
 "In group %@" = "In Gruppe %@";
 "It also asks before something that looks like a cookie banner or a setting (save, clear, reset, block), which you can allow for a site until the chat is cleared." = "Sie fragt auch nach, bevor etwas wie ein Cookie-Banner oder eine Einstellung (Speichern, Löschen, Zurücksetzen, Blockieren) aussieht; das kannst du für eine Website erlauben, bis der Chat geleert wird.";
+"Keep Downloading" = "Weiter laden";
+"Leave" = "Verlassen";
+"Leave this page?" = "Diese Seite verlassen?";
 "Link Preview" = "Link-Vorschau";
 "Loading" = "Wird geladen";
 "Muted" = "Stummgeschaltet";
@@ -241,8 +249,12 @@
 "Pink" = "Rosa";
 "Pinned" = "Angeheftet";
 "Playing audio" = "Gibt Ton wieder";
+"Preview Link" = "Link in der Vorschau öffnen";
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "Vorschau von %@. Mit Befehl-Return als Tab öffnen, mit Esc schließen.";
 "Purple" = "Violett";
+"Quit" = "Beenden";
+"Quit and stop %lld downloads?" = "Beenden und %lld Downloads abbrechen?";
+"Quit and stop the download?" = "Beenden und den Download abbrechen?";
 "Remove %@" = "%@ entfernen";
 "Remove this image" = "Dieses Bild entfernen";
 "Reopens the tab" = "Öffnet den Tab erneut";
@@ -256,7 +268,9 @@
 "Showing the original page" = "Originalseite wird angezeigt";
 "Shown" = "Eingeblendet";
 "Sleeping" = "Im Ruhezustand";
+"Source of %@" = "Quelltext von %@";
 "Split View Divider" = "Trenner der Split View";
+"Stay" = "Bleiben";
 "Switch to tab %@" = "Zu Tab %@ wechseln";
 "Switch to tab %@ in %@" = "Zu Tab %1$@ in %2$@ wechseln";
 "Teal" = "Petrol";
@@ -265,6 +279,7 @@
 "The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "Die KI verwendet diesen Tab. Wähle nur dann ein Zertifikat, wenn du dich bei dieser Website ausweisen möchtest.";
 "The AI wants to do something that can’t be undone" = "Die KI möchte etwas tun, das sich nicht rückgängig machen lässt";
 "The form sends what is typed in it to %@, another site than this page." = "Das Formular sendet das Eingegebene an %@, eine andere Website als diese Seite.";
+"The page stopped loading: %@" = "Die Seite wurde nicht fertig geladen: %@";
 "This choice will be remembered for this site. You can remove it in Keychain Access." = "Diese Auswahl wird für diese Website gemerkt. Du kannst sie in der Schlüsselbundverwaltung entfernen.";
 "This connection isn’t private. %@" = "Diese Verbindung ist nicht privat. %@";
 "This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "Das sieht nach Bezahlen, Bestellen, Senden, Posten, Löschen oder Zugriff gewähren aus und lässt sich nicht zurücknehmen, deshalb wird jedes Mal gefragt.";
@@ -519,6 +534,7 @@
 "This language can’t be translated" = "Diese Sprache kann nicht übersetzt werden";
 "This page" = "Diese Seite";
 "this page" = "diese Seite";
+"This page stopped working and was loaded again" = "Diese Seite funktionierte nicht mehr und wurde neu geladen";
 "Tidied %lld tab" = "%lld Tab aufgeräumt";
 "Tidied %lld tabs" = "%lld Tabs aufgeräumt";
 "Tidy Tabs" = "Tabs aufräumen";
@@ -548,6 +564,7 @@
 "Use Previous Permissions Only" = "Nur frühere Berechtigungen verwenden";
 "User Name" = "Benutzername";
 "View" = "Darstellung";
+"View Page Source" = "Seitenquelltext anzeigen";
 "View screen" = "Bildschirm ansehen";
 "Wait" = "Warten";
 "Waiting for %@ Keychain access…" = "Warten auf Schlüsselbundzugriff für %@ …";

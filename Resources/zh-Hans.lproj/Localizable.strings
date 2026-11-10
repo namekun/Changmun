@@ -36,6 +36,7 @@
 "%@ is muted" = "已将“%@”静音";
 "%@ is not muted" = "已取消“%@”的静音";
 "%@ is playing audio" = "“%@”正在播放声音";
+"%@ says" = "%@ 显示";
 "%@. Undo is available in the sidebar." = "%@。可在边栏中撤销。";
 "%lld bookmark" = "%lld 个书签";
 "%lld bookmarks" = "%lld 个书签";
@@ -89,6 +90,7 @@
 "Amber" = "琥珀色";
 "an image you added" = "你添加的图片";
 "and %lld more" = "另外 %lld 个";
+"Answer" = "回答";
 "Approval needed" = "需要批准";
 "Approval needed: %@" = "需要批准：%@";
 "Archive tabs you haven’t viewed in a while" = "归档一段时间未查看的标签页";
@@ -121,6 +123,7 @@
 "Capture Full Page…" = "捕获整个页面…";
 "Certificate not verified, you chose to go on" = "证书未验证，你已选择继续";
 "Certificate warning" = "证书警告";
+"Changes you made may not be saved." = "你所做的更改可能不会保存。";
 "Change…" = "更改…";
 "Changmun fetches a short list of releases from GitHub Pages, which sees the app name and version in the request. Nothing about you or your Mac is sent, and an update is installed only if it is signed by the developer. To check now, choose Changmun › Check for Updates…" = "Changmun 会从 GitHub Pages 获取一份简短的发布列表，GitHub 只会看到应用名称和版本。不会发送任何关于你或你的 Mac 的信息，且只有带有开发者签名的更新才会被安装。若要立即检查，请选取“Changmun › 检查更新…”。";
 "Changmun is your default browser" = "Changmun 是你的默认浏览器";
@@ -200,6 +203,7 @@
 "Done" = "完成";
 "Done · %@" = "完成 · %@";
 "Don’t Allow" = "不允许";
+"Don’t let this page show more dialogs" = "不让此页面再显示对话框";
 "Double-click to open in a new tab. To clear history by time range, go to Settings › Privacy." = "双击可在新标签页中打开。如需按时间范围清除历史记录，请前往“设置 › 隐私”。";
 "Double-click to reopen. Set how long until tabs are archived in Settings › Tabs." = "双击可重新打开。归档前的等待时间可在“设置 › 标签页”中设定。";
 "Download" = "下载";
@@ -224,12 +228,16 @@
 "Edit the address" = "编辑地址";
 "Either way, it asks every time before something that looks like it pays, orders, sends, posts, shares, grants access, deletes or cancels." = "无论如何设置，遇到看起来像付款、下单、发送、发布、分享、授予访问权限、删除或取消的操作，每次都会先询问。";
 "Expanded" = "已展开";
+"Files that are still downloading won’t be finished." = "仍在下载的文件将无法完成。";
 "Gray" = "灰色";
 "Green" = "绿色";
 "Hidden" = "已隐藏";
 "Image" = "图片";
 "In group %@" = "所在群组：%@";
 "It also asks before something that looks like a cookie banner or a setting (save, clear, reset, block), which you can allow for a site until the chat is cleared." = "遇到看起来像 Cookie 横幅或设置（保存、清除、重置、屏蔽）的操作也会先询问，你可以对某个网站允许，直到清除对话。";
+"Keep Downloading" = "继续下载";
+"Leave" = "离开";
+"Leave this page?" = "要离开此页面吗？";
 "Link Preview" = "链接预览";
 "Loading" = "正在载入";
 "Muted" = "已静音";
@@ -241,8 +249,12 @@
 "Pink" = "粉色";
 "Pinned" = "已固定";
 "Playing audio" = "正在播放声音";
+"Preview Link" = "预览链接";
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "正在预览 %@。按 Command-Return 在标签页中打开，按 Esc 关闭。";
 "Purple" = "紫色";
+"Quit" = "退出";
+"Quit and stop %lld downloads?" = "要退出并停止 %lld 个下载吗？";
+"Quit and stop the download?" = "要退出并停止下载吗？";
 "Remove %@" = "移除 %@";
 "Remove this image" = "移除此图片";
 "Reopens the tab" = "重新打开标签页";
@@ -256,7 +268,9 @@
 "Showing the original page" = "正在显示原始页面";
 "Shown" = "已显示";
 "Sleeping" = "休眠中";
+"Source of %@" = "%@ 的源代码";
 "Split View Divider" = "分屏浏览分隔条";
+"Stay" = "留下";
 "Switch to tab %@" = "切换到标签页 %@";
 "Switch to tab %@ in %@" = "切换到 %2$@ 中的标签页 %1$@";
 "Teal" = "青绿色";
@@ -265,6 +279,7 @@
 "The AI is using this tab. Choose a certificate only if you want it to identify you to this site." = "AI 正在使用此标签页。仅当你愿意向此网站表明身份时，才选择证书。";
 "The AI wants to do something that can’t be undone" = "AI 想要执行无法撤销的操作";
 "The form sends what is typed in it to %@, another site than this page." = "此表单会把填写的内容发送到 %@，这是与当前页面不同的网站。";
+"The page stopped loading: %@" = "页面加载中断：%@";
 "This choice will be remembered for this site. You can remove it in Keychain Access." = "此选择会为该网站记住。你可以在“钥匙串访问”中将其移除。";
 "This connection isn’t private. %@" = "此连接不是私密连接。%@";
 "This looks like paying, ordering, sending, posting, deleting or granting access, which can’t be taken back, so you are asked every time." = "这看起来像是付款、下单、发送、发布、删除或授予访问权限，无法收回，所以每次都会询问。";
@@ -519,6 +534,7 @@
 "This language can’t be translated" = "无法翻译此语言";
 "This page" = "此页面";
 "this page" = "此页面";
+"This page stopped working and was loaded again" = "此页面停止运行，已重新载入";
 "Tidied %lld tab" = "已整理 %lld 个标签页";
 "Tidied %lld tabs" = "已整理 %lld 个标签页";
 "Tidy Tabs" = "整理标签页";
@@ -548,6 +564,7 @@
 "Use Previous Permissions Only" = "仅使用之前的权限";
 "User Name" = "用户名";
 "View" = "显示";
+"View Page Source" = "查看网页源代码";
 "View screen" = "查看屏幕";
 "Wait" = "等待";
 "Waiting for %@ Keychain access…" = "正在等待 %@ 钥匙串访问许可…";

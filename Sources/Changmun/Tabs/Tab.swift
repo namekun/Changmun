@@ -109,6 +109,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var isConfirmingTrust = false
     /// The load of our own page for an error, which is not a new page that takes the failure away.
     var errorNavigation: WKNavigation?
+    /// Our page for an error that is shown in place of a page, and the address it stands for: reloading it loads that address again.
+    var shownError: (navigation: WKNavigation?, address: URL?)?
+    /// How many of the page's own dialogs (alert, confirm, prompt) this page load has shown.
+    var pageDialogsThisLoad = 0
     @Published private(set) var isPlayingAudio = false
     @Published private(set) var isMuted = false
     /// The AI is using the tab behind the page in front (held by whatever shows the page, see PageHost): in the window, so WebKit counts
@@ -301,6 +305,26 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         browserLoad(url, in: wake())
     }
 
+    /// Loads the page again. On our page for an error that is the address that failed: reloading our page would only show the error again.
+    func reload(fromOrigin: Bool = false) {
+        guard let webView else { return }
+        if let address = Self.reloadAddress(failed: shownError?.address, shown: webView.url) {
+            load(address)
+        } else if fromOrigin {
+            webView.reloadFromOrigin()
+        } else {
+            webView.reload()
+        }
+    }
+
+    /// The address Reload loads instead of reloading what is shown: the one that failed, while our page for the error (which has no address of its
+    /// own) is what is shown. Only a web address, as the page's Try Again link.
+    nonisolated static func reloadAddress(failed: URL?, shown: URL?) -> URL? {
+        guard let failed, ["http", "https"].contains(failed.scheme?.lowercased() ?? ""),
+              shown == nil || shown?.scheme?.lowercased() == "about" else { return nil }
+        return failed
+    }
+
     /// Local files the user opened may read their folder (for the page's own images and styles).
     @discardableResult
     static func load(_ url: URL, in view: WKWebView, timeout: TimeInterval? = nil) -> WKNavigation? {
@@ -433,6 +457,15 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         webView.pageZoom = zoom
         if !isPrivate, let host = webView.url?.host() { Preferences.shared.setZoom(zoom, for: host) }
     }
+
+    /// Back to the default size, and a pinch's magnification, which the page's zoom does not change, undone with it.
+    func resetZoom() {
+        setZoom(Preferences.shared.defaultZoom)
+        webView?.magnification = 1
+    }
+
+    /// The size as the status line says it ("110%").
+    nonisolated static func zoomLabel(_ zoom: Double) -> String { "\(Int((zoom * 100).rounded()))%" }
 
     private func extensionsSeeChange() {
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabChanged(self) }
