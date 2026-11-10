@@ -153,9 +153,11 @@
 "Close (esc)" = "Cerrar (esc)";
 "Close (⌘E)" = "Cerrar (⌘E)";
 "Close All Tabs in Group" = "Cerrar todas las pestañas del grupo";
+"Close Other Tabs" = "Cerrar las demás pestañas";
 "Close Tab" = "Cerrar pestaña";
 "Close tab" = "Cerrar pestaña";
 "Close Tab (⌘W)" = "Cerrar pestaña (⌘W)";
+"Close Tabs Below" = "Cerrar las pestañas de abajo";
 "Close Window" = "Cerrar ventana";
 "Collapse" = "Contraer";
 "Collapsed" = "Contraído";

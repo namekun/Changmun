@@ -80,6 +80,7 @@ struct Sidebar: View {
                 .animation(Motion.quick, value: drag.isDragging)
             }
             // A tab switched to from the keyboard or the command bar comes into view, without a scroll to watch: only the pointer animates.
+            .middleClickList()
             .onChange(of: browser.activeID) { _, id in
                 guard let id else { return }
                 withAnimation(Motion.pointer) { scroller.scrollTo("tab:\(id)") }

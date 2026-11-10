@@ -164,14 +164,7 @@ extension Browser {
            let outside = tabs.first(where: { $0.id == previousActiveID && $0.groupID != id }) ?? listedTabs.first(where: { $0.groupID != id }) {
             activate(outside.id)
         }
-        let closing = tabs.filter { $0.groupID == id }
-        for tab in closing { close(tab.id) }
-        let count = closing.count, top = closedTabs.last?.id
-        offerUndo(count == 1 ? String(localized: "Closed \(count) tab") : String(localized: "Closed \(count) tabs")) { [weak self] in
-            // Only while they are still the last ones closed; ⌘⇧T is there for the rest.
-            guard let self, top != nil, closedTabs.last?.id == top else { return }
-            for _ in 0..<min(count, closedTabs.count) { reopenClosedTab() }
-        }
+        closeAll(tabs.filter { $0.groupID == id })
     }
 
     /// Where a group dragged up onto the bookmarks goes: a new folder pinned to the sidebar (above the pinned folder

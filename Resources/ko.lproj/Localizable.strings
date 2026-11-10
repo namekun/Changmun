@@ -153,9 +153,11 @@
 "Close (esc)" = "닫기 (esc)";
 "Close (⌘E)" = "닫기 (⌘E)";
 "Close All Tabs in Group" = "그룹의 탭 모두 닫기";
+"Close Other Tabs" = "다른 탭 닫기";
 "Close Tab" = "탭 닫기";
 "Close tab" = "탭 닫기";
 "Close Tab (⌘W)" = "탭 닫기 (⌘W)";
+"Close Tabs Below" = "아래 탭 닫기";
 "Close Window" = "창 닫기";
 "Collapse" = "접기";
 "Collapsed" = "접힘";

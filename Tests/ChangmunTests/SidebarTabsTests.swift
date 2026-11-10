@@ -57,5 +57,33 @@ extension SharedAgentState {
             #expect(Browser.step(from: second.id, by: 1, in: order.map(\.id)) == pinned.id)
             #expect(Browser.step(from: loose[0], by: -1, in: order.map(\.id)) == pinned.id)
         }
+
+        // MARK: Closing several
+
+        @Test func closingOthersOrBelowChoosesFromTheTabListOnly() {
+            #expect(Browser.othersToClose(keeping: 2, listed: [1, 2, 3]) == [1, 3])
+            #expect(Browser.belowToClose(2, listed: [1, 2, 3]) == [3])
+            #expect(Browser.belowToClose(3, listed: [1, 2, 3]).isEmpty)
+            #expect(Browser.belowToClose(9, listed: [1, 2, 3]) == [1, 2, 3], "below a bookmark's tab, above the list, all of it")
+        }
+
+        @Test func closeTabsBelowLeavesBookmarkTabsAndCanBeTakenBackAtOnce() throws {
+            let b = browser(4)
+            defer { b.windowClosed() }
+            let t = b.tabs.map(\.id)
+            let favorite = bookmarkTab(b, "https://fav.example/", in: b.favoritesFolder)
+            let group = try #require(b.group([t[2], t[3]], name: "G"))
+            b.toggleGroup(group)
+            b.activate(t[3])
+            b.closeTabsBelow(t[1])
+            #expect(b.tabs.map(\.id) == [t[0], t[1], favorite.id], "a folded group's tabs go too; the favorite's tab stays")
+            #expect(b.activeID == t[1], "the tab the menu was for is shown, not a tab about to close")
+            #expect(b.notice != nil)
+            b.undoNotice()
+            #expect(b.tabs.count == 5)
+            #expect(Set(b.listedTabs.compactMap(\.url?.absoluteString)) == Set((1...4).map { "https://site\($0).example/" }))
+            b.closeOtherTabs(keeping: b.listedTabs[0].id)
+            #expect(b.listedTabs.count == 1 && b.tab(favorite.id) != nil)
+        }
     }
 }

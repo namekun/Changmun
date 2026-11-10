@@ -153,9 +153,11 @@
 "Close (esc)" = "Fermer (échap)";
 "Close (⌘E)" = "Fermer (⌘E)";
 "Close All Tabs in Group" = "Fermer tous les onglets du groupe";
+"Close Other Tabs" = "Fermer les autres onglets";
 "Close Tab" = "Fermer l’onglet";
 "Close tab" = "Fermer l’onglet";
 "Close Tab (⌘W)" = "Fermer l’onglet (⌘W)";
+"Close Tabs Below" = "Fermer les onglets en dessous";
 "Close Window" = "Fermer la fenêtre";
 "Collapse" = "Réduire";
 "Collapsed" = "Replié";

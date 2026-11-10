@@ -81,6 +81,7 @@ struct SidebarTabRow: View {
         .contextMenu { TabMenu(tab: tab, browser: browser, isActive: isActive, close: close) }
         .help(tab.url?.absoluteString ?? "")
         .accessibleTab(tab, in: browser, isActive: isActive, renaming: renaming, close: close) { select() }
+        .closesOnMiddleClick("tab:\(tab.id)", close: close)
     }
 
     private func commit() {
@@ -148,6 +149,11 @@ struct TabMenu: View {
         }
         Divider()
         Button("Close Tab", action: close)
+        let listed = browser.listedInOrder.map(\.id)
+        Button("Close Other Tabs") { withAnimation(Motion.standard) { browser.closeOtherTabs(keeping: tab.id) } }
+            .disabled(Browser.othersToClose(keeping: tab.id, listed: listed).isEmpty)
+        Button("Close Tabs Below") { withAnimation(Motion.standard) { browser.closeTabsBelow(tab.id) } }
+            .disabled(Browser.belowToClose(tab.id, listed: listed).isEmpty)
     }
 }
 

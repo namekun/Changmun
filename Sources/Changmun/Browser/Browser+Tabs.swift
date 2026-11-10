@@ -105,6 +105,53 @@ extension Browser {
         }
     }
 
+    /// The tab list of the space in the order shown, a folded group's tabs too: what closing several tabs chooses from.
+    var listedInOrder: [Tab] {
+        listing.flatMap { item -> [Tab] in
+            switch item {
+            case .tab(let tab): [tab]
+            case .group(_, let tabs): tabs
+            }
+        }
+    }
+
+    /// The listed tabs other than `id` (Close Other Tabs). Only the tab list: a favorite's or a bookmark's tab stays.
+    nonisolated static func othersToClose(keeping id: Int, listed: [Int]) -> [Int] { listed.filter { $0 != id } }
+
+    /// The listed tabs below `id` (Close Tabs Below); below a favorite's or a bookmark's tab, which is above the list, all of them.
+    nonisolated static func belowToClose(_ id: Int, listed: [Int]) -> [Int] {
+        guard let at = listed.firstIndex(of: id) else { return listed }
+        return Array(listed[(at + 1)...])
+    }
+
+    func closeOtherTabs(keeping id: Int) {
+        closeTabs(Self.othersToClose(keeping: id, listed: listedInOrder.map(\.id)), showing: id)
+    }
+
+    func closeTabsBelow(_ id: Int) {
+        closeTabs(Self.belowToClose(id, listed: listedInOrder.map(\.id)), showing: id)
+    }
+
+    /// Closes the tabs, first showing `kept` if the tab shown is among them so none is woken just to be closed.
+    private func closeTabs(_ ids: [Int], showing kept: Int) {
+        if let activeID, ids.contains(activeID), tab(kept) != nil { activate(kept) }
+        closeAll(tabs.filter { ids.contains($0.id) })
+    }
+
+    /// Closes the tabs, each one ⌘⇧T can bring back, and offers to bring them all back at once.
+    func closeAll(_ closing: [Tab]) {
+        guard !closing.isEmpty else { return }
+        for tab in closing { close(tab.id) }
+        // A start tab is not remembered, so there is nothing of it to bring back.
+        let count = closing.filter { !$0.isStart }.count, top = closedTabs.last?.id
+        guard count > 0 else { return }
+        offerUndo(count == 1 ? String(localized: "Closed \(count) tab") : String(localized: "Closed \(count) tabs")) { [weak self] in
+            // Only while they are still the last ones closed; ⌘⇧T is there for the rest.
+            guard let self, top != nil, closedTabs.last?.id == top else { return }
+            for _ in 0..<min(count, closedTabs.count) { reopenClosedTab() }
+        }
+    }
+
     /// Brings back the last closed tab where it was, with its back/forward history.
     func reopenClosedTab() {
         guard let closed = closedTabs.popLast() else { return }

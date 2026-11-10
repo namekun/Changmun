@@ -153,9 +153,11 @@
 "Close (esc)" = "关闭 (esc)";
 "Close (⌘E)" = "关闭 (⌘E)";
 "Close All Tabs in Group" = "关闭群组中的所有标签页";
+"Close Other Tabs" = "关闭其他标签页";
 "Close Tab" = "关闭标签页";
 "Close tab" = "关闭标签页";
 "Close Tab (⌘W)" = "关闭标签页 (⌘W)";
+"Close Tabs Below" = "关闭下方的标签页";
 "Close Window" = "关闭窗口";
 "Collapse" = "收起";
 "Collapsed" = "已折叠";

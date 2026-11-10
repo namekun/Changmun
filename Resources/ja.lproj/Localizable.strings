@@ -153,9 +153,11 @@
 "Close (esc)" = "閉じる (esc)";
 "Close (⌘E)" = "閉じる (⌘E)";
 "Close All Tabs in Group" = "グループ内のタブをすべて閉じる";
+"Close Other Tabs" = "ほかのタブを閉じる";
 "Close Tab" = "タブを閉じる";
 "Close tab" = "タブを閉じる";
 "Close Tab (⌘W)" = "タブを閉じる (⌘W)";
+"Close Tabs Below" = "下のタブを閉じる";
 "Close Window" = "ウインドウを閉じる";
 "Collapse" = "折りたたむ";
 "Collapsed" = "折りたたみ済み";

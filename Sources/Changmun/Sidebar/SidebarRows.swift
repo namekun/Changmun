@@ -37,7 +37,7 @@ struct FavoriteTile<MenuItems: View>: View {
             .frame(maxWidth: .infinity)
             .frame(height: Metrics.tile)
             .rowChrome(hover: hover, selected: state == .shown, radius: Metrics.fieldRadius)
-            .overlay(alignment: .topTrailing) { if let tab { TabAudioButton(tab: tab, isActive: state == .shown).padding(2) } }
+            .overlay(alignment: .topTrailing) { if let tab { TabAudioButton(tab: tab, isActive: state == .shown) } }
             .onTapGesture(perform: open)
             .onHover { hover = $0 }
             .contextMenu(menuItems: menu)
