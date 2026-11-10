@@ -238,5 +238,11 @@ extension SharedAgentState {
             #expect(three.buttons[0].title == String(localized: "Quit"))
             #expect(three.defaultIndex == 1 && three.cancelIndex == 1, "Return and Esc keep downloading")
         }
+
+        @Test func onlyKeepDownloadingKeepsTheAppOpen() {
+            #expect(AppDelegate.quits(after: DialogResult(button: 0, fields: [], remembered: false, picked: 0)))
+            #expect(!AppDelegate.quits(after: DialogResult(button: 1, fields: [], remembered: false, picked: 0)))
+            #expect(AppDelegate.quits(after: nil), "a question that couldn't be shown quits, never cancels the quit silently")
+        }
     }
 }
