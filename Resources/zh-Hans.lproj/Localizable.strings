@@ -879,8 +879,6 @@
 "Remove" = "移除";
 "Removed the search engine %@" = "已移除搜索引擎 %@";
 "Unread" = "未读";
-"Use %@ as Default" = "将 %@ 用作默认";
-"Use as Default" = "用作默认";
 
 "%@: none found" = "%@：未找到";
 "Add a favorite" = "添加个人收藏";

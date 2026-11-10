@@ -32,8 +32,9 @@ struct GeneralSettings: View {
     var body: some View {
         Form {
             Section("Search") {
-                Picker("Search Engine", selection: $prefs.searchEngine) {
-                    ForEach(SearchEngine.allCases) { Text($0.name).tag($0) }
+                Picker("Search Engine", selection: $prefs.defaultEngineChoice) {
+                    ForEach(SearchEngine.allCases) { Text($0.name).tag(SearchEngineChoice.builtIn($0)) }
+                    ForEach(prefs.customSearchEngines) { Text(verbatim: $0.name).tag(SearchEngineChoice.custom($0.id)) }
                 }
                 CustomSearchEnginesSettings(prefs: prefs)
                 Toggle("Get search suggestions as you type", isOn: $prefs.searchSuggestions)

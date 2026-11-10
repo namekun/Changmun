@@ -879,8 +879,6 @@
 "Remove" = "Retirer";
 "Removed the search engine %@" = "Moteur de recherche %@ retiré";
 "Unread" = "Non lu";
-"Use %@ as Default" = "Utiliser %@ par défaut";
-"Use as Default" = "Utiliser par défaut";
 
 "%@: none found" = "%@ : rien trouvé";
 "Add a favorite" = "Ajouter un favori";

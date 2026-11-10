@@ -41,7 +41,8 @@ struct AddressPill: View {
         guard url?.scheme?.lowercased() == "http", let host = url?.host()?.lowercased() else { return false }
         let parts = host.split(separator: ".", omittingEmptySubsequences: false)
         let loopbackIPv4 = parts.count == 4 && parts.first == "127" && parts.allSatisfy { UInt8($0) != nil }
-        return !(host == "localhost" || host.hasSuffix(".localhost") || loopbackIPv4 || host == "::1" || host == "[::1]")
+        // Only names that cannot leave the machine: a name under .localhost may still be sent to a resolver.
+        return !(host == "localhost" || loopbackIPv4 || host == "::1" || host == "[::1]")
     }
 
     /// What "Paste and Go" would open: the pasteboard's text if it makes an address or a search.

@@ -36,8 +36,6 @@ struct CustomSearchEnginesSettings: View {
                 Spacer()
                 if prefs.defaultCustomEngine?.id == engine.id {
                     Text("Default").foregroundStyle(.secondary)
-                } else {
-                    Button("Use as Default") { prefs.useAsDefault(engine) }
                 }
                 Button { draft = Draft(id: engine.id, name: engine.name, keyword: engine.keyword, template: engine.template) } label: { Image(systemName: "pencil") }
                     .buttonStyle(.borderless)
@@ -48,9 +46,6 @@ struct CustomSearchEnginesSettings: View {
                     .help("Remove")
                     .accessibilityLabel(String(localized: "Remove \(engine.name)"))
             }
-        }
-        if prefs.defaultCustomEngine != nil {
-            Button("Use \(prefs.searchEngine.name) as Default") { prefs.useBuiltInAsDefault() }
         }
         if draft != nil {
             VStack(alignment: .leading) {

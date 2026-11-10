@@ -879,8 +879,6 @@
 "Remove" = "削除";
 "Removed the search engine %@" = "検索エンジン%@を削除しました";
 "Unread" = "未読";
-"Use %@ as Default" = "%@をデフォルトにする";
-"Use as Default" = "デフォルトにする";
 
 "%@: none found" = "%@: 見つかりませんでした";
 "Add a favorite" = "お気に入りを追加";

@@ -879,8 +879,6 @@
 "Remove" = "Quitar";
 "Removed the search engine %@" = "Se quitó el motor de búsqueda %@";
 "Unread" = "Sin leer";
-"Use %@ as Default" = "Usar %@ como predeterminado";
-"Use as Default" = "Usar como predeterminado";
 
 "%@: none found" = "%@: no se encontró nada";
 "Add a favorite" = "Añadir un favorito";

@@ -94,19 +94,20 @@ struct SettingsSearchTests {
     /// The files that draw each pane.
     private func files(_ page: SettingsPage) -> [String] {
         switch page {
-        case .general: ["Settings/GeneralSettings.swift"]
+        case .general: ["Settings/GeneralSettings.swift", "Settings/CustomSearchEnginesSettings.swift"]
         case .appearance: ["Settings/AppearanceSettings.swift"]
         case .tabs: ["Settings/TabSettings.swift"]
         case .startPage: ["StartPage/StartPageSettingsView.swift", "StartPage/StartPageControls.swift"]
         case .privacy: ["Settings/PrivacySettings.swift"]
         case .extensions: ["Settings/ExtensionSettings.swift"]
         case .ai: ["Settings/AISettings.swift"]
-        case .advanced: ["Settings/AdvancedSettings.swift"]
+        case .advanced: ["Settings/AdvancedSettings.swift", "Settings/NotificationSettings.swift"]
         }
     }
 
-    /// What a pane writes as the label of a control or a section, as a literal. Not settings: a sheet's own search field, and the examples shown in empty fields.
-    private static let notSettings: Set<String> = ["Search", "https://example.com", "e.g. music.youtube.com"]
+    /// What a pane writes as the label of a control or a section, as a literal. Not settings: a sheet's own search field, the examples shown in empty fields,
+    /// and the fields of the form that adds a search engine.
+    private static let notSettings: Set<String> = ["Search", "https://example.com", "e.g. music.youtube.com", "Name", "Keyword", "Address"]
     private static let kinds = #"(Toggle|Picker|LabeledContent|Section|TextField)"#
 
     private func labels(of page: SettingsPage) throws -> Set<String> {

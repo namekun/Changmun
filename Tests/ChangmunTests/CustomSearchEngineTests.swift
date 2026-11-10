@@ -128,3 +128,15 @@ struct CustomSearchEngineTests {
         #expect(AddressInput.resolve("example.com")?.absoluteString == "https://example.com")
     }
 }
+
+struct SearchEngineMenuTests {
+    @Test func theMenuShowsTheAddedEngineSearchesGoToAndOtherwiseTheBuiltInOne() {
+        let wiki = CustomSearchEngine(name: "Wikipedia", keyword: "w", template: "https://en.wikipedia.org/w/index.php?search=%s")
+        #expect(SearchEngineChoice.current(template: wiki.template, builtIn: .google, custom: [wiki]) == .custom(wiki.id))
+        #expect(SearchEngineChoice.current(template: SearchEngine.naver.template, builtIn: .naver, custom: [wiki]) == .builtIn(.naver))
+        #expect(SearchEngineChoice.current(template: wiki.template, builtIn: .bing, custom: []) == .builtIn(.bing),
+                "an engine that was removed is not shown as the default")
+        #expect(SearchEngineChoice.current(template: nil, builtIn: .duckDuckGo, custom: [wiki]) == .builtIn(.duckDuckGo))
+    }
+}
+

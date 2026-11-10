@@ -879,8 +879,6 @@
 "Remove" = "제거";
 "Removed the search engine %@" = "검색 엔진 %@을(를) 제거했어요";
 "Unread" = "읽지 않음";
-"Use %@ as Default" = "%@을(를) 기본으로 사용";
-"Use as Default" = "기본으로 사용";
 
 "%@: none found" = "%@: 찾지 못했어요";
 "Add a favorite" = "즐겨찾기 추가";

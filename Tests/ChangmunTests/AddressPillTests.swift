@@ -24,10 +24,10 @@ struct AddressPillTests {
         #expect(!insecure("file:///Users/me/a.html"), "a local file is not on the network")
         #expect(!insecure("data:text/html,hi"))
         #expect(!AddressPill.isNotSecure(nil))
-        for local in ["http://localhost:3000/", "http://app.localhost/", "http://127.0.0.1:8080/", "http://[::1]:5173/"] {
+        for local in ["http://localhost:3000/", "http://127.0.0.1:8080/", "http://127.1.2.3/", "http://[::1]:5173/"] {
             #expect(!insecure(local), "\(local) is a server on this Mac")
         }
-        #expect(insecure("http://localhost.example.com/"), "only the real loopback names count")
+        #expect(insecure("http://localhost.example.com/") && insecure("http://app.localhost/"), "only names that cannot leave this Mac count")
         #expect(insecure("http://127.example.com/") && insecure("http://127.0.0.1.example.com/"), "a site whose name starts with 127 is still a site")
     }
 

@@ -146,6 +146,22 @@ extension Preferences {
         objectWillChange.send()
     }
 
+    /// The engine searches go to, built in or added, as the Search Engine menu shows it: one choice for both kinds.
+    var defaultEngineChoice: SearchEngineChoice {
+        get {
+            SearchEngineChoice.current(template: UserDefaults.standard.string(forKey: "searchURL"), builtIn: searchEngine, custom: customSearchEngines)
+        }
+        set {
+            switch newValue {
+            case .builtIn(let engine):
+                searchEngine = engine
+                useBuiltInAsDefault()
+            case .custom(let id):
+                if let engine = customSearchEngines.first(where: { $0.id == id }) { useAsDefault(engine) }
+            }
+        }
+    }
+
     /// The default goes back to the engine chosen in the list of built-in ones.
     func useBuiltInAsDefault() {
         UserDefaults.standard.set(searchEngine.template, forKey: "searchURL")
@@ -168,5 +184,16 @@ extension Preferences {
         let wasDefault = defaultCustomEngine?.id == engine.id
         customSearchEngines.removeAll { $0.id == engine.id }
         if wasDefault { useBuiltInAsDefault() }
+    }
+}
+
+/// One entry of the Search Engine menu.
+enum SearchEngineChoice: Hashable {
+    case builtIn(SearchEngine)
+    case custom(UUID)
+
+    /// The added engine whose address is the stored default, or else the built-in engine last chosen.
+    static func current(template: String?, builtIn: SearchEngine, custom: [CustomSearchEngine]) -> SearchEngineChoice {
+        custom.first { $0.template == template }.map { .custom($0.id) } ?? .builtIn(builtIn)
     }
 }
