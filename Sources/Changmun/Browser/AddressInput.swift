@@ -2,9 +2,7 @@ import Foundation
 
 /// Turns what was typed in the command bar into a page to load.
 enum AddressInput {
-    static var searchTemplate: String {
-        UserDefaults.standard.string(forKey: "searchURL") ?? "https://www.google.com/search?q=%s"
-    }
+    static var searchTemplate: String { SearchTemplate.valid(UserDefaults.standard.string(forKey: "searchURL")) }
 
     static func resolve(_ raw: String) -> URL? {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -26,8 +24,10 @@ enum AddressInput {
     }
 
     static func searchURL(_ query: String) -> URL? {
-        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) ?? query
-        return URL(string: searchTemplate.replacingOccurrences(of: "%s", with: encoded))
+        // A custom engine's keyword first (`wiki cats`) sends the words after it to that engine.
+        let (template, terms) = SearchRouting.pick(query, default: searchTemplate, engines: CustomSearchEngine.stored())
+        let encoded = terms.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) ?? terms
+        return URL(string: template.replacingOccurrences(of: "%s", with: encoded))
     }
 
     /// True when the input reads as an address rather than a search: `example.com`, `news.ycombinator.com/item?id=1`.

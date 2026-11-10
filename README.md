@@ -125,13 +125,13 @@ These come from what each project says about itself. If something is out of date
 | ⌘T | New tab |
 | ⌘L | Edit the address |
 | ⌘E | AI panel |
-| ⌘D | Add or remove a favorite |
+| ⌘D | Add/Remove Favorite |
 | ⌃1–9 | Go to a space |
 | ⌥⌘\\ | Split view |
 | ⇧-click a link | Preview it without leaving the page |
 | ⌘⇧T | Reopen a closed tab |
 
-Safari-style or Chrome-style keys? Pick in Settings (⌘,). [All shortcuts](GUIDE.md#shortcuts).
+Safari-style or Chrome-style keys? Pick in Settings (⌘,). Help › Keyboard Shortcuts (⌘/) lists them all in the app. [All shortcuts](GUIDE.md#shortcuts).
 
 ## Privacy
 

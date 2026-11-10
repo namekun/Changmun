@@ -190,9 +190,18 @@ final class ExtensionHost: NSObject, ObservableObject {
             }
             return true
         } catch {
-            failures[source.path] = error.localizedDescription
+            failures[source.path] = Self.failureText(error)
             return false
         }
+    }
+
+    /// Why an extension could not be loaded. When WebKit itself turns it down (a manifest version, entry or background it does not support) that is said
+    /// first, so it is clear nothing is broken on this Mac; the system's own text follows.
+    nonisolated static func failureText(_ error: Error) -> String {
+        let nsError = error as NSError
+        let unsupported: [WKWebExtension.Error.Code] = [.unsupportedManifestVersion, .invalidManifestEntry, .invalidDeclarativeNetRequestEntry, .invalidBackgroundPersistence]
+        guard nsError.domain == WKWebExtension.errorDomain, unsupported.contains(where: { $0.rawValue == nsError.code }) else { return error.localizedDescription }
+        return String(localized: "WebKit, which Changmun uses, does not support this extension. \(error.localizedDescription)")
     }
 
     nonisolated static func identifier(for path: String) -> String {
@@ -283,7 +292,7 @@ final class ExtensionHost: NSObject, ObservableObject {
                 }
             }
         } catch {
-            storeErrors[id] = error.localizedDescription
+            storeErrors[id] = Self.failureText(error)
         }
     }
 
@@ -512,7 +521,7 @@ extension Tab: WKWebExtensionTab {
     }
 
     func reload(fromOrigin: Bool, for context: WKWebExtensionContext, completionHandler: @escaping ((any Error)?) -> Void) {
-        if fromOrigin { webView?.reloadFromOrigin() } else { webView?.reload() }
+        reload(fromOrigin: fromOrigin)
         completionHandler(nil)
     }
 

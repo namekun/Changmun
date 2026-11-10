@@ -11,10 +11,19 @@ struct Sidebar: View {
     @State private var showLibrary = false
     @State private var bookmarkQuery = ""
     @State private var newTabHover = false
+    /// The row the keyboard is on (its id in `keyboardRows`), once Tab has brought the keyboard into the sidebar.
+    @FocusState private var focusedRow: String?
 
     var body: some View {
         VStack(spacing: 0) {
             WindowDragArea().frame(height: browser.fullScreen ? 0 : BrowserWindow.windowButtonsBottom)
+            // Above the list, so it is in sight however far down the list is scrolled.
+            if browser.lastTidy != nil || browser.notice != nil {
+                UndoNotices(browser: browser)
+                    .padding(.horizontal, Metrics.inset)
+                    .padding(.top, Metrics.inset)
+                    .transition(.opacity)
+            }
 
             ScrollViewReader { scroller in
             ScrollView {
@@ -29,11 +38,6 @@ struct Sidebar: View {
                         if browser.tidying || (newTabHover && browser.looseTabs.count > 1) { TidyButton(browser: browser) }
                     }
                     .onHover { newTabHover = $0 }
-                    if let tidy = browser.lastTidy {
-                        UndoNotice(message: tidy.message) { browser.undoTidy() }.transition(.opacity)
-                    } else if let notice = browser.notice {
-                        UndoNotice(message: notice.message) { browser.undoNotice() }.transition(.opacity)
-                    }
                     ForEach(browser.listing) { item in
                         switch item {
                         case .tab(let tab):
@@ -45,6 +49,8 @@ struct Sidebar: View {
                                 .dropDestination(for: SidebarDrop.self) { items, _ in
                                     SidebarDrag.drop(items.texts, onGroup: group.id, browser: browser)
                                 } isTargeted: { target("group:\(group.id)", $0) }
+                                .id("group:\(group.id)")
+                                .focused($focusedRow, equals: "group:\(group.id)")
                             let rows = browser.shown(tabs, in: group)
                             ForEach(rows) { tab in
                                 tabRow(tab, depth: 1)
@@ -72,17 +78,33 @@ struct Sidebar: View {
                 .animation(Motion.pointer, value: browser.tabs.map(\.id))
                 .animation(Motion.standard, value: browser.groups)
                 .animation(Motion.standard, value: browser.tabs.map(\.groupID))
-                .animation(Motion.standard, value: browser.lastTidy)
-                .animation(Motion.standard, value: browser.notice)
                 .animation(Motion.standard, value: browser.space.pinnedFolders)
                 .animation(Motion.standard, value: browser.space.openFolders)
                 .animation(Motion.quick, value: dropTarget)
                 .animation(Motion.quick, value: drag.isDragging)
+                // ↑ and ↓ go from row to row, ⌘⌫ closes the tab whose row it is; not while a name is being typed.
+                .onKeyPress(keys: [.upArrow, .downArrow, .delete], phases: .down) { press in
+                    guard browser.renamingTab == nil, browser.renamingBookmark == nil, browser.renamingFolder == nil, browser.renamingGroup == nil else { return .ignored }
+                    let rows = keyboardRows
+                    if press.key == .delete {
+                        guard press.modifiers == .command, let row = focusedRow, row.hasPrefix("tab:"), let id = Int(row.dropFirst("tab:".count)) else { return .ignored }
+                        let next = Self.focusStep(from: row, by: 1, in: rows).flatMap { $0 == row ? Self.focusStep(from: row, by: -1, in: rows) : $0 }
+                        browser.closeTab(id)
+                        focusedRow = next == row ? nil : next
+                        return .handled
+                    }
+                    guard press.modifiers.isEmpty, let next = Self.focusStep(from: focusedRow, by: press.key == .upArrow ? -1 : 1, in: rows) else { return .ignored }
+                    focusedRow = next
+                    withAnimation(Motion.pointer) { scroller.scrollTo(next) }
+                    return .handled
+                }
             }
             // A tab switched to from the keyboard or the command bar comes into view, without a scroll to watch: only the pointer animates.
+            .middleClickList()
             .onChange(of: browser.activeID) { _, id in
                 guard let id else { return }
-                withAnimation(Motion.pointer) { scroller.scrollTo("tab:\(id)") }
+                // A pinned bookmark's tab is in its bookmark's row.
+                withAnimation(Motion.pointer) { scroller.scrollTo(browser.tab(id)?.bookmarkKey.map { "pin:" + $0 } ?? "tab:\(id)") }
             }
             }
             .modifier(SpaceSlide(spaceID: browser.spaceID, direction: browser.spaceDirection))
@@ -114,6 +136,7 @@ struct Sidebar: View {
                     .padding(.bottom, Metrics.inset)
             }
         }
+        .animation(Motion.standard, value: browser.notice == nil && browser.lastTidy == nil)
     }
 
     // MARK: Parts
@@ -124,7 +147,7 @@ struct Sidebar: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 40), spacing: 4)], spacing: 4) {
                 ForEach(library.favorites(in: browser.favoritesFolder), id: \.url) { entry in
                     let key = Browser.bookmarkKey(url: entry.url, folder: browser.favoritesFolder)
-                    FavoriteTile(entry: entry, state: BookmarkTabState(key, browser), renaming: browser.renamingBookmark == key,
+                    FavoriteTile(entry: entry, state: BookmarkTabState(key, browser), tab: browser.bookmarkTab(key), renaming: browser.renamingBookmark == key,
                                  finishRenaming: { browser.finishRenamingBookmark(url: entry.url, folder: browser.favoritesFolder, title: entry.title, with: $0) }) {
                         browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
                     } menu: {
@@ -135,6 +158,8 @@ struct Sidebar: View {
                     .dropDestination(for: SidebarDrop.self) { items, _ in
                         SidebarDrag.drop(items.texts, onFavorite: entry.url, browser: browser)
                     } isTargeted: { target("fav:" + entry.url, $0) }
+                    .id("fav:" + entry.url)
+                    .focused($focusedRow, equals: "fav:" + entry.url)
                 }
             }
             // Between the tiles: dropped there, it goes to the end of the favorites.
@@ -251,6 +276,8 @@ struct Sidebar: View {
         case bookmark(Library.Entry, folder: String, depth: Int, scope: String)
         /// Below the last bookmark of an open folder: where a bookmark dropped goes to the end of it.
         case end(folder: String, depth: Int, scope: String)
+        /// An open folder with nothing in it says so, and takes what is dropped on it.
+        case empty(folder: String, depth: Int, scope: String)
 
         /// Carries the part of the sidebar: a folder can show both pinned and under Bookmarks.
         var id: String {
@@ -258,17 +285,33 @@ struct Sidebar: View {
             case .folder(let folder, _, let scope, _): scope + folder.key
             case .bookmark(let entry, let folder, _, let scope): scope + folder + "\n" + entry.url
             case .end(let folder, _, let scope): scope + folder + "\n\u{1}end"
+            case .empty(let folder, _, let scope): scope + folder + "\n\u{1}empty"
             }
         }
     }
 
-    /// A folder, and when it is open the folders and bookmarks inside it, each a step further in.
     private func treeRows(_ folder: Library.Folder, depth: Int, scope: String, pinned: Bool) -> [TreeRow] {
+        Self.treeRows(folder, depth: depth, scope: scope, pinned: pinned, open: browser.space.openFolders,
+                      shownKey: pinned ? browser.active?.bookmarkKey : nil, dragging: drag.isDragging)
+    }
+
+    /// A folder, and when it is open the folders and bookmarks inside it, each a step further in. `open` holds the open rows' keys
+    /// (see `Space.openFolders`); `dragging` adds the strip to drop at the end of an open folder. A folded folder still shows the bookmark
+    /// `shownKey` names when it is inside it, as a folded group keeps the tab shown: the tab on screen always has its row.
+    static func treeRows(_ folder: Library.Folder, depth: Int, scope: String, pinned: Bool, open: [String], shownKey: String? = nil, dragging: Bool) -> [TreeRow] {
         var rows: [TreeRow] = [.folder(folder, depth: depth, scope: scope, pinned: pinned)]
-        guard browser.space.openFolders.contains(scope + folder.key) else { return rows }
-        for child in folder.children { rows += treeRows(child, depth: depth + 1, scope: scope, pinned: pinned) }
+        guard open.contains(scope + folder.key) else {
+            for (inner, _) in folder.flattened() {
+                if let entry = inner.entries.first(where: { Browser.bookmarkKey(url: $0.url, folder: inner.key) == shownKey }) {
+                    rows.append(.bookmark(entry, folder: inner.key, depth: depth + 1, scope: scope))
+                }
+            }
+            return rows
+        }
+        for child in folder.children { rows += treeRows(child, depth: depth + 1, scope: scope, pinned: pinned, open: open, shownKey: shownKey, dragging: dragging) }
         rows += folder.entries.map { .bookmark($0, folder: folder.key, depth: depth + 1, scope: scope) }
-        if drag.isDragging, !folder.entries.isEmpty { rows.append(.end(folder: folder.key, depth: depth + 1, scope: scope)) }
+        if folder.entries.isEmpty && folder.children.isEmpty { rows.append(.empty(folder: folder.key, depth: depth + 1, scope: scope)) }
+        if dragging { rows.append(.end(folder: folder.key, depth: depth + 1, scope: scope)) }
         return rows
     }
 
@@ -276,9 +319,11 @@ struct Sidebar: View {
         switch row {
         case .folder(let folder, let depth, let scope, let pinned):
             folderRow(folder, depth: depth, scope: scope, pinned: pinned)
+                .focused($focusedRow, equals: row.id)
         case .bookmark(let entry, let folder, let depth, _):
             let key = Browser.bookmarkKey(url: entry.url, folder: folder)
-            BookmarkRow(entry: entry, state: BookmarkTabState(key, browser), renaming: browser.renamingBookmark == key,
+            BookmarkRow(entry: entry, state: BookmarkTabState(key, browser), tab: browser.bookmarkTab(key),
+                        inSplit: browser.bookmarkTab(key).map { browser.split?.contains($0.id) == true } ?? false, renaming: browser.renamingBookmark == key,
                         startRenaming: { browser.renamingBookmark = key },
                         finishRenaming: { browser.finishRenamingBookmark(url: entry.url, folder: folder, title: entry.title, with: $0) }) {
                 browser.openBookmark(entry.url, key: key, inNewTab: Browser.commandClick)
@@ -291,6 +336,18 @@ struct Sidebar: View {
             .dropDestination(for: SidebarDrop.self) { items, _ in
                 SidebarDrag.drop(items.texts, onBookmark: entry.url, in: folder, browser: browser)
             } isTargeted: { target("bm:" + row.id, $0) }
+            .focused($focusedRow, equals: row.id)
+        case .empty(let folder, let depth, _):
+            Text("Nothing here yet")
+                .font(.row)
+                .foregroundStyle(Theme.secondary)
+                .frame(maxWidth: .infinity, minHeight: Metrics.row, alignment: .leading)
+                .padding(.leading, Metrics.rowPadding + CGFloat(depth) * Metrics.indent)
+                .contentShape(Rectangle())
+                .dropLine(dropTarget == "bm:" + row.id && SidebarDrag.dragging == .bookmark)
+                .dropDestination(for: SidebarDrop.self) { items, _ in
+                    SidebarDrag.drop(items.texts, onBookmark: nil, in: folder, browser: browser)
+                } isTargeted: { target("bm:" + row.id, $0) }
         case .end(let folder, let depth, _):
             EndOfListDrop(depth: depth)
                 .dropLine(dropTarget == "bm:" + row.id && SidebarDrag.dragging == .bookmark)
@@ -346,15 +403,41 @@ struct Sidebar: View {
         SidebarTabRow(tab: tab, browser: browser, isActive: tab.id == browser.activeID, renaming: browser.renamingTab == tab.id) {
             browser.activate(tab.id)
         } close: {
-            browser.close(tab.id)
+            browser.closeTab(tab.id)
         }
         .padding(.leading, CGFloat(depth) * Metrics.indent)
         .id("tab:\(tab.id)")
+        .focused($focusedRow, equals: "tab:\(tab.id)")
         .dropLine(dropTarget == "tab:\(tab.id)" && (SidebarDrag.carriesTab || (SidebarDrag.dragging == .group && tab.groupID == nil)))
         .draggingTab(tab.id, unless: browser.renamingTab == tab.id)
         .dropDestination(for: SidebarDrop.self) { items, _ in
             SidebarDrag.drop(items.texts, onTab: tab.id, browser: browser)
         } isTargeted: { target("tab:\(tab.id)", $0) }
+    }
+
+    // MARK: Keyboard
+
+    /// The rows the keyboard goes through, top to bottom, by the ids they are focused and scrolled to by.
+    private var keyboardRows: [String] {
+        library.favorites(in: browser.favoritesFolder).map { "fav:" + $0.url }
+            + browser.space.topPinnedFolders.compactMap(library.folder).flatMap { treeRows($0, depth: 0, scope: "pin:", pinned: true) }.compactMap { row in
+                switch row {
+                case .folder, .bookmark: row.id
+                case .end, .empty: nil
+                }
+            }
+            + browser.listing.flatMap { item -> [String] in
+                switch item {
+                case .tab(let tab): ["tab:\(tab.id)"]
+                case .group(let group, let tabs): ["group:\(group.id)"] + browser.shown(tabs, in: group).map { "tab:\($0.id)" }
+                }
+            }
+    }
+
+    /// The row ↑ (-1) or ↓ (1) goes to from `current`, stopping at the ends; nil while the keyboard is on none of them.
+    static func focusStep(from current: String?, by offset: Int, in rows: [String]) -> String? {
+        guard let current, let at = rows.firstIndex(of: current) else { return nil }
+        return rows[min(max(at + offset, 0), rows.count - 1)]
     }
 
     // MARK: Menus

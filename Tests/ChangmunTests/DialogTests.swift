@@ -189,7 +189,8 @@ struct DialogTests {
         let hosts = (0..<200).map { "https://site\($0).example/*" }
         let spec = ExtensionPrompt.permissionsSpec(name: "X", hosts: hosts, permissions: ["tabs", "cookies"], updating: false)
         guard case .text(let text)? = spec.detail else { Issue.record("a box"); return }
-        #expect(text.hasPrefix(String(localized: "Permissions: cookies, tabs")), "first in the box, above the fold")
+        let words = "\(String(localized: "See and change cookies"))\n\(String(localized: "See the tabs you have open"))"
+        #expect(text.hasPrefix(String(localized: "It can:\n\(words)")), "first in the box, above the fold")
         #expect(text.contains("https://site199.example/*"))
     }
 

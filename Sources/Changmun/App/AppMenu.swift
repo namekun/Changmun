@@ -20,6 +20,7 @@ enum AppMenu {
         add(app, "Settings…", #selector(AppDelegate.showSettings(_:)), ",")
         add(app, "Import from Another Browser…", #selector(AppDelegate.importData(_:)))
         app.addItem(.separator())
+        AppMenu.addServices(to: app)
         add(app, "Hide Changmun", #selector(NSApplication.hide(_:)), "h")
         add(app, "Quit Changmun", #selector(NSApplication.terminate(_:)), "q")
 
@@ -29,14 +30,20 @@ enum AppMenu {
         add(file, "New Private Window", #selector(AppDelegate.newPrivateWindow(_:)), "n", [.command, .shift])
         add(file, "Open Location", #selector(AppDelegate.openLocation(_:)), "l")
         add(file, "Close Tab", #selector(AppDelegate.closeTab(_:)), "w")
+        add(file, "Close Other Tabs", #selector(AppDelegate.closeOtherTabs(_:)))
+        add(file, "Close Tabs Below", #selector(AppDelegate.closeTabsBelow(_:)))
         add(file, "Close Window", #selector(AppDelegate.closeWindow(_:)), "w", [.command, .shift])
         add(file, "Reopen Closed Tab", #selector(AppDelegate.reopenClosedTab(_:)), "t", [.command, .shift])
         add(file, "Open File…", #selector(AppDelegate.openFile(_:)), "o")
         file.addItem(.separator())
         add(file, "Copy Address", #selector(AppDelegate.copyAddress(_:)), "c", [.command, .shift])
+        add(file, "Share…", #selector(AppDelegate.sharePage(_:)))
         add(file, "Print…", #selector(AppDelegate.printPage(_:)), "p")
         add(file, "Save as PDF…", #selector(AppDelegate.savePDF(_:)))
         add(file, "Capture Full Page…", #selector(AppDelegate.captureFullPage(_:)))
+        file.addItem(.separator())
+        add(file, "Export Bookmarks…", #selector(AppDelegate.exportBookmarks(_:)))
+        add(file, "Import Bookmarks from File…", #selector(AppDelegate.importBookmarksFromFile(_:)))
 
         let edit = submenu(main, "Edit")
         add(edit, "Undo", Selector(("undo:")), "z")
@@ -54,6 +61,7 @@ enum AppMenu {
         let view = submenu(main, "View")
         add(view, "Reload", #selector(AppDelegate.reload(_:)), "r")
         add(view, "Hard Reload", #selector(AppDelegate.hardReload(_:)), "r", chrome ? [.command, .shift] : [.command, .option])
+        add(view, "Stop", #selector(AppDelegate.stopLoadingPage(_:)), ".")
         add(view, "Sidebar", #selector(AppDelegate.toggleBrowserSidebar(_:)), chrome ? "s" : "l", chrome ? [.command] : [.command, .shift])
         add(view, "Focus Mode", #selector(AppDelegate.toggleFocusMode(_:)), "f", [.command, .shift])
         add(view, "AI Panel", #selector(AppDelegate.toggleChat(_:)), "e")
@@ -77,12 +85,13 @@ enum AppMenu {
         add(develop, "Web Inspector (Network)", #selector(AppDelegate.toggleInspector(_:)), f12, [])
         add(develop, "Web Inspector (Network)", #selector(AppDelegate.toggleInspector(_:)), "i", [.command, .option], hidden: true)
         add(develop, "Console", #selector(AppDelegate.showConsole(_:)), chrome ? "j" : "c", [.command, .option])
+        add(develop, "View Page Source", #selector(AppDelegate.viewPageSource(_:)), "u", [.command, .option])
 
         let history = submenu(main, "History")
         add(history, "Back", #selector(AppDelegate.goBack(_:)), "[")
         add(history, "Forward", #selector(AppDelegate.goForward(_:)), "]")
         history.addItem(.separator())
-        add(history, "Add/Remove Bookmark", #selector(AppDelegate.toggleBookmark(_:)), "d")
+        add(history, "Add/Remove Favorite", #selector(AppDelegate.toggleBookmark(_:)), "d")
         add(history, "Add to Reading List", #selector(AppDelegate.addToReadingList(_:)), "d", [.command, .shift])
         history.addItem(.separator())
         add(history, "Show All History", #selector(AppDelegate.showHistory(_:)), "y")
@@ -106,12 +115,18 @@ enum AppMenu {
         }
         window.addItem(.separator())
         add(window, "New Space…", #selector(AppDelegate.newSpace(_:)), "n", [.command, .control])
+        add(window, "Edit Space…", #selector(AppDelegate.editSpace(_:)))
+        add(window, "Delete Space…", #selector(AppDelegate.deleteSpace(_:)))
         add(window, "Next Space", #selector(AppDelegate.nextSpace(_:)), right, [.control, .option])
         add(window, "Previous Space", #selector(AppDelegate.previousSpace(_:)), left, [.control, .option])
         for n in 1...9 {
             add(window, n == 9 ? "Last Space" : "Space \(n)", #selector(AppDelegate.selectNumberedSpace(_:)), "\(n)", [.control], hidden: true).tag = n
         }
+        let help = submenu(main, "Help")
+        add(help, "Changmun Guide", #selector(AppDelegate.openGuide(_:)))
+        add(help, "Keyboard Shortcuts", #selector(AppDelegate.showShortcuts(_:)), "/")
         NSApp?.windowsMenu = window
+        NSApp?.helpMenu = help
         return main
     }
 

@@ -82,7 +82,7 @@ struct ExtensionList: View {
                 if let error = host.storeErrors[ChromeWebStore.extensionID(from: storeAddress) ?? storeAddress] {
                     Text(error).font(.caption).foregroundStyle(Theme.danger)
                 }
-                Caption(text: "Safari extensions you get from the App Store show up here automatically. When you open a Chrome Web Store page, an “Add to Changmun” button appears over the page. Some features, such as talking to native apps, may not work.")
+                Caption(text: "Safari extensions you get from the App Store show up here automatically. When you open a Chrome Web Store page, an orange “Add to Changmun” appears to the left of the address. Some features, such as talking to native apps, may not work.")
             }
             ContentBlockerSection(host: blockers)
         }

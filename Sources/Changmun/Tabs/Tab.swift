@@ -14,6 +14,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var spaceID: UUID
     /// The tab it was opened from (a link, a popup): tidying keeps the two together.
     var openerID: Int?
+    /// The page whose source the tab shows (View Source), which has no address of its own: the AI never reads it, and the session, a copy and
+    /// Reopen Closed Tab keep it as that page. A load the tab starts ends it.
+    var sourceOf: URL?
     /// Internal so the Tab+… extensions can change the crash record and the translation, reading and page-count state; anything else changes them through Tab's methods.
     /// When its page's process last went away, to stop reloading a page that keeps crashing.
     var crashes: [Date] = []
@@ -109,8 +112,16 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var isConfirmingTrust = false
     /// The load of our own page for an error, which is not a new page that takes the failure away.
     var errorNavigation: WKNavigation?
+    /// Our page for an error that is shown in place of a page, and the address it stands for: reloading it loads that address again.
+    var shownError: (navigation: WKNavigation?, address: URL?)?
+    /// How many of the page's own dialogs (alert, confirm, prompt) this page load has shown.
+    var pageDialogsThisLoad = 0
     @Published private(set) var isPlayingAudio = false
     @Published private(set) var isMuted = false
+    /// What the page is capturing now (see `CaptureButton`).
+    @Published private(set) var capture = MediaCapture()
+    /// The Chrome Web Store pages (by extension ID) whose install notice was put away.
+    @Published var dismissedStoreNotices: Set<String> = []
     /// The AI is using the tab behind the page in front (held by whatever shows the page, see PageHost): in the window, so WebKit counts
     /// it as visible and lets its media play, which nobody asked for, so it is silent there.
     private(set) var isHeldBehind = false
@@ -296,9 +307,35 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// question about an app back. The AI's tools pass false.
     func load(_ url: URL, byUser: Bool = true) {
         self.url = url
+        sourceOf = nil
+        (webView as? PageWebView)?.forgetDrop()
         if byUser { askedForAppSinceUserNavigation = false }
         if url.isFileURL { userFileLoad = url }
         browserLoad(url, in: wake())
+    }
+
+    /// Loads the page again. On our page for an error that is the address that failed: reloading our page would only show the error again.
+    func reload(fromOrigin: Bool = false) {
+        guard let webView else { return }
+        if sourceOf != nil {
+            browser?.flashStatus(String(localized: "The source can't be reloaded. View the page's source again."))
+            return
+        }
+        if let address = Self.reloadAddress(failed: shownError?.address, shown: webView.url) {
+            load(address)
+        } else if fromOrigin {
+            webView.reloadFromOrigin()
+        } else {
+            webView.reload()
+        }
+    }
+
+    /// The address Reload loads instead of reloading what is shown: the one that failed, while our page for the error (which has no address of its
+    /// own) is what is shown. Only a web address, as the page's Try Again link.
+    nonisolated static func reloadAddress(failed: URL?, shown: URL?) -> URL? {
+        guard let failed, ["http", "https"].contains(failed.scheme?.lowercased() ?? ""),
+              shown == nil || shown?.scheme?.lowercased() == "about" else { return nil }
+        return failed
     }
 
     /// Local files the user opened may read their folder (for the page's own images and styles).
@@ -317,6 +354,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var sessionState: Data? { (webView?.interactionState as? Data) ?? savedState }
     /// The same as of the last page that finished loading, cheap to read.
     var lastSessionState: Data? { finishedState ?? savedState }
+    /// The address and history a session, a copy or a closed tab keep: a source view goes back as the page it showed the source of, with no history.
+    var keptURL: URL? { sourceOf ?? url }
+    var keptState: Data? { sourceOf == nil ? sessionState : nil }
     var finishedState: Data?
 
     private func attach(_ view: WKWebView) {
@@ -335,6 +375,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
             view.observe(\.estimatedProgress) { [weak self] v, _ in Task { @MainActor in self?.progress = v.estimatedProgress } },
             view.observe(\.canGoBack) { [weak self] _, _ in Task { @MainActor in self?.refreshCanGoBack() } },
             view.observe(\.canGoForward) { [weak self] v, _ in Task { @MainActor in self?.canGoForward = v.canGoForward } },
+            view.observe(\.cameraCaptureState) { [weak self] v, _ in Task { @MainActor in self?.capture = MediaCapture(camera: v.cameraCaptureState, microphone: v.microphoneCaptureState) } },
+            view.observe(\.microphoneCaptureState) { [weak self] v, _ in Task { @MainActor in self?.capture = MediaCapture(camera: v.cameraCaptureState, microphone: v.microphoneCaptureState) } },
             // WebKit moves the page into a full screen window and back; the host that shows it makes sure it is back (see PageHost.restore).
             view.observe(\.fullscreenState) { [weak self] v, _ in
                 Task { @MainActor in if v.fullscreenState == .notInFullscreen, let self { self.pageOwner.host?.restore(for: self) } }
@@ -433,6 +475,15 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         webView.pageZoom = zoom
         if !isPrivate, let host = webView.url?.host() { Preferences.shared.setZoom(zoom, for: host) }
     }
+
+    /// Back to the default size, and a pinch's magnification, which the page's zoom does not change, undone with it.
+    func resetZoom() {
+        setZoom(Preferences.shared.defaultZoom)
+        webView?.magnification = 1
+    }
+
+    /// The size as the status line says it ("110%").
+    nonisolated static func zoomLabel(_ zoom: Double) -> String { "\(Int((zoom * 100).rounded()))%" }
 
     private func extensionsSeeChange() {
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabChanged(self) }

@@ -23,8 +23,12 @@ struct AdvancedSettings: View {
                 Toggle("Check for updates automatically", isOn: $updates.automaticallyChecks)
                 Toggle("Download and install updates automatically", isOn: $updates.automaticallyDownloads)
                     .disabled(!updates.allowsAutomaticDownloads)
+                if let reason = Updates.automaticInstallNote(available: updates.isAvailable, checks: updates.automaticallyChecks) {
+                    Caption(verbatim: reason)
+                }
                 Caption(text: "Changmun fetches a short list of releases from GitHub Pages, which sees the app name and version in the request. Nothing about you or your Mac is sent, and an update is installed only if it is signed by the developer. To check now, choose Changmun › Check for Updates…")
             }
+            NotificationSettings(prefs: prefs)
         }
         .formStyle(.grouped)
     }

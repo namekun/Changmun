@@ -33,6 +33,12 @@ final class ChatStore: ObservableObject {
     }
     /// When the run under way began, for the panel's "Working for 4s"; nil while nothing runs.
     var runStarted: Date?
+    /// A run ended while no panel showed the chat: the AI button says an answer is waiting until a panel shows it.
+    @Published var answerWaiting = false
+    /// When the user last stopped a run, so that an Esc pressed again right after it doesn't also close the panel.
+    private(set) var stoppedAt: Date?
+    /// Whether a panel shows the chat anywhere (tests say).
+    static var panelVisible: @MainActor () -> Bool = { Browser.all.contains { $0.panelShown } }
     /// How full the conversation's context is, from the usage `claude` reports; nil until it has (a new chat), when the panel shows nothing.
     @Published var contextUsage: ContextUsage?
     /// The context window the last result named, until the next one does.
@@ -141,9 +147,12 @@ final class ChatStore: ObservableObject {
         }
     }
 
+    /// The tab in front, as the AI is told of it: a page's source (View Source) is none.
+    static var frontTab: Tab? { Browser.recent?.active.flatMap { $0.sourceOf == nil ? $0 : nil } }
+
     /// The titles and addresses of the tab in front and of the attached tabs go to the AI with each message, so they count as read.
     func noteAttachedRead() {
-        noteRead(front: Browser.recent?.active, attached: attachedTabs)
+        noteRead(front: Self.frontTab, attached: attachedTabs)
     }
 
     private func noteRead(front: Tab?, attached: [Tab]) {
@@ -152,7 +161,7 @@ final class ChatStore: ObservableObject {
 
     /// The tabs in front and attached right now.
     private var currentContext: Context {
-        let front = Browser.recent?.active
+        let front = Self.frontTab
         return Context(frontID: front?.id, frontSite: front.map(Self.site), attachedIDs: attachedIDs,
                        attachedSites: Dictionary(attachedTabs.map { ($0.id, Self.site($0)) }) { $1 })
     }
@@ -303,12 +312,13 @@ final class ChatStore: ObservableObject {
         send(next.text, context: next.context, images: next.images, noting: false)
     }
 
-    /// The run is over, however it ended. If it ended well, the next queued message goes out; if it failed or was cut short, the
-    /// queue waits for the user.
+    /// The run is over, however it ended. If it ended well, the next queued message goes out; if it failed or was cut short (or the queue
+    /// is already held, as a stop leaves it), the queue waits for the user.
     func endRun() {
         runToken = nil
         isRunning = false
         step = nil
+        if !items.isEmpty && !runFailed && !Self.panelVisible() { answerWaiting = true }
         persist()
         // Whatever the AI left under way (a question waiting for the user) goes with its process.
         AgentActivity.shared.cancel(caller: Self.caller)
@@ -322,7 +332,7 @@ final class ChatStore: ObservableObject {
             queueHeld = false
             return
         }
-        if runFailed {
+        if runFailed || queueHeld {
             queueHeld = true
         } else {
             sendQueued()
@@ -344,7 +354,7 @@ final class ChatStore: ObservableObject {
     /// The tabs a queued message goes with, as they are now: one that has gone, or was detached since, is left out, and one that is on
     /// another site than when the message was written is named but not described (its title and address are the new site's).
     private func tabs(for context: Context?) -> (front: Tab?, attached: [Tab], closed: Bool, frontMoved: Int?, attachedMoved: [Int]) {
-        guard let context else { return (Browser.recent?.active, attachedTabs, false, nil, []) }
+        guard let context else { return (Self.frontTab, attachedTabs, false, nil, []) }
         var front = context.frontID.flatMap(ToolCatalog.findTab), frontMoved: Int?
         if let tab = front, Self.site(tab) != context.frontSite {
             frontMoved = tab.id
@@ -550,17 +560,24 @@ final class ChatStore: ObservableObject {
         }
     }
 
-    /// The stop button: ends the run, and the messages waiting for it go too.
+    /// The stop button: ends the run, says so in the transcript, and holds the messages waiting for it until the user sends or removes them.
     func stop() {
-        queue.removeAll()
-        queueHeld = false
+        let wasRunning = isRunning
+        queueHeld = !queue.isEmpty
         runDefaultTab = .front
         stopRun()
+        if wasRunning {
+            stoppedAt = Date()
+            items.append(ChatItem(kind: .note, text: String(localized: "Stopped. Nothing more is done until you send a message.")))
+        }
         persist()
     }
 
     func reset() {
         stop()
+        queue.removeAll()
+        queueHeld = false
+        answerWaiting = false
         items.removeAll()
         recordID = UUID()
         recordStarted = Date()

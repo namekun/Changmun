@@ -125,13 +125,13 @@ Das stammt aus dem, was jedes Projekt über sich selbst sagt. Ist etwas veraltet
 | ⌘T | Neuer Tab |
 | ⌘L | Adresse bearbeiten |
 | ⌘E | KI-Seitenleiste |
-| ⌘D | Favorit hinzufügen oder entfernen |
+| ⌘D | Favorit hinzufügen/entfernen |
 | ⌃1–9 | Zu einem Space wechseln |
 | ⌥⌘\\ | Split View |
 | ⇧-Klick auf einen Link | Vorschau, ohne die Seite zu verlassen |
 | ⌘⇧T | Geschlossenen Tab erneut öffnen |
 
-Tasten wie in Safari oder wie in Chrome? Wähle in den Einstellungen (⌘,). [Alle Tastenkurzbefehle](GUIDE.de.md#tastenkurzbefehle).
+Tasten wie in Safari oder wie in Chrome? Wähle in den Einstellungen (⌘,). Hilfe › Tastenkürzel (⌘/) listet sie in der App alle auf. [Alle Tastenkurzbefehle](GUIDE.de.md#tastenkurzbefehle).
 
 ## Datenschutz
 

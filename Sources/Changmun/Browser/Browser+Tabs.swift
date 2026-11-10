@@ -60,8 +60,9 @@ extension Browser {
     /// Whether the tab is on screen: the active one, or the other half of the split.
     func isShown(_ tab: Tab) -> Bool { tab.id == activeID || shownSplit?.contains(tab.id) == true }
 
-    struct ClosedTab {
-        let id = UUID()
+    /// Kept in the session too, so ⌘⇧T brings tabs back after a restart.
+    struct ClosedTab: Codable {
+        var id = UUID()
         var url: URL?
         var title: String
         var customTitle: String?
@@ -83,7 +84,7 @@ extension Browser {
         if #available(macOS 15.4, *) { ExtensionHost.shared.tabClosed(closing) }
         // A start tab has nothing to bring back.
         if remember && !closing.isStart {
-            closedTabs.append(ClosedTab(url: closing.url, title: closing.title, customTitle: closing.customTitle, state: closing.sessionState, index: index, bookmarkKey: closing.bookmarkKey,
+            closedTabs.append(ClosedTab(url: closing.keptURL, title: closing.title, customTitle: closing.customTitle, state: closing.keptState, index: index, bookmarkKey: closing.bookmarkKey,
                                         group: groups.first { $0.id == closing.groupID }, space: closing.spaceID))
             if closedTabs.count > 100 { closedTabs.removeFirst() }
         }
@@ -102,6 +103,65 @@ extension Browser {
                 let before = tabs.prefix(index).filter { $0.spaceID == closing.spaceID }.count
                 activate(listed.isEmpty ? here[min(before, here.count - 1)].id : listed[min(listed.count - 1, max(0, listedIndex(before: index, in: closing.spaceID)))].id)
             }
+        }
+    }
+
+    /// Closes a tab the user closed (its ×, its menu, ⌘W, a middle click) and offers to bring it back.
+    func closeTab(_ id: Int) {
+        guard let tab = tab(id) else { return }
+        let offers = Self.offersUndo(isStart: tab.isStart, url: tab.url), title = tab.displayTitle.isEmpty ? (tab.url?.host() ?? "") : tab.displayTitle
+        close(id)
+        guard offers, let closed = closedTabs.last else { return }
+        offerUndo(String(localized: "Closed “\(title)”")) { [weak self] in self?.reopenClosedTab(id: closed.id) }
+    }
+
+    /// Whether closing a tab offers Undo: not a start tab or one with no page (⌘W on an empty tab), which leave nothing to bring back.
+    nonisolated static func offersUndo(isStart: Bool, url: URL?) -> Bool { !isStart && url != nil }
+
+    /// The tab list of the space in the order shown, a folded group's tabs too: what closing several tabs chooses from.
+    var listedInOrder: [Tab] {
+        listing.flatMap { item -> [Tab] in
+            switch item {
+            case .tab(let tab): [tab]
+            case .group(_, let tabs): tabs
+            }
+        }
+    }
+
+    /// The listed tabs other than `id` (Close Other Tabs). Only the tab list: a favorite's or a bookmark's tab stays.
+    nonisolated static func othersToClose(keeping id: Int, listed: [Int]) -> [Int] { listed.filter { $0 != id } }
+
+    /// The listed tabs below `id` (Close Tabs Below); below a favorite's or a bookmark's tab, which is above the list, all of them.
+    nonisolated static func belowToClose(_ id: Int, listed: [Int]) -> [Int] {
+        guard let at = listed.firstIndex(of: id) else { return listed }
+        return Array(listed[(at + 1)...])
+    }
+
+    func closeOtherTabs(keeping id: Int) {
+        closeTabs(Self.othersToClose(keeping: id, listed: listedInOrder.map(\.id)), showing: id)
+    }
+
+    func closeTabsBelow(_ id: Int) {
+        closeTabs(Self.belowToClose(id, listed: listedInOrder.map(\.id)), showing: id)
+    }
+
+    /// Closes the tabs, first showing `kept` if the tab shown is among them so none is woken just to be closed.
+    private func closeTabs(_ ids: [Int], showing kept: Int) {
+        if let activeID, ids.contains(activeID), tab(kept) != nil { activate(kept) }
+        closeAll(tabs.filter { ids.contains($0.id) })
+    }
+
+    /// Closes the tabs, each one ⌘⇧T can bring back, and offers to bring them all back at once.
+    func closeAll(_ closing: [Tab]) {
+        guard !closing.isEmpty else { return }
+        for tab in closing { close(tab.id) }
+        // A start tab is not remembered, so there is nothing of it to bring back.
+        let count = closing.filter { !$0.isStart }.count, top = closedTabs.last?.id
+        guard count > 0 else { return }
+        offerUndo(count == 1 ? String(localized: "Closed \(count) tab") : String(localized: "Closed \(count) tabs")) { [weak self] in
+            // Only while they are still the last ones closed; ⌘⇧T is there for the rest.
+            guard let self, top != nil, closedTabs.last?.id == top else { return }
+            for _ in 0..<min(count, closedTabs.count) { reopenClosedTab() }
         }
     }
 
@@ -152,17 +212,49 @@ extension Browser {
         if to != from, #available(macOS 15.4, *) { ExtensionHost.shared.tabMoved(tab, from: from) }
     }
 
+    /// The next tab down the sidebar (1) or the one above (-1), going round; from a tab the sidebar doesn't show, the first or the last.
     func selectTab(offset: Int) {
-        let listed = visibleTabs
-        guard !listed.isEmpty else { return }
-        guard let current = listed.firstIndex(where: { $0.id == activeID }) else { return activate(listed[0].id) }
-        activate(listed[(current + offset + listed.count) % listed.count].id)
+        if let id = Self.step(from: activeID, by: offset, in: sidebarTabs.map(\.id)) { activate(id) }
     }
 
+    /// ⌘1 to ⌘8 down the sidebar; 9 is the last.
     func selectTab(number: Int) {
-        let listed = visibleTabs
-        guard !listed.isEmpty else { return }
-        activate(number >= 9 ? listed[listed.count - 1].id : listed[min(number - 1, listed.count - 1)].id)
+        if let id = Self.numbered(number, in: sidebarTabs.map(\.id)) { activate(id) }
+    }
+
+    nonisolated static func step(from current: Int?, by offset: Int, in order: [Int]) -> Int? {
+        guard !order.isEmpty else { return nil }
+        guard let at = order.firstIndex(where: { $0 == current }) else { return offset < 0 ? order.last : order.first }
+        return order[((at + offset) % order.count + order.count) % order.count]
+    }
+
+    nonisolated static func numbered(_ number: Int, in order: [Int]) -> Int? {
+        guard !order.isEmpty else { return nil }
+        return number >= 9 ? order.last : order[min(max(number, 1) - 1, order.count - 1)]
+    }
+
+    /// Every tab the sidebar shows, top to bottom: the favorites' open tabs, the tabs of the bookmarks shown in the pinned folders,
+    /// then the tab list (a folded group shows only its shown tab).
+    var sidebarTabs: [Tab] {
+        let library = LibraryWatcher.shared
+        return sidebarTabs(favorites: library.favorites(in: favoritesFolder), pinned: space.topPinnedFolders.compactMap(library.folder))
+    }
+
+    func sidebarTabs(favorites: [Library.Entry], pinned: [Library.Folder]) -> [Tab] {
+        let drawn = favorites.map { Self.bookmarkKey(url: $0.url, folder: favoritesFolder) }
+            + pinned.flatMap { Sidebar.treeRows($0, depth: 0, scope: "pin:", pinned: true, open: space.openFolders, shownKey: active?.bookmarkKey, dragging: false) }.compactMap { row in
+                if case .bookmark(let entry, let folder, _, _) = row { Self.bookmarkKey(url: entry.url, folder: folder) } else { nil }
+            }
+        var bound: [String: Int] = [:]
+        for tab in spaceTabs { if let key = tab.bookmarkKey { bound[key] = tab.id } }
+        return Self.sidebarOrder(drawn: drawn, bound: bound, listed: visibleTabs.map(\.id)).compactMap { id in tabs.first { $0.id == id } }
+    }
+
+    /// The tabs in the order the sidebar draws them: the tab of each bookmark drawn (`drawn`, top to bottom; `bound` names each open
+    /// bookmark's tab), then the listed tabs. A bookmark with no tab open is skipped, and no tab comes twice.
+    nonisolated static func sidebarOrder(drawn: [String], bound: [String: Int], listed: [Int]) -> [Int] {
+        var seen = Set<Int>()
+        return (drawn.compactMap { bound[$0] } + listed).filter { seen.insert($0).inserted }
     }
 
     /// How many listed tabs of the space came before position `index` in `tabs` (after a tab there was removed).
@@ -192,5 +284,22 @@ extension Browser {
         } else {
             tabs.append(tab)
         }
+    }
+}
+
+extension Browser.ClosedTab {
+    /// On disk a closed tab is its address and its place, not its back and forward list or what its forms held: those stay in memory, for this
+    /// run. A file written before still reads, with them.
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(id, forKey: .id)
+        try values.encodeIfPresent(url, forKey: .url)
+        try values.encode(title, forKey: .title)
+        try values.encodeIfPresent(customTitle, forKey: .customTitle)
+        try values.encode(index, forKey: .index)
+        try values.encodeIfPresent(bookmarkKey, forKey: .bookmarkKey)
+        try values.encodeIfPresent(group, forKey: .group)
+        try values.encode(space, forKey: .space)
+        try values.encode(closedAt, forKey: .closedAt)
     }
 }

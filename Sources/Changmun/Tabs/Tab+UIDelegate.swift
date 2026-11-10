@@ -20,6 +20,14 @@ extension Tab: WKUIDelegate {
             browser?.openPeek(url)
             return nil
         }
+        if Self.isDownloadClick(action.navigationType, modifiers: action.modifierFlags, optionHeld: Self.optionKeyHeld, url: action.request.url,
+                                userInitiated: Self.userStartedForAppLinks(userInitiated, knowsUserInitiated: Self.knowsUserInitiated)) {
+            webView.startDownload(using: action.request) { [weak self] download in
+                guard let self else { return }
+                Downloads.shared.track(download, from: self)
+            }
+            return nil
+        }
         var activate = true
         // The user's window is the first of its gesture, so that a loop of window.open in a click opens one tab, not hundreds.
         if !userInitiated || isAnotherWindowOfTheGesture() {
@@ -103,34 +111,90 @@ extension Tab: WKUIDelegate {
     }
 
     func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo) async {
-        guard !Headless.isOn else { return }
-        let alert = NSAlert()
-        alert.messageText = frame.securityOrigin.host
-        alert.informativeText = message
-        alert.runModal()
+        _ = await askPageDialog(.alert, message: message, site: Self.askingSite(of: frame) ?? "", in: webView.window ?? browser?.window)
     }
 
     func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo) async -> Bool {
-        guard !Headless.isOn else { return false }
-        let alert = NSAlert()
-        alert.messageText = frame.securityOrigin.host
-        alert.informativeText = message
-        alert.addButton(withTitle: String(localized: "OK"))
-        alert.addButton(withTitle: String(localized: "Cancel"))
-        return alert.runModal() == .alertFirstButtonReturn
+        await askPageDialog(.confirm, message: message, site: Self.askingSite(of: frame) ?? "", in: webView.window ?? browser?.window)?.button == 1
     }
 
     func webView(_ webView: WKWebView, runJavaScriptTextInputPanelWithPrompt prompt: String, defaultText: String?, initiatedByFrame frame: WKFrameInfo) async -> String? {
-        guard !Headless.isOn else { return nil }
-        let alert = NSAlert()
-        alert.messageText = frame.securityOrigin.host
-        alert.informativeText = prompt
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
-        field.stringValue = defaultText ?? ""
-        alert.accessoryView = field
-        alert.addButton(withTitle: String(localized: "OK"))
-        alert.addButton(withTitle: String(localized: "Cancel"))
-        return alert.runModal() == .alertFirstButtonReturn ? field.stringValue : nil
+        guard let answer = await askPageDialog(.prompt(defaultText ?? ""), message: prompt, site: Self.askingSite(of: frame) ?? "",
+                                               in: webView.window ?? browser?.window), answer.button == 1 else { return nil }
+        return answer.fields.first ?? ""
+    }
+
+    enum PageDialog: Equatable {
+        case alert, confirm
+        /// With the text the field starts with.
+        case prompt(String)
+    }
+
+    enum PageDialogTurn: Equatable {
+        /// Answered at once with what leaves things as they are (OK for an alert, Cancel for the others), nothing shown.
+        case answerQuietly
+        /// A sheet on the window, with "Don't let this page show more dialogs" from the second one of a page load on.
+        case ask(offerToStop: Bool)
+    }
+
+    /// What `blockedThisLoad` holds once the user said no more dialogs for this page.
+    static let dialogsRefused = "page dialogs"
+
+    /// Tests only: answers the page's dialogs (and the question about leaving it) in place of the user. A WebKit callback doesn't see task locals.
+    static var pageDialogAnswerForTests: ((DialogSpec) -> DialogResult?)?
+
+    nonisolated static func pageDialogTurn(shownThisLoad: Int, refused: Bool, headless: Bool) -> PageDialogTurn {
+        headless || refused ? .answerQuietly : .ask(offerToStop: shownThisLoad >= 1)
+    }
+
+    /// A page's alert, confirm or prompt: a sheet on its tab's window like the app's other questions, never a window that holds the whole app.
+    /// nil is the safe answer: nothing shown (a headless Changmun, a page told to stop, a busy window), or the sheet closed without one.
+    func askPageDialog(_ kind: PageDialog, message: String, site: String, in window: NSWindow?) async -> DialogResult? {
+        guard case .ask(let offer) = Self.pageDialogTurn(shownThisLoad: pageDialogsThisLoad, refused: blockedThisLoad.contains(Self.dialogsRefused),
+                                                         headless: Headless.isOn) else { return nil }
+        pageDialogsThisLoad += 1
+        let load = navigations
+        let spec = Self.pageDialogSpec(kind, message: message, site: site, background: isInBackground, offerToStop: offer)
+        let answer: DialogResult?
+        if let hook = Self.pageDialogAnswerForTests { answer = hook(spec) } else { answer = await askPage(spec, in: window) }
+        // A page that came after the question was asked is not the one the user meant.
+        if answer?.remembered == true, navigations == load { blockedThisLoad.insert(Self.dialogsRefused) }
+        return answer
+    }
+
+    /// The page's words go in the box under the title, apart from the app's own, with the site that asks above them.
+    static func pageDialogSpec(_ kind: PageDialog, message: String, site: String, background: Bool, offerToStop: Bool) -> DialogSpec {
+        let ok = DialogButton(title: String(localized: "OK"), isDefault: true)
+        var spec = DialogSpec(title: String(localized: "\(DialogSpec.host(site)) says"), detail: message.isEmpty ? nil : .text(message),
+                              buttons: kind == .alert ? [ok] : [DialogButton(title: String(localized: "Cancel"), role: .cancel), ok],
+                              note: background ? String(localized: "From a tab in the background") : nil, guarded: true)
+        if case .prompt(let text) = kind { spec.fields = [DialogField(placeholder: String(localized: "Answer"), text: text)] }
+        if offerToStop { spec.remember = String(localized: "Don’t let this page show more dialogs") }
+        return spec
+    }
+
+    /// The page has something it says would be lost (`beforeunload`) and is about to be left: the user is asked, and Stay is what Return does.
+    /// WebKit's question for this is private; a WebKit that stops asking it leaves the page without a word, as before. The answer goes to
+    /// WebKit exactly once, whatever happens to the question.
+    @objc(_webView:runBeforeUnloadConfirmPanelWithMessage:initiatedByFrame:completionHandler:)
+    func webViewRunBeforeUnloadConfirmPanel(_ webView: WKWebView, message: String?, frame: WKFrameInfo?, completionHandler: @escaping (Bool) -> Void) {
+        let window = webView.window ?? browser?.window
+        Task { @MainActor in completionHandler(await mayLeavePage(in: window)) }
+    }
+
+    /// A headless Changmun and a page the AI is driving leave as they did before there was a question; anything but Leave stays.
+    func mayLeavePage(in window: NSWindow?) async -> Bool {
+        guard !Headless.isOn, !AgentActivity.shared.holds(self) else { return true }
+        let spec = Self.leavePageSpec(background: isInBackground)
+        let answer: DialogResult?
+        if let hook = Self.pageDialogAnswerForTests { answer = hook(spec) } else { answer = await askPage(spec, in: window, whenBusy: .wait) }
+        return answer?.button == 0
+    }
+
+    static func leavePageSpec(background: Bool) -> DialogSpec {
+        DialogSpec(title: String(localized: "Leave this page?"), message: String(localized: "Changes you made may not be saved."),
+                   buttons: [DialogButton(title: String(localized: "Leave")), DialogButton(title: String(localized: "Stay"), role: .cancel, isDefault: true)],
+                   note: background ? String(localized: "From a tab in the background") : nil, guarded: true)
     }
 
     func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters, initiatedByFrame frame: WKFrameInfo) async -> [URL]? {

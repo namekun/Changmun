@@ -90,11 +90,30 @@ struct DownloadShelf: View {
     let browser: Browser
     @ObservedObject private var downloads = Downloads.shared
 
+    static let rows = 3
+
+    /// How many files the shelf has no row for.
+    static func hiddenCount(total: Int) -> Int { max(0, total - rows) }
+
     var body: some View {
-        let items = Array(downloads.shelf(for: browser).prefix(3))
+        let all = downloads.shelf(for: browser)
+        let items = Array(all.prefix(Self.rows))
+        let hidden = Self.hiddenCount(total: all.count)
         VStack(spacing: 0) {
             ForEach(items) { item in
                 DownloadRow(item: item, onShelf: true).transition(Motion.slide(.bottom))
+            }
+            if hidden > 0 {
+                Button(String(localized: "and \(hidden) more")) { browser.showDownloads = true }
+                    .buttonStyle(.plain)
+                    .font(.secondary)
+                    .foregroundStyle(Theme.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, Metrics.rowPadding)
+                    .frame(height: Metrics.row)
+                    .contentShape(Rectangle())
+                    .help(String(localized: "Shows the list of downloads"))
+                    .accessibilityHint(String(localized: "Shows the list of downloads"))
             }
         }
         .padding(.horizontal, Metrics.inset)
@@ -182,23 +201,27 @@ struct DownloadRow: View {
             if item.state == .running {
                 Button("Cancel") { item.cancel() }
             }
-            if item.resumeData != nil {
-                Button("Try Again") { Downloads.shared.retry(item) }
+            if let retry = item.retry {
+                Button(Self.retryTitle(retry)) { Downloads.shared.retry(item) }
             }
         }
         .help(file.map { "\($0.path)\n" + (Downloads.opensOnClick($0) ? String(localized: "Click to open it. You can drag it into another app.") : String(localized: "Click to show it in Finder. You can drag it into another app.")) } ?? item.filename)
+    }
+
+    static func retryTitle(_ retry: DownloadItem.Retry) -> String {
+        retry == .tryAgain ? String(localized: "Try Again") : String(localized: "Download Again")
     }
 
     private var failed: Bool {
         if case .failed = item.state { true } else { false }
     }
 
-    /// Cancel while it runs, Try Again when it broke off; under the pointer, on the shelf a finished or failed row's × and in the list Show in Finder.
+    /// Cancel while it runs, Try Again (or Download Again) when it broke off; under the pointer, on the shelf a finished or failed row's × and in the list Show in Finder.
     @ViewBuilder private var action: some View {
         if item.state == .running {
             HoverAction(symbol: "xmark", help: String(localized: "Cancel")) { item.cancel() }
-        } else if item.resumeData != nil {
-            HoverAction(symbol: "arrow.clockwise", help: String(localized: "Try Again")) { Downloads.shared.retry(item) }
+        } else if let retry = item.retry {
+            HoverAction(symbol: "arrow.clockwise", help: Self.retryTitle(retry)) { Downloads.shared.retry(item) }
             // Closed on the shelf, it stays in the list, where Try Again still is.
             if hover, onShelf { HoverAction(symbol: "xmark", help: String(localized: "Close")) { Downloads.shared.dismiss(item) } }
         } else if hover, onShelf {
@@ -220,7 +243,7 @@ struct DownloadRow: View {
     private var downloadActions: [AccessibleButton.Action] {
         var actions: [AccessibleButton.Action] = []
         if item.state == .running { actions.append(.init(String(localized: "Cancel")) { item.cancel() }) }
-        if item.resumeData != nil { actions.append(.init(String(localized: "Try Again")) { Downloads.shared.retry(item) }) }
+        if let retry = item.retry { actions.append(.init(Self.retryTitle(retry)) { Downloads.shared.retry(item) }) }
         if let file { actions.append(.init(String(localized: "Show in Finder")) { Outside.reveal([file]) }) }
         if onShelf, item.isDone { actions.append(.init(String(localized: "Close")) { Downloads.shared.dismiss(item) }) }
         return actions

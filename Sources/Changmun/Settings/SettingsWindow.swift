@@ -42,36 +42,35 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         }
     }
 
-    /// What the sidebar search looks through besides the page's name: the labels of its settings.
-    private var settings: [String] {
+    /// What the sidebar search looks through besides the page's name: the label of every setting the page shows, written as the page writes it. The
+    /// search finds each in the language the app is shown in and in English. A test reads the pages' source and fails for a label that is not here.
+    var settings: [LocalizedStringResource] {
         switch self {
         case .general:
-            [String(localized: "Search Engine"), String(localized: "Get search suggestions as you type"), String(localized: "On Startup"),
-             String(localized: "Downloads Folder"), String(localized: "Ask where to save each download"),
-             String(localized: "Default Browser"), String(localized: "Other Browsers")]
+            ["Search", "Search Engine", "Get search suggestions as you type", "On Startup", "Downloads", "Downloads Folder", "Ask where to save each download",
+             "Translation", "Translate pages with", "Model", "Browser", "Quit when the last window is closed", "Default Browser", "Other Browsers"]
         case .appearance:
-            [String(localized: "Theme"), String(localized: "Default Zoom")]
+            ["Theme", "Display", "Default Zoom"]
         case .tabs:
-            [String(localized: "Play video in Picture in Picture when you switch to another tab"), String(localized: "Sleep inactive tabs"),
-             String(localized: "Sites that never sleep"), String(localized: "Tab Cleanup"),
-             String(localized: "Archive tabs you haven’t viewed in a while")]
+            ["Behavior", "Play video in Picture in Picture when you switch to another tab", "Sleep inactive tabs", "Sites that never sleep", "Tab Archive",
+             "Close and archive tabs not viewed for…"]
         case .startPage:
-            [String(localized: "New Tabs Open")]
+            ["New Tabs Open"]
         case .privacy:
-            [String(localized: "Clear History"), String(localized: "Ad Blocking"), String(localized: "Saved Passwords"),
-             String(localized: "Pop-ups"), String(localized: "Camera & Microphone")]
+            ["Clear History", "Time Range", "Browsing History", "Site data such as cookies and cache (signs you out of sites)", "Stay signed in after quitting",
+             "Ad Blocking", "Block ads and trackers", "Add filter list URL (e.g. a Korean ad list)", "Remove tracking from links", "Prefer secure connections",
+             "Saved Passwords", "Require Touch ID to fill passwords", "Pop-ups", "Camera & Microphone"]
         case .extensions:
-            [String(localized: "Install"), String(localized: "Safari Content Blockers")]
+            ["Install", "Chrome Web Store URL or extension ID", "Safari Content Blockers"]
         case .ai:
-            [String(localized: "Model"), String(localized: "Claude Code"), String(localized: "AI Chat")]
+            ["Model", "Effort", "Approvals", "Claude Code", "claude CLI", "Path override (leave empty to detect automatically)", "Keep chat history", "AI Chat"]
         case .advanced:
-            [String(localized: "Shortcuts"), String(localized: "Check for updates automatically"),
-             String(localized: "Download and install updates automatically")]
+            ["Shortcuts", "Check for updates automatically", "Download and install updates automatically", "Notify when the app is in the background"]
         }
     }
 
     func matches(_ query: String) -> Bool {
-        ([name] + settings).contains { $0.localizedCaseInsensitiveContains(query) }
+        ([name] + settings.flatMap { [String(localized: $0), $0.key] }).contains { $0.localizedCaseInsensitiveContains(query) }
     }
 }
 

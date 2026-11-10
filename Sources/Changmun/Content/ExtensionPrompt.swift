@@ -22,9 +22,38 @@ enum ExtensionPrompt {
         return host == "*" || (host.hasPrefix("*.") && !host.dropFirst(2).contains("."))
     }
 
+    /// A permission in words, as the question shows it; what is not a permission Changmun knows (a match pattern, or an id it has no words for) is
+    /// kept as it is, so nothing that Allow grants is left unsaid.
+    static func words(for permission: String) -> String {
+        switch permission {
+        case "tabs": String(localized: "See the tabs you have open")
+        case "activeTab": String(localized: "Use the page you are viewing when you press its button")
+        case "history": String(localized: "See and change your browsing history")
+        case "bookmarks": String(localized: "See and change your bookmarks")
+        case "topSites": String(localized: "See the sites you visit most")
+        case "webNavigation": String(localized: "See which pages you go to")
+        case "cookies": String(localized: "See and change cookies")
+        case "downloads", "downloads.open": String(localized: "Start downloads and see your downloads")
+        case "webRequest", "webRequestBlocking", "declarativeNetRequest", "declarativeNetRequestWithHostAccess", "declarativeNetRequestFeedback":
+            String(localized: "See and change what pages load")
+        case "nativeMessaging": String(localized: "Talk to other apps on this Mac")
+        case "storage", "unlimitedStorage": String(localized: "Keep its own data on this Mac")
+        case "notifications": String(localized: "Show notifications")
+        case "clipboardRead": String(localized: "Read what you copied")
+        case "clipboardWrite": String(localized: "Copy to the clipboard")
+        case "contextMenus": String(localized: "Add items to the right-click menu")
+        case "scripting": String(localized: "Run its own code in pages")
+        case "geolocation": String(localized: "Know where this Mac is")
+        case "management": String(localized: "See and manage your other extensions")
+        default: permission
+        }
+    }
+
     /// The entries as lines (cleaned of what hides or reorders text), broad ones first, and how many could not be shown whole.
     static func listing(_ items: [String], separator: String = "\n") -> (text: String, hidden: Int) {
-        let ordered = items.sorted { (isBroad($0) ? 0 : 1, $0) < (isBroad($1) ? 0 : 1, $1) }
+        // Several ids can say the same thing (webRequest and declarativeNetRequest): once is enough.
+        var seen = Set<String>()
+        let ordered = items.filter { seen.insert($0).inserted }.sorted { (isBroad($0) ? 0 : 1, $0) < (isBroad($1) ? 0 : 1, $1) }
         var shown: [String] = [], hidden = 0, characters = 0
         for item in ordered {
             let cleaned = Approvals.shown(item, limit: itemLimit)
@@ -51,7 +80,7 @@ enum ExtensionPrompt {
     static func permissionsSpec(name: String, hosts: [String], permissions: [String], updating: Bool) -> DialogSpec {
         let name = DialogSpec.name(name)
         let sites = listing(hosts)
-        let granted = listing(permissions, separator: ", ")
+        let granted = listing(permissions.map(words(for:)))
         let hidden = sites.hidden + granted.hidden
         var lines: [String] = []
         if hosts.contains(where: isAllSites) {
@@ -62,8 +91,8 @@ enum ExtensionPrompt {
         if hidden > 0 { lines.append(notShown(hidden)) }
         // The permissions come first: a long list of sites cannot push them below the fold of the box.
         var detail: [String] = []
-        if !granted.text.isEmpty { detail.append(String(localized: "Permissions: \(granted.text)")) }
-        if !sites.text.isEmpty { detail.append(sites.text) }
+        if !granted.text.isEmpty { detail.append(String(localized: "It can:\n\(granted.text)")) }
+        if !sites.text.isEmpty { detail.append(String(localized: "Sites:\n\(sites.text)")) }
         return DialogSpec(title: updating ? String(localized: "'\(name)' is updating and asks for more permissions") : String(localized: "Turn on '\(name)'?"),
                           message: lines.isEmpty ? nil : lines.joined(separator: " "),
                           detail: detail.isEmpty ? nil : .text(detail.joined(separator: "\n\n")),
@@ -75,8 +104,8 @@ enum ExtensionPrompt {
 
     /// What an extension asks for while it runs: the sites, or the permissions, that Allow would give it, one to a line.
     static func askSpec(_ title: String, items: [String]) -> DialogSpec {
-        let listed = listing(items)
+        let listed = listing(items.map(words(for:)))
         return DialogSpec(title: title, message: listed.hidden > 0 ? notShown(listed.hidden) : nil, detail: listed.text.isEmpty ? nil : .text(listed.text),
-                          buttons: buttons(safe: String(localized: "Deny"), allow: String(localized: "Allow"), hidden: listed.hidden), guarded: true)
+                          buttons: buttons(safe: String(localized: "Don’t Add"), allow: String(localized: "Add"), hidden: listed.hidden), guarded: true)
     }
 }

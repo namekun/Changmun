@@ -164,14 +164,7 @@ extension Browser {
            let outside = tabs.first(where: { $0.id == previousActiveID && $0.groupID != id }) ?? listedTabs.first(where: { $0.groupID != id }) {
             activate(outside.id)
         }
-        let closing = tabs.filter { $0.groupID == id }
-        for tab in closing { close(tab.id) }
-        let count = closing.count, top = closedTabs.last?.id
-        offerUndo(count == 1 ? String(localized: "Closed \(count) tab") : String(localized: "Closed \(count) tabs")) { [weak self] in
-            // Only while they are still the last ones closed; ⌘⇧T is there for the rest.
-            guard let self, top != nil, closedTabs.last?.id == top else { return }
-            for _ in 0..<min(count, closedTabs.count) { reopenClosedTab() }
-        }
+        closeAll(tabs.filter { $0.groupID == id })
     }
 
     /// Where a group dragged up onto the bookmarks goes: a new folder pinned to the sidebar (above the pinned folder
@@ -259,7 +252,7 @@ extension Browser {
     /// A second tab on the same page, right after it, in its group.
     @discardableResult
     func duplicate(_ id: Int) -> Tab? {
-        guard let tab = tab(id), let url = tab.url else { return nil }
+        guard let tab = tab(id), let url = tab.keptURL else { return nil }
         let copy = openTab(url: url, activate: false, after: tab)
         if let group = tab.groupID, tab.bookmarkKey == nil { join(copy, group) }
         return copy
@@ -268,9 +261,29 @@ extension Browser {
     /// Takes a tab out into a window of its own, keeping its back and forward history.
     func moveToNewWindow(_ id: Int) {
         guard let tab = tab(id) else { return }
-        let saved = SavedSession(tabs: [SavedTab(url: tab.url?.absoluteString, title: tab.title, customTitle: tab.customTitle, state: tab.sessionState, space: tab.spaceID, start: tab.isStart ? true : nil)], active: 0, space: tab.spaceID)
+        let saved = SavedSession(tabs: [SavedTab(url: tab.keptURL?.absoluteString, title: tab.title, customTitle: tab.customTitle, state: tab.keptState, space: tab.spaceID, start: tab.isStart ? true : nil)], active: 0, space: tab.spaceID)
         close(id, remember: false)
         BrowserWindow.open(private: isPrivate, restoring: saved)
+    }
+
+    /// Whether a tab dragged from another window may come into this one: as with Move to New Window, a private window's tab only into a
+    /// private window and an ordinary one only into an ordinary one, and a bookmark's tab stays with its bookmark.
+    nonisolated static func adopts(fromPrivate: Bool, toPrivate: Bool, bound: Bool) -> Bool { fromPrivate == toPrivate && !bound }
+
+    /// Takes a tab dragged from another window of the app into this one, with its back and forward history, and shows it. It goes to the
+    /// space shown when that keeps the same cookies; a profile's tab otherwise stays in its own space. Nil when it can't come.
+    func adoptTab(_ id: Int) -> Tab? {
+        guard let source = Self.all.first(where: { $0 !== self && $0.tabs.contains { $0.id == id } }), let tab = source.tab(id),
+              Self.adopts(fromPrivate: source.isPrivate, toPrivate: isPrivate, bound: tab.bookmarkKey != nil) else { return nil }
+        let sameStore = isPrivate || spaces.space(tab.spaceID).dataStoreID == spaces.space(spaceID).dataStoreID
+        let moved = Tab(id: Self.takeID(), url: tab.keptURL, title: tab.title, state: tab.keptState, browser: self, isStart: tab.isStart)
+        moved.customTitle = tab.customTitle
+        moved.spaceID = sameStore ? spaceID : tab.spaceID
+        insert(moved, after: nil)
+        if #available(macOS 15.4, *) { ExtensionHost.shared.tabOpened(moved) }
+        source.close(id, remember: false)
+        activate(moved.id)
+        return moved
     }
 
     /// Something just done that can be taken back, under the new tab row for a few seconds.

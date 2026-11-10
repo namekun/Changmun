@@ -23,5 +23,18 @@ extension SharedAgentState {
             tab.blockedPopup = nil
             #expect(tab.notices.isEmpty)
         }
+
+        @Test func aWebStoreNoticeCanBePutAwayAndComesBackOnAnotherExtension() throws {
+            guard #available(macOS 15.4, *) else { return }
+            let b = Browser()
+            defer { b.windowClosed() }
+            let id = String(repeating: "a", count: 32), other = String(repeating: "b", count: 32)
+            let tab = b.openTab(url: URL(string: "https://chromewebstore.google.com/detail/dark-reader/\(id)"))
+            #expect(tab.notices == [.webStore(id)])
+            tab.dismissedStoreNotices.insert(id)
+            #expect(tab.notices.isEmpty, "× puts it away")
+            tab.url = URL(string: "https://chromewebstore.google.com/detail/other/\(other)")
+            #expect(tab.notices == [.webStore(other)], "another extension's page asks again")
+        }
     }
 }

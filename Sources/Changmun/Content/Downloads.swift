@@ -26,6 +26,8 @@ final class DownloadItem: ObservableObject, Identifiable {
     weak var download: WKDownload?
     /// What WebKit kept of a download that broke off, to pick it up from there.
     var resumeData: Data?
+    /// The address it was fetched from, when asking for it again would get the same file (a plain GET of a web address).
+    var source: URL?
     /// Where it came from and goes, kept for a resumed download's quarantine.
     var origin: (file: URL?, page: URL?, destination: URL?)?
     /// Where a download that broke off was being written, kept with its resume data.
@@ -36,7 +38,26 @@ final class DownloadItem: ObservableObject, Identifiable {
         self.init(filename: download.originalRequest?.url?.lastPathComponent ?? String(localized: "Download"), progress: download.progress, isPrivate: owner?.isPrivate == true)
         self.download = download
         if isPrivate { self.owner = owner }
+        source = Self.repeatableSource(download.originalRequest)
     }
+
+    static func repeatableSource(_ request: URLRequest?) -> URL? {
+        guard let request, let url = request.url, ["http", "https"].contains(url.scheme?.lowercased()), (request.httpMethod ?? "GET") == "GET" else { return nil }
+        return url
+    }
+
+    /// What a download that stopped offers: to go on from where it broke off, or, when WebKit kept nothing of it, to fetch the file again.
+    enum Retry: Equatable {
+        case tryAgain, downloadAgain
+    }
+
+    static func retry(state: State, hasResumeData: Bool, source: URL?) -> Retry? {
+        if hasResumeData { return .tryAgain }
+        if case .failed = state, source != nil { return .downloadAgain }
+        return nil
+    }
+
+    var retry: Retry? { Self.retry(state: state, hasResumeData: resumeData != nil, source: source) }
 
     init(filename: String, progress: Progress, isPrivate: Bool) {
         self.isPrivate = isPrivate
@@ -272,6 +293,7 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         if let name = item(download)?.filename { Announcer.announce(String(localized: "Downloaded \(name)")) }
         if let id = item(download)?.id { resumers[id] = nil }
         if !Headless.isOn { NSSound(named: "Glass")?.play() }
+        if let item = item(download) { Notifier.shared.downloadFinished(item) }
     }
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
@@ -315,14 +337,27 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
         return Profiles.configuration(for: spaces.space(space.id), base: Browser.configuration)
     }
 
-    /// Picks a download that broke off up again from where it stopped.
+    /// Picks a download that broke off up again from where it stopped, or, with nothing kept of it, fetches the file again.
     func retry(_ item: DownloadItem) {
-        guard let data = item.resumeData, !item.isPrivate || item.owner != nil else { return }
+        guard item.retry != nil, !item.isPrivate || item.owner != nil else { return }
+        let data = item.resumeData
+        let source = item.source
         item.resumeData = nil
+        if data == nil {
+            item.progress = 0
+            item.bytes = nil
+        }
         let webView = WKWebView(frame: .zero, configuration: Self.resumeConfiguration(for: item))
         resumers[item.id] = webView
         Task {
-            let download = await webView.resumeDownload(fromResumeData: data)
+            let download: WKDownload
+            if let data {
+                download = await webView.resumeDownload(fromResumeData: data)
+            } else if let source {
+                download = await webView.startDownload(using: URLRequest(url: source))
+            } else {
+                return
+            }
             download.delegate = self
             origins[ObjectIdentifier(download)] = item.origin ?? (nil, nil, nil)
             if let landing = item.landing { landings[ObjectIdentifier(download)] = landing }

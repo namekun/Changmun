@@ -125,13 +125,13 @@ Cela vient de ce que chaque projet dit de lui-même. Si quelque chose est périm
 | ⌘T | Nouvel onglet |
 | ⌘L | Modifier l’adresse |
 | ⌘E | Panneau IA |
-| ⌘D | Ajouter ou retirer un favori |
+| ⌘D | Ajouter/Retirer un favori |
 | ⌃1–9 | Aller à un espace |
 | ⌥⌘\\ | Écran partagé |
 | ⇧-clic sur un lien | En afficher un aperçu sans quitter la page |
 | ⌘⇧T | Rouvrir un onglet fermé |
 
-Touches style Safari ou style Chrome ? Choisissez dans les Réglages (⌘,). [Tous les raccourcis](GUIDE.fr.md#raccourcis).
+Touches style Safari ou style Chrome ? Choisissez dans les Réglages (⌘,). Aide › Raccourcis clavier (⌘/) les liste tous dans l’app. [Tous les raccourcis](GUIDE.fr.md#raccourcis).
 
 ## Confidentialité
 

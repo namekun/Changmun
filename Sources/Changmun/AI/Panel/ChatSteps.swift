@@ -4,10 +4,13 @@ import SwiftUI
 /// How a tool step went, from the tool result the AI got back.
 enum StepOutcome: String, Codable, Equatable {
     case ok, failed, denied
+    /// Not allowed because the user didn't answer the question in time.
+    case unanswered
 
-    /// From a tool result's text: the user refusing (or the app refusing for them) is told apart from a failure.
+    /// From a tool result's text: the user refusing (or the app refusing for them), and a question nobody answered, are told apart from a failure.
     static func of(error: Bool, text: String) -> StepOutcome {
         guard error else { return .ok }
+        if text.hasPrefix("Not allowed: the user didn't answer") { return .unanswered }
         return text.localizedCaseInsensitiveContains("declined") || text.hasPrefix("Refused") ? .denied : .failed
     }
 
@@ -117,6 +120,7 @@ struct StepChip: View {
         switch item.outcome {
         case .failed: String(localized: "Failed")
         case .denied: String(localized: "Declined")
+        case .unanswered: String(localized: "No answer")
         default: nil
         }
     }
@@ -125,7 +129,11 @@ struct StepChip: View {
         HStack(spacing: 4) {
             Image(systemName: item.symbol ?? "cursorarrow.rays").font(.symbolInline)
             Text(label).lineLimit(1).truncationMode(.middle)
-            if item.outcome?.isProblem == true {
+            if item.outcome == .unanswered, let outcomeWord {
+                // Said in words: a question that ran out of time is not the user's no.
+                Image(systemName: "clock").font(.symbolInline)
+                Text(verbatim: outcomeWord).lineLimit(1).fixedSize()
+            } else if item.outcome?.isProblem == true {
                 Image(systemName: item.outcome == .denied ? "hand.raised" : "exclamationmark.triangle").font(.symbolInline)
             }
         }
@@ -134,7 +142,7 @@ struct StepChip: View {
         .padding(.horizontal, 8)
         .frame(height: 22)
         .background(Capsule().fill(Theme.selected))
-        .help(label)
+        .help(label + (outcomeWord.map { " · " + $0 } ?? ""))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label + (outcomeWord.map { ", " + $0 } ?? ""))
     }

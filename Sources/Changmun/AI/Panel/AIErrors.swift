@@ -12,6 +12,8 @@ enum AIErrorKind: String, Codable, Equatable {
     case overloaded
     /// There is no `claude` to run.
     case notInstalled
+    /// `claude` didn't know an option the app passes: it is older than the app expects.
+    case outdated
     case other
 }
 
@@ -30,7 +32,10 @@ struct AIFailure: Codable, Equatable {
         let lower = text.lowercased()
         func has(_ words: [String]) -> Bool { words.contains { lower.contains($0) } }
         let kind: AIErrorKind
-        if code == "rate_limit" || code == "billing_error" || status == 429
+        let apiError = code != nil || status != nil
+        if !apiError, isUnknownOption(text) {
+            kind = .outdated
+        } else if code == "rate_limit" || code == "billing_error" || status == 429
             || has(["usage limit", "rate limit", "rate_limit", "limit reached", "hit your limit", "credit balance", "quota", "too many requests"]) {
             kind = .usageLimit
         } else if code == "authentication_failed" || status == 401
@@ -46,6 +51,15 @@ struct AIFailure: Codable, Equatable {
             kind = .other
         }
         return AIFailure(kind: kind, details: text, resets: kind == .usageLimit ? resetTime(in: text) : nil)
+    }
+
+    /// `claude`'s own complaint about an option it doesn't know, on a line of its own as it writes it to stderr ("error: unknown option
+    /// '--effort'"). The same words inside other text (a page, a tool's answer) are not it.
+    static func isUnknownOption(_ text: String) -> Bool {
+        text.split(whereSeparator: \.isNewline).contains { line in
+            let line = line.trimmingCharacters(in: .whitespaces).lowercased()
+            return line.hasPrefix("error: unknown option") || line.hasPrefix("error: unrecognized option")
+        }
     }
 
     /// The time a limit ends, when the message gives it: "resets 3pm (Asia/Seoul)", "will reset at 3pm", or the older
@@ -73,6 +87,7 @@ struct AIFailure: Codable, Equatable {
         case .network: String(localized: "Couldn't reach Claude")
         case .overloaded: String(localized: "Claude is busy right now")
         case .notInstalled: String(localized: "Couldn't find Claude Code")
+        case .outdated: String(localized: "Claude Code may need updating")
         case .other: String(localized: "The AI request failed.")
         }
     }
@@ -84,6 +99,7 @@ struct AIFailure: Codable, Equatable {
         case .network: String(localized: "Check your internet connection and try again.")
         case .overloaded: String(localized: "This is temporary. Try again in a moment.")
         case .notInstalled: String(localized: "Install it, or enter where it is in Settings › AI.")
+        case .outdated: String(localized: "It didn't recognize an option Changmun uses. Copy the update command, run it in Terminal, then try again.")
         case .other: details.split(separator: "\n").first.map { String($0.prefix(160)) } ?? ""
         }
     }
@@ -92,6 +108,23 @@ struct AIFailure: Codable, Equatable {
     var offersSettings: Bool { kind == .notInstalled }
     /// The row also offers to copy the command that signs in.
     var offersLoginCommand: Bool { kind == .login }
+
+    /// The command the row's Copy Command button copies, for pasting into Terminal as it is: `claude` by the path the app runs it from
+    /// (the shell may not find it by its name), and for an old one the command that updates it. Nil when the row offers none.
+    func command(claude: String?) -> String? {
+        let program = claude.map(Self.shellQuoted) ?? "claude"
+        switch kind {
+        case .login: return program
+        case .outdated: return program + " update"
+        default: return nil
+        }
+    }
+
+    /// A path as one word for the shell: as it is when it has nothing the shell would read otherwise, else in single quotes.
+    static func shellQuoted(_ path: String) -> String {
+        let plain = !path.isEmpty && path.unicodeScalars.allSatisfy { $0.isASCII && ($0.properties.isAlphabetic || (48...57).contains($0.value) || "/._-+".unicodeScalars.contains($0)) }
+        return plain ? path : "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
 }
 
 /// An error in the transcript: what happened, what to do, and the CLI's own words under Details.
@@ -119,12 +152,13 @@ struct ChatErrorRow: View {
             }
             HStack(spacing: 8) {
                 if let retry { actionButton(String(localized: "Try Again"), "arrow.clockwise", retry) }
-                if failure.offersLoginCommand {
+                if let command = failure.command(claude: ChatStore.claudeLocator()) {
                     actionButton(copied ? String(localized: "Copied") : String(localized: "Copy Command"), copied ? "checkmark" : "doc.on.doc") {
                         NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString("claude", forType: .string)
+                        NSPasteboard.general.setString(command, forType: .string)
                         copied = true
                     }
+                    .help(command)
                 }
                 if failure.offersSettings {
                     actionButton(String(localized: "Open AI Settings"), "gearshape") {

@@ -42,15 +42,33 @@ struct AISettings: View {
             }
             Section {
                 Toggle("Keep chat history", isOn: $prefs.aiKeepHistory)
-                Caption(text: "Finished chats can be read again from the clock button in the AI panel. Chats in private windows are never kept.")
+                Caption(text: "Finished chats can be read again from the AI panel’s title menu › Show All Chats. Chats in private windows are never kept.")
                 Caption(text: "The history stays on this Mac, and you can turn it off here.")
                 LabeledContent("AI Chat") {
-                    Button("Clear Chat") { ChatStore.shared.reset() }
+                    Button("Start a New Chat", action: startNewChat)
                 }
+                Caption(text: "Ends the chat in the AI panel and opens an empty one. The chat you had stays in the history if you keep it.")
             }
         }
         .formStyle(.grouped)
         .task(id: prefs.claudePath) { status = await Self.checkClaude() }
+    }
+
+    /// What Start a New Chat asks first: a reply that is running would be cut off, messages waiting for it dropped and its tabs let go. Nothing when idle.
+    static func newChatQuestion(running: Bool) -> DialogSpec? {
+        guard running else { return nil }
+        return DialogSpec(title: String(localized: "Stop the AI’s reply and start a new chat?"),
+                          message: String(localized: "The reply that is running ends here, messages waiting to be sent are dropped, and the AI lets go of the tabs it was using."),
+                          buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel, isDefault: true), DialogButton(title: String(localized: "Start a New Chat"))])
+    }
+
+    private func startNewChat() {
+        let chat = ChatStore.shared
+        guard let question = Self.newChatQuestion(running: chat.isRunning) else { return chat.reset() }
+        let window = NSApp.keyWindow
+        Task { @MainActor in
+            if await Dialog.present(in: window, question)?.button == 1 { chat.reset() }
+        }
     }
 
     static func checkClaude() async -> String {

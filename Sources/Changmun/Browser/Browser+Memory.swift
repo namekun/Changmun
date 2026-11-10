@@ -61,19 +61,25 @@ extension Browser {
                 && tab.webView.map { $0.cameraCaptureState == .none && $0.microphoneCaptureState == .none } != false
         }
         guard !idle.isEmpty else { return }
-        // A tab closes only once its entry is saved: an archive that can't be written keeps the tabs open.
-        guard archive.add(idle.map { tab in
+        let entries = idle.map { tab in
             TabArchive.Entry(url: tab.url?.absoluteString ?? "", title: tab.displayTitle, archived: now, group: groups.first { $0.id == tab.groupID }?.name, space: tab.spaceID,
                               customTitle: tab.customTitle)
-        }) else { return }
+        }
+        // A tab closes only once its entry is saved: an archive that can't be written keeps the tabs open.
+        guard archive.add(entries) else { return }
         for tab in idle { close(tab.id, remember: false) }
+        // Said once a sweep, with the way back: Undo here, History › Archived Tabs later.
+        let count = entries.count
+        offerUndo(count == 1 ? String(localized: "Archived \(count) tab to History › Archived Tabs") : String(localized: "Archived \(count) tabs to History › Archived Tabs")) { [weak self] in
+            for entry in entries where archive.entries.contains(where: { $0.id == entry.id }) { self?.reopen(entry, from: archive, activate: false) }
+        }
     }
 
     /// Opens an archived tab again, back in its group if this window has one by that name.
-    func reopen(_ entry: TabArchive.Entry, from archive: TabArchive? = nil) {
+    func reopen(_ entry: TabArchive.Entry, from archive: TabArchive? = nil, activate: Bool = true) {
         guard let url = URL(string: entry.url) else { return }
         let archive = archive ?? .shared
-        let tab = openTab(url: url, space: entry.space)
+        let tab = openTab(url: url, activate: activate, space: entry.space)
         tab.customTitle = entry.customTitle
         if let name = entry.group, let group = spaceGroups.first(where: { $0.name == name }) { addTab(tab.id, to: group.id) }
         archive.remove(entry.id)

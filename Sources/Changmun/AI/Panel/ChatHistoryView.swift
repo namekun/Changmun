@@ -16,8 +16,13 @@ struct ChatHistoryView: View {
             }
             if let id = chat.openedHistory, let stored = history.chats.first(where: { $0.id == id }) {
                 ChatHistoryDetail(chat: stored, back: { chat.openedHistory = nil }, delete: {
-                    chat.openedHistory = nil
-                    history.delete(id)
+                    // Asked first: a saved chat can't be brought back.
+                    let window = NSApp.keyWindow ?? Browser.recent?.window
+                    Task { @MainActor in
+                        guard await Dialog.present(in: window, .confirmDelete(String(localized: "Delete this chat?"), String(localized: "This can't be undone.")))?.button == 1 else { return }
+                        if chat.openedHistory == id { chat.openedHistory = nil }
+                        history.delete(id)
+                    }
                 })
             } else {
                 ChatHistoryList(chat: chat, history: history)
@@ -46,10 +51,23 @@ private struct HistoryAction: View {
     }
 }
 
+/// The saved chats whose title or words have all of the query's words in them (any case, any accents); all of them for an empty query.
+enum ChatHistorySearch {
+    static func matching(_ chats: [StoredChat], query: String) -> [StoredChat] {
+        let words = query.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard !words.isEmpty else { return chats }
+        return chats.filter { stored in
+            let text = stored.title + "\n" + stored.items.filter { $0.kind == .user || $0.kind == .assistant }.map(\.text).joined(separator: "\n")
+            return words.allSatisfy { text.range(of: $0, options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive]) != nil }
+        }
+    }
+}
+
 private struct ChatHistoryList: View {
     @ObservedObject var chat: ChatStore
     @ObservedObject var history: ChatHistory
     @State private var confirmClear = false
+    @State private var query = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -80,10 +98,28 @@ private struct ChatHistoryList: View {
             if history.chats.isEmpty {
                 Text("No saved chats yet").font(.secondary).foregroundStyle(Theme.secondary)
                     .padding(.horizontal, 8).padding(.top, 4)
+            } else {
+                HStack(spacing: 4) {
+                    Image(systemName: "magnifyingglass").font(.symbolInline).foregroundStyle(Theme.secondary).decorative()
+                    TextField("Search chats", text: $query)
+                        .textFieldStyle(.plain)
+                        .font(.secondary)
+                        .foregroundStyle(Theme.primary)
+                        .accessibilityLabel(Text("Search chats"))
+                }
+                .padding(.horizontal, 8)
+                .frame(height: 28)
+                .background(RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous).fill(Theme.field))
+                .padding(.horizontal, 8)
+            }
+            let shown = ChatHistorySearch.matching(history.chats, query: query)
+            if shown.isEmpty && !history.chats.isEmpty {
+                Text("No chats match “\(query)”").font(.secondary).foregroundStyle(Theme.secondary)
+                    .padding(.horizontal, 8).padding(.top, 4)
             }
             ScrollView {
                 LazyVStack(spacing: 4) {
-                    ForEach(history.chats) { stored in
+                    ForEach(shown) { stored in
                         SavedChatRow(stored: stored, open: { chat.openedHistory = stored.id }, delete: { history.delete(stored.id) })
                     }
                 }

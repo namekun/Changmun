@@ -12,6 +12,8 @@ import WebKit
 enum Approvals {
     /// Per caller, the tabs the user let it use, each together with the site it was on then.
     private static var tabs: [String: Set<String>] = [:]
+    /// Per caller, those of its tabs that the AI opened itself rather than the user allowing them: not listed as allowed.
+    private static var opened: [String: Set<String>] = [:]
     /// Tabs the user attached in the chat panel, each with the site it was on then; the panel may read them there.
     private static var attached: [Int: String] = [:]
     private static var urls: [String: Set<String>] = [:]
@@ -62,7 +64,9 @@ enum Approvals {
 
     /// A tab the AI opened itself is its to use, on the site it was opened on.
     static func allowOpened(_ tab: Tab, at url: URL, caller: String) {
-        tabs[caller, default: []].insert(key(tab, host: site(of: url)))
+        let key = key(tab, host: site(of: url))
+        tabs[caller, default: []].insert(key)
+        opened[caller, default: []].insert(key)
     }
 
     /// A character that is invisible or lets text pass for other text: controls, line and paragraph separators, format and default-ignorable characters,
@@ -144,7 +148,7 @@ enum Approvals {
                                     + (unverified ? String(localized: "This page's certificate wasn't verified: you chose to go on.") + "\n\n" : "")
                                     + String(localized: "If you allow it, you won't be asked again while this tab stays on this site."),
                                 caller: caller)
-        if allowed { tabs[caller, default: []].insert(key) }
+        if allowed, tabs[caller, default: []].insert(key).inserted { changes.send() }
         return allowed
     }
 
@@ -162,10 +166,10 @@ enum Approvals {
         if isFree(url, knownURL: { knownURL($0, caller: caller) }, knownHost: Library.shared.knowsHost) || urls[caller]?.contains(url.absoluteString) == true { return true }
         let address = shownWithNote(url.absoluteString)
         let allowed = await ask(String(localized: "The AI wants to open this address"),
-                                "\(shown(site(of: url).map(display) ?? url.host() ?? "", limit: 100).text)\n\n\(address.text)\n\n" + String(localized: "Deny if the address carries content from another page or from the conversation."),
+                                "\(shown(site(of: url).map(display) ?? url.host() ?? "", limit: 100).text)\n\n\(address.text)\n\n" + String(localized: "Choose Don’t Allow if the address carries content from another page or from the conversation."),
                                 caller: caller)
         // An address whose end was not shown is asked about each time.
-        if allowed && address.cut == 0 && !address.altered { urls[caller, default: []].insert(url.absoluteString) }
+        if allowed && address.cut == 0 && !address.altered, urls[caller, default: []].insert(url.absoluteString).inserted { changes.send() }
         return allowed
     }
 
@@ -424,9 +428,10 @@ enum Approvals {
     /// Forgets the MCP clients whose process has ended; `alive` says whether a process is still there.
     static func forgetEndedCallers(alive: (pid_t) -> Bool = { kill($0, 0) == 0 || errno != ESRCH }) {
         let callers = Set(tabs.keys).union(urls.keys).union(readHosts.keys).union(chatBegan.keys).union(allowances.keys)
-            .union(lowAllowed.keys).union(heard)
+            .union(lowAllowed.keys).union(opened.keys).union(heard)
         for caller in callers where bridgePID(of: caller).map({ !alive($0) }) == true {
             tabs[caller] = nil
+            opened[caller] = nil
             urls[caller] = nil
             readHosts[caller] = nil
             chatBegan[caller] = nil
@@ -440,14 +445,17 @@ enum Approvals {
 
     /// Whether anything is still remembered of a caller (tests).
     static func remembers(caller: String) -> Bool {
-        tabs[caller] != nil || urls[caller] != nil || readHosts[caller] != nil || chatBegan[caller] != nil
+        tabs[caller] != nil || opened[caller] != nil || urls[caller] != nil || readHosts[caller] != nil || chatBegan[caller] != nil
             || allowances[caller] != nil || lowAllowed[caller] != nil || heard.contains(caller)
             || SignIn.wasDeclinedAnywhere(caller: caller) || AgentActivity.shared.stopCount(for: caller) != 0
     }
 
-    /// A new chat starts without anything read or allowed; other callers keep theirs.
+    /// A new chat starts without anything read or allowed (the tabs and addresses allowed too); other callers keep theirs.
     static func forgetReads(caller: String) {
         readHosts[caller] = nil
+        tabs[caller] = nil
+        opened[caller] = nil
+        urls[caller] = nil
         allowances[caller] = nil
         lowAllowed[caller] = nil
         SignIn.forgetDeclined(caller: caller)
@@ -479,6 +487,37 @@ enum Approvals {
         changes.send()
     }
 
+    /// The tabs the user let the caller use, each as its tab and the site it was allowed on, oldest tab first (not those the AI opened itself).
+    static func tabsAllowed(caller: String) -> [String] {
+        let id = { (key: String) in Int(key.prefix { $0 != "|" }) ?? 0 }
+        return (tabs[caller] ?? []).subtracting(opened[caller] ?? []).sorted { (id($0), $0) < (id($1), $1) }
+    }
+
+    /// The addresses the user let the caller open without asking again.
+    static func addressesAllowed(caller: String) -> [String] {
+        (urls[caller] ?? []).sorted()
+    }
+
+    /// A tab allowance as a person reads it: "Tab “Title” on example.com", or that the tab is closed.
+    static func describeTab(_ key: String) -> String {
+        let parts = key.split(separator: "|", omittingEmptySubsequences: false)
+        let site = parts.count > 1 && hasSite(String(parts[1])) ? display(String(parts[1])) : String(localized: "a page without a site")
+        guard let id = parts.first.flatMap({ Int($0) }), let tab = ToolCatalog.findTab(id) else { return String(localized: "A closed tab on \(site)") }
+        return String(localized: "Tab “\(shown(quotable(tab.displayTitle), limit: 60).text)” on \(site)")
+    }
+
+    /// Takes back a tab the user let the caller use: using it again is asked about.
+    static func revoke(tab key: String, caller: String) {
+        tabs[caller]?.remove(key)
+        changes.send()
+    }
+
+    /// Takes back an address the user let the caller open: opening it again is asked about.
+    static func revoke(address: String, caller: String) {
+        urls[caller]?.remove(address)
+        changes.send()
+    }
+
     private final class Once {
         var done = false
     }
@@ -502,8 +541,25 @@ enum Approvals {
         for question in pending { question.resolve(choice) }
     }
 
+    /// A tab or an address: what is allowed is remembered (the tab on its site, the address whole), so its yes is "Allow", not "Allow Once".
     private static func ask(_ message: String, _ detail: String, caller: String) async -> Bool {
-        await choose(message, detail, [(.deny, String(localized: "Deny")), (.once, String(localized: "Allow"))], caller: caller) != .deny
+        await choose(message, detail, [(.deny, String(localized: "Don’t Allow")), (.once, String(localized: "Allow"))], caller: caller) != .deny
+    }
+
+    /// What became of the questions of one tool call: whether the last one went unanswered until its time ran out. Bound for each call
+    /// (see `ToolCatalog.call`), so that the AI is told a question nobody answered apart from one the user said no to; both are no.
+    final class Outcome {
+        var unanswered = false
+    }
+
+    @TaskLocal static var outcome: Outcome?
+
+    /// The last question of this tool call was not answered in time (it was not allowed).
+    static var lastWentUnanswered: Bool { outcome?.unanswered == true }
+
+    /// The line every question carries: no answer within its time is no.
+    nonisolated static func noAnswerLine(_ seconds: TimeInterval) -> String {
+        String(localized: "No answer within \(ElapsedText.text(seconds: Int(seconds.rounded()))) counts as Don’t Allow.")
     }
 
     private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], irreversible: Bool = false, signIn: Bool = false,
@@ -517,6 +573,8 @@ enum Approvals {
     private static func choose(_ message: String, _ detail: String, _ buttons: [(Choice, String)], accounts: [String], irreversible: Bool = false, signIn: Bool = false,
                                parts: Prompt.Parts? = nil, mark: Mark? = nil, caller: String) async -> (choice: Choice, account: Int) {
         let prompt = Prompt(message: message, detail: detail, choices: buttons.map(\.0), accounts: accounts, irreversible: irreversible, parts: parts)
+        let record = Self.outcome
+        record?.unanswered = false
         let standing = stand ?? (Headless.isOn ? headless : nil)
         if let standing {
             if standing.asked.count > 100 { standing.asked.removeFirst(standing.asked.count - 100) }
@@ -528,6 +586,7 @@ enum Approvals {
         let inPanel = (standing == nil || standing?.holds == true) && route(caller: caller, irreversible: irreversible, accounts: accounts, panelOpen: panel != nil, signIn: signIn) == .card
         guard standing != nil || inPanel || Browser.recent?.window != nil else { return (.deny, 0) }
         if standing == nil { NSApp?.requestUserAttention(.informationalRequest) }
+        if standing == nil { Notifier.shared.approvalWaiting(in: panel ?? Browser.recent) }
         return await withCheckedContinuation { continuation in
             let once = Once()
             let id = UUID()
@@ -549,7 +608,7 @@ enum Approvals {
                     return
                 }
                 // The first button is the one Return presses, and the one that says no.
-                let spec = DialogSpec(title: message, detail: .text(detail), choices: accounts.count > 1 ? accounts.map(accountTitle) : [],
+                let spec = DialogSpec(title: message, detail: .text(detail + "\n\n" + noAnswerLine(timeout)), choices: accounts.count > 1 ? accounts.map(accountTitle) : [],
                                       choicesLabel: String(localized: "Account"),
                                       buttons: buttons.enumerated().map { DialogButton(title: $1.1, role: $1.0 == .deny ? .cancel : .normal, isDefault: $0 == 0) },
                                       // Asked by the AI, so its buttons that say yes wake up a moment after the sheet is on screen, here too.
@@ -565,7 +624,8 @@ enum Approvals {
             })
             if inPanel, let panel {
                 // The panel closing with the question open moves it to the window, where it can't be missed.
-                ApprovalCards.shared.add(ApprovalCards.Card(id: id, prompt: prompt, buttons: buttons, browser: panel, answer: { finish($0, 0) }, moveToSheet: showSheet))
+                ApprovalCards.shared.add(ApprovalCards.Card(id: id, prompt: prompt, buttons: buttons, browser: panel, answer: { finish($0, 0) }, moveToSheet: showSheet,
+                                                            deadline: Date().addingTimeInterval(timeout)))
                 if ChatPopOut.shared.isPoppedOut(for: panel) { ChatPopOut.shared.revealForQuestion() }
                 if let mark {
                     Task {
@@ -578,6 +638,7 @@ enum Approvals {
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
                 guard !once.done else { return }
+                record?.unanswered = true
                 finish(.deny, 0)
                 sheet.end()
             }

@@ -52,6 +52,34 @@ extension Tab {
         if !empty { browser?.openTab(url: popup, after: self).openerID = id }
     }
 
+    // MARK: Page source
+
+    /// Opens the page's document, as it is now, as text in a new tab after this one. It is read in the app's own world, so the page's scripts can't
+    /// answer in its place, and shown as our own page, which runs nothing of it.
+    func viewSource() {
+        guard let webView else { return }
+        let title = String(localized: "Source of \(displayTitle)")
+        webView.callAsyncJavaScript("return document.documentElement ? document.documentElement.outerHTML : ''", arguments: [:], in: nil, in: .defaultClient) { [weak self] result in
+            Task { @MainActor in
+                guard let self, let browser = self.browser, case .success(let value) = result, let source = value as? String else { return }
+                let tab = browser.openTab(url: nil, after: self)
+                tab.sourceOf = self.url
+                tab.wake().loadHTMLString(Self.sourcePage(source, title: title), baseURL: nil)
+            }
+        }
+    }
+
+    /// The source as plain text, wrapped, in the monospaced type of Reader Mode's code.
+    nonisolated static func sourcePage(_ source: String, title: String) -> String {
+        let escape = { (text: String) in
+            text.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
+        }
+        return """
+        <!doctype html><meta charset="utf-8"><meta name="color-scheme" content="light dark"><title>\(escape(title))</title>
+        <body style="margin: 0"><pre style="margin: 0; padding: 16px; font: 13px/1.5 ui-monospace, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere">\(escape(source))</pre></body>
+        """
+    }
+
     // MARK: Reader Mode
 
     /// Shows the page's article over it as clean text, or takes it away again.

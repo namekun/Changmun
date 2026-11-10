@@ -93,7 +93,9 @@ enum ToolCatalog {
     /// `caller` tells apart the chat panel and each MCP connection: what one has read doesn't count for another.
     static func call(_ name: String, _ args: [String: Any], caller: String) async -> ToolResult {
         Approvals.noteCaller(caller)
-        return await $currentTool.withValue(name) { await $currentTitle.withValue(stepTitle(args["title"])) { await perform(name, args, caller: caller) } }
+        return await Approvals.$outcome.withValue(Approvals.Outcome()) {
+            await $currentTool.withValue(name) { await $currentTitle.withValue(stepTitle(args["title"])) { await perform(name, args, caller: caller) } }
+        }
     }
 
     @MainActor
@@ -139,6 +141,8 @@ enum ToolCatalog {
         // A start tab shows the start page (history, closed tabs, the reading list), which the AI never sees: to every tool it is a blank page,
         // and nothing is woken, read or recorded as read.
         if tab.isStart, let answer = startTabAnswer(name, tab, browser) { return answer }
+        // A page's source (View Source) has no address that ties what it says to its site: the AI is not given it.
+        if tab.sourceOf != nil { return .text("Error: this tab shows a page's source, which you can't use. Use list_tabs and pass the tab_id of another tab.", error: true) }
         // Only the tab in front of the user goes without asking, closing a tab too. What was approved is the site it was on when
         // it was asked about, and the tools that act on the page check the page they reach against it.
         // A page whose certificate the user went on with, though it could not be verified, is asked about even in front: the AI reads it as another site's.
@@ -307,7 +311,7 @@ enum ToolCatalog {
             let inFront = tab.id == browser.activeID && browser === Browser.recent
             let asked = Approvals.site(of: tab.url)
             if !inFront, !(await Approvals.allowTab(tab, caller: caller, reading: true)) {
-                sections[id] = "The user declined this tab. Don't retry it."
+                sections[id] = declinedTab
                 continue
             }
             if session.stopped { break }
@@ -330,7 +334,7 @@ enum ToolCatalog {
             let result = await run(PageScripts.readText, ["maxChars": maxChars], in: webView, timeout: min(20, remaining))
             let host = readHost(result)
             if !read.inFront, !(await Approvals.allowRead(tab, approvedHost: read.approvedHost, readHost: host, caller: caller)) {
-                sections[tab.id] = "The user declined this tab. Don't retry it."
+                sections[tab.id] = declinedTab
                 continue
             }
             if session.stopped { break }
@@ -361,13 +365,26 @@ enum ToolCatalog {
         return "Now at: \(tab.aiTitle) — \(tab.url?.absoluteString ?? "")"
     }
 
-    static let declined = ToolResult.text("The user declined this in Changmun. Don't retry it; tell the user what you wanted to do.", error: true)
+    /// What the AI is told when it was not allowed: the user said no, or the question waited until its time ran out (both are no).
+    @MainActor static var declined: ToolResult { Approvals.lastWentUnanswered ? unanswered : refused }
+
+    static let refusedText = "The user declined this in Changmun. Don't retry it; tell the user what you wanted to do."
+    static let refused = ToolResult.text(refusedText, error: true)
+
+    /// Begins with the words `StepOutcome.of` tells it by.
+    static let unansweredText = "Not allowed: the user didn't answer Changmun's question in time (they may be away). Don't retry it on your own; tell the user what you wanted to do, so they can ask you again."
+    static let unanswered = ToolResult.text(unansweredText, error: true)
+
+    /// The part of a read of several tabs for one that was not allowed.
+    @MainActor static var declinedTab: String {
+        Approvals.lastWentUnanswered ? "Not allowed: the user didn't answer in time about this tab (they may be away). Don't retry it on your own." : "The user declined this tab. Don't retry it."
+    }
 
     /// What the user's headless app tells an AI whose pay, send, post or delete it refused, in place of a person who would be asked.
     static let needsAPerson = ToolResult.text("Refused: this looks like paying, ordering, sending, posting, deleting or granting access, and the headless Changmun never does that without a person. Don't retry it; tell the user what you wanted to do.", error: true)
 
     /// What an action the user (or, in the user's headless app, the rule for it) said no to answers with.
-    static func declined(_ tier: IrreversibleAction.Tier, markupOnly: Bool = false, inUserHeadless: Bool = Headless.isUser) -> ToolResult {
+    @MainActor static func declined(_ tier: IrreversibleAction.Tier, markupOnly: Bool = false, inUserHeadless: Bool = Headless.isUser) -> ToolResult {
         inUserHeadless && (tier == .high || markupOnly) ? needsAPerson : declined
     }
 

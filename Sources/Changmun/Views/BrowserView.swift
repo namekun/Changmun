@@ -57,6 +57,7 @@ struct BrowserView: View {
                 }
                 .onGeometryChange(for: Double.self) { $0.size.width } action: { contentWidth = $0 }
             }
+            if browser.focusMode { FocusModeExit(browser: browser) }
             if let peek = browser.peek {
                 PeekCard(tab: peek, browser: browser, area: area).transition(Motion.pop(.center))
             }
