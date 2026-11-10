@@ -83,7 +83,7 @@ final class SuggestionSource: ObservableObject {
             let found = await Library.shared.inBackground { $0.search(query, hiding: hiding, history: history) }
             if !Task.isCancelled { pages = found }
         }
-        guard remote, SearchSuggestions.mayAsk(query), !AddressInput.isAddress(query) else {
+        guard remote, SearchSuggestions.mayAsk(query), !AddressInput.isAddress(query), SearchRouting.allowsSuggestions(for: query) else {
             searches = []
             return
         }
