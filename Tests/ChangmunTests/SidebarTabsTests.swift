@@ -201,6 +201,17 @@ extension SharedAgentState {
             #expect(bookmarks(open) == ["Work https://a.example/", "Work https://b.example/"], "an open folder shows its own once")
         }
 
+        @Test func anOpenEmptyFolderSaysSoAndTakesADropAtItsEnd() {
+            let empty = Library.Folder(key: "Empty", label: "Empty", entries: [])
+            let rows = Sidebar.treeRows(empty, depth: 0, scope: "pin:", pinned: true, open: ["pin:Empty"], dragging: false)
+            #expect(rows.map(\.id) == ["pin:Empty", "pin:Empty\n\u{1}empty"])
+            let dragging = Sidebar.treeRows(empty, depth: 0, scope: "pin:", pinned: true, open: ["pin:Empty"], dragging: true)
+            #expect(dragging.map(\.id) == ["pin:Empty", "pin:Empty\n\u{1}empty", "pin:Empty\n\u{1}end"])
+            #expect(Sidebar.treeRows(empty, depth: 0, scope: "pin:", pinned: true, open: [], dragging: true).count == 1, "folded, only the folder")
+            let full = Library.Folder(key: "Full", label: "Full", entries: [entry("https://a.example/")])
+            #expect(!Sidebar.treeRows(full, depth: 0, scope: "pin:", pinned: true, open: ["pin:Full"], dragging: false).map(\.id).contains("pin:Full\n\u{1}empty"))
+        }
+
         @Test func theKeysReachTheShownBookmarkTabOfAFoldedFolder() {
             let b = browser(1)
             defer { b.windowClosed() }

@@ -254,6 +254,8 @@ struct Sidebar: View {
         case bookmark(Library.Entry, folder: String, depth: Int, scope: String)
         /// Below the last bookmark of an open folder: where a bookmark dropped goes to the end of it.
         case end(folder: String, depth: Int, scope: String)
+        /// An open folder with nothing in it says so, and takes what is dropped on it.
+        case empty(folder: String, depth: Int, scope: String)
 
         /// Carries the part of the sidebar: a folder can show both pinned and under Bookmarks.
         var id: String {
@@ -261,6 +263,7 @@ struct Sidebar: View {
             case .folder(let folder, _, let scope, _): scope + folder.key
             case .bookmark(let entry, let folder, _, let scope): scope + folder + "\n" + entry.url
             case .end(let folder, _, let scope): scope + folder + "\n\u{1}end"
+            case .empty(let folder, _, let scope): scope + folder + "\n\u{1}empty"
             }
         }
     }
@@ -285,7 +288,8 @@ struct Sidebar: View {
         }
         for child in folder.children { rows += treeRows(child, depth: depth + 1, scope: scope, pinned: pinned, open: open, shownKey: shownKey, dragging: dragging) }
         rows += folder.entries.map { .bookmark($0, folder: folder.key, depth: depth + 1, scope: scope) }
-        if dragging, !folder.entries.isEmpty { rows.append(.end(folder: folder.key, depth: depth + 1, scope: scope)) }
+        if folder.entries.isEmpty && folder.children.isEmpty { rows.append(.empty(folder: folder.key, depth: depth + 1, scope: scope)) }
+        if dragging { rows.append(.end(folder: folder.key, depth: depth + 1, scope: scope)) }
         return rows
     }
 
@@ -309,6 +313,17 @@ struct Sidebar: View {
             .dropDestination(for: SidebarDrop.self) { items, _ in
                 SidebarDrag.drop(items.texts, onBookmark: entry.url, in: folder, browser: browser)
             } isTargeted: { target("bm:" + row.id, $0) }
+        case .empty(let folder, let depth, _):
+            Text("Nothing here yet")
+                .font(.row)
+                .foregroundStyle(Theme.secondary)
+                .frame(maxWidth: .infinity, minHeight: Metrics.row, alignment: .leading)
+                .padding(.leading, Metrics.rowPadding + CGFloat(depth) * Metrics.indent)
+                .contentShape(Rectangle())
+                .dropLine(dropTarget == "bm:" + row.id && SidebarDrag.dragging == .bookmark)
+                .dropDestination(for: SidebarDrop.self) { items, _ in
+                    SidebarDrag.drop(items.texts, onBookmark: nil, in: folder, browser: browser)
+                } isTargeted: { target("bm:" + row.id, $0) }
         case .end(let folder, let depth, _):
             EndOfListDrop(depth: depth)
                 .dropLine(dropTarget == "bm:" + row.id && SidebarDrag.dragging == .bookmark)
