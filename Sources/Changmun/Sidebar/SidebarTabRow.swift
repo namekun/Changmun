@@ -55,20 +55,14 @@ struct SidebarTabRow: View {
             }
             Spacer(minLength: 0)
             CertificateWaitBadge(tab: tab)
-            if tab.isPlayingAudio || tab.isMuted {
-                HoverAction(symbol: tab.isMuted ? "speaker.slash.fill" : "speaker.wave.2",
-                            help: tab.isMuted ? String(localized: "Unmute (⌃⌘M)") : String(localized: "Mute (⌃⌘M)")) { tab.toggleMute() }
-            }
-            // One slot, always the same width, so the title doesn't move when the pointer comes and goes.
+            TabAudioButton(tab: tab, isActive: isActive)
+            // The tab's menu, as on a bookmark's, a folder's and a group's row, for what a right-click alone would hide.
+            if hover && !renaming { MoreButton { TabMenu(tab: tab, browser: browser, isActive: isActive, close: close) } }
+            if browser.split?.contains(tab.id) == true { SplitMarker() }
+            // One slot, always the same width, so what is before it doesn't move when the pointer comes and goes.
             ZStack {
                 if hover {
-                    HoverAction(symbol: "xmark", help: String(localized: "Close Tab (⌘W)"), action: close)
-                } else if browser.split?.contains(tab.id) == true {
-                    Image(systemName: "rectangle.split.2x1")
-                        .font(.symbolInline)
-                        .foregroundStyle(Theme.tertiary)
-                        .help("Split View")
-                        .decorative()
+                    HoverAction(symbol: "xmark", help: isActive ? String(localized: "Close Tab (⌘W)") : String(localized: "Close Tab"), action: close)
                 }
             }
             .frame(width: Metrics.action)
@@ -82,8 +76,9 @@ struct SidebarTabRow: View {
         // Alongside the click that shows the tab, so showing it does not wait for a second click.
         .simultaneousGesture(TapGesture(count: 2).onEnded { browser.renamingTab = tab.id })
         .contextMenu { TabMenu(tab: tab, browser: browser, isActive: isActive, close: close) }
-        .help(tab.url?.absoluteString ?? "")
+        .help(Accessibility.tabHelp(title: tab.displayTitle, address: tab.url?.absoluteString, isStart: tab.isStart, asleep: tab.isAsleep && !isActive))
         .accessibleTab(tab, in: browser, isActive: isActive, renaming: renaming, close: close) { select() }
+        .closesOnMiddleClick("tab:\(tab.id)", close: close)
     }
 
     private func commit() {
@@ -106,6 +101,14 @@ struct TabMenu: View {
         Button("Rename Tab…") { browser.renamingTab = tab.id }
         if tab.customTitle != nil { Button("Reset Name") { tab.customTitle = nil } }
         if !tab.isPrivate && tab.bookmarkKey == nil { Button("Move to New Window") { browser.moveToNewWindow(tab.id) } }
+        let otherSpaces = browser.spaces.spaces.filter { $0.id != tab.spaceID }
+        if !browser.isPrivate && tab.bookmarkKey == nil && !otherSpaces.isEmpty {
+            Menu("Move to Space") {
+                ForEach(otherSpaces) { space in
+                    Button(space.name) { withAnimation(Motion.standard) { _ = browser.moveTab(tab.id, toSpace: space.id) } }
+                }
+            }
+        }
         if let url = tab.url, url.scheme?.hasPrefix("http") == true {
             ShareLink(item: url)
             OpenInMenu(url: url)
@@ -121,6 +124,11 @@ struct TabMenu: View {
             NSPasteboard.general.setString(tab.url?.absoluteString ?? "", forType: .string)
         }
         if !tab.isAsleep { Button(tab.isMuted ? String(localized: "Unmute") : String(localized: "Mute Tab")) { tab.toggleMute() } }
+        if tab.isAsleep && !isActive && !tab.isStart {
+            Button("Wake Tab") { _ = tab.wake() }
+        } else if !tab.isAsleep && !browser.isShown(tab) {
+            Button("Put to Sleep") { tab.sleep() }
+        }
         Button("Save as PDF…") { Task { await SavePage.save(tab, as: .pdf) } }
             .disabled(tab.isAsleep)
         Button("Capture Full Page…") { Task { await SavePage.save(tab, as: .image) } }
@@ -151,6 +159,37 @@ struct TabMenu: View {
         }
         Divider()
         Button("Close Tab", action: close)
+        let listed = browser.listedInOrder.map(\.id)
+        Button("Close Other Tabs") { withAnimation(Motion.standard) { browser.closeOtherTabs(keeping: tab.id) } }
+            .disabled(Browser.othersToClose(keeping: tab.id, listed: listed).isEmpty)
+        Button("Close Tabs Below") { withAnimation(Motion.standard) { browser.closeTabsBelow(tab.id) } }
+            .disabled(Browser.belowToClose(tab.id, listed: listed).isEmpty)
+    }
+}
+
+/// A tab in the split: shown on its row, its bookmark's row too, whether or not the pointer is there.
+struct SplitMarker: View {
+    var body: some View {
+        Image(systemName: "rectangle.split.2x1")
+            .font(.symbolInline)
+            .foregroundStyle(Theme.tertiary)
+            .help("Split View")
+            .decorative()
+    }
+}
+
+/// The speaker on a row whose tab plays sound or is muted: a click mutes or unmutes it. The same on a tab's row, a bookmark's and a favorite's.
+/// The key is shown only on the tab shown, which is the one ⌃⌘M mutes.
+struct TabAudioButton: View {
+    @ObservedObject var tab: Tab
+    let isActive: Bool
+
+    var body: some View {
+        if tab.isPlayingAudio || tab.isMuted {
+            HoverAction(symbol: tab.isMuted ? "speaker.slash.fill" : "speaker.wave.2",
+                        help: isActive ? (tab.isMuted ? String(localized: "Unmute (⌃⌘M)") : String(localized: "Mute (⌃⌘M)"))
+                                       : (tab.isMuted ? String(localized: "Unmute") : String(localized: "Mute Tab"))) { tab.toggleMute() }
+        }
     }
 }
 
@@ -194,6 +233,8 @@ struct Favicon: View {
             }
         }
         .frame(width: 16, height: 16)
-        .opacity(tab.isAsleep ? 0.6 : 1)
+        .opacity(tab.isAsleep ? 0.6 : tab.isLoading && tab.favicon != nil ? 0.35 : 1)
+        // Loading again (a reload, the next page): the spinner over the icon it has.
+        .overlay { if tab.isLoading && tab.favicon != nil { ProgressView().controlSize(.mini) } }
     }
 }

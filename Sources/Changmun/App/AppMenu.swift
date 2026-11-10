@@ -30,6 +30,8 @@ enum AppMenu {
         add(file, "New Private Window", #selector(AppDelegate.newPrivateWindow(_:)), "n", [.command, .shift])
         add(file, "Open Location", #selector(AppDelegate.openLocation(_:)), "l")
         add(file, "Close Tab", #selector(AppDelegate.closeTab(_:)), "w")
+        add(file, "Close Other Tabs", #selector(AppDelegate.closeOtherTabs(_:)))
+        add(file, "Close Tabs Below", #selector(AppDelegate.closeTabsBelow(_:)))
         add(file, "Close Window", #selector(AppDelegate.closeWindow(_:)), "w", [.command, .shift])
         add(file, "Reopen Closed Tab", #selector(AppDelegate.reopenClosedTab(_:)), "t", [.command, .shift])
         add(file, "Open File…", #selector(AppDelegate.openFile(_:)), "o")
@@ -113,6 +115,8 @@ enum AppMenu {
         }
         window.addItem(.separator())
         add(window, "New Space…", #selector(AppDelegate.newSpace(_:)), "n", [.command, .control])
+        add(window, "Edit Space…", #selector(AppDelegate.editSpace(_:)))
+        add(window, "Delete Space…", #selector(AppDelegate.deleteSpace(_:)))
         add(window, "Next Space", #selector(AppDelegate.nextSpace(_:)), right, [.control, .option])
         add(window, "Previous Space", #selector(AppDelegate.previousSpace(_:)), left, [.control, .option])
         for n in 1...9 {

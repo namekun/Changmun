@@ -97,6 +97,7 @@
 "%lld tab" = "タブ%lld個";
 "%lld tabs" = "タブ%lld個";
 "1 suggestion" = "候補1件";
+"A favorite’s or bookmark’s tab stays with it" = "お気に入りやブックマークのタブはその場所に残ります";
 "A private window can't be shown to the AI." = "プライベートウインドウはAIに見せられません。";
 "About Changmun" = "Changmunについて";
 "Action:" = "操作:";
@@ -141,12 +142,16 @@
 "Answer" = "回答";
 "Approval needed" = "承認が必要です";
 "Approval needed: %@" = "承認が必要です: %@";
+"Archive tabs you haven’t viewed in a while" = "しばらく見ていないタブをアーカイブ";
+"Archived %lld tab to History › Archived Tabs" = "%lld個のタブを履歴 › アーカイブしたタブへ移しました";
+"Archived %lld tabs to History › Archived Tabs" = "%lld個のタブを履歴 › アーカイブしたタブへ移しました";
 "Archived Tabs" = "アーカイブしたタブ";
 "Ask" = "確認";
 "Ask about this page, or give it a task" = "このページについて質問、または作業を依頼";
 "Ask AI" = "AIに質問";
 "Ask AI: %@" = "AIに質問: %@";
 "Ask where to save each download" = "ダウンロードごとに保存先を確認";
+"Asleep: click to wake" = "スリープ中：クリックで再開";
 "Authentication is required to copy the saved password" = "保存されたパスワードをコピーするには認証が必要です";
 "Back" = "戻る";
 "Back (⌘[)" = "戻る (⌘[)";
@@ -187,7 +192,11 @@
 "Chrome-style" = "Chrome方式";
 "Clear" = "消去";
 "Clear %@? (%@)" = "%2$@の%1$@を消去しますか？";
+"Clear %lld archived tab?" = "アーカイブしたタブ%lld個を消去しますか？";
 "Clear All" = "すべて消去";
+"Clear all %lld archived tabs?" = "アーカイブしたタブ%lld個をすべて消去しますか？";
+"Clear All…" = "すべて消去…";
+"Clear Chat" = "チャットを消去";
 "Clear Finished" = "完了した項目を消去";
 "Clear History" = "履歴を消去";
 "Cleared: %@" = "消去しました: %@";
@@ -202,9 +211,11 @@
 "Close (esc)" = "閉じる (esc)";
 "Close (⌘E)" = "閉じる (⌘E)";
 "Close All Tabs in Group" = "グループ内のタブをすべて閉じる";
+"Close Other Tabs" = "ほかのタブを閉じる";
 "Close Tab" = "タブを閉じる";
 "Close tab" = "タブを閉じる";
 "Close Tab (⌘W)" = "タブを閉じる (⌘W)";
+"Close Tabs Below" = "下のタブを閉じる";
 "Close Window" = "ウインドウを閉じる";
 "Collapse" = "折りたたむ";
 "Collapsed" = "折りたたみ済み";
@@ -287,7 +298,9 @@
 "Loading" = "読み込み中";
 "Muted" = "ミュート中";
 "No suggestions" = "候補なし";
+"No tab open" = "開いているタブなし";
 "Not open" = "開いていません";
+"Nothing here yet" = "まだ何もありません";
 "Open %@" = "%@を開く";
 "Opens in a new tab" = "新しいタブで開きます";
 "Page translated" = "ページを翻訳しました";
@@ -300,6 +313,7 @@
 "Quit" = "終了";
 "Quit and stop %lld downloads?" = "終了して%lld件のダウンロードを停止しますか?";
 "Quit and stop the download?" = "終了してダウンロードを停止しますか?";
+"Put to Sleep" = "スリープさせる";
 "Remove %@" = "%@を削除";
 "Remove this image" = "この画像を外す";
 "Reopens the tab" = "タブを開き直します";
@@ -363,6 +377,7 @@
 "Group name" = "グループ名";
 "Haiku (fastest)" = "Haiku (最速)";
 "Hard Reload" = "強制再読み込み";
+"Has its own logins" = "ログインを別に保持しています";
 "Hide Changmun" = "Changmunを隠す";
 "Hide Sidebar" = "サイドバーを隠す";
 "History" = "履歴";
@@ -438,6 +453,7 @@
 "Open File…" = "ファイルを開く…";
 "Open Full Disk Access Settings" = "フルディスクアクセスの設定を開く";
 "Open in New Tab" = "新規タブで開く";
+"Open in the background" = "バックグラウンドで開いています";
 "Open Location" = "場所を開く";
 "Open new tab · %@" = "新規タブを開く · %@";
 "Opening %@" = "%@を開いています";
@@ -567,6 +583,7 @@
 "The extension file is too large" = "機能拡張のファイルが大きすぎます";
 "The user name or password is incorrect." = "ユーザ名またはパスワードが正しくありません。";
 "Theme" = "テーマ";
+"There is no other tab to show beside this one" = "このタブの横に表示できるほかのタブがありません";
 "This extension has no manifest.json" = "この機能拡張にはmanifest.jsonがありません";
 "This extension is installed in Changmun" = "この機能拡張はChangmunにインストールされています";
 "This folder has no manifest.json" = "このフォルダにはmanifest.jsonがありません";
@@ -610,6 +627,7 @@
 "Waiting for you to choose a certificate" = "証明書の選択を待っています";
 "Waiting for “%@”" = "「%@」を待っています";
 "Waiting for “%@” to go away" = "「%@」が消えるのを待っています";
+"Wake Tab" = "タブを再開";
 "Web extensions are available on macOS 15.4 or later." = "Web機能拡張はmacOS 15.4以降で利用できます。";
 "Web Inspector (Network)" = "Webインスペクタ (ネットワーク)";
 "WebKit didn't accept the rules: %@" = "WebKitがルールを受け付けませんでした: %@";
@@ -637,11 +655,14 @@
 "Bookmarks you bring over from another browser show up here." = "ほかのブラウザから読み込んだブックマークがここに表示されます。";
 "Closed %lld tab" = "%lld個のタブを閉じました";
 "Closed %lld tabs" = "%lld個のタブを閉じました";
+"Closed “%@”" = "「%@」を閉じました";
 "Deleted the bookmark" = "ブックマークを削除しました";
 "Removed from Favorites" = "お気に入りから外しました";
 "Search Bookmarks" = "ブックマークを検索";
 "Duplicate Tab" = "タブを複製";
 "Move to New Window" = "新規ウインドウに移動";
+"Move to Space" = "スペースへ移動";
+"Moved to “%@”" = "「%@」へ移動しました";
 "Open In" = "ほかのアプリで開く";
 "Appearance" = "外観";
 "Tabs" = "タブ";
@@ -819,6 +840,7 @@
 "Recent Chats" = "最近のチャット";
 "Show All Chats" = "すべてのチャットを表示";
 "The model and effort for your next messages (also in Settings › AI)" = "次のメッセージから使うモデルと推論の強さです（設定 › AI でも変更できます）";
+"The only space can’t be deleted" = "唯一のスペースは削除できません";
 "Working for %@" = "%@ 作業中";
 "You chose to be asked before every action." = "すべての操作の前に確認する設定になっています。";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "%@ に接続していることをChangmunは確認できません。ネットワーク上の誰かがこのサイトになりすまし、送信内容を見ている可能性があります。";
@@ -1004,6 +1026,7 @@
 "Its bookmark goes with it. This can't be undone." = "中のブックマーク1件も一緒に削除されます。元に戻せません。";
 "Its %lld bookmarks go with it. This can't be undone." = "中のブックマーク%lld件も一緒に削除されます。元に戻せません。";
 "They all go, and this can't be undone." = "すべて削除されます。元に戻せません。";
+"They can’t be reopened after this." = "消去すると再び開けなくなります。";
 "This site asks for a user name and password." = "このサイトはユーザ名とパスワードを求めています。";
 "Bring in what you use?" = "使っているものを読み込みますか？";
 "No other browser was found on this Mac." = "このMacに他のブラウザは見つかりませんでした。";

@@ -90,6 +90,7 @@ struct SpaceSwitcher: View {
                     }
                 }
                 .id(space.id)
+                .dropDestination(for: SidebarDrop.self) { items, _ in SidebarDrag.drop(items.texts, onSpace: space.id, browser: browser) }
                 .contextMenu {
                     Button("Edit Space…") { browser.spaceSheet = .edit(space.id) }
                     if spaces.count > 1 {
@@ -110,7 +111,7 @@ struct SpaceSwitcher: View {
         .foregroundStyle(Theme.primary)
         .padding(.horizontal, 8)
         .frame(height: Metrics.control)
-        .help(space.name)
+        .help(Accessibility.spaceHelp(space.name, isProfile: space.isProfile))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(space.name)
         .accessibilityValue(Accessibility.spaceValue(isProfile: space.isProfile) ?? "")
@@ -127,7 +128,7 @@ struct SpaceSwitcher: View {
         }
         .buttonStyle(FillStyle(radius: nil))
         .foregroundStyle(Theme.secondary)
-        .help(number <= 9 ? "\(space.name)  ⌃\(number)" : space.name)
+        .help(Accessibility.spaceHelp(number <= 9 ? "\(space.name)  ⌃\(number)" : space.name, isProfile: space.isProfile))
         .accessibilityLabel(space.name)
         .accessibilityValue(Accessibility.spaceValue(isProfile: space.isProfile) ?? "")
     }

@@ -97,6 +97,7 @@
 "%lld tab" = "%lld 个标签页";
 "%lld tabs" = "%lld 个标签页";
 "1 suggestion" = "1 条建议";
+"A favorite’s or bookmark’s tab stays with it" = "收藏或书签的标签页会留在原处";
 "A private window can't be shown to the AI." = "无法向 AI 展示隐私窗口。";
 "About Changmun" = "关于 Changmun";
 "Action:" = "操作：";
@@ -141,12 +142,16 @@
 "Answer" = "回答";
 "Approval needed" = "需要批准";
 "Approval needed: %@" = "需要批准：%@";
+"Archive tabs you haven’t viewed in a while" = "归档一段时间未查看的标签页";
+"Archived %lld tab to History › Archived Tabs" = "已将 %lld 个标签页归档到“历史记录 › 已归档的标签页”";
+"Archived %lld tabs to History › Archived Tabs" = "已将 %lld 个标签页归档到“历史记录 › 已归档的标签页”";
 "Archived Tabs" = "已归档的标签页";
 "Ask" = "询问";
 "Ask about this page, or give it a task" = "询问此页面，或交给它一项任务";
 "Ask AI" = "询问 AI";
 "Ask AI: %@" = "询问 AI：%@";
 "Ask where to save each download" = "每次下载时询问存储位置";
+"Asleep: click to wake" = "休眠中：点按即可唤醒";
 "Authentication is required to copy the saved password" = "需要验证身份才能拷贝已存储的密码";
 "Back" = "后退";
 "Back (⌘[)" = "后退 (⌘[)";
@@ -187,7 +192,11 @@
 "Chrome-style" = "Chrome 风格";
 "Clear" = "清除";
 "Clear %@? (%@)" = "要清除 %2$@ 的%1$@吗？";
+"Clear %lld archived tab?" = "要清除 %lld 个已归档的标签页吗？";
 "Clear All" = "全部清除";
+"Clear all %lld archived tabs?" = "要清除全部 %lld 个已归档的标签页吗？";
+"Clear All…" = "全部清除…";
+"Clear Chat" = "清除对话";
 "Clear Finished" = "清除已完成项目";
 "Clear History" = "清除历史记录";
 "Cleared: %@" = "已清除：%@";
@@ -202,9 +211,11 @@
 "Close (esc)" = "关闭 (esc)";
 "Close (⌘E)" = "关闭 (⌘E)";
 "Close All Tabs in Group" = "关闭群组中的所有标签页";
+"Close Other Tabs" = "关闭其他标签页";
 "Close Tab" = "关闭标签页";
 "Close tab" = "关闭标签页";
 "Close Tab (⌘W)" = "关闭标签页 (⌘W)";
+"Close Tabs Below" = "关闭下方的标签页";
 "Close Window" = "关闭窗口";
 "Collapse" = "收起";
 "Collapsed" = "已折叠";
@@ -287,7 +298,9 @@
 "Loading" = "正在载入";
 "Muted" = "已静音";
 "No suggestions" = "没有建议";
+"No tab open" = "没有打开的标签页";
 "Not open" = "未打开";
+"Nothing here yet" = "这里还没有内容";
 "Open %@" = "打开 %@";
 "Opens in a new tab" = "在新标签页中打开";
 "Page translated" = "页面已翻译";
@@ -300,6 +313,7 @@
 "Quit" = "退出";
 "Quit and stop %lld downloads?" = "要退出并停止 %lld 个下载吗？";
 "Quit and stop the download?" = "要退出并停止下载吗？";
+"Put to Sleep" = "使其休眠";
 "Remove %@" = "移除 %@";
 "Remove this image" = "移除此图片";
 "Reopens the tab" = "重新打开标签页";
@@ -363,6 +377,7 @@
 "Group name" = "群组名称";
 "Haiku (fastest)" = "Haiku（最快）";
 "Hard Reload" = "强制重新载入";
+"Has its own logins" = "有自己的登录信息";
 "Hide Changmun" = "隐藏 Changmun";
 "Hide Sidebar" = "隐藏边栏";
 "History" = "历史记录";
@@ -438,6 +453,7 @@
 "Open File…" = "打开文件…";
 "Open Full Disk Access Settings" = "打开完全磁盘访问权限设置";
 "Open in New Tab" = "在新标签页中打开";
+"Open in the background" = "在后台打开";
 "Open Location" = "打开位置";
 "Open new tab · %@" = "打开新标签页 · %@";
 "Opening %@" = "正在打开 %@";
@@ -567,6 +583,7 @@
 "The extension file is too large" = "扩展文件太大";
 "The user name or password is incorrect." = "用户名或密码不正确。";
 "Theme" = "主题";
+"There is no other tab to show beside this one" = "没有可显示在此标签页旁边的其他标签页";
 "This extension has no manifest.json" = "此扩展没有 manifest.json";
 "This extension is installed in Changmun" = "此扩展已安装在 Changmun 中";
 "This folder has no manifest.json" = "此文件夹中没有 manifest.json";
@@ -610,6 +627,7 @@
 "Waiting for you to choose a certificate" = "正在等待你选择证书";
 "Waiting for “%@”" = "正在等待“%@”";
 "Waiting for “%@” to go away" = "正在等待“%@”消失";
+"Wake Tab" = "唤醒标签页";
 "Web extensions are available on macOS 15.4 or later." = "网页扩展需要 macOS 15.4 或更高版本。";
 "Web Inspector (Network)" = "网页检查器（网络）";
 "WebKit didn't accept the rules: %@" = "WebKit 未接受这些规则：%@";
@@ -637,11 +655,14 @@
 "Bookmarks you bring over from another browser show up here." = "从其他浏览器导入的书签会显示在这里。";
 "Closed %lld tab" = "已关闭 %lld 个标签页";
 "Closed %lld tabs" = "已关闭 %lld 个标签页";
+"Closed “%@”" = "已关闭“%@”";
 "Deleted the bookmark" = "已删除书签";
 "Removed from Favorites" = "已从个人收藏中移除";
 "Search Bookmarks" = "搜索书签";
 "Duplicate Tab" = "复制标签页";
 "Move to New Window" = "移到新窗口";
+"Move to Space" = "移到空间";
+"Moved to “%@”" = "已移到“%@”";
 "Open In" = "用其他应用打开";
 "Appearance" = "外观";
 "Tabs" = "标签页";
@@ -819,6 +840,7 @@
 "Recent Chats" = "最近对话";
 "Show All Chats" = "显示全部对话";
 "The model and effort for your next messages (also in Settings › AI)" = "后续消息使用的模型和推理强度（也可在设置 › AI 中更改）";
+"The only space can’t be deleted" = "无法删除唯一的空间";
 "Working for %@" = "已处理 %@";
 "You chose to be asked before every action." = "你已设置为每次操作前都询问。";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "Changmun 无法确认你连接的是 %@。网络上的某个人可能正在冒充该网站，并看到你发送的内容。";
@@ -1004,6 +1026,7 @@
 "Its bookmark goes with it. This can't be undone." = "其中的 1 个书签也会一并删除。此操作无法撤销。";
 "Its %lld bookmarks go with it. This can't be undone." = "其中的 %lld 个书签也会一并删除。此操作无法撤销。";
 "They all go, and this can't be undone." = "它们都会被删除，此操作无法撤销。";
+"They can’t be reopened after this." = "清除后将无法再打开。";
 "This site asks for a user name and password." = "此网站需要用户名和密码。";
 "Bring in what you use?" = "要导入你正在使用的内容吗？";
 "No other browser was found on this Mac." = "在这台 Mac 上没有找到其他浏览器。";

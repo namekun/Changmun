@@ -97,6 +97,7 @@
 "%lld tab" = "탭 %lld개";
 "%lld tabs" = "탭 %lld개";
 "1 suggestion" = "추천 1개";
+"A favorite’s or bookmark’s tab stays with it" = "즐겨찾기나 북마크의 탭은 그 자리에 남아요";
 "A private window can't be shown to the AI." = "개인 창은 AI에게 보여 줄 수 없어요.";
 "About Changmun" = "Changmun 정보";
 "Action:" = "동작:";
@@ -141,12 +142,16 @@
 "Answer" = "답변";
 "Approval needed" = "승인이 필요해요";
 "Approval needed: %@" = "승인이 필요해요: %@";
+"Archive tabs you haven’t viewed in a while" = "오래 안 본 탭 보관";
+"Archived %lld tab to History › Archived Tabs" = "탭 %lld개를 방문 기록 › 보관한 탭으로 보냈어요";
+"Archived %lld tabs to History › Archived Tabs" = "탭 %lld개를 방문 기록 › 보관한 탭으로 보냈어요";
 "Archived Tabs" = "보관한 탭";
 "Ask" = "묻기";
 "Ask about this page, or give it a task" = "이 페이지에 대해 묻거나 일을 맡겨 보세요";
 "Ask AI" = "AI에게 묻기";
 "Ask AI: %@" = "AI에게 묻기: %@";
 "Ask where to save each download" = "다운로드할 때마다 저장 위치 묻기";
+"Asleep: click to wake" = "잠자는 중: 클릭하면 깨어나요";
 "Authentication is required to copy the saved password" = "저장된 비밀번호를 복사하려면 확인이 필요해요";
 "Back" = "뒤로";
 "Back (⌘[)" = "뒤로 (⌘[)";
@@ -187,7 +192,11 @@
 "Chrome-style" = "Chrome식";
 "Clear" = "지우기";
 "Clear %@? (%@)" = "%2$@의 %1$@ 항목을 지울까요?";
+"Clear %lld archived tab?" = "보관한 탭 %lld개를 지울까요?";
 "Clear All" = "모두 지우기";
+"Clear all %lld archived tabs?" = "보관한 탭 %lld개를 모두 지울까요?";
+"Clear All…" = "모두 지우기…";
+"Clear Chat" = "대화 지우기";
 "Clear Finished" = "끝난 항목 지우기";
 "Clear History" = "기록 지우기";
 "Cleared: %@" = "지웠어요: %@";
@@ -202,9 +211,11 @@
 "Close (esc)" = "닫기 (esc)";
 "Close (⌘E)" = "닫기 (⌘E)";
 "Close All Tabs in Group" = "그룹의 탭 모두 닫기";
+"Close Other Tabs" = "다른 탭 닫기";
 "Close Tab" = "탭 닫기";
 "Close tab" = "탭 닫기";
 "Close Tab (⌘W)" = "탭 닫기 (⌘W)";
+"Close Tabs Below" = "아래 탭 닫기";
 "Close Window" = "창 닫기";
 "Collapse" = "접기";
 "Collapsed" = "접힘";
@@ -287,7 +298,9 @@
 "Loading" = "로딩 중";
 "Muted" = "음소거됨";
 "No suggestions" = "추천 없음";
+"No tab open" = "열린 탭 없음";
 "Not open" = "열려 있지 않아요";
+"Nothing here yet" = "아직 아무것도 없어요";
 "Open %@" = "%@ 열기";
 "Opens in a new tab" = "새 탭에서 열어요";
 "Page translated" = "페이지를 번역했어요";
@@ -300,6 +313,7 @@
 "Quit" = "종료";
 "Quit and stop %lld downloads?" = "종료하고 다운로드 %lld개를 멈출까요?";
 "Quit and stop the download?" = "종료하고 다운로드를 멈출까요?";
+"Put to Sleep" = "잠재우기";
 "Remove %@" = "%@ 빼기";
 "Remove this image" = "이 이미지 빼기";
 "Reopens the tab" = "탭을 다시 열어요";
@@ -363,6 +377,7 @@
 "Group name" = "그룹 이름";
 "Haiku (fastest)" = "Haiku (가장 빠름)";
 "Hard Reload" = "강력 새로고침";
+"Has its own logins" = "로그인을 따로 보관해요";
 "Hide Changmun" = "Changmun 가리기";
 "Hide Sidebar" = "사이드바 숨기기";
 "History" = "방문 기록";
@@ -438,6 +453,7 @@
 "Open File…" = "파일 열기…";
 "Open Full Disk Access Settings" = "전체 디스크 접근 설정 열기";
 "Open in New Tab" = "새 탭에서 열기";
+"Open in the background" = "뒤에서 열려 있음";
 "Open Location" = "주소 열기";
 "Open new tab · %@" = "새 탭 열기 · %@";
 "Opening %@" = "%@ 여는 중";
@@ -567,6 +583,7 @@
 "The extension file is too large" = "확장 파일이 너무 커요";
 "The user name or password is incorrect." = "아이디나 비밀번호가 맞지 않아요.";
 "Theme" = "테마";
+"There is no other tab to show beside this one" = "이 탭 옆에 보여 줄 다른 탭이 없어요";
 "This extension has no manifest.json" = "manifest.json이 없는 확장이에요";
 "This extension is installed in Changmun" = "Changmun에 설치된 확장이에요";
 "This folder has no manifest.json" = "manifest.json이 없는 폴더예요";
@@ -610,6 +627,7 @@
 "Waiting for you to choose a certificate" = "인증서를 고르길 기다리는 중이에요";
 "Waiting for “%@”" = "“%@” 기다리는 중";
 "Waiting for “%@” to go away" = "“%@”이(가) 사라지길 기다리는 중";
+"Wake Tab" = "탭 깨우기";
 "Web extensions are available on macOS 15.4 or later." = "웹 확장은 macOS 15.4 이상에서 쓸 수 있어요.";
 "Web Inspector (Network)" = "웹 인스펙터 (네트워크)";
 "WebKit didn't accept the rules: %@" = "WebKit이 규칙을 받아들이지 않았어요: %@";
@@ -637,11 +655,14 @@
 "Bookmarks you bring over from another browser show up here." = "다른 브라우저에서 가져온 북마크가 여기에 나와요.";
 "Closed %lld tab" = "탭 %lld개를 닫았어요";
 "Closed %lld tabs" = "탭 %lld개를 닫았어요";
+"Closed “%@”" = "“%@” 탭을 닫았어요";
 "Deleted the bookmark" = "북마크를 삭제했어요";
 "Removed from Favorites" = "즐겨찾기에서 뺐어요";
 "Search Bookmarks" = "북마크 검색";
 "Duplicate Tab" = "탭 복제";
 "Move to New Window" = "새 창으로 옮기기";
+"Move to Space" = "스페이스로 옮기기";
+"Moved to “%@”" = "“%@”(으)로 옮겼어요";
 "Open In" = "다른 앱으로 열기";
 "Appearance" = "모양";
 "Tabs" = "탭";
@@ -819,6 +840,7 @@
 "Recent Chats" = "최근 대화";
 "Show All Chats" = "모든 대화 보기";
 "The model and effort for your next messages (also in Settings › AI)" = "다음 메시지부터 쓸 모델과 추론 강도예요 (설정 › AI에서도 바꿀 수 있어요)";
+"The only space can’t be deleted" = "하나뿐인 스페이스는 삭제할 수 없어요";
 "Working for %@" = "%@ 동안 작업 중";
 "You chose to be asked before every action." = "모든 동작 전에 묻도록 설정했어요.";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "%@에 연결된 것이 맞는지 Changmun이 확인할 수 없어요. 네트워크의 누군가가 이 사이트인 척하며 보내는 내용을 볼 수도 있어요.";
@@ -1004,6 +1026,7 @@
 "Its bookmark goes with it. This can't be undone." = "북마크 1개도 함께 지워져요. 되돌릴 수 없어요.";
 "Its %lld bookmarks go with it. This can't be undone." = "북마크 %lld개가 함께 지워져요. 되돌릴 수 없어요.";
 "They all go, and this can't be undone." = "모두 지워지고, 되돌릴 수 없어요.";
+"They can’t be reopened after this." = "지우면 다시 열 수 없어요.";
 "This site asks for a user name and password." = "이 사이트는 아이디와 비밀번호를 물어봐요.";
 "Bring in what you use?" = "쓰던 브라우저에서 가져올까요?";
 "No other browser was found on this Mac." = "이 Mac에서 다른 브라우저를 찾지 못했어요.";

@@ -97,6 +97,7 @@
 "%lld tab" = "%lld onglet";
 "%lld tabs" = "%lld onglets";
 "1 suggestion" = "1 suggestion";
+"A favorite’s or bookmark’s tab stays with it" = "L’onglet d’un favori ou d’un signet reste avec lui";
 "A private window can't be shown to the AI." = "Une fenêtre privée ne peut pas être montrée à l’IA.";
 "About Changmun" = "À propos de Changmun";
 "Action:" = "Action :";
@@ -141,12 +142,16 @@
 "Answer" = "Réponse";
 "Approval needed" = "Approbation requise";
 "Approval needed: %@" = "Approbation requise : %@";
+"Archive tabs you haven’t viewed in a while" = "Archiver les onglets non consultés depuis un moment";
+"Archived %lld tab to History › Archived Tabs" = "%lld onglet archivé dans Historique › Onglets archivés";
+"Archived %lld tabs to History › Archived Tabs" = "%lld onglets archivés dans Historique › Onglets archivés";
 "Archived Tabs" = "Onglets archivés";
 "Ask" = "Demander";
 "Ask about this page, or give it a task" = "Posez une question sur cette page ou confiez-lui une tâche";
 "Ask AI" = "Demander à l’IA";
 "Ask AI: %@" = "Demander à l’IA : %@";
 "Ask where to save each download" = "Demander où enregistrer chaque téléchargement";
+"Asleep: click to wake" = "En veille : cliquez pour la réveiller";
 "Authentication is required to copy the saved password" = "Une authentification est requise pour copier le mot de passe enregistré";
 "Back" = "Précédent";
 "Back (⌘[)" = "Précédent (⌘[)";
@@ -187,7 +192,11 @@
 "Chrome-style" = "Style Chrome";
 "Clear" = "Effacer";
 "Clear %@? (%@)" = "Effacer %@ ? (%@)";
+"Clear %lld archived tab?" = "Effacer %lld onglet archivé ?";
 "Clear All" = "Tout effacer";
+"Clear all %lld archived tabs?" = "Effacer les %lld onglets archivés ?";
+"Clear All…" = "Tout effacer…";
+"Clear Chat" = "Effacer la conversation";
 "Clear Finished" = "Effacer les éléments terminés";
 "Clear History" = "Effacer l’historique";
 "Cleared: %@" = "Effacé : %@";
@@ -202,9 +211,11 @@
 "Close (esc)" = "Fermer (échap)";
 "Close (⌘E)" = "Fermer (⌘E)";
 "Close All Tabs in Group" = "Fermer tous les onglets du groupe";
+"Close Other Tabs" = "Fermer les autres onglets";
 "Close Tab" = "Fermer l’onglet";
 "Close tab" = "Fermer l’onglet";
 "Close Tab (⌘W)" = "Fermer l’onglet (⌘W)";
+"Close Tabs Below" = "Fermer les onglets en dessous";
 "Close Window" = "Fermer la fenêtre";
 "Collapse" = "Réduire";
 "Collapsed" = "Replié";
@@ -287,7 +298,9 @@
 "Loading" = "Chargement";
 "Muted" = "Son coupé";
 "No suggestions" = "Aucune suggestion";
+"No tab open" = "Aucun onglet ouvert";
 "Not open" = "Non ouvert";
+"Nothing here yet" = "Rien ici pour l’instant";
 "Open %@" = "Ouvrir %@";
 "Opens in a new tab" = "S’ouvre dans un nouvel onglet";
 "Page translated" = "Page traduite";
@@ -300,6 +313,7 @@
 "Quit" = "Quitter";
 "Quit and stop %lld downloads?" = "Quitter et arrêter %lld téléchargements ?";
 "Quit and stop the download?" = "Quitter et arrêter le téléchargement ?";
+"Put to Sleep" = "Mettre en veille";
 "Remove %@" = "Retirer %@";
 "Remove this image" = "Retirer cette image";
 "Reopens the tab" = "Rouvre l’onglet";
@@ -363,6 +377,7 @@
 "Group name" = "Nom du groupe";
 "Haiku (fastest)" = "Haiku (le plus rapide)";
 "Hard Reload" = "Actualisation forcée";
+"Has its own logins" = "A ses propres connexions";
 "Hide Changmun" = "Masquer Changmun";
 "Hide Sidebar" = "Masquer la barre latérale";
 "History" = "Historique";
@@ -438,6 +453,7 @@
 "Open File…" = "Ouvrir le fichier…";
 "Open Full Disk Access Settings" = "Ouvrir les réglages d’accès complet au disque";
 "Open in New Tab" = "Ouvrir dans un nouvel onglet";
+"Open in the background" = "Ouvert en arrière-plan";
 "Open Location" = "Ouvrir l’adresse";
 "Open new tab · %@" = "Ouvrir un nouvel onglet · %@";
 "Opening %@" = "Ouverture de %@";
@@ -567,6 +583,7 @@
 "The extension file is too large" = "Le fichier d’extension est trop volumineux";
 "The user name or password is incorrect." = "Le nom d’utilisateur ou le mot de passe est incorrect.";
 "Theme" = "Thème";
+"There is no other tab to show beside this one" = "Il n’y a pas d’autre onglet à afficher à côté de celui-ci";
 "This extension has no manifest.json" = "Cette extension n’a pas de fichier manifest.json";
 "This extension is installed in Changmun" = "Cette extension est installée dans Changmun";
 "This folder has no manifest.json" = "Ce dossier ne contient pas de fichier manifest.json";
@@ -610,6 +627,7 @@
 "Waiting for you to choose a certificate" = "En attente de votre choix de certificat";
 "Waiting for “%@”" = "Attente de « %@ »";
 "Waiting for “%@” to go away" = "Attente de la disparition de « %@ »";
+"Wake Tab" = "Réveiller l’onglet";
 "Web extensions are available on macOS 15.4 or later." = "Les extensions web sont disponibles sur macOS 15.4 ou version ultérieure.";
 "Web Inspector (Network)" = "Inspecteur web (Réseau)";
 "WebKit didn't accept the rules: %@" = "WebKit n’a pas accepté les règles : %@";
@@ -637,11 +655,14 @@
 "Bookmarks you bring over from another browser show up here." = "Les signets importés d’un autre navigateur apparaissent ici.";
 "Closed %lld tab" = "%lld onglet fermé";
 "Closed %lld tabs" = "%lld onglets fermés";
+"Closed “%@”" = "« %@ » fermé";
 "Deleted the bookmark" = "Signet supprimé";
 "Removed from Favorites" = "Retiré des favoris";
 "Search Bookmarks" = "Rechercher dans les signets";
 "Duplicate Tab" = "Dupliquer l’onglet";
 "Move to New Window" = "Déplacer vers une nouvelle fenêtre";
+"Move to Space" = "Déplacer vers l’espace";
+"Moved to “%@”" = "Déplacé vers « %@ »";
 "Open In" = "Ouvrir dans";
 "Appearance" = "Apparence";
 "Tabs" = "Onglets";
@@ -819,6 +840,7 @@
 "Recent Chats" = "Conversations récentes";
 "Show All Chats" = "Afficher toutes les conversations";
 "The model and effort for your next messages (also in Settings › AI)" = "Le modèle et l’effort pour vos prochains messages (aussi dans Réglages › IA)";
+"The only space can’t be deleted" = "Le seul espace ne peut pas être supprimé";
 "Working for %@" = "En cours depuis %@";
 "You chose to be asked before every action." = "Vous avez choisi d’être consulté avant chaque action.";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "Changmun ne peut pas confirmer que vous êtes connecté à %@. Quelqu’un sur le réseau pourrait se faire passer pour ce site et voir ce que vous envoyez.";
@@ -1004,6 +1026,7 @@
 "Its bookmark goes with it. This can't be undone." = "Son signet sera supprimé avec lui. Cette action est irréversible.";
 "Its %lld bookmarks go with it. This can't be undone." = "Ses %lld signets seront supprimés avec lui. Cette action est irréversible.";
 "They all go, and this can't be undone." = "Ils seront tous supprimés. Cette action est irréversible.";
+"They can’t be reopened after this." = "Ils ne pourront plus être rouverts.";
 "This site asks for a user name and password." = "Ce site demande un nom d’utilisateur et un mot de passe.";
 "Bring in what you use?" = "Reprendre ce que vous utilisez ?";
 "No other browser was found on this Mac." = "Aucun autre navigateur n’a été trouvé sur ce Mac.";

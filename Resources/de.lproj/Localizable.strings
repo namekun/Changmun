@@ -97,6 +97,7 @@
 "%lld tab" = "%lld Tab";
 "%lld tabs" = "%lld Tabs";
 "1 suggestion" = "1 Vorschlag";
+"A favorite’s or bookmark’s tab stays with it" = "Der Tab eines Favoriten oder Lesezeichens bleibt bei ihm";
 "A private window can't be shown to the AI." = "Ein privates Fenster kann der KI nicht gezeigt werden.";
 "About Changmun" = "Über Changmun";
 "Action:" = "Aktion:";
@@ -141,12 +142,16 @@
 "Answer" = "Antwort";
 "Approval needed" = "Freigabe erforderlich";
 "Approval needed: %@" = "Freigabe erforderlich: %@";
+"Archive tabs you haven’t viewed in a while" = "Tabs archivieren, die du länger nicht angesehen hast";
+"Archived %lld tab to History › Archived Tabs" = "%lld Tab nach Verlauf › Archivierte Tabs verschoben";
+"Archived %lld tabs to History › Archived Tabs" = "%lld Tabs nach Verlauf › Archivierte Tabs verschoben";
 "Archived Tabs" = "Archivierte Tabs";
 "Ask" = "Fragen";
 "Ask about this page, or give it a task" = "Stelle eine Frage zu dieser Seite oder gib eine Aufgabe vor";
 "Ask AI" = "KI fragen";
 "Ask AI: %@" = "KI fragen: %@";
 "Ask where to save each download" = "Bei jedem Download nach dem Sichern-Ort fragen";
+"Asleep: click to wake" = "Ruht: zum Aufwecken klicken";
 "Authentication is required to copy the saved password" = "Zum Kopieren des gesicherten Passworts ist eine Authentifizierung erforderlich";
 "Back" = "Zurück";
 "Back (⌘[)" = "Zurück (⌘[)";
@@ -187,7 +192,11 @@
 "Chrome-style" = "Wie in Chrome";
 "Clear" = "Löschen";
 "Clear %@? (%@)" = "%1$@ löschen? (%2$@)";
+"Clear %lld archived tab?" = "%lld archivierten Tab löschen?";
 "Clear All" = "Alle löschen";
+"Clear all %lld archived tabs?" = "Alle %lld archivierten Tabs löschen?";
+"Clear All…" = "Alle löschen …";
+"Clear Chat" = "Chat löschen";
 "Clear Finished" = "Abgeschlossene löschen";
 "Clear History" = "Verlauf löschen";
 "Cleared: %@" = "Gelöscht: %@";
@@ -202,9 +211,11 @@
 "Close (esc)" = "Schließen (esc)";
 "Close (⌘E)" = "Schließen (⌘E)";
 "Close All Tabs in Group" = "Alle Tabs in der Gruppe schließen";
+"Close Other Tabs" = "Andere Tabs schließen";
 "Close Tab" = "Tab schließen";
 "Close tab" = "Tab schließen";
 "Close Tab (⌘W)" = "Tab schließen (⌘W)";
+"Close Tabs Below" = "Tabs darunter schließen";
 "Close Window" = "Fenster schließen";
 "Collapse" = "Einklappen";
 "Collapsed" = "Eingeklappt";
@@ -287,7 +298,9 @@
 "Loading" = "Wird geladen";
 "Muted" = "Stummgeschaltet";
 "No suggestions" = "Keine Vorschläge";
+"No tab open" = "Kein Tab geöffnet";
 "Not open" = "Nicht geöffnet";
+"Nothing here yet" = "Noch nichts hier";
 "Open %@" = "%@ öffnen";
 "Opens in a new tab" = "Öffnet in einem neuen Tab";
 "Page translated" = "Seite übersetzt";
@@ -300,6 +313,7 @@
 "Quit" = "Beenden";
 "Quit and stop %lld downloads?" = "Beenden und %lld Downloads abbrechen?";
 "Quit and stop the download?" = "Beenden und den Download abbrechen?";
+"Put to Sleep" = "Ruhen lassen";
 "Remove %@" = "%@ entfernen";
 "Remove this image" = "Dieses Bild entfernen";
 "Reopens the tab" = "Öffnet den Tab erneut";
@@ -363,6 +377,7 @@
 "Group name" = "Gruppenname";
 "Haiku (fastest)" = "Haiku (am schnellsten)";
 "Hard Reload" = "Vollständig neu laden";
+"Has its own logins" = "Hat eigene Anmeldungen";
 "Hide Changmun" = "Changmun ausblenden";
 "Hide Sidebar" = "Seitenleiste ausblenden";
 "History" = "Verlauf";
@@ -438,6 +453,7 @@
 "Open File…" = "Datei öffnen …";
 "Open Full Disk Access Settings" = "Einstellungen für Festplattenvollzugriff öffnen";
 "Open in New Tab" = "In neuem Tab öffnen";
+"Open in the background" = "Im Hintergrund geöffnet";
 "Open Location" = "Adresse öffnen";
 "Open new tab · %@" = "Neuen Tab öffnen · %@";
 "Opening %@" = "Öffne %@";
@@ -567,6 +583,7 @@
 "The extension file is too large" = "Die Erweiterungsdatei ist zu groß";
 "The user name or password is incorrect." = "Der Benutzername oder das Passwort ist nicht korrekt.";
 "Theme" = "Erscheinungsbild";
+"There is no other tab to show beside this one" = "Es gibt keinen anderen Tab, der daneben gezeigt werden kann";
 "This extension has no manifest.json" = "Diese Erweiterung enthält keine manifest.json";
 "This extension is installed in Changmun" = "Diese Erweiterung ist in Changmun installiert";
 "This folder has no manifest.json" = "Dieser Ordner enthält keine manifest.json";
@@ -610,6 +627,7 @@
 "Waiting for you to choose a certificate" = "Warte darauf, dass du ein Zertifikat auswählst";
 "Waiting for “%@”" = "Warte auf „%@“";
 "Waiting for “%@” to go away" = "Warte, bis „%@“ verschwindet";
+"Wake Tab" = "Tab aufwecken";
 "Web extensions are available on macOS 15.4 or later." = "Web-Erweiterungen sind ab macOS 15.4 verfügbar.";
 "Web Inspector (Network)" = "Web-Inspektor (Netzwerk)";
 "WebKit didn't accept the rules: %@" = "WebKit hat die Regeln nicht akzeptiert: %@";
@@ -637,11 +655,14 @@
 "Bookmarks you bring over from another browser show up here." = "Lesezeichen aus einem anderen Browser erscheinen hier.";
 "Closed %lld tab" = "%lld Tab geschlossen";
 "Closed %lld tabs" = "%lld Tabs geschlossen";
+"Closed “%@”" = "„%@“ geschlossen";
 "Deleted the bookmark" = "Lesezeichen gelöscht";
 "Removed from Favorites" = "Aus den Favoriten entfernt";
 "Search Bookmarks" = "Lesezeichen durchsuchen";
 "Duplicate Tab" = "Tab duplizieren";
 "Move to New Window" = "In neues Fenster bewegen";
+"Move to Space" = "In Space bewegen";
+"Moved to “%@”" = "Nach „%@“ bewegt";
 "Open In" = "Öffnen in";
 "Appearance" = "Darstellung";
 "Tabs" = "Tabs";
@@ -819,6 +840,7 @@
 "Recent Chats" = "Letzte Chats";
 "Show All Chats" = "Alle Chats anzeigen";
 "The model and effort for your next messages (also in Settings › AI)" = "Modell und Aufwand für deine nächsten Nachrichten (auch unter Einstellungen › KI)";
+"The only space can’t be deleted" = "Der einzige Space kann nicht gelöscht werden";
 "Working for %@" = "Seit %@ in Arbeit";
 "You chose to be asked before every action." = "Du hast festgelegt, vor jeder Aktion gefragt zu werden.";
 "Changmun can’t confirm that you are connected to %@. Someone on the network may be pretending to be this site and could see what you send." = "Changmun kann nicht bestätigen, dass du mit %@ verbunden bist. Jemand im Netzwerk könnte sich als diese Website ausgeben und sehen, was du sendest.";
@@ -1004,6 +1026,7 @@
 "Its bookmark goes with it. This can't be undone." = "Das Lesezeichen darin wird mitgelöscht. Das lässt sich nicht rückgängig machen.";
 "Its %lld bookmarks go with it. This can't be undone." = "Die %lld Lesezeichen darin werden mitgelöscht. Das lässt sich nicht rückgängig machen.";
 "They all go, and this can't be undone." = "Alle werden gelöscht. Das lässt sich nicht rückgängig machen.";
+"They can’t be reopened after this." = "Danach lassen sie sich nicht mehr öffnen.";
 "This site asks for a user name and password." = "Diese Website fragt nach Benutzername und Passwort.";
 "Bring in what you use?" = "Gewohntes aus deinem alten Browser übernehmen?";
 "No other browser was found on this Mac." = "Auf diesem Mac wurde kein anderer Browser gefunden.";

@@ -22,6 +22,8 @@ extension View {
 struct FavoriteTile<MenuItems: View>: View {
     let entry: Library.Entry
     let state: BookmarkTabState
+    /// Its own tab, when it is open.
+    let tab: Tab?
     /// Its title is being typed in a popover on the tile (see `Browser.renamingBookmark`).
     let renaming: Bool
     let finishRenaming: (String?) -> Void
@@ -35,12 +37,14 @@ struct FavoriteTile<MenuItems: View>: View {
             .frame(maxWidth: .infinity)
             .frame(height: Metrics.tile)
             .rowChrome(hover: hover, selected: state == .shown, radius: Metrics.fieldRadius)
+            .overlay(alignment: .topTrailing) { if let tab { TabAudioButton(tab: tab, isActive: state == .shown) } }
             .onTapGesture(perform: open)
             .onHover { hover = $0 }
             .contextMenu(menuItems: menu)
             .renamePopover(shown: entry.title.isEmpty ? entry.url : entry.title, isPresented: renaming, finish: finishRenaming)
-            .help(entry.title.isEmpty ? entry.url : entry.title)
-            .accessibleButton(Accessibility.bookmarkLabel(title: entry.title, url: entry.url), value: Accessibility.bookmarkValue(state), selected: state == .shown, activate: open)
+            .help(Accessibility.bookmarkHelp(entry.title.isEmpty ? entry.url : entry.title, state))
+            .accessibleButton(Accessibility.bookmarkLabel(title: entry.title, url: entry.url), value: Accessibility.bookmarkTabValue(state), selected: state == .shown,
+                              actions: Accessibility.muteActions(of: tab), activate: open)
     }
 }
 
@@ -160,6 +164,10 @@ struct FolderRow<MenuItems: View>: View {
 struct BookmarkRow<MenuItems: View>: View {
     let entry: Library.Entry
     let state: BookmarkTabState
+    /// Its own tab, when it is open.
+    let tab: Tab?
+    /// Its tab is in the split.
+    var inSplit = false
     /// Its title is being typed in the row (see `Browser.renamingBookmark`); `startRenaming` asks for that, `finishRenaming` gets what was
     /// typed, or nil for Esc.
     let renaming: Bool
@@ -200,6 +208,8 @@ struct BookmarkRow<MenuItems: View>: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
+            if let tab { TabAudioButton(tab: tab, isActive: state == .shown) }
+            if inSplit { SplitMarker() }
             ZStack {
                 if hover && !renaming {
                     MoreButton(items: menu)
@@ -218,9 +228,9 @@ struct BookmarkRow<MenuItems: View>: View {
         // Alongside the click that opens it, so opening does not wait for a second click.
         .simultaneousGesture(TapGesture(count: 2).onEnded(startRenaming))
         .contextMenu(menuItems: menu)
-        .help(entry.url)
-        .accessibleButton(Accessibility.bookmarkLabel(title: entry.title, url: entry.url), value: Accessibility.bookmarkValue(state), selected: state == .shown, enabled: !renaming,
-                          actions: [.init(String(localized: "Rename"), startRenaming)], activate: open)
+        .help(Accessibility.bookmarkHelp(entry.url, state))
+        .accessibleButton(Accessibility.bookmarkLabel(title: entry.title, url: entry.url), value: Accessibility.bookmarkTabValue(state), selected: state == .shown, enabled: !renaming,
+                          actions: [.init(String(localized: "Rename"), startRenaming)] + Accessibility.muteActions(of: tab), activate: open)
     }
 }
 
@@ -236,7 +246,8 @@ struct BookmarkMenu: View {
     var body: some View {
         let tab = browser.bookmarkTab(key)
         if let tab {
-            Button("Close Tab") { browser.close(tab.id) }
+            Button("Close Tab") { browser.closeTab(tab.id) }
+            if !tab.isAsleep { Button(tab.isMuted ? String(localized: "Unmute") : String(localized: "Mute Tab")) { tab.toggleMute() } }
         }
         if let tab, browser.split?.contains(tab.id) == true {
             Button("End Split View") { browser.unsplit() }
