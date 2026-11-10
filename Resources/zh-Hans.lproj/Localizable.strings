@@ -309,6 +309,7 @@
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "正在预览 %@。按 Command-Return 在标签页中打开，按 Esc 关闭。";
 "Purple" = "紫色";
 "Quit" = "退出";
+"Quit and Reopen" = "退出并重新打开";
 "Quit and stop %lld downloads?" = "要退出并停止 %lld 个下载吗？";
 "Quit and stop the download?" = "要退出并停止下载吗？";
 "Put to Sleep" = "使其休眠";
@@ -925,6 +926,7 @@
 "Keyboard Shortcuts" = "键盘快捷键";
 "Keys: %@" = "按键：%@";
 "Know where this Mac is" = "获取这台 Mac 的位置";
+"macOS usually lets Changmun use Full Disk Access only after it is reopened. If Try Again still can't read it, quit and reopen Changmun." = "macOS 通常要在 Changmun 重新打开后才会应用完全磁盘访问权限。如果“重试”后仍无法读取，请退出并重新打开 Changmun。";
 "Make Changmun the default browser" = "将 Changmun 设为默认浏览器";
 "Mouse and Trackpad" = "鼠标和触控板";
 "Mouse side buttons" = "鼠标侧键";

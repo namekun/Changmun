@@ -18,6 +18,8 @@ final class ImportModel: ObservableObject {
     @Published private(set) var stopping = false
     /// The run ended early at the user's word: the browsers after the last report were not imported.
     @Published private(set) var stopped = false
+    /// Try Again has run since the import began.
+    @Published private(set) var triedAgain = false
 
     /// The first run (nothing has been imported or skipped yet) ends on the last screen; a run from Settings or the sidebar goes back to where the user was.
     let firstRun: Bool
@@ -106,8 +108,27 @@ final class ImportModel: ObservableObject {
     /// Imports again the browsers whose files could not be read for want of Full Disk Access; what the others brought stays.
     @discardableResult
     func tryAgain() -> Task<Void, Never> {
+        triedAgain = true
         let failed = Set(reports.filter(\.needsFullDiskAccess).map(\.source))
         return run(sources.filter { selected.contains($0.id) && failed.contains($0.title) }, keeping: reports.filter { !failed.contains($0.source) })
+    }
+
+    /// Quit and Reopen is offered once Try Again still couldn't read a browser: macOS usually lets the app use Full Disk Access only after it
+    /// is opened again.
+    var offersReopen: Bool { Self.offersReopen(triedAgain: triedAgain, needsAccess: reports.contains(where: \.needsFullDiskAccess)) }
+
+    nonisolated static func offersReopen(triedAgain: Bool, needsAccess: Bool) -> Bool { triedAgain && needsAccess }
+
+    /// Quits, and opens the app again once it has ended: two copies at once would share one library. A quit the user called off (downloads
+    /// still running) opens nothing a minute later.
+    func quitAndReopen() {
+        guard !Headless.isOn, Bundle.main.bundleURL.pathExtension == "app" else { return }
+        let reopen = Process()
+        reopen.executableURL = URL(fileURLWithPath: "/bin/sh")
+        reopen.arguments = ["-c", #"for _ in $(seq 300); do /bin/kill -0 "$1" 2>/dev/null || exec /usr/bin/open "$2"; sleep 0.2; done"#, "sh",
+                            String(ProcessInfo.processInfo.processIdentifier), Bundle.main.bundleURL.path]
+        guard (try? reopen.run()) != nil else { return }
+        NSApp.terminate(nil)
     }
 
     @discardableResult
@@ -287,13 +308,22 @@ struct OnboardingView: View {
                 Text("Import finished").font(.heading).foregroundStyle(Theme.primary).accessibilityAddTraits(.isHeader)
             }
             if !model.reports.isEmpty || model.stopped { imported }
+            if model.reports.contains(where: \.needsFullDiskAccess) {
+                Text("macOS usually lets Changmun use Full Disk Access only after it is reopened. If Try Again still can't read it, quit and reopen Changmun.")
+                    .font(.secondary).foregroundStyle(Theme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack(spacing: 16) {
                 if model.reports.contains(where: \.needsFullDiskAccess) {
                     Button("Open Full Disk Access Settings") {
                         Outside.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!)
                     }
                     .buttonStyle(SecondaryButton())
-                    Button("Try Again") { model.tryAgain() }.buttonStyle(SecondaryButton())
+                    if model.offersReopen {
+                        Button("Quit and Reopen") { model.quitAndReopen() }.buttonStyle(SecondaryButton())
+                    } else {
+                        Button("Try Again") { model.tryAgain() }.buttonStyle(SecondaryButton())
+                    }
                 }
                 Spacer()
                 if model.firstRun, !ready {

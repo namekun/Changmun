@@ -309,6 +309,7 @@
 "Previewing %@. Press Command Return to open it as a tab, or Escape to close it." = "%@をプレビュー中です。Command+Returnでタブとして開き、Escで閉じます。";
 "Purple" = "紫";
 "Quit" = "終了";
+"Quit and Reopen" = "終了して開き直す";
 "Quit and stop %lld downloads?" = "終了して%lld件のダウンロードを停止しますか?";
 "Quit and stop the download?" = "終了してダウンロードを停止しますか?";
 "Put to Sleep" = "スリープさせる";
@@ -925,6 +926,7 @@
 "Keyboard Shortcuts" = "キーボードショートカット";
 "Keys: %@" = "キー: %@";
 "Know where this Mac is" = "この Mac の位置情報を取得";
+"macOS usually lets Changmun use Full Disk Access only after it is reopened. If Try Again still can't read it, quit and reopen Changmun." = "macOS では通常、Changmun を開き直してからフルディスクアクセスが有効になります。「再試行」でも読み込めない場合は、Changmun を終了して開き直してください。";
 "Make Changmun the default browser" = "Changmunをデフォルトのブラウザにする";
 "Mouse and Trackpad" = "マウスとトラックパッド";
 "Mouse side buttons" = "マウスのサイドボタン";
