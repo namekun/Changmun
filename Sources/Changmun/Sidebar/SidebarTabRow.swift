@@ -56,6 +56,8 @@ struct SidebarTabRow: View {
             Spacer(minLength: 0)
             CertificateWaitBadge(tab: tab)
             TabAudioButton(tab: tab, isActive: isActive)
+            // The tab's menu, as on a bookmark's, a folder's and a group's row, for what a right-click alone would hide.
+            if hover && !renaming { MoreButton { TabMenu(tab: tab, browser: browser, isActive: isActive, close: close) } }
             // One slot, always the same width, so the title doesn't move when the pointer comes and goes.
             ZStack {
                 if hover {
