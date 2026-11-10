@@ -37,14 +37,16 @@ final class MiddleClickTracker {
         guard event.buttonNumber == 2, let window = event.window, let content = window.contentView else { return false }
         let point = CGPoint(x: event.locationInWindow.x, y: content.bounds.height - event.locationInWindow.y)
         let rows = Array(areas.values)
-        guard let row = Self.hit(point, window: window.windowNumber, list: lists[window.windowNumber], rows: rows.map { ($0.frame, $0.window) }) else { return false }
+        guard let row = Self.hit(point, window: window.windowNumber, sheetShown: window.attachedSheet != nil, list: lists[window.windowNumber],
+                                 rows: rows.map { ($0.frame, $0.window) }) else { return false }
         if event.type == .otherMouseUp { rows[row].close() }
         return true
     }
 
-    /// Which row a point falls on: one of this window's, and inside the list as it shows on screen.
-    nonisolated static func hit(_ point: CGPoint, window: Int, list: CGRect?, rows: [(frame: CGRect, window: Int?)]) -> Int? {
-        guard let list, list.contains(point) else { return nil }
+    /// Which row a point falls on: one of this window's, and inside the list as it shows on screen. None while a sheet is on the window (an
+    /// approval, a page's question), which the click must not close a tab behind.
+    nonisolated static func hit(_ point: CGPoint, window: Int, sheetShown: Bool, list: CGRect?, rows: [(frame: CGRect, window: Int?)]) -> Int? {
+        guard !sheetShown, let list, list.contains(point) else { return nil }
         return rows.firstIndex { $0.window == window && $0.frame.contains(point) }
     }
 }

@@ -80,10 +80,11 @@ extension SharedAgentState {
             let list = CGRect(x: 0, y: 100, width: 200, height: 300)
             let rows: [(frame: CGRect, window: Int?)] = [(CGRect(x: 0, y: 60, width: 200, height: 28), 1), (CGRect(x: 0, y: 120, width: 200, height: 28), 2),
                                                         (CGRect(x: 0, y: 120, width: 200, height: 28), 1)]
-            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 130), window: 1, list: list, rows: rows) == 2)
-            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 70), window: 1, list: list, rows: rows) == nil, "a row scrolled out of the list")
-            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 130), window: 1, list: nil, rows: rows) == nil)
-            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 200), window: 1, list: list, rows: rows) == nil)
+            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 130), window: 1, sheetShown: false, list: list, rows: rows) == 2)
+            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 130), window: 1, sheetShown: true, list: list, rows: rows) == nil, "not behind a sheet")
+            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 70), window: 1, sheetShown: false, list: list, rows: rows) == nil, "a row scrolled out of the list")
+            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 130), window: 1, sheetShown: false, list: nil, rows: rows) == nil)
+            #expect(MiddleClickTracker.hit(CGPoint(x: 10, y: 200), window: 1, sheetShown: false, list: list, rows: rows) == nil)
         }
 
         // MARK: Undo
