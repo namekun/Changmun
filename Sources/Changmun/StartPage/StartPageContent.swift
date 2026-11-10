@@ -11,6 +11,8 @@ struct StartPageContent: View {
     @State private var typing = false
     @State private var cursor = StartPageCursor()
     @State private var searchFocus = 0
+    @State private var expanded = false
+    @State private var adding = false
     @FocusState private var pageFocused: Bool
 
     @MainActor
@@ -20,24 +22,22 @@ struct StartPageContent: View {
         self.mode = mode
     }
 
-    /// The favorites that fit in one row of the page's column; the rest are in the sidebar. A private window shows none.
-    private func favorites(width: CGFloat) -> [Library.Entry] {
-        guard !browser.isPrivate else { return [] }
-        let all = library.favorites(in: browser.favoritesFolder)
-        return Array(all.prefix(StartPageArrangement.favoritesShown(count: all.count, pageWidth: width)))
-    }
+    /// The favorites of the page: all of them (a row of them fits the column, or a "+N" tile shows the rest). A private window shows none.
+    private var allFavorites: [Library.Entry] { browser.isPrivate ? [] : library.favorites(in: browser.favoritesFolder) }
 
     var body: some View {
         GeometryReader { geo in
-            let favorites = favorites(width: geo.size.width)
+            let all = allFavorites
+            let layout = StartPageArrangement.favoriteLayout(count: all.count, pageWidth: geo.size.width, expanded: expanded)
+            let favorites = Array(all.prefix(layout.shown))
             ScrollView {
                 VStack(spacing: 0) {
                     Spacer(minLength: 40)
                     if browser.isPrivate {
                         StartPrivateView(search: searchBox(count: 0))
                     } else {
-                        searchBox(count: favorites.count).frame(maxWidth: StartPageArrangement.column).zIndex(10)
-                        favoritesRow(favorites)
+                        searchBox(count: layout.tiles).frame(maxWidth: StartPageArrangement.column).zIndex(10)
+                        favoritesRow(favorites, layout)
                             .padding(.top, 32)
                             .opacity(typing ? 0.22 : 1)
                             .allowsHitTesting(!typing)
@@ -53,7 +53,7 @@ struct StartPageContent: View {
             .focusable()
             .focused($pageFocused)
             .focusEffectDisabled()
-            .onKeyPress(phases: [.down, .repeat]) { press in handle(press, favorites: favorites) }
+            .onKeyPress(phases: [.down, .repeat]) { press in handle(press, favorites: favorites, layout: layout) }
             .accessibilityElement(children: .contain)
             .accessibilityLabel(browser.isPrivate ? String(localized: "Private Window") : String(localized: "Start Page"))
         }
@@ -71,20 +71,51 @@ struct StartPageContent: View {
     }
 
     @ViewBuilder
-    private func favoritesRow(_ favorites: [Library.Entry]) -> some View {
+    private func favoritesRow(_ favorites: [Library.Entry], _ layout: StartPageArrangement.FavoriteLayout) -> some View {
         let size = StartPageArrangement.favoriteSize, pitch = StartPageArrangement.favoritePitch
         if favorites.isEmpty {
             VStack(spacing: 8) {
-                HStack(spacing: 24) { ForEach(0..<5, id: \.self) { _ in StartEmptyFavorite(size: size) } }
-                Text("Drag the sites you visit most to the favorites in the sidebar and they appear here as tiles.")
+                HStack(spacing: 24) {
+                    ForEach(0..<5, id: \.self) { index in StartEmptyFavorite(size: size, add: index == 0 ? startAdding : nil) }
+                }
+                Text(adding ? "Search for a site and open it, then press ⌘D to add it to your favorites."
+                            : "Drag the sites you visit most to the favorites in the sidebar and they appear here as tiles.")
                     .font(.caption).foregroundStyle(Theme.secondary)
             }
         } else {
-            HStack(alignment: .top, spacing: 0) {
-                ForEach(Array(favorites.enumerated()), id: \.offset) { index, entry in
-                    StartFavoriteTile(entry: entry, size: size, width: pitch, focused: cursor.item == index) { newTab in open(entry, inNewTab: newTab) }
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(layout.rows, id: \.lowerBound) { row in
+                    HStack(alignment: .top, spacing: 0) {
+                        ForEach(Array(row), id: \.self) { index in
+                            if index < favorites.count {
+                                let entry = favorites[index]
+                                StartFavoriteTile(entry: entry, size: size, width: pitch, focused: cursor.item == index,
+                                                  open: { newTab in open(entry, inNewTab: newTab) }, remove: { remove(entry) })
+                            } else {
+                                StartMoreTile(size: size, width: pitch, hidden: layout.hidden, focused: cursor.item == index) { expanded.toggle() }
+                            }
+                        }
+                    }
                 }
             }
+        }
+    }
+
+    /// The first dashed tile: the search field is where a site is found, and ⌘D on its page makes it a favorite.
+    private func startAdding() {
+        adding = true
+        searchFocus += 1
+    }
+
+    /// Takes a favorite off with a way back, as the sidebar's menu does.
+    private func remove(_ entry: Library.Entry) {
+        let folder = browser.favoritesFolder
+        let key = Browser.bookmarkKey(url: entry.url, folder: folder)
+        let tab = browser.bookmarkTab(key)
+        Library.shared.removeBookmark(url: entry.url, folder: folder)
+        browser.offerUndo(String(localized: "Removed from Favorites")) { [browser] in
+            Library.shared.addBookmark(url: entry.url, title: entry.title, folder: folder)
+            if let tab, browser.tab(tab.id) != nil { browser.bind(tab, to: key) }
         }
     }
 
@@ -94,13 +125,13 @@ struct StartPageContent: View {
 
     // MARK: Keyboard
 
-    private func handle(_ press: KeyPress, favorites: [Library.Entry]) -> KeyPress.Result {
+    private func handle(_ press: KeyPress, favorites: [Library.Entry], layout: StartPageArrangement.FavoriteLayout) -> KeyPress.Result {
         let command = press.modifiers.contains(.command)
         if StartPageKeys.leavesToSearch(press.key, typing: typing, inSearch: cursor.item == nil) { return .ignored }
         switch press.key {
         case .tab:
             guard !command else { return .ignored }
-            cursor = cursor.tab(count: favorites.count, backwards: press.modifiers.contains(.shift))
+            cursor = cursor.tab(count: layout.tiles, backwards: press.modifiers.contains(.shift))
         case .escape:
             guard cursor.item != nil else { return .ignored }
             cursor = StartPageCursor()
@@ -108,10 +139,16 @@ struct StartPageContent: View {
             guard !press.modifiers.contains(.option) else { return .ignored }
             let arrow: StartPageCursor.Arrow = press.key == .leftArrow ? .left : press.key == .rightArrow ? .right : press.key == .upArrow ? .up : .down
             if cursor.item == nil, arrow != .down { return .ignored }
-            cursor = cursor.move(arrow, count: favorites.count)
+            cursor = cursor.move(arrow, count: layout.tiles)
         case .return, .space:
-            guard let item = cursor.item, favorites.indices.contains(item) else { return .ignored }
-            open(favorites[item], inNewTab: command)
+            guard let item = cursor.item else { return .ignored }
+            if favorites.indices.contains(item) {
+                open(favorites[item], inNewTab: command)
+            } else if layout.hasActionTile, item == layout.tiles - 1 {
+                expanded.toggle()
+            } else {
+                return .ignored
+            }
             return .handled
         default:
             return .ignored

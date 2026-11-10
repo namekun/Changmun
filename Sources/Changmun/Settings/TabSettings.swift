@@ -38,15 +38,15 @@ struct TabSettings: View {
                 }
                 Caption(text: "For sites you keep open, like music or meetings. Subdomains are included.")
             }
-            Section("Tab Cleanup") {
-                Picker("Archive tabs you haven’t viewed in a while", selection: $prefs.archiveHours) {
+            Section("Tab Archive") {
+                Picker("Close and archive tabs not viewed for…", selection: $prefs.archiveHours) {
                     Text("Off").tag(0)
                     Text("After 12 hours").tag(12)
                     Text("After 1 day").tag(24)
                     Text("After 1 week").tag(168)
                     Text("After 30 days").tag(720)
                 }
-                Caption(text: "The Tidy button in the sidebar groups tabs that aren’t in a group yet. With Apple Intelligence on, tabs are grouped by topic on this Mac; otherwise tabs from the same site, or opened from one another, are grouped together. You can reopen archived tabs from History › Archived Tabs.")
+                Caption(text: "Tabs you haven’t looked at for that long are closed and kept in History › Archived Tabs, where you can reopen them. Favorites, bookmarks, and tabs that are playing, in use by the AI or using the camera or microphone stay open.")
             }
         }
         .formStyle(.grouped)

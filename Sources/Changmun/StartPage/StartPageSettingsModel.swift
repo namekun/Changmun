@@ -6,7 +6,7 @@ extension NewTabOpens {
     var title: String {
         switch self {
         case .startPage: String(localized: "Start Page")
-        case .commandBar: String(localized: "Command Bar")
+        case .commandBar: String(localized: "Search Bar")
         case .blank: String(localized: "Blank Page")
         case .address: String(localized: "Address")
         }
@@ -15,7 +15,7 @@ extension NewTabOpens {
     var detail: String? {
         switch self {
         case .startPage: String(localized: "⌘T opens a new tab with the start page. The search field is ready to type in.")
-        case .commandBar: String(localized: "⌘T opens the command bar over a blank page, as before.")
+        case .commandBar: String(localized: "⌘T opens the search bar over a blank page.")
         case .blank: String(localized: "⌘T opens an empty page.")
         case .address: nil
         }

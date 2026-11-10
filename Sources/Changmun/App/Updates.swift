@@ -56,6 +56,12 @@ final class Updates: ObservableObject {
         }
     }
 
+    /// Why the automatic install is greyed out; nil when it is not.
+    static func automaticInstallNote(available: Bool, checks: Bool) -> String? {
+        if !available { return String(localized: "Updates are not available in this copy of Changmun.") }
+        return checks ? nil : String(localized: "Turn on “Check for updates automatically” to allow this.")
+    }
+
     /// Sparkle offers the automatic install only while it checks automatically.
     var allowsAutomaticDownloads: Bool { updater?.allowsAutomaticUpdates ?? false }
 }

@@ -101,6 +101,7 @@ struct StartFavoriteTile: View {
     let width: CGFloat
     var focused = false
     let open: (_ inNewTab: Bool) -> Void
+    let remove: () -> Void
     @State private var hover = false
 
     var body: some View {
@@ -115,19 +116,62 @@ struct StartFavoriteTile: View {
         .frame(width: width)
         .padding(.vertical, 4)
         .onHover { hover = $0 }
-        .startItem(name, value: URL(string: entry.url)?.host().map(DisplayHost.trimmed), focused: focused, radius: Metrics.cardRadius, tile: true, activate: open)
+        .startItem(name, value: URL(string: entry.url)?.host().map(DisplayHost.trimmed), focused: focused, radius: Metrics.cardRadius, tile: true,
+                   actions: [.init(name: String(localized: "Open in New Tab"), run: { open(true) }), .init(name: String(localized: "Remove from Favorites"), run: remove)],
+                   activate: open)
+        .contextMenu {
+            Button("Open in New Tab") { open(true) }
+            Divider()
+            Button("Remove from Favorites", action: remove)
+        }
     }
 }
 
-/// A dashed tile where a favorite will be.
-struct StartEmptyFavorite: View {
+/// The last tile of a row of favorites that overflows: "+N" shows the rest, and once they are shown it folds them back.
+struct StartMoreTile: View {
     let size: CGFloat
+    let width: CGFloat
+    /// How many favorites it would show; 0 when it folds them instead.
+    let hidden: Int
+    var focused = false
+    let toggle: () -> Void
 
     var body: some View {
-        RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
+        let name = hidden > 0 ? String(localized: "Show \(hidden) more") : String(localized: "Show fewer")
+        VStack(spacing: 8) {
+            RoundedRectangle(cornerRadius: size * 0.24, style: .continuous).fill(Theme.field)
+                .overlay {
+                    if hidden > 0 {
+                        Text(verbatim: "+\(hidden)").font(.title).foregroundStyle(Theme.secondary)
+                    } else {
+                        Image(systemName: "chevron.up").font(.symbolRow).foregroundStyle(Theme.secondary)
+                    }
+                }
+                .frame(width: size, height: size)
+            Text(verbatim: name).font(.secondary).foregroundStyle(Theme.secondary).lineLimit(1).frame(width: width - 4)
+        }
+        .frame(width: width)
+        .padding(.vertical, 4)
+        .startItem(name, focused: focused, radius: Metrics.cardRadius, tile: true) { _ in toggle() }
+    }
+}
+
+/// A dashed tile where a favorite will be. The first is a button that starts adding one (`add`); the others only hold the place.
+struct StartEmptyFavorite: View {
+    let size: CGFloat
+    var add: (() -> Void)?
+
+    var body: some View {
+        let tile = RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
             .strokeBorder(Theme.hairline, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
             .overlay { Image(systemName: "plus").font(.system(size: size * 0.32, weight: .regular)).foregroundStyle(Theme.tertiary) }  // design-exempt: a share of the tile's size
             .frame(width: size, height: size)
-            .accessibilityHidden(true)
+        if let add {
+            tile
+                .startItem(String(localized: "Add a favorite"), radius: Metrics.cardRadius, tile: true) { _ in add() }
+                .help("Find a site, then press ⌘D on its page to add it as a favorite.")
+        } else {
+            tile.accessibilityHidden(true)
+        }
     }
 }

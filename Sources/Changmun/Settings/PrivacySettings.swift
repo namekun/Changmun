@@ -31,16 +31,35 @@ struct PrivacySettings: View {
     @State private var range = Range.hour
     @State private var clearHistory = true
     @State private var clearSiteData = false
-    @State private var confirming = false
     @State private var cleared: String?
-    @State private var showPasswords = false
     @State private var passwordCount = 0
 
-    private var clearTarget: String {
-        switch (clearHistory, clearSiteData) {
+    /// The question before Clear: what goes, for the range chosen. Zoom levels are cleared only with All Time, since they carry no date.
+    static func clearQuestion(history: Bool, siteData: Bool, range: Range) -> DialogSpec {
+        let target = switch (history, siteData) {
         case (true, true): String(localized: "browsing history and site data")
         case (true, false): String(localized: "browsing history")
         default: String(localized: "site data")
+        }
+        var lines: [String] = []
+        if history {
+            lines.append(range == .all
+                ? String(localized: "This removes the pages you visited, closed tabs and windows, archived tabs and the zoom level you set for each site.")
+                : String(localized: "This removes the pages you visited, closed tabs and windows, and archived tabs from that time. Zoom levels you set for sites stay."))
+        }
+        if siteData {
+            lines.append(history ? String(localized: "Site data such as cookies and cache is removed too, which signs you out of sites.")
+                                 : String(localized: "This removes cookies, cache and other site data from that time, which signs you out of sites."))
+        }
+        return DialogSpec(title: String(localized: "Clear \(target)? (\(range.name))"), message: lines.joined(separator: " "),
+                          buttons: [DialogButton(title: String(localized: "Cancel"), role: .cancel, isDefault: true), DialogButton(title: String(localized: "Clear"), role: .destructive)])
+    }
+
+    private func askToClear() {
+        let spec = Self.clearQuestion(history: clearHistory, siteData: clearSiteData, range: range)
+        let window = NSApp.keyWindow
+        Task { @MainActor in
+            if await Dialog.present(in: window, spec)?.button == 1 { clear() }
         }
     }
 
@@ -55,12 +74,8 @@ struct PrivacySettings: View {
                 HStack {
                     if let cleared { Caption(verbatim: cleared) }
                     Spacer()
-                    Button("Clear…") { confirming = true }.disabled(!clearHistory && !clearSiteData)
+                    Button("Clear…", action: askToClear).disabled(!clearHistory && !clearSiteData)
                 }
-            }
-            .confirmationDialog("Clear \(clearTarget)? (\(range.name))",
-                                isPresented: $confirming) {
-                Button("Clear", role: .destructive, action: clear)
             }
             Section {
                 Toggle("Stay signed in after quitting", isOn: $prefs.keepSessionCookies)
@@ -72,7 +87,7 @@ struct PrivacySettings: View {
             AdBlockSection(prefs: prefs)
             Section {
                 Toggle("Remove tracking from links", isOn: $prefs.removeTrackingFromLinks)
-                Caption(text: "Takes known tracking parameters (utm_source, fbclid, gclid and the like) out of the addresses you type, open from a bookmark, open in a new tab or the peek, or have the AI open. Links you click inside a page are left as the site wrote them. A site where it breaks a page has its own switch in the address bar.")
+                Caption(text: "Takes known tracking parameters (utm_source, fbclid, gclid and the like) out of the addresses you type, open from a bookmark, open in a new tab or a Link Preview, or have the AI open. Links you click inside a page are left as the site wrote them. A site where it breaks a page has its own switch in the address bar.")
                 Toggle("Prefer secure connections", isOn: $prefs.preferSecureConnections)
                 Caption(text: "Tries http addresses over https first (the same ones as above), and loads them over http only when the site can’t be reached over https. Links clicked inside a page, redirects and forms are left as the site made them. A certificate that can’t be verified is never answered with http.")
             }
@@ -80,7 +95,7 @@ struct PrivacySettings: View {
                 LabeledContent("Saved Passwords") {
                     HStack {
                         Text(passwordCount == 1 ? String(localized: "\(passwordCount) password") : String(localized: "\(passwordCount) passwords")).foregroundStyle(.secondary)
-                        Button("Manage…") { showPasswords = true }
+                        Button("Manage…") { PasswordsSheet.show() }
                     }
                 }
                 Toggle("Require Touch ID to fill passwords", isOn: $prefs.requireAuthToFill)
@@ -97,7 +112,7 @@ struct PrivacySettings: View {
                 }
             }
             Section("Pop-ups") {
-                Caption(text: "Pop-ups that a site opens without a click are blocked, and you’re told about it over the page. Sites you chose “Always allow for this site” on stay here.")
+                Caption(text: "Pop-ups that a site opens without a click are blocked, and orange words to the left of the address tell you. Sites you chose “Always allow for this site” on stay here.")
                 ForEach(prefs.popupHosts, id: \.self) { host in
                     HStack {
                         Text(host).lineLimit(1)
@@ -132,7 +147,9 @@ struct PrivacySettings: View {
         }
         .formStyle(.grouped)
         .onAppear { passwordCount = Logins.all().count }
-        .sheet(isPresented: $showPasswords, onDismiss: { passwordCount = Logins.all().count }) { PasswordsSheet() }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
+            if let window = note.object as? NSWindow, window === Panels.window(PasswordsSheet.panelID) { passwordCount = Logins.all().count }
+        }
     }
 
     private func clear() {
@@ -167,13 +184,18 @@ struct PrivacySettings: View {
     }
 }
 
+/// The saved passwords, in a window of their own: a question about deleting one is asked over this window, and a window with a sheet on it is busy.
 struct PasswordsSheet: View {
-    @Environment(\.dismiss) private var dismiss
+    static let panelID = "passwords"
+
+    static func show() {
+        Panels.show(panelID, title: String(localized: "Saved Passwords"), size: NSSize(width: 540, height: 440), resizable: false) { PasswordsSheet() }
+    }
+
     @State private var logins = Logins.all()
     @State private var search = ""
     @State private var unlocked = false
     @State private var copied: String?
-    @State private var deleting: Logins.Saved?
 
     private var shown: [Logins.Saved] {
         let q = search.lowercased()
@@ -199,7 +221,7 @@ struct PasswordsSheet: View {
                         Spacer()
                         if copied == login.id { Text("Copied").font(.caption).foregroundStyle(.secondary) }
                         Button("Copy Password") { Task { await copy(login) } }.buttonStyle(.borderless)
-                        Button(role: .destructive) { deleting = login } label: { Image(systemName: "trash") }.buttonStyle(.borderless)
+                        Button(role: .destructive) { confirmDelete(login) } label: { Image(systemName: "trash") }.buttonStyle(.borderless)
                             .accessibilityLabel(String(localized: "Delete \(login.host)"))
                     }
                 }
@@ -208,17 +230,21 @@ struct PasswordsSheet: View {
             HStack {
                 Caption(text: "Copying requires Touch ID or your Mac password. Passwords are stored only in this Mac’s keychain.")
                 Spacer()
-                Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Close") { Panels.window(Self.panelID)?.close() }.keyboardShortcut(.cancelAction)
             }
             .padding(16)
         }
         .frame(width: 540, height: 440)
-        .confirmationDialog("Delete the password for \(deleting?.host ?? "")?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
-            Button("Delete", role: .destructive) {
-                if let login = deleting { Logins.delete(host: login.host, username: login.username) }
-                logins = Logins.all()
-                deleting = nil
-            }
+    }
+
+    private func confirmDelete(_ login: Logins.Saved) {
+        let spec = DialogSpec.confirmDelete(String(localized: "Delete the password for \(login.host)?"),
+                                            String(localized: "It is removed from this Mac’s keychain, and this can’t be undone."))
+        let window = NSApp.keyWindow
+        Task { @MainActor in
+            guard await Dialog.present(in: window, spec)?.button == 1 else { return }
+            Logins.delete(host: login.host, username: login.username)
+            logins = Logins.all()
         }
     }
 

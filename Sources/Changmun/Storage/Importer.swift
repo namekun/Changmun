@@ -40,6 +40,9 @@ struct ImportReport {
     var cookies = 0
     var problems: [String] = []
 
+    /// Safari's files could not be read until Changmun has Full Disk Access: trying again after turning it on can work.
+    var needsFullDiskAccess: Bool { problems.contains(ImportRunner.fullDiskAccessProblem) }
+
     var summary: String {
         var parts: [String] = []
         if bookmarks > 0 { parts.append(String(localized: "Bookmarks \(bookmarks.formatted())")) }

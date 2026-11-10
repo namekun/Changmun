@@ -3,6 +3,25 @@ import SwiftUI
 
 // MARK: General
 
+/// Whether Changmun is the browser that opens web links, and the system's question that makes it so.
+enum DefaultBrowser {
+    static var isSet: Bool {
+        let handler = NSWorkspace.shared.urlForApplication(toOpen: URL(string: "https://example.com")!)
+        return handler?.standardizedFileURL == Bundle.main.bundleURL.standardizedFileURL
+    }
+
+    /// `then` runs once the system has answered.
+    static func make(then: @escaping @MainActor () -> Void) {
+        // Changing the default browser asks the user in a system dialog: never from a headless app.
+        guard !Headless.isOn else { return }
+        for scheme in ["http", "https"] {
+            NSWorkspace.shared.setDefaultApplication(at: Bundle.main.bundleURL, toOpenURLsWithScheme: scheme) { _ in
+                DispatchQueue.main.async { then() }
+            }
+        }
+    }
+}
+
 struct GeneralSettings: View {
     @ObservedObject var prefs: Preferences
     @State private var isDefaultBrowser = false
@@ -17,10 +36,13 @@ struct GeneralSettings: View {
                     ForEach(SearchEngine.allCases) { Text($0.name).tag($0) }
                 }
                 Toggle("Get search suggestions as you type", isOn: $prefs.searchSuggestions)
-                    .help("What you type in the command bar is sent to your search engine to get suggestions. Nothing is sent in private windows.")
+                    .help("What you type in the search bar is sent to your search engine to get suggestions. Nothing is sent in private windows.")
                 Picker("On Startup", selection: $prefs.restoreTabs) {
                     Text("Reopen last session’s tabs").tag(true)
                     Text("Start with a new tab").tag(false)
+                }
+                if !prefs.restoreTabs {
+                    Caption(text: "Tabs are not brought back after an update restarts Changmun either.")
                 }
             }
             Section("Downloads") {
@@ -97,18 +119,7 @@ struct GeneralSettings: View {
         if panel.runModal() == .OK, let url = panel.url { prefs.downloadFolder = url }
     }
 
-    private func checkDefault() {
-        let handler = NSWorkspace.shared.urlForApplication(toOpen: URL(string: "https://example.com")!)
-        isDefaultBrowser = handler?.standardizedFileURL == Bundle.main.bundleURL.standardizedFileURL
-    }
+    private func checkDefault() { isDefaultBrowser = DefaultBrowser.isSet }
 
-    private func makeDefault() {
-        // Changing the default browser asks the user in a system dialog: never from a headless app.
-        guard !Headless.isOn else { return }
-        for scheme in ["http", "https"] {
-            NSWorkspace.shared.setDefaultApplication(at: Bundle.main.bundleURL, toOpenURLsWithScheme: scheme) { _ in
-                DispatchQueue.main.async { checkDefault() }
-            }
-        }
-    }
+    private func makeDefault() { DefaultBrowser.make { checkDefault() } }
 }
