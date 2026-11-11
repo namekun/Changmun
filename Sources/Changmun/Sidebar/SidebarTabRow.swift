@@ -193,6 +193,33 @@ struct TabAudioButton: View {
     }
 }
 
+/// The same speaker as a badge on a favorite's corner: the tile is too small for a button beside the icon, and one laid over
+/// it hid half the icon.
+struct TabAudioBadge: View {
+    @ObservedObject var tab: Tab
+    let isActive: Bool
+
+    var body: some View {
+        if tab.isPlayingAudio || tab.isMuted {
+            let help = isActive ? (tab.isMuted ? String(localized: "Unmute (⌃⌘M)") : String(localized: "Mute (⌃⌘M)"))
+                                : (tab.isMuted ? String(localized: "Unmute") : String(localized: "Mute Tab"))
+            Button { tab.toggleMute() } label: {
+                Image(systemName: tab.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                    .font(.system(size: 7, weight: .semibold))  // design-exempt: a badge on a favorite's icon
+                    .foregroundStyle(Theme.primary)
+                    .frame(width: 14, height: 14)
+                    .background(Circle().fill(Theme.card))
+                    .overlay(Circle().strokeBorder(Theme.cardEdge))
+                    .frame(width: Metrics.action, height: Metrics.action)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(help)
+            .accessibilityLabel(Accessibility.label(fromHelp: help))
+        }
+    }
+}
+
 /// A site's icon for a bookmark that may not be open: from the tab favicons, the disk cache or the site.
 struct SiteIcon: View {
     let url: String
