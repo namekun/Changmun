@@ -18,7 +18,7 @@ extension Tab: WKNavigationDelegate {
         var decision = "allowed"
         defer {
             if action.navigationType == .linkActivated || action.targetFrame?.isMainFrame ?? true {
-                WindowLog.note("navigation", action, userInitiated: userInitiated, decision: decision, privately: isPrivate)
+                WindowLog.note("navigation", action, userInitiated: userInitiated, decision: decision, in: webView)
             }
         }
         if let url = action.request.url, let scheme = url.scheme?.lowercased(), !Self.browserSchemes.contains(scheme) {
