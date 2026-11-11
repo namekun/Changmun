@@ -6,6 +6,19 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.16.1</title>
+      <pubDate>Wed, 11 Nov 2026 05:18:48 +0000</pubDate>
+      <sparkle:version>58</sparkle:version>
+      <sparkle:shortVersionString>0.16.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.16.1</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Changed:** a favorite whose tab is playing sound, or is muted, now shows it as a small speaker badge on the tile's corner instead of a button laid over half the site's icon. Click the badge to mute or unmute, as before.
+
+Tried with automated tests, including one that draws the tile and checks how much of the icon the speaker covers (a fifth before, under a tenth now).</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.16.1/Changmun-0.16.1.dmg" length="6588118" type="application/octet-stream" sparkle:edSignature="y2KADw+bZKEMl7rN9F+JvkIn5qTMzjtIMrLFeORFeiJAZ9G1Kc1gAirIACXdziIhdh6fkEJbNJOYt5OQm0T8Bw==" />
+    </item>
+    <item>
       <title>0.16.0</title>
       <pubDate>Tue, 10 Nov 2026 20:26:36 +0000</pubDate>
       <sparkle:version>57</sparkle:version>
@@ -135,22 +148,9 @@ Tried with automated tests and the headless copy.</description>
 Tried with automated tests and the headless copy. Coupang's own sign-in page hasn't been tried by hand, so tell me if the key is still missing there.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.4/Changmun-0.14.4.dmg" length="7213859" type="application/octet-stream" sparkle:edSignature="T6spbnH2GObjrbREYEHA3kcPfJWwP3oCXOmhCKEyjiuHz+OFTVSh7JO6PRJu+vtF8aRc564el1YSVFmTE+bwAw==" />
     </item>
-    <item>
-      <title>0.14.3</title>
-      <pubDate>Wed, 04 Nov 2026 13:16:32 +0000</pubDate>
-      <sparkle:version>48</sparkle:version>
-      <sparkle:shortVersionString>0.14.3</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.14.3</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Fixed:** sites with a bot check, such as Coupang, could refuse to show search results or other pages. Changmun used to replace the page's `window.open` to notice pop-ups it had refused, and a bot check that reads the browser's own functions saw the replacement and took the browser for a bot. Refused pop-ups are now noticed from the app's own decision, so the page's functions stay the browser's own. The bar that offers a refused pop-up works as before; the warning in the page's console is gone.
-
-Tried with automated tests and the headless copy. Whether Coupang now shows results hasn't been tried by hand, so tell me if it still refuses.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.3/Changmun-0.14.3.dmg" length="7212032" type="application/octet-stream" sparkle:edSignature="RlCILLtiCUBF5uOliYflbSerdsJOd3b+PLY16vC5bvHpmmzYfUwIbSqzIA/Ux8xIEX74UB9kV9tyXvMoHFJsCg==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: /rk2bMwtAPvdOM9R6Ncbeq04I8TcadSKVaqJkk7pNSVBtZZUY5apV3/pQeqC9z5ptPuc+2C8lI+WZtiyf7PZAw==
-length: 16435
+edSignature: 9RRwRxWGExDL+vgKPM3kVQBgWOJGd+YTYkwRBaGJxtFMy/ZJBtPgeNPe6zT64jTZzAUL3HiFIpw6+qj1aC0mBA==
+length: 16163
 -->
