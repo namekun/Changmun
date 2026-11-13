@@ -1,5 +1,6 @@
 import AppKit
 import WebKit
+import os
 
 extension Tab: WKUIDelegate {
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
@@ -10,14 +11,18 @@ extension Tab: WKUIDelegate {
         // gesture (aTimersPopupWithNoGestureIsRefused) notices, so it must keep passing.
         // The app's own scripts (the AI's tools, a login filled in...) run with a user gesture too: see AppScripts.
         let userInitiated = !AppScripts.drives(webView) && Self.isUserInitiated(action)
+        var decision = "opened"
+        defer { WindowLog.note("window", action, userInitiated: userInitiated, decision: decision, in: webView) }
         // A window for an app's address (window.open("claude://...")) is no window: the user is asked about the app here.
         if let url = action.request.url, let scheme = url.scheme?.lowercased(), !Self.browserSchemes.contains(scheme) {
             appLinkRequested(url, navigationType: action.navigationType, userInitiated: Self.userStartedForAppLinks(userInitiated, knowsUserInitiated: Self.knowsUserInitiated), isMainFrame: action.sourceFrame.isMainFrame,
                              site: Self.askingSite(of: action.sourceFrame), in: webView)
+            decision = "app"
             return nil
         }
         if userInitiated, Self.isPeekClick(action), let url = action.request.url {
             browser?.openPeek(url)
+            decision = "peek"
             return nil
         }
         if Self.isDownloadClick(action.navigationType, modifiers: action.modifierFlags, optionHeld: Self.optionKeyHeld, url: action.request.url,
@@ -26,6 +31,7 @@ extension Tab: WKUIDelegate {
                 guard let self else { return }
                 Downloads.shared.track(download, from: self)
             }
+            decision = "download"
             return nil
         }
         var activate = true
@@ -42,6 +48,7 @@ extension Tab: WKUIDelegate {
                 if ["http", "https"].contains(url.scheme?.lowercased()) || url.absoluteString == "about:blank" {
                     popupRefused(url, fromFrame: action.sourceFrame.isMainFrame ? nil : site, pageSite: action.sourceFrame.isMainFrame ? site : nil)
                 }
+                decision = userInitiated ? "refused (another of the gesture)" : "refused (not the user's)"
                 return nil
             }
             activate = browser.isShown(self)
@@ -50,6 +57,7 @@ extension Tab: WKUIDelegate {
         if activate, browser?.peek === self { browser?.keepPeek() }
         let tab = browser?.openTab(configuration: configuration, after: self, activate: activate)
         tab?.openerID = id
+        if tab == nil { decision = "no window to open it in" }
         return tab?.webView
     }
 
@@ -203,5 +211,30 @@ extension Tab: WKUIDelegate {
         panel.allowsMultipleSelection = parameters.allowsMultipleSelection
         panel.canChooseDirectories = parameters.allowsDirectories
         return panel.runModal() == .OK ? panel.urls : nil
+    }
+}
+
+/// Why a link or a page's window did what it did, in Console (subsystem io.github.namekun.Changmun, category windows): what kind of
+/// navigation, whether the user's click started it, the keys held, and what was decided. A link that "does nothing" on a page the
+/// developer can't open (one behind a sign-in) is found from these lines. Of the address only the scheme and, for http(s), the host are
+/// written as they are; the path is a hash (the same path, the same hash) and the query is left out, as either can say who the user is.
+/// Nothing is written unless the page keeps its data on disk, so never for a private window, even one whose browser has gone.
+enum WindowLog {
+    nonisolated static let log = Logger(subsystem: "io.github.namekun.Changmun", category: "windows")
+
+    @MainActor static func note(_ what: String, _ action: WKNavigationAction, userInitiated: Bool, decision: String, in webView: WKWebView) {
+        guard webView.configuration.websiteDataStore.isPersistent else { return }
+        let url = action.request.url
+        let scheme = url?.scheme?.lowercased() ?? "(none)"
+        let web = scheme == "http" || scheme == "https"
+        let host = web ? url?.host() ?? "" : ""
+        let path = web ? url?.path() ?? "" : ""
+        let keys = [(NSEvent.ModifierFlags.command, "cmd"), (.shift, "shift"), (.option, "opt"), (.control, "ctrl")]
+            .filter { action.modifierFlags.contains($0.0) }.map(\.1).joined(separator: "+")
+        log.notice("""
+            \(what, privacy: .public) \(scheme, privacy: .public)://\(host, privacy: .public) path=\(path, privacy: .private(mask: .hash)) \
+            type=\(action.navigationType.rawValue, privacy: .public) user=\(userInitiated, privacy: .public) keys=\(keys, privacy: .public) \
+            mainFrame=\(action.sourceFrame.isMainFrame, privacy: .public) -> \(decision, privacy: .public)
+            """)
     }
 }

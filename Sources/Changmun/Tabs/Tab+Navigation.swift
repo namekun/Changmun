@@ -15,11 +15,18 @@ extension Tab: WKNavigationDelegate {
             return (.cancel, preferences)
         }
         let userInitiated = !AppScripts.drives(webView) && Self.userStartedForAppLinks(Self.isUserInitiated(action), knowsUserInitiated: Self.knowsUserInitiated)
+        var decision = "allowed"
+        defer {
+            if action.navigationType == .linkActivated || action.targetFrame?.isMainFrame ?? true {
+                WindowLog.note("navigation", action, userInitiated: userInitiated, decision: decision, in: webView)
+            }
+        }
         if let url = action.request.url, let scheme = url.scheme?.lowercased(), !Self.browserSchemes.contains(scheme) {
             // A frame can't speak for the page: the question is only for what the page itself, or the user's click, asks.
             appLinkRequested(url, navigationType: action.navigationType, userInitiated: userInitiated,
                              isMainFrame: (action.targetFrame?.isMainFrame ?? true) && action.sourceFrame.isMainFrame,
                              site: Self.askingSite(of: action.sourceFrame), in: webView)
+            decision = "app"
             return (.cancel, preferences)
         }
         if action.targetFrame?.isMainFrame ?? true, !AgentActivity.shared.holds(self), Self.startsUserNavigation(action.navigationType, userInitiated: userInitiated) {
@@ -32,23 +39,29 @@ extension Tab: WKNavigationDelegate {
                 for file in files { browser?.openTab(url: file) }
                 return (.cancel, preferences)
             }
-            guard Self.fileLoadAllowed(url, userOpened: userFileLoad) else { return (.cancel, preferences) }
+            guard Self.fileLoadAllowed(url, userOpened: userFileLoad) else { decision = "file refused"; return (.cancel, preferences) }
             // Never handed to a new tab, which would treat it as opened by the user.
             return (.allow, preferences)
         }
         if action.navigationType == .linkActivated, action.modifierFlags.contains(.command) || action.buttonNumber == Self.middleButton,
            let url = action.request.url {
             browser?.openTab(url: url, activate: action.modifierFlags.contains(.shift), after: self).openerID = id
+            decision = "new tab"
             return (.cancel, preferences)
         }
         if Self.isPeekClick(action), let url = action.request.url {
             browser?.openPeek(url)
+            decision = "peek"
             return (.cancel, preferences)
         }
         // After the branches that send the address to another tab (⌘-click, middle click, the peek), which decide for themselves: only the load that is
         // going to happen in this tab is stopped, never the page that is shown for a link opened elsewhere.
-        if let target = action.request.url, stopsLoad(of: target, isMainFrame: action.targetFrame?.isMainFrame ?? true, in: webView) { return (.cancel, preferences) }
+        if let target = action.request.url, stopsLoad(of: target, isMainFrame: action.targetFrame?.isMainFrame ?? true, in: webView) {
+            decision = "stopped (certificate)"
+            return (.cancel, preferences)
+        }
         if Self.isDownloadClick(action.navigationType, modifiers: action.modifierFlags, optionHeld: Self.optionKeyHeld, url: action.request.url, userInitiated: userInitiated) {
+            decision = "download"
             return (.download, preferences)
         }
         // The load that is allowed is the one whose certificate a challenge is for, until it commits or fails (see TrustFailure.pendingTarget).
