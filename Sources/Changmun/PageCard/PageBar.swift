@@ -19,7 +19,9 @@ struct PageBar: View {
                     AddressPlaceholder { browser.openNewTab(.emptied) }
                 }
             }
-            .padding(.horizontal, Metrics.inset)
+            // Only before the address: after it, the AI button's own inset is the gap, so it sits as far from the address as from the
+            // window's edge instead of floating nearer the edge.
+            .padding(.leading, Metrics.inset)
             if #available(macOS 15.4, *), !browser.isPrivate { ExtensionButtons(browser: browser) }
             // With the sidebar shown the button is under its shelf, where the progress is.
             if !browser.showSidebar { DownloadButton(browser: browser, arrowEdge: .bottom, showsProgress: true) }
