@@ -2788,25 +2788,6 @@ struct TranslationTests {
         #expect(gaveUp)
     }
 
-    @Test func aPageWithNoTextInAnotherLanguageSaysSoOnce() async throws {
-        let browser = Browser()
-        let tab = Tab(id: 1, url: nil, browser: browser)
-        let view = tab.wake()
-        let window = OffscreenWindow(view)
-        defer { window.close() }
-        view.loadHTMLString("<p>안녕</p>", baseURL: nil)
-        #expect(await waitUntil(30) { !view.isLoading && view.url != nil }, "the page didn't finish loading")
-        // Every message the status line gets, as it gets it: the line clears itself after a couple of seconds.
-        var messages: [String] = []
-        let watch = browser.overlay.$statusMessage.sink { if let message = $0 { messages.append(message) } }
-        defer { watch.cancel() }
-        tab.toggleTranslation()
-        #expect(await waitUntil(30) { !messages.isEmpty }, "the status line never said anything")
-        #expect(!(await waitUntil(1) { messages.count > 1 }), "and says it once")
-        #expect(messages == [String(localized: "No text in another language to translate")])
-        #expect(tab.translation == .original)
-    }
-
     @Test(.enabled(if: Self.modelInstalled)) func aPageWithoutTranslatableTextIsNotAFailure() async throws {
         let view = WKWebView()
         let window = OffscreenWindow(view)
@@ -3130,5 +3111,35 @@ struct LocalizationTests {
         let prompts = Set(info.keys.filter { $0.hasSuffix("UsageDescription") })
         #expect(Set(try table(language, "InfoPlist").keys) == prompts)
         #expect((info["CFBundleLocalizations"] as? [String]).map(Set.init) == Set(Self.languages + ["en"]))
+    }
+}
+
+/// The status line a translation speaks on: the engine and the AI's availability it reads are the whole process's, and the suites
+/// that change them run one at a time, so this runs among them.
+extension SharedAgentState {
+    @MainActor @Suite(.serialized)
+    struct TranslationStatusTests {
+        @Test func aPageWithNoTextInAnotherLanguageSaysSoOnce() async throws {
+            // On this Mac's own translation: another suite may have left the engine on Claude, whose route would answer otherwise.
+            let engine = Preferences.shared.translationEngine
+            Preferences.shared.translationEngine = .onDevice
+            defer { Preferences.shared.translationEngine = engine }
+            let browser = Browser()
+            let tab = Tab(id: 1, url: nil, browser: browser)
+            let view = tab.wake()
+            let window = OffscreenWindow(view)
+            defer { window.close() }
+            view.loadHTMLString("<p>안녕</p>", baseURL: nil)
+            #expect(await waitUntil(30) { !view.isLoading && view.url != nil }, "the page didn't finish loading")
+            // Every message the status line gets, as it gets it: the line clears itself after a couple of seconds.
+            var messages: [String] = []
+            let watch = browser.overlay.$statusMessage.sink { if let message = $0 { messages.append(message) } }
+            defer { watch.cancel() }
+            tab.toggleTranslation()
+            #expect(await waitUntil(30) { !messages.isEmpty }, "the status line never said anything")
+            #expect(!(await waitUntil(1) { messages.count > 1 }), "and says it once")
+            #expect(messages == [String(localized: "No text in another language to translate")])
+            #expect(tab.translation == .original)
+        }
     }
 }
