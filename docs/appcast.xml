@@ -6,6 +6,19 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.16.2</title>
+      <pubDate>Sat, 14 Nov 2026 02:07:15 +0000</pubDate>
+      <sparkle:version>59</sparkle:version>
+      <sparkle:shortVersionString>0.16.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.16.2</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Added:** when a link or a button that should open a new tab does nothing, Changmun now leaves a line about it in the Mac's system log (Console, subsystem io.github.namekun.Changmun, category windows): what kind of click it was, whether it came from you, and what Changmun decided. It keeps only the site's name and a scrambled form of the page path, never the rest of the address, and writes nothing for private windows. It is there so that a link that sometimes does nothing, like Instagram's ad links did for a while, can be traced the next time it happens.
+
+Tried with automated tests. The log lines themselves haven't been read back on another Mac.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.16.2/Changmun-0.16.2.dmg" length="6591275" type="application/octet-stream" sparkle:edSignature="QS/ww3BgR1yTSkpToUui1mSmfrHJRBpDIEfKq4VIdqxjpriXHPzNw2EGYlpCWHHdYadiGguVPdmyZ15/3hbTBw==" />
+    </item>
+    <item>
       <title>0.16.1</title>
       <pubDate>Wed, 11 Nov 2026 05:18:48 +0000</pubDate>
       <sparkle:version>58</sparkle:version>
@@ -135,22 +148,9 @@ This follows Dieter Rams's "less, but better": settings that chose where things 
 Tried with automated tests and the headless copy.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.5/Changmun-0.14.5.dmg" length="7212670" type="application/octet-stream" sparkle:edSignature="Ek3w9zZemCOtOcLbDnJuaxkV+l2dZzp+slO+rhgV/YiczsPYkTjk2DK3xEOvQelU2T0iqvnUIzgWvNOMUtkpDA==" />
     </item>
-    <item>
-      <title>0.14.4</title>
-      <pubDate>Wed, 04 Nov 2026 14:03:24 +0000</pubDate>
-      <sparkle:version>49</sparkle:version>
-      <sparkle:shortVersionString>0.14.4</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.14.4</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Fixed:** the key button that fills a saved login didn't appear on sites whose scripts draw the sign-in form after the page has loaded, Coupang among them. The page was looked at once, when it finished loading, and the form wasn't there yet. The button now comes when the password field appears, and goes when the field goes.
-
-Tried with automated tests and the headless copy. Coupang's own sign-in page hasn't been tried by hand, so tell me if the key is still missing there.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.4/Changmun-0.14.4.dmg" length="7213859" type="application/octet-stream" sparkle:edSignature="T6spbnH2GObjrbREYEHA3kcPfJWwP3oCXOmhCKEyjiuHz+OFTVSh7JO6PRJu+vtF8aRc564el1YSVFmTE+bwAw==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: 9RRwRxWGExDL+vgKPM3kVQBgWOJGd+YTYkwRBaGJxtFMy/ZJBtPgeNPe6zT64jTZzAUL3HiFIpw6+qj1aC0mBA==
-length: 16163
+edSignature: yTHIN77oUxmJFI0Sg8twgFSpGKCD+fzy9s+tlppgE+UIWI0xdreaRc8sG3FugF4eHnZBEEobICJNn+ZzNfT9Dw==
+length: 16340
 -->
