@@ -6,6 +6,19 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.16.3</title>
+      <pubDate>Sat, 14 Nov 2026 02:53:15 +0000</pubDate>
+      <sparkle:version>60</sparkle:version>
+      <sparkle:shortVersionString>0.16.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.16.3</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Changed:** the AI button at the right of the bar now sits as far from the address as from the window's edge (18 pt each), instead of floating nearer the edge; the address is 8 pt wider.
+
+Tried with automated tests and by measuring the bar of the off-screen test copy.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.16.3/Changmun-0.16.3.dmg" length="6591336" type="application/octet-stream" sparkle:edSignature="3VabJNzsjJtDBhYTun5pua5jUnFyv1tGScWFKwoU/vMUB1xB6viX2/hXjIc+XL5YvcD7Vb9hXulzqPwA/yHgBw==" />
+    </item>
+    <item>
       <title>0.16.2</title>
       <pubDate>Sat, 14 Nov 2026 02:07:15 +0000</pubDate>
       <sparkle:version>59</sparkle:version>
@@ -135,22 +148,9 @@ Tried with automated tests and a render of the icon on both Docks. An icon that 
 This follows Dieter Rams's "less, but better": settings that chose where things go are gone, and one place holds each thing. Tried with automated tests and the headless copy. The settings you lose come back at their defaults; tell me if one you relied on is missing.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.0/Changmun-0.15.0.dmg" length="6347280" type="application/octet-stream" sparkle:edSignature="4Y76TBTtB4z9owkWjMZl6aVMWEAosD5SM4nEB9TlJnz4b/dp3Z3pUw9ymOccgKW73IG7fE3ZMlGmnwDQ3t2GCg==" />
     </item>
-    <item>
-      <title>0.14.5</title>
-      <pubDate>Thu, 05 Nov 2026 00:19:49 +0000</pubDate>
-      <sparkle:version>50</sparkle:version>
-      <sparkle:shortVersionString>0.14.5</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.14.5</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Downloads in one place.** With the sidebar showing, the downloads button now sits in its bottom bar, right under the shelf where a download's progress appears, so the list opens where you saw it come in instead of at the other end of the window. With the tabs on top or the sidebar hidden, the button stays beside the address.
-
-Tried with automated tests and the headless copy.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.14.5/Changmun-0.14.5.dmg" length="7212670" type="application/octet-stream" sparkle:edSignature="Ek3w9zZemCOtOcLbDnJuaxkV+l2dZzp+slO+rhgV/YiczsPYkTjk2DK3xEOvQelU2T0iqvnUIzgWvNOMUtkpDA==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: yTHIN77oUxmJFI0Sg8twgFSpGKCD+fzy9s+tlppgE+UIWI0xdreaRc8sG3FugF4eHnZBEEobICJNn+ZzNfT9Dw==
-length: 16340
+edSignature: iUf+krWhJ7Ennr6MOnycQiKvHPE7xGNA2Q0sHjdn3rKcFNfKjWNvpwZojYPiy3C6k/1WLcw7GaTCzzZyVgfoCw==
+length: 16230
 -->
