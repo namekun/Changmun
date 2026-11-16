@@ -26,6 +26,7 @@
 "A window the site fills in itself. Allow it, then try again." = "Una ventana que el sitio rellena por su cuenta. Permítela y vuelve a intentarlo.";
 "AI · Answered" = "IA · Respondió";
 "AI · Working" = "IA · Trabajando";
+"Add Search Engine" = "Añadir buscador";
 "Addresses it may open" = "Direcciones que puede abrir";
 "After revoking, the AI asks again before it uses that tab or opens that address. A new chat starts with none of these." = "Al revocar, la IA vuelve a preguntar antes de usar esa pestaña o abrir esa dirección. Un chat nuevo empieza sin ninguno de estos permisos.";
 "Answer waiting" = "Respuesta sin leer";
@@ -38,7 +39,9 @@
 "Camera on" = "Cámara activada";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "No se pudo eliminar el espacio: no se pudieron mover sus favoritos";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "No se pudo abrir el archivo de marcadores e historial, así que no se guarda nada nuevo en él";
+"Coupang" = "Coupang";
 "Data Page" = "Página de datos";
+"Daum" = "Daum";
 "Delete %@" = "Eliminar %@";
 "Delete this chat?" = "¿Eliminar este chat?";
 "Download Again" = "Descargar de nuevo";
@@ -48,12 +51,14 @@
 "It didn't recognize an option Changmun uses. Copy the update command, run it in Terminal, then try again." = "No reconoció una opción que usa Changmun. Copia el comando de actualización, ejecútalo en Terminal y vuelve a intentarlo.";
 "Jump to the latest message" = "Ir al último mensaje";
 "Kept your newer passwords %@" = "Contraseñas más recientes conservadas %@";
+"Naver Map" = "Naver Map";
 "New Chat" = "Nuevo chat";
 "New messages" = "Mensajes nuevos";
 "No answer" = "Sin respuesta";
 "No answer within %@ counts as Don’t Allow." = "Si no respondes en %@, cuenta como «No permitir».";
 "No chats match “%@”" = "Ningún chat coincide con «%@»";
 "Not allowed in %@ unless you answer." = "Si no respondes, en %@ no se permitirá.";
+"Other…" = "Otro…";
 "Past chats can only be read. Choose Back to Chat in the title menu, or start a new chat, to write." = "Los chats anteriores solo se pueden leer. Para escribir, elige «Volver al chat» en el menú del título o empieza un chat nuevo.";
 "Microphone on" = "Micrófono activado";
 "No matches" = "Sin coincidencias";
@@ -66,7 +71,6 @@
 "Search with" = "Buscar con";
 "Search with %@" = "Buscar con %@";
 "Search with %@ (⌘%lld)" = "Buscar con %1$@ (⌘%2$lld)";
-"Shown under a search" = "Mostrar bajo una búsqueda";
 "Shows what the page is waiting on you for" = "Muestra lo que la página espera de ti";
 "Start a new chat (⌘⇧E)" = "Empezar un chat nuevo (⌘⇧E)";
 "Stopped. Nothing more is done until you send a message." = "Detenido. No se hace nada más hasta que envíes un mensaje.";
@@ -74,6 +78,7 @@
 "Tabs it may use" = "Pestañas que puede usar";
 "The AI has answered. Open the AI panel to read it (⌘E)" = "La IA ha respondido. Abre el panel de IA para leerlo (⌘E)";
 "The AI is working. Open the AI panel to follow it (⌘E)" = "La IA está trabajando. Abre el panel de IA para seguirla (⌘E)";
+"The engines in this list are offered under a search in the address bar: click one, or press ⌘ and its number, to search with it once. Typing an engine’s keyword before your words searches with it too. Engines you add get no search suggestions." = "Los buscadores de esta lista aparecen bajo una búsqueda en la barra de direcciones: haz clic en uno, o pulsa ⌘ y su número, para buscar una vez con él. Escribir su palabra clave antes de tus términos también busca con él. Los buscadores que añades no ofrecen sugerencias.";
 "This can't be undone." = "No se puede deshacer.";
 "This chat is nearly full, so the AI may lose track of what was said early on. A new chat will work better." = "Este chat está casi lleno, así que la IA puede perder de vista lo que se dijo al principio. Un chat nuevo funcionará mejor.";
 "Shows the list of downloads" = "Muestra la lista de descargas";
@@ -81,7 +86,7 @@
 "Stop the camera and microphone" = "Detener la cámara y el micrófono";
 "Stop the microphone" = "Detener el micrófono";
 "Update password for %@?" = "¿Actualizar la contraseña de %@?";
-"When you type a search, these engines are offered under it. Click one, or press ⌘ and its number, to search with it once; or type its keyword before your words." = "Cuando escribes una búsqueda, estos buscadores aparecen debajo. Haz clic en uno, o pulsa ⌘ y su número, para buscar una vez con él; o escribe su palabra clave antes de tus términos.";
+"Wikipedia" = "Wikipedia";
 "a frame of an unknown site" = "un marco de un sitio desconocido";
 "a page without a site" = "una página sin sitio";
 "%@ is muted" = "%@ está silenciada";
@@ -1021,7 +1026,6 @@
 "Open %@?" = "¿Abrir %@?";
 "%@ wants to open the app." = "%@ quiere abrir la app.";
 "Account" = "Cuenta";
-"Add Search Engine…" = "Añadir motor de búsqueda…";
 "Another engine already uses that keyword." = "Otro motor ya usa esa palabra clave.";
 "Delete the folder “%@”?" = "¿Eliminar la carpeta “%@”?";
 "Download finished" = "Descarga terminada";
@@ -1085,7 +1089,6 @@
 "This page has a password or payment field, so it isn’t sent to Claude, and this Mac can’t translate it: that needs macOS 26 or later." = "Esta página tiene un campo de contraseña o de pago, así que no se envió a Claude, y este Mac no puede traducirla: requiere macOS 26 o posterior.";
 "Keep translating this site" = "Seguir traduciendo este sitio";
 "Translates this site’s pages as they open, and the text they add later. With Claude, the text of each page is sent to Anthropic automatically, without asking again." = "Traduce las páginas de este sitio al abrirlas, y también el texto que añaden después. Con Claude, el texto de cada página se envía a Anthropic automáticamente, sin volver a preguntar.";
-"Type an engine’s keyword and then what you want to find in the address bar to search with it. Engines you add get no search suggestions." = "Escribe en la barra de direcciones la palabra clave de un motor y luego lo que quieres buscar para usarlo. Los motores que añadas no ofrecen sugerencias de búsqueda.";
 "Sites you turned “Keep translating this site” on for stay here. Their pages are translated as they open. With Claude, the text of each of those pages is sent to Anthropic automatically." = "Aquí quedan los sitios con «Seguir traduciendo este sitio» activado. Sus páginas se traducen al abrirse. Con Claude, el texto de cada una de esas páginas se envía a Anthropic automáticamente.";
 "Kept translating" = "Se sigue traduciendo";
 "Keyword" = "Palabra clave";

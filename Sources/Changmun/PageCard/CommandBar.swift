@@ -211,8 +211,9 @@ struct CommandBar: View {
     /// The engine row under a search row: the other engines the words can go to just this once, none for an address or an empty field.
     private func chips(for items: [Suggestion]) -> CommandBarChips? {
         guard case .search(let query) = items.first else { return nil }
-        let routed = SearchRouting.pick(query, default: AddressInput.searchTemplate, engines: prefs.customSearchEngines)
-        let engines = QuickSearch.chips(besides: routed.template, custom: prefs.customSearchEngines, hidden: prefs.hiddenSearchChips)
+        let builtIns = SearchEngine.listed(removed: prefs.removedSearchEngines)
+        let routed = SearchRouting.pick(query, default: AddressInput.searchTemplate, engines: prefs.customSearchEngines, builtIns: builtIns)
+        let engines = QuickSearch.chips(besides: routed.template, custom: prefs.customSearchEngines, builtIns: builtIns)
         return engines.isEmpty ? nil : CommandBarChips(engines: engines, terms: routed.terms, mode: mode)
     }
 

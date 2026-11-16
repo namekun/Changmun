@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// The engines the user added, under the picker of built-in ones: add, edit, remove, and which one is the default.
+/// The list of search engines under the Search Engine menu: the built-in ones still in it and those the user added, each taken out with
+/// its button but the default, and more put in from the Add menu (one taken out, a well-known one, or any other).
 struct CustomSearchEnginesSettings: View {
     @ObservedObject var prefs: Preferences
     @State private var draft: Draft?
@@ -26,25 +27,23 @@ struct CustomSearchEnginesSettings: View {
         return problem
     }
 
+    private var builtIns: [SearchEngine] { SearchEngine.listed(removed: prefs.removedSearchEngines) }
+    private var defaultTemplate: String { AddressInput.searchTemplate }
+
     var body: some View {
+        // One list: the built-in engines still in it, then the added ones. Each can be taken out but the one searches go to.
+        ForEach(builtIns) { engine in
+            row(name: engine.name, keyword: engine.keyword, template: engine.template) {
+                removeButton(engine.name) { prefs.setListed(engine, false) }
+            }
+        }
         ForEach(prefs.customSearchEngines) { engine in
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(engine.name).lineLimit(1)
-                    Caption(verbatim: engine.keyword + " · " + (URLComponents(string: engine.template)?.host ?? engine.template))
-                }
-                Spacer()
-                if prefs.defaultCustomEngine?.id == engine.id {
-                    Text("Default").foregroundStyle(.secondary)
-                }
+            row(name: engine.name, keyword: engine.keyword, template: engine.template) {
                 Button { draft = Draft(id: engine.id, name: engine.name, keyword: engine.keyword, template: engine.template) } label: { Image(systemName: "pencil") }
                     .buttonStyle(.borderless)
                     .help("Edit")
                     .accessibilityLabel(String(localized: "Edit \(engine.name)"))
-                Button(role: .destructive) { remove(engine) } label: { Image(systemName: "minus.circle") }
-                    .buttonStyle(.borderless)
-                    .help("Remove")
-                    .accessibilityLabel(String(localized: "Remove \(engine.name)"))
+                removeButton(engine.name) { remove(engine) }
             }
         }
         if draft != nil {
@@ -60,9 +59,40 @@ struct CustomSearchEnginesSettings: View {
                 }
             }
         } else {
-            Button("Add Search Engine…") { draft = Draft() }
+            Menu("Add Search Engine") {
+                let removed = SearchEngine.allCases.filter { !builtIns.contains($0) }
+                ForEach(removed) { engine in Button(engine.name) { prefs.setListed(engine, true) } }
+                let presets = SearchEnginePresets.available(besides: prefs.customSearchEngines, builtIns: builtIns)
+                ForEach(presets) { preset in Button(preset.name) { prefs.save(preset) } }
+                if !removed.isEmpty || !presets.isEmpty { Divider() }
+                Button("Other…") { draft = Draft() }
+            }
+            .fixedSize()
         }
-        Caption(text: "Type an engine’s keyword and then what you want to find in the address bar to search with it. Engines you add get no search suggestions.")
+        Caption(text: "The engines in this list are offered under a search in the address bar: click one, or press ⌘ and its number, to search with it once. Typing an engine’s keyword before your words searches with it too. Engines you add get no search suggestions.")
+    }
+
+    /// An engine's line: its name, its keyword and site, and what can be done to it; the default engine says so and can't be taken out.
+    private func row<Actions: View>(name: String, keyword: String, template: String, @ViewBuilder actions: () -> Actions) -> some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text(verbatim: name).lineLimit(1)
+                Caption(verbatim: keyword + " · " + (URLComponents(string: template.replacingOccurrences(of: SearchTemplate.placeholder, with: "x"))?.host ?? template))
+            }
+            Spacer()
+            if template == defaultTemplate {
+                Text("Default").foregroundStyle(.secondary)
+            } else {
+                actions()
+            }
+        }
+    }
+
+    private func removeButton(_ name: String, action: @escaping () -> Void) -> some View {
+        Button(role: .destructive, action: action) { Image(systemName: "minus.circle") }
+            .buttonStyle(.borderless)
+            .help("Remove")
+            .accessibilityLabel(String(localized: "Remove \(name)"))
     }
 
     private func field(_ key: WritableKeyPath<Draft, String>) -> Binding<String> {

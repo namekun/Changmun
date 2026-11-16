@@ -33,11 +33,10 @@ struct GeneralSettings: View {
         Form {
             Section("Search") {
                 Picker("Search Engine", selection: $prefs.defaultEngineChoice) {
-                    ForEach(SearchEngine.allCases) { Text($0.name).tag(SearchEngineChoice.builtIn($0)) }
+                    ForEach(SearchEngine.listed(removed: prefs.removedSearchEngines)) { Text($0.name).tag(SearchEngineChoice.builtIn($0)) }
                     ForEach(prefs.customSearchEngines) { Text(verbatim: $0.name).tag(SearchEngineChoice.custom($0.id)) }
                 }
                 CustomSearchEnginesSettings(prefs: prefs)
-                SearchChipSettings(prefs: prefs)
                 Toggle("Get search suggestions as you type", isOn: $prefs.searchSuggestions)
                     .help("What you type in the search bar is sent to your search engine to get suggestions. Nothing is sent in private windows.")
                 Picker("On Startup", selection: $prefs.restoreTabs) {
@@ -126,29 +125,3 @@ struct GeneralSettings: View {
 
     private func makeDefault() { DefaultBrowser.make { checkDefault() } }
 }
-
-/// Which engines the command bar offers under a search, to search with just once: every engine but the default, each with its switch.
-struct SearchChipSettings: View {
-    @ObservedObject var prefs: Preferences
-
-    var body: some View {
-        let engines = QuickSearch.chips(besides: AddressInput.searchTemplate, custom: prefs.customSearchEngines, hidden: [])
-        if !engines.isEmpty {
-            LabeledContent("Shown under a search") {
-                VStack(alignment: .leading) {
-                    ForEach(engines) { engine in
-                        Toggle(isOn: Binding(get: { !prefs.hiddenSearchChips.contains(engine.id) },
-                                             set: { shown in
-                                                 prefs.hiddenSearchChips.removeAll { $0 == engine.id }
-                                                 if !shown { prefs.hiddenSearchChips.append(engine.id) }
-                                             })) {
-                            Text(verbatim: engine.keyword.isEmpty ? engine.name : "\(engine.name)  \(engine.keyword)")
-                        }
-                    }
-                }
-            }
-            Caption(text: "When you type a search, these engines are offered under it. Click one, or press ⌘ and its number, to search with it once; or type its keyword before your words.")
-        }
-    }
-}
-
