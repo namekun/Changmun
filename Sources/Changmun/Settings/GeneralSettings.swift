@@ -33,7 +33,7 @@ struct GeneralSettings: View {
         Form {
             Section("Search") {
                 Picker("Search Engine", selection: $prefs.defaultEngineChoice) {
-                    ForEach(SearchEngine.allCases) { Text($0.name).tag(SearchEngineChoice.builtIn($0)) }
+                    ForEach(SearchEngine.listed(removed: prefs.removedSearchEngines)) { Text($0.name).tag(SearchEngineChoice.builtIn($0)) }
                     ForEach(prefs.customSearchEngines) { Text(verbatim: $0.name).tag(SearchEngineChoice.custom($0.id)) }
                 }
                 CustomSearchEnginesSettings(prefs: prefs)

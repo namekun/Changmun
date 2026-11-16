@@ -162,10 +162,25 @@ extension Preferences {
         }
     }
 
-    /// The default goes back to the engine chosen in the list of built-in ones.
+    /// The default goes back to the engine chosen in the list of built-in ones, which comes back into the list if it was taken out.
     func useBuiltInAsDefault() {
+        removedSearchEngines.removeAll { $0 == searchEngine.rawValue }
         UserDefaults.standard.set(searchEngine.template, forKey: "searchURL")
         objectWillChange.send()
+    }
+
+    /// Takes a built-in engine out of the list, or puts it back. The default engine stays: it is what a search goes to.
+    func setListed(_ engine: SearchEngine, _ listed: Bool) {
+        removedSearchEngines.removeAll { $0 == engine.rawValue }
+        guard !listed else { return }
+        guard UserDefaults.standard.string(forKey: "searchURL") != engine.template else { return }
+        removedSearchEngines.append(engine.rawValue)
+        // The built-in engine a removed added default falls back to is one still in the list, if there is one.
+        if searchEngine == engine, let other = SearchEngine.listed(removed: removedSearchEngines).first {
+            let template = UserDefaults.standard.string(forKey: "searchURL")
+            searchEngine = other
+            UserDefaults.standard.set(template, forKey: "searchURL")
+        }
     }
 
     /// Adds the engine, or replaces the one with its id. A default engine whose address changed stays the default.
@@ -197,3 +212,51 @@ enum SearchEngineChoice: Hashable {
         custom.first { $0.template == template }.map { .custom($0.id) } ?? .builtIn(builtIn)
     }
 }
+
+/// The engines a search can go to just this once from the command bar (see EngineChips): the built-in ones still in the list, then those the
+/// user added, without the one the search row already uses.
+enum QuickSearch {
+    struct Engine: Hashable, Identifiable {
+        /// A built-in engine's raw value, or an added engine's UUID.
+        let id: String
+        let name: String
+        let template: String
+    }
+
+    nonisolated static func all(custom: [CustomSearchEngine], builtIns: [SearchEngine] = SearchEngine.allCases) -> [Engine] {
+        builtIns.map { Engine(id: $0.rawValue, name: $0.name, template: $0.template) }
+            + custom.map { Engine(id: $0.id.uuidString, name: $0.name, template: $0.template) }
+    }
+
+    /// The row under a search whose words go to `template`: every engine in the list but that one.
+    nonisolated static func chips(besides template: String, custom: [CustomSearchEngine], builtIns: [SearchEngine] = SearchEngine.allCases) -> [Engine] {
+        all(custom: custom, builtIns: builtIns).filter { $0.template != template }
+    }
+}
+
+/// Engines that can be put in the list from the Add menu, each with its keyword. The words go after the site's name, as for any added engine.
+enum SearchEnginePresets {
+    nonisolated static let all: [CustomSearchEngine] = [
+        CustomSearchEngine(name: String(localized: "Daum"), keyword: "daum", template: "https://search.daum.net/search?q=%s"),
+        CustomSearchEngine(name: "YouTube", keyword: "yt", template: "https://www.youtube.com/results?search_query=%s"),
+        CustomSearchEngine(name: "나무위키", keyword: "namu", template: "https://namu.wiki/Search?q=%s"),
+        CustomSearchEngine(name: String(localized: "Wikipedia"), keyword: "wiki", template: "https://ko.wikipedia.org/w/index.php?search=%s"),
+        CustomSearchEngine(name: String(localized: "Coupang"), keyword: "cp", template: "https://www.coupang.com/np/search?q=%s"),
+        CustomSearchEngine(name: String(localized: "Naver Map"), keyword: "map", template: "https://map.naver.com/p/search/%s"),
+        CustomSearchEngine(name: "GitHub", keyword: "gh", template: "https://github.com/search?q=%s"),
+        CustomSearchEngine(name: "Perplexity", keyword: "pp", template: "https://www.perplexity.ai/search?q=%s"),
+    ]
+
+    /// The presets not in the list yet (by address), each with a keyword no engine in the list uses: its own, or that with a number after it.
+    nonisolated static func available(besides custom: [CustomSearchEngine]) -> [CustomSearchEngine] {
+        let taken = Set(custom.map(\.keyword))
+        return all.filter { preset in !custom.contains { $0.template == preset.template } }.map { preset in
+            var engine = preset
+            engine.id = UUID()
+            var n = 2
+            while taken.contains(engine.keyword) { engine.keyword = preset.keyword + String(n); n += 1 }
+            return engine
+        }
+    }
+}
+

@@ -26,6 +26,7 @@
 "A window the site fills in itself. Allow it, then try again." = "サイトが自分で内容を入れるウィンドウです。許可してから、もう一度お試しください。";
 "AI · Answered" = "AI · 回答あり";
 "AI · Working" = "AI · 作業中";
+"Add Search Engine" = "検索エンジンを追加";
 "Addresses it may open" = "開いてよいアドレス";
 "After revoking, the AI asks again before it uses that tab or opens that address. A new chat starts with none of these." = "取り消すと、AIはそのタブを使う前やそのアドレスを開く前にもう一度確認します。新規チャットはこれらの許可なしで始まります。";
 "Answer waiting" = "未読の回答あり";
@@ -38,7 +39,9 @@
 "Camera on" = "カメラを使用中";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "スペースを削除できませんでした。お気に入りを移動できませんでした";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "ブックマークと履歴のファイルを開けないため、新しい内容は保存されません";
+"Coupang" = "Coupang";
 "Data Page" = "データページ";
+"Daum" = "Daum";
 "Delete %@" = "%@を削除";
 "Delete this chat?" = "このチャットを削除しますか？";
 "Download Again" = "もう一度ダウンロード";
@@ -48,12 +51,14 @@
 "It didn't recognize an option Changmun uses. Copy the update command, run it in Terminal, then try again." = "Changmunが使うオプションを認識できませんでした。アップデートのコマンドをコピーしてターミナルで実行してから、もう一度お試しください。";
 "Jump to the latest message" = "最新のメッセージへ移動";
 "Kept your newer passwords %@" = "新しいパスワードを維持 %@";
+"Naver Map" = "NAVER地図";
 "New Chat" = "新規チャット";
 "New messages" = "新しいメッセージ";
 "No answer" = "応答なし";
 "No answer within %@ counts as Don’t Allow." = "%@以内に答えないと「許可しない」として扱われます。";
 "No chats match “%@”" = "「%@」に一致するチャットはありません";
 "Not allowed in %@ unless you answer." = "答えないと%@後に「許可しない」になります。";
+"Other…" = "その他…";
 "Past chats can only be read. Choose Back to Chat in the title menu, or start a new chat, to write." = "過去のチャットは読むだけです。入力するには、タイトルのメニューで「チャットに戻る」を選ぶか、新規チャットを開始してください。";
 "Microphone on" = "マイクを使用中";
 "No matches" = "見つかりません";
@@ -63,6 +68,9 @@
 "Revoke %@" = "%@を取り消す";
 "Save Password?" = "パスワードを保存しますか?";
 "Search chats" = "チャットを検索";
+"Search with" = "次で検索";
+"Search with %@" = "%@で検索";
+"Search with %@ (⌘%lld)" = "%1$@で検索 (⌘%2$lld)";
 "Shows what the page is waiting on you for" = "ページがあなたの返事を待っているものを表示します";
 "Start a new chat (⌘⇧E)" = "新規チャットを開始 (⌘⇧E)";
 "Stopped. Nothing more is done until you send a message." = "停止しました。メッセージを送るまで何もしません。";
@@ -70,6 +78,7 @@
 "Tabs it may use" = "使ってよいタブ";
 "The AI has answered. Open the AI panel to read it (⌘E)" = "AIが回答しました。AIパネルを開くと読めます (⌘E)";
 "The AI is working. Open the AI panel to follow it (⌘E)" = "AIが作業中です。AIパネルを開くと様子を見られます (⌘E)";
+"The engines in this list are offered under a search in the address bar: click one, or press ⌘ and its number, to search with it once. An engine you add can also be searched by typing its keyword before your words, and gets no search suggestions." = "このリストの検索エンジンは、アドレスバーに検索語を入力するとその下に表示されます。クリックするか、⌘と番号を押すと、そのエンジンで一度だけ検索します。追加した検索エンジンは、検索語の前にキーワードを入力しても検索でき、検索候補は表示されません。";
 "This can't be undone." = "この操作は取り消せません。";
 "This chat is nearly full, so the AI may lose track of what was said early on. A new chat will work better." = "このチャットはほぼいっぱいで、AIが最初のほうの内容を見失うことがあります。新規チャットのほうがうまく動きます。";
 "Shows the list of downloads" = "ダウンロードの一覧を表示します";
@@ -77,6 +86,7 @@
 "Stop the camera and microphone" = "カメラとマイクを停止";
 "Stop the microphone" = "マイクを停止";
 "Update password for %@?" = "%@のパスワードを更新しますか？";
+"Wikipedia" = "Wikipedia";
 "a frame of an unknown site" = "不明なサイトのフレーム";
 "a page without a site" = "サイトのないページ";
 "%@ is muted" = "「%@」をミュートしました";
@@ -1016,7 +1026,6 @@
 "Open %@?" = "%@を開きますか？";
 "%@ wants to open the app." = "%@がアプリを開こうとしています。";
 "Account" = "アカウント";
-"Add Search Engine…" = "検索エンジンを追加…";
 "Another engine already uses that keyword." = "そのキーワードはほかのエンジンで使われています。";
 "Delete the folder “%@”?" = "フォルダ「%@」を削除しますか？";
 "Download finished" = "ダウンロードが完了しました";
@@ -1080,7 +1089,6 @@
 "This page has a password or payment field, so it isn’t sent to Claude, and this Mac can’t translate it: that needs macOS 26 or later." = "このページにはパスワード欄または支払い欄があるためClaudeには送られず、このMacでも翻訳できません（macOS 26以降が必要です）。";
 "Keep translating this site" = "このサイトを翻訳し続ける";
 "Translates this site’s pages as they open, and the text they add later. With Claude, the text of each page is sent to Anthropic automatically, without asking again." = "このサイトのページを開くたびに、あとから追加されるテキストも含めて翻訳します。Claudeを使う場合、各ページのテキストは確認なしで自動的にAnthropicへ送信されます。";
-"Type an engine’s keyword and then what you want to find in the address bar to search with it. Engines you add get no search suggestions." = "アドレスバーに、エンジンのキーワードに続けて探したい言葉を入力すると、そのエンジンで検索します。追加したエンジンには検索候補は表示されません。";
 "Sites you turned “Keep translating this site” on for stay here. Their pages are translated as they open. With Claude, the text of each of those pages is sent to Anthropic automatically." = "「このサイトを翻訳し続ける」をオンにしたサイトはここに残ります。これらのサイトのページは開くと翻訳されます。Claudeを使う場合、それらのページのテキストは自動的にAnthropicへ送信されます。";
 "Kept translating" = "翻訳を継続";
 "Keyword" = "キーワード";

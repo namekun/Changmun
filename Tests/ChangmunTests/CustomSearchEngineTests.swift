@@ -140,3 +140,77 @@ struct SearchEngineMenuTests {
     }
 }
 
+/// The command bar's row of other engines under a search, and ⌘ with a number for one of them.
+struct QuickSearchTests {
+    @Test func theRowOffersEveryEngineInTheListButTheOneTheSearchGoesTo() {
+        let wiki = CustomSearchEngine(name: "Wikipedia", keyword: "wiki", template: "https://en.wikipedia.org/w/index.php?search=%s")
+        let listed = SearchEngine.listed(removed: [SearchEngine.bing.rawValue])
+        let names = QuickSearch.chips(besides: SearchEngine.google.template, custom: [wiki], builtIns: listed).map(\.name)
+        #expect(names == [SearchEngine.naver.name, SearchEngine.duckDuckGo.name, "Wikipedia"], "Bing was taken out of the list")
+        #expect(QuickSearch.chips(besides: wiki.template, custom: [wiki]).map(\.id) == SearchEngine.allCases.map(\.rawValue))
+    }
+
+    @Test func theAddMenuOffersPresetsNotInTheListEachWithAKeywordNoOtherUses() {
+        let all = SearchEnginePresets.available(besides: [])
+        #expect(all.count == SearchEnginePresets.all.count)
+        for preset in all { #expect(CustomSearchEngine.problem(name: preset.name, keyword: preset.keyword, template: preset.template, among: []) == nil, "\(preset.name)") }
+        guard let youTube = all.first(where: { $0.template.contains("youtube.com") }) else { Issue.record("no YouTube preset"); return }
+        let mine = CustomSearchEngine(name: "Mine", keyword: "wiki", template: "https://mine.example/?q=%s")
+        let offered = SearchEnginePresets.available(besides: [youTube, mine])
+        #expect(!offered.contains { $0.template == youTube.template }, "one in the list is not offered again")
+        #expect(offered.first { $0.template.contains("wikipedia.org") }?.keyword == "wiki2", "a keyword in use gets a number")
+    }
+
+    @MainActor @Test func commandAndANumberSearchesWithThatEngineOnlyWhileTheBarShowsTheRow() throws {
+        let b = Browser()
+        defer { b.windowClosed() }
+        let engines = QuickSearch.chips(besides: SearchEngine.google.template, custom: [])
+        let chips = CommandBarChips(engines: engines, terms: "돼지국밥", mode: .newTab)
+        b.commandBarChips = chips
+        #expect(!b.searchWithChip(number: 1), "with the bar closed, ⌘1 is the first tab's")
+        b.commandBar = .newTab
+        b.commandBarChips = chips
+        let before = b.tabs.count
+        #expect(!b.searchWithChip(number: 9), "no engine at that number: the tab's")
+        #expect(b.searchWithChip(number: 1))
+        #expect(b.tabs.count == before + 1)
+        let url = try #require(b.tabs.last?.url)
+        #expect(url.host() == "search.naver.com" && url.query()?.contains("%EB%8F%BC%EC%A7%80%EA%B5%AD%EB%B0%A5") == true)
+        #expect(b.commandBar == nil && b.commandBarChips == nil, "the bar closes and forgets its row")
+    }
+}
+
+
+/// Taking a built-in engine out of the list and putting it back, in the app's own settings (restored after).
+extension SharedAgentState {
+    @MainActor @Suite(.serialized)
+    struct SearchEngineListTests {
+        @Test func theDefaultEngineStaysAndAnotherComesAndGoes() {
+            let prefs = Preferences.shared
+            let saved = (prefs.searchEngine, prefs.removedSearchEngines, UserDefaults.standard.string(forKey: "searchURL"), prefs.customSearchEngines)
+            defer {
+                prefs.customSearchEngines = saved.3
+                prefs.searchEngine = saved.0
+                prefs.removedSearchEngines = saved.1
+                UserDefaults.standard.set(saved.2, forKey: "searchURL")
+            }
+            prefs.customSearchEngines = []
+            prefs.removedSearchEngines = []
+            prefs.defaultEngineChoice = .builtIn(.google)
+            prefs.setListed(.google, false)
+            #expect(SearchEngine.listed().contains(.google), "the engine searches go to can't be taken out")
+            prefs.setListed(.bing, false)
+            #expect(!SearchEngine.listed().contains(.bing) && AddressInput.searchTemplate == SearchEngine.google.template)
+            prefs.setListed(.bing, true)
+            #expect(SearchEngine.listed().contains(.bing))
+            // An added engine is the default and the built-in one it falls back to is taken out: removing the added one brings that back.
+            let mine = CustomSearchEngine(name: "Mine", keyword: "mine", template: "https://mine.example/?q=%s")
+            prefs.save(mine)
+            prefs.useAsDefault(mine)
+            prefs.setListed(.google, false)
+            #expect(!SearchEngine.listed().contains(.google) && prefs.searchEngine != .google && AddressInput.searchTemplate == mine.template)
+            prefs.remove(mine)
+            #expect(SearchEngine.listed().contains(prefs.searchEngine) && AddressInput.searchTemplate == prefs.searchEngine.template)
+        }
+    }
+}

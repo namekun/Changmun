@@ -26,6 +26,7 @@
 "A window the site fills in itself. Allow it, then try again." = "사이트가 직접 채우는 창이에요. 허용한 뒤 다시 눌러 주세요.";
 "AI · Answered" = "AI · 답변 도착";
 "AI · Working" = "AI · 작업 중";
+"Add Search Engine" = "검색 엔진 추가";
 "Addresses it may open" = "열어도 되는 주소";
 "After revoking, the AI asks again before it uses that tab or opens that address. A new chat starts with none of these." = "허용을 취소하면 AI가 그 탭을 쓰거나 그 주소를 열기 전에 다시 물어요. 새 대화는 이 허용 없이 시작해요.";
 "Answer waiting" = "읽지 않은 답변 있음";
@@ -38,7 +39,9 @@
 "Camera on" = "카메라 켜짐";
 "Couldn’t delete the space: its favorites couldn’t be moved" = "스페이스를 삭제하지 못했어요. 즐겨찾기를 옮길 수 없었어요";
 "Couldn’t open the bookmarks and history file, so nothing new is saved in it" = "북마크와 방문 기록 파일을 열 수 없어서, 새로 저장되는 내용이 없어요";
+"Coupang" = "쿠팡";
 "Data Page" = "데이터 페이지";
+"Daum" = "다음";
 "Delete %@" = "%@ 삭제";
 "Delete this chat?" = "이 대화를 삭제할까요?";
 "Download Again" = "다시 다운로드";
@@ -48,12 +51,14 @@
 "It didn't recognize an option Changmun uses. Copy the update command, run it in Terminal, then try again." = "Changmun이 쓰는 옵션을 알아보지 못했어요. 업데이트 명령어를 복사해 터미널에서 실행한 뒤 다시 시도해 주세요.";
 "Jump to the latest message" = "최신 메시지로 이동";
 "Kept your newer passwords %@" = "더 최근 비밀번호 유지 %@";
+"Naver Map" = "네이버 지도";
 "New Chat" = "새 대화";
 "New messages" = "새 메시지";
 "No answer" = "응답 없음";
 "No answer within %@ counts as Don’t Allow." = "%@ 안에 답하지 않으면 ‘허용 안 함’으로 처리돼요.";
 "No chats match “%@”" = "“%@”에 맞는 대화가 없어요";
 "Not allowed in %@ unless you answer." = "답하지 않으면 %@ 뒤 ‘허용 안 함’으로 처리돼요.";
+"Other…" = "직접 입력…";
 "Past chats can only be read. Choose Back to Chat in the title menu, or start a new chat, to write." = "지난 대화는 읽기만 할 수 있어요. 글을 쓰려면 제목 메뉴에서 ‘대화로 돌아가기’를 고르거나 새 대화를 시작해 주세요.";
 "Microphone on" = "마이크 켜짐";
 "No matches" = "일치하는 항목이 없어요";
@@ -63,6 +68,9 @@
 "Revoke %@" = "%@ 허용 취소";
 "Save Password?" = "비밀번호 저장할까요?";
 "Search chats" = "대화 검색";
+"Search with" = "다음으로 검색";
+"Search with %@" = "%@에서 검색";
+"Search with %@ (⌘%lld)" = "%1$@에서 검색 (⌘%2$lld)";
 "Shows what the page is waiting on you for" = "페이지가 기다리는 일을 보여 줘요";
 "Start a new chat (⌘⇧E)" = "새 대화 시작 (⌘⇧E)";
 "Stopped. Nothing more is done until you send a message." = "중지했어요. 메시지를 보내기 전까지 아무것도 하지 않아요.";
@@ -70,6 +78,7 @@
 "Tabs it may use" = "써도 되는 탭";
 "The AI has answered. Open the AI panel to read it (⌘E)" = "AI가 답했어요. 읽으려면 AI 패널을 열어 주세요 (⌘E)";
 "The AI is working. Open the AI panel to follow it (⌘E)" = "AI가 작업 중이에요. 지켜보려면 AI 패널을 열어 주세요 (⌘E)";
+"The engines in this list are offered under a search in the address bar: click one, or press ⌘ and its number, to search with it once. An engine you add can also be searched by typing its keyword before your words, and gets no search suggestions." = "이 목록의 검색엔진은 주소창에 검색어를 치면 그 아래에 나와요. 하나를 누르거나 ⌘와 순서 번호를 누르면 그 엔진으로 한 번 검색해요. 직접 추가한 검색엔진은 검색어 앞에 키워드를 붙여 쳐도 되고, 검색어 제안은 나오지 않아요.";
 "This can't be undone." = "되돌릴 수 없어요.";
 "This chat is nearly full, so the AI may lose track of what was said early on. A new chat will work better." = "이 대화가 거의 가득 차서 AI가 앞에서 나눈 이야기를 놓칠 수 있어요. 새 대화에서 더 잘 동작해요.";
 "Shows the list of downloads" = "다운로드 목록을 열어요";
@@ -77,6 +86,7 @@
 "Stop the camera and microphone" = "카메라와 마이크 끄기";
 "Stop the microphone" = "마이크 끄기";
 "Update password for %@?" = "%@의 비밀번호를 업데이트할까요?";
+"Wikipedia" = "위키백과";
 "a frame of an unknown site" = "알 수 없는 사이트의 프레임";
 "a page without a site" = "사이트가 없는 페이지";
 "%@ is muted" = "%@의 소리를 껐어요";
@@ -1016,7 +1026,6 @@
 "Open %@?" = "%@ 앱을 열까요?";
 "%@ wants to open the app." = "%@에서 앱을 열려고 해요.";
 "Account" = "계정";
-"Add Search Engine…" = "검색 엔진 추가…";
 "Another engine already uses that keyword." = "다른 검색 엔진이 이미 그 키워드를 쓰고 있어요.";
 "Delete the folder “%@”?" = "“%@” 폴더를 삭제할까요?";
 "Download finished" = "다운로드를 마쳤어요";
@@ -1080,7 +1089,6 @@
 "This page has a password or payment field, so it isn’t sent to Claude, and this Mac can’t translate it: that needs macOS 26 or later." = "이 페이지에는 비밀번호나 결제 칸이 있어서 Claude에 보내지 않았고, 이 Mac에서도 번역할 수 없어요(macOS 26 이상 필요).";
 "Keep translating this site" = "이 사이트 계속 번역";
 "Translates this site’s pages as they open, and the text they add later. With Claude, the text of each page is sent to Anthropic automatically, without asking again." = "이 사이트의 페이지를 열 때마다, 그리고 나중에 추가되는 글도 번역해요. Claude로 번역하면 페이지마다 글이 자동으로 Anthropic에 보내지고, 다시 묻지 않아요.";
-"Type an engine’s keyword and then what you want to find in the address bar to search with it. Engines you add get no search suggestions." = "주소창에 검색 엔진의 키워드와 찾을 내용을 차례로 입력하면 그 검색 엔진으로 검색해요. 추가한 검색 엔진에는 검색어 제안이 나오지 않아요.";
 "Sites you turned “Keep translating this site” on for stay here. Their pages are translated as they open. With Claude, the text of each of those pages is sent to Anthropic automatically." = "‘이 사이트 계속 번역’을 켠 사이트가 여기에 남아요. 이 사이트들의 페이지는 열 때 바로 번역돼요. Claude로 번역하면 그 페이지마다 글이 자동으로 Anthropic에 보내져요.";
 "Kept translating" = "계속 번역";
 "Keyword" = "키워드";
