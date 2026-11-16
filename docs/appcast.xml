@@ -6,6 +6,20 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.17.0</title>
+      <pubDate>Mon, 16 Nov 2026 13:01:40 +0000</pubDate>
+      <sparkle:version>61</sparkle:version>
+      <sparkle:shortVersionString>0.17.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.17.0</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **New:** when you type a search in the address bar, the other search engines in your list are offered under it. Click one, or press ⌘ and its number while the bar is open, to search with it just this once; your default engine stays as it is.
+- **New:** the search engines are one list in Settings › General › Search. Take any of them out (all but the default), and put engines in from Add Search Engine: one you took out, a well-known one (Daum, YouTube, Namuwiki, Wikipedia, Coupang, Naver Map, GitHub, Perplexity), or any other.
+
+Tried with automated tests and the off-screen test copy.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.17.0/Changmun-0.17.0.dmg" length="6622096" type="application/octet-stream" sparkle:edSignature="Sm9J1ztrTaNe4bC73gXmFlt/U77R39MfUtUClFyETFiwAcejyi2/8BaQ5u9o+M6Otr47kvPpMHhbsnq5jrtTBw==" />
+    </item>
+    <item>
       <title>0.16.3</title>
       <pubDate>Sat, 14 Nov 2026 02:53:15 +0000</pubDate>
       <sparkle:version>60</sparkle:version>
@@ -129,28 +143,9 @@ Tried with automated tests and the headless copy, by replaying the shop's add-to
 Tried with automated tests and a render of the icon on both Docks. An icon that changes with the system's light and dark look isn't in this version: I couldn't confirm on my Mac that macOS draws it.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.1/Changmun-0.15.1.dmg" length="6155841" type="application/octet-stream" sparkle:edSignature="r2Sj4eakNWiWD6xBIxgdHaFgRrOwlYKeT4/Ld1P0b2xdpAV6OJ0TSobbrfwy/k8HhW2FbGAv1ywIxUmTVvKEAw==" />
     </item>
-    <item>
-      <title>0.15.0</title>
-      <pubDate>Sat, 07 Nov 2026 15:16:08 +0000</pubDate>
-      <sparkle:version>51</sparkle:version>
-      <sparkle:shortVersionString>0.15.0</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.15.0</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **One layout.** Tabs live in the sidebar, the toolbar sits above the page, and the address is the pill. The settings that moved these around, tabs on top, toolbar in the sidebar, address bar position and sidebar width, are gone, along with the tab strip they needed. If you had tabs on top, they are back in the sidebar.
-- **Notices in one place.** A saved-login offer, a blocked pop-up and a Web Store install no longer stack as bars over the page. A dot at the left of the address shows there is something waiting, and one list behind it holds them, with the same choices as before.
-- **A plainer start page.** A search field and your favorites, on a plain background. The three start page styles, the extra sections, the background picture and the shortcut hints are gone.
-- **Downloads in words.** A running download reads "name · 42% · Downloading" and a finished one "name · 2.1 MB · Done", in the sidebar, and a finished one stays until you close it. With the sidebar hidden, the percentage shows beside the downloads button. The progress ring and the dot are gone.
-- **No accent in the chrome.** The AI button, the working indicator and the space name are plain ink.
-- **Fewer settings.** Developer Mode, Picture in Picture on tab switch and automatic grouping of new tabs are gone; the rest stays.
-- **Fixed:** the certificate warning was hard to see in light mode; the shield and star beside the address can now be reached from the keyboard and VoiceOver; the remove buttons in Settings have names for VoiceOver; the "Update password?" question had a Save button; a few Korean particles and the words for Delete and Remove were inconsistent.
-
-This follows Dieter Rams's "less, but better": settings that chose where things go are gone, and one place holds each thing. Tried with automated tests and the headless copy. The settings you lose come back at their defaults; tell me if one you relied on is missing.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.0/Changmun-0.15.0.dmg" length="6347280" type="application/octet-stream" sparkle:edSignature="4Y76TBTtB4z9owkWjMZl6aVMWEAosD5SM4nEB9TlJnz4b/dp3Z3pUw9ymOccgKW73IG7fE3ZMlGmnwDQ3t2GCg==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: iUf+krWhJ7Ennr6MOnycQiKvHPE7xGNA2Q0sHjdn3rKcFNfKjWNvpwZojYPiy3C6k/1WLcw7GaTCzzZyVgfoCw==
-length: 16230
+edSignature: 7WHK+fpfXf52Fm5I9L5T8AFmWrGjw+siGVunrsmBRWVknv93eiYysWgenT+2M2q2MLsj7mflAX85IesUOwZeAQ==
+length: 14901
 -->
