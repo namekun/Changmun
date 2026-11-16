@@ -137,8 +137,12 @@ final class Browser: ObservableObject {
         }
     }
     @Published var commandBar: CommandBarMode? {
-        didSet { if commandBar != nil { closePeek() } }
+        didSet {
+            if commandBar != nil { closePeek() } else { commandBarChips = nil }
+        }
     }
+    /// The command bar's engine row while it shows one (see `searchWithChip`).
+    var commandBarChips: CommandBarChips?
     @Published var showOnboarding = false
     @Published var showDownloads = false {
         didSet { if showDownloads { focusMode = false } }

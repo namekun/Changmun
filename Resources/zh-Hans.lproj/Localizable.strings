@@ -63,6 +63,10 @@
 "Revoke %@" = "撤销 %@";
 "Save Password?" = "存储密码?";
 "Search chats" = "搜索对话";
+"Search with" = "搜索方式";
+"Search with %@" = "用 %@ 搜索";
+"Search with %@ (⌘%lld)" = "用 %1$@ 搜索 (⌘%2$lld)";
+"Shown under a search" = "在搜索词下方显示";
 "Shows what the page is waiting on you for" = "显示页面在等你处理的事项";
 "Start a new chat (⌘⇧E)" = "开始新对话 (⌘⇧E)";
 "Stopped. Nothing more is done until you send a message." = "已停止。在你发送消息之前不会再做任何事。";
@@ -77,6 +81,7 @@
 "Stop the camera and microphone" = "停止使用摄像头和麦克风";
 "Stop the microphone" = "停止使用麦克风";
 "Update password for %@?" = "要更新 %@ 的密码吗？";
+"When you type a search, these engines are offered under it. Click one, or press ⌘ and its number, to search with it once; or type its keyword before your words." = "输入搜索词时，下方会显示这些搜索引擎。点按一个，或按 ⌘ 和它的编号，即可用它搜索一次；也可以在搜索词前输入它的关键词。";
 "a frame of an unknown site" = "来源不明的框架";
 "a page without a site" = "没有网站的页面";
 "%@ is muted" = "已将“%@”静音";

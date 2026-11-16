@@ -70,6 +70,17 @@ struct CustomSearchEngineTests {
         #expect(SearchRouting.pick("wiki swift", default: google, engines: []).template == google)
     }
 
+    @Test func aBuiltInEnginesKeywordSearchesWithItAndAnAddedEnginesKeywordComesFirst() {
+        let google = SearchTemplate.google
+        #expect(SearchRouting.pick("n 돼지국밥", default: google, engines: []) == (SearchEngine.naver.template, "돼지국밥"))
+        #expect(SearchRouting.pick("D privacy", default: google, engines: []).template == SearchEngine.duckDuckGo.template)
+        #expect(SearchRouting.pick("n", default: google, engines: []).template == google, "a keyword alone is a search for the letter")
+        let mine = engine("n", "https://news.example/?q=%s")
+        #expect(SearchRouting.pick("n 돼지국밥", default: google, engines: [mine]).template == mine.template)
+        #expect(!SearchRouting.allowsSuggestions(for: "n 돼지국밥", defaultTemplate: google, engines: []),
+                "words for another engine aren't sent to the default engine for suggestions")
+    }
+
     @Test func aDamagedStoredValueFallsBackToTheDefaultEngine() {
         #expect(SearchTemplate.valid(nil) == SearchTemplate.google)
         #expect(SearchTemplate.valid("") == SearchTemplate.google)
@@ -137,6 +148,37 @@ struct SearchEngineMenuTests {
         #expect(SearchEngineChoice.current(template: wiki.template, builtIn: .bing, custom: []) == .builtIn(.bing),
                 "an engine that was removed is not shown as the default")
         #expect(SearchEngineChoice.current(template: nil, builtIn: .duckDuckGo, custom: [wiki]) == .builtIn(.duckDuckGo))
+    }
+}
+
+/// The command bar's row of other engines under a search, and ⌘ with a number for one of them.
+struct QuickSearchTests {
+    @Test func theRowOffersEveryEngineButTheOneTheSearchGoesToAndThoseTakenOff() {
+        let wiki = CustomSearchEngine(name: "Wikipedia", keyword: "wiki", template: "https://en.wikipedia.org/w/index.php?search=%s")
+        let names = QuickSearch.chips(besides: SearchEngine.google.template, custom: [wiki], hidden: [SearchEngine.bing.rawValue]).map(\.name)
+        #expect(names == [SearchEngine.naver.name, SearchEngine.duckDuckGo.name, "Wikipedia"])
+        #expect(QuickSearch.chips(besides: wiki.template, custom: [wiki], hidden: []).map(\.id) == SearchEngine.allCases.map(\.rawValue))
+        let news = CustomSearchEngine(name: "News", keyword: "n", template: "https://news.example/?q=%s")
+        #expect(QuickSearch.all(custom: [news]).first { $0.id == SearchEngine.naver.rawValue }?.keyword == "",
+                "a keyword an added engine has taken is not shown for the built-in engine")
+    }
+
+    @MainActor @Test func commandAndANumberSearchesWithThatEngineOnlyWhileTheBarShowsTheRow() throws {
+        let b = Browser()
+        defer { b.windowClosed() }
+        let engines = QuickSearch.chips(besides: SearchEngine.google.template, custom: [], hidden: [])
+        let chips = CommandBarChips(engines: engines, terms: "돼지국밥", mode: .newTab)
+        b.commandBarChips = chips
+        #expect(!b.searchWithChip(number: 1), "with the bar closed, ⌘1 is the first tab's")
+        b.commandBar = .newTab
+        b.commandBarChips = chips
+        let before = b.tabs.count
+        #expect(!b.searchWithChip(number: 9), "no engine at that number: the tab's")
+        #expect(b.searchWithChip(number: 1))
+        #expect(b.tabs.count == before + 1)
+        let url = try #require(b.tabs.last?.url)
+        #expect(url.host() == "search.naver.com" && url.query()?.contains("%EB%8F%BC%EC%A7%80%EA%B5%AD%EB%B0%A5") == true)
+        #expect(b.commandBar == nil && b.commandBarChips == nil, "the bar closes and forgets its row")
     }
 }
 

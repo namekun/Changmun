@@ -22,6 +22,17 @@ enum SearchEngine: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Typed before the words in the address bar, searches with this engine whichever is the default (an added engine's own keyword
+    /// comes first).
+    var keyword: String {
+        switch self {
+        case .google: "g"
+        case .naver: "n"
+        case .duckDuckGo: "d"
+        case .bing: "b"
+        }
+    }
+
     var template: String {
         switch self {
         case .google: "https://www.google.com/search?q=%s"
@@ -59,6 +70,8 @@ final class Preferences: ObservableObject {
     }
     /// Engines the user added, each with a keyword to search it by (see CustomSearchEngine). Which one is the default is the stored "searchURL".
     @Published var customSearchEngines: [CustomSearchEngine] { didSet { CustomSearchEngine.store(customSearchEngines, in: defaults) } }
+    /// Engines left out of the row under a search in the command bar (see QuickSearch), by `QuickSearch.Engine.id`.
+    @Published var hiddenSearchChips: [String] { didSet { defaults.set(hiddenSearchChips, forKey: "hiddenSearchChips") } }
     /// Sends what is typed in the command bar to the search engine for suggestions (never from a private window).
     @Published var searchSuggestions: Bool { didSet { defaults.set(searchSuggestions, forKey: "searchSuggestions") } }
     @Published var restoreTabs: Bool { didSet { defaults.set(restoreTabs, forKey: "restoreTabs") } }
@@ -225,6 +238,7 @@ final class Preferences: ObservableObject {
         let template = d.string(forKey: "searchURL")
         searchEngine = SearchEngine.allCases.first { $0.template == template } ?? .google
         customSearchEngines = CustomSearchEngine.stored(in: d)
+        hiddenSearchChips = d.stringArray(forKey: "hiddenSearchChips") ?? []
         searchSuggestions = d.object(forKey: "searchSuggestions") as? Bool ?? true
         restoreTabs = d.object(forKey: "restoreTabs") as? Bool ?? true
         downloadFolder = d.string(forKey: "downloadFolder").map { URL(fileURLWithPath: $0) }

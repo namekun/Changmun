@@ -63,6 +63,10 @@
 "Revoke %@" = "%@ 허용 취소";
 "Save Password?" = "비밀번호 저장할까요?";
 "Search chats" = "대화 검색";
+"Search with" = "다음으로 검색";
+"Search with %@" = "%@에서 검색";
+"Search with %@ (⌘%lld)" = "%1$@에서 검색 (⌘%2$lld)";
+"Shown under a search" = "검색어 아래에 보이기";
 "Shows what the page is waiting on you for" = "페이지가 기다리는 일을 보여 줘요";
 "Start a new chat (⌘⇧E)" = "새 대화 시작 (⌘⇧E)";
 "Stopped. Nothing more is done until you send a message." = "중지했어요. 메시지를 보내기 전까지 아무것도 하지 않아요.";
@@ -77,6 +81,7 @@
 "Stop the camera and microphone" = "카메라와 마이크 끄기";
 "Stop the microphone" = "마이크 끄기";
 "Update password for %@?" = "%@의 비밀번호를 업데이트할까요?";
+"When you type a search, these engines are offered under it. Click one, or press ⌘ and its number, to search with it once; or type its keyword before your words." = "검색어를 치면 그 아래에 이 검색엔진들이 보여요. 하나를 누르거나 ⌘와 순서 번호를 누르면 그 엔진으로 한 번 검색해요. 검색어 앞에 키워드를 붙여 쳐도 돼요.";
 "a frame of an unknown site" = "알 수 없는 사이트의 프레임";
 "a page without a site" = "사이트가 없는 페이지";
 "%@ is muted" = "%@의 소리를 껐어요";

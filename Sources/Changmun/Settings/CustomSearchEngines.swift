@@ -113,14 +113,17 @@ enum SearchTemplate {
 
 /// Which template a typed search goes to.
 enum SearchRouting {
-    /// The template and the words to search for: with a custom engine's keyword first and something after it, that engine and what follows;
-    /// otherwise the default template and all of it.
+    /// The template and the words to search for: with an engine's keyword first and something after it, that engine and what follows (an
+    /// added engine's keyword before a built-in one's); otherwise the default template and all of it.
     nonisolated static func pick(_ query: String, default template: String, engines: [CustomSearchEngine]) -> (template: String, terms: String) {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let space = text.firstIndex(where: \.isWhitespace) else { return (template, query) }
         let terms = text[space...].trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !terms.isEmpty, let engine = engines.first(where: { $0.keyword == text[..<space].lowercased() }) else { return (template, query) }
-        return (engine.template, terms)
+        let word = text[..<space].lowercased()
+        guard !terms.isEmpty else { return (template, query) }
+        if let engine = engines.first(where: { $0.keyword == word }) { return (engine.template, terms) }
+        if let engine = SearchEngine.allCases.first(where: { $0.keyword == word }) { return (engine.template, terms) }
+        return (template, query)
     }
 
     /// Whether what is typed may be sent to the built-in engine for suggestions: not when a custom engine is the default (custom engines get
@@ -197,3 +200,28 @@ enum SearchEngineChoice: Hashable {
         custom.first { $0.template == template }.map { .custom($0.id) } ?? .builtIn(builtIn)
     }
 }
+
+/// The engines a search can go to just this once from the command bar (see EngineChips): the built-in ones, then those the user added,
+/// without the one the search row already uses and without those taken off the row in Settings.
+enum QuickSearch {
+    struct Engine: Hashable, Identifiable {
+        /// A built-in engine's raw value, or an added engine's UUID.
+        let id: String
+        let name: String
+        /// Empty for a built-in engine whose keyword an added engine has taken.
+        let keyword: String
+        let template: String
+    }
+
+    nonisolated static func all(custom: [CustomSearchEngine]) -> [Engine] {
+        let taken = Set(custom.map(\.keyword))
+        return SearchEngine.allCases.map { Engine(id: $0.rawValue, name: $0.name, keyword: taken.contains($0.keyword) ? "" : $0.keyword, template: $0.template) }
+            + custom.map { Engine(id: $0.id.uuidString, name: $0.name, keyword: $0.keyword, template: $0.template) }
+    }
+
+    /// The row under a search whose words go to `template`.
+    nonisolated static func chips(besides template: String, custom: [CustomSearchEngine], hidden: [String]) -> [Engine] {
+        all(custom: custom).filter { $0.template != template && !hidden.contains($0.id) }
+    }
+}
+

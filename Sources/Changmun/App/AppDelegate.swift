@@ -410,7 +410,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func seekBack(_ sender: Any?) { PictureInPictureKeys.target?.seekVideo(by: -PictureInPictureKeys.step) }
     @objc func seekForward(_ sender: Any?) { PictureInPictureKeys.target?.seekVideo(by: PictureInPictureKeys.step) }
     @objc func previousTab(_ sender: Any?) { browser.selectTab(offset: -1) }
-    @objc func selectNumberedTab(_ sender: NSMenuItem) { browser.selectTab(number: sender.tag) }
+    @objc func selectNumberedTab(_ sender: NSMenuItem) {
+        if browser.searchWithChip(number: sender.tag) { return }
+        browser.selectTab(number: sender.tag)
+    }
     @objc func zoomIn(_ sender: Any?) { zoom(browser, by: 0.1) }
     @objc func zoomOut(_ sender: Any?) { zoom(browser, by: -0.1) }
     @objc func actualSize(_ sender: Any?) { resetZoom(in: browser) }

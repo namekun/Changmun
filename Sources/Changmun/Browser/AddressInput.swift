@@ -26,6 +26,11 @@ enum AddressInput {
     static func searchURL(_ query: String) -> URL? {
         // A custom engine's keyword first (`wiki cats`) sends the words after it to that engine.
         let (template, terms) = SearchRouting.pick(query, default: searchTemplate, engines: CustomSearchEngine.stored())
+        return searchURL(terms, template: template)
+    }
+
+    /// `terms` searched for with the engine whose address is `template`.
+    static func searchURL(_ terms: String, template: String) -> URL? {
         let encoded = terms.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) ?? terms
         return URL(string: template.replacingOccurrences(of: "%s", with: encoded))
     }

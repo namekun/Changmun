@@ -150,6 +150,13 @@ struct CommandBar: View {
                                 .onContinuousHover(coordinateSpace: .global) { phase in
                                     if case .active(let point) = phase, pointer.moved(to: point) { selection = index }
                                 }
+                            if index == 0, let chips = chips(for: items) {
+                                EngineChips(engines: chips.engines) { engine in
+                                    if let url = AddressInput.searchURL(chips.terms, template: engine.template) {
+                                        browser.open(url.absoluteString, in: NSEvent.modifierFlags.contains(.command) ? .newTab : mode)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -174,6 +181,7 @@ struct CommandBar: View {
             }
         }
         .onChange(of: items) { old, new in keepSelection(old, new) }
+        .onChange(of: chips(for: items), initial: true) { _, chips in browser.commandBarChips = chips }
         // The number of suggestions is said once the typing pauses, not at every letter.
         .onChange(of: items.count) { _, count in
             announceTask?.cancel()
@@ -198,6 +206,14 @@ struct CommandBar: View {
             browser.window?.makeFirstResponder(nil)
             DispatchQueue.main.async { focused = true }
         }
+    }
+
+    /// The engine row under a search row: the other engines the words can go to just this once, none for an address or an empty field.
+    private func chips(for items: [Suggestion]) -> CommandBarChips? {
+        guard case .search(let query) = items.first else { return nil }
+        let routed = SearchRouting.pick(query, default: AddressInput.searchTemplate, engines: prefs.customSearchEngines)
+        let engines = QuickSearch.chips(besides: routed.template, custom: prefs.customSearchEngines, hidden: prefs.hiddenSearchChips)
+        return engines.isEmpty ? nil : CommandBarChips(engines: engines, terms: routed.terms, mode: mode)
     }
 
     /// What the field shows: the field editor's own text while it has the focus, composing text and all, else the binding.

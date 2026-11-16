@@ -63,6 +63,10 @@
 "Revoke %@" = "%@ widerrufen";
 "Save Password?" = "Passwort sichern?";
 "Search chats" = "Chats durchsuchen";
+"Search with" = "Suchen mit";
+"Search with %@" = "Mit %@ suchen";
+"Search with %@ (⌘%lld)" = "Mit %1$@ suchen (⌘%2$lld)";
+"Shown under a search" = "Unter einer Suche anzeigen";
 "Shows what the page is waiting on you for" = "Zeigt, worauf die Seite von dir wartet";
 "Start a new chat (⌘⇧E)" = "Neuen Chat starten (⌘⇧E)";
 "Stopped. Nothing more is done until you send a message." = "Gestoppt. Bis du eine Nachricht sendest, passiert nichts mehr.";
@@ -77,6 +81,7 @@
 "Stop the camera and microphone" = "Kamera und Mikrofon stoppen";
 "Stop the microphone" = "Mikrofon stoppen";
 "Update password for %@?" = "Passwort für %@ aktualisieren?";
+"When you type a search, these engines are offered under it. Click one, or press ⌘ and its number, to search with it once; or type its keyword before your words." = "Wenn du eine Suche eingibst, werden diese Suchmaschinen darunter angeboten. Klicke auf eine oder drücke ⌘ und ihre Nummer, um einmal mit ihr zu suchen – oder tippe ihr Stichwort vor deine Suchbegriffe.";
 "a frame of an unknown site" = "ein Frame einer unbekannten Website";
 "a page without a site" = "eine Seite ohne Website";
 "%@ is muted" = "%@ ist stummgeschaltet";
