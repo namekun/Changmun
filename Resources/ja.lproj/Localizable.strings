@@ -78,7 +78,7 @@
 "Tabs it may use" = "使ってよいタブ";
 "The AI has answered. Open the AI panel to read it (⌘E)" = "AIが回答しました。AIパネルを開くと読めます (⌘E)";
 "The AI is working. Open the AI panel to follow it (⌘E)" = "AIが作業中です。AIパネルを開くと様子を見られます (⌘E)";
-"The engines in this list are offered under a search in the address bar: click one, or press ⌘ and its number, to search with it once. Typing an engine’s keyword before your words searches with it too. Engines you add get no search suggestions." = "このリストの検索エンジンは、アドレスバーに検索語を入力するとその下に表示されます。クリックするか、⌘と番号を押すと、そのエンジンで一度だけ検索します。検索語の前にキーワードを入力しても検索できます。追加した検索エンジンには検索候補が表示されません。";
+"The engines in this list are offered under a search in the address bar: click one, or press ⌘ and its number, to search with it once. An engine you add can also be searched by typing its keyword before your words, and gets no search suggestions." = "このリストの検索エンジンは、アドレスバーに検索語を入力するとその下に表示されます。クリックするか、⌘と番号を押すと、そのエンジンで一度だけ検索します。追加した検索エンジンは、検索語の前にキーワードを入力しても検索でき、検索候補は表示されません。";
 "This can't be undone." = "この操作は取り消せません。";
 "This chat is nearly full, so the AI may lose track of what was said early on. A new chat will work better." = "このチャットはほぼいっぱいで、AIが最初のほうの内容を見失うことがあります。新規チャットのほうがうまく動きます。";
 "Shows the list of downloads" = "ダウンロードの一覧を表示します";

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The other engines a search can go to just this once, under the search row: a click, or ⌘ and its number while the bar is open,
-/// searches the words with that engine and leaves the default as it is. Each shows its keyword, which does the same typed before the words.
+/// searches the words with that engine and leaves the default as it is.
 struct EngineChips: View {
     let engines: [QuickSearch.Engine]
     let pick: (QuickSearch.Engine) -> Void
@@ -11,10 +11,7 @@ struct EngineChips: View {
             Text("Search with").font(.secondary).foregroundStyle(Theme.secondary).padding(.trailing, 4).decorative()
             ForEach(Array(engines.prefix(9).enumerated()), id: \.element) { index, engine in
                 Button { pick(engine) } label: {
-                    HStack(spacing: 4) {
-                        Text(verbatim: engine.name).font(.secondary).foregroundStyle(Theme.primary)
-                        if !engine.keyword.isEmpty { Text(verbatim: engine.keyword).font(.caption).foregroundStyle(Theme.tertiary) }
-                    }
+                    Text(verbatim: engine.name).font(.secondary).foregroundStyle(Theme.primary)
                     .padding(.horizontal, 8)
                     .frame(height: 24)
                     .background(Capsule().fill(Theme.field))

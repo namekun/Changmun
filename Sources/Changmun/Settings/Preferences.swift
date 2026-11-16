@@ -33,17 +33,6 @@ enum SearchEngine: String, CaseIterable, Identifiable {
         allCases.filter { !removed.contains($0.rawValue) }
     }
 
-    /// Typed before the words in the address bar, searches with this engine whichever is the default (an added engine's own keyword
-    /// comes first).
-    var keyword: String {
-        switch self {
-        case .google: "g"
-        case .naver: "n"
-        case .duckDuckGo: "d"
-        case .bing: "b"
-        }
-    }
-
     var template: String {
         switch self {
         case .google: "https://www.google.com/search?q=%s"
@@ -81,7 +70,7 @@ final class Preferences: ObservableObject {
     }
     /// Engines the user added, each with a keyword to search it by (see CustomSearchEngine). Which one is the default is the stored "searchURL".
     @Published var customSearchEngines: [CustomSearchEngine] { didSet { CustomSearchEngine.store(customSearchEngines, in: defaults) } }
-    /// Built-in engines the user took out of the list, by raw value: no keyword, no place under a search, not in the Search Engine menu.
+    /// Built-in engines the user took out of the list, by raw value: no place under a search, not in the Search Engine menu.
     @Published var removedSearchEngines: [String] { didSet { defaults.set(removedSearchEngines, forKey: SearchEngine.removedKey) } }
     /// Sends what is typed in the command bar to the search engine for suggestions (never from a private window).
     @Published var searchSuggestions: Bool { didSet { defaults.set(searchSuggestions, forKey: "searchSuggestions") } }

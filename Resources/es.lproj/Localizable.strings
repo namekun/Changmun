@@ -78,7 +78,7 @@
 "Tabs it may use" = "Pestañas que puede usar";
 "The AI has answered. Open the AI panel to read it (⌘E)" = "La IA ha respondido. Abre el panel de IA para leerlo (⌘E)";
 "The AI is working. Open the AI panel to follow it (⌘E)" = "La IA está trabajando. Abre el panel de IA para seguirla (⌘E)";
-"The engines in this list are offered under a search in the address bar: click one, or press ⌘ and its number, to search with it once. Typing an engine’s keyword before your words searches with it too. Engines you add get no search suggestions." = "Los buscadores de esta lista aparecen bajo una búsqueda en la barra de direcciones: haz clic en uno, o pulsa ⌘ y su número, para buscar una vez con él. Escribir su palabra clave antes de tus términos también busca con él. Los buscadores que añades no ofrecen sugerencias.";
+"The engines in this list are offered under a search in the address bar: click one, or press ⌘ and its number, to search with it once. An engine you add can also be searched by typing its keyword before your words, and gets no search suggestions." = "Los buscadores de esta lista aparecen bajo una búsqueda en la barra de direcciones: haz clic en uno, o pulsa ⌘ y su número, para buscar una vez con él. Con un buscador que añades también puedes buscar escribiendo su palabra clave antes de tus términos, y no ofrece sugerencias.";
 "This can't be undone." = "No se puede deshacer.";
 "This chat is nearly full, so the AI may lose track of what was said early on. A new chat will work better." = "Este chat está casi lleno, así que la IA puede perder de vista lo que se dijo al principio. Un chat nuevo funcionará mejor.";
 "Shows the list of downloads" = "Muestra la lista de descargas";

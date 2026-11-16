@@ -78,7 +78,7 @@
 "Tabs it may use" = "可以使用的标签页";
 "The AI has answered. Open the AI panel to read it (⌘E)" = "AI 已回答。打开 AI 面板即可阅读 (⌘E)";
 "The AI is working. Open the AI panel to follow it (⌘E)" = "AI 正在处理。打开 AI 面板即可查看进度 (⌘E)";
-"The engines in this list are offered under a search in the address bar: click one, or press ⌘ and its number, to search with it once. Typing an engine’s keyword before your words searches with it too. Engines you add get no search suggestions." = "在地址栏输入搜索词时，此列表中的搜索引擎会显示在下方。点按一个，或按 ⌘ 和它的编号，即可用它搜索一次；也可以在搜索词前输入它的关键词。你添加的搜索引擎不提供搜索建议。";
+"The engines in this list are offered under a search in the address bar: click one, or press ⌘ and its number, to search with it once. An engine you add can also be searched by typing its keyword before your words, and gets no search suggestions." = "在地址栏输入搜索词时，此列表中的搜索引擎会显示在下方。点按一个，或按 ⌘ 和它的编号，即可用它搜索一次。你添加的搜索引擎也可以在搜索词前输入关键词来搜索，但不提供搜索建议。";
 "This can't be undone." = "此操作无法撤销。";
 "This chat is nearly full, so the AI may lose track of what was said early on. A new chat will work better." = "此对话快满了，AI 可能会记不清前面说过的内容。开始新对话效果会更好。";
 "Shows the list of downloads" = "显示下载列表";

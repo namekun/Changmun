@@ -70,17 +70,6 @@ struct CustomSearchEngineTests {
         #expect(SearchRouting.pick("wiki swift", default: google, engines: []).template == google)
     }
 
-    @Test func aBuiltInEnginesKeywordSearchesWithItAndAnAddedEnginesKeywordComesFirst() {
-        let google = SearchTemplate.google
-        #expect(SearchRouting.pick("n 돼지국밥", default: google, engines: []) == (SearchEngine.naver.template, "돼지국밥"))
-        #expect(SearchRouting.pick("D privacy", default: google, engines: []).template == SearchEngine.duckDuckGo.template)
-        #expect(SearchRouting.pick("n", default: google, engines: []).template == google, "a keyword alone is a search for the letter")
-        let mine = engine("n", "https://news.example/?q=%s")
-        #expect(SearchRouting.pick("n 돼지국밥", default: google, engines: [mine]).template == mine.template)
-        #expect(!SearchRouting.allowsSuggestions(for: "n 돼지국밥", defaultTemplate: google, engines: []),
-                "words for another engine aren't sent to the default engine for suggestions")
-    }
-
     @Test func aDamagedStoredValueFallsBackToTheDefaultEngine() {
         #expect(SearchTemplate.valid(nil) == SearchTemplate.google)
         #expect(SearchTemplate.valid("") == SearchTemplate.google)
@@ -159,24 +148,15 @@ struct QuickSearchTests {
         let names = QuickSearch.chips(besides: SearchEngine.google.template, custom: [wiki], builtIns: listed).map(\.name)
         #expect(names == [SearchEngine.naver.name, SearchEngine.duckDuckGo.name, "Wikipedia"], "Bing was taken out of the list")
         #expect(QuickSearch.chips(besides: wiki.template, custom: [wiki]).map(\.id) == SearchEngine.allCases.map(\.rawValue))
-        let news = CustomSearchEngine(name: "News", keyword: "n", template: "https://news.example/?q=%s")
-        #expect(QuickSearch.all(custom: [news]).first { $0.id == SearchEngine.naver.rawValue }?.keyword == "",
-                "a keyword an added engine has taken is not shown for the built-in engine")
-    }
-
-    @Test func aBuiltInEngineTakenOutOfTheListHasNoKeyword() {
-        let listed = SearchEngine.listed(removed: [SearchEngine.naver.rawValue])
-        #expect(SearchRouting.pick("n 돼지국밥", default: SearchTemplate.google, engines: [], builtIns: listed) == (SearchTemplate.google, "n 돼지국밥"))
-        #expect(SearchRouting.pick("d 돼지국밥", default: SearchTemplate.google, engines: [], builtIns: listed).template == SearchEngine.duckDuckGo.template)
     }
 
     @Test func theAddMenuOffersPresetsNotInTheListEachWithAKeywordNoOtherUses() {
-        let all = SearchEnginePresets.available(besides: [], builtIns: SearchEngine.allCases)
+        let all = SearchEnginePresets.available(besides: [])
         #expect(all.count == SearchEnginePresets.all.count)
         for preset in all { #expect(CustomSearchEngine.problem(name: preset.name, keyword: preset.keyword, template: preset.template, among: []) == nil, "\(preset.name)") }
         guard let youTube = all.first(where: { $0.template.contains("youtube.com") }) else { Issue.record("no YouTube preset"); return }
         let mine = CustomSearchEngine(name: "Mine", keyword: "wiki", template: "https://mine.example/?q=%s")
-        let offered = SearchEnginePresets.available(besides: [youTube, mine], builtIns: SearchEngine.allCases)
+        let offered = SearchEnginePresets.available(besides: [youTube, mine])
         #expect(!offered.contains { $0.template == youTube.template }, "one in the list is not offered again")
         #expect(offered.first { $0.template.contains("wikipedia.org") }?.keyword == "wiki2", "a keyword in use gets a number")
     }

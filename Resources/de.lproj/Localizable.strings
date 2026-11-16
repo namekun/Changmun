@@ -78,7 +78,7 @@
 "Tabs it may use" = "Tabs, die sie nutzen darf";
 "The AI has answered. Open the AI panel to read it (⌘E)" = "Die KI hat geantwortet. Öffne die KI-Seitenleiste, um es zu lesen (⌘E)";
 "The AI is working. Open the AI panel to follow it (⌘E)" = "Die KI arbeitet. Öffne die KI-Seitenleiste, um ihr zu folgen (⌘E)";
-"The engines in this list are offered under a search in the address bar: click one, or press ⌘ and its number, to search with it once. Typing an engine’s keyword before your words searches with it too. Engines you add get no search suggestions." = "Die Suchmaschinen in dieser Liste werden unter einer Suche in der Adressleiste angeboten: Klicke auf eine oder drücke ⌘ und ihre Nummer, um einmal mit ihr zu suchen. Auch ihr Stichwort vor deinen Suchbegriffen sucht mit ihr. Hinzugefügte Suchmaschinen liefern keine Suchvorschläge.";
+"The engines in this list are offered under a search in the address bar: click one, or press ⌘ and its number, to search with it once. An engine you add can also be searched by typing its keyword before your words, and gets no search suggestions." = "Die Suchmaschinen in dieser Liste werden unter einer Suche in der Adressleiste angeboten: Klicke auf eine oder drücke ⌘ und ihre Nummer, um einmal mit ihr zu suchen. Mit einer hinzugefügten Suchmaschine suchst du auch, indem du ihr Stichwort vor deine Suchbegriffe tippst; sie liefert keine Suchvorschläge.";
 "This can't be undone." = "Das lässt sich nicht rückgängig machen.";
 "This chat is nearly full, so the AI may lose track of what was said early on. A new chat will work better." = "Dieser Chat ist fast voll, sodass die KI den Anfang aus den Augen verlieren kann. Ein neuer Chat funktioniert besser.";
 "Shows the list of downloads" = "Zeigt die Liste der Downloads";

@@ -113,29 +113,24 @@ enum SearchTemplate {
 
 /// Which template a typed search goes to.
 enum SearchRouting {
-    /// The template and the words to search for: with an engine's keyword first and something after it, that engine and what follows (an
-    /// added engine's keyword before a built-in one's); otherwise the default template and all of it.
-    nonisolated static func pick(_ query: String, default template: String, engines: [CustomSearchEngine],
-                                 builtIns: [SearchEngine] = SearchEngine.allCases) -> (template: String, terms: String) {
+    /// The template and the words to search for: with a custom engine's keyword first and something after it, that engine and what follows;
+    /// otherwise the default template and all of it.
+    nonisolated static func pick(_ query: String, default template: String, engines: [CustomSearchEngine]) -> (template: String, terms: String) {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let space = text.firstIndex(where: \.isWhitespace) else { return (template, query) }
         let terms = text[space...].trimmingCharacters(in: .whitespacesAndNewlines)
-        let word = text[..<space].lowercased()
-        guard !terms.isEmpty else { return (template, query) }
-        if let engine = engines.first(where: { $0.keyword == word }) { return (engine.template, terms) }
-        if let engine = builtIns.first(where: { $0.keyword == word }) { return (engine.template, terms) }
-        return (template, query)
+        guard !terms.isEmpty, let engine = engines.first(where: { $0.keyword == text[..<space].lowercased() }) else { return (template, query) }
+        return (engine.template, terms)
     }
 
     /// Whether what is typed may be sent to the built-in engine for suggestions: not when a custom engine is the default (custom engines get
     /// none) and not when the words are a search on a custom engine's keyword.
-    nonisolated static func allowsSuggestions(for query: String, defaultTemplate: String, engines: [CustomSearchEngine],
-                                              builtIns: [SearchEngine] = SearchEngine.allCases) -> Bool {
-        !engines.contains { $0.template == defaultTemplate } && pick(query, default: defaultTemplate, engines: engines, builtIns: builtIns).template == defaultTemplate
+    nonisolated static func allowsSuggestions(for query: String, defaultTemplate: String, engines: [CustomSearchEngine]) -> Bool {
+        !engines.contains { $0.template == defaultTemplate } && pick(query, default: defaultTemplate, engines: engines).template == defaultTemplate
     }
 
     nonisolated static func allowsSuggestions(for query: String) -> Bool {
-        allowsSuggestions(for: query, defaultTemplate: AddressInput.searchTemplate, engines: CustomSearchEngine.stored(), builtIns: SearchEngine.listed())
+        allowsSuggestions(for: query, defaultTemplate: AddressInput.searchTemplate, engines: CustomSearchEngine.stored())
     }
 }
 
@@ -225,15 +220,12 @@ enum QuickSearch {
         /// A built-in engine's raw value, or an added engine's UUID.
         let id: String
         let name: String
-        /// Empty for a built-in engine whose keyword an added engine has taken.
-        let keyword: String
         let template: String
     }
 
     nonisolated static func all(custom: [CustomSearchEngine], builtIns: [SearchEngine] = SearchEngine.allCases) -> [Engine] {
-        let taken = Set(custom.map(\.keyword))
-        return builtIns.map { Engine(id: $0.rawValue, name: $0.name, keyword: taken.contains($0.keyword) ? "" : $0.keyword, template: $0.template) }
-            + custom.map { Engine(id: $0.id.uuidString, name: $0.name, keyword: $0.keyword, template: $0.template) }
+        builtIns.map { Engine(id: $0.rawValue, name: $0.name, template: $0.template) }
+            + custom.map { Engine(id: $0.id.uuidString, name: $0.name, template: $0.template) }
     }
 
     /// The row under a search whose words go to `template`: every engine in the list but that one.
@@ -256,8 +248,8 @@ enum SearchEnginePresets {
     ]
 
     /// The presets not in the list yet (by address), each with a keyword no engine in the list uses: its own, or that with a number after it.
-    nonisolated static func available(besides custom: [CustomSearchEngine], builtIns: [SearchEngine]) -> [CustomSearchEngine] {
-        let taken = Set(custom.map(\.keyword) + builtIns.map(\.keyword))
+    nonisolated static func available(besides custom: [CustomSearchEngine]) -> [CustomSearchEngine] {
+        let taken = Set(custom.map(\.keyword))
         return all.filter { preset in !custom.contains { $0.template == preset.template } }.map { preset in
             var engine = preset
             engine.id = UUID()

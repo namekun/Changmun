@@ -212,7 +212,7 @@ struct CommandBar: View {
     private func chips(for items: [Suggestion]) -> CommandBarChips? {
         guard case .search(let query) = items.first else { return nil }
         let builtIns = SearchEngine.listed(removed: prefs.removedSearchEngines)
-        let routed = SearchRouting.pick(query, default: AddressInput.searchTemplate, engines: prefs.customSearchEngines, builtIns: builtIns)
+        let routed = SearchRouting.pick(query, default: AddressInput.searchTemplate, engines: prefs.customSearchEngines)
         let engines = QuickSearch.chips(besides: routed.template, custom: prefs.customSearchEngines, builtIns: builtIns)
         return engines.isEmpty ? nil : CommandBarChips(engines: engines, terms: routed.terms, mode: mode)
     }

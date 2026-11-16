@@ -33,7 +33,7 @@ struct CustomSearchEnginesSettings: View {
     var body: some View {
         // One list: the built-in engines still in it, then the added ones. Each can be taken out but the one searches go to.
         ForEach(builtIns) { engine in
-            row(name: engine.name, keyword: engine.keyword, template: engine.template) {
+            row(name: engine.name, keyword: nil, template: engine.template) {
                 removeButton(engine.name) { prefs.setListed(engine, false) }
             }
         }
@@ -62,22 +62,23 @@ struct CustomSearchEnginesSettings: View {
             Menu("Add Search Engine") {
                 let removed = SearchEngine.allCases.filter { !builtIns.contains($0) }
                 ForEach(removed) { engine in Button(engine.name) { prefs.setListed(engine, true) } }
-                let presets = SearchEnginePresets.available(besides: prefs.customSearchEngines, builtIns: builtIns)
+                let presets = SearchEnginePresets.available(besides: prefs.customSearchEngines)
                 ForEach(presets) { preset in Button(preset.name) { prefs.save(preset) } }
                 if !removed.isEmpty || !presets.isEmpty { Divider() }
                 Button("Other…") { draft = Draft() }
             }
             .fixedSize()
         }
-        Caption(text: "The engines in this list are offered under a search in the address bar: click one, or press ⌘ and its number, to search with it once. Typing an engine’s keyword before your words searches with it too. Engines you add get no search suggestions.")
+        Caption(text: "The engines in this list are offered under a search in the address bar: click one, or press ⌘ and its number, to search with it once. An engine you add can also be searched by typing its keyword before your words, and gets no search suggestions.")
     }
 
     /// An engine's line: its name, its keyword and site, and what can be done to it; the default engine says so and can't be taken out.
-    private func row<Actions: View>(name: String, keyword: String, template: String, @ViewBuilder actions: () -> Actions) -> some View {
+    private func row<Actions: View>(name: String, keyword: String?, template: String, @ViewBuilder actions: () -> Actions) -> some View {
         HStack {
             VStack(alignment: .leading) {
                 Text(verbatim: name).lineLimit(1)
-                Caption(verbatim: keyword + " · " + (URLComponents(string: template.replacingOccurrences(of: SearchTemplate.placeholder, with: "x"))?.host ?? template))
+                let site = URLComponents(string: template.replacingOccurrences(of: SearchTemplate.placeholder, with: "x"))?.host ?? template
+                Caption(verbatim: keyword.map { $0 + " · " + site } ?? site)
             }
             Spacer()
             if template == defaultTemplate {

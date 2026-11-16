@@ -78,7 +78,7 @@
 "Tabs it may use" = "써도 되는 탭";
 "The AI has answered. Open the AI panel to read it (⌘E)" = "AI가 답했어요. 읽으려면 AI 패널을 열어 주세요 (⌘E)";
 "The AI is working. Open the AI panel to follow it (⌘E)" = "AI가 작업 중이에요. 지켜보려면 AI 패널을 열어 주세요 (⌘E)";
-"The engines in this list are offered under a search in the address bar: click one, or press ⌘ and its number, to search with it once. Typing an engine’s keyword before your words searches with it too. Engines you add get no search suggestions." = "이 목록의 검색엔진은 주소창에 검색어를 치면 그 아래에 나와요. 하나를 누르거나 ⌘와 순서 번호를 누르면 그 엔진으로 한 번 검색해요. 검색어 앞에 키워드를 붙여 쳐도 돼요. 직접 추가한 검색엔진에는 검색어 제안이 나오지 않아요.";
+"The engines in this list are offered under a search in the address bar: click one, or press ⌘ and its number, to search with it once. An engine you add can also be searched by typing its keyword before your words, and gets no search suggestions." = "이 목록의 검색엔진은 주소창에 검색어를 치면 그 아래에 나와요. 하나를 누르거나 ⌘와 순서 번호를 누르면 그 엔진으로 한 번 검색해요. 직접 추가한 검색엔진은 검색어 앞에 키워드를 붙여 쳐도 되고, 검색어 제안은 나오지 않아요.";
 "This can't be undone." = "되돌릴 수 없어요.";
 "This chat is nearly full, so the AI may lose track of what was said early on. A new chat will work better." = "이 대화가 거의 가득 차서 AI가 앞에서 나눈 이야기를 놓칠 수 있어요. 새 대화에서 더 잘 동작해요.";
 "Shows the list of downloads" = "다운로드 목록을 열어요";
