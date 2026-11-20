@@ -899,11 +899,14 @@ struct FilterConverterTests {
         #expect(out.skipped >= 8)
     }
 
-    @Test func turnedOffSitesComeLast() throws {
+    @Test func turnedOffSitesComeLastBeforeThePagesGoneTo() throws {
         let out = FilterConverter.convert("||ads.example^", allowlist: ["news.example"])
+        #expect(out.network.count == 3)
+        let off = out.network[1]
+        #expect((off["action"] as? [String: Any])?["type"] as? String == "ignore-previous-rules")
+        #expect((off["trigger"] as? [String: Any])?["if-domain"] as? [String] == ["*news.example"])
         let last = try #require(out.network.last)
-        #expect((last["action"] as? [String: Any])?["type"] as? String == "ignore-previous-rules")
-        #expect((last["trigger"] as? [String: Any])?["if-domain"] as? [String] == ["*news.example"])
+        #expect((last["trigger"] as? [String: Any])?["load-context"] as? [String] == ["top-frame"], "a page gone to is never blocked, whatever came before")
         #expect(out.cosmetic.count == 1)
     }
 
