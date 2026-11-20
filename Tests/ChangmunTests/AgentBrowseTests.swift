@@ -1473,6 +1473,19 @@ extension SharedAgentState {
 extension SharedAgentState {
     @MainActor @Suite
     struct PageTests {
+        /// A name cut at its 80th unit with an emoji across the cut left half a character in the answer, which then could not be read
+        /// as JSON at all: read_page failed on such pages (YouTube's long titles) with "the page did not answer in time".
+        @Test func aNameCutInTheMiddleOfAnEmojiStillReads() async throws {
+            let name = String(repeating: "x", count: 79) + "😀 more"
+            let (tab, window, browser) = try await page("<body><button>\(name)</button><a href='/next'>\(name)</a><p>\(String(repeating: "y", count: 40))</p></body>")
+            defer { window.close(); browser.windowClosed() }
+            let read = await call(tab, "read_page")
+            #expect(!read.failed, Comment(rawValue: read.text))
+            #expect(read.text.contains(String(repeating: "x", count: 79)))
+            let short = await call(tab, "read_page", ["max_chars": 80])
+            #expect(!short.failed, Comment(rawValue: short.text))
+        }
+
         private func page(_ html: String, host: String = "lab.test", scheme: String = "https") async throws -> (Tab, NSWindow, Browser) {
             let b = Browser()
             b.focused()
