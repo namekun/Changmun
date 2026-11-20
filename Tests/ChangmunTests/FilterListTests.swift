@@ -264,6 +264,27 @@ struct FilterListUpdateTests {
         #expect(await waitUntil(5) { view.title == "final" }, "the link went through the host to the page it leads to (title: \(view.title ?? "none"))")
     }
 
+    /// The ad and tracker lists don't keep the window off a page; a list the user added (one against harmful sites, say) still does.
+    @Test func aListTheUserAddedStillKeepsTheWindowOffItsSites() async throws {
+        let output = FilterConverter.convert("||localhost^", added: "||127.0.0.1^")
+        let json = String(decoding: try JSONSerialization.data(withJSONObject: output.network), as: UTF8.self)
+        let store = try #require(WKContentRuleListStore(url: FileManager.default.temporaryDirectory.appendingPathComponent("rules-\(UUID().uuidString)")))
+        let list = try #require(try await store.compileContentRuleList(forIdentifier: "network", encodedContentRuleList: json))
+        let server = try await TinyServer { _, _ in "<title>page</title>" }
+        defer { server.stop() }
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController.add(list)
+        let view = WKWebView(frame: .zero, configuration: configuration)
+        let window = OffscreenWindow(view)
+        defer { window.close() }
+        view.load(URLRequest(url: try #require(URL(string: "http://localhost:\(server.port)/"))))
+        #expect(await waitUntil(5) { view.title == "page" }, "a page the lists' filter names is still reached")
+        view.load(URLRequest(url: try #require(URL(string: "http://127.0.0.1:\(server.port)/"))))
+        _ = await waitUntil(3) { !view.isLoading }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(view.url?.host() != "127.0.0.1" || view.title != "page", "the user's list keeps the window off its site")
+    }
+
     @Test func compiledListsOfOtherConverterVersionsAreFoundForRemoval() {
         let names = ["x-network-v1", "x-network-v2", "x-cosmetic-v1", "x-cosmetic-v2", "x-network", "y-network-v1", "x-network-vabc", "x-other-v1"]
         #expect(AdBlocker.outdatedLists(among: names, identifier: "x", version: 2) == ["x-network-v1", "x-cosmetic-v1"])
