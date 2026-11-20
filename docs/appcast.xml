@@ -6,6 +6,20 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.17.1</title>
+      <pubDate>Fri, 20 Nov 2026 09:24:06 +0000</pubDate>
+      <sparkle:version>62</sparkle:version>
+      <sparkle:shortVersionString>0.17.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.17.1</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Fixed:** a link that passes through an ad or tracking address on its way (an ad's or a newsletter's click tracker) stopped there instead of reaching the page it leads to. The ad and tracking lists now block only what pages load, not the page you go to; lists you added yourself still keep the window off their sites. The rules are rebuilt the next time you open Changmun.
+- **Fixed:** the AI couldn't read some pages, YouTube's among them, when a long name on the page had an emoji where it was cut; it reported that the page didn't answer in time.
+
+Tried with automated tests on pages that do the same. The sites where links stopped haven't been tried, so tell me if one still does.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.17.1/Changmun-0.17.1.dmg" length="6645926" type="application/octet-stream" sparkle:edSignature="qT7fCVUAwjlpIPmUW+YIKvqoXS9mDREnUSp3Iw52nSAjFEHtSWYPWnOYNaoB6i0kWAiBA7BQbOGUDmonOziaBw==" />
+    </item>
+    <item>
       <title>0.17.0</title>
       <pubDate>Mon, 16 Nov 2026 13:01:40 +0000</pubDate>
       <sparkle:version>61</sparkle:version>
@@ -130,22 +144,9 @@ Tried with the automated tests. Picture in Picture opens a window on screen, whi
 Tried with automated tests and the headless copy, by replaying the shop's add-to-cart step on a test page. A real cart on a logged-in account hasn't been tried, so tell me if the layer is still missing.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.2/Changmun-0.15.2.dmg" length="6153068" type="application/octet-stream" sparkle:edSignature="X3ulwh+UD7R/taoWWAB2obC3Irgchum3fHRH7EJv4HFx0Ob6CNj4c6Pww7Pss5vYU7oW+xfJElRmu2jt6aIFCw==" />
     </item>
-    <item>
-      <title>0.15.1</title>
-      <pubDate>Sun, 08 Nov 2026 08:38:09 +0000</pubDate>
-      <sparkle:version>52</sparkle:version>
-      <sparkle:shortVersionString>0.15.1</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.15.1</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **A new app icon.** The window is drawn as a sign: the arch, one upright and one crossbar, all in a single stroke, in two colours. The light on the floor, its shadow and the gradient on the tile are gone. It reads at 32 pixels, on a light Dock and on a dark one.
-
-Tried with automated tests and a render of the icon on both Docks. An icon that changes with the system's light and dark look isn't in this version: I couldn't confirm on my Mac that macOS draws it.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.1/Changmun-0.15.1.dmg" length="6155841" type="application/octet-stream" sparkle:edSignature="r2Sj4eakNWiWD6xBIxgdHaFgRrOwlYKeT4/Ld1P0b2xdpAV6OJ0TSobbrfwy/k8HhW2FbGAv1ywIxUmTVvKEAw==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: 7WHK+fpfXf52Fm5I9L5T8AFmWrGjw+siGVunrsmBRWVknv93eiYysWgenT+2M2q2MLsj7mflAX85IesUOwZeAQ==
-length: 14901
+edSignature: WGcHvukFQS1Fj/yoPjrphsN5JLNWwG02fKRgzDI3VpenNIc7XNGDt0fIj+xpW0cJDCsuorYgsmyiCF/I84GlAQ==
+length: 15124
 -->
