@@ -15,7 +15,7 @@ enum FilterConverter {
 
     /// Raised whenever what `convert` makes changes. The compiled rule lists are named by it, so rules made by an older converter are
     /// not taken for current after an update: they are built again from the saved lists.
-    static let version = 2
+    static let version = 3
 
     /// Whether downloaded bytes can be a filter list: text, and not the HTML page (a login wall, an error page sent with 200) that stands in for it.
     static func looksLikeList(_ data: Data) -> Bool {
@@ -79,9 +79,18 @@ enum FilterConverter {
             out.network.append(off)
             out.cosmetic.append(off)
         }
-        if out.network.count > maxRules { out.network = Array(out.network.prefix(maxRules)) }
+        if out.network.count > maxRules - 1 { out.network = Array(out.network.prefix(maxRules - 1)) }
+        out.network.append(pagesGoneTo)
         return out
     }
+
+    /// Last, past the cap: a page the window goes to is never blocked. In the lists' syntax a filter with no type is for what pages load,
+    /// not for the page a link leads to, but WebKit takes no type as every type: a link that passes through such a host on its way (an
+    /// ad's or a newsletter's click tracker, ||ad.doubleclick.net^) stopped there instead of reaching the page.
+    static let pagesGoneTo: [String: Any] = [
+        "trigger": ["url-filter": ".*", "resource-type": ["document"], "load-context": ["top-frame"]],
+        "action": ["type": "ignore-previous-rules"],
+    ]
 
     /// One network filter (without a leading `@@`) as a WebKit rule, or nil when WebKit can't express it.
     static func networkRule(_ filter: String, action: String) -> [String: Any]? {

@@ -215,6 +215,55 @@ struct FilterListUpdateTests {
         #expect(try await open("127.0.0.1") == "blocked")
     }
 
+    /// A filter with no type (`||ad.doubleclick.net^`) is for what a page loads, not for the page a link leads to: an ad or a newsletter's
+    /// link that passes through such a host on its way (a click tracker's redirect) stopped there, on a blocked page, instead of reaching
+    /// where it was going. What a page loads from that host is still blocked. The host is the loopback here, so nothing reaches it.
+    @Test func aLinkThroughABlockedHostReachesThePageItLeadsTo() async throws {
+        let rig = try rig()
+        defer { rig.restore() }
+        try Data("||ad.doubleclick.net^\n".utf8).write(to: rig.folder.appendingPathComponent("easylist.txt"))
+        await rig.blocker.recompile()
+        let server = try await TinyServer { _, path in
+            switch path {
+            case "/clk": "<title>hop</title><script>location.replace('http://localhost:' + location.port + '/final')</script>"
+            case "/final": "<title>final</title>"
+            case "/s.js": "window.loaded = true"
+            default: """
+                <title>start</title><a href="/">x</a>
+                <script>
+                document.querySelector('a').href = 'http://127.0.0.1:' + location.port + '/clk'
+                const script = document.createElement('script')
+                script.src = 'http://127.0.0.1:' + location.port + '/s.js'
+                script.onload = () => window.sub = 'loaded'
+                script.onerror = () => window.sub = 'blocked'
+                document.head.append(script)
+                </script>
+                """
+            }
+        }
+        defer { server.stop() }
+        server.replyHead = { $0.hasSuffix(".js") ? ("200 OK", "text/javascript") : ("200 OK", "text/html; charset=utf-8") }
+        let built = try #require(rig.calls.json.first { $0.key.contains("-network-") }?.value)
+        let json = built.replacingOccurrences(of: #"ad\\.doubleclick\\.net"#, with: #"127\\.0\\.0\\.1:"# + "\(server.port)")
+        let store = try #require(WKContentRuleListStore(url: FileManager.default.temporaryDirectory.appendingPathComponent("rules-\(UUID().uuidString)")))
+        let list = try #require(try await store.compileContentRuleList(forIdentifier: "network", encodedContentRuleList: json))
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController.add(list)
+        let view = WKWebView(frame: .zero, configuration: configuration)
+        let window = OffscreenWindow(view)
+        defer { window.close() }
+        view.load(URLRequest(url: try #require(URL(string: "http://localhost:\(server.port)/"))))
+        _ = await waitUntil { !view.isLoading && view.title == "start" }
+        var sub = ""
+        for _ in 0..<100 where sub.isEmpty {
+            sub = (try? await view.evaluateJavaScript("window.sub || ''")) as? String ?? ""
+            if sub.isEmpty { try? await Task.sleep(for: .milliseconds(20)) }
+        }
+        #expect(sub == "blocked", "what the page loads from the host is still blocked")
+        _ = try await view.evaluateJavaScript("document.querySelector('a').click()")
+        #expect(await waitUntil(5) { view.title == "final" }, "the link went through the host to the page it leads to (title: \(view.title ?? "none"))")
+    }
+
     @Test func compiledListsOfOtherConverterVersionsAreFoundForRemoval() {
         let names = ["x-network-v1", "x-network-v2", "x-cosmetic-v1", "x-cosmetic-v2", "x-network", "y-network-v1", "x-network-vabc", "x-other-v1"]
         #expect(AdBlocker.outdatedLists(among: names, identifier: "x", version: 2) == ["x-network-v1", "x-cosmetic-v1"])
