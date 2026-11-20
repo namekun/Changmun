@@ -17,7 +17,9 @@ extension PageScripts {
     const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
     const norm = s => (s || '').replace(/\s+/g, ' ').trim().toLowerCase();
     const squash = s => (s || '').replace(/\s+/g, ' ').trim();
-    const clip = (s, n) => squash(s).slice(0, n);
+    // At most n UTF-16 units, without the first half of a character cut in two: a lone surrogate makes the whole answer unreadable as JSON.
+    const clipText = (s, n) => { const t = String(s).slice(0, n); return /[\ud800-\udbff]$/.test(t) ? t.slice(0, -1) : t; };
+    const clip = (s, n) => clipText(squash(s), n);
     // The fingerprint of what was judged is a hash of all of it, so that nothing past a cut can change unseen (SHA-256, in hex).
     const digest = text => {
       const bytes = new TextEncoder().encode(text), n = bytes.length;
@@ -192,14 +194,14 @@ extension PageScripts {
       return out;
     };
     // The beginning of a long text: its first three words, or its first characters when it has no spaces.
-    const lead = text => { const w = text.split(' '); return w.length > 1 ? w.slice(0, 3).join(' ') : text.slice(0, 4); };
+    const lead = text => { const w = text.split(' '); return w.length > 1 ? w.slice(0, 3).join(' ') : clipText(text, 4); };
     // The AI's own mark, which sits in the page's root while it shows, is no child of the page's.
     const kids = el => el.childElementCount - (globalThis.changmunMark && globalThis.changmunMark.host.parentElement === el ? 1 : 0);
     function namesOf(ctl) {
       const out = [];
       if (passive(ctl)) return out;
       const link = plainLink(ctl);
-      const add = s => { s = squash(s); if (s && !(link && s.length > LINK_MAX)) out.push(s.slice(0, 20000)); };
+      const add = s => { s = squash(s); if (s && !(link && s.length > LINK_MAX)) out.push(clipText(s, 20000)); };
       const doc = docOf(ctl);
       const acts = ctl.matches(WORDY);
       add(attr(ctl, 'aria-label'));
@@ -260,7 +262,7 @@ extension PageScripts {
       const pathOf = raw => { try { return new URL(raw, baseOf(ctl)).pathname; } catch (e) { return ''; } };
       for (const name of ['href', 'formaction']) {
         const raw = (attr(ctl, name) || '').trim();
-        if (raw && !/^#/.test(raw)) out.push(/^javascript:/i.test(raw) ? raw.slice(0, 300) : (name === 'href' && plainLink(ctl) ? pathOf(raw) : url(raw)).slice(0, 300));
+        if (raw && !/^#/.test(raw)) out.push(clipText(/^javascript:/i.test(raw) ? raw : (name === 'href' && plainLink(ctl) ? pathOf(raw) : url(raw)), 300));
       }
       if (ctl.localName === 'button' || (ctl.localName === 'input' && /^(submit|button|image)$/.test(ctl.type))) out.push(clip(attr(ctl, 'name'), 80), clip(attr(ctl, 'value'), 80));
       return out.filter(Boolean);
@@ -567,7 +569,7 @@ extension PageScripts {
     }
     const textOf = d => (d.body ? d.body.innerText : '').replace(/\n{3,}/g, '\n\n');
     let text = textOf(document);
-    if (text.length > maxChars) text = text.slice(0, maxChars) + '\n…(truncated)';
+    if (text.length > maxChars) text = clipText(text, maxChars) + '\n…(truncated)';
     for (const e of docs().slice(1)) {
       text += '\n\n--- Frame: ' + e.doc.URL + ' ---\n' + clip(textOf(e.doc), 3000);
     }
@@ -794,7 +796,7 @@ extension PageScripts {
     // What the option is called, by every name its markup gives it (not only the words it shows), and what choosing it does: a
     // native list that submits its form when it changes (an onchange handler) takes the form's payment and address along.
     const wordsOf = o => isNative ? [o.text, o.label, attr(o, 'title'), o.value] : [...namesOf(o), attr(o, 'data-value') ?? attr(o, 'value')];
-    const optionNames = o => wordsOf(o).map(squash).filter(Boolean).map(w => w.slice(0, 20000));
+    const optionNames = o => wordsOf(o).map(squash).filter(Boolean).map(w => clipText(w, 20000));
     // The option is always judged by every name it has. A native list in a form is taken to submit it when it changes: a page can
     // make it so in more ways than one (an onchange handler, a listener, the form's own), so the form's card details and
     // checkout-like address decide, as for a submit button. A list in no form (a menu for the page's own scripts) just acts.
