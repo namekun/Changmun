@@ -899,14 +899,16 @@ struct FilterConverterTests {
         #expect(out.skipped >= 8)
     }
 
-    @Test func turnedOffSitesComeLastBeforeThePagesGoneTo() throws {
-        let out = FilterConverter.convert("||ads.example^", allowlist: ["news.example"])
-        #expect(out.network.count == 3)
-        let off = out.network[1]
-        #expect((off["action"] as? [String: Any])?["type"] as? String == "ignore-previous-rules")
-        #expect((off["trigger"] as? [String: Any])?["if-domain"] as? [String] == ["*news.example"])
+    @Test func theListsLetPagesThroughThenTheAddedListsThenTurnedOffSitesComeLast() throws {
+        let out = FilterConverter.convert("||ads.example^", added: "||bad.example^", allowlist: ["news.example"])
+        let filters = out.network.map { (($0["trigger"] as? [String: Any])?["url-filter"] as? String) ?? "" }
+        #expect(out.network.count == 4)
+        #expect(filters[0].contains("ads"), "the ad and tracker lists first")
+        #expect((out.network[1]["trigger"] as? [String: Any])?["load-context"] as? [String] == ["top-frame"], "then pages gone to are let through them")
+        #expect(filters[2].contains("bad"), "then the user's own lists, which still block pages")
         let last = try #require(out.network.last)
-        #expect((last["trigger"] as? [String: Any])?["load-context"] as? [String] == ["top-frame"], "a page gone to is never blocked, whatever came before")
+        #expect((last["action"] as? [String: Any])?["type"] as? String == "ignore-previous-rules")
+        #expect((last["trigger"] as? [String: Any])?["if-domain"] as? [String] == ["*news.example"], "a site turned off is off for every list")
         #expect(out.cosmetic.count == 1)
     }
 

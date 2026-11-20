@@ -31,39 +31,15 @@ enum FilterConverter {
 
     private static let ignoredOptions: Set<String> = ["match-case", "important", "all", "~match-case"]
 
-    static func convert(_ text: String, allowlist: [String] = []) -> Output {
+    /// `text` is the ad and tracker lists (the built-in ones and the app's own filters), `added` the lists the user added. A page the
+    /// window goes to is never blocked by the first (see `pagesGoneTo`); the user's own lists, which may be there to keep a browser off
+    /// harmful sites, still block it.
+    static func convert(_ text: String, added: String = "", allowlist: [String] = []) -> Output {
         var out = Output()
-        var exceptions: [[String: Any]] = []
         var genericSelectors: [String] = []
         var domainSelectors: [String: [String]] = [:]
-
-        for raw in text.split(whereSeparator: \.isNewline) {
-            let line = raw.trimmingCharacters(in: .whitespaces)
-            if line.isEmpty || line.hasPrefix("!") || line.hasPrefix("[") { continue }
-            if let at = line.range(of: "##") {
-                guard !line.contains("#@#"), !line.contains("#?#"), !line.contains("#$#") else { out.skipped += 1; continue }
-                let domains = String(line[..<at.lowerBound])
-                let selector = String(line[at.upperBound...])
-                guard isSafeSelector(selector) else { out.skipped += 1; continue }
-                if domains.isEmpty {
-                    genericSelectors.append(selector)
-                } else if !domains.contains("~") {
-                    domainSelectors[domains, default: []].append(selector)
-                } else {
-                    out.skipped += 1
-                }
-                continue
-            }
-            if line.contains("#@#") || line.contains("#?#") || line.contains("#$#") || line.contains("$$") { out.skipped += 1; continue }
-            if line.hasPrefix("@@") {
-                if let rule = networkRule(String(line.dropFirst(2)), action: "ignore-previous-rules") { exceptions.append(rule) } else { out.skipped += 1 }
-            } else if let rule = networkRule(line, action: "block") {
-                out.network.append(rule)
-            } else {
-                out.skipped += 1
-            }
-        }
-        out.network += exceptions
+        let lists = parse(text, into: &out, generic: &genericSelectors, domains: &domainSelectors)
+        let theirs = parse(added, into: &out, generic: &genericSelectors, domains: &domainSelectors)
 
         for chunk in stride(from: 0, to: genericSelectors.count, by: 250) {
             let selectors = genericSelectors[chunk..<min(chunk + 250, genericSelectors.count)].joined(separator: ", ")
@@ -74,19 +50,55 @@ enum FilterConverter {
             out.cosmetic.append(["trigger": ["url-filter": ".*", "if-domain": list], "action": ["type": "css-display-none", "selector": selectors.joined(separator: ", ")]])
         }
 
+        var after = theirs
         for host in allowlist where !host.isEmpty {
             let off: [String: Any] = ["trigger": ["url-filter": ".*", "if-domain": ["*" + host.lowercased()]], "action": ["type": "ignore-previous-rules"]]
-            out.network.append(off)
+            after.append(off)
             out.cosmetic.append(off)
         }
-        if out.network.count > maxRules - 1 { out.network = Array(out.network.prefix(maxRules - 1)) }
-        out.network.append(pagesGoneTo)
+        // The cap takes from the lists' rules, never the rule that lets pages through after them.
+        let room = max(0, maxRules - 1 - after.count)
+        out.network = Array(lists.prefix(room)) + [pagesGoneTo] + after
+        if out.network.count > maxRules { out.network = Array(out.network.prefix(maxRules)) }
         return out
     }
 
-    /// Last, past the cap: a page the window goes to is never blocked. In the lists' syntax a filter with no type is for what pages load,
-    /// not for the page a link leads to, but WebKit takes no type as every type: a link that passes through such a host on its way (an
-    /// ad's or a newsletter's click tracker, ||ad.doubleclick.net^) stopped there instead of reaching the page.
+    /// The network rules of one batch of lists, blocks then exceptions; element hiding goes into `generic` and `domains`.
+    private static func parse(_ text: String, into out: inout Output, generic: inout [String], domains: inout [String: [String]]) -> [[String: Any]] {
+        var blocks: [[String: Any]] = []
+        var exceptions: [[String: Any]] = []
+        for raw in text.split(whereSeparator: \.isNewline) {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            if line.isEmpty || line.hasPrefix("!") || line.hasPrefix("[") { continue }
+            if let at = line.range(of: "##") {
+                guard !line.contains("#@#"), !line.contains("#?#"), !line.contains("#$#") else { out.skipped += 1; continue }
+                let names = String(line[..<at.lowerBound])
+                let selector = String(line[at.upperBound...])
+                guard isSafeSelector(selector) else { out.skipped += 1; continue }
+                if names.isEmpty {
+                    generic.append(selector)
+                } else if !names.contains("~") {
+                    domains[names, default: []].append(selector)
+                } else {
+                    out.skipped += 1
+                }
+                continue
+            }
+            if line.contains("#@#") || line.contains("#?#") || line.contains("#$#") || line.contains("$$") { out.skipped += 1; continue }
+            if line.hasPrefix("@@") {
+                if let rule = networkRule(String(line.dropFirst(2)), action: "ignore-previous-rules") { exceptions.append(rule) } else { out.skipped += 1 }
+            } else if let rule = networkRule(line, action: "block") {
+                blocks.append(rule)
+            } else {
+                out.skipped += 1
+            }
+        }
+        return blocks + exceptions
+    }
+
+    /// After the ad and tracker lists' rules: a page the window goes to is not blocked by them. In those lists' syntax a filter with no
+    /// type is for what pages load, not for the page a link leads to, but WebKit takes no type as every type: a link that passes through
+    /// such a host on its way (an ad's or a newsletter's click tracker, ||ad.doubleclick.net^) stopped there instead of reaching the page.
     static let pagesGoneTo: [String: Any] = [
         "trigger": ["url-filter": ".*", "resource-type": ["document"], "load-context": ["top-frame"]],
         "action": ["type": "ignore-previous-rules"],
@@ -375,14 +387,20 @@ final class AdBlocker: ObservableObject {
 
     private func rebuild() async {
         status = String(localized: "Building rules…")
-        let files = enabledLists.map { folder.appendingPathComponent($0.id + ".txt") }
+        let builtIn = Set(Self.builtIn.map(\.id))
+        let files = enabledLists.filter { builtIn.contains($0.id) }.map { folder.appendingPathComponent($0.id + ".txt") }
+        let addedFiles = enabledLists.filter { !builtIn.contains($0.id) }.map { folder.appendingPathComponent($0.id + ".txt") }
         let allowlist = Preferences.shared.adBlockAllowlist
         let converted = await Task.detached(priority: .userInitiated) { () -> (String, String, Int, Int) in
             var text = (ContentBlocker.hosts.map { "||\($0)^$third-party" } + ContentBlocker.siteFilters).joined(separator: "\n")
             for file in files {
                 if let content = try? String(contentsOf: file, encoding: .utf8) { text += "\n" + content }
             }
-            let output = FilterConverter.convert(text, allowlist: allowlist)
+            var added = ""
+            for file in addedFiles {
+                if let content = try? String(contentsOf: file, encoding: .utf8) { added += "\n" + content }
+            }
+            let output = FilterConverter.convert(text, added: added, allowlist: allowlist)
             let network = String(data: try! JSONSerialization.data(withJSONObject: output.network), encoding: .utf8)!
             let cosmetic = String(data: try! JSONSerialization.data(withJSONObject: output.cosmetic), encoding: .utf8)!
             return (network, cosmetic, output.network.count, output.cosmetic.count)
