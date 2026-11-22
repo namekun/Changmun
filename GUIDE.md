@@ -242,6 +242,7 @@ On first launch, or from the menu, Changmun imports bookmarks and history from S
 
 - Passwords and cookies are decrypted with each browser's Keychain item (`<name> Safe Storage`), so macOS asks you to allow it. Imported passwords go to your login Keychain labeled `Changmun`.
 - Reading Safari needs Full Disk Access. macOS doesn't hand Safari's passwords to other apps. After you turn it on, Try Again on the last screen imports the browsers that couldn't be read.
+- **Passwords from a CSV file.** Other apps can't read the passwords in Safari or Apple's Passwords app, but the Passwords app (File › Export All Passwords…, macOS 15 or later), Chrome, Edge, Firefox, 1Password and Bitwarden can export them as a CSV file. Choose File › Import Passwords from CSV File… (or Settings › General › Other Browsers) and pick that file. Only https logins are saved: http sites, app links and rows without a password are skipped, and a password Changmun already has for the same site and account is never written over. The file holds your passwords as plain text, so when the import is done Changmun offers to move it to the Trash; it asks first and never deletes it by itself.
 - You can cancel before the import starts (Cancel, or Later on first launch) and stop it between browsers with Stop After This Browser; a browser is never left half imported. The last screen says what it didn't find, as in "Passwords: none found".
 
 ## Privacy

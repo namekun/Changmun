@@ -44,6 +44,7 @@ enum AppMenu {
         file.addItem(.separator())
         add(file, "Export Bookmarks…", #selector(AppDelegate.exportBookmarks(_:)))
         add(file, "Import Bookmarks from File…", #selector(AppDelegate.importBookmarksFromFile(_:)))
+        add(file, "Import Passwords from CSV File…", #selector(AppDelegate.importPasswordsFromFile(_:)))
 
         let edit = submenu(main, "Edit")
         add(edit, "Undo", Selector(("undo:")), "z")
