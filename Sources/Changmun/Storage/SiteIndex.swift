@@ -95,6 +95,12 @@ struct SiteIndex: Equatable {
         return labels.dropLast(kept).reduce(0) { $0 + $1.utf8.count + 1 }
     }
 
+    /// The registrable domain of `host` as `registrableStart` takes it, without the port: `example.com` for accounts.example.com:8443.
+    static func registrableDomain(of host: String) -> String {
+        let name = host.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).first ?? Substring(host)
+        return String(decoding: name.utf8.dropFirst(registrableStart(host)), as: UTF8.self)
+    }
+
     /// Public suffixes of two labels, under which a site's own domain is the third label from the end.
     static let twoLevelSuffixes: Set<String> = [
         "co.kr", "or.kr", "go.kr", "ac.kr", "ne.kr", "re.kr", "pe.kr",

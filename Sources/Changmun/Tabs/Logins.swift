@@ -161,6 +161,63 @@ enum Logins {
         return backend.remove(server: host, account: username)
     }
 
+    /// A saved account offered to fill a page: the key it is saved under, and whether that is the page's own (its key, the key's www
+    /// twin, or the bare host for a port's key, as `accounts(for:)` looks) or another host of the same site.
+    struct Match: Hashable {
+        var host: String
+        var username: String
+        var sameHost: Bool
+
+        /// What the menus show: the name, and for another host's login the host it was saved for, so it is never taken for this one's.
+        var title: String {
+            let name = username.isEmpty ? String(localized: "(No username)") : username
+            return sameHost ? name : "\(name) — \(host)"
+        }
+    }
+
+    /// The accounts to offer a page whose logins are saved under `key`: its own first, as `accounts(for:)` has them, then those saved
+    /// for other hosts of the same site (`mayShare`), by host. Saving is unchanged: a login is still saved under the page's own key.
+    /// Reads no secrets, so it never prompts. The AI's sign_in never uses this: it goes by the exact host (`accounts(exactly:)`).
+    static func matches(for key: String) -> [Match] {
+        guard !Headless.isOn else { return [] }
+        let own = accounts(for: key).map { Match(host: key, username: $0, sameHost: true) }
+        let ownHosts = Set(lookupVariants(key).map { $0.lowercased() })
+        let shared = backend.records(server: nil)
+            .filter { !ownHosts.contains($0.server.lowercased()) && mayShare($0.server, with: key) }
+            .sorted { ($0.server, $0.account) < ($1.server, $1.account) }
+            .map { Match(host: $0.server, username: $0.account, sameHost: false) }
+        return own + shared
+    }
+
+    /// Whether a login saved under `saved` may be offered on a page whose key is `key`, being another host of the same site: the same
+    /// registrable domain (`SiteIndex.registrableDomain`) and the same port. Never for an IP address, a name of one label or a domain of
+    /// a shared hosting platform (`sharedHostingDomains`), where each subdomain is someone else's; nor where the domain taken looks like
+    /// a public suffix the short list doesn't know (com.pl), which the last-two-labels guess would make one site of strangers.
+    /// The keys carry no scheme: http is kept apart because nothing is offered on a page that isn't https.
+    static func mayShare(_ saved: String, with key: String) -> Bool {
+        let saved = saved.lowercased(), key = key.lowercased()
+        let savedHost = hostname(ofKey: saved), keyHost = hostname(ofKey: key)
+        // The port is what follows the host in the key ("" for the scheme's own), and must be the same.
+        guard saved.dropFirst(savedHost.count) == key.dropFirst(keyHost.count), !saved.hasPrefix("["), !key.hasPrefix("[") else { return false }
+        let domain = SiteIndex.registrableDomain(of: keyHost)
+        guard domain == SiteIndex.registrableDomain(of: savedHost), SiteIndex.isHostName(keyHost), SiteIndex.isHostName(savedHost) else { return false }
+        let labels = domain.split(separator: ".")
+        guard labels.count >= 2, domain.contains(where: \.isLetter) else { return false }
+        if sharedHostingDomains.contains(domain) { return false }
+        if labels.count == 2, labels[1].count == 2, genericSecondLevel.contains(String(labels[0])) { return false }
+        return true
+    }
+
+    /// Domains whose subdomains are handed to different people (pages, apps, blogs), so a login for one is no other's.
+    static let sharedHostingDomains: Set<String> = [
+        "github.io", "gitlab.io", "herokuapp.com", "vercel.app", "netlify.app", "pages.dev", "workers.dev", "web.app", "firebaseapp.com",
+        "appspot.com", "blogspot.com", "azurewebsites.net", "cloudfront.net", "amazonaws.com", "fly.dev", "onrender.com", "glitch.me",
+        "repl.co", "ngrok.io", "ngrok-free.app", "tistory.com", "wordpress.com", "wixsite.com", "notion.site",
+    ]
+
+    /// Labels that under a country's domain are a public suffix (com.pl, co.at), not a site's own name.
+    private static let genericSecondLevel: Set<String> = ["ac", "co", "com", "edu", "go", "gob", "gov", "ltd", "mil", "ne", "net", "nom", "or", "org", "plc"]
+
     static func hostVariants(_ host: String) -> [String] {
         host.hasPrefix("www.") ? [host, String(host.dropFirst(4))] : [host, "www." + host]
     }
@@ -239,11 +296,12 @@ final class FillAuthorization {
 }
 
 extension Tab {
-    /// The saved accounts of a host, as the key button asks (tests put their own: a WebKit callback can't see a task-local backend).
-    nonisolated(unsafe) static var loginAccounts: (String) -> [String] = Logins.accounts(for:)
+    /// The saved accounts to offer on a page's key, as the key button and the menu under a field ask (tests put their own: a WebKit
+    /// callback can't see a task-local backend).
+    nonisolated(unsafe) static var loginAccounts: (String) -> [Logins.Match] = Logins.matches(for:)
 
-    /// Shows the key button when the page asks for a password and one is saved for its host. Asked when the page finishes, and again
-    /// whenever a password field comes or goes after that (`LoginFormWatcher`).
+    /// Shows the key button when the page asks for a password and one is saved for its host or another host of its site. Asked when
+    /// the page finishes, and again whenever a password field comes or goes after that (`LoginFormWatcher`).
     func checkForLogins() {
         // Not on a page whose certificate the user went on with, though it could not be verified: a saved password is for the site it was saved for.
         guard let webView, webView.url?.scheme == "https", !Self.isUnverified(webView.url), let host = webView.url.flatMap(Logins.key(for:)) else { savedLogins = []; return }
@@ -255,9 +313,18 @@ extension Tab {
     }
 
     /// Fills a saved login into the page the user is on, after the device owner has confirmed (unless they turned that off).
-    func fillLogin(username: String, authorization: FillAuthorization? = nil, readPassword: @escaping (String, String) -> String? = Logins.password(host:username:)) {
+    func fillLogin(_ match: Logins.Match, authorization: FillAuthorization? = nil) {
+        fillLogin(username: match.username, savedUnder: match.sameHost ? nil : match.host, authorization: authorization)
+    }
+
+    /// `savedUnder` is the key of another host of the site the login was saved for (nil: the page's own). It is checked again against
+    /// the page as it is now, which may have moved to another site since the menu was drawn.
+    func fillLogin(username: String, savedUnder: String? = nil, authorization: FillAuthorization? = nil,
+                   readPassword: @escaping (String, String) -> String? = Logins.password(host:username:)) {
         guard let webView, let origin = Self.httpsOrigin(webView.url), !Self.isUnverified(webView.url) else { return }
-        let host = webView.url.flatMap(Logins.key(for:)) ?? origin.host
+        let pageKey = webView.url.flatMap(Logins.key(for:)) ?? origin.host
+        if let savedUnder, !Logins.mayShare(savedUnder, with: pageKey) { return }
+        let host = savedUnder ?? pageKey
         Task { @MainActor [weak self] in
             guard let password = await (authorization ?? .shared).read({ readPassword(host, username) }) else { return }
             // The page may have moved on while the question was open (to http, another port, another site): the password
@@ -289,8 +356,8 @@ struct LoginButton: View {
     var body: some View {
         if !tab.savedLogins.isEmpty {
             Menu {
-                ForEach(tab.savedLogins, id: \.self) { name in
-                    Button(name.isEmpty ? String(localized: "(No username)") : name) { tab.fillLogin(username: name) }
+                ForEach(tab.savedLogins, id: \.self) { match in
+                    Button(match.title) { tab.fillLogin(match) }
                 }
             } label: {
                 Image(systemName: "key").font(.symbolInline)

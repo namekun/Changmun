@@ -40,7 +40,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// Whether Back has a page to go to: WebKit's `canGoBack` also counts the blank document a page's window started on (see `blankStart`).
     @Published var canGoBack = false
     @Published var canGoForward = false
-    @Published var savedLogins: [String] = []
+    @Published var savedLogins: [Logins.Match] = []
+    /// The saved logins offered just under a sign-in field while it has focus.
+    lazy var loginMenu = LoginFieldMenu(tab: self)
     /// A sign-in just submitted on this page, waiting for the user to save it or not.
     @Published var loginOffer: LoginOffer?
     /// A window the page tried to open on its own, which WebKit blocked.
