@@ -68,8 +68,11 @@ enum Logins {
 
     /// What a page's logins are saved under: its host, and its port when that isn't the scheme's own (localhost:3000 and localhost:8080
     /// are two sites to sign in to, though one host).
+    ///
+    /// The host is the one WebKit reports for a page, which has a non-ASCII name in punycode (`xn--bcher-kva.de`); asked this way Foundation gives
+    /// the same for an address typed with the letters (`bücher.de`), where its plain `host()` gives them percent-encoded and so another key.
     static func key(for url: URL) -> String? {
-        guard let host = url.host(), !host.isEmpty else { return nil }
+        guard let host = url.host(percentEncoded: false), !host.isEmpty else { return nil }
         guard let port = url.port, port != (url.scheme == "http" ? 80 : 443) else { return host }
         return "\(host.contains(":") ? "[\(host)]" : host):\(port)"
     }

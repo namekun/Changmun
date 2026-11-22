@@ -1109,3 +1109,6 @@
 "That file is too large to be a password export" = "该文件太大，不像是密码导出文件";
 "Moved the CSV file to the Trash" = "已将 CSV 文件移到废纸篓";
 "Couldn’t move the file to the Trash: %@" = "无法将文件移到废纸篓：%@";
+"That file isn’t UTF-8 text, so its passwords can’t be read safely. Export it again as CSV, or save it as CSV UTF-8, and try once more." = "该文件不是 UTF-8 文本，无法安全地读取其中的密码。请重新导出为 CSV，或另存为“CSV UTF-8”，然后再试一次。";
+"Repeated in the file, saved once: %@" = "文件中重复，仅存入一次：%@";
+"That CSV file holds your passwords as plain text, readable by anyone who opens it. Changmun left it where it is: delete it once you are done." = "此 CSV 文件以纯文本形式保存了你的密码，任何打开它的人都能看到。Changmun 没有动这个文件，用完后请自行删除。";

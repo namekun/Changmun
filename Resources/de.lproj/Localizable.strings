@@ -1109,3 +1109,6 @@
 "That file is too large to be a password export" = "Diese Datei ist zu groß für einen Passwortexport";
 "Moved the CSV file to the Trash" = "Die CSV-Datei wurde in den Papierkorb gelegt";
 "Couldn’t move the file to the Trash: %@" = "Die Datei konnte nicht in den Papierkorb gelegt werden: %@";
+"That file isn’t UTF-8 text, so its passwords can’t be read safely. Export it again as CSV, or save it as CSV UTF-8, and try once more." = "Diese Datei ist kein UTF-8-Text, daher lassen sich ihre Passwörter nicht sicher lesen. Exportiere sie erneut als CSV oder speichere sie als „CSV UTF-8“ und versuche es noch einmal.";
+"Repeated in the file, saved once: %@" = "In der Datei mehrfach, nur einmal gesichert: %@";
+"That CSV file holds your passwords as plain text, readable by anyone who opens it. Changmun left it where it is: delete it once you are done." = "Diese CSV-Datei enthält deine Passwörter als Klartext, den jeder lesen kann, der sie öffnet. Changmun hat sie dort gelassen, wo sie ist: Lösche sie, wenn du fertig bist.";
