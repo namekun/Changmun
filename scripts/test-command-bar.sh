@@ -6,7 +6,10 @@
 #             (which changes the typed words, and with them the list, before the click is done), and a row that is gone by then opens nothing;
 #   composing  a Korean syllable still being composed is part of what the list, its first row, Return and a click go by (the field shows
 #             "위키" while the text it holds is "위");
-#   the find bar  opened over the bar (⌘F) lends its typing to nobody: the list stays that of the words typed in the bar.
+#   the find bar  opened over the bar (⌘F) lends its typing to nobody: the list stays that of the words typed in the bar;
+#   a site's name  the start of a visited site's name (example.com) is filled in after what is typed, selected (the next letter typed along
+#             it keeps it, → keeps it and Backspace then takes a letter off it rather than filling it in again), Return opens the site, and
+#             Delete takes the filled-in part away, after which Return searches.
 # Uses Changmun Headless.app, starting it if it isn't running (and stopping it again then).
 #
 #   scripts/test-command-bar.sh
@@ -118,4 +121,46 @@ mouse down; mouse up
 sleep 2
 FRONT="$(front_tab)"; echo "$FRONT"
 if [[ "$FRONT" == *"q=zz%20quux"* && "$FRONT" != *needlexyz* ]]; then echo "ok: typing in the find bar did not change the bar's list"; else echo "FAIL: the bar followed the find bar's field" >&2; FAILED=1; fi
+
+# The start of a visited site's name: example.com was visited above. The field's text is read back as it is.
+field_text() { post /window-text '{}' | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["string"])'; }
+away() {
+    scripts/headless.sh call navigate '{"url": "data:text/html,<title>elsewhere</title>"}' >/dev/null
+    post /ui '{"command": "none"}' >/dev/null
+    post /ui '{"command": "editCurrent"}' >/dev/null
+    sleep 0.5
+    key "exa" 0
+    sleep 1
+}
+away
+TEXT="$(field_text)"
+if [[ "$TEXT" == "example.com" ]]; then echo "ok: the rest of the site's name was filled in"; else echo "FAIL: the field shows \"$TEXT\", not the filled-in name" >&2; FAILED=1; fi
+key "m" 0
+TEXT="$(field_text)"
+if [[ "$TEXT" == "example.com" ]]; then echo "ok: a letter typed along the filled-in part replaced it"; else echo "FAIL: typing along the filled-in name left \"$TEXT\"" >&2; FAILED=1; fi
+key '\r' 36
+sleep 2
+FRONT="$(front_tab)"; echo "$FRONT"
+if [[ "$FRONT" == *"https://example.com/"* ]]; then echo "ok: Return opened the site"; else echo "FAIL: Return did not open the site whose name was filled in" >&2; FAILED=1; fi
+
+away
+key '' 124   # →
+key "x" 0
+TEXT="$(field_text)"
+if [[ "$TEXT" == "example.comx" ]]; then echo "ok: → kept the filled-in name"; else echo "FAIL: after → the field shows \"$TEXT\"" >&2; FAILED=1; fi
+
+away
+key '' 124   # →
+key '\u007f' 51   # Delete
+sleep 1
+TEXT="$(field_text)"
+if [[ "$TEXT" == "example.co" ]]; then echo "ok: after → Backspace took a letter off the kept name"; else echo "FAIL: after → and Backspace the field shows \"$TEXT\"" >&2; FAILED=1; fi
+
+away
+key '\u007f' 51   # Delete
+TEXT="$(field_text)"
+key '\r' 36
+sleep 2
+FRONT="$(front_tab)"; echo "$FRONT"
+if [[ "$TEXT" == "exa" && "$FRONT" == *"q=exa"* ]]; then echo "ok: Delete took the filled-in name away and Return searched"; else echo "FAIL: after Delete the field showed \"$TEXT\" and Return did not search for it" >&2; FAILED=1; fi
 exit $FAILED

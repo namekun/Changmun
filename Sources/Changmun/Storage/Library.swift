@@ -138,6 +138,15 @@ final class Library: @unchecked Sendable {
         DispatchQueue.main.async { NotificationCenter.default.post(name: Library.didChange, object: nil) }
     }
 
+    /// Visits were forgotten. Said at once, before `didChange`, when it happens on the main thread (as clearing the history does): what was
+    /// read of the history before (the address bar's sites) is dropped before anything more is typed.
+    static let historyDidShrink = Notification.Name("ChangmunLibraryHistoryDidShrink")
+
+    private func historyRemoved() {
+        let post = { NotificationCenter.default.post(name: Library.historyDidShrink, object: nil) }
+        if Thread.isMainThread { post() } else { DispatchQueue.main.async(execute: post) }
+    }
+
     /// Imports run off the main thread on their own connection, committing in chunks so the
     /// browser's own writes (visits, bookmarks) never land in, or wait long behind, an import's transaction.
     func importing<T>(_ items: [T], _ write: (SQLite, T) throws -> Bool) throws -> Int {
@@ -404,6 +413,7 @@ final class Library: @unchecked Sendable {
 
     func deleteHistory(url: String) {
         try? db?.run("DELETE FROM history WHERE url = ?", [url])
+        historyRemoved()
         changed()
     }
 
@@ -412,6 +422,7 @@ final class Library: @unchecked Sendable {
     func clearHistory(since date: Date) -> Int {
         let before = counts.history
         try? db?.run("DELETE FROM history WHERE last_visit >= ?", [date.timeIntervalSince1970])
+        historyRemoved()
         changed()
         return before - counts.history
     }
@@ -512,6 +523,20 @@ final class Library: @unchecked Sendable {
     func inBackground<T>(_ read: @escaping (Library) -> T) async -> T {
         await withCheckedContinuation { continuation in
             Self.readQueue.async { continuation.resume(returning: read(self.reader)) }
+        }
+    }
+
+    /// The sites of the address bar's top hit go through all of the history, which can take a few hundred milliseconds: on a queue and
+    /// connection of their own, so that the command bar's search typed meanwhile doesn't wait behind them.
+    private static let siteQueue = DispatchQueue(label: "Changmun.library.sites", qos: .utility)
+    private var openedSiteReader: Library?
+
+    func sitesInBackground() async -> SiteIndex {
+        await withCheckedContinuation { continuation in
+            Self.siteQueue.async {
+                if self.openedSiteReader?.db == nil { self.openedSiteReader = Library(path: self.path) }
+                continuation.resume(returning: self.openedSiteReader?.sites() ?? SiteIndex())
+            }
         }
     }
 
