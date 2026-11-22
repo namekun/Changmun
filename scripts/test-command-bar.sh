@@ -8,7 +8,8 @@
 #             "위키" while the text it holds is "위");
 #   the find bar  opened over the bar (⌘F) lends its typing to nobody: the list stays that of the words typed in the bar;
 #   a site's name  the start of a visited site's name (example.com) is filled in after what is typed, selected (the next letter typed along
-#             it keeps it, → keeps it), Return opens the site, and Delete takes the filled-in part away, after which Return searches.
+#             it keeps it, → keeps it and Backspace then takes a letter off it rather than filling it in again), Return opens the site, and
+#             Delete takes the filled-in part away, after which Return searches.
 # Uses Changmun Headless.app, starting it if it isn't running (and stopping it again then).
 #
 #   scripts/test-command-bar.sh
@@ -147,6 +148,13 @@ key '' 124   # →
 key "x" 0
 TEXT="$(field_text)"
 if [[ "$TEXT" == "example.comx" ]]; then echo "ok: → kept the filled-in name"; else echo "FAIL: after → the field shows \"$TEXT\"" >&2; FAILED=1; fi
+
+away
+key '' 124   # →
+key '\u007f' 51   # Delete
+sleep 1
+TEXT="$(field_text)"
+if [[ "$TEXT" == "example.co" ]]; then echo "ok: after → Backspace took a letter off the kept name"; else echo "FAIL: after → and Backspace the field shows \"$TEXT\"" >&2; FAILED=1; fi
 
 away
 key '\u007f' 51   # Delete

@@ -58,32 +58,59 @@ enum SearchSuggestions {
 /// The sites the top hit is found among (`SiteIndex`), at hand without waiting: the top hit is worked out as each letter is typed, so that
 /// Return straight after typing opens the site the first row shows, and no row arrives later to take the first place from under it.
 /// They are loaded again in the background when a field sets up its list and they are more than a minute old, and at once when the
-/// bookmarks or the history change (a cleared history leaves no site behind to complete).
+/// bookmarks or the history change. Visits forgotten (a cleared history) take every visited site out at once, before the reading again:
+/// none is left behind to complete in the meantime.
 @MainActor
 final class SiteStore: ObservableObject {
     static let shared = SiteStore()
-    @Published private(set) var index = SiteIndex()
+    @Published private(set) var index = SiteIndex() {
+        didSet { memo = nil }
+    }
     private var loaded: Date?
     private var loading = false
     private var stale = false
-    private var observer: NSObjectProtocol?
+    /// Counts the times visits were forgotten: a reading begun before is of a history that is no more, and is not used.
+    private var forgotten = 0
+    /// The last hit worked out: the list asks again at every redraw (a pointer over a row), and the answer is the same until the words change.
+    private var memo: (typed: String, history: Bool, hiding: [String], site: SiteIndex.Site?)?
+    private var observers: [NSObjectProtocol] = []
 
     private init() {
-        observer = NotificationCenter.default.addObserver(forName: Library.didChange, object: nil, queue: .main) { [weak self] _ in
+        observers.append(NotificationCenter.default.addObserver(forName: Library.didChange, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.reload() }
+        })
+        // On the posting thread, which is the main one: the sites go before the clearing returns.
+        observers.append(NotificationCenter.default.addObserver(forName: Library.historyDidShrink, object: nil, queue: nil) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
-                self.loaded = nil
-                if self.loading { self.stale = true } else { self.load() }
+                self.forgotten += 1
+                self.index.visited = []
+                self.reload()
             }
-        }
+        })
+    }
+
+    /// `SiteIndex.hit`, worked out once for the same words.
+    func hit(for typed: String, history: Bool, hiding: [String]) -> SiteIndex.Site? {
+        if let memo, memo.typed == typed, memo.history == history, memo.hiding == hiding { return memo.site }
+        let site = index.hit(for: typed, history: history, hiding: hiding)
+        memo = (typed, history, hiding, site)
+        return site
+    }
+
+    private func reload() {
+        loaded = nil
+        if loading { stale = true } else { load() }
     }
 
     func load() {
         guard !loading else { return }
         if let loaded, Date().timeIntervalSince(loaded) < 60 { return }
         loading = true
+        let reading = forgotten
         Task {
-            index = await Library.shared.sitesInBackground()
+            let read = await Library.shared.sitesInBackground()
+            if reading == forgotten { index = read } else { stale = true }
             loaded = Date()
             loading = false
             // The library changed while it was being read: read it again.

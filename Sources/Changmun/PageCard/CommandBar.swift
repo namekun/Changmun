@@ -15,6 +15,8 @@ struct CommandBar: View {
     @State private var shown = ""
     /// What the user typed of `shown`, which the list is for: the field may show the rest of a site's name filled in after it.
     @State private var typed = TypedText()
+    /// How the field's text was last changed, until that change reaches `shown` (`CommandBar.edit`).
+    @State private var edit: TypedText.Edit?
     @State private var selection = 0
     /// Where the pointer last was when it moved, so that a list changing under a resting pointer doesn't count as the pointer moving.
     @State private var pointer = PointerMovement()
@@ -46,19 +48,20 @@ struct CommandBar: View {
     /// suggestions, then bookmarks and history. The local and remote parts arrive from `source` as they're ready.
     private var suggestions: [Suggestion] {
         Self.suggestions(shown: typed.words, pages: source.pages, searches: source.searches, browser: browser, mode: mode,
-                         top: Self.topHit(typed, sites: sites.index, browser: browser))
+                         top: Self.topHit(typed, browser: browser) { sites.hit(for: $0, history: $1, hiding: $2) }, topFirst: !typed.pasted)
     }
 
     /// The list for what is typed, which the start page's search field shares: `pages` and `searches` are what the suggestion source has found,
-    /// `top` the site whose name it is the start of (see `topHit`).
+    /// `top` the site whose name it is the start of (see `topHit`): first, or after the search for words that were pasted (as they were
+    /// before; nothing is filled in after them either).
     static func suggestions(shown: String, pages: [Library.Entry], searches: [String], browser: Browser, mode: CommandBarMode,
-                            top: SiteIndex.Site? = nil) -> [Suggestion] {
+                            top: SiteIndex.Site? = nil, topFirst: Bool = true) -> [Suggestion] {
         let query = shown.trimmingCharacters(in: .whitespaces)
         if query.isEmpty || (mode == .editCurrent && query == browser.active?.url?.absoluteString) {
             return pages.map { .page(url: $0.url, title: $0.title) }
         }
-        var list: [Suggestion] = top.map { [.top(url: $0.url, title: $0.title)] } ?? []
-        list.append(AddressInput.isAddress(query) ? .open(query) : .search(query))
+        var list: [Suggestion] = [AddressInput.isAddress(query) ? .open(query) : .search(query)]
+        if let top { list.insert(.top(url: top.url, title: top.title), at: topFirst ? 0 : 1) }
         if !browser.isPrivate { list.append(.ask(query)) }
         // The tabs of this space first, then those of the others, each with its space's name.
         let others = browser.tabs.filter { $0.spaceID != browser.spaceID }
@@ -71,20 +74,46 @@ struct CommandBar: View {
         return list
     }
 
-    /// The site to put first for what is typed: none after a deletion (the user just took the filled-in name away, and Return then does what
-    /// the field shows), and none from the history in a private window.
-    static func topHit(_ typed: TypedText, sites: SiteIndex, browser: Browser) -> SiteIndex.Site? {
-        typed.deleting ? nil : sites.hit(for: typed.words, history: !browser.isPrivate, hiding: hiddenFavorites(browser))
+    /// The site to put first for what is typed, found by `hit` (`SiteIndex.hit`): none after a deletion (the user just took the filled-in
+    /// name away, and Return then does what the field shows), and none from the history in a private window. While the field shows the
+    /// name filled in, the site's front page: Return opens what the field shows, not one of the site's pages.
+    static func topHit(_ typed: TypedText, browser: Browser, in hit: (String, Bool, [String]) -> SiteIndex.Site?) -> SiteIndex.Site? {
+        guard !typed.deleting, let site = hit(typed.words, !browser.isPrivate, hiddenFavorites(browser)) else { return nil }
+        return typed.completed == nil ? site : site.frontPage
     }
 
     /// Fills in `rest`, the rest of the top hit's name, after what the editor holds, selected: the next letter typed replaces it, Delete takes it
     /// away, and → or End keeps it. As if typed (the field's text is all of it), so that the field and its binding never disagree.
-    static func fill(_ editor: NSTextView, with rest: String) {
+    /// Returns whether it was filled in.
+    @discardableResult static func fill(_ editor: NSTextView, with rest: String) -> Bool {
         let end = NSRange(location: (editor.string as NSString).length, length: 0)
-        guard editor.shouldChangeText(in: end, replacementString: rest) else { return }
+        guard editor.shouldChangeText(in: end, replacementString: rest) else { return false }
         editor.replaceCharacters(in: end, with: rest)
         editor.didChangeText()
         editor.setSelectedRange(NSRange(location: end.location, length: (rest as NSString).length))
+        return true
+    }
+
+    /// Whether the filled-in name is no longer what is selected (→, End, a click moved the caret): it is kept then, as if typed.
+    static func movedOff(_ editor: NSTextView, _ typed: TypedText) -> Bool {
+        guard let full = typed.completed, editor.string == full else { return false }
+        let start = (typed.words as NSString).length
+        return editor.selectedRange() != NSRange(location: start, length: (full as NSString).length - start)
+    }
+
+    /// What an edit of the field's text did, read from its editor's storage as it is made: whether it put characters in or only took some
+    /// out tells typing over a selection (⌘L's address, all of it selected, replaced by "h") from deleting, which the text before and after
+    /// alone can't. Characters put in by ⌘V, or from a menu or a drop (the mouse), were pasted.
+    static func edit(_ storage: NSTextStorage, event: NSEvent?) -> TypedText.Edit? {
+        guard storage.editedMask.contains(.editedCharacters) else { return nil }
+        guard storage.editedRange.length > 0 else { return storage.changeInLength < 0 ? .deleted : nil }
+        // Only an event of this moment says how: one handled earlier stays the app's current event.
+        guard let event, ProcessInfo.processInfo.systemUptime - event.timestamp < 1 else { return .typed }
+        switch event.type {
+        case .keyDown: return event.modifierFlags.contains(.command) ? .pasted : .typed
+        case .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp, .otherMouseDown, .otherMouseUp, .leftMouseDragged: return .pasted
+        default: return .typed
+        }
     }
 
     /// Whether the rest of a name may be filled in after `words` now: the editor still holds just them (no later letter has come), with the caret
@@ -156,11 +185,24 @@ struct CommandBar: View {
                         .onSubmit { submit(command: NSEvent.modifierFlags.contains(.command)) }
                         .onChange(of: text) { syncShown() }
                         .onChange(of: shown) { old, new in
+                            defer { edit = nil }
                             // The filled-in name arriving is not new typing: the list stays that of the words.
-                            guard typed.changed(from: old, to: new) else { return }
+                            guard typed.changed(from: old, to: new, by: edit) else { return }
                             selection = 0
                             refresh()
                             completeInline()
+                        }
+                        // How the field's text is being changed, said by its editor's storage before the change reaches `shown`.
+                        .onReceive(NotificationCenter.default.publisher(for: NSTextStorage.didProcessEditingNotification)) { note in
+                            if let storage = note.object as? NSTextStorage, let editor = fieldEditor, editor.textStorage === storage {
+                                edit = Self.edit(storage, event: NSApp.currentEvent)
+                            }
+                        }
+                        .onReceive(NotificationCenter.default.publisher(for: NSTextView.didChangeSelectionNotification)) { note in
+                            if let editor = Self.ownEditor(note.object as? NSResponder, in: browser.window, placeholder: placeholder),
+                               Self.movedOff(editor, typed) {
+                                keepCompletion()
+                            }
                         }
                         // Composing text reaches the field editor at once (and the binding only when it is settled).
                         // Only the bar's own field: the window has one editor for all its fields, and the find bar's or another field's
@@ -309,14 +351,23 @@ struct CommandBar: View {
     }
 
     /// Typing forward fills in the rest of the top hit's name, once this change has been handled and if no other letter has come since.
+    /// Not after a paste. The name is marked filled in once it is there: the selection moving on its way in is not the user keeping it.
     private func completeInline() {
-        guard let site = Self.topHit(typed, sites: sites.index, browser: browser), let rest = SiteIndex.completion(of: typed.words, to: site) else { return }
+        guard !typed.pasted, let site = Self.topHit(typed, browser: browser, in: { sites.hit(for: $0, history: $1, hiding: $2) }),
+              let rest = SiteIndex.completion(of: typed.words, to: site) else { return }
         let words = typed.words
         DispatchQueue.main.async {
-            guard typed.words == words, typed.completed == nil, let editor = fieldEditor, Self.mayFill(editor, after: words) else { return }
-            typed.complete(to: words + rest)
-            Self.fill(editor, with: rest)
+            guard typed.words == words, typed.completed == nil, let editor = fieldEditor, Self.mayFill(editor, after: words),
+                  Self.fill(editor, with: rest) else { return }
+            typed.complete(to: editor.string)
         }
+    }
+
+    /// The filled-in name kept: the list becomes that of the whole name, as typed.
+    private func keepCompletion() {
+        guard typed.keep() else { return }
+        selection = 0
+        refresh()
     }
 
     /// Results arrive while the user moves through them: the highlight stays on the same row, wherever it went.
@@ -378,24 +429,43 @@ struct TypedText: Equatable {
     private(set) var words: String
     /// The whole field while it shows a filled-in name: the words and the rest of the name.
     private(set) var completed: String?
-    /// The last change only took letters off the end (Delete, Backspace, the filled-in name deleted): nothing is filled in then, and the
+    /// The last change only took letters out (Delete, Backspace, the filled-in name deleted): nothing is filled in then, and the
     /// first row is what the field shows, not the site the user just took away.
     private(set) var deleting = false
+    /// The words were pasted: nothing is filled in after them, and the search for them stays the first row, as before.
+    private(set) var pasted = false
+
+    /// How the field's text was changed (`CommandBar.edit`).
+    enum Edit { case typed, deleted, pasted }
 
     init(_ words: String = "") { self.words = words }
 
-    /// The field went from showing `old` to `new`. False when `new` is the filled-in name arriving, which changes nothing the list is for.
-    mutating func changed(from old: String, to new: String) -> Bool {
+    /// The field went from showing `old` to `new`, by `edit` when the field's editor said how. False when `new` is the filled-in name
+    /// arriving, which changes nothing the list is for.
+    mutating func changed(from old: String, to new: String, by edit: Edit? = nil) -> Bool {
         if new == completed { return false }
-        // A letter typed over the filled-in part ("h" over "git|hub.com") also leaves the start of what was there, but goes on from the words.
-        let typedOn = completed != nil && new.count > words.count
-        deleting = !typedOn && new != old && old.hasPrefix(new)
+        // Not said (the text set from outside the editor): taking letters off the end leaves the start of what was there; a letter typed over
+        // the filled-in part ("h" over "git|hub.com") does too, but goes on from the words.
+        let edit = edit ?? (new != old && old.hasPrefix(new) && !(completed != nil && new.count > words.count) ? .deleted : .typed)
+        deleting = edit == .deleted && new != old
+        pasted = edit == .pasted
         words = new
         completed = nil
         return true
     }
 
     mutating func complete(to full: String) { completed = full }
+
+    /// The filled-in name is kept (→, End, a click in the field): it is what was typed from now on, and Backspace takes a letter off it
+    /// rather than bringing it back. Returns whether there was one.
+    mutating func keep() -> Bool {
+        guard let completed else { return false }
+        words = completed
+        self.completed = nil
+        deleting = false
+        pasted = false
+        return true
+    }
 }
 
 /// Whether the pointer moved. A list that changes under a resting pointer makes the row now below it "hovered" without any movement,

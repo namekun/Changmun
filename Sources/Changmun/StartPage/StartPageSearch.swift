@@ -20,6 +20,7 @@ struct StartSearchBox: View {
     @State private var shown = ""
     /// What the user typed of it, which the list is for (see `CommandBar.typed`).
     @State private var typed = TypedText()
+    @State private var edit: TypedText.Edit?
     @State private var selection = 0
     @State private var pointer = PointerMovement()
     @StateObject private var source = SuggestionSource()
@@ -35,7 +36,8 @@ struct StartSearchBox: View {
 
     private var items: [CommandBar.Suggestion] {
         query.isEmpty ? [] : CommandBar.suggestions(shown: typed.words, pages: source.pages, searches: source.searches, browser: browser, mode: mode,
-                                                    top: CommandBar.topHit(typed, sites: sites.index, browser: browser))
+                                                    top: CommandBar.topHit(typed, browser: browser) { sites.hit(for: $0, history: $1, hiding: $2) },
+                                                    topFirst: !typed.pasted)
     }
 
     var body: some View {
@@ -122,10 +124,25 @@ struct StartSearchBox: View {
                 .onSubmit { run(CommandBar.chosen(currentItems, at: selection)) }
                 .onChange(of: text) { syncShown() }
                 .onChange(of: shown) { old, new in
-                    guard typed.changed(from: old, to: new) else { return }
+                    defer { edit = nil }
+                    guard typed.changed(from: old, to: new, by: edit) else { return }
                     selection = 0
                     refresh()
                     completeInline()
+                }
+                // How the text is being changed, and the filled-in name kept, as in the command bar (whose field, while it is open, this is not).
+                .onReceive(NotificationCenter.default.publisher(for: NSTextStorage.didProcessEditingNotification)) { note in
+                    if browser.commandBar == nil, let storage = note.object as? NSTextStorage, let editor = fieldEditor, editor.textStorage === storage {
+                        edit = CommandBar.edit(storage, event: NSApp.currentEvent)
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: NSTextView.didChangeSelectionNotification)) { note in
+                    if browser.commandBar == nil,
+                       let editor = CommandBar.ownEditor(note.object as? NSResponder, in: browser.window, placeholder: placeholder),
+                       CommandBar.movedOff(editor, typed), typed.keep() {
+                        selection = 0
+                        refresh()
+                    }
                 }
                 // Composing text reaches the field editor at once (the binding only when it is settled), as in the command bar.
                 .onReceive(NotificationCenter.default.publisher(for: NSText.didChangeNotification)) { note in
@@ -153,12 +170,13 @@ struct StartSearchBox: View {
 
     /// Typing forward fills in the rest of the top hit's name, as in the command bar.
     private func completeInline() {
-        guard let site = CommandBar.topHit(typed, sites: sites.index, browser: browser), let rest = SiteIndex.completion(of: typed.words, to: site) else { return }
+        guard !typed.pasted, let site = CommandBar.topHit(typed, browser: browser, in: { sites.hit(for: $0, history: $1, hiding: $2) }),
+              let rest = SiteIndex.completion(of: typed.words, to: site) else { return }
         let words = typed.words
         DispatchQueue.main.async {
-            guard typed.words == words, typed.completed == nil, let editor = fieldEditor, CommandBar.mayFill(editor, after: words) else { return }
-            typed.complete(to: words + rest)
-            CommandBar.fill(editor, with: rest)
+            guard typed.words == words, typed.completed == nil, browser.commandBar == nil, let editor = fieldEditor,
+                  CommandBar.mayFill(editor, after: words), CommandBar.fill(editor, with: rest) else { return }
+            typed.complete(to: editor.string)
         }
     }
 
