@@ -295,5 +295,17 @@ extension SharedAgentState {
             #expect(!AppDelegate.quits(after: DialogResult(button: 1, fields: [], remembered: false, picked: 0)))
             #expect(AppDelegate.quits(after: nil), "a question that couldn't be shown quits, never cancels the quit silently")
         }
+
+        @Test func theFirstClickOnAWindowNotInFrontReachesThePage() throws {
+            let (_, _, webView) = pageTab()
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
+            window.contentView?.addSubview(webView)
+            webView.frame = window.contentView?.bounds ?? .zero
+            #expect(!window.isKeyWindow)
+            let click = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: NSPoint(x: 200, y: 150), modifierFlags: [], timestamp: 0,
+                                                         windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1))
+            #expect(webView.acceptsFirstMouse(for: click), "WebKit alone says no, and the click only brings the window forward")
+            webView.removeFromSuperview()
+        }
     }
 }
