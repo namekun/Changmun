@@ -13,14 +13,20 @@ struct CommandBar: View {
     /// What the field shows: `text` with the syllable an input method is still composing, which the binding doesn't hold until it is settled.
     /// The list, its first row and what Return and a click run all follow this; it is never written back into the field.
     @State private var shown = ""
+    /// What the user typed of `shown`, which the list is for: the field may show the rest of a site's name filled in after it.
+    @State private var typed = TypedText()
     @State private var selection = 0
     /// Where the pointer last was when it moved, so that a list changing under a resting pointer doesn't count as the pointer moving.
     @State private var pointer = PointerMovement()
     @StateObject private var source = SuggestionSource()
+    @ObservedObject private var sites = SiteStore.shared
     @FocusState private var focused: Bool
     @State private var announceTask: Task<Void, Never>?
 
     enum Suggestion: Hashable {
+        /// The site whose name what is typed is the start of (`SiteIndex`): first, so that Return opens it. A row of its own and not a `page`,
+        /// so that the highlight on it never moves to the same page further down when it stops being the top hit.
+        case top(url: String, title: String)
         case open(String)
         case search(String)
         case suggested(String)
@@ -39,16 +45,20 @@ struct CommandBar: View {
     /// Typing an address or words: open or search it, ask the AI, switch to a matching open tab, the engine's
     /// suggestions, then bookmarks and history. The local and remote parts arrive from `source` as they're ready.
     private var suggestions: [Suggestion] {
-        Self.suggestions(shown: shown, pages: source.pages, searches: source.searches, browser: browser, mode: mode)
+        Self.suggestions(shown: typed.words, pages: source.pages, searches: source.searches, browser: browser, mode: mode,
+                         top: Self.topHit(typed, sites: sites.index, browser: browser))
     }
 
-    /// The list for what is typed, which the start page's search field shares: `pages` and `searches` are what the suggestion source has found.
-    static func suggestions(shown: String, pages: [Library.Entry], searches: [String], browser: Browser, mode: CommandBarMode) -> [Suggestion] {
+    /// The list for what is typed, which the start page's search field shares: `pages` and `searches` are what the suggestion source has found,
+    /// `top` the site whose name it is the start of (see `topHit`).
+    static func suggestions(shown: String, pages: [Library.Entry], searches: [String], browser: Browser, mode: CommandBarMode,
+                            top: SiteIndex.Site? = nil) -> [Suggestion] {
         let query = shown.trimmingCharacters(in: .whitespaces)
         if query.isEmpty || (mode == .editCurrent && query == browser.active?.url?.absoluteString) {
             return pages.map { .page(url: $0.url, title: $0.title) }
         }
-        var list: [Suggestion] = [AddressInput.isAddress(query) ? .open(query) : .search(query)]
+        var list: [Suggestion] = top.map { [.top(url: $0.url, title: $0.title)] } ?? []
+        list.append(AddressInput.isAddress(query) ? .open(query) : .search(query))
         if !browser.isPrivate { list.append(.ask(query)) }
         // The tabs of this space first, then those of the others, each with its space's name.
         let others = browser.tabs.filter { $0.spaceID != browser.spaceID }
@@ -56,9 +66,31 @@ struct CommandBar: View {
         list += tabs.prefix(3).map { .tab(id: $0.id, url: $0.url?.absoluteString ?? "", title: $0.displayTitle,
                                           space: $0.spaceID == browser.spaceID ? nil : browser.spaces.space($0.spaceID).name) }
         list += searches.prefix(4).map { .suggested($0) }
-        let open = Set(tabs.compactMap { $0.url?.absoluteString })
+        let open = Set(tabs.compactMap { $0.url?.absoluteString } + [top?.url].compactMap { $0 })
         list += pages.filter { !open.contains($0.url) }.prefix(6).map { .page(url: $0.url, title: $0.title) }
         return list
+    }
+
+    /// The site to put first for what is typed: none after a deletion (the user just took the filled-in name away, and Return then does what
+    /// the field shows), and none from the history in a private window.
+    static func topHit(_ typed: TypedText, sites: SiteIndex, browser: Browser) -> SiteIndex.Site? {
+        typed.deleting ? nil : sites.hit(for: typed.words, history: !browser.isPrivate, hiding: hiddenFavorites(browser))
+    }
+
+    /// Fills in `rest`, the rest of the top hit's name, after what the editor holds, selected: the next letter typed replaces it, Delete takes it
+    /// away, and → or End keeps it. As if typed (the field's text is all of it), so that the field and its binding never disagree.
+    static func fill(_ editor: NSTextView, with rest: String) {
+        let end = NSRange(location: (editor.string as NSString).length, length: 0)
+        guard editor.shouldChangeText(in: end, replacementString: rest) else { return }
+        editor.replaceCharacters(in: end, with: rest)
+        editor.didChangeText()
+        editor.setSelectedRange(NSRange(location: end.location, length: (rest as NSString).length))
+    }
+
+    /// Whether the rest of a name may be filled in after `words` now: the editor still holds just them (no later letter has come), with the caret
+    /// at their end, and no input method is composing (a Korean syllable is not finished).
+    static func mayFill(_ editor: NSTextView, after words: String) -> Bool {
+        editor.string == words && !editor.hasMarkedText() && editor.selectedRange() == NSRange(location: (words as NSString).length, length: 0)
     }
 
     /// The row Return runs: the highlighted one, none when the highlight is past the end of the list.
@@ -123,9 +155,12 @@ struct CommandBar: View {
                         // the `items` of that render would hold the rows from before the local and engine results came in.
                         .onSubmit { submit(command: NSEvent.modifierFlags.contains(.command)) }
                         .onChange(of: text) { syncShown() }
-                        .onChange(of: shown) {
+                        .onChange(of: shown) { old, new in
+                            // The filled-in name arriving is not new typing: the list stays that of the words.
+                            guard typed.changed(from: old, to: new) else { return }
                             selection = 0
                             refresh()
+                            completeInline()
                         }
                         // Composing text reaches the field editor at once (and the binding only when it is settled).
                         // Only the bar's own field: the window has one editor for all its fields, and the find bar's or another field's
@@ -150,7 +185,7 @@ struct CommandBar: View {
                                 .onContinuousHover(coordinateSpace: .global) { phase in
                                     if case .active(let point) = phase, pointer.moved(to: point) { selection = index }
                                 }
-                            if index == 0, let chips = chips(for: items) {
+                            if case .search = row.1, let chips = chips(for: items) {
                                 EngineChips(engines: chips.engines) { engine in
                                     if let url = AddressInput.searchURL(chips.terms, template: engine.template) {
                                         browser.open(url.absoluteString, in: NSEvent.modifierFlags.contains(.command) ? .newTab : mode)
@@ -174,6 +209,12 @@ struct CommandBar: View {
             .onKeyPress(.downArrow) { selection = max(0, min(selection + 1, items.count - 1)); return .handled }
             .onKeyPress(.upArrow) { selection = max(selection - 1, 0); return .handled }
             .onKeyPress(.escape) { dismiss(); return .handled }
+            // End keeps the filled-in name as → does (which the field does by itself): the caret goes after it.
+            .onKeyPress(.end) {
+                guard typed.completed != nil, let editor = fieldEditor else { return .ignored }
+                editor.setSelectedRange(NSRange(location: (editor.string as NSString).length, length: 0))
+                return .handled
+            }
             // ⌘Return: in a new tab, whatever the bar would do.
             .onKeyPress(.return) {
                 guard NSEvent.modifierFlags.contains(.command) else { return .ignored }
@@ -202,15 +243,17 @@ struct CommandBar: View {
         .onAppear {
             text = mode == .editCurrent ? (browser.active?.url?.absoluteString ?? "") : ""
             shown = text
+            typed = TypedText(text)
             refresh()
+            sites.load()
             browser.window?.makeFirstResponder(nil)
             DispatchQueue.main.async { focused = true }
         }
     }
 
-    /// The engine row under a search row: the other engines the words can go to just this once, none for an address or an empty field.
+    /// The engine row under the search row: the other engines the words can go to just this once, none for an address or an empty field.
     private func chips(for items: [Suggestion]) -> CommandBarChips? {
-        guard case .search(let query) = items.first else { return nil }
+        guard let query = items.lazy.compactMap({ if case .search(let query) = $0 { query } else { nil } }).first else { return nil }
         let builtIns = SearchEngine.listed(removed: prefs.removedSearchEngines)
         let routed = SearchRouting.pick(query, default: AddressInput.searchTemplate, engines: prefs.customSearchEngines)
         let engines = QuickSearch.chips(besides: routed.template, custom: prefs.customSearchEngines, builtIns: builtIns)
@@ -257,11 +300,22 @@ struct CommandBar: View {
 
     /// Bookmarks for an empty field (or the current address, untouched); otherwise a search as the user types.
     private func refresh() {
-        let query = shown.trimmingCharacters(in: .whitespaces)
+        let query = typed.words.trimmingCharacters(in: .whitespaces)
         if query.isEmpty || (mode == .editCurrent && query == browser.active?.url?.absoluteString) {
             source.update("", remote: false, hiding: hiddenFavorites)
         } else {
-            source.update(shown, remote: prefs.searchSuggestions && !browser.isPrivate, hiding: hiddenFavorites, history: !browser.isPrivate)
+            source.update(typed.words, remote: prefs.searchSuggestions && !browser.isPrivate, hiding: hiddenFavorites, history: !browser.isPrivate)
+        }
+    }
+
+    /// Typing forward fills in the rest of the top hit's name, once this change has been handled and if no other letter has come since.
+    private func completeInline() {
+        guard let site = Self.topHit(typed, sites: sites.index, browser: browser), let rest = SiteIndex.completion(of: typed.words, to: site) else { return }
+        let words = typed.words
+        DispatchQueue.main.async {
+            guard typed.words == words, typed.completed == nil, let editor = fieldEditor, Self.mayFill(editor, after: words) else { return }
+            typed.complete(to: words + rest)
+            Self.fill(editor, with: rest)
         }
     }
 
@@ -299,6 +353,8 @@ struct CommandBar: View {
         switch item {
         case .open(let input), .search(let input), .suggested(let input):
             browser.open(input, in: mode)
+        case .top(let url, _):
+            browser.open(url, in: mode)
         case .tab(let id, _, _, _):
             browser.activate(id)
             browser.commandBar = nil
@@ -314,6 +370,32 @@ struct CommandBar: View {
             break
         }
     }
+}
+
+/// What the user typed into a field, apart from the rest of a site's name the field filled in after it (`CommandBar.fill`).
+struct TypedText: Equatable {
+    /// The user's own words, which the list is for.
+    private(set) var words: String
+    /// The whole field while it shows a filled-in name: the words and the rest of the name.
+    private(set) var completed: String?
+    /// The last change only took letters off the end (Delete, Backspace, the filled-in name deleted): nothing is filled in then, and the
+    /// first row is what the field shows, not the site the user just took away.
+    private(set) var deleting = false
+
+    init(_ words: String = "") { self.words = words }
+
+    /// The field went from showing `old` to `new`. False when `new` is the filled-in name arriving, which changes nothing the list is for.
+    mutating func changed(from old: String, to new: String) -> Bool {
+        if new == completed { return false }
+        // A letter typed over the filled-in part ("h" over "git|hub.com") also leaves the start of what was there, but goes on from the words.
+        let typedOn = completed != nil && new.count > words.count
+        deleting = !typedOn && new != old && old.hasPrefix(new)
+        words = new
+        completed = nil
+        return true
+    }
+
+    mutating func complete(to full: String) { completed = full }
 }
 
 /// Whether the pointer moved. A list that changes under a resting pointer makes the row now below it "hovered" without any movement,
@@ -380,7 +462,7 @@ struct SuggestionRow: View {
         case .search(let text), .suggested(let text): .search(text)
         case .ask(let text): .ask(text)
         case .tab(_, let url, let title, let space): .tab(title: title, host: URL(string: url)?.host() ?? "", space: space)
-        case .page(let url, let title): .page(title: title, host: URL(string: url)?.host() ?? url)
+        case .page(let url, let title), .top(let url, let title): .page(title: title, host: URL(string: url)?.host() ?? url)
         }
     }
 
@@ -390,7 +472,7 @@ struct SuggestionRow: View {
         case .search, .suggested: Image(systemName: "magnifyingglass").font(.symbolToolbar).foregroundStyle(Theme.secondary)
         case .tab(_, let url, _, _): SiteIcon(url: url, size: 16, fetches: fetchesIcons)
         case .ask: Image(systemName: "sparkles").font(.symbolToolbar).foregroundStyle(Theme.primary)
-        case .page(let url, _): SiteIcon(url: url, size: 16, fetches: fetchesIcons)
+        case .page(let url, _), .top(let url, _): SiteIcon(url: url, size: 16, fetches: fetchesIcons)
         }
     }
 
@@ -410,7 +492,7 @@ struct SuggestionRow: View {
         case .ask(let text):
             Text("Ask AI").font(.bodyStrong).foregroundStyle(Theme.secondary)
             Text(text).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
-        case .page(let url, let title):
+        case .page(let url, let title), .top(let url, let title):
             Text(title.isEmpty ? url : title).font(.bodyStrong).foregroundStyle(Theme.primary).lineLimit(1)
             Text(URL(string: url)?.host() ?? url).font(.secondary).foregroundStyle(Theme.secondary).lineLimit(1)
         }

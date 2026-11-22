@@ -515,6 +515,20 @@ final class Library: @unchecked Sendable {
         }
     }
 
+    /// The sites of the address bar's top hit go through all of the history, which can take a few hundred milliseconds: on a queue and
+    /// connection of their own, so that the command bar's search typed meanwhile doesn't wait behind them.
+    private static let siteQueue = DispatchQueue(label: "Changmun.library.sites", qos: .utility)
+    private var openedSiteReader: Library?
+
+    func sitesInBackground() async -> SiteIndex {
+        await withCheckedContinuation { continuation in
+            Self.siteQueue.async {
+                if self.openedSiteReader?.db == nil { self.openedSiteReader = Library(path: self.path) }
+                continuation.resume(returning: self.openedSiteReader?.sites() ?? SiteIndex())
+            }
+        }
+    }
+
     /// `hiding` names folders whose bookmarks stay out (another profile's favorites).
     func bookmarks(limit: Int = 8, hiding folders: [String] = []) -> [Entry] {
         let hidden = Self.notIn(folders)

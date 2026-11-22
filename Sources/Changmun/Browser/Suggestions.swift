@@ -55,6 +55,47 @@ enum SearchSuggestions {
     }
 }
 
+/// The sites the top hit is found among (`SiteIndex`), at hand without waiting: the top hit is worked out as each letter is typed, so that
+/// Return straight after typing opens the site the first row shows, and no row arrives later to take the first place from under it.
+/// They are loaded again in the background when a field sets up its list and they are more than a minute old, and at once when the
+/// bookmarks or the history change (a cleared history leaves no site behind to complete).
+@MainActor
+final class SiteStore: ObservableObject {
+    static let shared = SiteStore()
+    @Published private(set) var index = SiteIndex()
+    private var loaded: Date?
+    private var loading = false
+    private var stale = false
+    private var observer: NSObjectProtocol?
+
+    private init() {
+        observer = NotificationCenter.default.addObserver(forName: Library.didChange, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.loaded = nil
+                if self.loading { self.stale = true } else { self.load() }
+            }
+        }
+    }
+
+    func load() {
+        guard !loading else { return }
+        if let loaded, Date().timeIntervalSince(loaded) < 60 { return }
+        loading = true
+        Task {
+            index = await Library.shared.sitesInBackground()
+            loaded = Date()
+            loading = false
+            // The library changed while it was being read: read it again.
+            if stale {
+                stale = false
+                loaded = nil
+                load()
+            }
+        }
+    }
+}
+
 /// The command bar's list, worked out off the main thread as the user types: the local search over tens of thousands
 /// of visits takes tens of milliseconds, and the engine's suggestions a network round trip.
 @MainActor

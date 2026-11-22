@@ -18,9 +18,12 @@ struct StartSearchBox: View {
     @State private var text = ""
     /// What the field shows, composing syllable and all (see `CommandBar.shown`).
     @State private var shown = ""
+    /// What the user typed of it, which the list is for (see `CommandBar.typed`).
+    @State private var typed = TypedText()
     @State private var selection = 0
     @State private var pointer = PointerMovement()
     @StateObject private var source = SuggestionSource()
+    @ObservedObject private var sites = SiteStore.shared
     @FocusState private var focused: Bool
     @State private var announceTask: Task<Void, Never>?
 
@@ -28,10 +31,11 @@ struct StartSearchBox: View {
         return browser.isPrivate ? String(localized: "Search or enter an address") : String(localized: "Search, enter an address or ask AI")
     }
 
-    private var query: String { shown.trimmingCharacters(in: .whitespaces) }
+    private var query: String { typed.words.trimmingCharacters(in: .whitespaces) }
 
     private var items: [CommandBar.Suggestion] {
-        query.isEmpty ? [] : CommandBar.suggestions(shown: shown, pages: source.pages, searches: source.searches, browser: browser, mode: mode)
+        query.isEmpty ? [] : CommandBar.suggestions(shown: typed.words, pages: source.pages, searches: source.searches, browser: browser, mode: mode,
+                                                    top: CommandBar.topHit(typed, sites: sites.index, browser: browser))
     }
 
     var body: some View {
@@ -69,6 +73,12 @@ struct StartSearchBox: View {
             clear()
             return .handled
         }
+        // End keeps the filled-in name, as in the command bar.
+        .onKeyPress(.end) {
+            guard typed.completed != nil, let editor = fieldEditor else { return .ignored }
+            editor.setSelectedRange(NSRange(location: (editor.string as NSString).length, length: 0))
+            return .handled
+        }
         .onKeyPress(.tab) {
             guard items.isEmpty else { return .ignored }
             leave(NSEvent.modifierFlags.contains(.shift))
@@ -90,6 +100,7 @@ struct StartSearchBox: View {
             }
         }
         .onChange(of: focusRequest) { focused = true }
+        .onAppear { sites.load() }
         .onChange(of: query.isEmpty) { _, empty in typing = !empty }
         .onDisappear {
             announceTask?.cancel()
@@ -110,9 +121,11 @@ struct StartSearchBox: View {
                 // The list as it is when Return is pressed: the field keeps the handler it had when its text last changed.
                 .onSubmit { run(CommandBar.chosen(currentItems, at: selection)) }
                 .onChange(of: text) { syncShown() }
-                .onChange(of: shown) {
+                .onChange(of: shown) { old, new in
+                    guard typed.changed(from: old, to: new) else { return }
                     selection = 0
                     refresh()
+                    completeInline()
                 }
                 // Composing text reaches the field editor at once (the binding only when it is settled), as in the command bar.
                 .onReceive(NotificationCenter.default.publisher(for: NSText.didChangeNotification)) { note in
@@ -136,6 +149,17 @@ struct StartSearchBox: View {
 
     private func syncShown() {
         shown = CommandBar.shownText(editor: fieldEditor?.string, binding: text)
+    }
+
+    /// Typing forward fills in the rest of the top hit's name, as in the command bar.
+    private func completeInline() {
+        guard let site = CommandBar.topHit(typed, sites: sites.index, browser: browser), let rest = SiteIndex.completion(of: typed.words, to: site) else { return }
+        let words = typed.words
+        DispatchQueue.main.async {
+            guard typed.words == words, typed.completed == nil, let editor = fieldEditor, CommandBar.mayFill(editor, after: words) else { return }
+            typed.complete(to: words + rest)
+            CommandBar.fill(editor, with: rest)
+        }
     }
 
     private func refresh() {
