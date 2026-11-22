@@ -12,6 +12,8 @@ case .app: break
 
 MainActor.assumeIsolated {
     OffScreenWindows.install()
+    // Before anything the app makes can open a data store (the delegate's own properties included): WebKit reads it then.
+    Browser.keepQuietSitesData()
     let app = NSApplication.shared
     let delegate = AppDelegate()
     app.delegate = delegate
