@@ -132,6 +132,19 @@ struct TopHitTests {
         #expect(library.sites().hit(for: "github.com") == nil)
     }
 
+    /// The host is cut from the address as text: a user name in front of it must not make it read as the name typed.
+    @Test func anAddressWithAUserNameIsNoSite() throws {
+        let library = library()
+        try visit(library, "https://github.com@evil.example/", times: 50)
+        try visit(library, "https://naver.com:pw@evil.example/", times: 50)
+        let sites = library.sites()
+        #expect(sites.hit(for: "github.com") == nil)
+        #expect(sites.hit(for: "git") == nil)
+        #expect(sites.hit(for: "naver.com") == nil)
+        #expect(!SiteIndex.isHostName("github.com@evil.example"))
+        #expect(SiteIndex.isHostName("localhost:3000") && SiteIndex.isHostName("[::1]:8080") && SiteIndex.isHostName("네이버.한국"))
+    }
+
     @Test func aSubdomainIsCompletedOnceTheTypingReachesItsDomain() throws {
         let library = library()
         try visit(library, "https://mail.google.com/mail/u/0/", times: 9)

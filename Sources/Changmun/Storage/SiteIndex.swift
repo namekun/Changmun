@@ -72,7 +72,13 @@ struct SiteIndex: Equatable {
     /// naver.co.kr), not only into the labels in front of it, which whoever holds that domain names as they like: `git` completes to
     /// github.com but not to github.com.evil.example, `naver` not to naver.evil.com, `mail.goo` to mail.google.com (and `mail` not).
     static func completes(_ name: String, to host: String) -> Bool {
-        host.utf8.starts(with: name.utf8) && host.utf8.count > name.utf8.count && name.utf8.count > registrableStart(host)
+        host.utf8.starts(with: name.utf8) && host.utf8.count > name.utf8.count && isHostName(host) && name.utf8.count > registrableStart(host)
+    }
+
+    /// Only what a host name and its port are made of. The name is cut from the address as text, so one with a user name in it
+    /// (`https://github.com@evil.example/`) would read as "github.com@evil.example", and `github.com` would complete to it.
+    static func isHostName(_ host: String) -> Bool {
+        !host.isEmpty && host.allSatisfy { $0.isLetter || $0.isNumber || $0 == "." || $0 == "-" || $0 == ":" || $0 == "[" || $0 == "]" }
     }
 
     /// Where in `host` (in UTF-8 bytes) its registrable domain starts. The public suffix list isn't in the app: the domain is taken as
