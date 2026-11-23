@@ -408,8 +408,9 @@ extension Tab {
         let host: String
         let port: Int
 
-        /// A frame's own origin, as WebKit gives it (port 0 for the scheme's own); nil for anything but https.
-        init?(_ security: WKSecurityOrigin) {
+        /// A frame's own origin, as WebKit gives it (port 0 for the scheme's own); nil for anything but https. WebKit's origin object
+        /// is the main actor's.
+        @MainActor init?(_ security: WKSecurityOrigin) {
             guard security.protocol == "https", !security.host.isEmpty else { return nil }
             self.init(host: security.host.lowercased(), port: security.port == 0 ? 443 : security.port)
         }
