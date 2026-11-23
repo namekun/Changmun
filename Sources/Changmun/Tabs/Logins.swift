@@ -272,7 +272,10 @@ enum Logins {
         return hostVariants(key) + (bare == key ? [] : hostVariants(bare))
     }
 
+    /// Fills nothing unless it runs in the top document of `origin`: whatever the app checked, the page that gets the password is
+    /// the one the account was chosen for.
     static let fillScript = """
+    if (window.top !== window || location.origin !== origin) return false;
     const visible = e => e.offsetParent !== null || e.getClientRects().length > 0;
     const pw = [...document.querySelectorAll('input[type=password]')].find(visible) || null;
     let user = null;
@@ -318,12 +321,13 @@ final class FillAuthorization {
 
     /// The password from `read`, which is not called until the device owner has confirmed (or the setting is off, or they
     /// confirmed less than `grace` seconds ago). nil when they declined, or while another question is still open.
-    func read(_ read: () -> String?) async -> String? {
+    /// `site` is the host the login is saved for, which the question names: the user confirms filling that site's password.
+    func read(site: String = "", _ read: () -> String?) async -> String? {
         if required(), !Headless.isOn, !withinGrace {
             guard !asking else { return nil }
             asking = true
             defer { asking = false }
-            guard await confirm(String(localized: "Authentication is required to fill the saved password")) else { return nil }
+            guard await confirm(String(localized: "Authentication is required to fill the saved password for \(site)")) else { return nil }
             confirmedAt = now()
         }
         return read()
@@ -352,7 +356,9 @@ extension Tab {
         loginCheck += 1
         let check = loginCheck
         // Not on a page whose certificate the user went on with, though it could not be verified: a saved password is for the site it was saved for.
-        guard let webView, webView.url?.scheme == "https", !Self.isUnverified(webView.url), let host = webView.url.flatMap(Logins.key(for:)) else { savedLogins = []; return }
+        // The page is the document committed, never `webView.url`, which names where a navigation not yet answered is going.
+        guard let webView, !isLoadingProvisionally, let origin = Self.httpsOrigin(committedURL), !Self.isUnverified(committedURL) else { savedLogins = []; return }
+        let host = origin.key
         // The saved logins are looked up only once the page shows a sign-in field.
         webView.evaluateJavaScript("!!document.querySelector('input[type=password], input[autocomplete=username]')") { [weak self] value, _ in
             Task { @MainActor in
@@ -360,47 +366,68 @@ extension Tab {
                 guard value as? Bool == true else { self.savedLogins = []; return }
                 let accounts = await Self.loginAccounts(host)
                 // A later look, or another page, has the say.
-                guard self.loginCheck == check, self.webView?.url.flatMap(Logins.key(for:)) == host else { return }
+                guard self.loginCheck == check, !self.isLoadingProvisionally, Self.httpsOrigin(self.committedURL) == origin else { return }
                 self.savedLogins = accounts
             }
         }
     }
 
     /// Fills a saved login into the page the user is on, after the device owner has confirmed (unless they turned that off).
-    func fillLogin(_ match: Logins.Match, authorization: FillAuthorization? = nil) {
-        fillLogin(username: match.username, savedUnder: match.sameHost ? nil : match.host, authorization: authorization)
+    /// `origin` is the document the account was offered to (the menu under a field has it from the page's own frame).
+    func fillLogin(_ match: Logins.Match, origin: Origin? = nil, authorization: FillAuthorization? = nil) {
+        fillLogin(username: match.username, savedUnder: match.sameHost ? nil : match.host, origin: origin, authorization: authorization)
     }
 
-    /// `savedUnder` is the key of another host of the site the login was saved for (nil: the page's own). It is checked again against
-    /// the page as it is now, which may have moved to another site since the menu was drawn.
-    func fillLogin(username: String, savedUnder: String? = nil, authorization: FillAuthorization? = nil,
+    /// `savedUnder` is the key of another host of the site the login was saved for (nil: the page's own). Everything is judged by the
+    /// document committed (`committedURL`), and nothing is filled while a navigation is under way: `webView.url` then already names
+    /// where it goes, though the old page is still the one on screen, so a page could send itself to a bank's address that never
+    /// answers and be given the bank's password. Checked again once the device owner has confirmed, and by the script in the page.
+    func fillLogin(username: String, savedUnder: String? = nil, origin expected: Origin? = nil, authorization: FillAuthorization? = nil,
                    readPassword: @escaping (String, String) -> String? = Logins.password(host:username:)) {
-        guard let webView, let origin = Self.httpsOrigin(webView.url), !Self.isUnverified(webView.url) else { return }
-        let pageKey = webView.url.flatMap(Logins.key(for:)) ?? origin.host
-        if let savedUnder, !Logins.mayShare(savedUnder, with: pageKey) { return }
-        let host = savedUnder ?? pageKey
+        guard webView != nil, !isLoadingProvisionally, let origin = Self.httpsOrigin(committedURL), !Self.isUnverified(committedURL),
+              expected.map({ $0 == origin }) ?? true else { return }
+        if let savedUnder, !Logins.mayShare(savedUnder, with: origin.key) { return }
+        let host = savedUnder ?? origin.key
         Task { @MainActor [weak self] in
-            guard let password = await (authorization ?? .shared).read({ readPassword(host, username) }) else { return }
+            guard let password = await (authorization ?? .shared).read(site: Logins.hostname(ofKey: host), { readPassword(host, username) }) else { return }
             // The page may have moved on while the question was open (to http, another port, another site): the password
             // goes only to the origin it was chosen for.
-            guard let self, Self.httpsOrigin(self.webView?.url) == origin, !Self.isUnverified(self.webView?.url) else { return }
-            self.fill(username: username, password: password)
+            guard let self, !self.isLoadingProvisionally, Self.httpsOrigin(self.committedURL) == origin, !Self.isUnverified(self.committedURL) else { return }
+            self.fill(username: username, password: password, origin: origin)
         }
     }
 
     /// The scheme, host and port of an https address; nil for anything else.
-    private static func httpsOrigin(_ url: URL?) -> Origin? {
-        guard let url, url.scheme == "https", let host = url.host() else { return nil }
+    nonisolated static func httpsOrigin(_ url: URL?) -> Origin? {
+        guard let url, url.scheme == "https", let host = url.host()?.lowercased() else { return nil }
         return Origin(host: host, port: url.port ?? 443)
     }
 
-    private struct Origin: Equatable {
+    /// An https document's origin.
+    struct Origin: Equatable {
         let host: String
         let port: Int
+
+        /// A frame's own origin, as WebKit gives it (port 0 for the scheme's own); nil for anything but https.
+        init?(_ security: WKSecurityOrigin) {
+            guard security.protocol == "https", !security.host.isEmpty else { return nil }
+            self.init(host: security.host.lowercased(), port: security.port == 0 ? 443 : security.port)
+        }
+
+        init(host: String, port: Int) {
+            self.host = host.hasPrefix("[") ? String(host.dropFirst().dropLast()) : host
+            self.port = port
+        }
+
+        private var bracketed: String { host.contains(":") ? "[\(host)]" : host }
+        /// What its logins are saved under (`Logins.key`).
+        var key: String { port == 443 ? host : "\(bracketed):\(port)" }
+        /// As `location.origin` says it.
+        var web: String { "https://" + bracketed + (port == 443 ? "" : ":\(port)") }
     }
 
-    func fill(username: String, password: String) {
-        webView?.appScript(Logins.fillScript, arguments: ["username": username, "password": password])
+    func fill(username: String, password: String, origin: Origin) {
+        webView?.appScript(Logins.fillScript, arguments: ["username": username, "password": password, "origin": origin.web])
     }
 }
 

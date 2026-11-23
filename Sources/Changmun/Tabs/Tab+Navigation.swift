@@ -189,6 +189,9 @@ extension Tab: WKNavigationDelegate {
         // while the tab's address and the bar's site have parted ways.
         blockedPopup = nil
         loadGeneration += 1
+        // The page on screen is on its way out: no saved login is offered or filled until the next one commits.
+        isLoadingProvisionally = true
+        loginMenu.navigationStarted()
         // A certificate a page asked for is not wanted by the one that replaces it.
         // WebKit can deliver the challenge of this very load before it says the load began: that one is not the old page's.
         browser?.certificatePrompter.forget(self, keepingSiteOf: webView.url)
@@ -198,6 +201,8 @@ extension Tab: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         navigations += 1
+        committedURL = webView.url
+        isLoadingProvisionally = false
         refreshCanGoBack()
         // What the old page asked is not for the page that replaces it, and the new page starts without having been told no.
         endPageQuestions()
@@ -256,6 +261,7 @@ extension Tab: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         navigatingTo = nil
+        isLoadingProvisionally = false
         let nsError = error as NSError
         if fallBackToHTTP(after: nsError, of: navigation, in: webView) { return }
         guard nsError.code != NSURLErrorCancelled, nsError.domain != "WebKitErrorDomain" || nsError.code != 102 else { return }

@@ -736,7 +736,7 @@
 "You declined signing in to %@ earlier in this chat, so the AI isn't asking again." = "이 대화에서 %@ 로그인을 이미 거부해서 AI가 다시 묻지 않아요.";
 "Require Touch ID to fill passwords" = "비밀번호를 채울 때 Touch ID 요구";
 "Filling a saved password asks for Touch ID or your Mac password, then doesn’t ask again for a minute." = "저장된 비밀번호를 채울 때 Touch ID나 Mac 암호로 확인하고, 그 뒤 1분 동안은 다시 묻지 않아요.";
-"Authentication is required to fill the saved password" = "저장된 비밀번호를 채우려면 확인이 필요해요";
+"Authentication is required to fill the saved password for %@" = "%@의 저장된 비밀번호를 채우려면 확인이 필요해요";
 "Claude Code is ready" = "Claude Code를 쓸 수 있어요";
 "Press ⌘E any time to talk to the AI. It can read the page, click and type for you." = "언제든 ⌘E를 눌러 AI와 이야기해 보세요. 페이지를 읽고, 클릭이나 입력도 대신 해 줘요.";
 "The AI panel works with Claude Code for now" = "AI 패널은 지금 Claude Code로만 쓸 수 있어요";

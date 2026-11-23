@@ -139,9 +139,12 @@ final class LoginFieldWatcher: NSObject, WKScriptMessageHandler {
         guard message.frameInfo.isMainFrame, let body = message.body as? [String: Any], let field = (body["field"] as? NSNumber)?.intValue else { return }
         let numbers = ["x", "y", "width", "height"].compactMap { (body[$0] as? NSNumber)?.doubleValue }
         let rect = numbers.count == 4 ? CGRect(x: numbers[0], y: numbers[1], width: numbers[2], height: numbers[3]) : nil
+        // The document's own origin, which is what the field is in: the web view's address names where a navigation is going
+        // before it has an answer, while this document is still the one on screen.
+        let document = Tab.Origin(message.frameInfo.securityOrigin)
         MainActor.assumeIsolated {
             guard let webView = message.webView, let tab = Browser.tab(showing: webView) else { return }
-            if let rect { tab.loginMenu.fieldFocused(field, at: rect) } else { tab.loginMenu.fieldLeft(field) }
+            if let rect { tab.loginMenu.fieldFocused(field, at: rect, document: document) } else { tab.loginMenu.fieldLeft(field) }
         }
     }
 }
@@ -188,9 +191,13 @@ final class LoginCapture: NSObject, WKScriptMessageHandler {
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let body = message.body as? [String: Any], let password = body["password"] as? String, !password.isEmpty else { return }
         let username = body["username"] as? String ?? ""
+        // Saved for the document the sign-in was typed into, by its own origin: the web view's address may already name where a
+        // navigation is going (the form's own submission, or a page sending itself elsewhere first).
+        let document = Tab.Origin(message.frameInfo.securityOrigin)
         MainActor.assumeIsolated {
-            guard let webView = message.webView, let url = webView.url, url.scheme == "https", let host = Logins.key(for: url), let site = url.host(),
-                  let tab = Browser.tab(showing: webView), !tab.isPrivate, !Tab.isUnverified(url) else { return }
+            guard let webView = message.webView, let document, let url = URL(string: document.web), let tab = Browser.tab(showing: webView),
+                  !tab.isPrivate, !Tab.isUnverified(url) else { return }
+            let host = document.key, site = document.host
             guard let offer = LoginOffer.make(host: host, captured: username, password: password) else { return }
             // The saved secret is read only when that account is already saved here. The never-list names sites, not ports.
             guard Self.worthOffering(LoginOffer(host: site, username: offer.username, password: password), neverHosts: Preferences.shared.neverSaveLoginHosts, saved: {

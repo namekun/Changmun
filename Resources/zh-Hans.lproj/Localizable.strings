@@ -736,7 +736,7 @@
 "You declined signing in to %@ earlier in this chat, so the AI isn't asking again." = "你在此对话中已拒绝登录 %@，因此 AI 不会再次询问。";
 "Require Touch ID to fill passwords" = "填写密码时需要触控 ID";
 "Filling a saved password asks for Touch ID or your Mac password, then doesn’t ask again for a minute." = "填写已存储的密码时需要触控 ID 或 Mac 密码验证，之后一分钟内不再询问。";
-"Authentication is required to fill the saved password" = "需要验证身份才能填写已存储的密码";
+"Authentication is required to fill the saved password for %@" = "需要验证身份才能填写 %@ 的已存储密码";
 "Claude Code is ready" = "Claude Code 已就绪";
 "Press ⌘E any time to talk to the AI. It can read the page, click and type for you." = "随时按 ⌘E 就能和 AI 对话。它可以阅读页面，并替你点击和输入。";
 "The AI panel works with Claude Code for now" = "目前 AI 面板只能搭配 Claude Code 使用";

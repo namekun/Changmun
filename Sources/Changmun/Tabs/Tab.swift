@@ -41,6 +41,11 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     @Published var canGoBack = false
     @Published var canGoForward = false
     @Published var savedLogins: [Logins.Match] = []
+    /// The address of the document on screen, as of its commit. `webView.url` already names where a navigation is going before
+    /// it has an answer, while the old page is still the one shown, so nothing that hands a page a saved login goes by it.
+    var committedURL: URL?
+    /// A navigation of the main frame has begun and not yet committed or failed: the page on screen is on its way out.
+    var isLoadingProvisionally = false
     /// Counts the looks for a sign-in field (`checkForLogins`), so an older one that answers late doesn't overrule a newer.
     var loginCheck = 0
     /// The saved logins offered just under a sign-in field while it has focus.
@@ -288,6 +293,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         isPlayingAudio = false
         isHeldBehind = false
         loginOffer = nil
+        committedURL = nil
+        isLoadingProvisionally = false
         forgetPage()
         agent.reset()
         self.webView = nil

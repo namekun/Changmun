@@ -736,7 +736,7 @@
 "You declined signing in to %@ earlier in this chat, so the AI isn't asking again." = "Vous avez refusé la connexion à %@ plus tôt dans ce chat : l’IA ne redemande pas.";
 "Require Touch ID to fill passwords" = "Exiger Touch ID pour remplir les mots de passe";
 "Filling a saved password asks for Touch ID or your Mac password, then doesn’t ask again for a minute." = "Remplir un mot de passe enregistré demande Touch ID ou le mot de passe de votre Mac, puis plus rien pendant une minute.";
-"Authentication is required to fill the saved password" = "Une authentification est requise pour remplir le mot de passe enregistré";
+"Authentication is required to fill the saved password for %@" = "Une authentification est requise pour remplir le mot de passe enregistré pour %@";
 "Claude Code is ready" = "Claude Code est prêt";
 "Press ⌘E any time to talk to the AI. It can read the page, click and type for you." = "Appuyez sur ⌘E à tout moment pour parler à l’IA. Elle peut lire la page, cliquer et saisir à votre place.";
 "The AI panel works with Claude Code for now" = "Pour l’instant, le panneau IA fonctionne avec Claude Code";

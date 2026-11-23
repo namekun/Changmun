@@ -26,6 +26,8 @@ final class LoginFieldMenu {
 
     struct Shown: Equatable {
         var field: Int
+        /// The document the field is in, as its own frame says (not the web view's address).
+        var origin: Tab.Origin
         var matches: [Logins.Match]
         /// Where the field is, in the web view's own coordinates.
         var fieldRect: CGRect
@@ -35,15 +37,16 @@ final class LoginFieldMenu {
     private(set) var shown: Shown?
     /// The menu was turned down or used on this page.
     private(set) var dismissedOnPage = false
-    /// When each field's menu last appeared: a field gets it again at most once in `reshowInterval`, so a page can't make it jump
-    /// about with focus() and blur(). (Each appearance starts the click guard over regardless.)
-    private var shownAt: [Int: Date] = [:]
+    /// When the menu last appeared on this page: it appears again at most once in `reshowInterval`, later if asked sooner, so a page
+    /// can't make it jump about with focus() and blur(), or by drawing its field anew. (Each appearance starts the click guard over.)
+    private var appearedAt: Date?
     static let reshowInterval: TimeInterval = 1
+    private var waiting: Task<Void, Never>?
     /// The accounts for this page once looked up, none included, so a scroll or another field doesn't look again.
-    private var pageOffers: [Logins.Match]?
+    private var pageOffers: (origin: Tab.Origin, offers: [Logins.Match])?
     private var lookup: Task<Void, Never>?
-    /// The field that has focus while the accounts are looked up.
-    private var pending: (field: Int, rect: CGRect)?
+    /// The field that has focus while the accounts are looked up, or while the menu waits to appear again.
+    private var pending: (field: Int, rect: CGRect, origin: Tab.Origin)?
     /// When the panel last appeared or moved, and where it was then.
     private(set) var armedAt: Date?
     private var armedFrame: CGRect?
@@ -61,12 +64,14 @@ final class LoginFieldMenu {
         self.tab = tab
     }
 
-    /// The key whose logins a field of the page at `url` is offered: the key button's rules, https only and not on a page whose
-    /// certificate couldn't be verified. A private window gets the menu as it gets the key button (Safari and Chrome fill saved
-    /// passwords there too); it still saves nothing.
-    nonisolated static func pageKey(url: URL?, isUnverified: Bool) -> String? {
-        guard !isUnverified, let url, url.scheme == "https" else { return nil }
-        return Logins.key(for: url)
+    /// The origin whose logins a field is offered: the document's own (`document`, from its frame), and only while it is the page
+    /// committed and no navigation is under way. During one, `webView.url` already names where it goes while this document is still on
+    /// screen, so a page could send itself to a bank's address that never answers and be offered the bank's accounts. The key button's
+    /// rules besides: https only, not on a page whose certificate couldn't be verified. A private window gets the menu as it gets the
+    /// key button (Safari and Chrome fill saved passwords there too); it still saves nothing.
+    static func pageOrigin(document: Tab.Origin?, committed: URL?, provisional: Bool, isUnverified: Bool) -> Tab.Origin? {
+        guard !provisional, !isUnverified, let document, document == Tab.httpsOrigin(committed), !Tab.isUnverified(committed) else { return nil }
+        return document
     }
 
     /// The panel is for the page the user is looking at and typing into: the tab shown in its window (not one held behind, which
@@ -87,32 +92,43 @@ final class LoginFieldMenu {
         return true
     }
 
-    /// A sign-in field has focus, or has moved (a scroll, a resize): `rect` is where it is, in CSS pixels of what is on screen.
-    func fieldFocused(_ field: Int, at rect: CGRect) {
+    /// A sign-in field has focus, or has moved (a scroll, a resize): `rect` is where it is, in CSS pixels of what is on screen, and
+    /// `document` the origin of the document it is in.
+    func fieldFocused(_ field: Int, at rect: CGRect, document: Tab.Origin?) {
         if let shown, shown.field != field { hide() }
-        guard !dismissedOnPage, let tab, let webView = tab.webView, let key = Self.pageKey(url: webView.url, isUnverified: tab.isUnverified) else { return }
-        if let pageOffers {
-            present(field, at: rect, offers: pageOffers)
+        guard !dismissedOnPage, let tab, tab.webView != nil,
+              let origin = Self.pageOrigin(document: document, committed: tab.committedURL, provisional: tab.isLoadingProvisionally, isUnverified: tab.isUnverified)
+        else { return hide() }
+        if let pageOffers, pageOffers.origin == origin {
+            present(field, at: rect, origin: origin, offers: pageOffers.offers)
             return
         }
-        pending = (field, rect)
+        pending = (field, rect, origin)
         guard lookup == nil else { return }
         lookup = Task { [weak self] in
-            let offers = await Tab.loginAccounts(key)
+            let offers = await Tab.loginAccounts(origin.key)
             guard let self, !Task.isCancelled else { return }
             self.lookup = nil
-            self.pageOffers = offers
-            if let pending = self.pending {
+            self.pageOffers = (origin, offers)
+            if let pending = self.pending, pending.origin == origin {
                 self.pending = nil
-                self.present(pending.field, at: pending.rect, offers: offers)
+                self.present(pending.field, at: pending.rect, origin: origin, offers: offers)
             }
         }
     }
 
-    /// The field lost focus: the menu goes, for this page.
+    /// The field lost focus: the menu goes, but may come back for the next field.
     func fieldLeft(_ field: Int) {
         if pending?.field == field { pending = nil }
         if shown?.field == field { hide() }
+    }
+
+    /// A navigation began: the page on screen is on its way out, and offers nothing until the next one commits.
+    func navigationStarted() {
+        pending = nil
+        waiting?.cancel()
+        waiting = nil
+        hide()
     }
 
     /// Esc, typing in the field, a click outside the menu and the field, an account chosen.
@@ -129,7 +145,9 @@ final class LoginFieldMenu {
         pending = nil
         pageOffers = nil
         dismissedOnPage = false
-        shownAt = [:]
+        appearedAt = nil
+        waiting?.cancel()
+        waiting = nil
     }
 
     /// Whether a click on the menu now is taken (`clickDelay`).
@@ -144,21 +162,39 @@ final class LoginFieldMenu {
 
     func choose(_ match: Logins.Match) {
         guard shown != nil, clickCounts else { return }
+        guard let origin = shown?.origin else { return }
         dismiss()
-        if let fill { fill(match) } else { tab?.fillLogin(match) }
+        if let fill { fill(match) } else { tab?.fillLogin(match, origin: origin) }
     }
 
-    private func present(_ field: Int, at rect: CGRect, offers: [Logins.Match]) {
+    private func present(_ field: Int, at rect: CGRect, origin: Tab.Origin, offers: [Logins.Match]) {
         guard !offers.isEmpty, !dismissedOnPage, let tab, let webView = tab.webView, let window = webView.window, Self.showable(tab, webView) else {
             hide()
             return
         }
-        if shown?.field != field {
-            if let last = shownAt[field], now().timeIntervalSince(last) < Self.reshowInterval { return }
-            shownAt[field] = now()
+        if shown == nil {
+            // Appearing (again): not sooner than `reshowInterval` after the last time on this page; asked sooner, it waits for it.
+            if let last = appearedAt, now().timeIntervalSince(last) < Self.reshowInterval {
+                pending = (field, rect, origin)
+                if waiting == nil {
+                    let wait = Self.reshowInterval - now().timeIntervalSince(last)
+                    waiting = Task { [weak self] in
+                        try? await Task.sleep(for: .seconds(wait))
+                        guard let self, !Task.isCancelled else { return }
+                        self.waiting = nil
+                        if let pending = self.pending, self.shown == nil {
+                            self.pending = nil
+                            self.fieldFocused(pending.field, at: pending.rect, document: pending.origin)
+                        }
+                    }
+                }
+                return
+            }
+            appearedAt = now()
+            pending = nil
         }
         let fieldRect = Self.viewRect(rect, zoom: webView.pageZoom * webView.magnification, flipped: webView.isFlipped, height: webView.bounds.height)
-        shown = Shown(field: field, matches: offers, fieldRect: fieldRect)
+        shown = Shown(field: field, origin: origin, matches: offers, fieldRect: fieldRect)
         let panel = self.panel ?? makePanel(in: window, matches: offers)
         place(panel, under: fieldRect, in: webView)
     }

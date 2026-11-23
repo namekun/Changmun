@@ -71,8 +71,24 @@ struct SiteIndex: Equatable {
     /// Whether `name` is the start of `host` and reaches into its registrable domain (the part a registrar hands out: github.com,
     /// naver.co.kr), not only into the labels in front of it, which whoever holds that domain names as they like: `git` completes to
     /// github.com but not to github.com.evil.example, `naver` not to naver.evil.com, `mail.goo` to mail.google.com (and `mail` not).
+    ///
+    ///
+    /// And a name typed whole that is a site of its own (github.com) never completes to another site's host that merely starts with it:
+    /// under a suffix anyone can register below, github.com.s3.amazonaws.com, github.com.workers.dev and github.com-login.pages.dev
+    /// are strangers' sites. What is typed counts as whole when the host goes on with "." or "-" right after it (`mail.goo` is the
+    /// start of a word of mail.google.com, not a name of its own), and is let through only when it is the host's site, or when it
+    /// already reaches past the host's own name into its suffix (`shop.naver.co` on its way to shop.naver.co.kr).
     static func completes(_ name: String, to host: String) -> Bool {
-        host.utf8.starts(with: name.utf8) && host.utf8.count > name.utf8.count && isHostName(host) && name.utf8.count > registrableStart(host)
+        guard host.utf8.starts(with: name.utf8), host.utf8.count > name.utf8.count, isHostName(host),
+              let start = registrableStart(host), name.utf8.count > start else { return false }
+        let next = host.utf8[host.utf8.index(host.utf8.startIndex, offsetBy: name.utf8.count)]
+        guard next == UInt8(ascii: ".") || next == UInt8(ascii: "-"), let list = PublicSuffix.list, let typed = list.registrableDomain(name) else { return true }
+        let bare = host.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? host
+        guard let site = list.registrableDomain(bare), let siteLabels = list.registrableLabelCount(bare) else { return false }
+        if typed == site { return true }
+        // The labels typed, the last one perhaps cut at a "-", against where the host's own name (the label before its suffix) is.
+        let ownName = bare.split(separator: ".").count - siteLabels
+        return name.split(separator: ".").count > ownName + 1
     }
 
     /// Only what a host name and its port are made of. The name is cut from the address as text, so one with a user name in it
@@ -84,11 +100,13 @@ struct SiteIndex: Equatable {
     /// Where in `host` (in UTF-8 bytes) its registrable domain starts, by the Public Suffix List (`PublicSuffix`): the suffix and one
     /// label more, so github.io's users' sites (alice.github.io) are each a domain of their own. A name with no dot (localhost), an IP
     /// address, a bracketed IPv6 one and a name that is a public suffix itself are a domain whole; a port doesn't count. Without the
-    /// list the last label alone is taken for the domain, which errs toward offering less, never a stranger's name.
-    static func registrableStart(_ host: String) -> Int {
+    /// list the last label alone is taken for the domain, which errs toward offering less, never a stranger's name. nil for a name
+    /// with an empty label (`a..b`, a dot at the end), which nothing completes to.
+    static func registrableStart(_ host: String) -> Int? {
         guard !host.hasPrefix("[") else { return 0 }
         let name = host.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).first ?? Substring(host)
         let labels = name.split(separator: ".", omittingEmptySubsequences: false)
+        guard !labels.contains(where: \.isEmpty) else { return nil }
         guard labels.count > 1, !name.allSatisfy({ $0.isASCII && ($0.isNumber || $0 == ".") }) else { return 0 }
         let kept = PublicSuffix.list.map { $0.registrableLabelCount(String(name)) ?? labels.count } ?? 1
         return labels.dropLast(kept).reduce(0) { $0 + $1.utf8.count + 1 }

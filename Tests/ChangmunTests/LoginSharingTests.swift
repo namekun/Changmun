@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Network
 import Testing
 import WebKit
 @testable import Changmun
@@ -99,12 +100,20 @@ struct LoginSharingTests {
         }
     }
 
-    @Test func thePageKeyIsHttpsOnlyAndNotForAnUnverifiedPage() throws {
-        let page = try #require(URL(string: "https://www.example.com/login"))
-        #expect(LoginFieldMenu.pageKey(url: page, isUnverified: false) == "www.example.com")
-        #expect(LoginFieldMenu.pageKey(url: page, isUnverified: true) == nil, "not on an unverified page")
-        #expect(LoginFieldMenu.pageKey(url: URL(string: "http://www.example.com/login"), isUnverified: false) == nil, "never on http")
-        #expect(LoginFieldMenu.pageKey(url: URL(string: "https://www.example.com:8443/"), isUnverified: false) == "www.example.com:8443")
+    @MainActor @Test func theOriginIsTheDocumentsOwnAndOnlyWhileItIsThePageCommitted() throws {
+        let page = URL(string: "https://www.example.com/login"), www = Changmun.Tab.Origin(host: "www.example.com", port: 443)
+        func origin(_ document: Changmun.Tab.Origin?, _ committed: URL?, provisional: Bool = false, unverified: Bool = false) -> String? {
+            LoginFieldMenu.pageOrigin(document: document, committed: committed, provisional: provisional, isUnverified: unverified)?.key
+        }
+        #expect(origin(www, page) == "www.example.com")
+        #expect(origin(www, page, provisional: true) == nil, "not while a navigation is under way")
+        #expect(origin(www, URL(string: "https://bank.example:444/")) == nil, "not another document than the one committed")
+        #expect(origin(Changmun.Tab.Origin(host: "bank.example", port: 444), page) == nil)
+        #expect(origin(www, page, unverified: true) == nil, "not on an unverified page")
+        #expect(origin(nil, URL(string: "http://www.example.com/login")) == nil, "never on http")
+        let port = Changmun.Tab.Origin(host: "www.example.com", port: 8443)
+        #expect(origin(port, URL(string: "https://www.example.com:8443/")) == "www.example.com:8443" && port.web == "https://www.example.com:8443")
+        #expect(Changmun.Tab.Origin(host: "[::1]", port: 8443).web == "https://[::1]:8443" && Changmun.Tab.Origin(host: "::1", port: 8443).key == "[::1]:8443")
     }
 
     @MainActor @Test func theAIsSignInStaysWithTheExactHost() {
@@ -287,7 +296,7 @@ struct LoginFieldMenuTests {
 
             // A move of the field uses what was looked up: the keychain is not asked again for the page.
             let asked = lookups.keys.count
-            for dy in [0.0, 1, 2, 3] { tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 100 + dy, width: 200, height: 20)) }
+            for dy in [0.0, 1, 2, 3] { tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 100 + dy, width: 200, height: 20), document: shown.origin) }
             await settle(view)
             #expect(tab.loginMenu.shown != nil && lookups.keys.count == asked)
 
@@ -334,17 +343,17 @@ struct LoginFieldMenuTests {
             #expect(tab.loginMenu.clickCounts)
 
             // A small move keeps it; a move further, as a page moving its field under the pointer would make, starts over.
-            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 42, y: 101, width: 200, height: 20))
+            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 42, y: 101, width: 200, height: 20), document: shown.origin)
             #expect(tab.loginMenu.clickCounts)
-            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 140, width: 200, height: 20))
+            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 140, width: 200, height: 20), document: shown.origin)
             #expect(!tab.loginMenu.clickCounts)
             tab.loginMenu.pointerMoved()
             #expect(!tab.loginMenu.clickCounts, "and waits again")
             clock.addTimeInterval(LoginFieldMenu.clickDelay)
             #expect(tab.loginMenu.clickCounts)
             // Out of the page's view and back is appearing anew too.
-            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 5_000, width: 200, height: 20))
-            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 140, width: 200, height: 20))
+            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 5_000, width: 200, height: 20), document: shown.origin)
+            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 140, width: 200, height: 20), document: shown.origin)
             #expect(!tab.loginMenu.clickCounts)
             tab.loginMenu.pointerMoved()
             clock.addTimeInterval(LoginFieldMenu.clickDelay)
@@ -353,7 +362,7 @@ struct LoginFieldMenuTests {
         }
     }
 
-    @Test func leavingTheFieldOnlyHidesItAndItComesBackAtMostOnceASecondWithTheGuardStartedOver() async throws {
+    @Test func leavingTheFieldOnlyHidesItAndItComesBackAtMostOnceASecondAPageWithTheGuardStartedOver() async throws {
         try await withAccounts { _ in
             let b = Browser()
             b.focused()
@@ -365,6 +374,7 @@ struct LoginFieldMenuTests {
             try await focus("u", in: view)
             #expect(await waitUntil(5) { tab.loginMenu.shown != nil })
             let field = try #require(tab.loginMenu.shown?.field)
+            let site = try #require(tab.loginMenu.shown?.origin)
             let here = CGRect(x: 40, y: 100, width: 200, height: 20), there = CGRect(x: 300, y: 400, width: 200, height: 20)
             tab.loginMenu.pointerMoved()
             clock.addTimeInterval(1)
@@ -373,16 +383,18 @@ struct LoginFieldMenuTests {
             // Tab moves on: hidden, not turned down.
             tab.loginMenu.handle(try key(48, "\t", in: window))
             #expect(tab.loginMenu.shown == nil && !tab.loginMenu.dismissedOnPage)
-            tab.loginMenu.fieldFocused(field, at: here)
+            tab.loginMenu.fieldFocused(field, at: here, document: site)
             #expect(tab.loginMenu.shown != nil, "a second after it last appeared, the field gets it again")
             #expect(!tab.loginMenu.clickCounts, "with the guard started over")
             // A page blurring and focusing its field to make the menu jump: once a second at most, and each time guarded anew.
             clock.addTimeInterval(0.3)
             tab.loginMenu.fieldLeft(field)
-            tab.loginMenu.fieldFocused(field, at: there)
+            tab.loginMenu.fieldFocused(field, at: there, document: site)
             #expect(tab.loginMenu.shown == nil, "not again within a second")
+            tab.loginMenu.fieldFocused(field + 100, at: there, document: site)
+            #expect(tab.loginMenu.shown == nil, "nor for a field drawn anew: once a second for the page")
             clock.addTimeInterval(0.8)
-            tab.loginMenu.fieldFocused(field, at: there)
+            tab.loginMenu.fieldFocused(field, at: there, document: site)
             #expect(tab.loginMenu.shown != nil && !tab.loginMenu.clickCounts)
             tab.loginMenu.pointerMoved()
             clock.addTimeInterval(LoginFieldMenu.clickDelay)
@@ -392,8 +404,45 @@ struct LoginFieldMenuTests {
             tab.loginMenu.handle(try key(0, "a", in: window))
             #expect(tab.loginMenu.shown == nil && tab.loginMenu.dismissedOnPage)
             clock.addTimeInterval(5)
-            tab.loginMenu.fieldFocused(field, at: here)
+            tab.loginMenu.fieldFocused(field, at: here, document: site)
             #expect(tab.loginMenu.shown == nil)
+        }
+    }
+
+    /// A page that sends itself to another site's address that never answers is still the page on screen, though `webView.url` already
+    /// names the other site: nothing of that site's is offered or filled into it, by the menu or the key button.
+    @Test func aPageOnItsWayToAnotherSiteThatNeverAnswersIsOfferedAndFilledNothing() async throws {
+        let server = try await SilentServer()
+        defer { server.stop() }
+        try await withAccounts { lookups in
+            let b = Browser()
+            b.focused()
+            defer { b.windowClosed() }
+            let (tab, view, window) = await page(in: b)
+            defer { window.close() }
+            let bank = "https://localhost:\(server.port)/bank"
+            _ = try await view.evaluateJavaScript("location.href = '\(bank)'; true")
+            #expect(await waitUntil(10) { view.url?.absoluteString == bank && tab.isLoadingProvisionally }, "\(String(describing: view.url))")
+            #expect(try await view.evaluateJavaScript("location.origin") as? String == "https://www.site.test", "the old page is still the one on screen")
+
+            try await focus("p", in: view)
+            await settle(view)
+            #expect(tab.loginMenu.shown == nil && tab.loginMenu.panel == nil, "no menu while a navigation is under way")
+            #expect(!lookups.keys.contains { $0.hasPrefix("localhost") }, "the address being gone to is never asked for: \(lookups.keys)")
+
+            let noQuestion = FillAuthorization(required: { false }, confirm: { _ in false })
+            var reads = 0
+            tab.fillLogin(username: "me", authorization: noQuestion) { _, _ in reads += 1; return "bank password" }
+            tab.fillLogin(username: "me", savedUnder: "localhost:\(server.port)", authorization: noQuestion) { _, _ in reads += 1; return "bank password" }
+            await settle(view)
+            #expect(reads == 0, "nothing is read for the key button either")
+
+            // And the script that fills checks for itself where it is.
+            let filled = try await view.callAsyncJavaScript(Logins.fillScript, arguments: ["username": "me", "password": "bank password", "origin": "https://localhost:\(server.port)"],
+                                                            in: nil, contentWorld: .defaultClient)
+            #expect(filled as? Bool == false)
+            #expect(try await view.evaluateJavaScript("document.getElementById('p').value") as? String == "")
+            view.stopLoading()
         }
     }
 
@@ -436,7 +485,7 @@ struct LoginFieldMenuTests {
                 await settle(view)
                 #expect(tab.loginMenu.shown == nil && tab.loginMenu.panel == nil)
                 let asked = lookups.keys.count
-                for dy in [1.0, 2, 3] { tab.loginMenu.fieldFocused(1, at: CGRect(x: 40, y: 100 + dy, width: 200, height: 20)) }
+                for dy in [1.0, 2, 3] { tab.loginMenu.fieldFocused(1, at: CGRect(x: 40, y: 100 + dy, width: 200, height: 20), document: Changmun.Tab.Origin(host: "nothing.test", port: 443)) }
                 try await focus("p", in: view)
                 await settle(view)
                 #expect(lookups.keys.count == asked && Set(lookups.keys) == ["nothing.test"], "nothing saved is remembered for the page too")
@@ -501,4 +550,39 @@ struct LoginFillAcrossHostsTests {
         #expect(filled == "secret", "the other host's login of the same site was filled")
     }
 }
+}
+
+/// Takes connections on the loopback address and never answers: a navigation to it stays provisional.
+final class SilentServer: @unchecked Sendable {
+    private let listener: NWListener
+    private let lock = NSLock()
+    private var held: [NWConnection] = []
+    private(set) var port: UInt16 = 0
+
+    init() async throws {
+        listener = try NWListener(using: .tcp, on: .any)
+        listener.newConnectionHandler = { [weak self] connection in
+            connection.start(queue: .global())
+            self?.lock.withLock { self?.held.append(connection) }
+        }
+        port = try await withCheckedThrowingContinuation { continuation in
+            let once = NSLock()
+            var done = false
+            listener.stateUpdateHandler = { [weak self] state in
+                once.lock(); defer { once.unlock() }
+                guard !done else { return }
+                switch state {
+                case .ready: done = true; continuation.resume(returning: self?.listener.port?.rawValue ?? 0)
+                case .failed(let error): done = true; continuation.resume(throwing: error)
+                default: break
+                }
+            }
+            listener.start(queue: .global())
+        }
+    }
+
+    func stop() {
+        listener.cancel()
+        lock.withLock { held.forEach { $0.cancel() } }
+    }
 }

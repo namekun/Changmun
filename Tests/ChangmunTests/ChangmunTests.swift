@@ -2688,14 +2688,14 @@ extension SharedAgentState {
             defer { control.windowClosed() }
             let (_, controlView, controlWindow) = try await page(html, base: "https://login.test/", in: control)
             defer { controlWindow.close() }
-            _ = try await controlView.callAsyncJavaScript(Logins.fillScript, arguments: ["username": "me", "password": "secret"], contentWorld: .defaultClient)
+            _ = try await controlView.callAsyncJavaScript(Logins.fillScript, arguments: ["username": "me", "password": "secret", "origin": "https://login.test"], contentWorld: .defaultClient)
             #expect(await eventually("window.opened || ''", in: controlView) == "window" && control.tabs.count == 2)
             let b = Browser()
             b.focused()
             defer { b.windowClosed() }
             let (tab, view, window) = try await page(html, base: "https://login.test/", in: b)
             defer { window.close() }
-            tab.fill(username: "me", password: "secret")
+            tab.fill(username: "me", password: "secret", origin: Changmun.Tab.Origin(host: "login.test", port: 443))
             #expect(await eventually("window.opened || ''", in: view) == "refused")
             #expect(b.tabs.count == 1)
             #expect(await waitUntil { tab.blockedPopup != nil })

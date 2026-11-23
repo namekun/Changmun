@@ -171,6 +171,32 @@ struct TopHitTests {
         #expect(sites.hit(for: "ali")?.host == "alice.tistory.com")
     }
 
+    @Test func aSiteTypedWholeNeverCompletesToAStrangersHostUnderAPrivateSuffix() throws {
+        let library = library()
+        for spoof in ["https://github.com.s3.amazonaws.com/", "https://github.com.workers.dev/", "https://github.com-login.pages.dev/", "https://naver.com.glitch.me/"] {
+            try visit(library, spoof, times: 40)
+        }
+        try visit(library, "https://github.com/", times: 1)
+        try visit(library, "https://foo.github.io/", times: 1)
+        try visit(library, "https://mail.google.com/", times: 1)
+        try visit(library, "https://shop.naver.co.kr/", times: 1)
+        let sites = library.sites()
+        for (typed, host) in [("github.com", "github.com.s3.amazonaws.com"), ("github.com", "github.com.workers.dev"),
+                              ("github.com", "github.com-login.pages.dev"), ("naver.com", "naver.com.glitch.me")] {
+            #expect(!SiteIndex.completes(typed, to: host), "\(typed) → \(host)")
+        }
+        #expect(sites.hit(for: "github.com") == nil && sites.hit(for: "naver.com") == nil)
+        #expect(sites.hit(for: "git")?.host == "github.com", "the strangers' hosts, visited more, aren't github.com's site")
+        #expect(SiteIndex.completes("git", to: "github.com") && SiteIndex.completes("foo", to: "foo.github.io") && SiteIndex.completes("mail.goo", to: "mail.google.com"))
+        #expect(sites.hit(for: "mail.goo")?.host == "mail.google.com" && sites.hit(for: "foo")?.host == "foo.github.io")
+        #expect(sites.hit(for: "shop.naver.co")?.host == "shop.naver.co.kr", "typing on into the suffix")
+    }
+
+    @Test func aNameWithAnEmptyLabelIsNeverCompletedTo() {
+        #expect(SiteIndex.registrableStart("a..example.com") == nil && SiteIndex.registrableStart("github.com..") == nil && SiteIndex.registrableStart("github.com.") == nil)
+        #expect(!SiteIndex.completes("a", to: "a..example.com") && !SiteIndex.completes("git", to: "github.com.."))
+    }
+
     @Test func theRegistrableDomainIsThePublicSuffixAndOneLabel() {
         #expect(SiteIndex.registrableStart("alice.github.io") == 0, "github.io is a suffix (the PSL's private section)")
         #expect(SiteIndex.registrableStart("blog.alice.github.io") == "blog.".utf8.count)
