@@ -6,6 +6,19 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.18.1</title>
+      <pubDate>Mon, 23 Nov 2026 13:25:46 +0000</pubDate>
+      <sparkle:version>64</sparkle:version>
+      <sparkle:shortVersionString>0.18.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.18.1</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Fixed:** CJ OnStyle's overseas hotel list showed "NaN원" as the price a night. The site reads its dates in a way only Chromium accepts (with a space at the end), so WebKit couldn't count the nights. Changmun now reads such a date the way Chromium does, on that site only.
+
+Tried on the site's hotel list for Tokyo, and with automated tests. If another site shows "NaN" or a blank where a number should be and works in Chrome, tell me which.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.18.1/Changmun-0.18.1.dmg" length="6869389" type="application/octet-stream" sparkle:edSignature="7BFkCo6uwNDYpT8huhzAQhAGcXfTnnsEgbGVif4QaO/UbiT5cGN2ztRYWhHZ/EsdYXig/U6GO2ChX7GYkHDyCQ==" />
+    </item>
+    <item>
       <title>0.18.0</title>
       <pubDate>Mon, 23 Nov 2026 02:44:25 +0000</pubDate>
       <sparkle:version>63</sparkle:version>
@@ -137,22 +150,9 @@ Tried with automated tests and the off-screen test copy, on a page that opens an
 Tried with automated tests on a page that opens an empty window from a timer. The in-house system this came up on hasn't been tried, so tell me if its window still doesn't open.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.4/Changmun-0.15.4.dmg" length="6158880" type="application/octet-stream" sparkle:edSignature="aaiwFYiW8CP4KSg6nObZQ0/3kxfpCZRFx1zCyjxqIrZQN4dCJPVerwEnT8jCYTJFWMivU3AFIr37f+yoGbqEDQ==" />
     </item>
-    <item>
-      <title>0.15.3</title>
-      <pubDate>Sun, 08 Nov 2026 14:28:36 +0000</pubDate>
-      <sparkle:version>54</sparkle:version>
-      <sparkle:shortVersionString>0.15.3</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.15.3</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Back:** a video playing in a tab you leave floats in Picture in Picture again, like in Arc, and goes back into its tab when you return. It was taken out in 0.15.0 to trim settings; it is on by default, and Settings › Tabs › "Play video in Picture in Picture when you switch to another tab" turns it off.
-
-Tried with the automated tests. Picture in Picture opens a window on screen, which the off-screen test copy can't do, so the float itself hasn't been watched; tell me if a video doesn't float when you switch tabs.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.3/Changmun-0.15.3.dmg" length="6154880" type="application/octet-stream" sparkle:edSignature="0uQ7MWCUPJGcrOv1YO/ZDzQ+I58OQ/agTkRlUecJMfbWal+O0lTOtyeDx59HShAIX4cfY1t/6RyWUqT9qHpgAA==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: krAwf9hFJBHS75Rfgs8XvCsIrHgKJ/oIqHk96d5meRUWQWuIjCwTzYzB/FUpSQ/8HGzLf0MfCZ3K8IemfGNUBg==
-length: 16406
+edSignature: ZLPSno9GDCz9a32cqn5m2V2J0wm7t3VkehybE52XjHVZ2y6t8G4/9UGxDukQnpUJtcW02stJMK5u6t9dC/UiBw==
+length: 16325
 -->
