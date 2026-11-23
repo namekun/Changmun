@@ -209,6 +209,17 @@ final class Browser: ObservableObject {
 
     static let configuration = makeConfiguration(store: .default(), extensions: !Headless.isOn)
 
+    /// WebKit's tracking prevention erases what a site's scripts stored (local storage, IndexedDB, service workers) once seven days of browsing
+    /// pass without you using that site, which signs you out of sites you come back to after a week. This WebKit flag stops that erasing and
+    /// leaves the rest of tracking prevention, third-party cookie blocking among it, as it is. WebKit reads it from the app's defaults when it
+    /// sets up a data store's network session, not from a page's preferences, so it has to be there before anything touches a data store.
+    /// Registered rather than written: it lasts for the run, and a value set with `defaults write` still wins.
+    static let keepsQuietSitesDataKey = "WebKitExperimentalIsFirstPartyWebsiteDataRemovalDisabled"
+
+    static func keepQuietSitesData(in defaults: UserDefaults = .standard) {
+        defaults.register(defaults: [keepsQuietSitesDataKey: true])
+    }
+
     static func makeConfiguration(store: WKWebsiteDataStore, extensions: Bool) -> WKWebViewConfiguration {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = store
@@ -234,6 +245,7 @@ final class Browser: ObservableObject {
         if !Headless.isOn {
             LoginCapture.install(in: config.userContentController)
             LoginFormWatcher.install(in: config.userContentController)
+            LoginFieldWatcher.install(in: config.userContentController)
         }
         AdBlocker.shared.attach(config.userContentController)
         if extensions, #available(macOS 15.4, *) { config.webExtensionController = ExtensionHost.shared.controller }

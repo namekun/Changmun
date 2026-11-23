@@ -26,6 +26,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuSubscription = Preferences.shared.$shortcuts.sink { NSApp.mainMenu = AppMenu.make(scheme: $0) }
         NSApp.appearance = Preferences.shared.appearance.nsAppearance
         Task { await AdBlocker.shared.start() }
+        // Read off the main thread now, so the first page that needs them doesn't wait.
+        PublicSuffix.preload()
+        Logins.preload()
         // Before anything reads the library, the spaces or the session: imported folders stored under another language's name get their canonical one.
         FolderKeyMigration.run(in: Library.folder)
         Library.shared.pruneHistory()
@@ -292,6 +295,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case #selector(nextSpace(_:)), #selector(previousSpace(_:)), #selector(selectNumberedSpace(_:)), #selector(newSpace(_:)):
             current?.isPrivate != true
         case #selector(checkForUpdates(_:)): Updates.shared.canCheck
+        case #selector(importPasswordsFromFile(_:)): !Self.importingPasswords
         case #selector(toggleBookmark(_:)): current?.active?.isPrivate != true && current?.active?.isStart != true
         case #selector(sharePage(_:)): current?.active.map { SharePage.canShare(isStart: $0.isStart, url: $0.url) } ?? false
         // A start tab has no page: nothing to print, find in, zoom, translate, read, mute or float.

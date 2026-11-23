@@ -46,6 +46,11 @@ final class PageWebView: WKWebView {
         if let owner { owner.reload(fromOrigin: true) } else { super.reloadFromOrigin(sender) }
     }
 
+    /// A click on the page of a window that isn't in front goes to the page as well as bringing the window forward, as in Chrome.
+    /// WebKit's own answer is no (it says yes only over a selection it could drag), so the first click on a link after using another
+    /// app did nothing but activate the window, and the user had to click again.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
     // MARK: Keys
 
     enum PageKey: Equatable { case stop, back, forward }

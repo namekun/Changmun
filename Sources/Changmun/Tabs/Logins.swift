@@ -38,7 +38,9 @@ struct KeychainBackend: LoginBackend {
         return SecItemCopyMatching(search as CFDictionary, &result) == errSecSuccess ? result as? Data : nil
     }
 
+    // Every change goes through `set` and `remove` (saving, importing, deleting), which tell `Logins.recordCache` it is out of date.
     func set(server: String, account: String, secret: Data) -> Bool {
+        defer { Logins.recordCache.invalidate() }
         let add = query(server, account).merging([kSecValueData as String: secret, kSecAttrProtocol as String: kSecAttrProtocolHTTPS]) { $1 }
         let status = SecItemAdd(add as CFDictionary, nil)
         if status == errSecDuplicateItem {
@@ -48,7 +50,8 @@ struct KeychainBackend: LoginBackend {
     }
 
     func remove(server: String, account: String) -> Bool {
-        SecItemDelete(query(server, account) as CFDictionary) == errSecSuccess
+        defer { Logins.recordCache.invalidate() }
+        return SecItemDelete(query(server, account) as CFDictionary) == errSecSuccess
     }
 }
 
@@ -66,10 +69,59 @@ enum Logins {
     @TaskLocal static var testBackend: LoginBackend?
     private static var backend: LoginBackend { testBackend ?? KeychainBackend() }
 
+    /// What is saved, without secrets, kept in memory so that a page's sign-in fields don't ask the keychain at every load and focus.
+    /// Dropped whenever Changmun changes an item; a change made elsewhere (Keychain Access) shows within `RecordCache.ttl`, as macOS
+    /// no longer says when the keychain changes.
+    static let recordCache = RecordCache { KeychainBackend().records(server: nil) }
+
+    /// Reads the saved records once, off the main thread, so the first page with a sign-in field doesn't wait for the keychain.
+    static func preload() {
+        guard !Headless.isOn else { return }
+        DispatchQueue.global(qos: .utility).async { _ = recordCache.records() }
+    }
+
+    final class RecordCache: @unchecked Sendable {
+        static let ttl: TimeInterval = 30
+        private let lock = NSLock()
+        private let source: () -> [Record]
+        private let now: () -> Date
+        private var kept: [Record]?
+        private var keptAt = Date.distantPast
+        /// Counts the times it was dropped, so that a read that began before a change doesn't keep what it read.
+        private(set) var generation = 0
+
+        init(now: @escaping () -> Date = Date.init, source: @escaping () -> [Record]) {
+            self.now = now
+            self.source = source
+        }
+
+        func records() -> [Record] {
+            let (kept, generation) = lock.withLock { (now().timeIntervalSince(keptAt) < Self.ttl ? self.kept : nil, self.generation) }
+            if let kept { return kept }
+            let read = source()
+            lock.withLock {
+                guard self.generation == generation else { return }
+                self.kept = read
+                keptAt = now()
+            }
+            return read
+        }
+
+        func invalidate() {
+            lock.withLock {
+                kept = nil
+                generation += 1
+            }
+        }
+    }
+
     /// What a page's logins are saved under: its host, and its port when that isn't the scheme's own (localhost:3000 and localhost:8080
     /// are two sites to sign in to, though one host).
+    ///
+    /// The host is the one WebKit reports for a page, which has a non-ASCII name in punycode (`xn--bcher-kva.de`); asked this way Foundation gives
+    /// the same for an address typed with the letters (`bücher.de`), where its plain `host()` gives them percent-encoded and so another key.
     static func key(for url: URL) -> String? {
-        guard let host = url.host(), !host.isEmpty else { return nil }
+        guard let host = url.host(percentEncoded: false), !host.isEmpty else { return nil }
         guard let port = url.port, port != (url.scheme == "http" ? 80 : 443) else { return host }
         return "\(host.contains(":") ? "[\(host)]" : host):\(port)"
     }
@@ -161,6 +213,54 @@ enum Logins {
         return backend.remove(server: host, account: username)
     }
 
+    /// A saved account offered to fill a page: the key it is saved under, and whether that is the page's own (its key, the key's www
+    /// twin, or the bare host for a port's key, as `accounts(for:)` looks) or another host of the same site.
+    struct Match: Hashable {
+        var host: String
+        var username: String
+        var sameHost: Bool
+
+        /// What the menus show: the name, and for another host's login the host it was saved for, so it is never taken for this one's.
+        var title: String {
+            let name = username.isEmpty ? String(localized: "(No username)") : username
+            return sameHost ? name : "\(name) — \(host)"
+        }
+    }
+
+    /// The accounts to offer a page whose logins are saved under `key`: its own first, as `accounts(for:)` has them, then those saved
+    /// for other hosts of the same site (`mayShare`), by host. Saving is unchanged: a login is still saved under the page's own key.
+    /// Reads no secrets, so it never prompts. The AI's sign_in never uses this: it goes by the exact host (`accounts(exactly:)`).
+    static func matches(for key: String) -> [Match] {
+        guard !Headless.isOn else { return [] }
+        let records = testBackend.map { $0.records(server: nil) } ?? recordCache.records()
+        let variants = lookupVariants(key).map { $0.lowercased() }
+        var seen = Set<String>()
+        let own = variants.flatMap { variant in records.filter { $0.server.lowercased() == variant } }
+            .map(\.account).filter { seen.insert($0).inserted }
+            .map { Match(host: key, username: $0, sameHost: true) }
+        let ownHosts = Set(variants)
+        let shared = records
+            .filter { !ownHosts.contains($0.server.lowercased()) && mayShare($0.server, with: key) }
+            .sorted { ($0.server, $0.account) < ($1.server, $1.account) }
+            .map { Match(host: $0.server, username: $0.account, sameHost: false) }
+        return own + shared
+    }
+
+    /// Whether a login saved under `saved` may be offered on a page whose key is `key`, being another host of the same site: the same
+    /// registrable domain by the Public Suffix List (`PublicSuffix`), and the same port. It fails closed: never for an IP address, a name
+    /// of one label, a name that is a public suffix itself, or without the list. The list's private section keeps the subdomains of
+    /// shared hosting apart (alice.github.io is not bob.github.io's site), as its country suffixes keep apart a.co.kr and b.co.kr.
+    /// The keys carry no scheme: http is kept apart because nothing is offered on a page that isn't https.
+    static func mayShare(_ saved: String, with key: String) -> Bool {
+        let saved = saved.lowercased(), key = key.lowercased()
+        let savedHost = hostname(ofKey: saved), keyHost = hostname(ofKey: key)
+        // The port is what follows the host in the key ("" for the scheme's own), and must be the same.
+        guard saved.dropFirst(savedHost.count) == key.dropFirst(keyHost.count), !saved.hasPrefix("["), !key.hasPrefix("["),
+              SiteIndex.isHostName(keyHost), SiteIndex.isHostName(savedHost), let list = PublicSuffix.list,
+              let domain = list.registrableDomain(keyHost), !list.isPublicSuffix(domain) else { return false }
+        return list.registrableDomain(savedHost) == domain
+    }
+
     static func hostVariants(_ host: String) -> [String] {
         host.hasPrefix("www.") ? [host, String(host.dropFirst(4))] : [host, "www." + host]
     }
@@ -172,7 +272,10 @@ enum Logins {
         return hostVariants(key) + (bare == key ? [] : hostVariants(bare))
     }
 
+    /// Fills nothing unless it runs in the top document of `origin`: whatever the app checked, the page that gets the password is
+    /// the one the account was chosen for.
     static let fillScript = """
+    if (window.top !== window || location.origin !== origin) return false;
     const visible = e => e.offsetParent !== null || e.getClientRects().length > 0;
     const pw = [...document.querySelectorAll('input[type=password]')].find(visible) || null;
     let user = null;
@@ -218,12 +321,13 @@ final class FillAuthorization {
 
     /// The password from `read`, which is not called until the device owner has confirmed (or the setting is off, or they
     /// confirmed less than `grace` seconds ago). nil when they declined, or while another question is still open.
-    func read(_ read: () -> String?) async -> String? {
+    /// `site` is the host the login is saved for, which the question names: the user confirms filling that site's password.
+    func read(site: String = "", _ read: () -> String?) async -> String? {
         if required(), !Headless.isOn, !withinGrace {
             guard !asking else { return nil }
             asking = true
             defer { asking = false }
-            guard await confirm(String(localized: "Authentication is required to fill the saved password")) else { return nil }
+            guard await confirm(String(localized: "Authentication is required to fill the saved password for \(site)")) else { return nil }
             confirmedAt = now()
         }
         return read()
@@ -239,47 +343,91 @@ final class FillAuthorization {
 }
 
 extension Tab {
-    /// The saved accounts of a host, as the key button asks (tests put their own: a WebKit callback can't see a task-local backend).
-    nonisolated(unsafe) static var loginAccounts: (String) -> [String] = Logins.accounts(for:)
+    /// The saved accounts to offer on a page's key, as the key button and the menu under a field ask (tests put their own: a WebKit
+    /// callback can't see a task-local backend).
+    /// The default reads off the main thread (`Logins.recordCache`, kept in memory, mostly answers without the keychain).
+    nonisolated(unsafe) static var loginAccounts: (String) async -> [Logins.Match] = { key in
+        await Task.detached(priority: .userInitiated) { Logins.matches(for: key) }.value
+    }
 
-    /// Shows the key button when the page asks for a password and one is saved for its host. Asked when the page finishes, and again
-    /// whenever a password field comes or goes after that (`LoginFormWatcher`).
+    /// Shows the key button when the page asks for a password and one is saved for its host or another host of its site. Asked when
+    /// the page finishes, and again whenever a password field comes or goes after that (`LoginFormWatcher`).
     func checkForLogins() {
+        loginCheck += 1
+        let check = loginCheck
         // Not on a page whose certificate the user went on with, though it could not be verified: a saved password is for the site it was saved for.
-        guard let webView, webView.url?.scheme == "https", !Self.isUnverified(webView.url), let host = webView.url.flatMap(Logins.key(for:)) else { savedLogins = []; return }
-        let accounts = Self.loginAccounts(host)
-        guard !accounts.isEmpty else { savedLogins = []; return }
+        // The page is the document committed, never `webView.url`, which names where a navigation not yet answered is going.
+        guard let webView, !isLoadingProvisionally, let origin = Self.httpsOrigin(committedURL), !Self.isUnverified(committedURL) else { savedLogins = []; return }
+        let host = origin.key
+        // The saved logins are looked up only once the page shows a sign-in field.
         webView.evaluateJavaScript("!!document.querySelector('input[type=password], input[autocomplete=username]')") { [weak self] value, _ in
-            Task { @MainActor in self?.savedLogins = (value as? Bool == true) ? accounts : [] }
+            Task { @MainActor in
+                guard let self, self.loginCheck == check else { return }
+                guard value as? Bool == true else { self.savedLogins = []; return }
+                let accounts = await Self.loginAccounts(host)
+                // A later look, or another page, has the say.
+                guard self.loginCheck == check, !self.isLoadingProvisionally, Self.httpsOrigin(self.committedURL) == origin else { return }
+                self.savedLogins = accounts
+            }
         }
     }
 
     /// Fills a saved login into the page the user is on, after the device owner has confirmed (unless they turned that off).
-    func fillLogin(username: String, authorization: FillAuthorization? = nil, readPassword: @escaping (String, String) -> String? = Logins.password(host:username:)) {
-        guard let webView, let origin = Self.httpsOrigin(webView.url), !Self.isUnverified(webView.url) else { return }
-        let host = webView.url.flatMap(Logins.key(for:)) ?? origin.host
+    /// `origin` is the document the account was offered to (the menu under a field has it from the page's own frame).
+    func fillLogin(_ match: Logins.Match, origin: Origin? = nil, authorization: FillAuthorization? = nil) {
+        fillLogin(username: match.username, savedUnder: match.sameHost ? nil : match.host, origin: origin, authorization: authorization)
+    }
+
+    /// `savedUnder` is the key of another host of the site the login was saved for (nil: the page's own). Everything is judged by the
+    /// document committed (`committedURL`), and nothing is filled while a navigation is under way: `webView.url` then already names
+    /// where it goes, though the old page is still the one on screen, so a page could send itself to a bank's address that never
+    /// answers and be given the bank's password. Checked again once the device owner has confirmed, and by the script in the page.
+    func fillLogin(username: String, savedUnder: String? = nil, origin expected: Origin? = nil, authorization: FillAuthorization? = nil,
+                   readPassword: @escaping (String, String) -> String? = Logins.password(host:username:)) {
+        guard webView != nil, !isLoadingProvisionally, let origin = Self.httpsOrigin(committedURL), !Self.isUnverified(committedURL),
+              expected.map({ $0 == origin }) ?? true else { return }
+        if let savedUnder, !Logins.mayShare(savedUnder, with: origin.key) { return }
+        let host = savedUnder ?? origin.key
         Task { @MainActor [weak self] in
-            guard let password = await (authorization ?? .shared).read({ readPassword(host, username) }) else { return }
+            guard let password = await (authorization ?? .shared).read(site: Logins.hostname(ofKey: host), { readPassword(host, username) }) else { return }
             // The page may have moved on while the question was open (to http, another port, another site): the password
             // goes only to the origin it was chosen for.
-            guard let self, Self.httpsOrigin(self.webView?.url) == origin, !Self.isUnverified(self.webView?.url) else { return }
-            self.fill(username: username, password: password)
+            guard let self, !self.isLoadingProvisionally, Self.httpsOrigin(self.committedURL) == origin, !Self.isUnverified(self.committedURL) else { return }
+            self.fill(username: username, password: password, origin: origin)
         }
     }
 
     /// The scheme, host and port of an https address; nil for anything else.
-    private static func httpsOrigin(_ url: URL?) -> Origin? {
-        guard let url, url.scheme == "https", let host = url.host() else { return nil }
+    nonisolated static func httpsOrigin(_ url: URL?) -> Origin? {
+        guard let url, url.scheme == "https", let host = url.host()?.lowercased() else { return nil }
         return Origin(host: host, port: url.port ?? 443)
     }
 
-    private struct Origin: Equatable {
+    /// An https document's origin.
+    struct Origin: Equatable {
         let host: String
         let port: Int
+
+        /// A frame's own origin, as WebKit gives it (port 0 for the scheme's own); nil for anything but https.
+        init?(_ security: WKSecurityOrigin) {
+            guard security.protocol == "https", !security.host.isEmpty else { return nil }
+            self.init(host: security.host.lowercased(), port: security.port == 0 ? 443 : security.port)
+        }
+
+        init(host: String, port: Int) {
+            self.host = host.hasPrefix("[") ? String(host.dropFirst().dropLast()) : host
+            self.port = port
+        }
+
+        private var bracketed: String { host.contains(":") ? "[\(host)]" : host }
+        /// What its logins are saved under (`Logins.key`).
+        var key: String { port == 443 ? host : "\(bracketed):\(port)" }
+        /// As `location.origin` says it.
+        var web: String { "https://" + bracketed + (port == 443 ? "" : ":\(port)") }
     }
 
-    func fill(username: String, password: String) {
-        webView?.appScript(Logins.fillScript, arguments: ["username": username, "password": password])
+    func fill(username: String, password: String, origin: Origin) {
+        webView?.appScript(Logins.fillScript, arguments: ["username": username, "password": password, "origin": origin.web])
     }
 }
 
@@ -289,8 +437,8 @@ struct LoginButton: View {
     var body: some View {
         if !tab.savedLogins.isEmpty {
             Menu {
-                ForEach(tab.savedLogins, id: \.self) { name in
-                    Button(name.isEmpty ? String(localized: "(No username)") : name) { tab.fillLogin(username: name) }
+                ForEach(tab.savedLogins, id: \.self) { match in
+                    Button(match.title) { tab.fillLogin(match) }
                 }
             } label: {
                 Image(systemName: "key").font(.symbolInline)

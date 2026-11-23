@@ -98,10 +98,15 @@ struct GeneralSettings: View {
                     }
                 }
                 LabeledContent("Other Browsers") {
-                    Button("Import Bookmarks, History, and Passwords…") {
-                        let browser = Browser.recent ?? BrowserWindow.open()
-                        browser.showOnboarding = true
-                        browser.window?.makeKeyAndOrderFront(nil)
+                    VStack(alignment: .trailing) {
+                        Button("Import Bookmarks, History, and Passwords…") {
+                            let browser = Browser.recent ?? BrowserWindow.open()
+                            browser.showOnboarding = true
+                            browser.window?.makeKeyAndOrderFront(nil)
+                        }
+                        Button("Import Passwords from CSV File…") {
+                            NSApp.sendAction(#selector(AppDelegate.importPasswordsFromFile(_:)), to: nil, from: nil)
+                        }
                     }
                 }
             }

@@ -2310,7 +2310,7 @@ extension SharedAgentState {
             // Sites whose scripts draw the sign-in form after the page has loaded (Coupang does) had no key button: the field was
             // looked for once, when the page finished, and never again.
             let before = Changmun.Tab.loginAccounts
-            Changmun.Tab.loginAccounts = { $0 == "late.test" ? ["me"] : [] }
+            Changmun.Tab.loginAccounts = { $0 == "late.test" ? [Logins.Match(host: "late.test", username: "me", sameHost: true)] : [] }
             defer { Changmun.Tab.loginAccounts = before }
             do {
                 let b = Browser()
@@ -2322,7 +2322,7 @@ extension SharedAgentState {
                     """, base: "https://late.test/login", in: b)
                 defer { window.close() }
                 #expect(tab.savedLogins.isEmpty, "nothing to fill until the form is there")
-                #expect(await waitUntil(5) { tab.savedLogins == ["me"] }, "the button comes once the field is drawn")
+                #expect(await waitUntil(5) { tab.savedLogins.map(\.username) == ["me"] }, "the button comes once the field is drawn")
                 _ = try await view.evaluateJavaScript("root.innerHTML = ''")
                 #expect(await waitUntil(5) { tab.savedLogins.isEmpty }, "and goes when the field goes")
             }
@@ -2688,14 +2688,14 @@ extension SharedAgentState {
             defer { control.windowClosed() }
             let (_, controlView, controlWindow) = try await page(html, base: "https://login.test/", in: control)
             defer { controlWindow.close() }
-            _ = try await controlView.callAsyncJavaScript(Logins.fillScript, arguments: ["username": "me", "password": "secret"], contentWorld: .defaultClient)
+            _ = try await controlView.callAsyncJavaScript(Logins.fillScript, arguments: ["username": "me", "password": "secret", "origin": "https://login.test"], contentWorld: .defaultClient)
             #expect(await eventually("window.opened || ''", in: controlView) == "window" && control.tabs.count == 2)
             let b = Browser()
             b.focused()
             defer { b.windowClosed() }
             let (tab, view, window) = try await page(html, base: "https://login.test/", in: b)
             defer { window.close() }
-            tab.fill(username: "me", password: "secret")
+            tab.fill(username: "me", password: "secret", origin: Changmun.Tab.Origin(host: "login.test", port: 443))
             #expect(await eventually("window.opened || ''", in: view) == "refused")
             #expect(b.tabs.count == 1)
             #expect(await waitUntil { tab.blockedPopup != nil })
