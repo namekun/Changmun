@@ -141,8 +141,8 @@ final class LoginFieldWatcher: NSObject, WKScriptMessageHandler {
         let rect = numbers.count == 4 ? CGRect(x: numbers[0], y: numbers[1], width: numbers[2], height: numbers[3]) : nil
         // The document's own origin, which is what the field is in: the web view's address names where a navigation is going
         // before it has an answer, while this document is still the one on screen.
-        let document = Tab.Origin(message.frameInfo.securityOrigin)
         MainActor.assumeIsolated {
+            let document = Tab.Origin(message.frameInfo.securityOrigin)
             guard let webView = message.webView, let tab = Browser.tab(showing: webView) else { return }
             if let rect { tab.loginMenu.fieldFocused(field, at: rect, document: document) } else { tab.loginMenu.fieldLeft(field) }
         }
@@ -193,8 +193,8 @@ final class LoginCapture: NSObject, WKScriptMessageHandler {
         let username = body["username"] as? String ?? ""
         // Saved for the document the sign-in was typed into, by its own origin: the web view's address may already name where a
         // navigation is going (the form's own submission, or a page sending itself elsewhere first).
-        let document = Tab.Origin(message.frameInfo.securityOrigin)
         MainActor.assumeIsolated {
+            let document = Tab.Origin(message.frameInfo.securityOrigin)
             guard let webView = message.webView, let document, let url = URL(string: document.web), let tab = Browser.tab(showing: webView),
                   !tab.isPrivate, !Tab.isUnverified(url) else { return }
             let host = document.key, site = document.host
