@@ -102,7 +102,7 @@ final class LoginFieldWatcher: NSObject, WKScriptMessageHandler {
     (() => {
       \(Logins.fieldFinder)
       const ids = new WeakMap(), fields = new Map(), typedIn = new WeakSet();
-      let next = 0, shown = null, frame = 0, pressed = null;
+      let next = 0, shown = null, frame = 0, pressed = null, fading = null;
       // The fill (in this world too) finds the field the menu was offered under by its number.
       window.cmLoginField = n => { const ref = fields.get(n); return ref ? ref.deref() || null : null; };
       // The fields Logins.fillScript fills (`loginFields`), so the field offered the menu is the field filled.
@@ -139,18 +139,33 @@ final class LoginFieldWatcher: NSObject, WKScriptMessageHandler {
       document.addEventListener('focusin', e => {
         const reason = e.target === pressed ? 'click' : 'focus';
         pressed = null;
-        if (e.isTrusted && isLoginField(e.target)) offer(e.target, reason);
+        if (!e.isTrusted) return;
+        if (isLoginField(e.target)) offer(e.target, reason); else if (e.target instanceof HTMLInputElement) fading = e.target;
       }, true);
+      // The press is the user's only for the focus it brings at once: a page that stops the focus can't make its own focus() later a click.
       document.addEventListener('mousedown', e => {
         if (!e.isTrusted || !isLoginField(e.target)) return;
-        if (e.target === document.activeElement) offer(e.target, 'click'); else pressed = e.target;
+        if (e.target === document.activeElement) { offer(e.target, 'click'); return; }
+        pressed = e.target;
+        setTimeout(() => { pressed = null; }, 0);
       }, true);
+      document.addEventListener('mouseup', () => { pressed = null; }, true);
+      // A field focused while its form fades in is no sign-in field yet (it can't be seen); it is one once the fade ends.
+      const faded = e => {
+        if (!e.isTrusted || !fading || fading !== document.activeElement) return;
+        if (isLoginField(fading)) { const f = fading; fading = null; offer(f, 'focus'); }
+      };
+      document.addEventListener('animationend', faded, true);
+      document.addEventListener('transitionend', faded, true);
       document.addEventListener('input', e => {
         if (e.target !== shown || !shown.value) return;
         typedIn.add(shown);
         post({field: id(shown), typed: true});
       }, true);
-      document.addEventListener('focusout', e => { if (e.target === shown) { shown = null; post({field: id(e.target)}); } }, true);
+      document.addEventListener('focusout', e => {
+        if (e.target === fading) fading = null;
+        if (e.target === shown) { shown = null; post({field: id(e.target)}); }
+      }, true);
       window.addEventListener('scroll', later, true);
       window.addEventListener('resize', later);
       // A pinch moves and scales what is on screen without scrolling the page.
@@ -159,6 +174,7 @@ final class LoginFieldWatcher: NSObject, WKScriptMessageHandler {
         window.visualViewport.addEventListener('resize', later);
       }
       if (isLoginField(document.activeElement)) offer(document.activeElement, 'focus');
+      else if (document.activeElement instanceof HTMLInputElement) fading = document.activeElement;
     })();
     """
 

@@ -276,8 +276,9 @@ enum Logins {
     /// be null). The one definition the key button (`LoginFormWatcher`, `Tab.checkForLogins`), the menu under a field
     /// (`LoginFieldWatcher`) and the fill (`fillScript`) all go by, so the field offered is the field filled.
     ///
-    /// - Shown means drawn where the user can see it: not hidden, see-through (on it or a container), under 4 points, or wholly off
-    ///   the page (the password field Google keeps hidden on its first step is none).
+    /// - Shown means drawn where the user can see it: not hidden, see-through (on it or a container), under 4 points, or put wholly off
+    ///   the page on purpose (left: -9999px), which a field scrolled away inside a container (a modal, a page's own scrolling root) is
+    ///   not (the password field Google keeps hidden on its first step is none).
     /// - A sign-up's fields are none of them: those in the same form as a shown new-password field, or for fields in no form, in the
     ///   nearest container that holds a password field.
     /// - The password field: the first shown one that isn't a sign-up's (or that says it is the current password).
@@ -292,7 +293,12 @@ enum Logins {
     const cmVisible = e => {
       if (!e.isConnected) return false;
       const r = e.getBoundingClientRect();
-      if (r.width < 4 || r.height < 4 || r.right + scrollX <= 0 || r.bottom + scrollY <= 0) return false;
+      if (r.width < 4 || r.height < 4) return false;
+      // Where it is on the page with every container scrolled back to its start: left or above the page's origin then is off it on
+      // purpose, not scrolled away.
+      let right = r.right + scrollX, bottom = r.bottom + scrollY;
+      for (let n = e.parentElement; n; n = n.parentElement) { right += n.scrollLeft; bottom += n.scrollTop; }
+      if (right <= 0 || bottom <= 0) return false;
       if (getComputedStyle(e).visibility !== 'visible') return false;
       for (let n = e; n; n = n.parentElement) {
         const style = getComputedStyle(n);
@@ -302,19 +308,20 @@ enum Logins {
     };
     const cmTokens = e => (e.getAttribute('autocomplete') || '').toLowerCase().split(/\s+/);
     const cmSearch = e => {
-      const name = (e.getAttribute('name') || '') + ' ' + (e.id || '');
+      const names = [e.getAttribute('name') || '', e.id || ''];
       return e.type === 'search' || /^(searchbox|combobox)$/i.test(e.getAttribute('role') || '') ||
-        /^(q|s|query|keyword|keywords)$/i.test(e.getAttribute('name') || '') || /search/i.test(name) || !!e.closest('[role=search]');
+        names.some(n => /^(q|s|query|keyword|keywords)$/i.test(n) || /search/i.test(n)) || !!e.closest('[role=search]');
     };
     const cmWords = s => s.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-    // An account, by its words: an id or a user name (`id`, `memId`, `userId`, `loginId`, `mb_id`), but not the id of something else
-    // (`coupon_id`, `video_id`, `order_id`) and not an account's number (`accountNo`, `account_number`, `acctNo`).
+    // An account, by its words: an id or a user name (`id`, `memId`, `userId`, `loginId`, `userAccount`, `mb_id`), but not the id
+    // of something else (`coupon_id`, `video_id`, `order_id`) and not an account's number (`accountNo`, `account_number`, `acctNo`).
     const cmOther = /^(coupon|video|order|product|item|post|board|cart|goods|session|transaction|invoice|bank|card|no|num|number|acct)$/;
     const cmAccount = e => [e.getAttribute('name') || '', e.id || '', e.getAttribute('autocomplete') || ''].some(s => {
       const words = cmWords(s);
       if (!words.length || words.some(w => cmOther.test(w))) return false;
+      if (/identifier/i.test(s) || words.some(w => /^(user|userid|username|usr|login|loginid)$/.test(w))) return true;
       if (words.includes('account')) return words.every(w => w === 'account' || w === 'id' || w === 'name');
-      return /identifier/i.test(s) || words.some(w => /^(id|uid|user|userid|username|usr|login|loginid|email|mail|member|memb|memberid|mb)$/.test(w));
+      return words.some(w => /^(id|uid|email|mail|member|memb|memberid|mb)$/.test(w));
     });
     const loginFields = () => {
       const inputs = [...document.querySelectorAll('input')];
@@ -336,14 +343,21 @@ enum Logins {
         }
         return document.body;
       };
+      // With no container of its own, a field is a sign-up's only by a new-password field in no form either: a sign-up form elsewhere
+      // on the page is not this field's.
       const signUps = new Map();
-      const signUp = e => { const s = scope(e); if (!signUps.has(s)) signUps.set(s, created.some(p => s.contains(p))); return signUps.get(s); };
+      const signUp = e => {
+        const s = scope(e);
+        if (!signUps.has(s)) signUps.set(s, created.some(p => s.contains(p) && (s !== document.body || !p.form)));
+        return signUps.get(s);
+      };
       const typed = e => text(e) && visible(e) && !e.disabled && !e.readOnly && !cmSearch(e) && !signUp(e);
       const pw = passwords.find(e => !cmTokens(e).includes('new-password') && (!signUp(e) || cmTokens(e).includes('current-password'))) || null;
       if (pw) {
         if (pw.form) return {pw, user: [...pw.form.querySelectorAll('input')].filter(e => typed(e) && before(e, pw)).pop() || null};
-        // No form: the fields in no form, in the nearest container of the password field that has one.
-        for (let n = pw.parentElement; n; n = n.parentElement) {
+        // No form: the fields in no form, in the nearest container of the password field that has one, a few levels up at most and
+        // not the whole page (a search box in the header is no part of a sign-in).
+        for (let n = pw.parentElement, depth = 0; n && n !== document.body && depth < 6; n = n.parentElement, depth++) {
           const found = [...n.querySelectorAll('input')].filter(e => !e.form && typed(e) && before(e, pw));
           if (found.length) return {pw, user: found.pop()};
         }

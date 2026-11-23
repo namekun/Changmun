@@ -642,6 +642,19 @@ struct LoginFieldMenuTests {
         ("<form><input type=text id=f5 name=account_id></form>", "", "f5"),
         ("<form><input type=password id=a style=\"visibility:hidden\"><input type=password id=b style=\"position:absolute;left:-9999px\"><div style=\"opacity:0\"><input type=password id=c></div><input type=password id=d style=\"width:2px;height:2px;padding:0;border:0\"></form>", "", ""),
         ("<div><input type=text id=su name=email><input type=password id=snp autocomplete=new-password><input type=password id=scf></div><div><input type=text id=lu name=username><input type=password id=lp></div>", "lp", "lu"),
+        // Scrolled away inside a container is still on the page; put off it on purpose is not.
+        ("<div id=ov style=\"position:fixed;inset:0;overflow-y:auto\"><div style=\"margin:30px auto;width:300px\"><form><h1 style=\"height:200px\">Sign in</h1><input type=email id=em name=email><div style=\"height:500px\"></div><input type=password id=pw name=password><div style=\"height:900px\"></div></form></div></div><script>document.getElementById('ov').scrollTop = 600;</script>", "pw", "em"),
+        ("<div id=sc style=\"height:120px;overflow:auto\"><form><input id=u name=username><div style=\"height:400px\"></div><input type=password id=pw><div style=\"height:400px\"></div></form></div><script>document.getElementById('sc').scrollTop = 300;</script>", "pw", "u"),
+        ("<form><input id=off name=username style=\"position:absolute;left:-9999px\"><input type=password id=pw></form>", "pw", ""),
+        ("<form><input id=up name=username style=\"position:absolute;top:-9999px\"></form>", "", ""),
+        // A search box in the header is no part of a formless sign-in, by its id too.
+        ("<header><input type=text id=query placeholder=search></header><main><div class=step2><p>Enter password</p><input type=password id=pw></div></main>", "pw", ""),
+        ("<form><input type=text id=keyword></form><div><input type=email id=em></div>", "", "em"),
+        // A sign-up form elsewhere doesn't make a formless field a sign-up's.
+        ("<div class=signin><input type=email id=em placeholder=Email><button>Next</button></div><section><form><input type=email id=su name=email><input type=password id=np autocomplete=new-password></form></section>", "", "em"),
+        ("<form><input type=text id=ua name=userAccount><button>Next</button></form>", "", "ua"),
+        ("<form><input type=text id=la name=loginAccount><button>Next</button></form>", "", "la"),
+        ("<form><input type=text id=an2 name=acctNo></form>", "", ""),
     ])
     func theFinderPicksTheSignInFieldsOnly(html: String, pw: String, user: String) async throws {
         let b = Browser()
@@ -653,6 +666,46 @@ struct LoginFieldMenuTests {
         defer { window.close() }
         await load(html, at: "https://www.site.test/login", in: view)
         #expect(try await picked(view) == [pw, user])
+    }
+
+    @Test func aFieldFocusedWhileItsFormFadesInGetsTheMenuOnceTheFadeEnds() async throws {
+        try await withAccounts { _ in
+            let b = Browser()
+            b.focused()
+            defer { b.windowClosed() }
+            let tab = b.openTab(url: nil)
+            let view = tab.wake()
+            let window = OffscreenWindow(view)
+            defer { window.close() }
+            let html = """
+                <style>@keyframes f { from { opacity: 0 } to { opacity: 1 } } .anim { animation: f .6s ease both }</style>
+                <div class=anim><form><input type=email id=em name=loginfmt autofocus></form></div>
+                """
+            await load(html, at: "https://www.site.test/login", in: view)
+            #expect(await waitUntil(5) { tab.loginMenu.shown != nil }, "the field focused at opacity 0 is offered once it shows")
+        }
+    }
+
+    @Test func aKeyWhileTheAccountsAreLookedUpCallsOffTheMenu() async throws {
+        try await withAccounts { _ in
+            Changmun.Tab.loginAccounts = { key in
+                try? await Task.sleep(for: .milliseconds(600))
+                return [Logins.Match(host: key, username: "carol", sameHost: true)]
+            }
+            let b = Browser()
+            b.focused()
+            defer { b.windowClosed() }
+            let (tab, view, window) = await page(in: b)
+            defer { window.close() }
+            try await focus("u", in: view)
+            // The field's message has come and the lookup (600 ms) is under way.
+            _ = try? await view.evaluateJavaScript("1")
+            try? await Task.sleep(for: .milliseconds(150))
+            #expect(tab.loginMenu.shown == nil)
+            tab.loginMenu.handle(try key(53, "\u{1b}", in: window))
+            try? await Task.sleep(for: .seconds(1.2))
+            #expect(tab.loginMenu.shown == nil && tab.loginMenu.clickOnly, "Esc during the lookup")
+        }
     }
 
     @Test func theFillGoesToTheFieldTheMenuWasOfferedUnderOrNowhere() async throws {

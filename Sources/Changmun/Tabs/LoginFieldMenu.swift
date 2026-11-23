@@ -127,6 +127,8 @@ final class LoginFieldMenu {
         }
         pending = (field, rect, origin, reason)
         guard lookup == nil else { return }
+        // A key meanwhile (Esc, typing) calls off the menu the lookup is for, so the events are watched from now.
+        watchEvents()
         lookup = Task { [weak self] in
             let offers = await Tab.loginAccounts(origin.key)
             guard let self, !Task.isCancelled else { return }
@@ -136,6 +138,7 @@ final class LoginFieldMenu {
                 self.pending = nil
                 self.present(pending.field, at: pending.rect, origin: origin, offers: offers, reason: pending.reason)
             }
+            self.stopWatchingEvents()
         }
     }
 
@@ -317,23 +320,24 @@ final class LoginFieldMenu {
     }
 
     private func stopWatchingEvents() {
-        guard panel == nil, waiting == nil, let monitor else { return }
+        guard panel == nil, waiting == nil, lookup == nil, let monitor else { return }
         NSEvent.removeMonitor(monitor)
         self.monitor = nil
     }
 
-    /// What a key or a click while the menu is up, or waiting to come up, does to it. Any key puts it away (and calls off one
-    /// waiting); Esc and a click outside the menu and the field also leave it to the user's own click on a field to come back, as
+    /// What a key or a click while the menu is up, or waiting to come up (on the lookup of the accounts, or on `reshowInterval`), does
+    /// to it. Any key puts it away (and calls off one waiting); Esc and a click outside the menu and the field also leave it to the user's own click on a field to come back, as
     /// a page can focus() a field whenever it likes. Every event goes on to the page, Esc too: the page sees what it would have seen
     /// without a menu, so it can't tell from a key that never came that one (and so a saved login) was there.
     func handle(_ event: NSEvent) {
         if let panel, event.window === panel { return }
-        guard shown != nil || waiting != nil else { return }
         if event.type == .keyDown {
+            guard shown != nil || pending != nil else { return }
             if event.keyCode == 53 { clickOnly = true }
         } else {
-            // A click in the field itself keeps it.
-            if let shown, let webView = tab?.webView, event.window === webView.window,
+            // A click in the field itself keeps it. (With no menu up yet, the page says where the user pressed.)
+            guard let shown else { return }
+            if let webView = tab?.webView, event.window === webView.window,
                shown.fieldRect.contains(webView.convert(event.locationInWindow, from: nil)) { return }
             clickOnly = true
         }
