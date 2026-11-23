@@ -114,11 +114,18 @@ final class LoginFieldWatcher: NSObject, WKScriptMessageHandler {
         const r = shown.getBoundingClientRect(), v = window.visualViewport;
         post({field: id(shown), x: r.left - (v ? v.offsetLeft : 0), y: r.top - (v ? v.offsetTop : 0), width: r.width, height: r.height});
       };
-      const later = () => { if (shown && !frame) frame = requestAnimationFrame(report); };
-      document.addEventListener('focusin', e => { if (isLoginField(e.target)) { shown = e.target; report(); } }, true);
+      // Only what the browser itself fires: the page can dispatch focus and scroll events of its own, which these listeners would
+      // hear too. (Leaving is taken from anyone: it only ever puts the menu away.)
+      const later = e => { if (e.isTrusted && shown && !frame) frame = requestAnimationFrame(report); };
+      document.addEventListener('focusin', e => { if (e.isTrusted && isLoginField(e.target)) { shown = e.target; report(); } }, true);
       document.addEventListener('focusout', e => { if (e.target === shown) { shown = null; post({field: id(e.target)}); } }, true);
       window.addEventListener('scroll', later, true);
       window.addEventListener('resize', later);
+      // A pinch moves and scales what is on screen without scrolling the page.
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('scroll', later);
+        window.visualViewport.addEventListener('resize', later);
+      }
       if (isLoginField(document.activeElement)) { shown = document.activeElement; report(); }
     })();
     """

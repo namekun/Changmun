@@ -17,7 +17,7 @@ cp "$BIN_DIR/Changmun" "$APP/Contents/MacOS/Changmun"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 # Without a feed Sparkle stays off (Updates.swift), so a development build is never offered the release in its place.
 [[ "$CONFIG" == release ]] || plutil -remove SUFeedURL "$APP/Contents/Info.plist"
-cp -R Resources/*.lproj Resources/AppIcon.icns Resources/changmun "$APP/Contents/Resources/"
+cp -R Resources/*.lproj Resources/AppIcon.icns Resources/changmun Resources/public_suffix_list.dat "$APP/Contents/Resources/"
 # Sparkle brings the updates; ditto keeps the framework's symlinks.
 FW="$APP/Contents/Frameworks/Sparkle.framework"
 [[ -d "$BIN_DIR/Sparkle.framework" ]] || { echo "No Sparkle.framework in $BIN_DIR" >&2; exit 1; }

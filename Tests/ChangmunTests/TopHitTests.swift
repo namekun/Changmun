@@ -159,7 +159,22 @@ struct TopHitTests {
         #expect(sites.hit(for: "nav") == nil)
     }
 
-    @Test func theRegistrableDomainIsTheLastTwoLabelsOrThreeUnderAKnownSuffix() {
+    @Test func aSiteUnderAPrivateSuffixIsCompletedFromItsOwnName() throws {
+        // github.io and tistory.com are suffixes: each user's site is a domain of its own, so its first label reaches into it.
+        // The last-two-labels guess before the Public Suffix List took github.io for the domain and completed none of these.
+        let library = library()
+        try visit(library, "https://foo.github.io/", times: 9)
+        try visit(library, "https://alice.tistory.com/", times: 9)
+        let sites = library.sites()
+        #expect(sites.hit(for: "foo")?.host == "foo.github.io")
+        #expect(sites.hit(for: "foo").flatMap { SiteIndex.completion(of: "foo", to: $0) } == ".github.io")
+        #expect(sites.hit(for: "ali")?.host == "alice.tistory.com")
+    }
+
+    @Test func theRegistrableDomainIsThePublicSuffixAndOneLabel() {
+        #expect(SiteIndex.registrableStart("alice.github.io") == 0, "github.io is a suffix (the PSL's private section)")
+        #expect(SiteIndex.registrableStart("blog.alice.github.io") == "blog.".utf8.count)
+        #expect(SiteIndex.registrableStart("github.io") == 0, "a suffix itself is a domain whole")
         #expect(SiteIndex.registrableStart("github.com") == 0)
         #expect(SiteIndex.registrableStart("github.com.evil.example") == "github.com.".utf8.count)
         #expect(SiteIndex.registrableStart("mail.google.com") == "mail.".utf8.count)

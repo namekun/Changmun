@@ -4,8 +4,9 @@ import Testing
 import WebKit
 @testable import Changmun
 
-/// Logins saved for one host of a site are offered on its other hosts, but not across a shared hosting platform, a port or a private
-/// window, and never to the AI. Everything here runs on an in-memory keychain or a stand-in for it.
+/// Logins saved for one host of a site are offered on its other hosts, by the Public Suffix List: never under a public suffix (a
+/// shared hosting platform among them), across a port, without the list, or to the AI. Everything here runs on an in-memory keychain
+/// or a stand-in for it.
 struct LoginSharingTests {
     private func with(_ saved: [(host: String, username: String)], _ body: () throws -> Void) rethrows {
         let keychain = MemoryKeychain()
@@ -39,32 +40,37 @@ struct LoginSharingTests {
         }
     }
 
-    @Test func aSharedHostingPlatformKeepsEachSubdomainApart() {
-        let required = ["github.io", "gitlab.io", "herokuapp.com", "vercel.app", "netlify.app", "pages.dev", "workers.dev", "web.app", "firebaseapp.com",
-                        "appspot.com", "blogspot.com", "azurewebsites.net", "cloudfront.net", "amazonaws.com", "fly.dev", "onrender.com", "glitch.me",
-                        "repl.co", "ngrok.io", "ngrok-free.app", "tistory.com", "wordpress.com", "wixsite.com", "notion.site"]
-        #expect(Set(required).isSubset(of: Logins.sharedHostingDomains))
-        for domain in Logins.sharedHostingDomains {
-            #expect(!Logins.mayShare("alice.\(domain)", with: "bob.\(domain)"), "\(domain)")
-            #expect(!Logins.mayShare(domain, with: "bob.\(domain)") && !Logins.mayShare("alice.\(domain)", with: domain), "\(domain)")
-        }
-        #expect(!Logins.mayShare("bucket.s3.amazonaws.com", with: "other.s3.amazonaws.com"))
+    @Test func hostsOfOneRegistrableDomainShare() {
+        #expect(Logins.mayShare("accounts.example.com", with: "www.example.com"))
+        #expect(Logins.mayShare("nid.naver.com", with: "naver.com") && Logins.mayShare("naver.com", with: "www.naver.com"))
+        #expect(Logins.mayShare("mail.naver.co.kr", with: "www.naver.co.kr"), "co.kr is a suffix: naver.co.kr is the site")
+        #expect(Logins.mayShare("shop.example.co.uk", with: "example.co.uk"))
+        #expect(Logins.mayShare("Accounts.Example.com", with: "www.example.com"), "names are compared in lower case")
+    }
+
+    @Test(arguments: [
+        ("a.hs.kr", "b.hs.kr"), ("alice.school.sch.uk", "bob.school.sch.uk"), ("alice.synology.me", "bob.synology.me"),
+        ("alice.myshopify.com", "bob.myshopify.com"), ("alice.duckdns.org", "bob.duckdns.org"), ("alice.r2.dev", "bob.r2.dev"),
+        ("alice.github.io", "bob.github.io"), ("alice.tistory.com", "bob.tistory.com"), ("naver.co.kr", "daum.co.kr"),
+        ("alice.com.pl", "bob.com.pl"), ("bucket.s3.amazonaws.com", "other.s3.amazonaws.com"),
+    ])
+    func differentSitesUnderAPublicSuffixDoNotShare(a: String, b: String) {
+        #expect(!Logins.mayShare(a, with: b) && !Logins.mayShare(b, with: a))
+    }
+
+    @Test func aPublicSuffixItselfSharesWithNothing() {
+        #expect(!Logins.mayShare("github.io", with: "alice.github.io") && !Logins.mayShare("alice.github.io", with: "github.io"))
+        #expect(!Logins.mayShare("co.kr", with: "naver.co.kr"))
         with([("alice.github.io", "alice"), ("bob.github.io", "bob")]) {
             #expect(Logins.matches(for: "bob.github.io").map(\.title) == ["bob"], "only the exact host's own")
             #expect(Logins.matches(for: "mallory.github.io").isEmpty)
         }
     }
 
-    @Test func aSiteIsItsRegistrableDomainWithTwoLevelSuffixesKnown() {
-        #expect(Logins.mayShare("mail.naver.co.kr", with: "www.naver.co.kr"))
-        #expect(Logins.mayShare("naver.co.kr", with: "nid.naver.co.kr"))
-        #expect(!Logins.mayShare("naver.co.kr", with: "daum.co.kr"), "co.kr is a suffix, not a site")
-        #expect(Logins.mayShare("shop.example.co.uk", with: "example.co.uk"))
-        #expect(!Logins.mayShare("alice.com.pl", with: "bob.com.pl"), "a suffix the list doesn't know is not taken for a site")
+    @Test func otherSitesNeverShare() {
         #expect(!Logins.mayShare("a.example.com", with: "a.example.org"))
         #expect(!Logins.mayShare("example.com", with: "notexample.com"))
         #expect(!Logins.mayShare("example.com.evil.test", with: "example.com"))
-        #expect(Logins.mayShare("Accounts.Example.com", with: "www.example.com"), "names are compared in lower case")
     }
 
     @Test func portsAddressesAndOneLabelNamesAreNeverShared() {
@@ -82,17 +88,23 @@ struct LoginSharingTests {
         }
     }
 
-    @Test func theMenuIsOfferedOnlyOnHttpsPagesOutsidePrivateWindowsAndWithAccounts() throws {
+    @Test func withoutTheListNothingIsShared() {
+        PublicSuffix.$unavailableForTest.withValue(true) {
+            #expect(!Logins.mayShare("accounts.example.com", with: "www.example.com"))
+            #expect(!Tab.sameSite("login.example.com", "www.example.com") && Tab.sameSite("www.example.com", "www.example.com"))
+            #expect(SiteIndex.registrableStart("mail.google.com") == "mail.google.".utf8.count, "the address bar errs toward offering less")
+            with([("accounts.example.com", "alice"), ("www.example.com", "carol")]) {
+                #expect(Logins.matches(for: "www.example.com").map(\.title) == ["carol"])
+            }
+        }
+    }
+
+    @Test func thePageKeyIsHttpsOnlyAndNotForAnUnverifiedPage() throws {
         let page = try #require(URL(string: "https://www.example.com/login"))
-        let some: (String) -> [Logins.Match] = { [Logins.Match(host: $0, username: "me", sameHost: true)] }
-        #expect(LoginFieldMenu.offers(url: page, isPrivate: false, isUnverified: false, accounts: some).map(\.username) == ["me"])
-        #expect(LoginFieldMenu.offers(url: page, isPrivate: true, isUnverified: false, accounts: some).isEmpty, "never in a private window")
-        #expect(LoginFieldMenu.offers(url: page, isPrivate: false, isUnverified: true, accounts: some).isEmpty, "not on an unverified page")
-        #expect(LoginFieldMenu.offers(url: URL(string: "http://www.example.com/login"), isPrivate: false, isUnverified: false, accounts: some).isEmpty, "never on http")
-        #expect(LoginFieldMenu.offers(url: page, isPrivate: false, isUnverified: false, accounts: { _ in [] }).isEmpty, "nothing saved, no menu")
-        var asked: [String] = []
-        _ = LoginFieldMenu.offers(url: URL(string: "https://www.example.com:8443/"), isPrivate: false, isUnverified: false) { asked.append($0); return [] }
-        #expect(asked == ["www.example.com:8443"], "asked by the page's key, port and all")
+        #expect(LoginFieldMenu.pageKey(url: page, isUnverified: false) == "www.example.com")
+        #expect(LoginFieldMenu.pageKey(url: page, isUnverified: true) == nil, "not on an unverified page")
+        #expect(LoginFieldMenu.pageKey(url: URL(string: "http://www.example.com/login"), isUnverified: false) == nil, "never on http")
+        #expect(LoginFieldMenu.pageKey(url: URL(string: "https://www.example.com:8443/"), isUnverified: false) == "www.example.com:8443")
     }
 
     @MainActor @Test func theAIsSignInStaysWithTheExactHost() {
@@ -105,20 +117,92 @@ struct LoginSharingTests {
         }
     }
 
+    @Test func theRecordsAreReadOnceUntilAChangeOrTheirTimeIsUp() {
+        var reads = 0
+        var clock = Date(timeIntervalSince1970: 1_000)
+        let cache = Logins.RecordCache(now: { clock }) { reads += 1; return [Logins.Record(server: "example.com", account: "me")] }
+        _ = cache.records()
+        _ = cache.records()
+        #expect(reads == 1)
+        cache.invalidate()
+        #expect(cache.records().map(\.account) == ["me"] && reads == 2, "a change made here is read at once")
+        clock.addTimeInterval(Logins.RecordCache.ttl - 1)
+        _ = cache.records()
+        #expect(reads == 2)
+        clock.addTimeInterval(2)
+        _ = cache.records()
+        #expect(reads == 3, "one made elsewhere within the time")
+    }
+
     @Test func aFieldsRectIsScaledByThePagesZoomAndTurnedOverWhenTheViewIsNot() {
         let css = CGRect(x: 40, y: 100, width: 200, height: 20)
         #expect(LoginFieldMenu.viewRect(css, zoom: 1.5, flipped: true, height: 600) == CGRect(x: 60, y: 150, width: 300, height: 30))
         #expect(LoginFieldMenu.viewRect(css, zoom: 1, flipped: false, height: 600) == CGRect(x: 40, y: 480, width: 200, height: 20))
     }
 
-    @Test func theMenuGoesUnderTheFieldOrOverItWhenTheScreenEndsBelow() {
-        let room = LoginFieldMenu.shadowRoom, gap = Metrics.rowGap, size = CGSize(width: 232, height: 100)
+    @Test func theMenuGoesUnderTheFieldOrOverItAndStaysOnThePage() {
+        let room = LoginFieldMenu.shadowRoom, gap = Metrics.rowGap, size = CGSize(width: 200 + 2 * room, height: 100 + 2 * room)
+        let page = CGRect(x: 100, y: 0, width: 800, height: 700)
         let field = CGRect(x: 300, y: 500, width: 200, height: 24)
-        let under = LoginFieldMenu.panelFrame(field: field, size: size, screen: CGRect(x: 0, y: 0, width: 1440, height: 900))
+        let under = LoginFieldMenu.panelFrame(field: field, size: size, bounds: page)
         #expect(under.minX + room == field.minX && under.maxY - room == field.minY - gap, "the list's top left just under the field's bottom left")
         let low = CGRect(x: 300, y: 40, width: 200, height: 24)
-        let over = LoginFieldMenu.panelFrame(field: low, size: size, screen: CGRect(x: 0, y: 0, width: 1440, height: 900))
+        let over = LoginFieldMenu.panelFrame(field: low, size: size, bounds: page)
         #expect(over.minY + room == low.maxY + gap, "over the field when there is no room under it")
+        let right = LoginFieldMenu.panelFrame(field: CGRect(x: 850, y: 500, width: 40, height: 24), size: size, bounds: page)
+        #expect(right.maxX - room == page.maxX, "not past the page's right edge")
+        let left = LoginFieldMenu.panelFrame(field: CGRect(x: 20, y: 500, width: 40, height: 24), size: size, bounds: page)
+        #expect(left.minX + room == page.minX, "nor its left")
+        let squeezed = LoginFieldMenu.panelFrame(field: CGRect(x: 300, y: 50, width: 200, height: 24), size: size, bounds: CGRect(x: 100, y: 0, width: 800, height: 160))
+        #expect(squeezed.minY + room >= 0 && squeezed.maxY - room <= 160, "inside the page when it fits neither way")
+    }
+}
+
+/// The Public Suffix List as the app reads it.
+struct PublicSuffixTests {
+    @Test func theBundledListIsReadWithBothSections() throws {
+        let list = try #require(PublicSuffix.shared)
+        #expect(list.count > 9_000)
+        #expect(list.isPublicSuffix("co.kr") && list.isPublicSuffix("com"), "ICANN")
+        #expect(list.isPublicSuffix("github.io") && list.isPublicSuffix("myshopify.com"), "PRIVATE")
+        #expect(!list.isPublicSuffix("example.com"))
+    }
+
+    @Test func wildcardAndExceptionRules() throws {
+        let list = try #require(PublicSuffix.shared)
+        // *.ck and !www.ck
+        #expect(list.registrableDomain("a.b.ck") == "a.b.ck" && list.isPublicSuffix("b.ck"))
+        #expect(list.registrableDomain("www.ck") == "www.ck" && list.registrableDomain("x.www.ck") == "www.ck")
+        // *.kawasaki.jp and !city.kawasaki.jp
+        #expect(list.registrableDomain("x.city.kawasaki.jp") == "city.kawasaki.jp")
+        #expect(list.registrableDomain("a.b.kawasaki.jp") == "a.b.kawasaki.jp" && list.registrableDomain("b.kawasaki.jp") == nil)
+        // *.sch.uk
+        #expect(list.registrableDomain("www.school.sch.uk") == "www.school.sch.uk")
+        // The implicit "*": an unknown last label is a suffix of its own.
+        #expect(list.registrableDomain("a.b.example") == "b.example")
+    }
+
+    @Test func namesInOtherScriptsAreMatchedInPunycode() throws {
+        #expect(PublicSuffix.punycode("公司") == "55qx5d")
+        #expect(PublicSuffix.punycode("한국") == "3e0b707e")
+        #expect(PublicSuffix.punycode("bücher") == "bcher-kva")
+        let list = try #require(PublicSuffix.shared)
+        #expect(list.isPublicSuffix("xn--55qx5d.cn") && list.isPublicSuffix("公司.cn"))
+        #expect(list.registrableDomain("www.例子.公司.cn") == "xn--fsqu00a.xn--55qx5d.cn")
+        #expect(list.registrableDomain("www.xn--fsqu00a.xn--55qx5d.cn") == "xn--fsqu00a.xn--55qx5d.cn")
+    }
+
+    @Test func addressesAndOneLabelNamesHaveNoRegistrableDomain() throws {
+        let list = try #require(PublicSuffix.shared)
+        #expect(list.registrableDomain("10.0.0.1") == nil && list.registrableDomain("localhost") == nil && list.registrableDomain("::1") == nil)
+        #expect(list.registrableDomain("WWW.Example.COM.") == "example.com")
+    }
+
+    @Test func aRuleListIsParsedByTheSpec() {
+        let list = PublicSuffix(list: "// comment\ncom\n*.jp\n!metro.jp\n\nuk extra-text\n")
+        #expect(list.registrableDomain("a.example.com") == "example.com")
+        #expect(list.registrableDomain("a.b.foo.jp") == "b.foo.jp" && list.registrableDomain("a.metro.jp") == "metro.jp")
+        #expect(list.registrableDomain("a.bbc.uk") == "bbc.uk")
     }
 }
 
@@ -134,24 +218,38 @@ struct LoginFieldMenuTests {
         </form></body>
         """
 
-    private func withAccounts(_ body: () async throws -> Void) async rethrows {
-        let before = Changmun.Tab.loginAccounts
+    private final class Lookups { var keys: [String] = [] }
+
+    /// Accounts for www.site.test, and a panel that may show though the test's window is never key.
+    private func withAccounts(_ body: (Lookups) async throws -> Void) async rethrows {
+        let before = Changmun.Tab.loginAccounts, showable = LoginFieldMenu.showable
+        let lookups = Lookups()
         Changmun.Tab.loginAccounts = { key in
-            key == "www.site.test" ? [Logins.Match(host: key, username: "carol", sameHost: true), Logins.Match(host: "accounts.site.test", username: "alice", sameHost: false)] : []
+            await MainActor.run { lookups.keys.append(key) }
+            return key == "www.site.test" ? [Logins.Match(host: key, username: "carol", sameHost: true), Logins.Match(host: "accounts.site.test", username: "alice", sameHost: false)] : []
         }
-        defer { Changmun.Tab.loginAccounts = before }
-        try await body()
+        LoginFieldMenu.showable = { _, _ in true }
+        defer {
+            Changmun.Tab.loginAccounts = before
+            LoginFieldMenu.showable = showable
+        }
+        try await body(lookups)
     }
 
-    private func page(in b: Browser, zoom: CGFloat = 1) async -> (Changmun.Tab, WKWebView, NSWindow) {
+    private func page(in b: Browser, base: String = "https://www.site.test/login", zoom: CGFloat = 1) async -> (Changmun.Tab, WKWebView, NSWindow) {
         let tab = b.openTab(url: nil)
         let view = tab.wake()
         let window = OffscreenWindow(view)
-        view.loadHTMLString(Self.form, baseURL: URL(string: "https://www.site.test/login"))
+        view.loadHTMLString(Self.form, baseURL: URL(string: base))
         _ = await waitUntil(5) { !view.isLoading && view.url != nil }
         // After the load: a page's commit sets the zoom kept for its site.
         view.pageZoom = zoom
         return (tab, view, window)
+    }
+
+    private func load(_ base: String, in view: WKWebView) async {
+        view.loadHTMLString(Self.form, baseURL: URL(string: base))
+        _ = await waitUntil(5) { !view.isLoading && view.url?.absoluteString == base }
     }
 
     private func focus(_ id: String, in view: WKWebView) async throws {
@@ -165,7 +263,7 @@ struct LoginFieldMenuTests {
     }
 
     @Test func aFocusedSignInFieldGetsTheMenuUnderItAndThePageLearnsNothingOfTheAccounts() async throws {
-        try await withAccounts {
+        try await withAccounts { lookups in
             let b = Browser()
             b.focused()
             defer { b.windowClosed() }
@@ -181,56 +279,159 @@ struct LoginFieldMenuTests {
             #expect(panel.parent === window && panel.frame.maxY - LoginFieldMenu.shadowRoom <= window.convertToScreen(view.convert(shown.fieldRect, to: nil)).minY)
             let html = try await view.evaluateJavaScript("document.documentElement.outerHTML + JSON.stringify(Object.keys(window))") as? String ?? ""
             #expect(!html.contains("alice") && !html.contains("carol") && !html.contains("accounts.site.test"), "nothing of the accounts is in the page")
-            tab.loginMenu.choose(shown.matches[0])
-            #expect(tab.loginMenu.shown != nil, "a click in the menu's first moment is not taken")
 
-            // A search box is no sign-in field; and the user name field, its menu put away, is not offered again on this page.
+            // A move of the field uses what was looked up: the keychain is not asked again for the page.
+            let asked = lookups.keys.count
+            for dy in [0.0, 1, 2, 3] { tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 100 + dy, width: 200, height: 20)) }
+            await settle(view)
+            #expect(tab.loginMenu.shown != nil && lookups.keys.count == asked)
+
+            // A search box is no sign-in field. Once put away, nothing on this page offers the menu again, the password field included.
             try await focus("q", in: view)
             #expect(await waitUntil(5) { tab.loginMenu.shown == nil })
-            try await focus("u", in: view)
-            await settle(view)
-            #expect(tab.loginMenu.shown == nil, "put away once, not offered again")
-            // The password field is another field. Esc puts its menu away too.
-            try await focus("p", in: view)
-            #expect(await waitUntil(5) { tab.loginMenu.shown != nil })
-            tab.loginMenu.dismiss()
-            #expect(tab.loginMenu.shown == nil && tab.loginMenu.panel == nil)
+            for field in ["u", "p"] {
+                try await focus(field, in: view)
+                await settle(view)
+                #expect(tab.loginMenu.shown == nil, "put away on this page: \(field)")
+            }
             // Another page starts again.
-            view.loadHTMLString(Self.form, baseURL: URL(string: "https://www.site.test/again"))
-            _ = await waitUntil(5) { !view.isLoading && view.url?.lastPathComponent == "again" }
+            await load("https://www.site.test/again", in: view)
             try await focus("u", in: view)
             #expect(await waitUntil(5) { tab.loginMenu.shown != nil }, "a new page's field is offered")
         }
     }
 
-    @Test(arguments: [true, false])
-    func noMenuInAPrivateWindowOrOnASiteWithNothingSaved(isPrivate: Bool) async throws {
-        try await withAccounts {
-            let b = Browser(isPrivate: isPrivate)
+    @Test func aClickCountsOnlyOnceThePointerMovedInAndThePanelStayedPutForAMoment() async throws {
+        try await withAccounts { _ in
+            let b = Browser()
             b.focused()
             defer { b.windowClosed() }
-            let tab = b.openTab(url: nil)
-            let view = tab.wake()
-            let window = OffscreenWindow(view)
+            let (tab, view, window) = await page(in: b)
             defer { window.close() }
-            view.loadHTMLString(Self.form, baseURL: URL(string: isPrivate ? "https://www.site.test/login" : "https://nothing.test/login"))
-            _ = await waitUntil(5) { !view.isLoading && view.url != nil }
+            var clock = Date(timeIntervalSince1970: 1_000)
+            var filled: [String] = []
+            tab.loginMenu.now = { clock }
+            tab.loginMenu.fill = { filled.append($0.username) }
             try await focus("u", in: view)
-            await settle(view)
-            #expect(tab.loginMenu.shown == nil && tab.loginMenu.panel == nil)
+            #expect(await waitUntil(5) { tab.loginMenu.shown != nil })
+            let shown = try #require(tab.loginMenu.shown)
+            let carol = shown.matches[0]
+
+            clock.addTimeInterval(1)
+            tab.loginMenu.choose(carol)
+            #expect(filled.isEmpty && tab.loginMenu.shown != nil, "the pointer never moved into the panel")
+            tab.loginMenu.pointerMoved()
+            #expect(tab.loginMenu.clickCounts)
+
+            // A small move keeps it; a move further, as a page moving its field under the pointer would make, starts over.
+            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 42, y: 101, width: 200, height: 20))
+            #expect(tab.loginMenu.clickCounts)
+            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 140, width: 200, height: 20))
+            #expect(!tab.loginMenu.clickCounts)
+            tab.loginMenu.pointerMoved()
+            #expect(!tab.loginMenu.clickCounts, "and waits again")
+            clock.addTimeInterval(LoginFieldMenu.clickDelay)
+            #expect(tab.loginMenu.clickCounts)
+            // Out of the page's view and back is appearing anew too.
+            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 5_000, width: 200, height: 20))
+            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 140, width: 200, height: 20))
+            #expect(!tab.loginMenu.clickCounts)
+            tab.loginMenu.pointerMoved()
+            clock.addTimeInterval(LoginFieldMenu.clickDelay)
+            tab.loginMenu.choose(carol)
+            #expect(filled == ["carol"] && tab.loginMenu.shown == nil)
         }
     }
 
-    @Test func aLoginOfAnotherHostIsFilledOnlyWhereItsSiteIs() async throws {
-        try await withAccounts { try await fillsOnlyWhereItsSiteIs() }
+    @Test func thePagesOwnScrollAndFocusEventsMoveNothing() async throws {
+        try await withAccounts { _ in
+            let b = Browser()
+            b.focused()
+            defer { b.windowClosed() }
+            let (tab, view, window) = await page(in: b)
+            defer { window.close() }
+            // A focus the page only dispatches is no focus.
+            _ = try await view.evaluateJavaScript("document.getElementById('u').dispatchEvent(new FocusEvent('focusin', {bubbles: true})); true")
+            await settle(view)
+            #expect(tab.loginMenu.shown == nil)
+            try await focus("u", in: view)
+            #expect(await waitUntil(5) { tab.loginMenu.shown != nil })
+            let before = try #require(tab.loginMenu.shown?.fieldRect)
+            _ = try await view.evaluateJavaScript("""
+                document.getElementById('u').style.top = '300px';
+                window.dispatchEvent(new Event('scroll')); window.dispatchEvent(new Event('resize'));
+                window.visualViewport && window.visualViewport.dispatchEvent(new Event('scroll')); true
+                """)
+            await settle(view)
+            #expect(tab.loginMenu.shown?.fieldRect == before, "the panel stays where it appeared")
+        }
     }
 
-    private func fillsOnlyWhereItsSiteIs() async throws {
+    @Test(arguments: [true, false])
+    func aPrivateWindowGetsTheMenuAndASiteWithNothingSavedDoesNot(isPrivate: Bool) async throws {
+        try await withAccounts { lookups in
+            let b = Browser(isPrivate: isPrivate)
+            b.focused()
+            defer { b.windowClosed() }
+            let (tab, view, window) = await page(in: b, base: isPrivate ? "https://www.site.test/login" : "https://nothing.test/login")
+            defer { window.close() }
+            try await focus("u", in: view)
+            if isPrivate {
+                #expect(await waitUntil(5) { tab.loginMenu.shown != nil }, "as the key button does")
+            } else {
+                await settle(view)
+                #expect(tab.loginMenu.shown == nil && tab.loginMenu.panel == nil)
+                let asked = lookups.keys.count
+                for dy in [1.0, 2, 3] { tab.loginMenu.fieldFocused(1, at: CGRect(x: 40, y: 100 + dy, width: 200, height: 20)) }
+                try await focus("p", in: view)
+                await settle(view)
+                #expect(lookups.keys.count == asked && Set(lookups.keys) == ["nothing.test"], "nothing saved is remembered for the page too")
+            }
+        }
+    }
+
+    @Test func noPanelForATabHeldBehindOrAWindowThatIsNotKey() async throws {
+        try await withAccounts { _ in
+            LoginFieldMenu.showable = { LoginFieldMenu.isShowable(tab: $0, webView: $1) }
+            let b = Browser()
+            b.focused()
+            defer { b.windowClosed() }
+            let (tab, view, window) = await page(in: b)
+            defer { window.close() }
+            try await focus("u", in: view)
+            await settle(view)
+            #expect(!window.isKeyWindow && tab.loginMenu.shown == nil, "a window that isn't key")
+            _ = b.openTab(url: nil)
+            #expect(tab.isInBackground && !LoginFieldMenu.isShowable(tab: tab, webView: view), "a tab that isn't the one shown")
+            // A page held behind the one shown (PassiveHost) is in the window but drawn at alpha 0.
+            let holder = NSView(frame: window.contentView!.bounds)
+            holder.alphaValue = 0
+            window.contentView!.addSubview(holder)
+            holder.addSubview(view)
+            #expect(!LoginFieldMenu.isVisible(view))
+            holder.alphaValue = 1
+            #expect(LoginFieldMenu.isVisible(view))
+        }
+    }
+}
+}
+
+extension SharedAgentState {
+@MainActor
+struct LoginFillAcrossHostsTests {
+    @Test func aLoginOfAnotherHostIsFilledOnlyWhereItsSiteIs() async throws {
+        let before = Changmun.Tab.loginAccounts
+        Changmun.Tab.loginAccounts = { _ in [] }
+        defer { Changmun.Tab.loginAccounts = before }
         let b = Browser()
         b.focused()
         defer { b.windowClosed() }
-        let (tab, view, window) = await page(in: b)
+        let tab = b.openTab(url: nil)
+        let view = tab.wake()
+        let window = OffscreenWindow(view)
         defer { window.close() }
+        view.loadHTMLString("<form><input id=u><input id=p type=password></form>", baseURL: URL(string: "https://www.site.test/login"))
+        _ = await waitUntil(5) { !view.isLoading && view.url != nil }
         let noQuestion = FillAuthorization(required: { false }, confirm: { _ in false })
         var reads: [String] = []
         tab.fillLogin(username: "eve", savedUnder: "evil.test", authorization: noQuestion) { host, _ in reads.append(host); return "stolen" }

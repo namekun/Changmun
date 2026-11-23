@@ -41,6 +41,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     @Published var canGoBack = false
     @Published var canGoForward = false
     @Published var savedLogins: [Logins.Match] = []
+    /// Counts the looks for a sign-in field (`checkForLogins`), so an older one that answers late doesn't overrule a newer.
+    var loginCheck = 0
     /// The saved logins offered just under a sign-in field while it has focus.
     lazy var loginMenu = LoginFieldMenu(tab: self)
     /// A sign-in just submitted on this page, waiting for the user to save it or not.
@@ -412,16 +414,13 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         if let webView { Self.setMuted(isMuted || held || Headless.isOn, in: webView) }
     }
 
-    /// Hosts under the same registrable name, roughly: the last two labels, or three for names like example.co.kr.
-    /// Only for the sign-in offer, where a false match costs nothing; the AI's approvals use the exact host (Approvals.site).
+    /// The same host, or hosts under the same registrable domain by the Public Suffix List (`PublicSuffix`), as everywhere else.
+    /// Only for the sign-in offer; the AI's approvals use the exact host (Approvals.site).
     nonisolated static func sameSite(_ a: String?, _ b: String?) -> Bool {
         guard let a = a?.lowercased(), let b = b?.lowercased() else { return false }
-        func site(_ host: String) -> String {
-            let labels = host.split(separator: ".")
-            let keep = labels.count >= 3 && labels[labels.count - 2].count <= 3 && labels.last!.count == 2 ? 3 : 2
-            return labels.suffix(keep).joined(separator: ".")
-        }
-        return site(a) == site(b)
+        if a == b { return true }
+        guard let site = PublicSuffix.list?.registrableDomain(a) else { return false }
+        return site == PublicSuffix.list?.registrableDomain(b)
     }
 
     @discardableResult

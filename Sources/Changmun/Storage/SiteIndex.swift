@@ -81,39 +81,18 @@ struct SiteIndex: Equatable {
         !host.isEmpty && host.allSatisfy { $0.isLetter || $0.isNumber || $0 == "." || $0 == "-" || $0 == ":" || $0 == "[" || $0 == "]" }
     }
 
-    /// Where in `host` (in UTF-8 bytes) its registrable domain starts. The public suffix list isn't in the app: the domain is taken as
-    /// the last two labels, or three when the last two are a suffix of the kind `co.kr` (`twoLevelSuffixes`). A suffix missing from that list
-    /// makes the domain taken shorter than it is (the suffix alone), so it errs toward offering less, never a stranger's name. A name with no
-    /// dot (localhost), an IP address and a bracketed IPv6 one are a domain whole; a port doesn't count.
+    /// Where in `host` (in UTF-8 bytes) its registrable domain starts, by the Public Suffix List (`PublicSuffix`): the suffix and one
+    /// label more, so github.io's users' sites (alice.github.io) are each a domain of their own. A name with no dot (localhost), an IP
+    /// address, a bracketed IPv6 one and a name that is a public suffix itself are a domain whole; a port doesn't count. Without the
+    /// list the last label alone is taken for the domain, which errs toward offering less, never a stranger's name.
     static func registrableStart(_ host: String) -> Int {
         guard !host.hasPrefix("[") else { return 0 }
         let name = host.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).first ?? Substring(host)
-        guard !name.allSatisfy({ $0.isASCII && ($0.isNumber || $0 == ".") }) else { return 0 }
         let labels = name.split(separator: ".", omittingEmptySubsequences: false)
-        let kept = labels.count > 2 && twoLevelSuffixes.contains(labels.suffix(2).joined(separator: ".")) ? 3 : 2
-        guard labels.count > kept else { return 0 }
+        guard labels.count > 1, !name.allSatisfy({ $0.isASCII && ($0.isNumber || $0 == ".") }) else { return 0 }
+        let kept = PublicSuffix.list.map { $0.registrableLabelCount(String(name)) ?? labels.count } ?? 1
         return labels.dropLast(kept).reduce(0) { $0 + $1.utf8.count + 1 }
     }
-
-    /// The registrable domain of `host` as `registrableStart` takes it, without the port: `example.com` for accounts.example.com:8443.
-    static func registrableDomain(of host: String) -> String {
-        let name = host.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).first ?? Substring(host)
-        return String(decoding: name.utf8.dropFirst(registrableStart(host)), as: UTF8.self)
-    }
-
-    /// Public suffixes of two labels, under which a site's own domain is the third label from the end.
-    static let twoLevelSuffixes: Set<String> = [
-        "co.kr", "or.kr", "go.kr", "ac.kr", "ne.kr", "re.kr", "pe.kr",
-        "co.jp", "ne.jp", "or.jp", "ac.jp", "go.jp",
-        "co.uk", "org.uk", "ac.uk", "gov.uk", "me.uk", "ltd.uk", "plc.uk",
-        "com.au", "net.au", "org.au", "edu.au", "gov.au",
-        "co.nz", "net.nz", "org.nz", "ac.nz", "govt.nz",
-        "com.br", "net.br", "org.br", "gov.br", "edu.br",
-        "com.cn", "net.cn", "org.cn", "gov.cn", "edu.cn",
-        "com.tw", "net.tw", "org.tw", "edu.tw", "gov.tw",
-        "com.hk", "net.hk", "org.hk", "edu.hk", "gov.hk",
-        "co.in", "co.id", "co.th", "co.za", "co.il", "com.sg", "com.my", "com.mx", "com.ar", "com.tr", "com.vn", "com.ph",
-    ]
 }
 
 extension Library {

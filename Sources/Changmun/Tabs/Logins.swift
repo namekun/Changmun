@@ -38,7 +38,9 @@ struct KeychainBackend: LoginBackend {
         return SecItemCopyMatching(search as CFDictionary, &result) == errSecSuccess ? result as? Data : nil
     }
 
+    // Every change goes through `set` and `remove` (saving, importing, deleting), which tell `Logins.recordCache` it is out of date.
     func set(server: String, account: String, secret: Data) -> Bool {
+        defer { Logins.recordCache.invalidate() }
         let add = query(server, account).merging([kSecValueData as String: secret, kSecAttrProtocol as String: kSecAttrProtocolHTTPS]) { $1 }
         let status = SecItemAdd(add as CFDictionary, nil)
         if status == errSecDuplicateItem {
@@ -48,7 +50,8 @@ struct KeychainBackend: LoginBackend {
     }
 
     func remove(server: String, account: String) -> Bool {
-        SecItemDelete(query(server, account) as CFDictionary) == errSecSuccess
+        defer { Logins.recordCache.invalidate() }
+        return SecItemDelete(query(server, account) as CFDictionary) == errSecSuccess
     }
 }
 
@@ -65,6 +68,52 @@ enum Logins {
     /// Tests set their own, so they never touch the keychain.
     @TaskLocal static var testBackend: LoginBackend?
     private static var backend: LoginBackend { testBackend ?? KeychainBackend() }
+
+    /// What is saved, without secrets, kept in memory so that a page's sign-in fields don't ask the keychain at every load and focus.
+    /// Dropped whenever Changmun changes an item; a change made elsewhere (Keychain Access) shows within `RecordCache.ttl`, as macOS
+    /// no longer says when the keychain changes.
+    static let recordCache = RecordCache { KeychainBackend().records(server: nil) }
+
+    /// Reads the saved records once, off the main thread, so the first page with a sign-in field doesn't wait for the keychain.
+    static func preload() {
+        guard !Headless.isOn else { return }
+        DispatchQueue.global(qos: .utility).async { _ = recordCache.records() }
+    }
+
+    final class RecordCache: @unchecked Sendable {
+        static let ttl: TimeInterval = 30
+        private let lock = NSLock()
+        private let source: () -> [Record]
+        private let now: () -> Date
+        private var kept: [Record]?
+        private var keptAt = Date.distantPast
+        /// Counts the times it was dropped, so that a read that began before a change doesn't keep what it read.
+        private(set) var generation = 0
+
+        init(now: @escaping () -> Date = Date.init, source: @escaping () -> [Record]) {
+            self.now = now
+            self.source = source
+        }
+
+        func records() -> [Record] {
+            let (kept, generation) = lock.withLock { (now().timeIntervalSince(keptAt) < Self.ttl ? self.kept : nil, self.generation) }
+            if let kept { return kept }
+            let read = source()
+            lock.withLock {
+                guard self.generation == generation else { return }
+                self.kept = read
+                keptAt = now()
+            }
+            return read
+        }
+
+        func invalidate() {
+            lock.withLock {
+                kept = nil
+                generation += 1
+            }
+        }
+    }
 
     /// What a page's logins are saved under: its host, and its port when that isn't the scheme's own (localhost:3000 and localhost:8080
     /// are two sites to sign in to, though one host).
@@ -180,9 +229,14 @@ enum Logins {
     /// Reads no secrets, so it never prompts. The AI's sign_in never uses this: it goes by the exact host (`accounts(exactly:)`).
     static func matches(for key: String) -> [Match] {
         guard !Headless.isOn else { return [] }
-        let own = accounts(for: key).map { Match(host: key, username: $0, sameHost: true) }
-        let ownHosts = Set(lookupVariants(key).map { $0.lowercased() })
-        let shared = backend.records(server: nil)
+        let records = testBackend.map { $0.records(server: nil) } ?? recordCache.records()
+        let variants = lookupVariants(key).map { $0.lowercased() }
+        var seen = Set<String>()
+        let own = variants.flatMap { variant in records.filter { $0.server.lowercased() == variant } }
+            .map(\.account).filter { seen.insert($0).inserted }
+            .map { Match(host: key, username: $0, sameHost: true) }
+        let ownHosts = Set(variants)
+        let shared = records
             .filter { !ownHosts.contains($0.server.lowercased()) && mayShare($0.server, with: key) }
             .sorted { ($0.server, $0.account) < ($1.server, $1.account) }
             .map { Match(host: $0.server, username: $0.account, sameHost: false) }
@@ -190,33 +244,19 @@ enum Logins {
     }
 
     /// Whether a login saved under `saved` may be offered on a page whose key is `key`, being another host of the same site: the same
-    /// registrable domain (`SiteIndex.registrableDomain`) and the same port. Never for an IP address, a name of one label or a domain of
-    /// a shared hosting platform (`sharedHostingDomains`), where each subdomain is someone else's; nor where the domain taken looks like
-    /// a public suffix the short list doesn't know (com.pl), which the last-two-labels guess would make one site of strangers.
+    /// registrable domain by the Public Suffix List (`PublicSuffix`), and the same port. It fails closed: never for an IP address, a name
+    /// of one label, a name that is a public suffix itself, or without the list. The list's private section keeps the subdomains of
+    /// shared hosting apart (alice.github.io is not bob.github.io's site), as its country suffixes keep apart a.co.kr and b.co.kr.
     /// The keys carry no scheme: http is kept apart because nothing is offered on a page that isn't https.
     static func mayShare(_ saved: String, with key: String) -> Bool {
         let saved = saved.lowercased(), key = key.lowercased()
         let savedHost = hostname(ofKey: saved), keyHost = hostname(ofKey: key)
         // The port is what follows the host in the key ("" for the scheme's own), and must be the same.
-        guard saved.dropFirst(savedHost.count) == key.dropFirst(keyHost.count), !saved.hasPrefix("["), !key.hasPrefix("[") else { return false }
-        let domain = SiteIndex.registrableDomain(of: keyHost)
-        guard domain == SiteIndex.registrableDomain(of: savedHost), SiteIndex.isHostName(keyHost), SiteIndex.isHostName(savedHost) else { return false }
-        let labels = domain.split(separator: ".")
-        guard labels.count >= 2, domain.contains(where: \.isLetter) else { return false }
-        if sharedHostingDomains.contains(domain) { return false }
-        if labels.count == 2, labels[1].count == 2, genericSecondLevel.contains(String(labels[0])) { return false }
-        return true
+        guard saved.dropFirst(savedHost.count) == key.dropFirst(keyHost.count), !saved.hasPrefix("["), !key.hasPrefix("["),
+              SiteIndex.isHostName(keyHost), SiteIndex.isHostName(savedHost), let list = PublicSuffix.list,
+              let domain = list.registrableDomain(keyHost), !list.isPublicSuffix(domain) else { return false }
+        return list.registrableDomain(savedHost) == domain
     }
-
-    /// Domains whose subdomains are handed to different people (pages, apps, blogs), so a login for one is no other's.
-    static let sharedHostingDomains: Set<String> = [
-        "github.io", "gitlab.io", "herokuapp.com", "vercel.app", "netlify.app", "pages.dev", "workers.dev", "web.app", "firebaseapp.com",
-        "appspot.com", "blogspot.com", "azurewebsites.net", "cloudfront.net", "amazonaws.com", "fly.dev", "onrender.com", "glitch.me",
-        "repl.co", "ngrok.io", "ngrok-free.app", "tistory.com", "wordpress.com", "wixsite.com", "notion.site",
-    ]
-
-    /// Labels that under a country's domain are a public suffix (com.pl, co.at), not a site's own name.
-    private static let genericSecondLevel: Set<String> = ["ac", "co", "com", "edu", "go", "gob", "gov", "ltd", "mil", "ne", "net", "nom", "or", "org", "plc"]
 
     static func hostVariants(_ host: String) -> [String] {
         host.hasPrefix("www.") ? [host, String(host.dropFirst(4))] : [host, "www." + host]
@@ -298,17 +338,28 @@ final class FillAuthorization {
 extension Tab {
     /// The saved accounts to offer on a page's key, as the key button and the menu under a field ask (tests put their own: a WebKit
     /// callback can't see a task-local backend).
-    nonisolated(unsafe) static var loginAccounts: (String) -> [Logins.Match] = Logins.matches(for:)
+    /// The default reads off the main thread (`Logins.recordCache`, kept in memory, mostly answers without the keychain).
+    nonisolated(unsafe) static var loginAccounts: (String) async -> [Logins.Match] = { key in
+        await Task.detached(priority: .userInitiated) { Logins.matches(for: key) }.value
+    }
 
     /// Shows the key button when the page asks for a password and one is saved for its host or another host of its site. Asked when
     /// the page finishes, and again whenever a password field comes or goes after that (`LoginFormWatcher`).
     func checkForLogins() {
+        loginCheck += 1
+        let check = loginCheck
         // Not on a page whose certificate the user went on with, though it could not be verified: a saved password is for the site it was saved for.
         guard let webView, webView.url?.scheme == "https", !Self.isUnverified(webView.url), let host = webView.url.flatMap(Logins.key(for:)) else { savedLogins = []; return }
-        let accounts = Self.loginAccounts(host)
-        guard !accounts.isEmpty else { savedLogins = []; return }
+        // The saved logins are looked up only once the page shows a sign-in field.
         webView.evaluateJavaScript("!!document.querySelector('input[type=password], input[autocomplete=username]')") { [weak self] value, _ in
-            Task { @MainActor in self?.savedLogins = (value as? Bool == true) ? accounts : [] }
+            Task { @MainActor in
+                guard let self, self.loginCheck == check else { return }
+                guard value as? Bool == true else { self.savedLogins = []; return }
+                let accounts = await Self.loginAccounts(host)
+                // A later look, or another page, has the say.
+                guard self.loginCheck == check, self.webView?.url.flatMap(Logins.key(for:)) == host else { return }
+                self.savedLogins = accounts
+            }
         }
     }
 

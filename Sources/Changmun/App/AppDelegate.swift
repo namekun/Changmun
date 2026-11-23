@@ -26,6 +26,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuSubscription = Preferences.shared.$shortcuts.sink { NSApp.mainMenu = AppMenu.make(scheme: $0) }
         NSApp.appearance = Preferences.shared.appearance.nsAppearance
         Task { await AdBlocker.shared.start() }
+        // Read off the main thread now, so the first page that needs them doesn't wait.
+        PublicSuffix.preload()
+        Logins.preload()
         // Before anything reads the library, the spaces or the session: imported folders stored under another language's name get their canonical one.
         FolderKeyMigration.run(in: Library.folder)
         Library.shared.pruneHistory()
