@@ -8,9 +8,9 @@ import WebKit
 /// accounts are saved. The panel never becomes key, so what the user types still goes to the field. Choosing an account fills it the
 /// key button's way, Touch ID first when the setting asks for it.
 ///
-/// Once the menu has been put away on a page (Esc or any other key, a click outside the field, the field losing focus, an account
-/// chosen), it isn't offered again until another page, whatever field gets focus: a page that keeps drawing its field anew would
-/// otherwise bring it back each time.
+/// A field losing focus only hides the menu: tabbing from the user name to the password offers it again there, as Chrome does.
+/// Turned down on purpose (Esc, typing in the field, a click outside the menu) or used, it isn't offered again until another page,
+/// whatever field gets focus: a page that keeps drawing its field anew would otherwise bring it back each time.
 @MainActor
 final class LoginFieldMenu {
     /// A click counts only this long after the panel appeared where it is, and only once the pointer has moved inside it: a page can
@@ -33,8 +33,12 @@ final class LoginFieldMenu {
 
     private weak var tab: Tab?
     private(set) var shown: Shown?
-    /// The menu was put away on this page.
+    /// The menu was turned down or used on this page.
     private(set) var dismissedOnPage = false
+    /// When each field's menu last appeared: a field gets it again at most once in `reshowInterval`, so a page can't make it jump
+    /// about with focus() and blur(). (Each appearance starts the click guard over regardless.)
+    private var shownAt: [Int: Date] = [:]
+    static let reshowInterval: TimeInterval = 1
     /// The accounts for this page once looked up, none included, so a scroll or another field doesn't look again.
     private var pageOffers: [Logins.Match]?
     private var lookup: Task<Void, Never>?
@@ -85,7 +89,7 @@ final class LoginFieldMenu {
 
     /// A sign-in field has focus, or has moved (a scroll, a resize): `rect` is where it is, in CSS pixels of what is on screen.
     func fieldFocused(_ field: Int, at rect: CGRect) {
-        if let shown, shown.field != field { dismiss() }
+        if let shown, shown.field != field { hide() }
         guard !dismissedOnPage, let tab, let webView = tab.webView, let key = Self.pageKey(url: webView.url, isUnverified: tab.isUnverified) else { return }
         if let pageOffers {
             present(field, at: rect, offers: pageOffers)
@@ -108,10 +112,10 @@ final class LoginFieldMenu {
     /// The field lost focus: the menu goes, for this page.
     func fieldLeft(_ field: Int) {
         if pending?.field == field { pending = nil }
-        if shown?.field == field { dismiss() }
+        if shown?.field == field { hide() }
     }
 
-    /// Any key, a click outside the field, the window going to the back, an account chosen.
+    /// Esc, typing in the field, a click outside the menu and the field, an account chosen.
     func dismiss() {
         if shown != nil { dismissedOnPage = true }
         hide()
@@ -125,6 +129,7 @@ final class LoginFieldMenu {
         pending = nil
         pageOffers = nil
         dismissedOnPage = false
+        shownAt = [:]
     }
 
     /// Whether a click on the menu now is taken (`clickDelay`).
@@ -147,6 +152,10 @@ final class LoginFieldMenu {
         guard !offers.isEmpty, !dismissedOnPage, let tab, let webView = tab.webView, let window = webView.window, Self.showable(tab, webView) else {
             hide()
             return
+        }
+        if shown?.field != field {
+            if let last = shownAt[field], now().timeIntervalSince(last) < Self.reshowInterval { return }
+            shownAt[field] = now()
         }
         let fieldRect = Self.viewRect(rect, zoom: webView.pageZoom * webView.magnification, flipped: webView.isFlipped, height: webView.bounds.height)
         shown = Shown(field: field, matches: offers, fieldRect: fieldRect)
@@ -213,19 +222,12 @@ final class LoginFieldMenu {
         panel.contentView = hosting
         window.addChildWindow(panel, ordered: .above)
         self.panel = panel
-        // Every key goes on to the page, Esc too: the menu is put away, but the page sees what it would have seen without one, so it
-        // can't tell from a key that never came that a menu (and so a saved login) was there. A click in the field itself keeps it.
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] event in
-            MainActor.assumeIsolated {
-                guard let self, let shown = self.shown, event.window !== self.panel else { return }
-                if event.type != .keyDown, let webView = self.tab?.webView, event.window === webView.window,
-                   shown.fieldRect.contains(webView.convert(event.locationInWindow, from: nil)) { return }
-                self.dismiss()
-            }
+            MainActor.assumeIsolated { self?.handle(event) }
             return event
         }
         resignObserver = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: window, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.dismiss() }
+            MainActor.assumeIsolated { self?.hide() }
         }
         // Another tab shown (by the user or the AI): this page is no longer the one looked at.
         browserWatch = tab?.browser?.objectWillChange.sink { [weak self] in
@@ -235,6 +237,20 @@ final class LoginFieldMenu {
             }
         }
         return panel
+    }
+
+    /// What a key or a click while the menu is up does to it. Every event goes on to the page, Esc too: the page sees what it would
+    /// have seen without a menu, so it can't tell from a key that never came that one (and so a saved login) was there.
+    func handle(_ event: NSEvent) {
+        guard let shown, event.window !== panel else { return }
+        if event.type == .keyDown {
+            // Tab moves to the next field, which may be offered the menu in its turn; anything else is typing, or Esc.
+            if event.keyCode == 48 { hide() } else { dismiss() }
+            return
+        }
+        // A click in the field itself keeps it.
+        if let webView = tab?.webView, event.window === webView.window, shown.fieldRect.contains(webView.convert(event.locationInWindow, from: nil)) { return }
+        dismiss()
     }
 
     private func hide() {

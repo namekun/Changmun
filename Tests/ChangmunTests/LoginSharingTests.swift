@@ -256,6 +256,11 @@ struct LoginFieldMenuTests {
         _ = try await view.evaluateJavaScript("document.getElementById('\(id)').focus(); true")
     }
 
+    private func key(_ code: UInt16, _ characters: String, in window: NSWindow) throws -> NSEvent {
+        try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil,
+                                      characters: characters, charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code))
+    }
+
     /// Long enough for a message from the page to have come, when none is expected.
     private func settle(_ view: WKWebView) async {
         for _ in 0..<3 { _ = try? await view.evaluateJavaScript("1") }
@@ -286,9 +291,14 @@ struct LoginFieldMenuTests {
             await settle(view)
             #expect(tab.loginMenu.shown != nil && lookups.keys.count == asked)
 
-            // A search box is no sign-in field. Once put away, nothing on this page offers the menu again, the password field included.
+            // A search box is no sign-in field; leaving the field only hides the menu, and the password field is offered it in turn.
             try await focus("q", in: view)
-            #expect(await waitUntil(5) { tab.loginMenu.shown == nil })
+            #expect(await waitUntil(5) { tab.loginMenu.shown == nil } && !tab.loginMenu.dismissedOnPage)
+            try await focus("p", in: view)
+            #expect(await waitUntil(5) { tab.loginMenu.shown != nil && tab.loginMenu.shown?.field != shown.field })
+            // Esc turns it down: nothing on this page offers it again.
+            tab.loginMenu.handle(try key(53, "\u{1b}", in: window))
+            #expect(tab.loginMenu.shown == nil && tab.loginMenu.dismissedOnPage)
             for field in ["u", "p"] {
                 try await focus(field, in: view)
                 await settle(view)
@@ -340,6 +350,50 @@ struct LoginFieldMenuTests {
             clock.addTimeInterval(LoginFieldMenu.clickDelay)
             tab.loginMenu.choose(carol)
             #expect(filled == ["carol"] && tab.loginMenu.shown == nil)
+        }
+    }
+
+    @Test func leavingTheFieldOnlyHidesItAndItComesBackAtMostOnceASecondWithTheGuardStartedOver() async throws {
+        try await withAccounts { _ in
+            let b = Browser()
+            b.focused()
+            defer { b.windowClosed() }
+            let (tab, view, window) = await page(in: b)
+            defer { window.close() }
+            var clock = Date(timeIntervalSince1970: 1_000)
+            tab.loginMenu.now = { clock }
+            try await focus("u", in: view)
+            #expect(await waitUntil(5) { tab.loginMenu.shown != nil })
+            let field = try #require(tab.loginMenu.shown?.field)
+            let here = CGRect(x: 40, y: 100, width: 200, height: 20), there = CGRect(x: 300, y: 400, width: 200, height: 20)
+            tab.loginMenu.pointerMoved()
+            clock.addTimeInterval(1)
+            #expect(tab.loginMenu.clickCounts)
+
+            // Tab moves on: hidden, not turned down.
+            tab.loginMenu.handle(try key(48, "\t", in: window))
+            #expect(tab.loginMenu.shown == nil && !tab.loginMenu.dismissedOnPage)
+            tab.loginMenu.fieldFocused(field, at: here)
+            #expect(tab.loginMenu.shown != nil, "a second after it last appeared, the field gets it again")
+            #expect(!tab.loginMenu.clickCounts, "with the guard started over")
+            // A page blurring and focusing its field to make the menu jump: once a second at most, and each time guarded anew.
+            clock.addTimeInterval(0.3)
+            tab.loginMenu.fieldLeft(field)
+            tab.loginMenu.fieldFocused(field, at: there)
+            #expect(tab.loginMenu.shown == nil, "not again within a second")
+            clock.addTimeInterval(0.8)
+            tab.loginMenu.fieldFocused(field, at: there)
+            #expect(tab.loginMenu.shown != nil && !tab.loginMenu.clickCounts)
+            tab.loginMenu.pointerMoved()
+            clock.addTimeInterval(LoginFieldMenu.clickDelay)
+            #expect(tab.loginMenu.clickCounts)
+
+            // Typing in the field turns it down for the page.
+            tab.loginMenu.handle(try key(0, "a", in: window))
+            #expect(tab.loginMenu.shown == nil && tab.loginMenu.dismissedOnPage)
+            clock.addTimeInterval(5)
+            tab.loginMenu.fieldFocused(field, at: here)
+            #expect(tab.loginMenu.shown == nil)
         }
     }
 
