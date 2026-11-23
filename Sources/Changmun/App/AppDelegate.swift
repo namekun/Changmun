@@ -47,9 +47,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if #available(macOS 15.4, *) { Task { await ExtensionHost.shared.start() } }
         }
         // Every store's cookies are put back before any window loads a page, or the sites it shows would see a browser that was never signed in.
-        let launch = Task { await CookieJournal.shared.restoreAtLaunch(profiles: SpaceStore.shared.spaces) }
+        let started = ContinuousClock.now, cap = Duration.seconds(5)
+        let launch = Task {
+            await CookieJournal.shared.restoreAtLaunch(profiles: SpaceStore.shared.spaces)
+            // Whether the windows waited for it: one that opened first may have shown sites signed out.
+            CookieLog.write([CookieLog.launchLine(took: started.duration(to: .now), cap: cap)])
+        }
         Task {
-            await Self.waitAtMost(.seconds(5), for: launch)
+            await Self.waitAtMost(cap, for: launch)
             self.finishLaunching()
         }
     }

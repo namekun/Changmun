@@ -272,19 +272,116 @@ enum Logins {
         return hostVariants(key) + (bare == key ? [] : hostVariants(bare))
     }
 
+    /// Which fields of the page are its sign-in fields: `loginFields()` gives the password field and the user name field (either may
+    /// be null). The one definition the key button (`LoginFormWatcher`, `Tab.checkForLogins`), the menu under a field
+    /// (`LoginFieldWatcher`) and the fill (`fillScript`) all go by, so the field offered is the field filled.
+    ///
+    /// - Shown means drawn where the user can see it: not hidden, see-through (on it or a container), under 4 points, or put wholly off
+    ///   the page on purpose (left: -9999px), which a field scrolled away inside a container (a modal, a page's own scrolling root) is
+    ///   not (the password field Google keeps hidden on its first step is none).
+    /// - A sign-up's fields are none of them: those in the same form as a shown new-password field, or for fields in no form, in the
+    ///   nearest container that holds a password field.
+    /// - The password field: the first shown one that isn't a sign-up's (or that says it is the current password).
+    /// - With one, the user name is the last shown text, email or phone field before it in its form (with no form, among the fields
+    ///   in no form, in the nearest container that has one); none there is none (the password page of a sign-in in two steps).
+    /// - Without one (the first step of a sign-in in two steps, Google's or Microsoft's): the first field whose autocomplete names a user
+    ///   name, else an email; else the one email field; else the one text or phone field whose name, id or autocomplete says it is
+    ///   the account (`cmAccount`).
+    /// - Never a search box (type search, a searchbox or combobox role, a name like q, s, query or keyword or with "search" in it, in a
+    ///   container with role search).
+    static let fieldFinder = #"""
+    const cmVisible = e => {
+      if (!e.isConnected) return false;
+      const r = e.getBoundingClientRect();
+      if (r.width < 4 || r.height < 4) return false;
+      // Where it is on the page with every container scrolled back to its start: left or above the page's origin then is off it on
+      // purpose, not scrolled away.
+      let right = r.right + scrollX, bottom = r.bottom + scrollY;
+      for (let n = e.parentElement; n; n = n.parentElement) { right += n.scrollLeft; bottom += n.scrollTop; }
+      if (right <= 0 || bottom <= 0) return false;
+      if (getComputedStyle(e).visibility !== 'visible') return false;
+      for (let n = e; n; n = n.parentElement) {
+        const style = getComputedStyle(n);
+        if (style.display === 'none' || parseFloat(style.opacity) < 0.05) return false;
+      }
+      return true;
+    };
+    const cmTokens = e => (e.getAttribute('autocomplete') || '').toLowerCase().split(/\s+/);
+    const cmSearch = e => {
+      const names = [e.getAttribute('name') || '', e.id || ''];
+      return e.type === 'search' || /^(searchbox|combobox)$/i.test(e.getAttribute('role') || '') ||
+        names.some(n => /^(q|s|query|keyword|keywords)$/i.test(n) || /search/i.test(n)) || !!e.closest('[role=search]');
+    };
+    const cmWords = s => s.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+    // An account, by its words: an id or a user name (`id`, `memId`, `userId`, `loginId`, `userAccount`, `mb_id`), but not the id
+    // of something else (`coupon_id`, `video_id`, `order_id`) and not an account's number (`accountNo`, `account_number`, `acctNo`).
+    const cmOther = /^(coupon|video|order|product|item|post|board|cart|goods|session|transaction|invoice|bank|card|no|num|number|acct)$/;
+    const cmAccount = e => [e.getAttribute('name') || '', e.id || '', e.getAttribute('autocomplete') || ''].some(s => {
+      const words = cmWords(s);
+      if (!words.length || words.some(w => cmOther.test(w))) return false;
+      if (/identifier/i.test(s) || words.some(w => /^(user|userid|username|usr|login|loginid)$/.test(w))) return true;
+      if (words.includes('account')) return words.every(w => w === 'account' || w === 'id' || w === 'name');
+      return words.some(w => /^(id|uid|email|mail|member|memb|memberid|mb)$/.test(w));
+    });
+    const loginFields = () => {
+      const inputs = [...document.querySelectorAll('input')];
+      const shown = new Map();
+      const visible = e => { if (!shown.has(e)) shown.set(e, cmVisible(e)); return shown.get(e); };
+      const passwords = inputs.filter(e => e.type === 'password' && visible(e));
+      const created = passwords.filter(e => cmTokens(e).includes('new-password'));
+      const text = e => /^(text|email|tel|)$/.test(e.type);
+      const before = (e, p) => e.compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING;
+      // A field's scope, which a sign-up's new-password field makes a sign-up: its form; with none, for a password field the nearest
+      // container that also has a text field before it in no form, for any other field the nearest that has a password field in no form.
+      const scope = e => {
+        if (e.form) return e.form;
+        for (let n = e.parentElement; n && n !== document.body; n = n.parentElement) {
+          const holds = e.type === 'password'
+            ? [...n.querySelectorAll('input')].some(f => f !== e && !f.form && text(f) && before(f, e) && visible(f))
+            : passwords.some(p => !p.form && n.contains(p));
+          if (holds) return n;
+        }
+        return document.body;
+      };
+      // With no container of its own, a field is a sign-up's only by a new-password field in no form either: a sign-up form elsewhere
+      // on the page is not this field's.
+      const signUps = new Map();
+      const signUp = e => {
+        const s = scope(e);
+        if (!signUps.has(s)) signUps.set(s, created.some(p => s.contains(p) && (s !== document.body || !p.form)));
+        return signUps.get(s);
+      };
+      const typed = e => text(e) && visible(e) && !e.disabled && !e.readOnly && !cmSearch(e) && !signUp(e);
+      const pw = passwords.find(e => !cmTokens(e).includes('new-password') && (!signUp(e) || cmTokens(e).includes('current-password'))) || null;
+      if (pw) {
+        if (pw.form) return {pw, user: [...pw.form.querySelectorAll('input')].filter(e => typed(e) && before(e, pw)).pop() || null};
+        // No form: the fields in no form, in the nearest container of the password field that has one, a few levels up at most and
+        // not the whole page (a search box in the header is no part of a sign-in).
+        for (let n = pw.parentElement, depth = 0; n && n !== document.body && depth < 6; n = n.parentElement, depth++) {
+          const found = [...n.querySelectorAll('input')].filter(e => !e.form && typed(e) && before(e, pw));
+          if (found.length) return {pw, user: found.pop()};
+        }
+        return {pw, user: null};
+      }
+      const fields = inputs.filter(typed);
+      const one = list => list.length === 1 ? list[0] : null;
+      const user = fields.find(e => cmTokens(e).includes('username')) || fields.find(e => cmTokens(e).includes('email')) ||
+        one(fields.filter(e => e.type === 'email')) || one(fields.filter(e => e.type !== 'email' && cmAccount(e))) || null;
+      return {pw: null, user};
+    };
+    """#
+
     /// Fills nothing unless it runs in the top document of `origin`: whatever the app checked, the page that gets the password is
-    /// the one the account was chosen for.
+    /// the one the account was chosen for. `field` is the watcher's number for the field the menu was offered under (0 from the key
+    /// button): that field, still in the page and still its user name or password field, or nothing.
     static let fillScript = """
     if (window.top !== window || location.origin !== origin) return false;
-    const visible = e => e.offsetParent !== null || e.getClientRects().length > 0;
-    const pw = [...document.querySelectorAll('input[type=password]')].find(visible) || null;
-    let user = null;
-    const scope = (pw && pw.form) || document;
-    const fields = [...scope.querySelectorAll('input')].filter(e => /^(text|email|tel|)$/.test(e.type) && visible(e));
-    if (pw) {
-      user = fields.filter(e => e.compareDocumentPosition(pw) & Node.DOCUMENT_POSITION_FOLLOWING).pop() || null;
+    \(fieldFinder)
+    const {pw, user} = loginFields();
+    if (field) {
+      const anchored = window.cmLoginField ? window.cmLoginField(field) : null;
+      if (!anchored || !anchored.isConnected || (anchored !== pw && anchored !== user)) return false;
     }
-    user = user || document.querySelector('input[autocomplete=username], input[type=email]');
     const set = (el, v) => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v);
       el.dispatchEvent(new Event('input', {bubbles: true}));
@@ -360,10 +457,11 @@ extension Tab {
         guard let webView, !isLoadingProvisionally, let origin = Self.httpsOrigin(committedURL), !Self.isUnverified(committedURL) else { savedLogins = []; return }
         let host = origin.key
         // The saved logins are looked up only once the page shows a sign-in field.
-        webView.evaluateJavaScript("!!document.querySelector('input[type=password], input[autocomplete=username]')") { [weak self] value, _ in
+        // In the app's own world, by the one definition of a sign-in field (`Logins.fieldFinder`).
+        webView.callAsyncJavaScript(Logins.fieldFinder + "const f = loginFields(); return !!(f.pw || f.user);", in: nil, in: .defaultClient) { [weak self] result in
             Task { @MainActor in
                 guard let self, self.loginCheck == check else { return }
-                guard value as? Bool == true else { self.savedLogins = []; return }
+                guard (try? result.get()) as? Bool == true else { self.savedLogins = []; return }
                 let accounts = await Self.loginAccounts(host)
                 // A later look, or another page, has the say.
                 guard self.loginCheck == check, !self.isLoadingProvisionally, Self.httpsOrigin(self.committedURL) == origin else { return }
@@ -373,16 +471,17 @@ extension Tab {
     }
 
     /// Fills a saved login into the page the user is on, after the device owner has confirmed (unless they turned that off).
-    /// `origin` is the document the account was offered to (the menu under a field has it from the page's own frame).
-    func fillLogin(_ match: Logins.Match, origin: Origin? = nil, authorization: FillAuthorization? = nil) {
-        fillLogin(username: match.username, savedUnder: match.sameHost ? nil : match.host, origin: origin, authorization: authorization)
+    /// `origin` is the document the account was offered to (the menu under a field has it from the page's own frame), and `field` the
+    /// watcher's number for the field it was offered under (0 from the key button): the fill goes to that field or nowhere.
+    func fillLogin(_ match: Logins.Match, origin: Origin? = nil, field: Int = 0, authorization: FillAuthorization? = nil) {
+        fillLogin(username: match.username, savedUnder: match.sameHost ? nil : match.host, origin: origin, field: field, authorization: authorization)
     }
 
     /// `savedUnder` is the key of another host of the site the login was saved for (nil: the page's own). Everything is judged by the
     /// document committed (`committedURL`), and nothing is filled while a navigation is under way: `webView.url` then already names
     /// where it goes, though the old page is still the one on screen, so a page could send itself to a bank's address that never
     /// answers and be given the bank's password. Checked again once the device owner has confirmed, and by the script in the page.
-    func fillLogin(username: String, savedUnder: String? = nil, origin expected: Origin? = nil, authorization: FillAuthorization? = nil,
+    func fillLogin(username: String, savedUnder: String? = nil, origin expected: Origin? = nil, field: Int = 0, authorization: FillAuthorization? = nil,
                    readPassword: @escaping (String, String) -> String? = Logins.password(host:username:)) {
         guard webView != nil, !isLoadingProvisionally, let origin = Self.httpsOrigin(committedURL), !Self.isUnverified(committedURL),
               expected.map({ $0 == origin }) ?? true else { return }
@@ -393,7 +492,7 @@ extension Tab {
             // The page may have moved on while the question was open (to http, another port, another site): the password
             // goes only to the origin it was chosen for.
             guard let self, !self.isLoadingProvisionally, Self.httpsOrigin(self.committedURL) == origin, !Self.isUnverified(self.committedURL) else { return }
-            self.fill(username: username, password: password, origin: origin)
+            self.fill(username: username, password: password, origin: origin, field: field)
         }
     }
 
@@ -427,8 +526,8 @@ extension Tab {
         var web: String { "https://" + bracketed + (port == 443 ? "" : ":\(port)") }
     }
 
-    func fill(username: String, password: String, origin: Origin) {
-        webView?.appScript(Logins.fillScript, arguments: ["username": username, "password": password, "origin": origin.web])
+    func fill(username: String, password: String, origin: Origin, field: Int = 0) {
+        webView?.appScript(Logins.fillScript, arguments: ["username": username, "password": password, "origin": origin.web, "field": field])
     }
 }
 
