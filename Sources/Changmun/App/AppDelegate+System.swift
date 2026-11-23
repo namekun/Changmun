@@ -73,6 +73,79 @@ extension AppDelegate {
     }
 }
 
+extension AppDelegate {
+    /// Set while an import runs and its result is on screen, so that a second one doesn't start over the first (the menu item goes grey).
+    static var importingPasswords = false
+
+    /// Passwords from the CSV file another app exported (the Passwords app, Chrome, Firefox, 1Password, Bitwarden). The file is read and the Keychain
+    /// written off the main thread, and the file is only moved to the Trash if the user says so: it holds their passwords in plain text.
+    @objc func importPasswordsFromFile(_ sender: Any?) {
+        guard !Headless.isOn, !Self.importingPasswords else { return }
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.commaSeparatedText]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        Self.importingPasswords = true
+        let browser = systemBrowser
+        // Left up until it is done (a flash would go out in a second or two, well before a few thousand passwords are saved).
+        let working = String(localized: "Importing passwords…")
+        browser?.overlay.statusMessage = working
+        Announcer.announce(working)
+        Task.detached {
+            let outcome = Result { try PasswordCSV.run(file: url) }
+            await MainActor.run {
+                if browser?.overlay.statusMessage == working { browser?.overlay.statusMessage = nil }
+                Self.showPasswordImport(outcome, of: url, in: browser)
+            }
+        }
+    }
+
+    /// The Trash is offered only for a file whose passwords are all in the Keychain or were there: after a failure the file may be all that is left of them.
+    /// Even then Keep is what Return does, since the file is the user's.
+    @MainActor
+    private static func showPasswordImport(_ outcome: Result<PasswordCSV.Counts, Error>, of file: URL, in browser: Browser?) {
+        let alert = NSAlert()
+        var offersTrash = false
+        switch outcome {
+        case .failure(let error):
+            alert.alertStyle = .warning
+            alert.messageText = String(localized: "Couldn’t import passwords")
+            alert.informativeText = error.localizedDescription
+            alert.addButton(withTitle: String(localized: "OK"))
+        case .success(let counts):
+            offersTrash = counts.failed == 0 && counts.imported + counts.unchanged > 0
+            alert.messageText = String(localized: "Password import finished")
+            var lines = [String(localized: "Imported: \(counts.imported.formatted())"),
+                         String(localized: "Already saved, unchanged: \(counts.unchanged.formatted())"),
+                         String(localized: "Kept the newer password Changmun already had: \(counts.kept.formatted())"),
+                         String(localized: "Skipped (not an https site, or no password): \(counts.skipped.formatted())")]
+            if counts.duplicates > 0 { lines.append(String(localized: "Repeated in the file, saved once: \(counts.duplicates.formatted())")) }
+            if counts.failed > 0 { lines.append(String(localized: "Couldn’t be saved to the Keychain: \(counts.failed.formatted())")) }
+            lines.append("")
+            lines.append(offersTrash
+                ? String(localized: "That CSV file holds your passwords as plain text, readable by anyone who opens it. Move it to the Trash?")
+                : String(localized: "That CSV file holds your passwords as plain text, readable by anyone who opens it. Changmun left it where it is: delete it once you are done."))
+            alert.informativeText = lines.joined(separator: "\n")
+            if offersTrash {
+                alert.addButton(withTitle: String(localized: "Keep CSV"))
+                alert.addButton(withTitle: String(localized: "Move CSV to Trash")).hasDestructiveAction = true
+            } else {
+                alert.addButton(withTitle: String(localized: "OK"))
+            }
+        }
+        let finish = { (response: NSApplication.ModalResponse) in
+            importingPasswords = false
+            guard offersTrash, response == .alertSecondButtonReturn else { return }
+            NSWorkspace.shared.recycle([file]) { _, error in
+                DispatchQueue.main.async {
+                    browser?.flashStatus(error.map { String(localized: "Couldn’t move the file to the Trash: \($0.localizedDescription)") }
+                                         ?? String(localized: "Moved the CSV file to the Trash"))
+                }
+            }
+        }
+        if let window = NSApp.keyWindow ?? browser?.window { alert.beginSheetModal(for: window, completionHandler: finish) } else { finish(alert.runModal()) }
+    }
+}
+
 /// Sharing the page in front through the system's share menu.
 @MainActor
 enum SharePage {
