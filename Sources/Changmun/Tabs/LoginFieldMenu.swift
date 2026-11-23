@@ -8,14 +8,23 @@ import WebKit
 /// accounts are saved. The panel never becomes key, so what the user types still goes to the field. Choosing an account fills it the
 /// key button's way, Touch ID first when the setting asks for it.
 ///
-/// A field losing focus only hides the menu: tabbing from the user name to the password offers it again there, as Chrome does.
-/// Turned down on purpose (Esc, typing in the field, a click outside the menu) or used, it isn't offered again until another page,
-/// whatever field gets focus: a page that keeps drawing its field anew would otherwise bring it back each time.
+/// As in Chrome, it is offered whenever the user focuses or clicks a sign-in field, and put away by anything else: the field losing
+/// focus, a key, a click outside it and the field, an account chosen. Typing puts it away for that field while the field has text;
+/// emptied, a click or a focus offers it again. After Esc or a click elsewhere only the user's own click on a field brings it back,
+/// as a page can focus() a field whenever it likes. Nothing locks it for the page: it appears at most once a second, on focus at
+/// most `focusShowsPerMinute` times a minute, and every appearance starts the click guard over.
 @MainActor
 final class LoginFieldMenu {
-    /// A click counts only this long after the panel appeared where it is, and only once the pointer has moved inside it: a page can
-    /// focus a field, or move one, so that the panel comes up under a pointer that was about to click something else.
-    static let clickDelay: TimeInterval = 0.5
+    /// A click counts only this long after the panel appeared where it is, and only once the pointer has come into it from outside: a
+    /// page can focus a field, or move one, so that the panel comes up under a pointer that was about to click something else.
+    static let clickDelay: TimeInterval = 0.4
+    /// Appearances on focus a page gets in a minute; after that only the user's own click on a field brings the menu.
+    static let focusShowsPerMinute = 5
+
+    /// What brought a field's place: a focus or a click on it may show the menu; a move (a scroll, a resize) only takes it along.
+    enum Reason: String {
+        case focus, click, move
+    }
     /// A move further than this from where the panel appeared counts as appearing again.
     static let moveTolerance: CGFloat = 4
     /// Room around the list for its shadow, inside the panel.
@@ -35,8 +44,6 @@ final class LoginFieldMenu {
 
     private weak var tab: Tab?
     private(set) var shown: Shown?
-    /// The menu was turned down or used on this page.
-    private(set) var dismissedOnPage = false
     /// When the menu last appeared on this page: it appears again at most once in `reshowInterval`, later if asked sooner, so a page
     /// can't make it jump about with focus() and blur(), or by drawing its field anew. (Each appearance starts the click guard over.)
     private var appearedAt: Date?
@@ -46,12 +53,21 @@ final class LoginFieldMenu {
     private var pageOffers: (origin: Tab.Origin, offers: [Logins.Match])?
     private var lookup: Task<Void, Never>?
     /// The field that has focus while the accounts are looked up, or while the menu waits to appear again.
-    private var pending: (field: Int, rect: CGRect, origin: Tab.Origin)?
+    private var pending: (field: Int, rect: CGRect, origin: Tab.Origin, reason: Reason)?
+    /// Put away with Esc or a click elsewhere: only the user's own click on a field brings it back (a page can focus() at will).
+    private(set) var clickOnly = false
+    /// The menu's appearances on this page in the last minute.
+    private var appearances: [Date] = []
     /// When the panel last appeared or moved, and where it was then.
     private(set) var armedAt: Date?
     private var armedFrame: CGRect?
-    /// The pointer has moved inside the panel since then.
-    private(set) var pointerMovedInside = false
+    /// The pointer has come into the panel from outside since then (not merely been there when it appeared).
+    private(set) var pointerEntered = false
+    /// The pointer was over the panel when it appeared or moved: it has to leave before coming in counts. Taken from where the
+    /// pointer is, not from AppKit's tracking, which keeps thinking the pointer outside when the panel is moved under it.
+    private var waitsForExit = false
+    /// Where the pointer is on screen (tests put their own).
+    var mouseLocation: () -> NSPoint = { NSEvent.mouseLocation }
     private(set) var panel: NSPanel?
     private var monitor: Any?
     private var resignObserver: NSObjectProtocol?
@@ -92,19 +108,27 @@ final class LoginFieldMenu {
         return true
     }
 
-    /// A sign-in field has focus, or has moved (a scroll, a resize): `rect` is where it is, in CSS pixels of what is on screen, and
-    /// `document` the origin of the document it is in.
-    func fieldFocused(_ field: Int, at rect: CGRect, document: Tab.Origin?) {
+    /// A sign-in field has been focused or clicked, or has moved (`reason`): `rect` is where it is, in CSS pixels of what is on
+    /// screen, and `document` the origin of the document it is in.
+    func fieldFocused(_ field: Int, at rect: CGRect, document: Tab.Origin?, reason: Reason) {
+        if reason == .move {
+            if pending?.field == field { pending?.rect = rect }
+            guard let shown, shown.field == field else { return }
+        }
+        if reason == .click { clickOnly = false }
+        if reason == .focus, clickOnly { return }
         if let shown, shown.field != field { hide() }
-        guard !dismissedOnPage, let tab, tab.webView != nil,
+        guard let tab, tab.webView != nil,
               let origin = Self.pageOrigin(document: document, committed: tab.committedURL, provisional: tab.isLoadingProvisionally, isUnverified: tab.isUnverified)
         else { return hide() }
         if let pageOffers, pageOffers.origin == origin {
-            present(field, at: rect, origin: origin, offers: pageOffers.offers)
+            present(field, at: rect, origin: origin, offers: pageOffers.offers, reason: reason)
             return
         }
-        pending = (field, rect, origin)
+        pending = (field, rect, origin, reason)
         guard lookup == nil else { return }
+        // A key meanwhile (Esc, typing) calls off the menu the lookup is for, so the events are watched from now.
+        watchEvents()
         lookup = Task { [weak self] in
             let offers = await Tab.loginAccounts(origin.key)
             guard let self, !Task.isCancelled else { return }
@@ -112,8 +136,9 @@ final class LoginFieldMenu {
             self.pageOffers = (origin, offers)
             if let pending = self.pending, pending.origin == origin {
                 self.pending = nil
-                self.present(pending.field, at: pending.rect, origin: origin, offers: offers)
+                self.present(pending.field, at: pending.rect, origin: origin, offers: offers, reason: pending.reason)
             }
+            self.stopWatchingEvents()
         }
     }
 
@@ -123,18 +148,23 @@ final class LoginFieldMenu {
         if shown?.field == field { hide() }
     }
 
+    /// The user typed into the field: it is theirs while it has text (the page doesn't offer it again until it is empty).
+    func fieldTyped(_ field: Int) {
+        fieldLeft(field)
+    }
+
     /// A navigation began: the page on screen is on its way out, and offers nothing until the next one commits.
     func navigationStarted() {
-        pending = nil
-        waiting?.cancel()
-        waiting = nil
+        stopWaiting()
         hide()
     }
 
-    /// Esc, typing in the field, a click outside the menu and the field, an account chosen.
-    func dismiss() {
-        if shown != nil { dismissedOnPage = true }
-        hide()
+    /// Nothing is to appear later: no field is waiting for the menu.
+    private func stopWaiting() {
+        pending = nil
+        waiting?.cancel()
+        waiting = nil
+        stopWatchingEvents()
     }
 
     /// Another page (or the tab asleep): its fields are new ones, and its accounts are looked up again.
@@ -142,55 +172,63 @@ final class LoginFieldMenu {
         hide()
         lookup?.cancel()
         lookup = nil
-        pending = nil
         pageOffers = nil
-        dismissedOnPage = false
         appearedAt = nil
-        waiting?.cancel()
-        waiting = nil
+        appearances = []
+        clickOnly = false
+        stopWaiting()
     }
 
     /// Whether a click on the menu now is taken (`clickDelay`).
     var clickCounts: Bool {
-        guard let armedAt, pointerMovedInside else { return false }
+        guard let armedAt, pointerEntered else { return false }
         return now().timeIntervalSince(armedAt) >= Self.clickDelay
     }
 
-    func pointerMoved() {
-        if armedAt != nil { pointerMovedInside = true }
+    func pointerDidEnter() {
+        if armedAt != nil, !waitsForExit { pointerEntered = true }
+    }
+
+    func pointerDidExit() {
+        waitsForExit = false
     }
 
     func choose(_ match: Logins.Match) {
-        guard shown != nil, clickCounts else { return }
-        guard let origin = shown?.origin else { return }
-        dismiss()
-        if let fill { fill(match) } else { tab?.fillLogin(match, origin: origin) }
+        guard let shown, clickCounts else { return }
+        hide()
+        if let fill { fill(match) } else { tab?.fillLogin(match, origin: shown.origin, field: shown.field) }
     }
 
-    private func present(_ field: Int, at rect: CGRect, origin: Tab.Origin, offers: [Logins.Match]) {
-        guard !offers.isEmpty, !dismissedOnPage, let tab, let webView = tab.webView, let window = webView.window, Self.showable(tab, webView) else {
+    private func present(_ field: Int, at rect: CGRect, origin: Tab.Origin, offers: [Logins.Match], reason: Reason) {
+        guard !offers.isEmpty, let tab, let webView = tab.webView, let window = webView.window, Self.showable(tab, webView) else {
             hide()
             return
         }
         if shown == nil {
             // Appearing (again): not sooner than `reshowInterval` after the last time on this page; asked sooner, it waits for it.
+            appearances.removeAll { now().timeIntervalSince($0) >= 60 }
+            if reason == .focus, appearances.count >= Self.focusShowsPerMinute { return }
             if let last = appearedAt, now().timeIntervalSince(last) < Self.reshowInterval {
-                pending = (field, rect, origin)
+                pending = (field, rect, origin, reason)
                 if waiting == nil {
                     let wait = Self.reshowInterval - now().timeIntervalSince(last)
+                    // Esc or a key meanwhile calls it off, so the events are watched from now.
+                    watchEvents()
                     waiting = Task { [weak self] in
                         try? await Task.sleep(for: .seconds(wait))
                         guard let self, !Task.isCancelled else { return }
                         self.waiting = nil
                         if let pending = self.pending, self.shown == nil {
                             self.pending = nil
-                            self.fieldFocused(pending.field, at: pending.rect, document: pending.origin)
+                            self.fieldFocused(pending.field, at: pending.rect, document: pending.origin, reason: pending.reason)
                         }
+                        self.stopWatchingEvents()
                     }
                 }
                 return
             }
             appearedAt = now()
+            appearances.append(now())
             pending = nil
         }
         let fieldRect = Self.viewRect(rect, zoom: webView.pageZoom * webView.magnification, flipped: webView.isFlipped, height: webView.bounds.height)
@@ -203,7 +241,9 @@ final class LoginFieldMenu {
     private func arm(at frame: CGRect) {
         armedAt = now()
         armedFrame = frame
-        pointerMovedInside = false
+        pointerEntered = false
+        // Where the window really is (the window server may have placed it otherwise than asked).
+        waitsForExit = (panel?.frame ?? frame).contains(mouseLocation())
     }
 
     /// A rect the page gave in CSS pixels, in the web view's points: scaled by its zoom and pinch, and turned over when the view isn't flipped.
@@ -251,17 +291,13 @@ final class LoginFieldMenu {
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = true
         panel.animationBehavior = .none
-        panel.acceptsMouseMovedEvents = true
         panel.setAccessibilityLabel(String(localized: "Fill in saved login"))
         let hosting = Hosting(rootView: LoginMenuList(matches: matches, width: 200) { [weak self] in self?.choose($0) })
-        hosting.onPointer = { [weak self] in self?.pointerMoved() }
+        hosting.onPointer = { [weak self] entered in if entered { self?.pointerDidEnter() } else { self?.pointerDidExit() } }
         panel.contentView = hosting
         window.addChildWindow(panel, ordered: .above)
         self.panel = panel
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] event in
-            MainActor.assumeIsolated { self?.handle(event) }
-            return event
-        }
+        watchEvents()
         resignObserver = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: window, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.hide() }
         }
@@ -275,32 +311,52 @@ final class LoginFieldMenu {
         return panel
     }
 
-    /// What a key or a click while the menu is up does to it. Every event goes on to the page, Esc too: the page sees what it would
-    /// have seen without a menu, so it can't tell from a key that never came that one (and so a saved login) was there.
-    func handle(_ event: NSEvent) {
-        guard let shown, event.window !== panel else { return }
-        if event.type == .keyDown {
-            // Tab moves to the next field, which may be offered the menu in its turn; anything else is typing, or Esc.
-            if event.keyCode == 48 { hide() } else { dismiss() }
-            return
+    private func watchEvents() {
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] event in
+            MainActor.assumeIsolated { self?.handle(event) }
+            return event
         }
-        // A click in the field itself keeps it.
-        if let webView = tab?.webView, event.window === webView.window, shown.fieldRect.contains(webView.convert(event.locationInWindow, from: nil)) { return }
-        dismiss()
+    }
+
+    private func stopWatchingEvents() {
+        guard panel == nil, waiting == nil, lookup == nil, let monitor else { return }
+        NSEvent.removeMonitor(monitor)
+        self.monitor = nil
+    }
+
+    /// What a key or a click while the menu is up, or waiting to come up (on the lookup of the accounts, or on `reshowInterval`), does
+    /// to it. Any key puts it away (and calls off one waiting); Esc and a click outside the menu and the field also leave it to the user's own click on a field to come back, as
+    /// a page can focus() a field whenever it likes. Every event goes on to the page, Esc too: the page sees what it would have seen
+    /// without a menu, so it can't tell from a key that never came that one (and so a saved login) was there.
+    func handle(_ event: NSEvent) {
+        if let panel, event.window === panel { return }
+        if event.type == .keyDown {
+            guard shown != nil || pending != nil else { return }
+            if event.keyCode == 53 { clickOnly = true }
+        } else {
+            // A click in the field itself keeps it. (With no menu up yet, the page says where the user pressed.)
+            guard let shown else { return }
+            if let webView = tab?.webView, event.window === webView.window,
+               shown.fieldRect.contains(webView.convert(event.locationInWindow, from: nil)) { return }
+            clickOnly = true
+        }
+        stopWaiting()
+        hide()
     }
 
     private func hide() {
         shown = nil
         armedAt = nil
         armedFrame = nil
-        pointerMovedInside = false
+        pointerEntered = false
+        waitsForExit = false
         if let panel {
             panel.parent?.removeChildWindow(panel)
             panel.orderOut(nil)
         }
         panel = nil
-        if let monitor { NSEvent.removeMonitor(monitor) }
-        monitor = nil
+        stopWatchingEvents()
         if let resignObserver { NotificationCenter.default.removeObserver(resignObserver) }
         resignObserver = nil
         browserWatch = nil
@@ -312,27 +368,31 @@ final class LoginFieldMenu {
         override var canBecomeMain: Bool { false }
     }
 
-    /// Takes the first click though its window isn't key (it never is), and says when the pointer moves inside it.
+    /// Takes the first click though its window isn't key (it never is), and says when the pointer comes into it.
     final class Hosting: NSHostingView<LoginMenuList> {
-        var onPointer: (() -> Void)?
+        /// True when the pointer comes in, false when it leaves.
+        var onPointer: ((Bool) -> Void)?
+
+        /// Without `.assumeInside`: a pointer already inside when the area is made (the panel came up under it) gets no mouseEntered
+        /// until it has left and come back, so only a pointer that crossed into the panel arms a click.
+        static let trackingOptions: NSTrackingArea.Options = [.mouseEnteredAndExited, .activeAlways, .inVisibleRect]
 
         override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
         override func updateTrackingAreas() {
             super.updateTrackingAreas()
             for area in trackingAreas where area.owner === self && area.userInfo?["pointer"] != nil { removeTrackingArea(area) }
-            addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect],
-                                           owner: self, userInfo: ["pointer": true]))
+            addTrackingArea(NSTrackingArea(rect: .zero, options: Self.trackingOptions, owner: self, userInfo: ["pointer": true]))
         }
 
         override func mouseEntered(with event: NSEvent) {
             super.mouseEntered(with: event)
-            onPointer?()
+            onPointer?(true)
         }
 
-        override func mouseMoved(with event: NSEvent) {
-            super.mouseMoved(with: event)
-            onPointer?()
+        override func mouseExited(with event: NSEvent) {
+            super.mouseExited(with: event)
+            onPointer?(false)
         }
     }
 }

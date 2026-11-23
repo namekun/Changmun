@@ -61,11 +61,20 @@ final class LoginFormWatcher: NSObject, WKScriptMessageHandler {
 
     static let script = """
     (() => {
-      const has = () => !!document.querySelector('input[type=password], input[autocomplete=username]');
+      \(Logins.fieldFinder)
+      const has = () => { const f = loginFields(); return !!(f.pw || f.user); };
       let last = has(), timer = 0;
       const look = () => { timer = 0; const now = has(); if (now !== last) { last = now; window.webkit.messageHandlers.\(name).postMessage(now); } };
-      new MutationObserver(() => { if (!timer) timer = setTimeout(look, 150); })
-        .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['type', 'autocomplete'] });
+      // What makes a field a sign-in field, or shows or hides one (a dialog opening). Looked at no more than twice a second, when the
+      // page is idle where it can say so: class and style change all the time on pages that animate.
+      const idle = window.requestIdleCallback ? f => requestIdleCallback(f, {timeout: 500}) : f => f();
+      const soon = () => { if (!timer) timer = setTimeout(() => idle(look), 500); };
+      // A form that fades in is see-through (so no sign-in field) until its animation ends, which changes nothing in the DOM.
+      document.addEventListener('animationend', soon, true);
+      document.addEventListener('transitionend', soon, true);
+      new MutationObserver(soon)
+        .observe(document.documentElement, { childList: true, subtree: true, attributes: true,
+                                             attributeFilter: ['type', 'autocomplete', 'name', 'id', 'role', 'class', 'style', 'hidden'] });
     })();
     """
 
@@ -91,34 +100,72 @@ final class LoginFieldWatcher: NSObject, WKScriptMessageHandler {
 
     static let script = """
     (() => {
-      const ids = new WeakMap();
-      let next = 0, shown = null, frame = 0;
-      const visible = e => e.offsetParent !== null || e.getClientRects().length > 0;
-      // The fields Logins.fillScript fills: the first visible password field and the field before it in its form, or with no password
-      // field the one that says it is the user name (which the key button also goes by). A form for a new password is a sign-up.
+      \(Logins.fieldFinder)
+      const ids = new WeakMap(), fields = new Map(), typedIn = new WeakSet();
+      let next = 0, shown = null, frame = 0, pressed = null, fading = null;
+      // The fill (in this world too) finds the field the menu was offered under by its number.
+      window.cmLoginField = n => { const ref = fields.get(n); return ref ? ref.deref() || null : null; };
+      // The fields Logins.fillScript fills (`loginFields`), so the field offered the menu is the field filled.
       const isLoginField = e => {
-        if (!(e instanceof HTMLInputElement) || e.disabled || e.readOnly) return false;
-        const pw = [...document.querySelectorAll('input[type=password]')].find(visible) || null;
-        if (!pw) return e.matches('input[autocomplete=username]') && e === document.querySelector('input[autocomplete=username], input[type=email]');
-        if (pw.getAttribute('autocomplete') === 'new-password') return false;
-        if (e === pw) return true;
-        const fields = [...(pw.form || document).querySelectorAll('input')].filter(f => /^(text|email|tel|)$/.test(f.type) && visible(f));
-        return e === fields.filter(f => f.compareDocumentPosition(pw) & Node.DOCUMENT_POSITION_FOLLOWING).pop();
+        if (!(e instanceof HTMLInputElement)) return false;
+        const f = loginFields();
+        return e === f.pw || e === f.user;
       };
-      const id = e => { if (!ids.has(e)) ids.set(e, ++next); return ids.get(e); };
+      const id = e => {
+        if (!ids.has(e)) { ids.set(e, ++next); fields.set(next, new WeakRef(e)); }
+        return ids.get(e);
+      };
       const post = body => window.webkit.messageHandlers.\(name).postMessage(body);
-      // In CSS pixels from the top left of what is on screen (the visual viewport); the app scales them by the page's zoom.
-      const report = () => {
+      // In CSS pixels from the top left of what is on screen (the visual viewport); the app scales them by the page's zoom. `reason` is
+      // what brought it: a focus or a click on the field may show the menu, a move only takes along one that is showing.
+      const report = reason => {
         frame = 0;
         if (!shown) return;
         const r = shown.getBoundingClientRect(), v = window.visualViewport;
-        post({field: id(shown), x: r.left - (v ? v.offsetLeft : 0), y: r.top - (v ? v.offsetTop : 0), width: r.width, height: r.height});
+        post({field: id(shown), reason, x: r.left - (v ? v.offsetLeft : 0), y: r.top - (v ? v.offsetTop : 0), width: r.width, height: r.height});
       };
-      // Only what the browser itself fires: the page can dispatch focus and scroll events of its own, which these listeners would
-      // hear too. (Leaving is taken from anyone: it only ever puts the menu away.)
-      const later = e => { if (e.isTrusted && shown && !frame) frame = requestAnimationFrame(report); };
-      document.addEventListener('focusin', e => { if (e.isTrusted && isLoginField(e.target)) { shown = e.target; report(); } }, true);
-      document.addEventListener('focusout', e => { if (e.target === shown) { shown = null; post({field: id(e.target)}); } }, true);
+      // A field the user has typed into is left to them while it has text; emptied, a click or a focus offers the menu again.
+      const offer = (e, reason) => {
+        shown = e;
+        if (typedIn.has(e) && e.value) return;
+        typedIn.delete(e);
+        report(reason);
+      };
+      // Only what the browser itself fires: the page can dispatch focus, click and scroll events of its own, which these listeners
+      // would hear too. (Leaving and typing are taken from anyone: they only ever put the menu away.)
+      const later = e => { if (e.isTrusted && shown && !frame) frame = requestAnimationFrame(() => report('move')); };
+      // A focus that follows the user's own press on the field is a click: after Esc only a click brings the menu back, and a page
+      // can focus() a field whenever it likes, but it can't press for the user.
+      document.addEventListener('focusin', e => {
+        const reason = e.target === pressed ? 'click' : 'focus';
+        pressed = null;
+        if (!e.isTrusted) return;
+        if (isLoginField(e.target)) offer(e.target, reason); else if (e.target instanceof HTMLInputElement) fading = e.target;
+      }, true);
+      // The press is the user's only for the focus it brings at once: a page that stops the focus can't make its own focus() later a click.
+      document.addEventListener('mousedown', e => {
+        if (!e.isTrusted || !isLoginField(e.target)) return;
+        if (e.target === document.activeElement) { offer(e.target, 'click'); return; }
+        pressed = e.target;
+        setTimeout(() => { pressed = null; }, 0);
+      }, true);
+      document.addEventListener('mouseup', () => { pressed = null; }, true);
+      // A field focused while its form fades in is no sign-in field yet (it can't be seen); it is one once the fade ends.
+      const faded = e => {
+        if (!e.isTrusted || !fading || fading !== document.activeElement) return;
+        if (isLoginField(fading)) { const f = fading; fading = null; offer(f, 'focus'); }
+      };
+      document.addEventListener('animationend', faded, true);
+      document.addEventListener('transitionend', faded, true);
+      document.addEventListener('input', e => {
+        if (e.target !== shown || !shown.value) return;
+        typedIn.add(shown);
+        post({field: id(shown), typed: true});
+      }, true);
+      document.addEventListener('focusout', e => {
+        if (e.target === fading) fading = null;
+        if (e.target === shown) { shown = null; post({field: id(e.target)}); }
+      }, true);
       window.addEventListener('scroll', later, true);
       window.addEventListener('resize', later);
       // A pinch moves and scales what is on screen without scrolling the page.
@@ -126,7 +173,8 @@ final class LoginFieldWatcher: NSObject, WKScriptMessageHandler {
         window.visualViewport.addEventListener('scroll', later);
         window.visualViewport.addEventListener('resize', later);
       }
-      if (isLoginField(document.activeElement)) { shown = document.activeElement; report(); }
+      if (isLoginField(document.activeElement)) offer(document.activeElement, 'focus');
+      else if (document.activeElement instanceof HTMLInputElement) fading = document.activeElement;
     })();
     """
 
@@ -139,12 +187,20 @@ final class LoginFieldWatcher: NSObject, WKScriptMessageHandler {
         guard message.frameInfo.isMainFrame, let body = message.body as? [String: Any], let field = (body["field"] as? NSNumber)?.intValue else { return }
         let numbers = ["x", "y", "width", "height"].compactMap { (body[$0] as? NSNumber)?.doubleValue }
         let rect = numbers.count == 4 ? CGRect(x: numbers[0], y: numbers[1], width: numbers[2], height: numbers[3]) : nil
+        let reason = LoginFieldMenu.Reason(rawValue: body["reason"] as? String ?? "") ?? .move
+        let typed = body["typed"] as? Bool == true
         // The document's own origin, which is what the field is in: the web view's address names where a navigation is going
         // before it has an answer, while this document is still the one on screen.
         MainActor.assumeIsolated {
             let document = Tab.Origin(message.frameInfo.securityOrigin)
             guard let webView = message.webView, let tab = Browser.tab(showing: webView) else { return }
-            if let rect { tab.loginMenu.fieldFocused(field, at: rect, document: document) } else { tab.loginMenu.fieldLeft(field) }
+            if typed {
+                tab.loginMenu.fieldTyped(field)
+            } else if let rect {
+                tab.loginMenu.fieldFocused(field, at: rect, document: document, reason: reason)
+            } else {
+                tab.loginMenu.fieldLeft(field)
+            }
         }
     }
 }
