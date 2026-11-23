@@ -242,6 +242,7 @@ final class Browser: ObservableObject {
         FrameWatcher.install(in: config.userContentController)
         PasswordWatcher.install(in: config.userContentController)
         ReaderWatcher.install(in: config.userContentController)
+        SiteQuirks.install(in: config.userContentController)
         if !Headless.isOn {
             LoginCapture.install(in: config.userContentController)
             LoginFormWatcher.install(in: config.userContentController)
