@@ -6,6 +6,23 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.18.2</title>
+      <pubDate>Mon, 23 Nov 2026 15:30:25 +0000</pubDate>
+      <sparkle:version>65</sparkle:version>
+      <sparkle:shortVersionString>0.18.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.18.2</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Fixed:** saved logins weren't offered on the first step of a two-step sign-in (Google, Microsoft), nor on sites whose user name field says little about itself (`id`, `memId`, `userId`). Those fields are now recognised, while search boxes, sign-up forms and fields that only look like an id (`coupon_id`, an account number) are left alone.
+- **Fixed:** once the list of saved logins was closed, by typing or with Esc, it didn't come back on that page. Click an empty login field and it shows again, as in Chrome.
+- **Fixed:** the list could fill a password into a hidden field (Google's first step) or a sign-up form's "confirm password". It now fills only the field it was shown for.
+- **Changed:** the list takes a click sooner. The pointer only has to move into it, and the wait is 0.4 seconds instead of 0.5. It still ignores a click when it appears under a pointer that hasn't moved.
+- **New:** a diagnostic log of the cookies a site loses while you browse, to find out why a sign-in (Naver's, for one) drops. By default it records counts only. To have it name the sites, run `defaults write io.github.namekun.Changmun CookieLogNamesSites -bool true`; to read it, run `/usr/bin/log show --predicate 'subsystem == "io.github.namekun.Changmun" AND category == "cookies"' --last 1h`.
+
+Tried with automated tests and on the sign-in pages of Google, Microsoft, Naver, Kakao, GitHub, X, 11st, Gmarket and Musinsa. Clicking the list with a real mouse hasn't been tried, so tell me if it misbehaves.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.18.2/Changmun-0.18.2.dmg" length="6905344" type="application/octet-stream" sparkle:edSignature="cnNtRcA+Znv1RvuaOj4M4b/nv7fyYsHsTSs85xCISSolGJZvW3HLR279xSRlbzoqtcGeXBsZoh4Mw4xGohRdAw==" />
+    </item>
+    <item>
       <title>0.18.1</title>
       <pubDate>Mon, 23 Nov 2026 13:25:46 +0000</pubDate>
       <sparkle:version>64</sparkle:version>
@@ -137,22 +154,9 @@ Tried with 1611 automated tests and the off-screen test copy. Dragging, hover an
 Tried with automated tests and the off-screen test copy, on a page that opens an empty window from a timer the way older in-house systems do.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.5/Changmun-0.15.5.dmg" length="6158250" type="application/octet-stream" sparkle:edSignature="t1b4teLMCDQjYUUTeIvwz9Hfj59DKZrEmyEzoLwp4RCOU+sWNkdYi0nEED8yWxTXRbTsdPLMGvIWLozCj7KRCg==" />
     </item>
-    <item>
-      <title>0.15.4</title>
-      <pubDate>Mon, 09 Nov 2026 00:14:50 +0000</pubDate>
-      <sparkle:version>55</sparkle:version>
-      <sparkle:shortVersionString>0.15.4</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.15.4</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Fixed:** when a site opened an empty window without a click and filled it in itself, as many older in-house and school systems do, Changmun blocked it without telling you, so there was no way to let it through and the site just failed. Now the dot beside the address tells you about it, with "Always Allow for This Site"; allow it and press the site's button again.
-
-Tried with automated tests on a page that opens an empty window from a timer. The in-house system this came up on hasn't been tried, so tell me if its window still doesn't open.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.4/Changmun-0.15.4.dmg" length="6158880" type="application/octet-stream" sparkle:edSignature="aaiwFYiW8CP4KSg6nObZQ0/3kxfpCZRFx1zCyjxqIrZQN4dCJPVerwEnT8jCYTJFWMivU3AFIr37f+yoGbqEDQ==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: ZLPSno9GDCz9a32cqn5m2V2J0wm7t3VkehybE52XjHVZ2y6t8G4/9UGxDukQnpUJtcW02stJMK5u6t9dC/UiBw==
-length: 16325
+edSignature: mLenypvclAJtmju0LSObptHUdnTvs7I3CRfDPTwWT7P6h7BXly5IIoSosx2xGVkeIqdovso19zX9fo3pwsXtDg==
+length: 17276
 -->
