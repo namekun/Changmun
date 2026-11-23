@@ -232,7 +232,7 @@ Changmun 会把 EasyList（广告）和 EasyPrivacy（跟踪器）转换为 WebK
 - 检查更新会从 GitHub Pages 获取一份很小的发布列表（`appcast.xml`）。GitHub 和任何网站服务器一样会收到这个请求，能看到 Changmun 的名称和版本；会附带 Mac 详细信息的 Sparkle 系统资料已关闭，并保持关闭（可在设置 › 高级中关闭检查本身）。
 - 搜索建议会把你在搜索栏中输入的内容发送给你的搜索引擎（可在设置中关闭；私密浏览窗口中从不发送）。
 - “退出后保持登录”（设置 › 隐私，默认开启）会保留网站原本在关闭浏览器时就会失效的登录 Cookie（只有会话 Cookie，其余的由 WebKit 自己保存），最长 30 天。它们存放在这台 Mac 的文件中，用登录钥匙串里的密钥加密，只有 Changmun 的代码签名可以不经询问读取该密钥，直到你关闭该选项或清除网站数据；私密浏览窗口从不保存。上面的代理专用副本不保留登录。
-- Changmun 会在 macOS 日志中保留本地诊断日志（windows、cookies），用来解释某个链接为何没有反应、某次登录为何丢失。日志中从不包含 Cookie 的值或完整网址，私密浏览窗口不写入任何内容。用 `/usr/bin/log show --predicate 'subsystem == "io.github.namekun.Changmun" AND category == "cookies"' --last 1h` 读取 Cookie 日志。
+- Changmun 会在 macOS 日志中保留本地诊断日志（windows、cookies），用来解释某个链接为何没有反应、某次登录为何丢失。日志中从不包含 Cookie 的值或完整网址，私密浏览窗口不写入任何内容。用 `/usr/bin/log show --predicate 'subsystem == "io.github.namekun.Changmun" AND category == "cookies"' --last 1h` 读取 Cookie 日志。 默认只记录丢失的 Cookie 数量，不记录任何网站名。运行 `defaults write io.github.namekun.Changmun CookieLogNamesSites -bool true` 后，会记录每个 Cookie 的网站和名称，直到改回 false。
 - 一周没用过的网站，其脚本存储的数据（本地存储、IndexedDB 等）也会保留。WebKit 原本会在浏览 7 天都没访问该网站后清除这些数据，再次打开时就可能已经退出登录。WebKit 的其余防跟踪功能保持开启，包括阻止第三方 Cookie；被 WebKit 判定为跟踪器的网站，如果一段时间不用，数据仍可能被清除。
 - AI 面板会通过 `claude` CLI 把你的消息、你附上的图片和 AI 读取的页面内容发送给 Anthropic。整理标签页在你的 Mac 上运行，页面翻译也是，除非你为它选择了 Claude（“设置 › 通用 › 翻译网页使用”，默认关闭）：这时你翻译的每个网页的文本会经由同一个 CLI 发送给 Anthropic，私密浏览窗口、其他配置文件中的网页，以及含有密码栏或支付栏的网页则绝不会发送。它计入你的 Claude 订阅用量（如果设置了 API 密钥，则计入该密钥）。
 

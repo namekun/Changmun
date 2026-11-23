@@ -110,11 +110,17 @@ enum CookieLog {
         "watching store=\(store) cookies=\(entries.count) session=\(entries.values.filter(\.identity.session).count) networkProcess=\(pid(networkProcess))"
     }
 
-    /// One line per cookie gone before its expiry, one for those that expired, the counts, and the mass loss if it was one. Nothing for a look that
-    /// found nothing different: a cookie given a new value alone changes nothing the log can see.
-    nonisolated static func lines(_ change: Change, store: String, networkProcess: Int32?) -> [String] {
+    /// Whether the log names the cookies a store loses (their sites, names and paths). Off unless turned on with
+    /// `defaults write io.github.namekun.Changmun CookieLogNamesSites -bool true`: a line for every cookie gone would put the sites one visits
+    /// into the system log, which other software on the Mac and a shared sysdiagnose can read. Without it the log keeps only counts.
+    nonisolated static let namesSitesKey = "CookieLogNamesSites"
+    nonisolated static var namesSites: Bool { UserDefaults.standard.bool(forKey: namesSitesKey) }
+
+    /// One line per cookie gone before its expiry (only when `naming`), one for those that expired, the counts, and the mass loss if it was one.
+    /// Nothing for a look that found nothing different: a cookie given a new value alone changes nothing the log can see.
+    nonisolated static func lines(_ change: Change, store: String, networkProcess: Int32?, naming: Bool = true) -> [String] {
         guard !change.isEmpty else { return [] }
-        var lines = change.removed.map { removal in
+        var lines: [String] = !naming ? [] : change.removed.map { removal in
             let cookie = removal.identity
             let kind = cookie.session ? "session" : "persistent expires=\(cookie.expires.map { $0.formatted(.iso8601) } ?? "-")"
             return "removed store=\(store) domain=\(cookie.domain) name=\(cookie.name) path=\(cookie.path) \(kind) age\(removal.sinceBaseline ? ">=" : "=")\(Int(removal.age))s"
@@ -190,6 +196,7 @@ final class CookieWatch {
     private let sleep: (Duration) async -> Void
     private let networkProcess: @MainActor () -> Int32?
     private let write: @MainActor ([String]) -> Void
+    private let naming: () -> Bool
     private var snapshot: [String: CookieLog.Entry]?
     private var running: Task<Void, Never>?
     private var dirty = false
@@ -198,13 +205,15 @@ final class CookieWatch {
 
     init(store: String, source: CookieSource, window: Duration = .milliseconds(250), now: @escaping () -> Date = { Date() },
          sleep: @escaping (Duration) async -> Void = { try? await Task.sleep(for: $0) },
-         write: @escaping @MainActor ([String]) -> Void = { CookieLog.write($0) }, networkProcess: @escaping @MainActor () -> Int32?) {
+         write: @escaping @MainActor ([String]) -> Void = { CookieLog.write($0) }, naming: @escaping () -> Bool = { CookieLog.namesSites },
+         networkProcess: @escaping @MainActor () -> Int32?) {
         self.store = store
         self.source = source
         self.window = window
         self.now = now
         self.sleep = sleep
         self.write = write
+        self.naming = naming
         self.networkProcess = networkProcess
     }
 
@@ -249,7 +258,7 @@ final class CookieWatch {
             if before == nil {
                 write([CookieLog.baselineLine(store: store, next, networkProcess: networkProcess())])
             } else {
-                write(CookieLog.lines(change, store: store, networkProcess: change.massLoss ? networkProcess() : nil))
+                write(CookieLog.lines(change, store: store, networkProcess: change.massLoss ? networkProcess() : nil, naming: naming()))
             }
             snapshot = next
         } while dirty

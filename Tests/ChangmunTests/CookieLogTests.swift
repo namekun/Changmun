@@ -121,6 +121,15 @@ struct CookieLogTests {
         ])
     }
 
+    @Test func withoutNamingTheLogKeepsOnlyCounts() {
+        let before = CookieLog.baseline([identity("NID_SES"), identity("keep", domain: "example.com")], now: start)
+        let (change, _) = CookieLog.diff(before, [], now: start.addingTimeInterval(90))
+        let lines = CookieLog.lines(change, store: "default", networkProcess: nil, naming: false)
+        #expect(lines == ["diff store=default added=0 changed=0 removed=2 expired=0 sessionCookies=2->0"])
+        #expect(!lines.joined().contains("naver") && !lines.joined().contains("NID_SES"))
+        #expect(!UserDefaults.standard.bool(forKey: CookieLog.namesSitesKey), "off unless the user turns it on")
+    }
+
     @Test func expiredCookiesGetOneLine() {
         let before = CookieLog.baseline((0..<3).map { identity("e\($0)", expires: start.addingTimeInterval(5)) }, now: start)
         let (change, _) = CookieLog.diff(before, [], now: start.addingTimeInterval(10))
@@ -161,7 +170,7 @@ struct CookieLogTests {
         let secrets = (0..<8).map { "SECRET-VALUE-\($0)-\(UUID().uuidString)" }
         let source = Source(secrets.enumerated().map { cookie("NID_\($0.offset)", $0.element) })
         var written: [String] = []
-        let watch = CookieWatch(store: "default", source: source, now: { start }, sleep: { _ in }, write: { written += $0 }, networkProcess: { 7 })
+        let watch = CookieWatch(store: "default", source: source, now: { start }, sleep: { _ in }, write: { written += $0 }, naming: { true }, networkProcess: { 7 })
         watch.start()
         await watch.settle()
         source.become([cookie("NID_0", "SECRET-VALUE-new"), cookie("fresh", "SECRET-VALUE-fresh", expires: Date().addingTimeInterval(3_600))])
