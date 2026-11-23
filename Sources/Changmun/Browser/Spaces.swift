@@ -293,6 +293,7 @@ enum Profiles {
         let store = dataStore(id)
         // A profile made now has no kept cookies to wait for; one from an earlier run was put back at launch, and this changes nothing.
         CookieJournal.shared.attachInBackground(id.uuidString, WebKitCookieSource(store))
+        CookieLog.watch(id.uuidString, store)
         let made = Browser.makeConfiguration(store: store, extensions: !Headless.isOn)
         configurations[id] = made
         return made
@@ -316,6 +317,7 @@ enum Profiles {
             configurations[id] = nil
             // Its kept cookies go with it, and nothing holds the store any longer.
             CookieJournal.shared.forget(id.uuidString)
+            CookieLog.stop(id.uuidString)
             dataStores[id] = nil
             for delay in delays {
                 if (try? await remover(id)) != nil {

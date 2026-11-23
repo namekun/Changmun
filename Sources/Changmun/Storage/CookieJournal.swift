@@ -562,14 +562,17 @@ final class CookieJournal {
     }
 
     private func restore(_ id: String, _ tracker: Tracker) async {
+        let started = ContinuousClock.now
         let read = await files.read(id)
         var restored = 0
         switch read {
         case .unreadable:
             // Says nothing about what the file holds, so it is left alone: not read now, not overwritten later.
             tracker.phase = .off
+            CookieLog.write([CookieLog.restoreLine(store: id, file: "unreadable", took: started.duration(to: .now))])
             return
         case .noKey(let retry):
+            CookieLog.write([CookieLog.restoreLine(store: id, file: "noKey", took: started.duration(to: .now))])
             setKeyProblem(true)
             tracker.retryAt = retry
             tracker.gaveUp = retry == nil
@@ -585,9 +588,12 @@ final class CookieJournal {
                 restored += 1
             }
             restoredCount += restored
-            NSLog("Changmun: the cookie journal put back %d cookies", restored)
-        case .missing, .unusable:
-            break
+            CookieLog.write([CookieLog.restoreLine(store: id, file: "records", restored: restored, skipped: records.count - restored,
+                                                   took: started.duration(to: .now))])
+        case .missing:
+            CookieLog.write([CookieLog.restoreLine(store: id, file: "missing", took: started.duration(to: .now))])
+        case .unusable:
+            CookieLog.write([CookieLog.restoreLine(store: id, file: "unusable", took: started.duration(to: .now))])
         }
         // The setting may have been turned off while the file was being read.
         guard enabled else { tracker.phase = .off; return }
@@ -804,5 +810,8 @@ extension CookieJournal {
         await attach("default", WebKitCookieSource(.default()))
         for id in ids { await attach(id.uuidString, WebKitCookieSource(Profiles.dataStore(id))) }
         removeOrphans(keeping: Set(ids.map(\.uuidString)))
+        // After the restore, so what it put back is part of the first look rather than counted as added.
+        CookieLog.watch("default", .default())
+        for id in ids { CookieLog.watch(id.uuidString, Profiles.dataStore(id)) }
     }
 }
