@@ -65,8 +65,14 @@ final class LoginFormWatcher: NSObject, WKScriptMessageHandler {
       const has = () => { const f = loginFields(); return !!(f.pw || f.user); };
       let last = has(), timer = 0;
       const look = () => { timer = 0; const now = has(); if (now !== last) { last = now; window.webkit.messageHandlers.\(name).postMessage(now); } };
-      // What makes a field a sign-in field, or shows or hides one (a dialog opening).
-      new MutationObserver(() => { if (!timer) timer = setTimeout(look, 150); })
+      // What makes a field a sign-in field, or shows or hides one (a dialog opening). Looked at no more than twice a second, when the
+      // page is idle where it can say so: class and style change all the time on pages that animate.
+      const idle = window.requestIdleCallback ? f => requestIdleCallback(f, {timeout: 500}) : f => f();
+      const soon = () => { if (!timer) timer = setTimeout(() => idle(look), 500); };
+      // A form that fades in is see-through (so no sign-in field) until its animation ends, which changes nothing in the DOM.
+      document.addEventListener('animationend', soon, true);
+      document.addEventListener('transitionend', soon, true);
+      new MutationObserver(soon)
         .observe(document.documentElement, { childList: true, subtree: true, attributes: true,
                                              attributeFilter: ['type', 'autocomplete', 'name', 'id', 'role', 'class', 'style', 'hidden'] });
     })();
@@ -95,15 +101,20 @@ final class LoginFieldWatcher: NSObject, WKScriptMessageHandler {
     static let script = """
     (() => {
       \(Logins.fieldFinder)
-      const ids = new WeakMap(), typedIn = new WeakSet();
-      let next = 0, shown = null, frame = 0;
+      const ids = new WeakMap(), fields = new Map(), typedIn = new WeakSet();
+      let next = 0, shown = null, frame = 0, pressed = null;
+      // The fill (in this world too) finds the field the menu was offered under by its number.
+      window.cmLoginField = n => { const ref = fields.get(n); return ref ? ref.deref() || null : null; };
       // The fields Logins.fillScript fills (`loginFields`), so the field offered the menu is the field filled.
       const isLoginField = e => {
         if (!(e instanceof HTMLInputElement)) return false;
         const f = loginFields();
         return e === f.pw || e === f.user;
       };
-      const id = e => { if (!ids.has(e)) ids.set(e, ++next); return ids.get(e); };
+      const id = e => {
+        if (!ids.has(e)) { ids.set(e, ++next); fields.set(next, new WeakRef(e)); }
+        return ids.get(e);
+      };
       const post = body => window.webkit.messageHandlers.\(name).postMessage(body);
       // In CSS pixels from the top left of what is on screen (the visual viewport); the app scales them by the page's zoom. `reason` is
       // what brought it: a focus or a click on the field may show the menu, a move only takes along one that is showing.
@@ -123,9 +134,16 @@ final class LoginFieldWatcher: NSObject, WKScriptMessageHandler {
       // Only what the browser itself fires: the page can dispatch focus, click and scroll events of its own, which these listeners
       // would hear too. (Leaving and typing are taken from anyone: they only ever put the menu away.)
       const later = e => { if (e.isTrusted && shown && !frame) frame = requestAnimationFrame(() => report('move')); };
-      document.addEventListener('focusin', e => { if (e.isTrusted && isLoginField(e.target)) offer(e.target, 'focus'); }, true);
+      // A focus that follows the user's own press on the field is a click: after Esc only a click brings the menu back, and a page
+      // can focus() a field whenever it likes, but it can't press for the user.
+      document.addEventListener('focusin', e => {
+        const reason = e.target === pressed ? 'click' : 'focus';
+        pressed = null;
+        if (e.isTrusted && isLoginField(e.target)) offer(e.target, reason);
+      }, true);
       document.addEventListener('mousedown', e => {
-        if (e.isTrusted && e.target === document.activeElement && isLoginField(e.target)) offer(e.target, 'click');
+        if (!e.isTrusted || !isLoginField(e.target)) return;
+        if (e.target === document.activeElement) offer(e.target, 'click'); else pressed = e.target;
       }, true);
       document.addEventListener('input', e => {
         if (e.target !== shown || !shown.value) return;
