@@ -6,6 +6,25 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.18.0</title>
+      <pubDate>Mon, 23 Nov 2026 02:44:25 +0000</pubDate>
+      <sparkle:version>63</sparkle:version>
+      <sparkle:shortVersionString>0.18.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.18.0</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **New:** the address bar opens the site you mean. Type the start of a site you visit (`git`) and it comes first, with the rest of its name filled in, so Return opens github.com instead of searching. Keep typing over the filled-in part, or press Delete to search for what you typed. A name is filled in only into that site's own domain, so a page you were once redirected to can't stand in for github.com.
+- **New:** saved logins are offered right under the field when you click a username or password field, like other browsers do. The list is drawn by Changmun, not the page, so the page can't see which accounts you have. Filling still asks for Touch ID if you have that turned on.
+- **New:** logins are shared across one site's addresses (www., accounts., nid.naver.com…), labelled with the address they were saved for. Never across sites where each subdomain belongs to someone else (github.io, tistory.com and the rest of the Public Suffix List), and never for the AI's sign-in, which still needs the exact host.
+- **New:** File › Import Passwords from CSV File… reads exports from Apple's Passwords app, Chrome, Firefox, Bitwarden and 1Password. Only https logins are saved. When everything was saved, it offers to move the CSV, which holds your passwords in plain text, to the Trash.
+- **Fixed:** sites signed you out after you hadn't used them for a week. WebKit's tracking prevention erased what sites store for themselves; that erasing is now off, and the rest of tracking prevention, third-party cookie blocking included, stays on.
+- **Fixed:** the first click on a page after using another app only brought the window forward; it now reaches the page, as in Chrome.
+- **Fixed:** a page that was on its way to another site could be offered and filled with that site's saved login. Logins now go only to the page actually on screen.
+
+Tried with automated tests. Whether week-old sign-ins now survive can only be seen after a week, so tell me if a site still signs you out.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.18.0/Changmun-0.18.0.dmg" length="6865562" type="application/octet-stream" sparkle:edSignature="7B+vX0J30tV/7WGih1SIOK4F52fcWF489Z/11cXZGAfoB9JeO1chleGvDS/w67CcL0FJqGMiF2r9VkUoWUDTDQ==" />
+    </item>
+    <item>
       <title>0.17.1</title>
       <pubDate>Fri, 20 Nov 2026 09:24:06 +0000</pubDate>
       <sparkle:version>62</sparkle:version>
@@ -131,22 +150,9 @@ Tried with automated tests on a page that opens an empty window from a timer. Th
 Tried with the automated tests. Picture in Picture opens a window on screen, which the off-screen test copy can't do, so the float itself hasn't been watched; tell me if a video doesn't float when you switch tabs.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.3/Changmun-0.15.3.dmg" length="6154880" type="application/octet-stream" sparkle:edSignature="0uQ7MWCUPJGcrOv1YO/ZDzQ+I58OQ/agTkRlUecJMfbWal+O0lTOtyeDx59HShAIX4cfY1t/6RyWUqT9qHpgAA==" />
     </item>
-    <item>
-      <title>0.15.2</title>
-      <pubDate>Sun, 08 Nov 2026 12:42:59 +0000</pubDate>
-      <sparkle:version>53</sparkle:version>
-      <sparkle:shortVersionString>0.15.2</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.15.2</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Fixed:** on Olive Young, adding an item to the cart no longer shows the "added to cart" layer. Ad blocking stopped the Kakao pixel's script, and the shop's own code calls that pixel without checking that it is there, so it failed before it could open the layer. That one script now loads on Olive Young alone; what the pixel would send (its events, ad ID and third-party cookie check) stays blocked there too, and nothing changes on other sites. The rules are rebuilt the next time you open Changmun.
-
-Tried with automated tests and the headless copy, by replaying the shop's add-to-cart step on a test page. A real cart on a logged-in account hasn't been tried, so tell me if the layer is still missing.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.2/Changmun-0.15.2.dmg" length="6153068" type="application/octet-stream" sparkle:edSignature="X3ulwh+UD7R/taoWWAB2obC3Irgchum3fHRH7EJv4HFx0Ob6CNj4c6Pww7Pss5vYU7oW+xfJElRmu2jt6aIFCw==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: WGcHvukFQS1Fj/yoPjrphsN5JLNWwG02fKRgzDI3VpenNIc7XNGDt0fIj+xpW0cJDCsuorYgsmyiCF/I84GlAQ==
-length: 15124
+edSignature: krAwf9hFJBHS75Rfgs8XvCsIrHgKJ/oIqHk96d5meRUWQWuIjCwTzYzB/FUpSQ/8HGzLf0MfCZ3K8IemfGNUBg==
+length: 16406
 -->
