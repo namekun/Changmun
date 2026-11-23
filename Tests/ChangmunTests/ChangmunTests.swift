@@ -2310,7 +2310,7 @@ extension SharedAgentState {
             // Sites whose scripts draw the sign-in form after the page has loaded (Coupang does) had no key button: the field was
             // looked for once, when the page finished, and never again.
             let before = Changmun.Tab.loginAccounts
-            Changmun.Tab.loginAccounts = { $0 == "late.test" ? ["me"] : [] }
+            Changmun.Tab.loginAccounts = { $0 == "late.test" ? [Logins.Match(host: "late.test", username: "me", sameHost: true)] : [] }
             defer { Changmun.Tab.loginAccounts = before }
             do {
                 let b = Browser()
@@ -2322,7 +2322,7 @@ extension SharedAgentState {
                     """, base: "https://late.test/login", in: b)
                 defer { window.close() }
                 #expect(tab.savedLogins.isEmpty, "nothing to fill until the form is there")
-                #expect(await waitUntil(5) { tab.savedLogins == ["me"] }, "the button comes once the field is drawn")
+                #expect(await waitUntil(5) { tab.savedLogins.map(\.username) == ["me"] }, "the button comes once the field is drawn")
                 _ = try await view.evaluateJavaScript("root.innerHTML = ''")
                 #expect(await waitUntil(5) { tab.savedLogins.isEmpty }, "and goes when the field goes")
             }

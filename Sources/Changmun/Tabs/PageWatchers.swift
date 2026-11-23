@@ -83,6 +83,69 @@ final class LoginFormWatcher: NSObject, WKScriptMessageHandler {
     }
 }
 
+/// Tells the tab when a sign-in field gets focus, and where it is, so the saved logins can be offered just under it (`LoginFieldMenu`),
+/// and when it loses focus. Runs in an isolated world and sends only a number for the field (from a counter of its own, which the page
+/// can't see) and its rect: no account name ever goes the other way, so the page can't learn which accounts are saved.
+final class LoginFieldWatcher: NSObject, WKScriptMessageHandler {
+    static let name = "changmunLoginField"
+
+    static let script = """
+    (() => {
+      const ids = new WeakMap();
+      let next = 0, shown = null, frame = 0;
+      const visible = e => e.offsetParent !== null || e.getClientRects().length > 0;
+      // The fields Logins.fillScript fills: the first visible password field and the field before it in its form, or with no password
+      // field the one that says it is the user name (which the key button also goes by). A form for a new password is a sign-up.
+      const isLoginField = e => {
+        if (!(e instanceof HTMLInputElement) || e.disabled || e.readOnly) return false;
+        const pw = [...document.querySelectorAll('input[type=password]')].find(visible) || null;
+        if (!pw) return e.matches('input[autocomplete=username]') && e === document.querySelector('input[autocomplete=username], input[type=email]');
+        if (pw.getAttribute('autocomplete') === 'new-password') return false;
+        if (e === pw) return true;
+        const fields = [...(pw.form || document).querySelectorAll('input')].filter(f => /^(text|email|tel|)$/.test(f.type) && visible(f));
+        return e === fields.filter(f => f.compareDocumentPosition(pw) & Node.DOCUMENT_POSITION_FOLLOWING).pop();
+      };
+      const id = e => { if (!ids.has(e)) ids.set(e, ++next); return ids.get(e); };
+      const post = body => window.webkit.messageHandlers.\(name).postMessage(body);
+      // In CSS pixels from the top left of what is on screen (the visual viewport); the app scales them by the page's zoom.
+      const report = () => {
+        frame = 0;
+        if (!shown) return;
+        const r = shown.getBoundingClientRect(), v = window.visualViewport;
+        post({field: id(shown), x: r.left - (v ? v.offsetLeft : 0), y: r.top - (v ? v.offsetTop : 0), width: r.width, height: r.height});
+      };
+      // Only what the browser itself fires: the page can dispatch focus and scroll events of its own, which these listeners would
+      // hear too. (Leaving is taken from anyone: it only ever puts the menu away.)
+      const later = e => { if (e.isTrusted && shown && !frame) frame = requestAnimationFrame(report); };
+      document.addEventListener('focusin', e => { if (e.isTrusted && isLoginField(e.target)) { shown = e.target; report(); } }, true);
+      document.addEventListener('focusout', e => { if (e.target === shown) { shown = null; post({field: id(e.target)}); } }, true);
+      window.addEventListener('scroll', later, true);
+      window.addEventListener('resize', later);
+      // A pinch moves and scales what is on screen without scrolling the page.
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('scroll', later);
+        window.visualViewport.addEventListener('resize', later);
+      }
+      if (isLoginField(document.activeElement)) { shown = document.activeElement; report(); }
+    })();
+    """
+
+    static func install(in controller: WKUserContentController) {
+        controller.addUserScript(WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: .defaultClient))
+        controller.add(LoginFieldWatcher(), contentWorld: .defaultClient, name: name)
+    }
+
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.frameInfo.isMainFrame, let body = message.body as? [String: Any], let field = (body["field"] as? NSNumber)?.intValue else { return }
+        let numbers = ["x", "y", "width", "height"].compactMap { (body[$0] as? NSNumber)?.doubleValue }
+        let rect = numbers.count == 4 ? CGRect(x: numbers[0], y: numbers[1], width: numbers[2], height: numbers[3]) : nil
+        MainActor.assumeIsolated {
+            guard let webView = message.webView, let tab = Browser.tab(showing: webView) else { return }
+            if let rect { tab.loginMenu.fieldFocused(field, at: rect) } else { tab.loginMenu.fieldLeft(field) }
+        }
+    }
+}
+
 /// Notices sign-in forms being submitted, so the browser can offer to save the password. Runs in an isolated world:
 /// pages can't post to it, though they can fill a form with anything, so nothing is saved without the user's yes.
 final class LoginCapture: NSObject, WKScriptMessageHandler {

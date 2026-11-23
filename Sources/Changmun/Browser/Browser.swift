@@ -245,6 +245,7 @@ final class Browser: ObservableObject {
         if !Headless.isOn {
             LoginCapture.install(in: config.userContentController)
             LoginFormWatcher.install(in: config.userContentController)
+            LoginFieldWatcher.install(in: config.userContentController)
         }
         AdBlocker.shared.attach(config.userContentController)
         if extensions, #available(macOS 15.4, *) { config.webExtensionController = ExtensionHost.shared.controller }

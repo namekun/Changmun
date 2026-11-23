@@ -244,6 +244,7 @@ extension Tab: WKNavigationDelegate {
         translationBudget = ClaudeTranslation.Budget()
         budgetEpoch += 1
         sensitiveSeen = false
+        loginMenu.reset()
         translatesWithClaude = false
         blockedPopup = nil
         isInPictureInPicture = false
