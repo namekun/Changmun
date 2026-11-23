@@ -81,7 +81,7 @@ final class LoginFieldMenu {
         return (window.firstResponder as? NSView)?.isDescendant(of: webView) == true
     }
 
-    /// Whether `view` and every view it is in are drawn: not hidden, and not made transparent (a page held behind another, PassiveHost).
+    /// Whether `view` and every view it is in are drawn: not hidden, and not made transparent (a page held behind another).
     static func isVisible(_ view: NSView) -> Bool {
         guard view.window != nil else { return false }
         var current: NSView? = view
