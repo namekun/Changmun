@@ -257,7 +257,11 @@ struct LoginFieldMenuTests {
     }
 
     private func load(_ base: String, in view: WKWebView) async {
-        view.loadHTMLString(Self.form, baseURL: URL(string: base))
+        await load(Self.form, at: base, in: view)
+    }
+
+    private func load(_ html: String, at base: String, in view: WKWebView) async {
+        view.loadHTMLString(html, baseURL: URL(string: base))
         _ = await waitUntil(5) { !view.isLoading && view.url?.absoluteString == base }
     }
 
@@ -296,23 +300,35 @@ struct LoginFieldMenuTests {
 
             // A move of the field uses what was looked up: the keychain is not asked again for the page.
             let asked = lookups.keys.count
-            for dy in [0.0, 1, 2, 3] { tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 100 + dy, width: 200, height: 20), document: shown.origin) }
+            for dy in [0.0, 1, 2, 3] { tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 100 + dy, width: 200, height: 20), document: shown.origin, reason: .move) }
             await settle(view)
             #expect(tab.loginMenu.shown != nil && lookups.keys.count == asked)
 
             // A search box is no sign-in field; leaving the field only hides the menu, and the password field is offered it in turn.
             try await focus("q", in: view)
-            #expect(await waitUntil(5) { tab.loginMenu.shown == nil } && !tab.loginMenu.dismissedOnPage)
+            #expect(await waitUntil(5) { tab.loginMenu.shown == nil })
             try await focus("p", in: view)
             #expect(await waitUntil(5) { tab.loginMenu.shown != nil && tab.loginMenu.shown?.field != shown.field })
-            // Esc turns it down: nothing on this page offers it again.
+            // Esc puts it away until a field is focused again; nothing locks it for the page.
             tab.loginMenu.handle(try key(53, "\u{1b}", in: window))
-            #expect(tab.loginMenu.shown == nil && tab.loginMenu.dismissedOnPage)
-            for field in ["u", "p"] {
-                try await focus(field, in: view)
-                await settle(view)
-                #expect(tab.loginMenu.shown == nil, "put away on this page: \(field)")
-            }
+            #expect(tab.loginMenu.shown == nil)
+            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 100, width: 200, height: 20), document: shown.origin, reason: .move)
+            #expect(tab.loginMenu.shown == nil, "a scroll doesn't bring it back")
+            try await focus("u", in: view)
+            #expect(await waitUntil(5) { tab.loginMenu.shown?.field == shown.field }, "focusing the field again does")
+
+            // Typing puts it away for the field while it has text; emptied, a focus offers it again.
+            _ = try await view.evaluateJavaScript("const u = document.getElementById('u'); u.value = 'me'; u.dispatchEvent(new Event('input', {bubbles: true})); true")
+            #expect(await waitUntil(5) { tab.loginMenu.shown == nil })
+            try await focus("q", in: view)
+            try await focus("u", in: view)
+            await settle(view)
+            try? await Task.sleep(for: .seconds(1))
+            #expect(tab.loginMenu.shown == nil, "the field has text the user typed")
+            _ = try await view.evaluateJavaScript("document.getElementById('u').value = ''; true")
+            try await focus("q", in: view)
+            try await focus("u", in: view)
+            #expect(await waitUntil(5) { tab.loginMenu.shown?.field == shown.field }, "emptied, it is offered again")
             // Another page starts again.
             await load("https://www.site.test/again", in: view)
             try await focus("u", in: view)
@@ -320,7 +336,10 @@ struct LoginFieldMenuTests {
         }
     }
 
-    @Test func aClickCountsOnlyOnceThePointerMovedInAndThePanelStayedPutForAMoment() async throws {
+    @Test func aClickCountsOnlyOnceThePointerCameInAndThePanelStayedPutForAMoment() async throws {
+        #expect(LoginFieldMenu.Hosting.trackingOptions.contains(.mouseEnteredAndExited) && !LoginFieldMenu.Hosting.trackingOptions.contains(.assumeInside),
+                "a pointer already there when the panel appears gets no mouseEntered")
+        #expect(LoginFieldMenu.clickDelay == 0.3)
         try await withAccounts { _ in
             let b = Browser()
             b.focused()
@@ -338,25 +357,25 @@ struct LoginFieldMenuTests {
 
             clock.addTimeInterval(1)
             tab.loginMenu.choose(carol)
-            #expect(filled.isEmpty && tab.loginMenu.shown != nil, "the pointer never moved into the panel")
-            tab.loginMenu.pointerMoved()
+            #expect(filled.isEmpty && tab.loginMenu.shown != nil, "the pointer never came into the panel (it may have been there all along)")
+            tab.loginMenu.pointerDidEnter()
             #expect(tab.loginMenu.clickCounts)
 
             // A small move keeps it; a move further, as a page moving its field under the pointer would make, starts over.
-            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 42, y: 101, width: 200, height: 20), document: shown.origin)
+            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 42, y: 101, width: 200, height: 20), document: shown.origin, reason: .move)
             #expect(tab.loginMenu.clickCounts)
-            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 140, width: 200, height: 20), document: shown.origin)
+            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 140, width: 200, height: 20), document: shown.origin, reason: .move)
             #expect(!tab.loginMenu.clickCounts)
-            tab.loginMenu.pointerMoved()
+            tab.loginMenu.pointerDidEnter()
             #expect(!tab.loginMenu.clickCounts, "and waits again")
-            clock.addTimeInterval(LoginFieldMenu.clickDelay)
+            clock.addTimeInterval(LoginFieldMenu.clickDelay + 0.01)
             #expect(tab.loginMenu.clickCounts)
             // Out of the page's view and back is appearing anew too.
-            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 5_000, width: 200, height: 20), document: shown.origin)
-            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 140, width: 200, height: 20), document: shown.origin)
+            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 5_000, width: 200, height: 20), document: shown.origin, reason: .move)
+            tab.loginMenu.fieldFocused(shown.field, at: CGRect(x: 40, y: 140, width: 200, height: 20), document: shown.origin, reason: .move)
             #expect(!tab.loginMenu.clickCounts)
-            tab.loginMenu.pointerMoved()
-            clock.addTimeInterval(LoginFieldMenu.clickDelay)
+            tab.loginMenu.pointerDidEnter()
+            clock.addTimeInterval(LoginFieldMenu.clickDelay + 0.01)
             tab.loginMenu.choose(carol)
             #expect(filled == ["carol"] && tab.loginMenu.shown == nil)
         }
@@ -376,36 +395,38 @@ struct LoginFieldMenuTests {
             let field = try #require(tab.loginMenu.shown?.field)
             let site = try #require(tab.loginMenu.shown?.origin)
             let here = CGRect(x: 40, y: 100, width: 200, height: 20), there = CGRect(x: 300, y: 400, width: 200, height: 20)
-            tab.loginMenu.pointerMoved()
+            tab.loginMenu.pointerDidEnter()
             clock.addTimeInterval(1)
             #expect(tab.loginMenu.clickCounts)
 
-            // Tab moves on: hidden, not turned down.
+            // Tab moves on: hidden.
             tab.loginMenu.handle(try key(48, "\t", in: window))
-            #expect(tab.loginMenu.shown == nil && !tab.loginMenu.dismissedOnPage)
-            tab.loginMenu.fieldFocused(field, at: here, document: site)
+            #expect(tab.loginMenu.shown == nil)
+            tab.loginMenu.fieldFocused(field, at: here, document: site, reason: .focus)
             #expect(tab.loginMenu.shown != nil, "a second after it last appeared, the field gets it again")
             #expect(!tab.loginMenu.clickCounts, "with the guard started over")
             // A page blurring and focusing its field to make the menu jump: once a second at most, and each time guarded anew.
             clock.addTimeInterval(0.3)
             tab.loginMenu.fieldLeft(field)
-            tab.loginMenu.fieldFocused(field, at: there, document: site)
+            tab.loginMenu.fieldFocused(field, at: there, document: site, reason: .focus)
             #expect(tab.loginMenu.shown == nil, "not again within a second")
-            tab.loginMenu.fieldFocused(field + 100, at: there, document: site)
+            tab.loginMenu.fieldFocused(field + 100, at: there, document: site, reason: .click)
             #expect(tab.loginMenu.shown == nil, "nor for a field drawn anew: once a second for the page")
             clock.addTimeInterval(0.8)
-            tab.loginMenu.fieldFocused(field, at: there, document: site)
+            tab.loginMenu.fieldFocused(field, at: there, document: site, reason: .focus)
             #expect(tab.loginMenu.shown != nil && !tab.loginMenu.clickCounts)
-            tab.loginMenu.pointerMoved()
-            clock.addTimeInterval(LoginFieldMenu.clickDelay)
+            tab.loginMenu.pointerDidEnter()
+            clock.addTimeInterval(LoginFieldMenu.clickDelay + 0.01)
             #expect(tab.loginMenu.clickCounts)
 
-            // Typing in the field turns it down for the page.
+            // A key hides it; a move doesn't bring it back, a focus or a click does (nothing is locked for the page).
             tab.loginMenu.handle(try key(0, "a", in: window))
-            #expect(tab.loginMenu.shown == nil && tab.loginMenu.dismissedOnPage)
-            clock.addTimeInterval(5)
-            tab.loginMenu.fieldFocused(field, at: here, document: site)
             #expect(tab.loginMenu.shown == nil)
+            clock.addTimeInterval(5)
+            tab.loginMenu.fieldFocused(field, at: here, document: site, reason: .move)
+            #expect(tab.loginMenu.shown == nil)
+            tab.loginMenu.fieldFocused(field, at: here, document: site, reason: .click)
+            #expect(tab.loginMenu.shown != nil && !tab.loginMenu.clickCounts)
         }
     }
 
@@ -443,6 +464,75 @@ struct LoginFieldMenuTests {
             #expect(filled as? Bool == false)
             #expect(try await view.evaluateJavaScript("document.getElementById('p').value") as? String == "")
             view.stopLoading()
+        }
+    }
+
+    // MARK: Which fields are sign-in fields
+
+    /// Markup as the sites have it (trimmed): Google's and Microsoft's first steps, a Korean site's ID field with no autocomplete, a
+    /// search box, a sign-up form.
+    static let google = """
+        <form><div><input type=text name=identifier id=identifierId autocomplete="username webauthn" aria-label="Email or phone"></div>
+        <input type=password name=hiddenPassword tabindex=-1 aria-hidden=true style="position:absolute;opacity:0;width:1px;height:1px">
+        <button type=button>Next</button></form>
+        """
+    static let microsoft = """
+        <form><input type=email name=loginfmt id=i0116 maxlength=113 aria-label="Email, phone, or Skype">
+        <input name=passwd type=password id=i0118 style="display:none"><input type=submit value=Next></form>
+        """
+    static let korean = """
+        <form role=search action=/search><input type=text name=query id=query title="검색어 입력"></form>
+        <form name=loginForm action=/login><input type=text name=memId id=memId maxlength=20><button>다음</button></form>
+        """
+    static let searchOnly = """
+        <form action=/s><input type=text name=q id=q placeholder="Search"></form><input type=search id=s><input id=kw name=keyword>
+        <div role=search><input type=text id=box name=box></div>
+        """
+    static let signUp = """
+        <form><input type=text name=userId id=userId><input type=email name=email id=email>
+        <input type=password id=np autocomplete=new-password><input type=password id=np2 autocomplete=new-password></form>
+        """
+
+    /// The password and user name fields `Logins.fieldFinder` picks on a page, by id.
+    private func picked(_ view: WKWebView) async throws -> [String] {
+        let found = try await view.callAsyncJavaScript(Logins.fieldFinder + "const f = loginFields(); return [f.pw ? f.pw.id : '', f.user ? f.user.id : ''];",
+                                                       in: nil, contentWorld: .defaultClient)
+        return found as? [String] ?? []
+    }
+
+    @Test(arguments: [
+        (google, "identifierId", true), (microsoft, "i0116", true), (korean, "memId", true),
+        (searchOnly, "", false), (signUp, "", false),
+    ])
+    func theSignInFieldIsFoundAsTheSitesDrawIt(html: String, user: String, offered: Bool) async throws {
+        try await withAccounts { _ in
+            let b = Browser()
+            b.focused()
+            defer { b.windowClosed() }
+            let tab = b.openTab(url: nil)
+            let view = tab.wake()
+            let window = OffscreenWindow(view)
+            defer { window.close() }
+            await load(html, at: "https://www.site.test/login", in: view)
+            let found = try await picked(view)
+            #expect(found.last == user, "\(found)")
+            if html == Self.google { #expect(found.first == "", "the hidden password field Google keeps is not shown, so not taken") }
+            // The key button goes by the same fields.
+            if offered {
+                #expect(await waitUntil(5) { !tab.savedLogins.isEmpty }, "no key button")
+                try await focus(user, in: view)
+                #expect(await waitUntil(5) { tab.loginMenu.shown != nil }, "no menu under \(user)")
+                // And the fill goes into it.
+                _ = try await view.callAsyncJavaScript(Logins.fillScript, arguments: ["username": "me@example.com", "password": "pw", "origin": "https://www.site.test"],
+                                                       in: nil, contentWorld: .defaultClient)
+                #expect(try await view.evaluateJavaScript("document.getElementById('\(user)').value") as? String == "me@example.com")
+            } else {
+                for id in ["q", "s", "kw", "box", "userId", "email", "np"] {
+                    _ = try? await view.evaluateJavaScript("(document.getElementById('\(id)') || {focus() {}}).focus(); true")
+                }
+                await settle(view)
+                #expect(tab.loginMenu.shown == nil && tab.savedLogins.isEmpty)
+            }
         }
     }
 
@@ -485,7 +575,7 @@ struct LoginFieldMenuTests {
                 await settle(view)
                 #expect(tab.loginMenu.shown == nil && tab.loginMenu.panel == nil)
                 let asked = lookups.keys.count
-                for dy in [1.0, 2, 3] { tab.loginMenu.fieldFocused(1, at: CGRect(x: 40, y: 100 + dy, width: 200, height: 20), document: Changmun.Tab.Origin(host: "nothing.test", port: 443)) }
+                for dy in [1.0, 2, 3] { tab.loginMenu.fieldFocused(1, at: CGRect(x: 40, y: 100 + dy, width: 200, height: 20), document: Changmun.Tab.Origin(host: "nothing.test", port: 443), reason: .focus) }
                 try await focus("p", in: view)
                 await settle(view)
                 #expect(lookups.keys.count == asked && Set(lookups.keys) == ["nothing.test"], "nothing saved is remembered for the page too")

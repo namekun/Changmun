@@ -272,19 +272,55 @@ enum Logins {
         return hostVariants(key) + (bare == key ? [] : hostVariants(bare))
     }
 
+    /// Which fields of the page are its sign-in fields: `loginFields()` gives the password field and the user name field (either may
+    /// be null). The one definition the key button (`LoginFormWatcher`, `Tab.checkForLogins`), the menu under a field
+    /// (`LoginFieldWatcher`) and the fill (`fillScript`) all go by, so the field offered is the field filled.
+    ///
+    /// - The password field: the first visible one that isn't for a new password (a sign-up form's).
+    /// - With one, the user name is the last visible text, email or phone field before it in its form.
+    /// - Without one (the first step of a sign-in in two steps, Google's or Microsoft's), the first visible field whose autocomplete
+    ///   names a user name or an email; else the one visible email field; else the one visible text or phone field whose name, id or
+    ///   autocomplete says it is an account (id, user, login, email, account, member, uid, identifier; `memId`, `userId`).
+    /// - Never a search box (type search, a searchbox or combobox role, a name like q, query or keyword or with "search" in it, in a
+    ///   form with role search), and never a field of a form that asks for a new password.
+    static let fieldFinder = #"""
+    const cmVisible = e => e.offsetParent !== null || e.getClientRects().length > 0;
+    const cmTokens = e => (e.getAttribute('autocomplete') || '').toLowerCase().split(/\s+/);
+    const cmSignUp = e => { const scope = e.form || document; return [...scope.querySelectorAll('input[type=password]')].some(p => cmTokens(p).includes('new-password')); };
+    const cmSearch = e => {
+      const name = (e.getAttribute('name') || '') + ' ' + (e.id || '');
+      return e.type === 'search' || /^(searchbox|combobox)$/i.test(e.getAttribute('role') || '') ||
+        /^(q|query|keyword|keywords)$/i.test(e.getAttribute('name') || '') || /search/i.test(name) || !!e.closest('[role=search]');
+    };
+    const cmWords = s => s.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/);
+    const cmAccount = e => [e.getAttribute('name') || '', e.id || '', e.getAttribute('autocomplete') || ''].some(s =>
+      /user|login|e-?mail|account|memb|identifier/i.test(s) || cmWords(s).some(w => w === 'id' || w === 'uid'));
+    const cmUsable = e => cmVisible(e) && !e.disabled && !e.readOnly && !cmSearch(e) && !cmSignUp(e);
+    const loginFields = () => {
+      const inputs = [...document.querySelectorAll('input')];
+      const pw = inputs.find(e => e.type === 'password' && cmVisible(e) && !cmTokens(e).includes('new-password')) || null;
+      const typed = e => /^(text|email|tel|)$/.test(e.type) && cmUsable(e);
+      let user = null;
+      if (pw) {
+        user = [...(pw.form || document).querySelectorAll('input')].filter(typed)
+          .filter(e => e.compareDocumentPosition(pw) & Node.DOCUMENT_POSITION_FOLLOWING).pop() || null;
+      }
+      if (!user) {
+        const fields = inputs.filter(typed);
+        const one = list => list.length === 1 ? list[0] : null;
+        user = fields.find(e => cmTokens(e).some(t => t === 'username' || t === 'email')) ||
+          one(fields.filter(e => e.type === 'email')) || one(fields.filter(e => e.type !== 'email' && cmAccount(e))) || null;
+      }
+      return {pw, user};
+    };
+    """#
+
     /// Fills nothing unless it runs in the top document of `origin`: whatever the app checked, the page that gets the password is
     /// the one the account was chosen for.
     static let fillScript = """
     if (window.top !== window || location.origin !== origin) return false;
-    const visible = e => e.offsetParent !== null || e.getClientRects().length > 0;
-    const pw = [...document.querySelectorAll('input[type=password]')].find(visible) || null;
-    let user = null;
-    const scope = (pw && pw.form) || document;
-    const fields = [...scope.querySelectorAll('input')].filter(e => /^(text|email|tel|)$/.test(e.type) && visible(e));
-    if (pw) {
-      user = fields.filter(e => e.compareDocumentPosition(pw) & Node.DOCUMENT_POSITION_FOLLOWING).pop() || null;
-    }
-    user = user || document.querySelector('input[autocomplete=username], input[type=email]');
+    \(fieldFinder)
+    const {pw, user} = loginFields();
     const set = (el, v) => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v);
       el.dispatchEvent(new Event('input', {bubbles: true}));
@@ -360,10 +396,11 @@ extension Tab {
         guard let webView, !isLoadingProvisionally, let origin = Self.httpsOrigin(committedURL), !Self.isUnverified(committedURL) else { savedLogins = []; return }
         let host = origin.key
         // The saved logins are looked up only once the page shows a sign-in field.
-        webView.evaluateJavaScript("!!document.querySelector('input[type=password], input[autocomplete=username]')") { [weak self] value, _ in
+        // In the app's own world, by the one definition of a sign-in field (`Logins.fieldFinder`).
+        webView.callAsyncJavaScript(Logins.fieldFinder + "const f = loginFields(); return !!(f.pw || f.user);", in: nil, in: .defaultClient) { [weak self] result in
             Task { @MainActor in
                 guard let self, self.loginCheck == check else { return }
-                guard value as? Bool == true else { self.savedLogins = []; return }
+                guard (try? result.get()) as? Bool == true else { self.savedLogins = []; return }
                 let accounts = await Self.loginAccounts(host)
                 // A later look, or another page, has the say.
                 guard self.loginCheck == check, !self.isLoadingProvisionally, Self.httpsOrigin(self.committedURL) == origin else { return }
