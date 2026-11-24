@@ -58,6 +58,14 @@ final class FakeClaude: @unchecked Sendable {
     var textsAsked: [String] { requests.flatMap { Self.texts(in: $0).sorted { $0.key < $1.key }.map(\.value) } }
 }
 
+/// How many batches have been asked for, counted from whichever thread asks.
+private final class Asked: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = 0
+    func add() { lock.withLock { value += 1 } }
+    var count: Int { lock.withLock { value } }
+}
+
 // MARK: Pure parts
 
 struct ClaudeTranslationPureTests {
@@ -327,10 +335,15 @@ extension SharedAgentState {
         }
 
         @Test func aBatchThatWorksBetweenFailuresStartsTheCountOver() async {
-            // Answered in the order asked (the later one waits longer), so the failures are never three in a row.
+            // Answered in the order asked, so the failures are never three in a row. Not by a clock: under load a batch can start
+            // later than the one after it. Each answers once the one before it has been taken in, which the start of a new batch shows
+            // (taking one in makes room for the next); the last three, with none to start after them, once the sixth has been, and
+            // in any order they leave no more than two failures in a row.
+            let asked = Asked()
             let fake = FakeClaude { texts in
                 let id = texts.keys.min() ?? 0
-                try await Task.sleep(for: .milliseconds(60 * id))
+                asked.add()
+                while asked.count < min(id + ClaudeTranslation.parallel, 9) { try await Task.sleep(for: .milliseconds(5)) }
                 if id % 3 != 2 { throw ClaudeTranslation.Failure.timedOut }
                 return FakeClaude.json(texts.mapValues { $0.uppercased() })
             }

@@ -4,10 +4,12 @@ import Testing
 @testable import Changmun
 
 struct ProcessOutputTests {
+    /// The program would sleep a minute; what is checked is that nobody waits for that. The timeout comes from the global queue,
+    /// which at the start of a full run is so busy with other tests that it has come ten seconds late: the bound is not tighter.
     @Test func aProgramThatDoesNotEndIsEndedAfterTheTimeout() {
         let start = Date()
-        #expect(ProcessOutput.run("/bin/sleep", ["30"], timeout: 0.3) == nil)
-        #expect(Date().timeIntervalSince(start) < 5)
+        #expect(ProcessOutput.run("/bin/sleep", ["60"], timeout: 0.3) == nil)
+        #expect(Date().timeIntervalSince(start) < 30)
     }
 
     @Test func outputLargerThanAPipeHoldsIsReadInFull() {
@@ -40,9 +42,10 @@ struct ProcessOutputTests {
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: file.path)
             return file.path
         }
+        // A minute's hang, and a bound well under it, for the reason `aProgramThatDoesNotEndIsEndedAfterTheTimeout` gives.
         let start = Date()
-        #expect(ExtensionHost.installedSafariExtensions(executable: try script("hangs", "exec /bin/sleep 30"), timeout: 0.3).isEmpty)
-        #expect(Date().timeIntervalSince(start) < 5)
+        #expect(ExtensionHost.installedSafariExtensions(executable: try script("hangs", "exec /bin/sleep 60"), timeout: 0.3).isEmpty)
+        #expect(Date().timeIntervalSince(start) < 30)
         #expect(ExtensionHost.installedSafariExtensions(executable: try script("lists", "echo '   Path = /Applications/X.app/Contents/PlugIns/X.appex'"), timeout: 5)
                 == ["/Applications/X.app/Contents/PlugIns/X.appex"])
     }

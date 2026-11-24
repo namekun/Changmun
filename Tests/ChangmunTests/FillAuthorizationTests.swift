@@ -84,7 +84,7 @@ struct FillAuthorizationTests {
         let window = OffscreenWindow(view)
         defer { window.close() }
         view.loadHTMLString("<form><input type=text name=u><input type=password name=p></form>", baseURL: URL(string: "https://login.test/"))
-        _ = await waitUntil(5) { !view.isLoading && view.url != nil }
+        try #require(await committed("https://login.test/", in: tab), "the page never loaded")
 
         let f = Fixture()
         f.answer = false
@@ -116,6 +116,23 @@ struct FillAuthorizationTests {
         return await passwordField(of: view) == value
     }
 
+    /// Whether `address` becomes the tab's committed document with no navigation under way, which is what a fill goes by. Waited for
+    /// generously: at the start of a full run, with hundreds of tests sharing the main thread, a first load has taken twenty seconds.
+    private func committed(_ address: String, in tab: Changmun.Tab) async -> Bool {
+        await waitUntil(60) { !tab.isLoadingProvisionally && tab.committedURL?.absoluteString == address }
+    }
+
+    /// Polls until `authorization` gives a password without asking: it says nil while its question is open, and once it was confirmed
+    /// it asks nothing for the minute of grace.
+    private func answersWithoutAsking(_ authorization: FillAuthorization) async -> Bool {
+        let end = Date().addingTimeInterval(30)
+        while Date() < end {
+            if await authorization.read({ "probe" }) != nil { return true }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        return false
+    }
+
     @Test(arguments: ["http://login.test/", "https://login.test:8443/", "https://other.test/"])
     func aPageThatMovedOnWhileTheQuestionWasOpenIsNotFilled(newBase: String) async throws {
         let b = Browser()
@@ -127,21 +144,21 @@ struct FillAuthorizationTests {
         defer { window.close() }
         let form = "<form><input type=text name=u><input type=password name=p></form>"
         view.loadHTMLString(form, baseURL: URL(string: "https://login.test/"))
-        _ = await waitUntil(5) { !view.isLoading && view.url?.absoluteString == "https://login.test/" }
+        try #require(await committed("https://login.test/", in: tab), "the page never loaded")
 
         var release: CheckedContinuation<Bool, Never>?
         let slow = FillAuthorization(required: { true }, confirm: { _ in await withCheckedContinuation { release = $0 } }, now: Date.init)
         var read = 0
         tab.fillLogin(username: "me", authorization: slow) { _, _ in read += 1; return "secret" }
-        _ = await waitUntil { release != nil }
+        try #require(await waitUntil(30) { release != nil }, "the device owner was never asked")
 
         view.loadHTMLString(form, baseURL: URL(string: newBase))
-        _ = await waitUntil(5) { !view.isLoading && view.url?.absoluteString == newBase }
-        #expect(view.url?.absoluteString == newBase)
+        try #require(await committed(newBase, in: tab), "the page never moved on")
         release?.resume(returning: true)
-        // The password is read once the owner has confirmed, and goes (or not) to the page right after; a round trip to the page then
-        // comes after anything sent to it.
-        #expect(await waitUntil(30) { read == 1 }, "the password was never read after the owner confirmed")
+        // The fill decides in the same turn as the owner's answer, which begins the minute of grace: once the authorization answers
+        // a read of its own without asking, the fill has decided, and a round trip to the page then comes after anything sent to it.
+        #expect(await answersWithoutAsking(slow), "the owner's answer never came back")
+        #expect(read == 0, "the password is not even read for a page that moved on")
         for _ in 0..<3 { _ = await passwordField(of: view) }
         #expect(try await view.evaluateJavaScript("document.querySelector('[name=p]').value") as? String == "")
         #expect(try await view.evaluateJavaScript("document.querySelector('[name=u]').value") as? String == "")
