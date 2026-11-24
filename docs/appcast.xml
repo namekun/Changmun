@@ -6,6 +6,21 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.18.3</title>
+      <pubDate>Tue, 24 Nov 2026 16:03:06 +0000</pubDate>
+      <sparkle:version>66</sparkle:version>
+      <sparkle:shortVersionString>0.18.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.18.3</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Fixed:** sites like Naver looked signed out for the first half minute or so after Changmun started. Changmun brings back the sign-ins sites keep only until the browser quits, and with thousands of cookies that took up to 42 seconds. The windows didn't wait that long. It now takes about a second, so it's done before the windows open.
+- **Fixed:** with Claude translation kept on for a site, text a page added after you switched away from its tab could still be sent to be translated. Only the tab you're looking at sends anything now.
+- **Changed:** when a page moves on while you confirm a saved login with Touch ID, the password isn't even read from the keychain any more; before, it was read and then not filled.
+
+Measured against a WebKit cookie store of 5,800 cookies with 562 to bring back: 42 s before, 1.3 s now. If a site still signs you out while you're using it, turn on `defaults write io.github.namekun.Changmun CookieLogNamesSites -bool true` and send me what `/usr/bin/log show --predicate 'subsystem == "io.github.namekun.Changmun" AND category == "cookies"' --last 1h` shows.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.18.3/Changmun-0.18.3.dmg" length="6907275" type="application/octet-stream" sparkle:edSignature="X4auQctNLJV/suqaU39v5q0OrKXW3nLXH3uYa+aClqqt0LdIiFdWIwrpYUP8vRapwuqY1a3rsng+ctc2Q6BvCA==" />
+    </item>
+    <item>
       <title>0.18.2</title>
       <pubDate>Mon, 23 Nov 2026 15:30:25 +0000</pubDate>
       <sparkle:version>65</sparkle:version>
@@ -141,22 +156,9 @@ Tried with automated tests, including one that draws the tile and checks how muc
 Tried with 1611 automated tests and the off-screen test copy. Dragging, hover and notification prompts were not tried on a real screen yet.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.16.0/Changmun-0.16.0.dmg" length="6590953" type="application/octet-stream" sparkle:edSignature="LzKzAuicGMMRO3G1z8DLEl9IbWcRIdyS/4BA4O2dqJ/VKexs1sl1Iof6uwq0cLLDSZDfXsUbfUO09XtnwWtKDA==" />
     </item>
-    <item>
-      <title>0.15.5</title>
-      <pubDate>Mon, 09 Nov 2026 01:02:22 +0000</pubDate>
-      <sparkle:version>56</sparkle:version>
-      <sparkle:shortVersionString>0.15.5</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.15.5</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Changed:** when a page is waiting on you (a pop-up it was refused, a password to save, an extension to install), the left of the address now says so in words, such as "Pop-up Blocked", instead of showing a small dot that didn't say what it was. Press it for the same choices as before, such as "Always Allow for This Site".
-
-Tried with automated tests and the off-screen test copy, on a page that opens an empty window from a timer the way older in-house systems do.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.15.5/Changmun-0.15.5.dmg" length="6158250" type="application/octet-stream" sparkle:edSignature="t1b4teLMCDQjYUUTeIvwz9Hfj59DKZrEmyEzoLwp4RCOU+sWNkdYi0nEED8yWxTXRbTsdPLMGvIWLozCj7KRCg==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: mLenypvclAJtmju0LSObptHUdnTvs7I3CRfDPTwWT7P6h7BXly5IIoSosx2xGVkeIqdovso19zX9fo3pwsXtDg==
-length: 17276
+edSignature: 954kWJ8fZYo/eYNUo1qqWzDq/cK4VWATEzwb8xGlU7h8bHg5jgpp2fS9pHdum12yV+IddfvcmdjSJM/tpf9pAw==
+length: 17903
 -->
