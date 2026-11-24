@@ -487,6 +487,8 @@ final class CookieJournal {
     let files: CookieJournalFiles
     let status: JournalStatus
     private let debounce: Duration
+    /// How long the restore trusts what it last read of a store before reading it again (`restoreLook`).
+    private let restoreLook: Duration
     private let maxWait: Duration
     private let now: () -> Date
     private let sleep: (Duration) async -> Void
@@ -498,7 +500,8 @@ final class CookieJournal {
 
     init(folder: URL, keys: CookieJournalKeys, enabled: Bool, debounce: Duration = .seconds(2), maxWait: Duration = .seconds(10), retryDelay: TimeInterval = 60,
          now: @escaping @Sendable () -> Date = { Date() }, sleep: @escaping (Duration) async -> Void = { try? await Task.sleep(for: $0) },
-         status: JournalStatus? = nil) {
+         status: JournalStatus? = nil, restoreLook: Duration = .milliseconds(500)) {
+        self.restoreLook = restoreLook
         files = CookieJournalFiles(folder: folder, keys: keys, retryDelay: retryDelay, now: now)
         self.enabled = enabled
         self.debounce = debounce
@@ -580,11 +583,19 @@ final class CookieJournal {
             setKeyProblem(false)
             let usable = CookieJournalFile.usable(records, now: now())
             for record in usable { tracker.known[record.key] = record.seen }
+            // What the store has, read again every `restoreLook` (half a second): a page that is already loading may have been given a newer cookie by its
+            // server, which must not be replaced. Read for every cookie instead, a store of thousands took most of a minute to put back a few
+            // hundred, so the windows opened long before it was done and the sites in them saw a browser that was signed out.
+            var have = Set<String>()
+            var lastLook: ContinuousClock.Instant?
             for record in usable {
-                // Looked at again for each cookie: a page that is already loading may have been given a newer one by its server.
-                let have = await tracker.source.allCookies()
-                guard !have.contains(where: { CookieRecord.key(name: $0.name, domain: $0.domain, path: $0.path) == record.key }), let cookie = record.cookie else { continue }
+                if lastLook.map({ $0.duration(to: .now) >= restoreLook }) ?? true {
+                    have = Set(await tracker.source.allCookies().map { CookieRecord.key(name: $0.name, domain: $0.domain, path: $0.path) })
+                    lastLook = .now
+                }
+                guard !have.contains(record.key), let cookie = record.cookie else { continue }
                 await tracker.source.setCookie(cookie)
+                have.insert(record.key)
                 restored += 1
             }
             restoredCount += restored

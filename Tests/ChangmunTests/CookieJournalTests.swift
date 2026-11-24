@@ -936,7 +936,8 @@ struct CookieJournalHardeningTests {
         await rig.journal.attach("default", first)
         #expect(await eventually { await rig.names() == ["a", "b"] })
 
-        let later = CookieJournal(folder: rig.folder, keys: rig.keys, enabled: true, debounce: .milliseconds(30))
+        // Looking again before every cookie, as a slow store makes it do: here setting a cookie takes no time at all.
+        let later = CookieJournal(folder: rig.folder, keys: rig.keys, enabled: true, debounce: .milliseconds(30), restoreLook: .zero)
         let source = FakeSource()
         // While "a" is being put back, a page that is already loading is given "b" by its server.
         source.afterSet = { source in
@@ -945,6 +946,25 @@ struct CookieJournalHardeningTests {
         await later.attach("default", source)
         #expect(source.cookies.first { $0.name == "b" }?.value == "fresher")
         #expect(source.set.map(\.name) == ["a"], "\"b\" was looked at again and left alone")
+    }
+
+    /// A store of thousands of cookies is read a handful of times, not once a cookie: read for each, 562 cookies in a store of 5,800 took 42 s,
+    /// and the windows opened, signed out, long before.
+    @Test func aBigStoreIsPutBackWithoutReadingItForEveryCookie() async throws {
+        let rig = Rig()
+        defer { rig.finish() }
+        let journalled = (0..<500).map { cookie("s\($0)", "journal") }
+        let first = FakeSource(journalled)
+        await rig.journal.attach("default", first)
+        #expect(await eventually { await rig.names()?.count == 500 })
+
+        let later = CookieJournal(folder: rig.folder, keys: rig.keys, enabled: true, debounce: .milliseconds(30))
+        let source = FakeSource((0..<5_000).map { cookie("p\($0)", "kept", expires: tomorrow()) })
+        let started = ContinuousClock.now
+        await later.attach("default", source)
+        #expect(later.restoredCount == 500)
+        #expect(source.reads < 20, "read \(source.reads) times")
+        #expect(started.duration(to: .now) < .seconds(5))
     }
 
     @Test func aRestoredCookieKeepsItsFirstDate() async throws {
