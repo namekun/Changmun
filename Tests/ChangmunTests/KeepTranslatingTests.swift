@@ -1114,6 +1114,24 @@ extension SharedAgentState {
             _ = other
         }
 
+        @Test func aTabPutBehindWhileItsPageWasBeingLookedAtSendsNothingNew() async {
+            let fake = tagging()
+            let site = Site(kept: ["comic.test"], fake: fake)
+            defer { site.close() }
+            await site.load("<p id=a>\(foreignText)</p>")
+            #expect(await site.translated())
+            // The page is kept busy for a while, so the look that starts in that time waits for it: the tab goes behind another
+            // and the page gets new text before that look has its answer.
+            site.view.evaluateJavaScript("{ const end = Date.now() + 1500; while (Date.now() < end) {} }", completionHandler: nil)
+            try? await Task.sleep(for: .milliseconds(400))
+            let other = site.browser.openTab(url: nil, activate: true)
+            await site.append("<p id=b>\(foreign("one"))</p>")
+            await site.settle(1200)
+            #expect(fake.calls == 1, "nothing is sent from a tab that went behind while its page was being looked at")
+            #expect(await site.text("b") == foreign("one"))
+            _ = other
+        }
+
         @Test func aRefusalOfAnAutomaticTranslationIsSaidOncePerTab() async {
             let fake = tagging()
             let site = Site(kept: ["comic.test"], fake: fake)

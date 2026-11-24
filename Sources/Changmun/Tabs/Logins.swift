@@ -480,7 +480,8 @@ extension Tab {
     /// `savedUnder` is the key of another host of the site the login was saved for (nil: the page's own). Everything is judged by the
     /// document committed (`committedURL`), and nothing is filled while a navigation is under way: `webView.url` then already names
     /// where it goes, though the old page is still the one on screen, so a page could send itself to a bank's address that never
-    /// answers and be given the bank's password. Checked again once the device owner has confirmed, and by the script in the page.
+    /// answers and be given the bank's password. Checked again once the device owner has confirmed, before the password is read, and
+    /// by the script in the page.
     func fillLogin(username: String, savedUnder: String? = nil, origin expected: Origin? = nil, field: Int = 0, authorization: FillAuthorization? = nil,
                    readPassword: @escaping (String, String) -> String? = Logins.password(host:username:)) {
         guard webView != nil, !isLoadingProvisionally, let origin = Self.httpsOrigin(committedURL), !Self.isUnverified(committedURL),
@@ -488,10 +489,11 @@ extension Tab {
         if let savedUnder, !Logins.mayShare(savedUnder, with: origin.key) { return }
         let host = savedUnder ?? origin.key
         Task { @MainActor [weak self] in
-            guard let password = await (authorization ?? .shared).read(site: Logins.hostname(ofKey: host), { readPassword(host, username) }) else { return }
-            // The page may have moved on while the question was open (to http, another port, another site): the password
-            // goes only to the origin it was chosen for.
-            guard let self, !self.isLoadingProvisionally, Self.httpsOrigin(self.committedURL) == origin, !Self.isUnverified(self.committedURL) else { return }
+            // The page may have moved on while the question was open (to http, another port, another site): the password goes only
+            // to the origin it was chosen for, and is not even read from the keychain for a page that won't get it.
+            let stillThere = { self.map { !$0.isLoadingProvisionally && Self.httpsOrigin($0.committedURL) == origin && !Self.isUnverified($0.committedURL) } ?? false }
+            guard let password = await (authorization ?? .shared).read(site: Logins.hostname(ofKey: host), { stillThere() ? readPassword(host, username) : nil }) else { return }
+            guard let self, stillThere() else { return }
             self.fill(username: username, password: password, origin: origin, field: field)
         }
     }

@@ -156,6 +156,9 @@ extension Tab {
         guard browser?.isShown(self) == true else { return true }
         guard let quiet = try? await webView.callAsyncJavaScript(PageTranslator.pollScript, contentWorld: .defaultClient) as? Double, current() else { return false }
         guard quiet >= PageTranslator.quietMilliseconds else { return true }
+        // Asked again now: the tab may have gone behind another while the page answered, and what the page collects next would then
+        // take text added since.
+        guard browser?.isShown(self) == true else { return true }
         // Where the page goes is asked afresh each time: a setting, a private window or a profile no longer shown changes it.
         let route = translationRoute()
         if case .refused(let refusal) = route {

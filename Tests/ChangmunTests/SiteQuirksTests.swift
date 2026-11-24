@@ -16,8 +16,11 @@ struct SiteQuirksTests {
         window.isReleasedWhenClosed = false
         window.contentView = view
         view.loadHTMLString("<p>Hotels</p>", baseURL: URL(string: base))
-        let end = Date().addingTimeInterval(5)
-        while (view.isLoading || view.url == nil) && Date() < end { try await Task.sleep(for: .milliseconds(20)) }
+        // The scripts the tests run are for this page, not for the empty one before it. Waited for generously: at the
+        // start of a full run, with hundreds of tests sharing the main thread, a first load has taken twenty seconds.
+        let end = Date().addingTimeInterval(60)
+        while (view.isLoading || view.url?.absoluteString != base) && Date() < end { try await Task.sleep(for: .milliseconds(20)) }
+        try #require(!view.isLoading && view.url?.absoluteString == base, "the page never loaded")
         return (view, window)
     }
 

@@ -1395,11 +1395,14 @@ extension SharedAgentState {
             defer { b.windowClosed() }
             AgentActivity.shared.runStarted()
             defer { AgentActivity.shared.runEnded() }
+            // Only this test's tabs are looked at: suites that run alongside this one use tabs of their own, which stay held for the
+            // lease of their caller.
+            let ours = { AgentActivity.shared.held.filter(Set(tabs.map(\.id)).contains) }
             for tab in tabs { AgentActivity.shared.use(tab, caller: ChatStore.caller) }
-            #expect(AgentActivity.shared.held == tabs.reversed().map(\.id), "all of them, the latest first: the view that keeps them takes the first few left after the page in front")
+            #expect(ours() == tabs.reversed().map(\.id), "all of them, the latest first: the view that keeps them takes the first few left after the page in front")
             #expect(tabs.allSatisfy { AgentActivity.shared.holds($0) }, "all of them are kept awake")
             AgentActivity.shared.use(tabs[0], caller: ChatStore.caller)
-            #expect(AgentActivity.shared.held.first == tabs[0].id && AgentActivity.shared.held.count == tabs.count)
+            #expect(ours().first == tabs[0].id && ours().count == tabs.count)
         }
 
         @Test func aTabInUseIsNeitherArchivedNorPutToSleep() async throws {
