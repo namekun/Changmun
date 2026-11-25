@@ -166,6 +166,33 @@ struct CookieLogTests {
         #expect(pid == nil || pid! > 0)
     }
 
+    /// When cookies go and the log names sites, the trail of the sites they were from follows; without naming, no trail is asked for.
+    @MainActor @Test func aLossIsFollowedByWhatTheSitesPagesLoadedOnlyWhenNamingSites() async {
+        for naming in [true, false] {
+            let source = Source([cookie("NID_AUT", "a", expires: start.addingTimeInterval(3_600)), cookie("other", "b", domain: "example.com", expires: start.addingTimeInterval(3_600))])
+            var written: [String] = []
+            var asked: [Set<String>] = []
+            let watch = CookieWatch(store: "default", source: source, now: { start }, sleep: { _ in }, write: { written += $0 }, naming: { naming },
+                                    trail: { sites in asked.append(sites); return ["trail tab=1 page=www.naver.com -120ms fetch static.nid.naver.com/getProfile"] },
+                                    networkProcess: { nil })
+            watch.start()
+            await watch.settle()
+            source.become([cookie("other", "b", domain: "example.com", expires: start.addingTimeInterval(3_600))])
+            await watch.settle()
+            #expect(asked == (naming ? [["naver.com"]] : []))
+            #expect(written.contains("trail tab=1 page=www.naver.com -120ms fetch static.nid.naver.com/getProfile") == naming)
+        }
+    }
+
+    @Test func aTrailLineHasTheTimeTheKindAndTheAddressWithoutItsQuery() {
+        #expect(ResourceTrail.format(tab: 3, page: "www.naver.com", [[250, "xmlhttprequest", "nid.naver.com", "/login/ext"], [900, "page", "www.naver.com", "/"]]) == [
+            "trail tab=3 page=www.naver.com -250ms xmlhttprequest nid.naver.com/login/ext",
+            "trail tab=3 page=www.naver.com -900ms page www.naver.com/",
+        ])
+        #expect(ResourceTrail.format(tab: 3, page: "a.example", []) == ["trail tab=3 page=a.example nothing loaded in the last 3000ms"])
+        #expect(ResourceTrail.site(ofCookieDomain: ".nid.naver.com") == "naver.com" && ResourceTrail.site(ofCookieDomain: "www.naver.com") == "naver.com")
+    }
+
     @MainActor @Test func noValueReachesALine() async {
         let secrets = (0..<8).map { "SECRET-VALUE-\($0)-\(UUID().uuidString)" }
         let source = Source(secrets.enumerated().map { cookie("NID_\($0.offset)", $0.element) })

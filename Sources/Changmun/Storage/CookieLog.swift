@@ -197,6 +197,8 @@ final class CookieWatch {
     private let networkProcess: @MainActor () -> Int32?
     private let write: @MainActor ([String]) -> Void
     private let naming: () -> Bool
+    /// What the pages of the sites that lost cookies loaded just before (`ResourceTrail`), when the log names sites.
+    private let trail: @MainActor (Set<String>) async -> [String]
     private var snapshot: [String: CookieLog.Entry]?
     private var running: Task<Void, Never>?
     private var dirty = false
@@ -206,6 +208,7 @@ final class CookieWatch {
     init(store: String, source: CookieSource, window: Duration = .milliseconds(250), now: @escaping () -> Date = { Date() },
          sleep: @escaping (Duration) async -> Void = { try? await Task.sleep(for: $0) },
          write: @escaping @MainActor ([String]) -> Void = { CookieLog.write($0) }, naming: @escaping () -> Bool = { CookieLog.namesSites },
+         trail: @escaping @MainActor (Set<String>) async -> [String] = { await ResourceTrail.lines(for: $0) },
          networkProcess: @escaping @MainActor () -> Int32?) {
         self.store = store
         self.source = source
@@ -214,6 +217,7 @@ final class CookieWatch {
         self.sleep = sleep
         self.write = write
         self.naming = naming
+        self.trail = trail
         self.networkProcess = networkProcess
     }
 
@@ -258,7 +262,12 @@ final class CookieWatch {
             if before == nil {
                 write([CookieLog.baselineLine(store: store, next, networkProcess: networkProcess())])
             } else {
-                write(CookieLog.lines(change, store: store, networkProcess: change.massLoss ? networkProcess() : nil, naming: naming()))
+                let naming = naming()
+                write(CookieLog.lines(change, store: store, networkProcess: change.massLoss ? networkProcess() : nil, naming: naming))
+                // Which request took them: the last ones made by the pages of the sites whose cookies went, while they are still listed.
+                if naming, !change.removed.isEmpty {
+                    write(await trail(Set(change.removed.map { ResourceTrail.site(ofCookieDomain: $0.identity.domain) })))
+                }
             }
             snapshot = next
         } while dirty
