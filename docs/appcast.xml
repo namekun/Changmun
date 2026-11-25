@@ -6,6 +6,19 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.18.4</title>
+      <pubDate>Wed, 25 Nov 2026 12:25:03 +0000</pubDate>
+      <sparkle:version>67</sparkle:version>
+      <sparkle:shortVersionString>0.18.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.18.4</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **New:** when the cookie log names sites (`CookieLogNamesSites`), a site losing cookies is followed by what that site's open pages loaded in the three seconds before it (host and path, never the query). This is to find the request behind a sign-in that drops right after signing in (Naver's).
+
+Nothing else changes. If a sign-in drops, send me what `/usr/bin/log show --predicate 'subsystem == "io.github.namekun.Changmun" AND category == "cookies"' --last 10m` shows.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.18.4/Changmun-0.18.4.dmg" length="6917207" type="application/octet-stream" sparkle:edSignature="IeRCwNy7w/lrirwn8z+wFrOCvtIqpp5AahToCG7DpMB1+ZmCMNrYla6ULOJjC9BMEhqFKqT0rlhHxb1WArpvCQ==" />
+    </item>
+    <item>
       <title>0.18.3</title>
       <pubDate>Tue, 24 Nov 2026 16:03:06 +0000</pubDate>
       <sparkle:version>66</sparkle:version>
@@ -136,29 +149,9 @@ Tried with automated tests. The log lines themselves haven't been read back on a
 Tried with automated tests, including one that draws the tile and checks how much of the icon the speaker covers (a fifth before, under a tenth now).</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.16.1/Changmun-0.16.1.dmg" length="6588118" type="application/octet-stream" sparkle:edSignature="y2KADw+bZKEMl7rN9F+JvkIn5qTMzjtIMrLFeORFeiJAZ9G1Kc1gAirIACXdziIhdh6fkEJbNJOYt5OQm0T8Bw==" />
     </item>
-    <item>
-      <title>0.16.0</title>
-      <pubDate>Tue, 10 Nov 2026 20:26:36 +0000</pubDate>
-      <sparkle:version>57</sparkle:version>
-      <sparkle:shortVersionString>0.16.0</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.16.0</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">A pass over the things only the person who wrote Changmun would know, and the habits you bring from other browsers.
-
-- **Nothing lost without a word:** quitting asks while files still download; pages with unsaved changes ask before you leave; an AI question you don't answer in 90 seconds counts as Don't Allow and says so; Stop keeps the messages that were waiting; ⇧⌘T brings closed tabs back after a restart too (Clear History removes them).
-- **Moving around:** right-click ‹ or › for the page history, ⌘. or Esc to stop loading, ⌘← / ⌘→ to go back and forward when the page doesn't use those keys, ⌘R retries a page that failed, ⌥-click downloads a link, and Develop › View Page Source (⌥⌘U).
-- **Tabs:** ⌘⇧[ ⌘⇧] and ⌘1–9 follow the whole sidebar; middle-click closes a tab; Close Other Tabs and Close Tabs Below; Undo after closing a tab; Move to Space; a "…" menu on every tab row; favorites and bookmarks show and mute their sound.
-- **Said in words:** "Not Secure" on http pages, "Camera on" while a page uses it (click to stop), the AI button says Working or Answered with its panel closed, and sleeping or background tabs say so.
-- **Easier to find:** a Help menu with the guide and every shortcut (⌘/), Settings search that finds every setting, and a first-run screen that shows the search bar, spaces and approvals.
-- **New:** notifications when a download finishes or the AI waits while you're in another app, the download count on the Dock icon, Share and Services, your own search engines with a keyword, and bookmarks exported to or imported from an HTML file.
-
-Tried with 1611 automated tests and the off-screen test copy. Dragging, hover and notification prompts were not tried on a real screen yet.</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.16.0/Changmun-0.16.0.dmg" length="6590953" type="application/octet-stream" sparkle:edSignature="LzKzAuicGMMRO3G1z8DLEl9IbWcRIdyS/4BA4O2dqJ/VKexs1sl1Iof6uwq0cLLDSZDfXsUbfUO09XtnwWtKDA==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: 954kWJ8fZYo/eYNUo1qqWzDq/cK4VWATEzwb8xGlU7h8bHg5jgpp2fS9pHdum12yV+IddfvcmdjSJM/tpf9pAw==
-length: 17903
+edSignature: QJfu6jxiCAX8QzLQ+Et9VPhK2PpxP/7f7zDLYmdI4kMmFyxW78ynnsEVFBtcuD1LHiQs1RHzb1jvjKv9ePYJDw==
+length: 16611
 -->
