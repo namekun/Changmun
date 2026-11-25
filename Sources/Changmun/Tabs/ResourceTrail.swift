@@ -9,7 +9,7 @@ import WebKit
 @MainActor
 enum ResourceTrail {
     /// How far back the trail goes, in milliseconds.
-    static let window = 3_000
+    nonisolated static let window = 3_000
 
     /// The registrable domain a cookie's domain belongs to (".naver.com" → "naver.com").
     nonisolated static func site(ofCookieDomain domain: String) -> String {
