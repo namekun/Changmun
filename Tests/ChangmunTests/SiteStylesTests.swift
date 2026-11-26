@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SwiftUI
 import Testing
 import WebKit
 @testable import Changmun
@@ -64,8 +65,19 @@ struct SiteStylesTests {
     }
 
     @Test func everyReasonIsSaidInWords() {
-        let problems: [SiteStyle.Problem] = [.noSite, .badSite, .tooBroad, .alreadyStyled, .noCSS, .tooLong]
+        let problems: [SiteStyle.Problem] = [.noSite, .badSite, .tooBroad, .alreadyStyled, .noCSS, .tooLong, .tooMuch, .tooMany]
         for problem in problems { #expect(problem.reason.count > 10, "\(problem)") }
+    }
+
+    @Test func thereIsALimitOnHowManyStylesAndHowMuchCSSInAll() {
+        let full = (0..<SiteStyle.maxCount).map { style("site\($0).example", "p {}") }
+        #expect(SiteStyle.problem(host: "one-more.example", css: "p {}", among: full) == .tooMany)
+        #expect(SiteStyle.problem(host: "site3.example", css: "q {}", among: full, ignoring: full[3].id) == nil, "editing one of the hundred is not adding a hundred and first")
+        let big = (0..<20).map { style("big\($0).example", String(repeating: "a", count: SiteStyle.maxTotal / 20)) }
+        #expect(SiteStyle.problem(host: "next.example", css: "a", among: big) == .tooMuch)
+        #expect(SiteStyle.problem(host: "big3.example", css: String(repeating: "b", count: SiteStyle.maxTotal / 20), among: big, ignoring: big[3].id) == nil, "a style is counted without its own old text")
+        #expect(SiteStyle.problem(host: "big3.example", css: String(repeating: "b", count: SiteStyle.maxTotal / 20 + 1), among: big, ignoring: big[3].id) == .tooMuch)
+        #expect(SiteStyle.maxCount * SiteStyle.maxLength > SiteStyle.maxTotal, "the total, not the count times the length, is what bounds the script")
     }
 
     // MARK: What is kept
@@ -95,13 +107,66 @@ struct SiteStylesTests {
          "nonsense", 7]
         """
         defaults.set(Data(json.utf8), forKey: SiteStyle.defaultsKey)
-        let kept = SiteStyle.stored(in: defaults)
+        let loaded = SiteStyle.load(in: defaults)
+        let kept = loaded.styles
         #expect(kept.map(\.host) == ["example.com", "old.example"], "no entry that is not as it is written, covers too much, is empty or repeats a site")
         #expect(kept.last?.isOn == true, "an entry without the switch is on")
+        #expect(loaded.setAside.count == 7, "and every other entry is put aside, not lost")
         defaults.set(Data("not json".utf8), forKey: SiteStyle.defaultsKey)
         #expect(SiteStyle.stored(in: defaults).isEmpty)
+        #expect(SiteStyle.load(in: defaults).setAside.count == 1)
         defaults.set("a string", forKey: SiteStyle.defaultsKey)
         #expect(SiteStyle.stored(in: defaults).isEmpty)
+        #expect(SiteStyle.load(in: defaults).setAside.count == 1)
+    }
+
+    @Test func whatCantBeUsedIsKeptThroughEverySaveUntilTheUserDiscardsIt() async throws {
+        try await MainActor.run {
+            let defaults = defaults()
+            // A site that is a public suffix now, a damaged entry, and a style over the limit of length.
+            let json = """
+            [{"id": "\(UUID().uuidString)", "host": "co.kr", "css": "p { color: red }", "isOn": true},
+             {"id": "broken", "host": "bad.example", "css": "p { color: blue }"},
+             {"id": "\(UUID().uuidString)", "host": "long.example", "css": "\(String(repeating: "a", count: SiteStyle.maxLength + 1))"}]
+            """
+            defaults.set(Data(json.utf8), forKey: SiteStyle.defaultsKey)
+            let styles = SiteStyles(defaults: defaults)
+            #expect(styles.styles.isEmpty && styles.setAside.count == 3)
+            _ = styles.save(SiteStyle(host: "example.com", css: "p {}"))
+            styles.setOn(false, covering: "example.com")
+            styles.remove(styles.styles[0].id)
+            let again = SiteStyle.load(in: defaults)
+            #expect(again.styles.isEmpty && again.setAside.count == 3, "saving, switching and removing left them as they were")
+            #expect(again.setAside.contains { $0.contains("co.kr") && $0.contains("p { color: red }") } && again.setAside.contains { $0.contains("bad.example") })
+            #expect(SiteStyles(defaults: defaults).setAside.count == 3, "and they are there at the next start, to be looked at again")
+            styles.discardSetAside()
+            #expect(styles.setAside.isEmpty && SiteStyle.load(in: defaults).setAside.isEmpty)
+            #expect(defaults.data(forKey: SiteStyle.defaultsKey) == nil, "nothing is kept for nothing")
+        }
+    }
+
+    @Test func aLimitLowerThanWhatWasSavedBeforeDoesNotPutAnythingAside() {
+        let defaults = defaults()
+        let many = (0..<(SiteStyle.maxCount + 5)).map { style("site\($0).example", "p {}") }
+        SiteStyle.store(many, in: defaults)
+        let loaded = SiteStyle.load(in: defaults)
+        #expect(loaded.styles.count == many.count && loaded.setAside.isEmpty, "the limit is for what is added")
+    }
+
+    @Test func editingChangesTheSiteAndTheCSSAndNothingElse() async {
+        await MainActor.run {
+            let styles = SiteStyles(defaults: defaults())
+            let one = style("example.com", "a {}")
+            _ = styles.save(one)
+            styles.setOn(false, for: one.id)
+            #expect(styles.update(one.id, host: "www.Example.org", css: "b {}") == nil)
+            #expect(styles.styles.map(\.host) == ["example.org"] && styles.styles[0].css == "b {}")
+            #expect(styles.styles[0].isOn == false, "a switch turned off while the style was being edited stays off")
+            #expect(styles.update(one.id, host: "", css: "b {}") == .noSite)
+            styles.remove(one.id)
+            #expect(styles.update(one.id, host: "example.org", css: "c {}") == nil)
+            #expect(styles.styles.isEmpty, "a style removed while it was being edited is not made again")
+        }
     }
 
     // MARK: What goes in a page
@@ -266,13 +331,59 @@ struct SiteStylesInPageTests {
         #expect(SiteStyles(defaults: defaults).styles.isEmpty)
     }
 
-    @Test func theScriptRunsInAWorldOfItsOwnSoThePageCantReachIt() async throws {
-        let styles = styles([SiteStyle(host: "example.com", css: "p { color: red }")])
+    /// What the page's own scripts can and can't do with a style. The script runs in a world of its own, which hides its variables; but the
+    /// style sheet it makes is part of the document, so the page can read its rules (a site can see which elements a user hides) and can take
+    /// it away. This is a fact of putting CSS in a page, and the guide says so: this test is here so that nobody takes it for a secret again.
+    @Test func thePagesOwnScriptsCanSeeTheSheetAndTakeItAwayAndOnlyTheScriptsVariablesAreHidden() async throws {
+        let styles = styles([SiteStyle(host: "example.com", css: "p { color: red } .hidden { display: none }")])
         let (view, window) = try await page(styles, at: "https://example.com/")
         defer { window.close() }
         let seen = try await view.evaluateJavaScript("typeof globalThis.changmunSiteSheet + typeof globalThis.changmunSiteStyles")
-        #expect(seen as? String == "undefinedundefined", "nothing of it is in the page's own world")
+        #expect(seen as? String == "undefinedundefined", "the script's variables are not in the page's own world")
         let inWorld = try await view.evaluateJavaScript("typeof globalThis.changmunSiteSheet", in: nil, contentWorld: SiteStyles.world)
         #expect(inWorld as? String == "object")
+        let rules = try await view.evaluateJavaScript("Array.from(document.adoptedStyleSheets).flatMap(s => Array.from(s.cssRules).map(r => r.selectorText + '|' + r.style.cssText)).join(';')") as? String
+        #expect(rules?.contains("p|color: red") == true && rules?.contains(".hidden|display: none") == true, "the page reads the user's rules through the document")
+        _ = try await view.evaluateJavaScript("document.adoptedStyleSheets = []; 0")
+        #expect(try await color(in: view) == black, "and takes the style away")
+        styles.setOn(false, covering: "example.com")
+        styles.setOn(true, covering: "example.com")
+        #expect(try await color(in: view) == red, "turning the style off and on again puts it back")
+    }
+}
+
+
+/// The CSS editor takes nothing typed for prose: no curly quotes, dashes, replaced text or corrected words in what is meant to be code.
+@MainActor @Suite(.serialized)
+struct CSSEditorTests {
+    private func textView(in view: NSView) -> NSTextView? {
+        if let found = view as? NSTextView { return found }
+        for sub in view.subviews { if let found = textView(in: sub) { return found } }
+        return nil
+    }
+
+    private final class Box { var text = "" }
+
+    @Test func nothingIsSubstitutedOrCorrectedAsItIsTyped() throws {
+        let box = Box()
+        let binding = Binding(get: { box.text }, set: { box.text = $0 })
+        let host = NSHostingView(rootView: Form { CSSEditor(text: binding).frame(height: 128) }.formStyle(.grouped).frame(width: 400, height: 300))
+        host.frame = NSRect(x: 0, y: 0, width: 400, height: 300)
+        let window = NSWindow(contentRect: host.frame, styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        defer { window.close() }
+        host.layoutSubtreeIfNeeded()
+        let view = try #require(textView(in: host))
+        #expect(!view.isAutomaticQuoteSubstitutionEnabled && !view.isAutomaticDashSubstitutionEnabled)
+        #expect(!view.isAutomaticTextReplacementEnabled && !view.isAutomaticSpellingCorrectionEnabled)
+        #expect(!view.isAutomaticLinkDetectionEnabled && !view.isAutomaticDataDetectionEnabled && !view.isAutomaticTextCompletionEnabled)
+        #expect(!view.isContinuousSpellCheckingEnabled && !view.isGrammarCheckingEnabled && !view.smartInsertDeleteEnabled)
+        #expect(!view.isRichText && view.allowsUndo)
+        #expect(view.accessibilityLabel() == String(localized: "CSS"))
+        // What is typed reaches the text it edits, exactly as typed.
+        let typed = "a::before { content: \"x\"; --bg: 1; font-family: 'Inter' }"
+        view.insertText(typed, replacementRange: NSRange(location: 0, length: 0))
+        #expect(view.string == typed && box.text == typed)
     }
 }

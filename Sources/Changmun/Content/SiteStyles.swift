@@ -12,7 +12,12 @@ struct SiteStyle: Codable, Equatable, Identifiable {
     var isOn = true
 
     static let defaultsKey = "siteStyles"
+    /// The most CSS one style, all styles together, and the styles can have. Every page's script carries the rules of every style (the page's
+    /// own host picks among them), and the defaults hold them as one value. Measured with 100 styles of 50,000 characters: a 4.8 MB script
+    /// and a 4.8 MB value, too much for either. A tenth of that (100 styles, 500,000 characters in all) is well inside what both take.
     static let maxLength = 50_000
+    static let maxTotal = 500_000
+    static let maxCount = 100
 
     init(id: UUID = UUID(), host: String, css: String, isOn: Bool = true) {
         self.id = id
@@ -29,25 +34,48 @@ struct SiteStyle: Codable, Equatable, Identifiable {
         isOn = try values.decodeIfPresent(Bool.self, forKey: .isOn) ?? true
     }
 
-    /// The styles stored in the defaults. Each is checked again as it is read, so a damaged or hand-edited entry loses itself and no other,
-    /// and no entry that could cover a whole kind of site gets to be put in a page.
-    nonisolated static func stored(in defaults: UserDefaults = .standard) -> [SiteStyle] {
-        guard let data = defaults.data(forKey: defaultsKey),
-              let entries = try? JSONDecoder().decode([Lossy].self, from: data) else { return [] }
-        var kept: [SiteStyle] = []
-        for style in entries.compactMap(\.value) where problem(host: style.host, css: style.css, among: kept, ignoring: style.id) == nil && normalizedHost(style.host) == style.host {
-            kept.append(style)
+    /// What the defaults hold: the styles that can be used, and every entry that can't (damaged, hand-edited, or no longer accepted, as a
+    /// site that has become a public suffix), each as the JSON it was. Those are not thrown away: they are written back with the styles,
+    /// looked at again at every start, and the settings say they are there.
+    struct Loaded {
+        var styles: [SiteStyle]
+        var setAside: [String]
+    }
+
+    /// The styles stored in the defaults. Each is checked again as it is read, so a damaged or hand-edited entry is put aside by itself and
+    /// no other, and no entry that could cover a whole kind of site gets to be put in a page. The limits on how many and how much are for
+    /// what is added, not for what is already there.
+    nonisolated static func load(in defaults: UserDefaults = .standard) -> Loaded {
+        guard let stored = defaults.object(forKey: defaultsKey) else { return Loaded(styles: [], setAside: []) }
+        guard let data = stored as? Data, let entries = (try? JSONSerialization.jsonObject(with: data)) as? [Any] else {
+            let text = (stored as? Data).map { String(decoding: $0, as: UTF8.self) } ?? String(describing: stored)
+            return Loaded(styles: [], setAside: [json(text) ?? "null"])
         }
-        return kept
+        var loaded = Loaded(styles: [], setAside: [])
+        for entry in entries {
+            if JSONSerialization.isValidJSONObject(entry), let data = try? JSONSerialization.data(withJSONObject: entry),
+               let style = try? JSONDecoder().decode(SiteStyle.self, from: data),
+               entryProblem(host: style.host, css: style.css, among: loaded.styles, ignoring: style.id) == nil, normalizedHost(style.host) == style.host {
+                loaded.styles.append(style)
+            } else {
+                loaded.setAside.append(json(entry) ?? "null")
+            }
+        }
+        return loaded
     }
 
-    nonisolated static func store(_ styles: [SiteStyle], in defaults: UserDefaults = .standard) {
-        defaults.set(styles.isEmpty ? nil : try? JSONEncoder().encode(styles), forKey: defaultsKey)
+    nonisolated static func stored(in defaults: UserDefaults = .standard) -> [SiteStyle] { load(in: defaults).styles }
+
+    nonisolated static func store(_ styles: [SiteStyle], setAside: [String] = [], in defaults: UserDefaults = .standard) {
+        let kept = styles.compactMap { try? JSONEncoder().encode($0) }.compactMap { try? JSONSerialization.jsonObject(with: $0) }
+        let aside = setAside.compactMap { try? JSONSerialization.jsonObject(with: Data($0.utf8), options: .fragmentsAllowed) }
+        let all = kept + aside
+        defaults.set(all.isEmpty ? nil : try? JSONSerialization.data(withJSONObject: all), forKey: defaultsKey)
     }
 
-    private struct Lossy: Decodable {
-        let value: SiteStyle?
-        init(from decoder: Decoder) throws { value = try? SiteStyle(from: decoder) }
+    /// Any JSON value, a bare string or number too, as text.
+    private nonisolated static func json(_ value: Any) -> String? {
+        (try? JSONSerialization.data(withJSONObject: value, options: .fragmentsAllowed)).map { String(decoding: $0, as: UTF8.self) }
     }
 
     // MARK: Sites
@@ -81,7 +109,7 @@ struct SiteStyle: Codable, Equatable, Identifiable {
     // MARK: Checks
 
     enum Problem: Equatable {
-        case noSite, badSite, tooBroad, alreadyStyled, noCSS, tooLong
+        case noSite, badSite, tooBroad, alreadyStyled, noCSS, tooLong, tooMuch, tooMany
 
         var reason: String {
             switch self {
@@ -91,12 +119,23 @@ struct SiteStyle: Codable, Equatable, Identifiable {
             case .alreadyStyled: String(localized: "That site already has a style. Edit it instead.")
             case .noCSS: String(localized: "Write the CSS to apply.")
             case .tooLong: String(localized: "That is too much CSS: the limit is \(SiteStyle.maxLength) characters.")
+            case .tooMuch: String(localized: "All the styles together can hold \(SiteStyle.maxTotal.formatted()) characters of CSS, and this would be more. Shorten it, or remove another style.")
+            case .tooMany: String(localized: "You can keep up to \(SiteStyle.maxCount) site styles. Remove one to add another.")
             }
         }
     }
 
-    /// Why the two fields can't make a style, or nil when they can. `ignoring` is the style being edited.
+    /// Why the two fields can't be added as a style, or nil when they can. `ignoring` is the style being edited.
     nonisolated static func problem(host: String, css: String, among others: [SiteStyle], ignoring id: UUID? = nil) -> Problem? {
+        if let problem = entryProblem(host: host, css: css, among: others, ignoring: id) { return problem }
+        let others = others.filter { $0.id != id }
+        if others.count >= maxCount { return .tooMany }
+        if others.reduce(css.count, { $0 + $1.css.count }) > maxTotal { return .tooMuch }
+        return nil
+    }
+
+    /// What makes an entry no style at all, apart from how many there are: the same for what is added and what is read.
+    nonisolated static func entryProblem(host: String, css: String, among others: [SiteStyle], ignoring id: UUID? = nil) -> Problem? {
         if host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return .noSite }
         guard let site = normalizedHost(host), site.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || "-._".contains($0)) }),
               !site.hasPrefix("."), !site.contains("..") else { return .badSite }
@@ -142,14 +181,18 @@ struct SiteStyle: Codable, Equatable, Identifiable {
     }
 }
 
-/// The user's site styles, and the web views they are put in. The CSS runs in a world of its own, so a page's scripts can't read or change
-/// it, and only in the main frame: a site's style is for its pages, not for the widgets of it that other sites embed.
+/// The user's site styles, and the web views they are put in. The script that puts the CSS in runs in a world of its own, which keeps its
+/// variables out of the page's reach, but the style sheet it makes is part of the page's document (`document.adoptedStyleSheets`): the page's
+/// own scripts can read its rules, and can take it away by setting `adoptedStyleSheets` (turning the style off and on again puts it back).
+/// A style is put in the main frame only: a site's style is for its pages, not for the widgets of it that other sites embed.
 @MainActor
 final class SiteStyles: ObservableObject {
     static let shared = SiteStyles()
     static let world = WKContentWorld.world(name: "ChangmunSiteStyles")
 
     @Published private(set) var styles: [SiteStyle]
+    /// The saved entries that can't be used (see `SiteStyle.Loaded`), kept until the user discards them.
+    @Published private(set) var setAside: [String]
     private let defaults: UserDefaults
     /// Each web view configuration's scripts that this put in (none while no style is on), for as long as the configuration lives.
     private let installed = NSMapTable<WKUserContentController, NSMutableArray>.weakToStrongObjects()
@@ -160,7 +203,9 @@ final class SiteStyles: ObservableObject {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        styles = SiteStyle.stored(in: defaults)
+        let loaded = SiteStyle.load(in: defaults)
+        styles = loaded.styles
+        setAside = loaded.setAside
     }
 
     /// Every web view configuration is made with this, so each page starts with the styles that are on.
@@ -188,6 +233,22 @@ final class SiteStyles: ObservableObject {
         return nil
     }
 
+    /// Changes the site and the CSS of the style with the id and nothing else: its switch stays as it is in the list now. A style that is gone
+    /// (removed while it was being edited) is not made again.
+    @discardableResult
+    func update(_ id: UUID, host: String, css: String) -> SiteStyle.Problem? {
+        guard var style = styles.first(where: { $0.id == id }) else { return nil }
+        style.host = host
+        style.css = css
+        return save(style)
+    }
+
+    func discardSetAside() {
+        guard !setAside.isEmpty else { return }
+        setAside = []
+        commit()
+    }
+
     func remove(_ id: UUID) {
         styles.removeAll { $0.id == id }
         commit()
@@ -210,7 +271,7 @@ final class SiteStyles: ObservableObject {
     }
 
     private func commit() {
-        SiteStyle.store(styles, in: defaults)
+        SiteStyle.store(styles, setAside: setAside, in: defaults)
         refresh()
     }
 

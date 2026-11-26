@@ -1119,10 +1119,14 @@
 "Custom style" = "사용자 스타일";
 "Apply the style for %@" = "%@의 스타일 적용";
 "Removed the style for %@" = "%@의 스타일을 제거했어요";
-"The CSS you keep here is put in every page of the site and of the sites under it, each time they open, in every window, private ones included. It is kept only on this Mac. Scripts are not supported." = "여기에 보관한 CSS는 해당 사이트와 그 아래 사이트의 모든 페이지가 열릴 때마다, 모든 창(프라이빗 창 포함)에서 적용돼요. 이 Mac에만 저장되고, 스크립트는 지원하지 않아요.";
+"The CSS you keep here is put in every page of the site and of the sites under it, each time they open, in every window, private ones included. It is kept only on this Mac. Scripts are not supported." = "여기에 보관한 CSS는 해당 사이트와 그 아래 사이트의 모든 페이지가 열릴 때마다, 모든 창(개인 창 포함)에서 적용돼요. 이 Mac에만 저장되고, 스크립트는 지원하지 않아요.";
 "Give the site: its address, such as example.com." = "사이트를 입력해 주세요. example.com 같은 주소예요.";
 "That is not a site address." = "사이트 주소가 아니에요.";
 "That covers every site under it. Give one site, such as example.com." = "그 아래 모든 사이트에 적용되는 주소예요. example.com처럼 사이트 하나를 입력해 주세요.";
 "That site already has a style. Edit it instead." = "이미 스타일이 있는 사이트예요. 그 스타일을 수정해 주세요.";
 "Write the CSS to apply." = "적용할 CSS를 입력해 주세요.";
 "That is too much CSS: the limit is %lld characters." = "CSS가 너무 길어요. 최대 %lld자까지 쓸 수 있어요.";
+"%lld saved entries can't be used now (damaged, or a site that is no longer accepted). They are kept, not deleted." = "저장된 항목 %lld개를 지금은 쓸 수 없어요(손상되었거나 더 이상 받지 않는 사이트예요). 지우지 않고 보관해 둬요.";
+"Discard" = "버리기";
+"All the styles together can hold %@ characters of CSS, and this would be more. Shorten it, or remove another style." = "모든 스타일을 합쳐 CSS는 %@자까지 보관할 수 있는데, 이대로면 넘어요. 줄이거나 다른 스타일을 지워 주세요.";
+"You can keep up to %lld site styles. Remove one to add another." = "사이트 스타일은 %lld개까지 보관할 수 있어요. 하나를 지우고 추가해 주세요.";

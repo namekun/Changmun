@@ -1126,3 +1126,7 @@
 "That site already has a style. Edit it instead." = "Diese Website hat schon einen Stil. Bearbeite ihn stattdessen.";
 "Write the CSS to apply." = "Schreibe das CSS, das angewendet werden soll.";
 "That is too much CSS: the limit is %lld characters." = "Das ist zu viel CSS: Das Limit liegt bei %lld Zeichen.";
+"%lld saved entries can't be used now (damaged, or a site that is no longer accepted). They are kept, not deleted." = "%lld gespeicherte Einträge lassen sich jetzt nicht verwenden (beschädigt oder eine Website, die nicht mehr angenommen wird). Sie bleiben erhalten und werden nicht gelöscht.";
+"Discard" = "Verwerfen";
+"All the styles together can hold %@ characters of CSS, and this would be more. Shorten it, or remove another style." = "Alle Stile zusammen fassen %@ Zeichen CSS, und damit wären es mehr. Kürze ihn oder entferne einen anderen Stil.";
+"You can keep up to %lld site styles. Remove one to add another." = "Du kannst bis zu %lld Seitenstile behalten. Entferne einen, um einen weiteren hinzuzufügen.";

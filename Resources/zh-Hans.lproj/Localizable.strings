@@ -1126,3 +1126,7 @@
 "That site already has a style. Edit it instead." = "该网站已有样式，请直接编辑它。";
 "Write the CSS to apply." = "请填写要应用的 CSS。";
 "That is too much CSS: the limit is %lld characters." = "CSS 太长了，上限为 %lld 个字符。";
+"%lld saved entries can't be used now (damaged, or a site that is no longer accepted). They are kept, not deleted." = "有 %lld 个已保存的条目现在无法使用（已损坏，或是不再接受的网站）。它们不会被删除，而是保留着。";
+"Discard" = "丢弃";
+"All the styles together can hold %@ characters of CSS, and this would be more. Shorten it, or remove another style." = "所有样式合在一起最多可保存 %@ 个字符的 CSS，这样会超出。请缩短它，或删除其他样式。";
+"You can keep up to %lld site styles. Remove one to add another." = "最多可保存 %lld 个网站样式。请先删除一个再添加。";
