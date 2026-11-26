@@ -6,6 +6,19 @@
     <description>Changmun updates</description>
     <language>en</language>
     <item>
+      <title>0.18.5</title>
+      <pubDate>Thu, 26 Nov 2026 10:19:56 +0000</pubDate>
+      <sparkle:version>68</sparkle:version>
+      <sparkle:shortVersionString>0.18.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.18.5</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">- **Fixed:** Naver signed you out the moment you signed in. WebKit, as it runs in apps, stops the network requests of scripts it takes for trackers, and Naver's sign-in sends its bot check through one of those; with that request stopped, Naver dropped the sign-in as soon as its front page loaded. Ordinary windows now let such requests through, as Safari does outside Private Browsing. The ad and tracker lists still stop requests to trackers, and WebKit still limits what those scripts can read. Private windows keep WebKit's protection, so a Naver sign-in there may still drop.
+
+Found by signing in to Naver in a plain WebKit window and changing one thing at a time until the sign-in held. If another site signs you out right after you sign in, tell me which.</description>
+      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.18.5/Changmun-0.18.5.dmg" length="6918916" type="application/octet-stream" sparkle:edSignature="3tzNeVFNuST/iC1Kf4CDyK5GKIy6LFTqNx9Ro9TwM7PovuGP83UiJvbh5ZBU+eJdGJcQLVglxsTuUBsq96I4Dg==" />
+    </item>
+    <item>
       <title>0.18.4</title>
       <pubDate>Wed, 25 Nov 2026 12:25:03 +0000</pubDate>
       <sparkle:version>67</sparkle:version>
@@ -136,22 +149,9 @@ Tried with automated tests and by measuring the bar of the off-screen test copy.
 Tried with automated tests. The log lines themselves haven't been read back on another Mac.</description>
       <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.16.2/Changmun-0.16.2.dmg" length="6591275" type="application/octet-stream" sparkle:edSignature="QS/ww3BgR1yTSkpToUui1mSmfrHJRBpDIEfKq4VIdqxjpriXHPzNw2EGYlpCWHHdYadiGguVPdmyZ15/3hbTBw==" />
     </item>
-    <item>
-      <title>0.16.1</title>
-      <pubDate>Wed, 11 Nov 2026 05:18:48 +0000</pubDate>
-      <sparkle:version>58</sparkle:version>
-      <sparkle:shortVersionString>0.16.1</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-      <sparkle:fullReleaseNotesLink>https://github.com/namekun/Changmun/releases/tag/v0.16.1</sparkle:fullReleaseNotesLink>
-      <description sparkle:format="markdown">- **Changed:** a favorite whose tab is playing sound, or is muted, now shows it as a small speaker badge on the tile's corner instead of a button laid over half the site's icon. Click the badge to mute or unmute, as before.
-
-Tried with automated tests, including one that draws the tile and checks how much of the icon the speaker covers (a fifth before, under a tenth now).</description>
-      <enclosure url="https://github.com/namekun/Changmun/releases/download/v0.16.1/Changmun-0.16.1.dmg" length="6588118" type="application/octet-stream" sparkle:edSignature="y2KADw+bZKEMl7rN9F+JvkIn5qTMzjtIMrLFeORFeiJAZ9G1Kc1gAirIACXdziIhdh6fkEJbNJOYt5OQm0T8Bw==" />
-    </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: QJfu6jxiCAX8QzLQ+Et9VPhK2PpxP/7f7zDLYmdI4kMmFyxW78ynnsEVFBtcuD1LHiQs1RHzb1jvjKv9ePYJDw==
-length: 16611
+edSignature: FB1PqsLc7UryRWBvJ5IjZ2kofdhr5W8y8uJBq09KHsY4x51dNwrkwclogttnIsBYW7flfL0ooryydmNoQ0DDDQ==
+length: 16999
 -->
