@@ -104,7 +104,7 @@ Changmun 并不想在所有方面胜过所有浏览器。下面列出它的不�
 | :-- | :-- | :-- |
 | **Safari** | 同一个引擎，外加带垂直标签页的边栏、能操作页面的 AI，以及 Chrome 网上应用店的扩展 | 通过 iCloud 同步标签页、密码和通行密钥 |
 | **Chrome** | 没有 Google 账号和同步服务器，App 体积约为它的 3% | 仅为 Chromium 开发的网站、Chrome 同步，或者 Windows、Linux 和手机 |
-| **Arc** | 同样的边栏加空间的思路，而且仍在增加功能（Arc 自 2025 年 5 月起处于维护模式） | Boosts 或 Easels |
+| **Arc** | 同样的边栏加空间的思路，而且仍在增加功能（Arc 自 2025 年 5 月起处于维护模式） | 带脚本的 Boosts 或 Easels |
 | **Dia** | 同一路思路，但没有自己的 AI 服务，也无需账号：用的是你的 `claude` CLI | 它的托管 AI 功能和面向工作的集成 |
 
 以上内容来自各个项目对自己的说明。如有过时之处，请[提交 issue](https://github.com/namekun/Changmun/issues)。

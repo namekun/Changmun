@@ -104,7 +104,7 @@ Changmun ne cherche pas à battre tous les navigateurs sur tous les points. Voic
 | :-- | :-- | :-- |
 | **Safari** | Le même moteur, avec en plus une barre latérale à onglets verticaux, une IA capable de manœuvrer une page et les extensions du Chrome Web Store | La synchronisation iCloud des onglets, des mots de passe et des clés d’accès |
 | **Chrome** | Pas de compte Google ni de serveur de synchronisation, et une app d’environ 3 % de sa taille | Des sites conçus uniquement pour Chromium, la synchronisation de Chrome, ou Windows, Linux et les téléphones |
-| **Arc** | La même idée de barre latérale et d’espaces, et il continue de gagner des fonctions (Arc est en mode maintenance depuis mai 2025) | Boosts ou Easels |
+| **Arc** | La même idée de barre latérale et d’espaces, et il continue de gagner des fonctions (Arc est en mode maintenance depuis mai 2025) | Boosts avec des scripts ou Easels |
 | **Dia** | La même famille d’idées, sans service d’IA propre ni compte : il utilise votre CLI `claude` | Ses fonctions d’IA hébergées et ses intégrations professionnelles |
 
 Cela vient de ce que chaque projet dit de lui-même. Si quelque chose est périmé, [ouvrez une issue](https://github.com/namekun/Changmun/issues).

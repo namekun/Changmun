@@ -104,7 +104,7 @@ Changmun doesn't try to beat every browser at everything. Here is where it diffe
 | :-- | :-- | :-- |
 | **Safari** | The same engine, plus a sidebar with vertical tabs, an AI that can work a page, and Chrome Web Store extensions | iCloud sync of tabs, passwords and passkeys |
 | **Chrome** | No Google account or sync server, and an app about 3% of the size | Sites built only for Chromium, Chrome sync, or Windows, Linux and phones |
-| **Arc** | The same sidebar-and-spaces idea, still gaining features (Arc has been in maintenance mode since May 2025) | Boosts or Easels |
+| **Arc** | The same sidebar-and-spaces idea, still gaining features (Arc has been in maintenance mode since May 2025) | Boosts that run scripts, or Easels |
 | **Dia** | The same family of ideas, with no AI service of its own and no account: it uses your `claude` CLI | Its hosted AI features and workplace integrations |
 
 These come from what each project says about itself. If something is out of date, please [open an issue](https://github.com/namekun/Changmun/issues).

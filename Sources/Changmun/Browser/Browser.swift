@@ -246,6 +246,7 @@ final class Browser: ObservableObject {
         PasswordWatcher.install(in: config.userContentController)
         ReaderWatcher.install(in: config.userContentController)
         SiteQuirks.install(in: config.userContentController)
+        SiteStyles.install(in: config.userContentController)
         if !Headless.isOn {
             LoginCapture.install(in: config.userContentController)
             LoginFormWatcher.install(in: config.userContentController)

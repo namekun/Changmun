@@ -7,6 +7,7 @@ struct SiteSettings: View {
     @ObservedObject var tab: Tab
     @ObservedObject private var prefs = Preferences.shared
     @ObservedObject private var permissions = SitePermissions.shared
+    @ObservedObject private var styles = SiteStyles.shared
     @State private var zoom = 1.0
 
     private var host: String { (tab.url?.host() ?? "").lowercased() }
@@ -41,6 +42,13 @@ struct SiteSettings: View {
                     switchFor(Binding(get: { !Preferences.matches(host, prefs.trackingKeptHosts) }, set: {
                         prefs.trackingKeptHosts = $0 ? Preferences.removing(host, from: prefs.trackingKeptHosts) : Preferences.adding(host, to: prefs.trackingKeptHosts)
                     }))
+                }
+            }
+            // Only for a site that has a style: the switch is for turning it off when it breaks the page, and the list is in Settings. A private window
+            // shows it too, as it puts the same styles in its pages.
+            if !styles.styles(covering: host).isEmpty {
+                row(String(localized: "Custom style")) {
+                    switchFor(Binding(get: { styles.styles(covering: host).contains(where: \.isOn) }, set: { styles.setOn($0, covering: host) }))
                 }
             }
             row(String(localized: "Zoom")) {

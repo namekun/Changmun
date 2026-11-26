@@ -104,7 +104,7 @@ Changmun will nicht jeden Browser in jeder Hinsicht schlagen. Hier steht, wo er 
 | :-- | :-- | :-- |
 | **Safari** | Dieselbe Engine, dazu eine Seitenleiste mit vertikalen Tabs, eine KI, die eine Seite bedienen kann, und Erweiterungen aus dem Chrome Web Store | iCloud-Synchronisierung von Tabs, Passwörtern und Passkeys |
 | **Chrome** | Kein Google-Konto und kein Sync-Server, und eine App mit etwa 3 % der Größe | Seiten, die nur für Chromium gebaut sind, die Chrome-Synchronisierung oder Windows, Linux und Handys |
-| **Arc** | Dieselbe Idee aus Seitenleiste und Spaces, und es bekommt weiter neue Funktionen (Arc ist seit Mai 2025 im Wartungsmodus) | Boosts oder Easels |
+| **Arc** | Dieselbe Idee aus Seitenleiste und Spaces, und es bekommt weiter neue Funktionen (Arc ist seit Mai 2025 im Wartungsmodus) | Boosts mit Skripten oder Easels |
 | **Dia** | Dieselbe Ideenfamilie, ohne eigenen KI-Dienst und ohne Konto: Es nutzt dein `claude`-CLI | Seine gehosteten KI-Funktionen und die Integrationen für die Arbeit |
 
 Das stammt aus dem, was jedes Projekt über sich selbst sagt. Ist etwas veraltet, [eröffne bitte ein Issue](https://github.com/namekun/Changmun/issues).

@@ -104,7 +104,7 @@ Changmun no intenta ganar a todos los navegadores en todo. Aquí ves en qué se 
 | :-- | :-- | :-- |
 | **Safari** | El mismo motor, más una barra lateral con pestañas verticales, una IA que puede manejar una página y extensiones de Chrome Web Store | La sincronización de iCloud de pestañas, contraseñas y llaves de acceso |
 | **Chrome** | Sin cuenta de Google ni servidor de sincronización, y una app de alrededor del 3 % de su tamaño | Sitios hechos solo para Chromium, la sincronización de Chrome, o Windows, Linux y el móvil |
-| **Arc** | La misma idea de barra lateral y espacios, y sigue ganando funciones (Arc está en modo de mantenimiento desde mayo de 2025) | Boosts o Easels |
+| **Arc** | La misma idea de barra lateral y espacios, y sigue ganando funciones (Arc está en modo de mantenimiento desde mayo de 2025) | Boosts con scripts o Easels |
 | **Dia** | La misma familia de ideas, sin servicio de IA propio y sin cuenta: usa tu CLI `claude` | Sus funciones de IA alojadas y sus integraciones de trabajo |
 
 Esto sale de lo que cada proyecto dice de sí mismo. Si algo está desactualizado, [abre un issue](https://github.com/namekun/Changmun/issues).
