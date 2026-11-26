@@ -224,6 +224,9 @@ final class Browser: ObservableObject {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = store
         config.preferences.isElementFullscreenEnabled = true
+        // Sign-ins whose bot check goes through a script WebKit takes for a tracker (Naver's) are dropped right after signing in otherwise.
+        // A private window keeps the protection, as Safari's Private Browsing does.
+        if store.isPersistent { WebKitFeatures.set(WebKitFeatures.trackerRequestBlocking, false, in: config.preferences) }
         // WebKit then asks for every window.open, clicked or not, and Tab decides: with it off, WebKit refuses the ones nobody
         // clicked for itself, and an allowed site's window can only be opened later as a plain tab (no window.opener).
         config.preferences.javaScriptCanOpenWindowsAutomatically = Tab.knowsUserInitiated
