@@ -1006,6 +1006,10 @@
 "Switch to space %@" = "Zu Space %@ wechseln";
 "Sleep Background Tabs" = "Hintergrund-Tabs in den Ruhezustand versetzen";
 "Close Split View" = "Split View schließen";
+"Open bookmark %@" = "Lesezeichen %@ öffnen";
+"Open %@ from history" = "%@ aus dem Verlauf öffnen";
+"No background tabs are awake" = "Keine Hintergrund-Tabs aktiv";
+"Putting background tabs to sleep" = "Hintergrund-Tabs werden in den Ruhezustand versetzt";
 
 /* Start page */
 "A private window always shows its own start page, whatever is set here." = "Ein privates Fenster zeigt immer seine eigene Startseite, egal was hier eingestellt ist.";

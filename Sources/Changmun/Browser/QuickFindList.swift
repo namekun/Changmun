@@ -24,7 +24,13 @@ enum QuickFindCommand: Hashable, CaseIterable {
         switch self {
         case .splitView: browser.toggleSplit()
         // The tabs Changmun would put to sleep under memory pressure: not the ones on screen, playing, in use by the AI or set never to sleep.
-        case .sleepTabs: browser.sleepIdleTabs(olderThan: 0)
+        case .sleepTabs:
+            // They sleep as each one's media state comes back, so there is no count to say; the message says whether any can.
+            guard browser.tabs.contains(where: { !browser.isShown($0) && !$0.isStart && $0.webView != nil }) else {
+                return browser.flashStatus(String(localized: "No background tabs are awake"))
+            }
+            browser.sleepIdleTabs(olderThan: 0)
+            browser.flashStatus(String(localized: "Putting background tabs to sleep"))
         }
     }
 }
@@ -48,7 +54,8 @@ enum QuickFindItem: Hashable {
 
 enum QuickFindList {
     static let tabLimit = 6
-    static let spaceLimit = 2
+    /// Other spaces shown for words; with nothing typed they are all shown (a window has few), so that every one can be reached by the arrow keys.
+    static let spaceLimit = 4
     static let bookmarkLimit = 3
     static let visitLimit = 3
 
@@ -62,18 +69,32 @@ enum QuickFindList {
         return !words.isEmpty && words.allSatisfy { text.contains($0) }
     }
 
-    /// What the window shows for `query`. `bookmarks` and `visits` are what the library found for the same words (off the main thread, so
-    /// they come when they come); the tabs, spaces and commands are in memory and are worked out here.
+    /// What the library found, and the words it was asked about: a result is only ever shown for those words (`items`), so one that arrives late,
+    /// or has not yet been replaced after another letter was typed, can't put the previous words' rows in front of Return.
+    struct Found: Equatable {
+        var query: String
+        var bookmarks: [Library.Entry] = []
+        var visits: [Library.Entry] = []
+    }
+
+    /// The words of a query as one string, which is what `Found` is for.
+    static func normalized(_ query: String) -> String { words(query).joined(separator: " ") }
+
+    /// What the window shows for `query`. `found` is what the library found (off the main thread, so it comes when it comes); the tabs, spaces and
+    /// commands are in memory and are worked out here.
+    ///
+    /// A space or a command whose name starts with the words comes before the tabs (a tab that holds "work" in its address must not stand
+    /// between the user and the space called Work, nor "split" and Split View); the others of them follow the tabs.
     ///
     /// Only this window's tabs are ever looked at, so a private window's tabs are not in another window's list, and its list has no other
     /// window's tabs. A private window also has no spaces to go to and no history.
     @MainActor
-    static func items(for query: String, in browser: Browser, bookmarks: [Library.Entry] = [], visits: [Library.Entry] = []) -> [QuickFindItem] {
+    static func items(for query: String, in browser: Browser, found: Found? = nil) -> [QuickFindItem] {
         let words = words(query)
+        let typed = words.joined(separator: " ")
         let candidates = browser.tabs.filter { $0.id != browser.activeID && !$0.isStart }
         // A tab that is open is not offered again as the page it shows.
         let open = Set(browser.tabs.compactMap { $0.url?.absoluteString })
-        var list: [QuickFindItem] = []
 
         let tabs: [Tab]
         if words.isEmpty {
@@ -90,29 +111,37 @@ enum QuickFindList {
                 return a.lastShown > b.lastShown
             }
         }
-        list += tabs.prefix(tabLimit).map { tab in
+        let tabRows: [QuickFindItem] = tabs.prefix(tabLimit).map { tab in
             .tab(id: tab.id, title: tab.displayTitle.isEmpty ? (tab.url?.host() ?? "") : tab.displayTitle, url: tab.url?.absoluteString ?? "",
                  space: tab.spaceID == browser.spaceID || browser.isPrivate ? nil : browser.spaces.space(tab.spaceID).name,
                  sleeping: tab.webView == nil && tab.url != nil)
         }
 
+        var spaceRows: [(row: QuickFindItem, name: String)] = []
         if !browser.isPrivate {
-            let spaces = browser.spaces.spaces.filter { $0.id != browser.spaceID && (words.isEmpty || matches($0.name, words)) }
-            list += spaces.prefix(spaceLimit).map { .space(id: $0.id, name: $0.name, symbol: $0.symbol) }
+            spaceRows = browser.spaces.spaces.filter { $0.id != browser.spaceID && (words.isEmpty || matches($0.name, words)) }
+                .map { (.space(id: $0.id, name: $0.name, symbol: $0.symbol), $0.name) }
         }
-
         let splitShown = browser.shownSplit != nil
+        var commandRows: [(row: QuickFindItem, name: String)] = []
         for command in QuickFindCommand.allCases {
             let title = command.title(splitShown: splitShown)
-            if words.isEmpty || matches(title, words) { list.append(.command(command, title: title)) }
+            if words.isEmpty || matches(title, words) { commandRows.append((.command(command, title: title), title)) }
         }
 
-        if !words.isEmpty {
+        guard !words.isEmpty else { return tabRows + spaceRows.map(\.row) + commandRows.map(\.row) }
+        // The name the words are the start of, the whole name first.
+        func leads(_ entry: (row: QuickFindItem, name: String)) -> Bool { Library.fold(entry.name).hasPrefix(typed) }
+        let starting = (spaceRows + commandRows).filter(leads)
+        let leading = starting.filter { Library.fold($0.name) == typed } + starting.filter { Library.fold($0.name) != typed }
+        var list = leading.map(\.row) + tabRows
+        list += spaceRows.filter { !leads($0) }.prefix(spaceLimit).map(\.row) + commandRows.filter { !leads($0) }.map(\.row)
+        // The library's rows are for the words they were found for.
+        if let found, found.query == typed {
             var seen = open
-            let marks = bookmarks.filter { seen.insert($0.url).inserted }.prefix(bookmarkLimit)
-            list += marks.map { .bookmark(url: $0.url, title: $0.title) }
+            list += found.bookmarks.filter { seen.insert($0.url).inserted }.prefix(bookmarkLimit).map { .bookmark(url: $0.url, title: $0.title) }
             if !browser.isPrivate {
-                list += visits.filter { seen.insert($0.url).inserted }.prefix(visitLimit).map { .visit(url: $0.url, title: $0.title) }
+                list += found.visits.filter { seen.insert($0.url).inserted }.prefix(visitLimit).map { .visit(url: $0.url, title: $0.title) }
             }
         }
         return list
@@ -128,6 +157,17 @@ enum QuickFindList {
         guard old.indices.contains(selection) else { return 0 }
         let kept = old[selection].identity
         return new.firstIndex { $0.identity == kept } ?? 0
+    }
+
+    /// The highlight after an arrow key (`delta` 1 down, -1 up): it stops at the ends.
+    static func moved(_ selection: Int, by delta: Int, in count: Int) -> Int {
+        max(0, min(selection + delta, count - 1))
+    }
+
+    /// The row Return runs: the highlighted one, none when the highlight is past the end of the list, nor while an input method is still
+    /// composing (that Return only settles the syllable).
+    static func chosen(_ items: [QuickFindItem], at selection: Int, composing: Bool = false) -> QuickFindItem? {
+        !composing && items.indices.contains(selection) ? items[selection] : nil
     }
 
     /// What Return or a click does with a row: it goes where it says, in this window. A page from the bookmarks or the history opens in a new tab,

@@ -398,7 +398,8 @@ extension ControlServer {
                 switch body["command"] as? String {
                 case "newTab": browser.commandBar = .newTab
                 case "editCurrent": browser.commandBar = .editCurrent
-                case "none": browser.commandBar = nil
+                case "quickFind": browser.quickFind = true
+                case "none": browser.commandBar = nil; browser.quickFind = false
                 default: break
                 }
                 if let group = body["group"] as? [String: Any], let ids = group["ids"] as? [Int] {
@@ -444,6 +445,7 @@ extension ControlServer {
                     "openFolders": browser.space.openFolders, "pinnedFolders": browser.space.pinnedFolders, "folderNames": Library.shared.folderNames(),
                     "groups": browser.groups.map { ["name": $0.name, "open": $0.isOpen] },
                     "tabs": browser.tabs.map { ["id": $0.id, "title": $0.displayTitle] }, "active": browser.activeID ?? -1,
+                    "quickFind": browser.quickFind, "spaceID": browser.spaceID.uuidString,
                 ])
             }
             return true

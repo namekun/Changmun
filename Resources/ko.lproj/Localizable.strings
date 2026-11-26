@@ -1006,6 +1006,10 @@
 "Switch to space %@" = "%@ 스페이스로 전환";
 "Sleep Background Tabs" = "백그라운드 탭 재우기";
 "Close Split View" = "분할 보기 닫기";
+"Open bookmark %@" = "북마크 %@ 열기";
+"Open %@ from history" = "방문 기록의 %@ 열기";
+"No background tabs are awake" = "깨어 있는 백그라운드 탭이 없어요";
+"Putting background tabs to sleep" = "백그라운드 탭을 재우는 중";
 
 /* Start page */
 "A private window always shows its own start page, whatever is set here." = "개인 창은 여기서 무엇을 고르든 항상 개인 창 전용 시작 페이지를 보여 줘요.";

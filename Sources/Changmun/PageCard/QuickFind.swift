@@ -13,15 +13,14 @@ struct QuickFind: View {
     @State private var shown = ""
     @State private var selection = 0
     @State private var pointer = PointerMovement()
-    /// What the library found for `found`, off the main thread: bookmarks and history.
-    @State private var bookmarks: [Library.Entry] = []
-    @State private var visits: [Library.Entry] = []
+    /// What the library found, off the main thread, and for which words: the list shows it only for the words now typed.
+    @State private var found: QuickFindList.Found?
     @State private var searchTask: Task<Void, Never>?
     @State private var announceTask: Task<Void, Never>?
     @FocusState private var focused: Bool
 
     private var items: [QuickFindItem] {
-        QuickFindList.items(for: shown, in: browser, bookmarks: bookmarks, visits: visits)
+        QuickFindList.items(for: shown, in: browser, found: found)
     }
 
     var body: some View {
@@ -93,8 +92,8 @@ struct QuickFind: View {
             .accessibilityElement(children: .contain)
             .accessibilityLabel(String(localized: "Search"))
             .accessibilityAddTraits(.isModal)
-            .onKeyPress(.downArrow) { selection = max(0, min(selection + 1, items.count - 1)); return .handled }
-            .onKeyPress(.upArrow) { selection = max(selection - 1, 0); return .handled }
+            .onKeyPress(.downArrow) { selection = QuickFindList.moved(selection, by: 1, in: items.count); return .handled }
+            .onKeyPress(.upArrow) { selection = QuickFindList.moved(selection, by: -1, in: items.count); return .handled }
             .onKeyPress(.escape) { dismiss(); return .handled }
         }
         .onChange(of: items) { old, new in selection = QuickFindList.keptSelection(selection, old: old, new: new) }
@@ -142,19 +141,18 @@ struct QuickFind: View {
         searchTask?.cancel()
         let query = shown.trimmingCharacters(in: .whitespaces)
         guard !query.isEmpty else {
-            bookmarks = []
-            visits = []
+            found = nil
             return
         }
+        let typed = QuickFindList.normalized(query)
         let hiding = CommandBar.hiddenFavorites(browser)
         let history = !browser.isPrivate
         searchTask = Task {
             try? await Task.sleep(for: .milliseconds(40))
             guard !Task.isCancelled else { return }
-            let found = await Library.shared.inBackground { $0.searchKinds(query, limit: 8, hiding: hiding, history: history) }
+            let result = await Library.shared.inBackground { $0.searchKinds(query, limit: 8, hiding: hiding, history: history) }
             guard !Task.isCancelled else { return }
-            bookmarks = found.bookmarks
-            visits = found.visits
+            self.found = QuickFindList.Found(query: typed, bookmarks: result.bookmarks, visits: result.visits)
         }
     }
 
@@ -164,10 +162,8 @@ struct QuickFind: View {
 
     /// Return opens the highlighted row, but not while an input method is still composing (that Return only settles the syllable).
     private func submit() {
-        guard browser.quickFind, fieldEditor?.hasMarkedText() != true else { return }
-        let list = items
-        guard list.indices.contains(selection) else { return }
-        run(list[selection])
+        guard browser.quickFind, let item = QuickFindList.chosen(items, at: selection, composing: fieldEditor?.hasMarkedText() == true) else { return }
+        run(item)
     }
 }
 
@@ -205,13 +201,16 @@ struct QuickFindRow: View {
         case .tab(_, let title, _, let space, _): Accessibility.suggestionLabel(.tab(title: title, host: "", space: space))
         case .space(_, let name, _): String(localized: "Switch to space \(name)")
         case .command(_, let title): title
-        case .bookmark(let url, let title), .visit(let url, let title): Accessibility.suggestionLabel(.page(title: title, host: URL(string: url)?.host() ?? url))
+        case .bookmark(let url, let title): String(localized: "Open bookmark \(title.isEmpty ? (URL(string: url)?.host() ?? url) : title)")
+        case .visit(let url, let title): String(localized: "Open \(title.isEmpty ? (URL(string: url)?.host() ?? url) : title) from history")
         }
     }
 
     private var accessibilityValue: String? {
         switch item {
-        case .tab(_, _, let url, _, _), .bookmark(let url, _), .visit(let url, _): URL(string: url)?.host()
+        case .tab(_, _, let url, _, let sleeping):
+            Optional([sleeping ? String(localized: "Sleeping") : nil, URL(string: url)?.host()].compactMap { $0 }.joined(separator: ", ")).flatMap { $0.isEmpty ? nil : $0 }
+        case .bookmark(let url, _), .visit(let url, _): URL(string: url)?.host()
         case .space, .command: nil
         }
     }

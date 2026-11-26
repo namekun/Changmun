@@ -1006,6 +1006,10 @@
 "Switch to space %@" = "スペース「%@」に切り替える";
 "Sleep Background Tabs" = "バックグラウンドのタブをスリープ";
 "Close Split View" = "スプリットビューを閉じる";
+"Open bookmark %@" = "ブックマーク「%@」を開く";
+"Open %@ from history" = "履歴から「%@」を開く";
+"No background tabs are awake" = "起きているバックグラウンドのタブはありません";
+"Putting background tabs to sleep" = "バックグラウンドのタブをスリープしています";
 
 /* Start page */
 "A private window always shows its own start page, whatever is set here." = "プライベートウインドウでは、ここでの設定に関わらず、常にそのウインドウ専用のスタートページが表示されます。";

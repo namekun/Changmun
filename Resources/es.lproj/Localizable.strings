@@ -1006,6 +1006,10 @@
 "Switch to space %@" = "Cambiar al espacio %@";
 "Sleep Background Tabs" = "Poner en reposo las pestañas en segundo plano";
 "Close Split View" = "Cerrar vista dividida";
+"Open bookmark %@" = "Abrir el marcador %@";
+"Open %@ from history" = "Abrir %@ del historial";
+"No background tabs are awake" = "No hay pestañas en segundo plano activas";
+"Putting background tabs to sleep" = "Poniendo en reposo las pestañas en segundo plano";
 
 /* Start page */
 "A private window always shows its own start page, whatever is set here." = "Una ventana privada siempre muestra su propia página de inicio, sea cual sea el ajuste.";

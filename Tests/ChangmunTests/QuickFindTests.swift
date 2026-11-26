@@ -106,7 +106,7 @@ extension SharedAgentState {
             open(b, "https://open.example/", "Open page")
             let marks = [Library.Entry(url: "https://open.example/", title: "Open page"), Library.Entry(url: "https://mark.example/", title: "Marked")]
             let visits = [Library.Entry(url: "https://mark.example/", title: "Marked"), Library.Entry(url: "https://seen.example/", title: "Seen")]
-            let items = QuickFindList.items(for: "e", in: b, bookmarks: marks, visits: visits)
+            let items = QuickFindList.items(for: "e", in: b, found: .init(query: "e", bookmarks: marks, visits: visits))
             let kinds = items.compactMap { item -> String? in
                 switch item {
                 case .bookmark(let url, _): "bookmark " + url
@@ -129,6 +129,109 @@ extension SharedAgentState {
             b.split(with: first.id)
             #expect(b.shownSplit != nil && b.activeID == second.id)
             #expect(QuickFindList.items(for: "split", in: b).contains(.command(.splitView, title: String(localized: "Close Split View"))))
+        }
+
+        // MARK: Order
+
+        private func kind(_ item: QuickFindItem) -> String {
+            switch item {
+            case .tab(_, let title, _, _, _): "tab " + title
+            case .space(_, let name, _): "space " + name
+            case .command(_, let title): "command " + title
+            case .bookmark: "bookmark"
+            case .visit: "visit"
+            }
+        }
+
+        @Test func aSpaceOrACommandWhoseNameIsTypedComesBeforeTheTabsThatMerelyHoldTheWord() {
+            let box = Sandbox()
+            let b = browser(spaces: box.store())
+            defer { b.windowClosed() }
+            _ = b.spaces.add(name: "Work", symbol: "briefcase", tint: .blue, isProfile: false)
+            for i in 0..<8 { open(b, "https://work\(i).example/split", "Notes \(i)") }
+            let work = QuickFindList.items(for: "work", in: b).map(kind)
+            #expect(work.first == "space Work", "Return goes to the space, not to one of the eight tabs: \(work)")
+            #expect(work.dropFirst().allSatisfy { $0.hasPrefix("tab ") })
+            #expect(QuickFindList.items(for: "WORK", in: b).map(kind).first == "space Work", "any case")
+            let split = QuickFindList.items(for: "split", in: b).map(kind)
+            #expect(split.first == "command Split View", "\(split)")
+            #expect(QuickFindList.items(for: "split view", in: b).map(kind).first == "command Split View")
+            // Only the start of a name goes before the tabs: a name that merely holds the word follows them.
+            let inside = QuickFindList.items(for: "view", in: b).map(kind)
+            #expect(inside.first == "command Split View", "no tab holds \"view\", so the command is first")
+            open(b, "https://view.example/", "View of things")
+            let after = QuickFindList.items(for: "view", in: b).map(kind)
+            #expect(after.first == "tab View of things" && after.contains("command Split View"), "\(after)")
+        }
+
+        @Test func theWholeNameComesBeforeAnotherNameItIsTheStartOf() {
+            let box = Sandbox()
+            let b = browser(spaces: box.store())
+            defer { b.windowClosed() }
+            _ = b.spaces.add(name: "Workshop", symbol: "star", tint: .blue, isProfile: false)
+            _ = b.spaces.add(name: "Work", symbol: "briefcase", tint: .blue, isProfile: false)
+            #expect(QuickFindList.items(for: "work", in: b).map(kind).prefix(2) == ["space Work", "space Workshop"])
+        }
+
+        @Test func everyOtherSpaceIsListedWhenNothingIsTypedSoTheArrowKeysReachThem() {
+            let box = Sandbox()
+            let b = browser(spaces: box.store())
+            defer { b.windowClosed() }
+            for n in 1...6 { _ = b.spaces.add(name: "Space \(n)", symbol: "star", tint: .blue, isProfile: false) }
+            let names = QuickFindList.items(for: "", in: b).compactMap { item -> String? in if case .space(_, let name, _) = item { name } else { nil } }
+            #expect(names == (1...6).map { "Space \($0)" })
+            let typed = QuickFindList.items(for: "space", in: b).compactMap { item -> String? in if case .space(_, let name, _) = item { name } else { nil } }
+            #expect(typed.count == 6, "the ones whose name starts with the words are not cut off either")
+        }
+
+        // MARK: What the library found, and for which words
+
+        /// The words typed move on before the library has answered: the rows found for the earlier words must not be in the list, where Return
+        /// would open one of them for words it was not found for.
+        @Test func rowsFoundForEarlierWordsAreNotShownForTheWordsNowTyped() {
+            let b = browser()
+            defer { b.windowClosed() }
+            let old = QuickFindList.Found(query: "wik", bookmarks: [Library.Entry(url: "https://wiki.example/", title: "Wiki")],
+                                          visits: [Library.Entry(url: "https://wikipedia.example/", title: "Wikipedia")])
+            #expect(QuickFindList.items(for: "wik", in: b, found: old).map(kind) == ["bookmark", "visit"], "for the words they were found for, they are shown")
+            let now = QuickFindList.items(for: "wiki", in: b, found: old)
+            #expect(now.isEmpty, "nothing matches yet, and the older rows are not it: \(now.map(kind))")
+            #expect(QuickFindList.items(for: "wiki", in: b, found: .init(query: "wiki", bookmarks: old.bookmarks)).map(kind) == ["bookmark"])
+            #expect(QuickFindList.items(for: " WIKI ", in: b, found: .init(query: QuickFindList.normalized(" WIKI "), bookmarks: old.bookmarks)).map(kind) == ["bookmark"],
+                    "the same words in another case or with spaces around are the same words")
+            #expect(QuickFindList.items(for: "", in: b, found: old).allSatisfy { if case .bookmark = $0 { false } else { true } })
+        }
+
+        // MARK: The keys
+
+        @Test func theArrowKeysMoveTheHighlightAndStopAtTheEnds() {
+            #expect(QuickFindList.moved(0, by: 1, in: 3) == 1)
+            #expect(QuickFindList.moved(2, by: 1, in: 3) == 2, "down stops at the last row")
+            #expect(QuickFindList.moved(0, by: -1, in: 3) == 0, "up stops at the first")
+            #expect(QuickFindList.moved(1, by: -1, in: 3) == 0)
+            #expect(QuickFindList.moved(0, by: 1, in: 0) == 0, "an empty list")
+        }
+
+        @Test func returnRunsTheHighlightedRowAndNothingWhileASyllableIsComposingOrPastTheEnd() {
+            let rows: [QuickFindItem] = [.command(.splitView, title: "S"), .bookmark(url: "u", title: "t")]
+            #expect(QuickFindList.chosen(rows, at: 1) == rows[1])
+            #expect(QuickFindList.chosen(rows, at: 2) == nil)
+            #expect(QuickFindList.chosen(rows, at: -1) == nil)
+            #expect(QuickFindList.chosen(rows, at: 0, composing: true) == nil, "that Return only settles the Korean syllable")
+            #expect(QuickFindList.chosen([], at: 0) == nil)
+        }
+
+        // MARK: Sleeping tabs
+
+        @Test func sleepingBackgroundTabsSaysWhetherThereWereAnyToSleep() {
+            let b = browser()
+            defer { b.windowClosed() }
+            open(b, "https://shown.example/", "Shown", activate: true)
+            QuickFindList.run(.command(.sleepTabs, title: ""), in: b)
+            #expect(b.overlay.statusMessage == String(localized: "No background tabs are awake"))
+            open(b, "https://awake.example/", "Awake").wake()
+            QuickFindList.run(.command(.sleepTabs, title: ""), in: b)
+            #expect(b.overlay.statusMessage == String(localized: "Putting background tabs to sleep"))
         }
 
         // MARK: Private windows
@@ -154,7 +257,7 @@ extension SharedAgentState {
             _ = hidden.spaces.add(name: "Work", symbol: "briefcase", tint: .blue, isProfile: false)
             let marks = [Library.Entry(url: "https://mark.example/", title: "Marked")]
             let visits = [Library.Entry(url: "https://seen.example/", title: "Seen")]
-            let items = QuickFindList.items(for: "e", in: hidden, bookmarks: marks, visits: visits)
+            let items = QuickFindList.items(for: "e", in: hidden, found: .init(query: "e", bookmarks: marks, visits: visits))
             #expect(!items.contains { if case .space = $0 { true } else { false } })
             #expect(!items.contains { if case .visit = $0 { true } else { false } }, "what is visited in the other windows is not offered")
             #expect(items.contains(.bookmark(url: "https://mark.example/", title: "Marked")), "bookmarks are, as in the address bar's list")
