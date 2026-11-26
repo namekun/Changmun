@@ -20,6 +20,7 @@ struct AppearanceSettings: View {
                     ForEach([0.75, 0.9, 1, 1.1, 1.25, 1.5], id: \.self) { Text("\(Int($0 * 100))%").tag($0) }
                 }
             }
+            Section("Site Styles") { SiteStylesSettings() }
         }
         .formStyle(.grouped)
     }

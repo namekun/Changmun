@@ -50,7 +50,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
             ["Search", "Search Engine", "Get search suggestions as you type", "On Startup", "Downloads", "Downloads Folder", "Ask where to save each download",
              "Translation", "Translate pages with", "Model", "Browser", "Quit when the last window is closed", "Default Browser", "Other Browsers"]
         case .appearance:
-            ["Theme", "Display", "Default Zoom"]
+            ["Theme", "Display", "Default Zoom", "Site Styles"]
         case .tabs:
             ["Behavior", "Play video in Picture in Picture when you switch to another tab", "Sleep inactive tabs", "Sites that never sleep", "Tab Archive",
              "Close and archive tabs not viewed for…"]

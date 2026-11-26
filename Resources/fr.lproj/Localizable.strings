@@ -1112,3 +1112,17 @@
 "That file isn’t UTF-8 text, so its passwords can’t be read safely. Export it again as CSV, or save it as CSV UTF-8, and try once more." = "Ce fichier n’est pas du texte UTF-8 ; ses mots de passe ne peuvent donc pas être lus en toute sécurité. Exportez-le de nouveau en CSV, ou enregistrez-le en « CSV UTF-8 », puis réessayez.";
 "Repeated in the file, saved once: %@" = "Répétés dans le fichier, enregistrés une seule fois : %@";
 "That CSV file holds your passwords as plain text, readable by anyone who opens it. Changmun left it where it is: delete it once you are done." = "Ce fichier CSV contient vos mots de passe en clair, lisibles par quiconque l’ouvre. Changmun l’a laissé où il est : supprimez-le quand vous avez terminé.";
+"Site Styles" = "Styles par site";
+"Add Site Style" = "Ajouter un style de site";
+"Site" = "Site";
+"CSS" = "CSS";
+"Custom style" = "Style personnalisé";
+"Apply the style for %@" = "Appliquer le style de %@";
+"Removed the style for %@" = "Style de %@ retiré";
+"The CSS you keep here is put in every page of the site and of the sites under it, each time they open, in every window, private ones included. It is kept only on this Mac. Scripts are not supported." = "Le CSS que vous gardez ici est appliqué à chaque page du site et des sites qui en dépendent, à chaque ouverture, dans toutes les fenêtres, y compris privées. Il n’est conservé que sur ce Mac. Les scripts ne sont pas pris en charge.";
+"Give the site: its address, such as example.com." = "Indiquez le site : son adresse, comme example.com.";
+"That is not a site address." = "Ce n’est pas une adresse de site.";
+"That covers every site under it. Give one site, such as example.com." = "Cela couvre tous les sites qui en dépendent. Indiquez un seul site, comme example.com.";
+"That site already has a style. Edit it instead." = "Ce site a déjà un style. Modifiez-le plutôt.";
+"Write the CSS to apply." = "Écrivez le CSS à appliquer.";
+"That is too much CSS: the limit is %lld characters." = "Il y a trop de CSS : la limite est de %lld caractères.";

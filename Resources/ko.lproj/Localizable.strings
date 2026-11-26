@@ -1112,3 +1112,17 @@
 "That file isn’t UTF-8 text, so its passwords can’t be read safely. Export it again as CSV, or save it as CSV UTF-8, and try once more." = "이 파일은 UTF-8 텍스트가 아니어서 비밀번호를 안전하게 읽을 수 없어요. CSV로 다시 내보내거나 ‘CSV UTF-8’로 저장한 뒤 다시 시도해 주세요.";
 "Repeated in the file, saved once: %@" = "파일 안에서 반복됨, 한 번만 저장: %@";
 "That CSV file holds your passwords as plain text, readable by anyone who opens it. Changmun left it where it is: delete it once you are done." = "이 CSV 파일에는 비밀번호가 일반 텍스트로 들어 있어서, 파일을 여는 사람은 누구나 볼 수 있어요. Changmun은 파일을 그대로 두었으니, 다 쓰고 나면 직접 지워 주세요.";
+"Site Styles" = "사이트별 스타일";
+"Add Site Style" = "사이트 스타일 추가";
+"Site" = "사이트";
+"CSS" = "CSS";
+"Custom style" = "사용자 스타일";
+"Apply the style for %@" = "%@의 스타일 적용";
+"Removed the style for %@" = "%@의 스타일을 제거했어요";
+"The CSS you keep here is put in every page of the site and of the sites under it, each time they open, in every window, private ones included. It is kept only on this Mac. Scripts are not supported." = "여기에 보관한 CSS는 해당 사이트와 그 아래 사이트의 모든 페이지가 열릴 때마다, 모든 창(프라이빗 창 포함)에서 적용돼요. 이 Mac에만 저장되고, 스크립트는 지원하지 않아요.";
+"Give the site: its address, such as example.com." = "사이트를 입력해 주세요. example.com 같은 주소예요.";
+"That is not a site address." = "사이트 주소가 아니에요.";
+"That covers every site under it. Give one site, such as example.com." = "그 아래 모든 사이트에 적용되는 주소예요. example.com처럼 사이트 하나를 입력해 주세요.";
+"That site already has a style. Edit it instead." = "이미 스타일이 있는 사이트예요. 그 스타일을 수정해 주세요.";
+"Write the CSS to apply." = "적용할 CSS를 입력해 주세요.";
+"That is too much CSS: the limit is %lld characters." = "CSS가 너무 길어요. 최대 %lld자까지 쓸 수 있어요.";

@@ -1112,3 +1112,17 @@
 "That file isn’t UTF-8 text, so its passwords can’t be read safely. Export it again as CSV, or save it as CSV UTF-8, and try once more." = "このファイルはUTF-8のテキストではないため、パスワードを安全に読み取れません。CSVとして書き出し直すか、「CSV UTF-8」で保存してから、もう一度お試しください。";
 "Repeated in the file, saved once: %@" = "ファイル内で重複、1件だけ保存: %@";
 "That CSV file holds your passwords as plain text, readable by anyone who opens it. Changmun left it where it is: delete it once you are done." = "このCSVファイルにはパスワードがプレーンテキストで含まれており、開いた人なら誰でも読めます。Changmunはファイルをそのままにしてあります。使い終わったら、ご自身で削除してください。";
+"Site Styles" = "サイト別スタイル";
+"Add Site Style" = "サイトスタイルを追加";
+"Site" = "サイト";
+"CSS" = "CSS";
+"Custom style" = "カスタムスタイル";
+"Apply the style for %@" = "%@のスタイルを適用";
+"Removed the style for %@" = "%@のスタイルを削除しました";
+"The CSS you keep here is put in every page of the site and of the sites under it, each time they open, in every window, private ones included. It is kept only on this Mac. Scripts are not supported." = "ここに保存したCSSは、そのサイトとその配下のサイトのすべてのページを開くたびに、すべてのウインドウ（プライベートウインドウを含む）で適用されます。このMacにのみ保存され、スクリプトには対応していません。";
+"Give the site: its address, such as example.com." = "サイトを入力してください。example.comのようなアドレスです。";
+"That is not a site address." = "サイトのアドレスではありません。";
+"That covers every site under it. Give one site, such as example.com." = "その配下のすべてのサイトに当てはまります。example.comのように、1つのサイトを入力してください。";
+"That site already has a style. Edit it instead." = "そのサイトにはすでにスタイルがあります。そちらを編集してください。";
+"Write the CSS to apply." = "適用するCSSを入力してください。";
+"That is too much CSS: the limit is %lld characters." = "CSSが長すぎます。上限は%lld文字です。";

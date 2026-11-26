@@ -1112,3 +1112,17 @@
 "That file isn’t UTF-8 text, so its passwords can’t be read safely. Export it again as CSV, or save it as CSV UTF-8, and try once more." = "Ese archivo no es texto UTF-8, así que sus contraseñas no se pueden leer con seguridad. Expórtalo de nuevo como CSV, o guárdalo como CSV UTF-8, e inténtalo otra vez.";
 "Repeated in the file, saved once: %@" = "Repetidas en el archivo, guardadas una vez: %@";
 "That CSV file holds your passwords as plain text, readable by anyone who opens it. Changmun left it where it is: delete it once you are done." = "Ese archivo CSV contiene tus contraseñas en texto sin cifrar, y cualquiera que lo abra puede leerlas. Changmun lo dejó donde estaba: bórralo cuando termines.";
+"Site Styles" = "Estilos por sitio";
+"Add Site Style" = "Añadir estilo de sitio";
+"Site" = "Sitio";
+"CSS" = "CSS";
+"Custom style" = "Estilo personalizado";
+"Apply the style for %@" = "Aplicar el estilo de %@";
+"Removed the style for %@" = "Se quitó el estilo de %@";
+"The CSS you keep here is put in every page of the site and of the sites under it, each time they open, in every window, private ones included. It is kept only on this Mac. Scripts are not supported." = "El CSS que guardas aquí se aplica en cada página del sitio y de los sitios que cuelgan de él, cada vez que se abren, en todas las ventanas, también las privadas. Solo se guarda en este Mac. Los scripts no son compatibles.";
+"Give the site: its address, such as example.com." = "Indica el sitio: su dirección, como example.com.";
+"That is not a site address." = "Eso no es la dirección de un sitio.";
+"That covers every site under it. Give one site, such as example.com." = "Eso abarca todos los sitios que cuelgan de él. Indica un solo sitio, como example.com.";
+"That site already has a style. Edit it instead." = "Ese sitio ya tiene un estilo. Edítalo en su lugar.";
+"Write the CSS to apply." = "Escribe el CSS que se aplicará.";
+"That is too much CSS: the limit is %lld characters." = "Hay demasiado CSS: el límite es de %lld caracteres.";
