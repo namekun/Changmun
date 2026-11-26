@@ -997,6 +997,16 @@
 "⌘Return in the search field" = "⌘Retour dans le champ de recherche";
 "⌘T opens the search bar over a blank page." = "⌘T ouvre la barre de recherche sur une page vierge.";
 
+/* Quick find (⌘K) */
+"Search Tabs and Commands…" = "Rechercher des onglets et des commandes…";
+"Search tabs, spaces and commands" = "Rechercher des onglets, des espaces et des commandes";
+"Command" = "Commande";
+"Bookmark" = "Signet";
+"Switch to Space" = "Passer à l’espace";
+"Switch to space %@" = "Passer à l’espace %@";
+"Sleep Background Tabs" = "Mettre les onglets en arrière-plan en veille";
+"Close Split View" = "Fermer l’écran partagé";
+
 /* Start page */
 "A private window always shows its own start page, whatever is set here." = "Une fenêtre privée affiche toujours sa propre page d’accueil, quel que soit ce réglage.";
 "A private window can't be shown to the AI, so the AI panel and its suggestions don't appear here." = "Une fenêtre privée ne peut pas être montrée à l’IA : le panneau IA et ses suggestions n’apparaissent donc pas ici.";

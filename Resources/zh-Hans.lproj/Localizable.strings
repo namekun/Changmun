@@ -997,6 +997,16 @@
 "⌘Return in the search field" = "在搜索栏中按 ⌘Return";
 "⌘T opens the search bar over a blank page." = "按 ⌘T 会在空白页上方显示搜索栏。";
 
+/* Quick find (⌘K) */
+"Search Tabs and Commands…" = "搜索标签页和命令…";
+"Search tabs, spaces and commands" = "搜索标签页、空间和命令";
+"Command" = "命令";
+"Bookmark" = "书签";
+"Switch to Space" = "切换到空间";
+"Switch to space %@" = "切换到空间 %@";
+"Sleep Background Tabs" = "让后台标签页休眠";
+"Close Split View" = "关闭分屏浏览";
+
 /* Start page */
 "A private window always shows its own start page, whatever is set here." = "无论在此如何设置，私密浏览窗口始终显示它自己的起始页。";
 "A private window can't be shown to the AI, so the AI panel and its suggestions don't appear here." = "私密浏览窗口无法展示给 AI，所以此窗口中不会出现 AI 面板和 AI 建议。";

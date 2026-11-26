@@ -19,6 +19,7 @@
 - **Archive old tabs** (off by default). Tabs you've stopped using get put away, not thrown away. Turn it on in Settings › Tabs › Tab Archive ("Close and archive tabs not viewed for…"). Tabs you haven't looked at for the time you pick (12 hours to 30 days, counted only while Changmun runs) close into History › Archived Tabs, ready to reopen into their group. Changmun says how many it archived, with Undo. Visible, playing, picture-in-picture, camera/mic, favorite and private tabs are never archived.
 - **Sleeping tabs.** Lets background tabs nap and hands their memory back. Background tabs you haven't seen in 20 minutes, and all background tabs under memory pressure, give back their web process and come back with their history when you return. To nap a tab now, choose Put to Sleep in its menu; Wake Tab brings it back.
 - **Search bar** (⌘L). One box, many errands: search, addresses, switching to open tabs, bookmarks and history, and asking the AI. Type the start of a site you've visited or bookmarked ("git") and it comes first with its name filled in ("github.com"), so Return opens it; keep typing to replace the filled-in part, press → to keep it, or Delete to drop it and search instead. ⌘Return opens the result in a new tab.
+- **Find tabs and commands** (⌘K). A list of what you already have, apart from the search bar, which goes somewhere new: type a few letters to find an open tab (in any space of the window), a space to switch to, a command (Split View, Sleep Background Tabs), a bookmark or a page from your history. Return goes there; a private window lists only its own tabs, and no history.
 - **Start page** (⌘T). A new tab opens a page of your own: a search box that works like the search bar, and your favorites. The dashed "+" tile takes you to the search box: find a site, then press ⌘D on its page to make it a favorite. Right-click a favorite for Open in New Tab or Remove from Favorites (with Undo), and "+N" shows the favorites that don't fit in a row. In Settings › Start Page › New Tabs Open, ⌘T can open the search bar, a blank page or an address of your own instead.
 - **Find on page** (⌘F). It starts from the text you selected in the page. Esc closes it and leaves the found text selected, so ⌘C copies it.
 - **VoiceOver and keyboard.** The sidebar, the address bar, the search bar, find, the AI panel and Settings work with VoiceOver and Full Keyboard Access: every button, field, tab and row has a name (and its state, where it has one), and rows and buttons can be pressed from the keyboard. Status messages are announced as they appear.
@@ -181,6 +182,7 @@ Pick Safari-style or Chrome-style in Settings (⌘,). Only the keys the two brow
 | Keys | Action |
 | --- | --- |
 | ⌘T / ⌘L | New tab (the start page, unless you chose otherwise in Settings › Start Page) / search bar: edit the current address |
+| ⌘K | Find tabs, spaces, commands, bookmarks and history |
 | ⌘Return | In the search bar: open the result in a new tab |
 | ⌘E / ⌘⇧E | AI panel / new AI chat |
 | ⌘D | Add/Remove Favorite |

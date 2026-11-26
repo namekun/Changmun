@@ -552,8 +552,15 @@ final class Library: @unchecked Sendable {
 
     /// Bookmarks first, then history ranked by visits and recency; a private window asks for `history: false`, which leaves the history out.
     func search(_ text: String, limit: Int = 6, hiding folders: [String] = [], history: Bool = true) -> [Entry] {
+        let found = searchKinds(text, limit: limit, hiding: folders, history: history)
+        var seen = Set<String>()
+        return (found.bookmarks + found.visits).filter { seen.insert($0.url).inserted }.prefix(limit).map { $0 }
+    }
+
+    /// The bookmarks and the history that hold the words, apart: ⌘K's list labels them. A private window asks for `history: false`.
+    func searchKinds(_ text: String, limit: Int = 6, hiding folders: [String] = [], history: Bool = true) -> (bookmarks: [Entry], visits: [Entry]) {
         let words = text.lowercased().split(separator: " ").map(String.init).filter { !$0.isEmpty }
-        guard !words.isEmpty else { return [] }
+        guard !words.isEmpty else { return ([], []) }
         let (clause, values) = Self.containing(words)
         let hidden = Self.notIn(folders)
         let marks = rows("SELECT url, title FROM bookmarks WHERE \(clause) AND \(hidden.clause) LIMIT ?", values + hidden.values + [limit])
@@ -561,8 +568,7 @@ final class Library: @unchecked Sendable {
         SELECT url, title FROM history WHERE \(clause)
         ORDER BY visits * 1.0 / (1 + (strftime('%s','now') - last_visit) / 604800.0) DESC LIMIT ?
         """, values + [limit])
-        var seen = Set<String>()
-        return (marks + recent).filter { seen.insert($0.url).inserted }.prefix(limit).map { $0 }
+        return (marks, recent)
     }
 
     /// A folder with the folders inside it. `key` is the stored folder name ("Arc Bookmarks Bar / Work", whatever the language); a folder
