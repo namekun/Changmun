@@ -67,6 +67,9 @@ struct BrowserView: View {
             if let mode = browser.commandBar, !browser.showOnboarding {
                 CommandBar(browser: browser, chat: chat, area: area, mode: mode).transition(Motion.pop(.top))
             }
+            if browser.quickFind, !browser.showOnboarding {
+                QuickFind(browser: browser, area: area).transition(Motion.pop(.top))
+            }
             if let mode = browser.spaceSheet {
                 SpaceSheet(browser: browser, mode: mode).id(mode).transition(Motion.pop(.center))
             }
@@ -81,6 +84,7 @@ struct BrowserView: View {
         .animation(Motion.standard, value: browser.focusMode)
         .animation(Motion.standard, value: browser.fullScreen)
         .animation(Motion.quick, value: browser.commandBar)
+        .animation(Motion.quick, value: browser.quickFind)
         .animation(Motion.quick, value: browser.spaceSheet)
         .animation(Motion.quick, value: browser.peek?.id)
     }

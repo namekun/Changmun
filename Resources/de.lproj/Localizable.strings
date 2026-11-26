@@ -997,6 +997,20 @@
 "⌘Return in the search field" = "⌘Return im Suchfeld";
 "⌘T opens the search bar over a blank page." = "⌘T öffnet die Suchleiste über einer leeren Seite.";
 
+/* Quick find (⌘K) */
+"Search Tabs and Commands…" = "Tabs und Befehle suchen …";
+"Search tabs, spaces and commands" = "Tabs, Spaces und Befehle suchen";
+"Command" = "Befehl";
+"Bookmark" = "Lesezeichen";
+"Switch to Space" = "Zu Space wechseln";
+"Switch to space %@" = "Zu Space %@ wechseln";
+"Sleep Background Tabs" = "Hintergrund-Tabs in den Ruhezustand versetzen";
+"Close Split View" = "Split View schließen";
+"Open bookmark %@" = "Lesezeichen %@ öffnen";
+"Open %@ from history" = "%@ aus dem Verlauf öffnen";
+"No background tabs are awake" = "Keine Hintergrund-Tabs aktiv";
+"Putting background tabs to sleep" = "Hintergrund-Tabs werden in den Ruhezustand versetzt";
+
 /* Start page */
 "A private window always shows its own start page, whatever is set here." = "Ein privates Fenster zeigt immer seine eigene Startseite, egal was hier eingestellt ist.";
 "A private window can't be shown to the AI, so the AI panel and its suggestions don't appear here." = "Ein privates Fenster lässt sich der KI nicht zeigen, daher erscheinen hier weder das KI-Fenster noch KI-Vorschläge.";

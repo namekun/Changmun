@@ -138,7 +138,15 @@ final class Browser: ObservableObject {
     }
     @Published var commandBar: CommandBarMode? {
         didSet {
-            if commandBar != nil { closePeek() } else { commandBarChips = nil }
+            if commandBar != nil { closePeek(); quickFind = false } else { commandBarChips = nil }
+        }
+    }
+    /// ⌘K's list of tabs, spaces, commands, bookmarks and history (`QuickFind`). It and the command bar never show together.
+    @Published var quickFind = false {
+        didSet {
+            guard quickFind else { return }
+            closePeek()
+            commandBar = nil
         }
     }
     /// The command bar's engine row while it shows one (see `searchWithChip`).

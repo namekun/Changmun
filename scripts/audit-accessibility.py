@@ -256,6 +256,40 @@ def main():
         if "WebView" not in reply.get("firstResponder", ""):
             failures.append((state, f"the keyboard should be back on the page, it is on {reply.get('firstResponder')}"))
 
+    if wanted("quickfind"):
+        print("find tabs and commands (⌘K)")
+        ui(command="quickFind")
+        time.sleep(0.5)
+        key("bravo", 0)
+        time.sleep(1.2)
+        state = "quick find open"
+        nodes = audit(state)
+        expect_controls(state, nodes, ["Switch to tab Bravo"])
+        expect_label(state, nodes, "Search tabs, spaces and commands")
+        expect_selected(state, nodes, "Switch to tab Bravo")
+        expect_announced(state, "suggestion")
+        # A bookmark and a command are named for what they are: the kind is in the name, not only in the text beside it.
+        ui(command="none")
+        ui(command="quickFind")
+        time.sleep(0.5)
+        key("fav one", 0)
+        time.sleep(1.5)
+        nodes = audit("quick find: a bookmark")
+        expect_controls("quick find: a bookmark", nodes, ["Open bookmark Fav one"])
+        ui(command="none")
+        ui(command="quickFind")
+        time.sleep(0.5)
+        key("split", 0)
+        time.sleep(1.2)
+        nodes = audit("quick find: a command")
+        expect_controls("quick find: a command", nodes, ["Split View"])
+        key("\u001b", 53)
+        time.sleep(0.8)
+        state = "quick find closed"
+        audit(state)
+        if "WebView" not in reply.get("firstResponder", ""):
+            failures.append((state, f"the keyboard should be back on the page, it is on {reply.get('firstResponder')}"))
+
     if wanted("find"):
         print("find bar")
         ui(find=True, findText="Alpha")

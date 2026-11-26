@@ -29,6 +29,7 @@ enum AppMenu {
         add(file, "New Window", #selector(AppDelegate.newWindow(_:)), "n")
         add(file, "New Private Window", #selector(AppDelegate.newPrivateWindow(_:)), "n", [.command, .shift])
         add(file, "Open Location", #selector(AppDelegate.openLocation(_:)), "l")
+        add(file, "Search Tabs and Commands…", #selector(AppDelegate.openQuickFind(_:)), "k")
         add(file, "Close Tab", #selector(AppDelegate.closeTab(_:)), "w")
         add(file, "Close Other Tabs", #selector(AppDelegate.closeOtherTabs(_:)))
         add(file, "Close Tabs Below", #selector(AppDelegate.closeTabsBelow(_:)))

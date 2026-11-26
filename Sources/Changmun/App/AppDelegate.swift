@@ -164,6 +164,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func newTab(_ sender: Any?) { browser.openNewTab() }
     @objc func openLocation(_ sender: Any?) { browser.openLocation() }
+    @objc func openQuickFind(_ sender: Any?) { browser.toggleQuickFind() }
 
     @objc func showSettings(_ sender: Any?) {
         Panels.show("settings", title: String(localized: "Settings"), size: NSSize(width: 720, height: 520), resizable: false) { SettingsView(prefs: Preferences.shared) }
@@ -381,6 +382,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let browser = current else { return }
         if browser.peek != nil { return browser.closePeek() }
         if browser.commandBar != nil { browser.commandBar = nil; return }
+        if browser.quickFind { browser.quickFind = false; return }
         if let id = browser.activeID { browser.closeTab(id) } else { browser.window?.performClose(nil) }
     }
     /// The page in front: the peek while one is open, otherwise the active tab.
